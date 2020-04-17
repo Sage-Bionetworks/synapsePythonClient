@@ -972,9 +972,9 @@ class Synapse(object):
                 properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
 
             # update the file_handle metadata if the FileEntity's FileHandle id has changed
-            local_state_fh_id = local_state.get('_file_handle',{}).get('id')
+            local_state_fh_id = local_state.get('_file_handle', {}).get('id')
             if local_state_fh_id \
-                    and properties['dataFileHandleId'] != local_state_fh_id:
+                and properties['dataFileHandleId'] != local_state_fh_id:
                 local_state['_file_handle'] = find_data_file_handle(
                     self._getEntityBundle(properties['id'], requestedObjects={'includeEntity': True,
                                                                               'includeFileHandles': True})
