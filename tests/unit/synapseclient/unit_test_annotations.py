@@ -3,12 +3,21 @@
 
 from datetime import datetime as Datetime
 from math import pi
+import time
+import uuid
 
 from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_greater, assert_is_instance
 
-from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations, \
-    to_submission_status_annotations, from_submission_status_annotations, set_privacy, is_synapse_annotations, \
-    Annotations
+from synapseclient.annotations import (
+    Annotations,
+    to_synapse_annotations,
+    from_synapse_annotations,
+    to_submission_status_annotations,
+    from_submission_status_annotations,
+    convert_old_annotation_json,
+    is_synapse_annotations,
+    set_privacy,
+)
 from synapseclient.core.exceptions import *
 from synapseclient.entity import File
 
@@ -245,3 +254,50 @@ class TestAnnotations:
         assert_equals('syn123', annot.id)
         assert_equals('0f2977b9-0261-4811-a89e-c13e37ce4604', annot.etag)
         assert_equals({'asdf': 'qwerty'}, annot)
+
+
+def test_convert_old_annotation_json():
+    """Test converting an old style annotations dict as may be returned
+    from some older APIs to the version used by entity bundle services v2"""
+
+    now = time.time()
+    old_json = {
+        'id': 'foo',
+        'etag': str(uuid.uuid4()),
+
+        'stringAnnotations': {'foo': ['bar', ['baz']]},
+        'longAnnotations': {'first': [1, 2, 3], 'second': [4, 5]},
+        'doubleAnnotations': {'third': [5.6, 6.7]},
+        'dateAnnotations': {'now': [now, now + 1]},
+
+        'blobAnnotations': {'blobs': ['are ignored']},
+        'anything else': 'is ignored',
+    }
+
+    converted = convert_old_annotation_json(old_json)
+
+    expected = {k: old_json.get(k) for k in ('id', 'etag')}
+    expected_annotations = expected['annotations'] = {}
+
+    expected_annotations['foo'] = {
+        'type': 'STRING',
+        'value': old_json['stringAnnotations']['foo'],
+    }
+    expected_annotations['first'] = {
+        'type': 'LONG',
+        'value': old_json['longAnnotations']['first'],
+    }
+    expected_annotations['second'] = {
+        'type': 'LONG',
+        'value': old_json['longAnnotations']['second'],
+    }
+    expected_annotations['third'] = {
+        'type': 'DOUBLE',
+        'value': old_json['doubleAnnotations']['third'],
+    }
+    expected_annotations['now'] = {
+        'type': 'TIMESTAMP_MS',
+        'value': old_json['dateAnnotations']['now'],
+    }
+
+    assert_equals(converted, expected)

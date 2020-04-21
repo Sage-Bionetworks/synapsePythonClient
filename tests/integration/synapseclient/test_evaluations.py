@@ -17,6 +17,7 @@ def setup(module):
     module.project = integration.project
 
 
+
 def test_evaluations():
     # Create an Evaluation
     name = 'Test Evaluation %s' % str(uuid.uuid4())
@@ -88,7 +89,21 @@ def test_evaluations():
             f = File(filename, parentId=project.id, name='entry-%02d' % i,
                      description='An entry for testing evaluation')
             entity = syn.store(f)
-            syn.submit(ev, entity, name='Submission %02d' % i, submitterAlias='My Team')
+
+            # annotate the submission entity in order to flex some extra
+            # code paths
+            annos = syn.get_annotations(entity)
+            annos['submissionCount'] = i
+            syn.set_annotations(annos)
+
+            entity = syn.get(entity.id)
+
+            last_submission = syn.submit(ev, entity, name='Submission %02d' % i, submitterAlias='My Team')
+
+        # retrieve the submission individually to exercise that call
+        submission = syn.getSubmission(last_submission.id)
+        assert_equals(submission.id, last_submission.id)
+        assert_equals(submission.entity.annotations['submissionCount'], [num_of_submissions - 1])
 
         # Score the submissions
         submissions = syn.getSubmissions(ev, limit=num_of_submissions-1)
@@ -109,6 +124,7 @@ def test_evaluations():
         submissions = syn.getSubmissions(ev)
         b = 123
         for submission, status in syn.getSubmissionBundles(ev):
+
             bogosity[submission.id] = b
             a = dict(foo='bar', bogosity=b)
             b += 123
@@ -194,5 +210,3 @@ def test_teams():
             if tries > 0:
                 time.sleep(1)
     assert_equals(team, found_team)
-
-

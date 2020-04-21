@@ -3,12 +3,14 @@ import configparser
 import json
 import os
 import tempfile
+import uuid
 
 from mock import call, create_autospec, Mock, patch
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
 
 import synapseclient
+from synapseclient.annotations import convert_old_annotation_json
 from synapseclient import client
 from synapseclient import *
 from synapseclient.core.exceptions import *
@@ -1311,3 +1313,49 @@ def test_store__needsUploadFalse__fileHandleId_not_in_local_state():
         f = File('/fake_file.txt', parent='syn123')
         syn.store(f)
         # test passes if no KeyError exception is thrown
+
+
+def test_get_submission_with_annotations():
+    """Verify a getSubmission with annotation entityBundleJSON that
+    uses the old style annotations is converted to bundle v2 style
+    before being used to retrieve a related entity as part of
+    a getSubmission call"""
+
+    evaluation_id = 98765,
+    submission_id = 67890
+    entity_id = 12345
+
+    old_annotation_json = {
+        'id': entity_id,
+        'etag': str(uuid.uuid4()),
+        'stringAnnotations': {
+            'foo': ['bar', 'baz'],
+        }
+    }
+
+    entity_bundle_json = {'annotations': old_annotation_json}
+    converted_bundle_json = {
+        'annotations': convert_old_annotation_json(old_annotation_json)
+    }
+
+    submission = {
+        'evaluationId': evaluation_id,
+        'entityId': entity_id,
+        'versionNumber': 1,
+        'entityBundleJSON': json.dumps(entity_bundle_json),
+    }
+
+    with patch.object(syn, 'restGET') as restGET,\
+         patch.object(syn, '_getWithEntityBundle') as get_entity:
+
+        restGET.return_value = submission
+        response = syn.getSubmission(submission_id)
+
+        restGET.assert_called_once_with(f'/evaluation/submission/{submission_id}')
+        get_entity.assert_called_once_with(
+            entityBundle=converted_bundle_json,
+            entity=entity_id,
+            submission=str(submission_id),
+        )
+
+        assert_equal(evaluation_id, response["evaluationId"])
