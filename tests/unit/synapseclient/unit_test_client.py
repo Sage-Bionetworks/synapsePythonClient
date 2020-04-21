@@ -1346,7 +1346,7 @@ def test_get_submission_with_annotations():
     }
 
     with patch.object(syn, 'restGET') as restGET,\
-         patch.object(syn, '_getWithEntityBundle') as get_entity:
+            patch.object(syn, '_getWithEntityBundle') as get_entity:
 
         restGET.return_value = submission
         response = syn.getSubmission(submission_id)
