@@ -57,7 +57,9 @@ install:
     sudo apt-get install gnome-keyring
   fi
 - pip install -U setuptools
-- travis_wait pip install pysftp pandas boto3
+
+  # pin cryptography until https://github.com/pyca/cryptography/issues/5215 resolved
+- travis_wait pip install pysftp pandas boto3 cryptography==2.9.0
 - python setup.py install
 
 before_script:
