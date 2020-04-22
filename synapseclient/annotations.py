@@ -333,3 +333,31 @@ def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any]) -> A
         annos[key] = [conversion_func(v) for v in value_and_type['value']]
 
     return annos
+
+
+def convert_old_annotation_json(annotations):
+    """Transforms a parsed JSON dictionary of old style annotations
+    into a new style consistent with the entity bundle v2 format."""
+
+    converted = {k: v for k, v in annotations.items() if k in ('id', 'etag')}
+    converted_annos = converted['annotations'] = {}
+
+    type_mapping = {
+        'doubleAnnotations': 'DOUBLE',
+        'stringAnnotations': 'STRING',
+        'longAnnotations': "LONG",
+        'dateAnnotations': 'TIMESTAMP_MS',
+
+        # TODO what to do with blobAnnotations
+    }
+
+    for old_type_key, converted_type in type_mapping.items():
+        values = annotations.get(old_type_key)
+        if values:
+            for k, vs in values.items():
+                converted_annos[k] = {
+                    'type': converted_type,
+                    'value': vs,
+                }
+
+    return converted

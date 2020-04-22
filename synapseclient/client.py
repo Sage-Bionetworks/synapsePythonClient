@@ -48,7 +48,7 @@ import webbrowser
 import zipfile
 
 import synapseclient
-from .annotations import from_synapse_annotations, to_synapse_annotations, Annotations
+from .annotations import from_synapse_annotations, to_synapse_annotations, Annotations, convert_old_annotation_json
 from .activity import Activity
 import synapseclient.core.multithread_download as multithread_download
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
@@ -2631,8 +2631,17 @@ class Synapse(object):
 
         # Pre-fetch the Entity tied to the Submission, if there is one
         if 'entityId' in submission and submission['entityId'] is not None:
+            entityBundleJSON = json.loads(submission['entityBundleJSON'])
+
+            # getWithEntityBundle expects a bundle services v2 style
+            # annotations dict, but the evaluations API may return
+            # an older format annotations object in the encoded JSON
+            annotations = entityBundleJSON.get('annotations')
+            if annotations:
+                entityBundleJSON['annotations'] = convert_old_annotation_json(annotations)
+
             related = self._getWithEntityBundle(
-                                entityBundle=json.loads(submission['entityBundleJSON']),
+                                entityBundle=entityBundleJSON,
                                 entity=submission['entityId'],
                                 submission=submission_id, **kwargs)
             submission.entity = related
