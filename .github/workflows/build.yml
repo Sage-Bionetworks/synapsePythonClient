@@ -47,7 +47,6 @@ jobs:
             ${{ runner.os }}-pip-v1
 
       - name: install-pip
-        if: ${{steps.cache-pip-linux.outputs.cache-hit != 'true' && steps.cache-pip-macos.outputs.cache-hit != 'true' && steps.cache-pip-windows.outputs-cache-hit != 'true'}}
         shell: bash
         run: |
           pip install -e .[develop,pandas]
