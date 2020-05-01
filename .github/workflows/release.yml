@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           VENV_ACTIVATE_PATH="venv/bin/activate"
-          if [ "${{startsWith(runner.os)}}" == "Windows" ]; then
+          if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
             VENV_ACTIVATE_PATH="venv/Scripts/activate"
           fi
           echo "::set-env name=VENV_ACTIVATE_PATH::$VENV_ACTIVATE_PATH"
