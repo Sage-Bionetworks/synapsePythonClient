@@ -51,4 +51,9 @@ jobs:
       - name: run-tests
         shell: bash
         run: |
-          nosetests --traverse-namespace -s tests/unit
+          set +e
+          nosetests --with-coverage --traverse-namespace -s tests/unit
+          RESULT=$?
+          codecov
+          exit $RESULT
+
