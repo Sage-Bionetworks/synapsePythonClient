@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-python@v2
         with:
-          python-version: ${{runner.python-version}}
+          python-version: ${{matrix.python-version}}
 
       - id: cache-venv-linux
         uses: actions/cache@v1
