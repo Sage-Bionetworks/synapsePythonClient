@@ -24,27 +24,21 @@ jobs:
         if: startsWith(runner.os, 'Linux')
         with:
           path: venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-venv-v6
+          key: ${{ runner.os }}-venv-v2-${{ hashFiles('setup.py') }}
 
       - id: cache-venv-macos
         uses: actions/cache@v1
         if: startsWith(runner.os, 'macOS')
         with:
           path: venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-venv-v6
+          key: ${{ runner.os }}-venv-v2-${{ hashFiles('setup.py') }}
 
       - id: cache-venv-windows
         uses: actions/cache@v1
         if: startsWith(runner.os, 'Windows')
         with:
           path: venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-venv-v6
+          key: ${{ runner.os }}-venv-v2-${{ hashFiles('setup.py') }}
 
       - name: set-env
         if: ${{steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true'}}
