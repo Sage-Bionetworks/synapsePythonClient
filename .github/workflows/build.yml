@@ -85,7 +85,10 @@ jobs:
         shell: bash
         run: |
          source .venv/bin/activate 
-         nosetests --with-coverage --cover-xml --traverse-namespace -s tests/unit
+         nosetests --with-coverage --cover-html-dir='coverage' --traverse-namespace -s tests/unit
 
-      - uses: codecov/codecov-action@v1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: coverage-report
+          path: coverage
 

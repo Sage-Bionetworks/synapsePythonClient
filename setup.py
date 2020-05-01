@@ -26,7 +26,6 @@ data_files =\
     if not os.path.exists(os.path.expanduser('~/.synapseConfig'))\
     else []
 
-<<<<<<< HEAD
 test_deps = ['nose', 'flake8']
 
 setuptools.setup(
