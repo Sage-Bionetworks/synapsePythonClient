@@ -64,3 +64,40 @@ jobs:
          source $VENV_ACTIVATE_PATH
          nosetests --traverse-namespace -s tests/unit
 
+  test:
+    runs-on: ubuntu-18.04
+    needs: test
+
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: package
+        shell: bash
+        run: |
+          # todo detect release event see if this is prerelease or actual release
+          PYPI_NAME=testpypi
+          PYPI_REPO=https://test.pypi.org/legacy
+          EXTENDED_VERSION_NUMBER=0.0.0
+          VERSION=EXTENDED_VERSION_NUMBER
+          # update version
+          sed "s|\"latestVersion\":.*$|\"latestVersion\":\"$VERSION\",|g" synapseclient/synapsePythonClient > temp
+          rm synapseclient/synapsePythonClient
+          mv temp synapseclient/synapsePythonClient
+
+          # ensure environment
+          python3 -m pip install setuptools==38.6.0
+
+          # install synapseclient
+          python3 setup.py install
+
+          # create distribution
+          python3 setup.py sdist
+
+      - name: upload-artifact
+        uses: actions/upload-artifact@v2
+        with:
+            name: synapseclient-${VERSION}
+            path: dist/*
+
