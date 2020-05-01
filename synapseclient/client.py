@@ -58,13 +58,12 @@ from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import SchemaBase, Column, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
-from synapseclient.core import cache, exceptions
+from synapseclient.core import cache, exceptions, utils
 from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
 from synapseclient.core.credentials import cached_sessions
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
-from synapseclient.core.exceptions import *
 from synapseclient.core.version_check import version_check
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
@@ -378,7 +377,7 @@ class Synapse(object):
 
         # Final check on login success
         if not self.credentials:
-            raise SynapseNoCredentialsError("No credentials provided.")
+            raise exceptions.SynapseNoCredentialsError("No credentials provided.")
 
         # Save the API key in the cache
         if rememberMe:
@@ -615,12 +614,16 @@ class Synapse(object):
             kwargs['path'] = entity
 
         elif isinstance(entity, str) and not utils.is_synapse_id(entity):
-            raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
-                                            ' or a valid entity id' % entity))
+            raise exceptions.SynapseFileNotFoundError(
+                ('The parameter %s is neither a local file path '
+                 ' or a valid entity id' % entity)
+            )
         # have not been saved entities
         elif isinstance(entity, Entity) and not entity.get('id'):
-            raise ValueError("Cannot retrieve entity that has not been saved."
-                             " Please use syn.store() to save your entity and try again.")
+            raise ValueError(
+                "Cannot retrieve entity that has not been saved."
+                " Please use syn.store() to save your entity and try again."
+            )
         else:
             version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
@@ -635,7 +638,7 @@ class Synapse(object):
                                "(syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to "
                                "review and fulfill its download requirement(s).\n" % id_of(entity))
             if downloadFile:
-                raise SynapseUnmetAccessRestrictions(warning_message)
+                raise exceptions.SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
 
     def _getFromFile(self, filepath, limitSearch=None):
@@ -654,7 +657,7 @@ class Synapse(object):
             results = [ent for ent, path in zip(results, paths) if
                        utils.is_in_path(limitSearch, path)]
         if len(results) == 0:  # None found
-            raise SynapseFileNotFoundError('File %s not found in Synapse' % (filepath,))
+            raise exceptions.SynapseFileNotFoundError('File %s not found in Synapse' % (filepath,))
         elif len(results) > 1:
             id_txts = '\n'.join(['%s.%i' % (r['id'], r['versionNumber']) for r in results])
             self.logger.warning('\nThe file %s is associated with many files in Synapse:\n%s\n'
@@ -1046,8 +1049,10 @@ class Synapse(object):
         # If the parameters 'used' or 'executed' are given, create an Activity object
         if used or executed:
             if activity is not None:
-                raise SynapseProvenanceError('Provenance can be specified as an Activity object or as used/executed'
-                                             ' item(s), but not both.')
+                raise exceptions.SynapseProvenanceError(
+                    'Provenance can be specified as an Activity object or as used/executed'
+                    ' item(s), but not both.'
+                )
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
         # If we have an Activity, set it as the Entity's provenance record
@@ -1164,7 +1169,6 @@ class Synapse(object):
                     self.restDELETE(obj.deleteURI())
             except AttributeError:
                 exceptions.SynapseError("Can't delete a %s" % type(obj))
-
 
     _user_name_cache = {}
 
@@ -1388,7 +1392,6 @@ class Synapse(object):
                 yield child
             if entityChildrenResponse.get('nextPageToken') is not None:
                 entityChildrenRequest['nextPageToken'] = entityChildrenResponse['nextPageToken']
-
 
     def md5Query(self, md5):
         """
@@ -1749,9 +1752,12 @@ class Synapse(object):
                 except FileNotFoundError:
                     # file already does not exist. nothing to do
                     pass
-                raise exceptions.SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
-                                              " {expected_md5}".format(filename=temp_destination, md5=actual_md5,
-                                                                       expected_md5=expected_md5))
+                raise exceptions.SynapseMd5MismatchError(
+                    "Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+                    " {expected_md5}".format(
+                        filename=temp_destination, md5=actual_md5, expected_md5=expected_md5
+                    )
+                )
         # once download completed, rename to desired destination
         shutil.move(temp_destination, destination)
 
@@ -1889,9 +1895,10 @@ class Synapse(object):
         if expected_md5 and actual_md5 != expected_md5:
             if delete_on_md5_mismatch and os.path.exists(destination):
                 os.remove(destination)
-            raise exceptions.SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
-                                          " {expected_md5}".format(filename=destination, md5=actual_md5,
-                                                                   expected_md5=expected_md5))
+            raise exceptions.SynapseMd5MismatchError(
+                "Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+                " {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5)
+            )
 
         return destination
 
@@ -2336,7 +2343,8 @@ class Synapse(object):
         :param submitterAlias:  (optional) A nickname, possibly for display in leaderboards in place of the submitter's
                                 name
         :param teamName:        (deprecated) A synonym for submitterAlias
-        :param dockerTag:       (optional) The Docker tag must be specified if the entity is a DockerRepository. Defaults to "latest".
+        :param dockerTag:       (optional) The Docker tag must be specified if the entity is a DockerRepository.
+                                Defaults to "latest".
 
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
@@ -2359,7 +2367,7 @@ class Synapse(object):
 
         entity_id = id_of(entity)
         if isinstance(entity, synapseclient.DockerRepository):
-            #Edge case if dockerTag is specified as None
+            # Edge case if dockerTag is specified as None
             if dockerTag is None:
                 raise ValueError('A dockerTag is required to submit a DockerEntity. Cannot be None')
             docker_repository = entity['repositoryName']
@@ -2388,7 +2396,6 @@ class Synapse(object):
                 submitterAlias = teamName
             elif team and 'name' in team:
                 submitterAlias = team['name']
-
 
         if isinstance(entity, synapseclient.DockerRepository):
             docker_digest = self._get_docker_digest(entity, dockerTag)
@@ -2440,8 +2447,8 @@ class Synapse(object):
             if not eligibility['teamEligibility']['isRegistered']:
                 raise exceptions.SynapseError('Team "{team}" is not registered.'.format(team=team.name))
             if eligibility['teamEligibility']['isQuotaFilled']:
-                raise exceptions.SynapseError('Team "{team}" has already submitted the full quota of submissions.'
-                                   .format(team=team.name))
+                raise exceptions.SynapseError(
+                    'Team "{team}" has already submitted the full quota of submissions.'.format(team=team.name))
             raise exceptions.SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
 
         # Include all team members who are eligible.
@@ -2809,10 +2816,13 @@ class Synapse(object):
             else:
                 break
         else:
-            raise exceptions.SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' % (time.time()-start_time))
+            raise exceptions.SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds '
+                                                 % (time.time()-start_time))
         if result.get('jobState', None) == 'FAILED':
-            raise exceptions.SynapseError(result.get('errorMessage', None) + '\n' + result.get('errorDetails', None),
-                               asynchronousJobStatus=result)
+            raise exceptions.SynapseError(
+                result.get('errorMessage', None) + '\n' + result.get('errorDetails', None),
+                asynchronousJobStatus=result
+            )
         if progressed:
             utils.printTransferProgress(total, total, message, isBytes=False)
         return result
@@ -3040,9 +3050,9 @@ class Synapse(object):
                         successful_updates.append(entity_id)
 
                 if failed_updates:
-                    raise exceptions.SynapseError("Not all of the entities were updated."
-                                       " Successful updates: %s.  Failed updates: %s" % (successful_updates,
-                                                                                         failed_updates))
+                    raise exceptions.SynapseError(
+                        "Not all of the entities were updated."
+                        " Successful updates: %s.  Failed updates: %s" % (successful_updates, failed_updates))
 
             else:
                 warnings.warn("Unexpected result from a table transaction of type [%s]."
@@ -3150,7 +3160,7 @@ class Synapse(object):
 
         """
 
-        FAILURE_CODES = ["NOT_FOUND", "UNAUTHORIZED", "DUPLICATE", "EXCEEDS_SIZE_LIMIT", "UNKNOWN_ERROR"]
+        # FAILURE_CODES = ["NOT_FOUND", "UNAUTHORIZED", "DUPLICATE", "EXCEEDS_SIZE_LIMIT", "UNKNOWN_ERROR"]
         RETRIABLE_FAILURE_CODES = ["EXCEEDS_SIZE_LIMIT"]
         MAX_DOWNLOAD_TRIES = 100
         max_files_per_request = kwargs.get('max_files_per_request', 2500)
