@@ -50,7 +50,7 @@ jobs:
         if: ${{steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true'}}
         shell: bash
         run: |
-          python3 -m venv .venv
+          python -m venv .venv
           source .venv/bin/activate
           pip install -e .[develop,pandas]
 
