@@ -11,7 +11,7 @@ from synapseclient.core.models.dict_object import DictObject
 class UserProfile(DictObject):
     """
     Information about a Synapse user.  In practice the constructor is not called directly by the client.
-    
+
     :param ownerId: A foreign key to the ID of the 'principal' object for the user.
     :param uri: The Uniform Resource Identifier (URI) for this entity.
     :param etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates.
@@ -38,7 +38,7 @@ class UserProfile(DictObject):
 class UserGroupHeader(DictObject):
     """
     Select metadata about a Synapse principal.  In practice the constructor is not called directly by the client.
-    
+
     :param ownerId: A foreign key to the ID of the 'principal' object for the user.
     :param firstName: First Name
     :param lastName: Last Name
@@ -54,7 +54,7 @@ class Team(DictObject):
     """
     Represents a `Synapse Team <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html>`_.
     User definable fields are:
-    
+
     :param icon:          fileHandleId for icon image of the Team
     :param description:   A short description of this Team.
     :param name:          The name of the Team.
@@ -87,11 +87,11 @@ class TeamMember(DictObject):
     """
     Contains information about a user's membership in a Team.  In practice the constructor is not called directly by
      the client.
-    
+
     :param teamId:  the ID of the team
     :param member:  An object of type :py:class:`org.sagebionetworks.repo.model.UserGroupHeader` describing the member
     :param isAdmin: Whether the given member is an administrator of the team
-    
+
    """
     def __init__(self, **kwargs):
         if 'member' in kwargs:

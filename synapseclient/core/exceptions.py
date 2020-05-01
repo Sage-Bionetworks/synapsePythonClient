@@ -75,7 +75,7 @@ class SynapseUploadFailedException(SynapseError):
 
 def _raise_for_status(response, verbose=False):
     """
-    Replacement for requests.response.raise_for_status(). 
+    Replacement for requests.response.raise_for_status().
     Catches and wraps any Synapse-specific HTTP errors with appropriate text.
     """
 

@@ -439,7 +439,7 @@ class Project(Entity):
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param local_state:     Internal use only
-    
+
     Example::
 
         project = Project('Foobarbat project')
@@ -460,7 +460,7 @@ class Folder(Entity):
     Represents a folder in Synapse.
 
     Folders must have a name and a parent and can optionally have annotations.
-    
+
     :param name:            The name of the folder
     :param parent:          The parent project or folder
     :param properties:      A map of Synapse properties
@@ -495,7 +495,7 @@ class Link(Entity):
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param local_state:     Internal use only
-    
+
     Example::
 
         link = Link('targetID', parent=folder)
@@ -540,7 +540,7 @@ class File(Entity, Versionable):
     :param properties:          A map of Synapse properties
     :param annotations:         A map of user defined annotations
     :param local_state:         Internal use only
-    
+
     Example::
 
         data = File('/path/to/file/data.xyz', parent=folder)
@@ -584,7 +584,7 @@ class File(Entity, Versionable):
     def _update_file_handle(self, file_handle_update_dict=None):
         """
         Sets the file handle
-        
+
         Should not need to be called by users
         """
 
@@ -642,19 +642,19 @@ class File(Entity, Versionable):
 class DockerRepository(Entity):
     """
     A Docker repository is a lightweight virtual machine image.
-    
-    NOTE: store()-ing a DockerRepository created in the Python client will always result in it being treated as a 
-    reference to an external Docker repository that is not managed by synapse. 
+
+    NOTE: store()-ing a DockerRepository created in the Python client will always result in it being treated as a
+    reference to an external Docker repository that is not managed by synapse.
     To upload a docker image that is managed by Synapse please use the official Docker client and read
      http://docs.synapse.org/articles/docker.html for instructions on uploading a Docker Image to Synapse
-    
+
     :param repositoryName: the name of the Docker Repository. Usually in the format: [host[:port]/]path.
      If host is not set, it will default to that of DockerHub. port can only be specified if the host is also specified.
     :param parent: the parent project for the Docker repository
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param local_state:     Internal use only
-    
+
     :return:  an object of type :py:class:`synapseclient.entity.DockerRepository`
     """
     _synapse_entity_type = 'org.sagebionetworks.repo.model.docker.DockerRepository'

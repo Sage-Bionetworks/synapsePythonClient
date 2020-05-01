@@ -33,7 +33,7 @@ def upload_file_handle(
     :param file_size:       The MIME type the file, if known. Otherwise if the file is a local file, it will be
                             calculated automatically.
 
-    :returns: a dict of a new FileHandle as a dict that represents the uploaded file 
+    :returns: a dict of a new FileHandle as a dict that represents the uploaded file
     """
     if path is None:
         raise ValueError('path can not be None')

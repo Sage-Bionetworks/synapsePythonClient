@@ -796,7 +796,7 @@ def topolgical_sort(graph):
     """Given a graph in the form of a dictionary returns a sorted list
 
     Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
-    
+
     :param graph: a dictionary with values containing lists of keys referencing back into the dictionary
 
     :returns: sorted list of items

@@ -229,7 +229,7 @@ Schema
 .. autoclass:: synapseclient.table.Schema
    :members:
    :noindex:
-   
+
 .. autoclass:: synapseclient.table.EntityViewSchema
    :members:
    :noindex:
@@ -682,7 +682,7 @@ class Schema(SchemaBase):
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param local_state:     Internal use only
-                            
+
     Example::
 
         cols = [Column(name='Isotope', columnType='STRING'),
@@ -733,11 +733,11 @@ class EntityViewSchema(SchemaBase):
     :param properties:                      A map of Synapse properties
     :param annotations:                     A map of user defined annotations
     :param local_state:                     Internal use only
-    
+
     Example::
         from synapseclient import EntityViewType
 
-        project_or_folder = syn.get("syn123")  
+        project_or_folder = syn.get("syn123")
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
          includeEntityTypes=[EntityViewType.FILE]))
     """
@@ -1222,8 +1222,7 @@ def Table(schema, values, **kwargs):
                       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
                       - a dict which will be wrapped by a Pandas \
                        `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
-      
-      
+
     :return: a Table object suitable for storing
 
     Usually, the immediate next step after creating a Table object is to store it::
@@ -1387,7 +1386,7 @@ class TableQueryResult(TableAbstractBaseClass):
     The TableQueryResult object can be used to iterate over results of a query.
 
     Example ::
-    
+
         results = syn.tableQuery("select * from syn1234")
         for row in results:
             print(row)
@@ -1803,7 +1802,7 @@ class CsvFileTable(TableAbstractBaseClass):
                                         (and row_etag if it exists)
         :param convert_to_datetime:     If set to True, will convert all Synapse DATE columns from UNIX timestamp
                                         integers into UTC datetime objects
-        :return: 
+        :return:
         """
         test_import_pandas()
         import pandas as pd

@@ -59,14 +59,14 @@ Evaluation
 
 .. autoclass:: synapseclient.evaluation.Evaluation
    :members: __init__
-   
+
 ~~~~~~~~~~
 Submission
 ~~~~~~~~~~
 
 .. autoclass:: synapseclient.evaluation.Submission
    :members: __init__
-   
+
 ~~~~~~~~~~~~~~~~~
 Submission Status
 ~~~~~~~~~~~~~~~~~
@@ -82,7 +82,7 @@ from synapseclient.core.models.dict_object import DictObject
 class Evaluation(DictObject):
     """
     An Evaluation Submission queue, allowing submissions, retrieval and scoring.
-    
+
     :param name:                            Name of the evaluation
     :param description:                     A short description of the evaluation
     :param contentSource:                   Synapse Project associated with the evaluation
@@ -165,7 +165,7 @@ class Submission(DictObject):
         return '/evaluation/submission/%s' % id
 
     def __init__(self, **kwargs):
-        if not ('evaluationId' in kwargs and 
+        if not ('evaluationId' in kwargs and
                 'entityId' in kwargs and
                 'versionNumber' in kwargs):
             raise KeyError

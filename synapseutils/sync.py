@@ -317,18 +317,17 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     path     local file path or URL                  /path/to/local/file.txt
     parent   synapse id                              syn1235
     ======   ======================                  ============================
-                        
-                        
+
     **Common fields:**
-    
+
     ===============        ===========================                   ============
     Field                  Meaning                                       Example
     ===============        ===========================                   ============
     name                   name of file in Synapse                       Example_file
     forceVersion           whether to update version                     False
     ===============        ===========================                   ============
-                        
-    **Provenance fields:**  
+
+    **Provenance fields:**
 
     ====================   =====================================  ==========================================
     Field                  Meaning                                Example
@@ -342,9 +341,9 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     Annotations:
 
     **Annotations:**
-                        
+
     Any columns that are not in the reserved names described above will be interpreted as annotations of the file
-                        
+
     **Other optional fields:**
 
     ===============          ==========================================  ============

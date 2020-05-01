@@ -184,7 +184,7 @@ class Cache:
                                 # or have been modified
                                 del cache_map[cached_file_path]
                                 removed_entry_from_cache = True
-                                
+
                     if removed_entry_from_cache:
                         # write cache_map with non-existent entries removed
                         self._write_cache_map(cache_dir, cache_map)

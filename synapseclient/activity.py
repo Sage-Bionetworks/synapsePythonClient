@@ -259,7 +259,7 @@ class Activity(dict):
         # -- Synapse Entity ID (assuming the string is an ID)
         elif isinstance(target, str):
             badargs = _get_any_bad_args(['url', 'name'], locals())
-            _raise_incorrect_used_usage(badargs, 'Synapse entity')            
+            _raise_incorrect_used_usage(badargs, 'Synapse entity')
             vals = target.split('.')  # Handle synapseIds of from syn234.4
             if not is_synapse_id(vals[0]):
                 raise ValueError('%s is not a valid Synapse id' % target)
