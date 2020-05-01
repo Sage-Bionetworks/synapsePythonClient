@@ -41,8 +41,7 @@ jobs:
           path: venv
           key: ${{ runner.os }}-venv-v2-${{ hashFiles('setup.py') }}
 
-      - name: set-env
-        if: ${{steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true'}}
+      - name: set-venv-path
         shell: bash
         run: |
           VENV_ACTIVATE_PATH="venv/bin/activate"
@@ -51,6 +50,10 @@ jobs:
           fi
           echo "::set-env name=VENV_ACTIVATE_PATH::$VENV_ACTIVATE_PATH"
 
+      - name: create-venv
+        if: ${{steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true'}}
+        shell: bash
+        run: |
           python -m venv venv
           source $VENV_ACTIVATE_PATH
           pip install -e .[develop,pandas]
