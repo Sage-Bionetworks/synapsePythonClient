@@ -1,0 +1,23 @@
+name: build
+
+on:
+  push
+
+jobs:
+  build:
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04]
+ 
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: install-dev
+        shell: bash
+        run: |
+          pip install -e .[develop]
+
