@@ -45,13 +45,19 @@ jobs:
         if: ${{steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true'}}
         shell: bash
         run: |
+          VENV_ACTIVATE_PATH="venv/bin/activate"
+          if [ "${{startsWith(runner.os)}}" == "Windows" ]; then
+            VENV_ACTIVATE_PATH="venv/Scripts/activate"
+          fi
+          echo "::set-env name=VENV_ACTIVATE_PATH::$VENV_ACTIVATE_PATH"
+
           python -m venv venv
-          source venv/bin/activate
+          source $VENV_ACTIVATE_PATH
           pip install -e .[develop,pandas]
 
       - name: run-tests
         shell: bash
         run: |
-         source venv/bin/activate 
+         source $VENV_ACTIVATE_PATH
          nosetests --traverse-namespace -s tests/unit
 
