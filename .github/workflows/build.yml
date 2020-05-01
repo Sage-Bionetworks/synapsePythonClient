@@ -85,7 +85,7 @@ jobs:
         shell: bash
         run: |
          source .venv/bin/activate 
-         nosetests --with-coverage --cover-html --traverse-namespace -s tests/unit
+         nosetests --with-coverage --cover-html --cover-package=synapseclient --cover-package=synapseutils --traverse-namespace -s tests/unit
 
       - uses: actions/upload-artifact@v2
         with:
