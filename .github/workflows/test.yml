@@ -23,41 +23,41 @@ jobs:
         uses: actions/cache@v1
         if: startsWith(runner.os, 'Linux')
         with:
-          path: .venv
+          path: venv
           key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
           restore-keys: |
-            ${{ runner.os }}-venv-v4
+            ${{ runner.os }}-venv-v6
 
       - id: cache-venv-macos
         uses: actions/cache@v1
         if: startsWith(runner.os, 'macOS')
         with:
-          path: .venv
+          path: venv
           key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
           restore-keys: |
-            ${{ runner.os }}-venv-v4
+            ${{ runner.os }}-venv-v6
 
       - id: cache-venv-windows
         uses: actions/cache@v1
         if: startsWith(runner.os, 'Windows')
         with:
-          path: .venv
+          path: venv
           key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
           restore-keys: |
-            ${{ runner.os }}-venv-v4
+            ${{ runner.os }}-venv-v6
 
       - name: set-env
         if: ${{steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true'}}
         shell: bash
         run: |
-          python -m venv .venv
-          source .venv/bin/activate
+          python -m venv venv
+          source venv/bin/activate
           pip install -e .[develop,pandas]
 
       - name: run-tests
         shell: bash
         run: |
-         source .venv/bin/activate 
+         source venv/bin/activate 
          nosetests --with-coverage --cover-html --cover-package=synapseclient --cover-package=synapseutils --traverse-namespace -s tests/unit
 
       - uses: actions/upload-artifact@v2
