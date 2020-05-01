@@ -73,7 +73,7 @@ import collections
 
 from synapseclient.core.utils import is_url, is_synapse_id
 from synapseclient.entity import is_synapse_entity
-from synapseclient.core.exceptions import *
+from synapseclient.core import exceptions
 
 
 def is_used_entity(x):
@@ -121,11 +121,14 @@ def _raise_incorrect_used_usage(badargs, message):
     """Raises an informative exception about Activity.used()."""
 
     if any(badargs):
-        raise SynapseMalformedEntityError("The parameter%s '%s' %s not allowed in combination with a %s."
-                                          % ("s" if len(badargs) > 1 else "",
-                                             badargs,
-                                             "are" if len(badargs) > 1 else "is",
-                                             message))
+        raise exceptions.SynapseMalformedEntityError(
+            "The parameter%s '%s' %s not allowed in combination with a %s." % (
+                "s" if len(badargs) > 1 else "",
+                badargs,
+                "are" if len(badargs) > 1 else "is",
+                message
+            )
+        )
 
 
 class Activity(dict):
@@ -271,9 +274,8 @@ class Activity(dict):
             if targetVersion:
                 reference['targetVersionNumber'] = int(targetVersion)
             resource = {'reference': reference, 'concreteType': 'org.sagebionetworks.repo.model.provenance.UsedEntity'}
-
         else:
-            raise SynapseError('Unexpected parameters in call to Activity.used().')
+            raise exceptions.SynapseError('Unexpected parameters in call to Activity.used().')
 
         # Set wasExecuted
         if wasExecuted is None:

@@ -236,7 +236,7 @@ class Annotations(dict):
         :param etag: etag of the Synapse Entity
         :param values:  (Optional) dictionary of values to be copied into annotations
 
-        :param \**kwargs: additional key-value pairs to be added as annotations
+        :param **kwargs: additional key-value pairs to be added as annotations
 
         Example::
 

@@ -3,4 +3,4 @@
 # The Synapse Engineering team is free to change their signatures and implementations anytime.
 # Please use them at your own risk.
 
-from .dict_object import DictObject
+from .dict_object import DictObject  # noqa

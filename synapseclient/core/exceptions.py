@@ -146,7 +146,7 @@ def _raise_for_status(response, verbose=False):
                 message += "\n\n>>>>>> Request <<<<<<\n%s %s" % (response.request.url, response.request.method)
                 message += "\n>>> Headers: %s" % response.request.headers
                 message += "\n>>> Body: %s" % response.request.body
-            except:
+            except:  # noqa
                 message += "\nCould not append all request info"
 
             try:
@@ -154,7 +154,7 @@ def _raise_for_status(response, verbose=False):
                 message += "\n\n>>>>>> Response <<<<<<\n%s" % str(response)
                 message += "\n>>> Headers: %s" % response.headers
                 message += "\n>>> Body: %s\n\n" % response.text
-            except:
+            except:  # noqa
                 message += "\nCould not append all response info"
 
         raise SynapseHTTPError(message, response=response)

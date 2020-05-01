@@ -20,7 +20,7 @@ import shutil
 import math
 
 from synapseclient.core.lock import Lock
-from synapseclient.core.exceptions import *
+from synapseclient.core import utils
 
 
 CACHE_ROOT_DIR = os.path.join('~', '.synapseCache')
@@ -269,10 +269,10 @@ class Cache:
         """
         for item1 in os.listdir(self.cache_root_dir):
             path1 = os.path.join(self.cache_root_dir, item1)
-            if os.path.isdir(path1) and re.match('\d+', item1):
+            if os.path.isdir(path1) and re.match('\d+', item1):  # noqa \\d?
                 for item2 in os.listdir(path1):
                     path2 = os.path.join(path1, item2)
-                    if os.path.isdir(path2) and re.match('\d+', item2):
+                    if os.path.isdir(path2) and re.match('\d+', item2):  # noqa \\d?
                         yield path2
 
     def purge(self, before_date, dry_run=False):
@@ -297,4 +297,3 @@ class Cache:
                     shutil.rmtree(cache_dir)
                 count += 1
         return count
-

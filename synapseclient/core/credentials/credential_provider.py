@@ -133,6 +133,3 @@ def get_default_credential_chain():
     :rtype: ```SynapseCredentialsProviderChain``
     """
     return DEFAULT_CREDENTIAL_PROVIDER_CHAIN
-
-
-

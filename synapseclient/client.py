@@ -37,6 +37,7 @@ import json
 import logging
 import mimetypes
 import os
+import requests
 import shutil
 import sys
 import tempfile
@@ -421,9 +422,9 @@ class Synapse(object):
             session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint,
                                     headers=self.default_headers)
             return session['sessionToken']
-        except SynapseHTTPError as err:
+        except exceptions.SynapseHTTPError as err:
             if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
-                raise SynapseAuthenticationError("Invalid username or password.")
+                raise exceptions.SynapseAuthenticationError("Invalid username or password.")
             raise
 
     def _getAPIKey(self, sessionToken):
@@ -445,7 +446,7 @@ class Synapse(object):
                 if user['displayName'] == 'Anonymous':
                     return False
                 return user['displayName']
-        except SynapseHTTPError as err:
+        except exceptions.SynapseHTTPError as err:
             if err.response.status_code == 401:
                 return False
             raise
@@ -907,7 +908,7 @@ class Synapse(object):
             try:  # If no ID is present, attempt to POST the object
                 return type(obj)(**self.restPOST(obj.postURI(), obj.json()))
 
-            except SynapseHTTPError as err:
+            except exceptions.SynapseHTTPError as err:
                 # If already present and we want to update attempt to get the object content
                 if createOrUpdate and err.response.status_code == 409:
                     newObj = self.restGET(obj.getByNameURI(obj.name))
@@ -1007,7 +1008,7 @@ class Synapse(object):
                 properties['name'] = target_properties['name']
             try:
                 properties = self._createEntity(properties)
-            except SynapseHTTPError as ex:
+            except exceptions.SynapseHTTPError as ex:
                 if createOrUpdate and ex.response.status_code == 409:
                     # Get the existing Entity's ID via the name and parent
                     existing_entity_id = self.findEntityId(properties['name'], properties.get('parentId', None))
@@ -1162,7 +1163,7 @@ class Synapse(object):
                 else:
                     self.restDELETE(obj.deleteURI())
             except AttributeError:
-                SynapseError("Can't delete a %s" % type(obj))
+                exceptions.SynapseError("Can't delete a %s" % type(obj))
 
 
     _user_name_cache = {}
@@ -1478,7 +1479,7 @@ class Synapse(object):
                         return int(profile['ownerId'])
 
             supplementalMessage = 'Please be more specific' if totalResults > 1 else 'No matches'
-            raise SynapseError('Unknown Synapse user (%s).  %s.' % (principalId, supplementalMessage))
+            raise exceptions.SynapseError('Unknown Synapse user (%s).  %s.' % (principalId, supplementalMessage))
 
     def getPermissions(self, entity, principalId=None):
         """Get the permissions that a user or group has on an Entity.
@@ -1748,7 +1749,7 @@ class Synapse(object):
                 except FileNotFoundError:
                     # file already does not exist. nothing to do
                     pass
-                raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+                raise exceptions.SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
                                               " {expected_md5}".format(filename=temp_destination, md5=actual_md5,
                                                                        expected_md5=expected_md5))
         # once download completed, rename to desired destination
@@ -1802,9 +1803,9 @@ class Synapse(object):
                     verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
                     exceptions._raise_for_status(response, verbose=self.debug)
-                except SynapseHTTPError as err:
+                except exceptions.SynapseHTTPError as err:
                     if err.response.status_code == 404:
-                        raise SynapseError("Could not download the file at %s" % url)
+                        raise exceptions.SynapseError("Could not download the file at %s" % url)
                     elif err.response.status_code == 416:  # Requested Range Not Statisfiable
                         # this is a weird error when the client already finished downloading but the loop continues
                         # When this exception occurs, the range we request is guaranteed to be >= file size so we
@@ -1879,7 +1880,7 @@ class Synapse(object):
                 return None
 
         else:  # didn't break out of loop
-            raise SynapseHTTPError('Too many redirects')
+            raise exceptions.SynapseHTTPError('Too many redirects')
 
         if actual_md5 is None:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(destination).hexdigest()
@@ -1888,7 +1889,7 @@ class Synapse(object):
         if expected_md5 and actual_md5 != expected_md5:
             if delete_on_md5_mismatch and os.path.exists(destination):
                 os.remove(destination)
-            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+            raise exceptions.SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
                                           " {expected_md5}".format(filename=destination, md5=actual_md5,
                                                                    expected_md5=expected_md5))
 
@@ -2437,11 +2438,11 @@ class Synapse(object):
         if not eligibility['teamEligibility']['isEligible']:
             # Check team eligibility and raise an exception if not eligible
             if not eligibility['teamEligibility']['isRegistered']:
-                raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
+                raise exceptions.SynapseError('Team "{team}" is not registered.'.format(team=team.name))
             if eligibility['teamEligibility']['isQuotaFilled']:
-                raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'
+                raise exceptions.SynapseError('Team "{team}" has already submitted the full quota of submissions.'
                                    .format(team=team.name))
-            raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
+            raise exceptions.SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
 
         # Include all team members who are eligible.
         contributors = [{'principalId': member['principalId']}
@@ -2472,9 +2473,9 @@ class Synapse(object):
             # Verify that the user exists
             try:
                 self.getUserProfile(userId)
-            except SynapseHTTPError as err:
+            except exceptions.SynapseHTTPError as err:
                 if err.response.status_code == 404:
-                    raise SynapseError("The user (%s) does not exist" % str(userId))
+                    raise exceptions.SynapseError("The user (%s) does not exist" % str(userId))
                 raise
 
         except ValueError:
@@ -2746,7 +2747,7 @@ class Synapse(object):
         else:
             try:
                 updated_wiki = Wiki(owner=wiki.ownerId, **self.restPOST(wiki.postURI(), wiki.json()))
-            except SynapseHTTPError as err:
+            except exceptions.SynapseHTTPError as err:
                 # If already present we get an unhelpful SQL error
                 if createOrUpdate and ((err.response.status_code == 400 and "DuplicateKeyException" in err.message)
                                        or err.response.status_code == 409):
@@ -2808,9 +2809,9 @@ class Synapse(object):
             else:
                 break
         else:
-            raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' % (time.time()-start_time))
+            raise exceptions.SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' % (time.time()-start_time))
         if result.get('jobState', None) == 'FAILED':
-            raise SynapseError(result.get('errorMessage', None) + '\n' + result.get('errorDetails', None),
+            raise exceptions.SynapseError(result.get('errorMessage', None) + '\n' + result.get('errorDetails', None),
                                asynchronousJobStatus=result)
         if progressed:
             utils.printTransferProgress(total, total, message, isBytes=False)
@@ -3039,7 +3040,7 @@ class Synapse(object):
                         successful_updates.append(entity_id)
 
                 if failed_updates:
-                    raise SynapseError("Not all of the entities were updated."
+                    raise exceptions.SynapseError("Not all of the entities were updated."
                                        " Successful updates: %s.  Failed updates: %s" % (successful_updates,
                                                                                          failed_updates))
 
@@ -3345,7 +3346,7 @@ class Synapse(object):
                                  "entityName": name}
         try:
             return self.restPOST("/entity/child", body=json.dumps(entity_lookup_request)).get("id")
-        except SynapseHTTPError as e:
+        except exceptions.SynapseHTTPError as e:
             if e.response.status_code == 404:  # a 404 error is raised if the entity does not exist
                 return None
             raise
@@ -3381,7 +3382,7 @@ class Synapse(object):
         """Generate headers signed with the API key."""
 
         if self.credentials is None:
-            raise SynapseAuthenticationError("Please login")
+            raise exceptions.SynapseAuthenticationError("Please login")
 
         if headers is None:
             headers = dict(self.default_headers)

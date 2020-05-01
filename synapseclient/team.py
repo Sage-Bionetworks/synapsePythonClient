@@ -97,4 +97,3 @@ class TeamMember(DictObject):
         if 'member' in kwargs:
             kwargs['member'] = UserGroupHeader(**kwargs['member'])
         super(TeamMember, self).__init__(kwargs)
-

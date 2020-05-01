@@ -55,8 +55,9 @@ Python 2 Support
 
 The sun is setting on Python 2. Many major open source Python packages are moving to require Python 3.
 
-The Synapse engineering team will step down Python 2.7 support to only bug fixes, and require Python 3 on new feature releases. **Starting with Synapse Python client version 2.0 (will be released in Q1 2019), Synapse Python client will require Python 3.**
-
+The Synapse engineering team will step down Python 2.7 support to only bug fixes, and require Python 3
+on new feature releases. **Starting with Synapse Python client version 2.0 (will be released in Q1 2019),
+Synapse Python client will require Python 3.**
 
 Connecting to Synapse
 =====================
@@ -253,8 +254,8 @@ See:
 More Information
 ================
 
-For more information see the `Synapse User Guide <https://docs.synapse.org/articles/>`_. These Python API docs are browsable
-online at `https://python-docs.synapse.org/ <https://python-docs.synapse.org/>`_.
+For more information see the `Synapse User Guide <https://docs.synapse.org/articles/>`_. These Python API
+docs are browsable online at `https://python-docs.synapse.org/ <https://python-docs.synapse.org/>`_.
 
 Getting Updates
 ===============
@@ -282,8 +283,12 @@ from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_colum
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-__version__ = json.load(pkg_resources.resource_stream(__name__,
-                                                       'synapsePythonClient'))['latestVersion']
+__version__ = json.load(
+    pkg_resources.resource_stream(
+        __name__,
+        'synapsePythonClient'
+    )
+)['latestVersion']
 
 __all__ = [
     # objects
@@ -303,6 +308,6 @@ import requests
 USER_AGENT = {'User-Agent': 'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 
 # patch json
-from .core.models import custom_json
+from .core.models import custom_json  # noqa
 # patch logging
-from .core import logging_setup
+from .core import logging_setup       # noqa

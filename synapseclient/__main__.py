@@ -78,7 +78,7 @@ import synapseutils
 from . import Activity
 from .wiki import Wiki
 from .annotations import Annotations
-from synapseclient.core.exceptions import *
+from synapseclient.core import exceptions, utils
 
 
 def query(args, syn):
@@ -95,7 +95,7 @@ def query(args, syn):
 
     queryString = ' '.join(args.queryString)
 
-    if re.search('from syn\d', queryString.lower()):
+    if re.search('from syn\d', queryString.lower()):  # noqa probably should be \\d
         results = syn.tableQuery(queryString)
         reader = csv.reader(open(results.filepath))
         for row in reader:
@@ -108,7 +108,7 @@ def query(args, syn):
 def _getIdsFromQuery(queryString, syn):
     """Helper function that extracts the ids out of returned query."""
 
-    if re.search('from syn\d', queryString.lower()):
+    if re.search('from syn\d', queryString.lower()):  # noqa probably should be \\d
         tbl = syn.tableQuery(queryString)
 
         check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
@@ -119,7 +119,6 @@ def _getIdsFromQuery(queryString, syn):
     else:
         raise ValueError('Input query cannot be parsed. Please see our documentation for writing Synapse query:'
                          ' https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html')
-
 
 
 def get(args, syn):
@@ -242,7 +241,7 @@ def associate(args, syn):
     for fp in files:
         try:
             ent = syn.get(fp, limitSearch=args.limitSearch)
-        except SynapseFileNotFoundError:
+        except exceptions.SynapseFileNotFoundError:
             print('WARNING: The file %s is not available in Synapse' % fp)
         else:
             print('%s.%i\t%s' % (ent.id, ent.versionNumber, fp))
@@ -289,7 +288,7 @@ def show(args, syn):
     try:
         prov = syn.getProvenance(ent)
         print(prov)
-    except SynapseHTTPError:
+    except exceptions.SynapseHTTPError:
         print('  No Activity specified.\n')
 
 
@@ -692,7 +691,7 @@ def build_parser():
                                          help='Performs SQL like queries on Synapse')
     parser_query.add_argument('queryString', metavar='string', type=str, nargs='*',
                               help='A query string, see '
-                                   'https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html'
+                                   'https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html'  # noqa
                                    ' for more information')
     parser_query.set_defaults(func=query)
 
@@ -884,7 +883,7 @@ def perform_main(args, syn):
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
     try:
         syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
-    except SynapseNoCredentialsError:
+    except exceptions.SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
         while not user:
             user = input("Synapse username: ")

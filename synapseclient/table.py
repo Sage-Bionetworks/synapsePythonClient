@@ -301,7 +301,7 @@ import json
 from builtins import zip
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
-from synapseclient.core.exceptions import *
+from synapseclient.core import exceptions
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, Versionable, entity_type_to_class
 from synapseclient.core.constants import concrete_types
@@ -345,6 +345,7 @@ def _get_view_type_mask(types_to_include):
         mask = mask | input.value
     return mask
 
+
 def _get_view_type_mask_for_deprecated_type(type):
     if not type:
         raise ValueError("Please specify the deprecated type to convert to viewTypeMask")
@@ -359,9 +360,9 @@ def _get_view_type_mask_for_deprecated_type(type):
 
 def test_import_pandas():
     try:
-        import pandas as pd
+        import pandas as pd  # noqa F401
     # used to catch ImportError, but other errors can happen (see SYNPY-177)
-    except:
+    except:  # noqa
         sys.stderr.write("""\n\nPandas not installed!\n
         The synapseclient package recommends but doesn't require the
         installation of Pandas. If you'd like to use Pandas DataFrames,
@@ -1083,8 +1084,8 @@ class RowSet(AppendableRowset):
         super(RowSet, self).__init__(schema, **kwargs)
 
     def _synapse_store(self, syn):
-            response = super(RowSet, self)._synapse_store(syn)
-            return response.get('rowReferenceSet', response)
+        response = super(RowSet, self)._synapse_store(syn)
+        return response.get('rowReferenceSet', response)
 
     def _synapse_delete(self, syn):
         """
@@ -1196,7 +1197,7 @@ def build_table(name, parent, values):
     try:
         import pandas as pd
         pandas_available = True
-    except:
+    except:  # noqa
         pandas_available = False
 
     if not pandas_available:
@@ -1240,7 +1241,7 @@ def Table(schema, values, **kwargs):
     try:
         import pandas as pd
         pandas_available = True
-    except:
+    except:  # noqa
         pandas_available = False
 
     # a RowSet
@@ -1419,8 +1420,10 @@ class TableQueryResult(TableAbstractBaseClass):
             etag=self.rowset.get('etag', None))
 
     def _synapse_store(self, syn):
-        raise SynapseError("A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a"
-                           " DataFrame or RowSet instead.")
+        raise exceptions.SynapseError(
+            "A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a"
+            " DataFrame or RowSet instead."
+        )
 
     def asDataFrame(self, rowIdAndVersionInIndex=True):
         """
@@ -1685,11 +1688,12 @@ class CsvFileTable(TableAbstractBaseClass):
         # if the column already exists verify the column data is same as what we parsed
         if col_name in dataframe.columns:
             if dataframe[col_name].tolist() != insert_column_data:
-                raise SynapseError(("A column named '{0}' already exists and does not match the '{0}' values present in"
-                                    " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
-                                    " column for your data because it is necessary for version tracking in Synapse's"
-                                    " tables")
-                                   .format(col_name))
+                raise exceptions.SynapseError(
+                    ("A column named '{0}' already exists and does not match the '{0}' values present in"
+                     " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
+                     " column for your data because it is necessary for version tracking in Synapse's"
+                     " tables").format(col_name)
+                )
         else:
             dataframe.insert(insert_index, col_name, insert_column_data)
 

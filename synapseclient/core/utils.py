@@ -548,7 +548,7 @@ def query_limit_and_offset(query, hard_limit=1000):
     """
     # Regex a lower-case string to simplify matching
     tempQueryStr = query.lower()
-    regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+    regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'  # noqa double backslashes?
 
     # Continue to strip off and save the last limit/offset
     match = re.search(regex, tempQueryStr)
@@ -880,4 +880,3 @@ def attempt_import(module_name, fail_message):
 def require_param(param, name):
     if param is None:
         raise ValueError("%s parameter is required." % name)
-

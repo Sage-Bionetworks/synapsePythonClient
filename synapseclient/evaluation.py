@@ -205,4 +205,3 @@ class SubmissionStatus(DictObject):
 
     def deleteURI(self):
         return '/evaluation/submission/%s/status' % self.id
-

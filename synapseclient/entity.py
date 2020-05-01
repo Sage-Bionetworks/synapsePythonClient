@@ -147,7 +147,7 @@ import urllib.parse as urllib_parse
 
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of, itersubclasses
-from synapseclient.core.exceptions import *
+from synapseclient.core import exceptions, utils
 
 
 class Versionable(object):
@@ -241,7 +241,9 @@ class Entity(collections.MutableMapping):
                     del properties['annotations']
                 self.__dict__['properties'].update(properties)
             else:
-                raise SynapseMalformedEntityError('Unknown argument type: properties is a %s' % str(type(properties)))
+                raise exceptions.SynapseMalformedEntityError(
+                    'Unknown argument type: properties is a %s' % str(type(properties))
+                )
 
         if annotations:
             if isinstance(annotations, collections.Mapping):
@@ -249,13 +251,17 @@ class Entity(collections.MutableMapping):
             elif isinstance(annotations, str):
                 self.properties['annotations'] = annotations
             else:
-                raise SynapseMalformedEntityError('Unknown argument type: annotations is a %s' % str(type(annotations)))
+                raise exceptions.SynapseMalformedEntityError(
+                    'Unknown argument type: annotations is a %s' % str(type(annotations))
+                )
 
         if local_state:
             if isinstance(local_state, collections.Mapping):
                 self.local_state(local_state)
             else:
-                raise SynapseMalformedEntityError('Unknown argument type: local_state is a %s' % str(type(local_state)))
+                raise exceptions.SynapseMalformedEntityError(
+                    'Unknown argument type: local_state is a %s' % str(type(local_state))
+                )
 
         for key in self.__class__._local_keys:
             if key not in self.__dict__:
@@ -268,10 +274,12 @@ class Entity(collections.MutableMapping):
                     kwargs['parentId'] = id_of(parent)
                 except Exception:
                     if isinstance(parent, Entity) and 'id' not in parent:
-                        raise SynapseMalformedEntityError("Couldn't find 'id' of parent."
-                                                          " Has it been stored in Synapse?")
+                        raise exceptions.SynapseMalformedEntityError(
+                            "Couldn't find 'id' of parent."
+                            " Has it been stored in Synapse?"
+                        )
                     else:
-                        raise SynapseMalformedEntityError("Couldn't find 'id' of parent.")
+                        raise exceptions.SynapseMalformedEntityError("Couldn't find 'id' of parent.")
 
         # Note: that this will work properly if derived classes declare their internal state variable *before* invoking
         # super(...).__init__(...)
@@ -285,7 +293,7 @@ class Entity(collections.MutableMapping):
         if 'parentId' not in self \
                 and not isinstance(self, Project) \
                 and not type(self) == Entity:
-            raise SynapseMalformedEntityError("Entities of type %s must have a parentId." % type(self))
+            raise exceptions.SynapseMalformedEntityError("Entities of type %s must have a parentId." % type(self))
 
     def postURI(self):
         return '/entity'
@@ -403,7 +411,7 @@ class Entity(collections.MutableMapping):
 
         return f.getvalue()
 
-    def _str_localstate(self, f):  # type: (StringIO) -> None
+    def _str_localstate(self, f):  # type: (io.StringIO) -> None
         """
         Helper method for writing the string representation of the local state to a StringIO object
         :param f: a StringIO object to which the local state string will be written
@@ -514,7 +522,7 @@ class Link(Entity):
         elif properties is not None and 'linksTo' in properties:
             pass
         else:
-            raise SynapseMalformedEntityError("Must provide a target id")
+            raise exceptions.SynapseMalformedEntityError("Must provide a target id")
         super(Link, self).__init__(concreteType=Link._synapse_entity_type, properties=properties,
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
@@ -593,7 +601,8 @@ class File(Entity, Versionable):
         self.__dict__['_file_handle'] = fh_dict
 
         if file_handle_update_dict is not None \
-                and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
+                and file_handle_update_dict.get('concreteType') ==\
+                "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
                 and urllib_parse.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
             self.__dict__['synapseStore'] = False
 
@@ -667,7 +676,7 @@ class DockerRepository(Entity):
         super(DockerRepository, self).__init__(properties=properties, annotations=annotations, local_state=local_state,
                                                parent=parent, **kwargs)
         if 'repositoryName' not in self:
-            raise SynapseMalformedEntityError("DockerRepository must have a repositoryName.")
+            raise exceptions.SynapseMalformedEntityError("DockerRepository must have a repositoryName.")
 
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
@@ -691,7 +700,7 @@ def split_entity_namespaces(entity):
         return entity.properties.copy(), entity.annotations.copy(), entity.local_state()
 
     if not isinstance(entity, collections.Mapping):
-        raise SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
+        raise exceptions.SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
 
     if 'concreteType' in entity and entity['concreteType'] in entity_type_to_class:
         entity_class = entity_type_to_class[entity['concreteType']]
@@ -763,4 +772,3 @@ def is_container(entity):
     else:
         return False
     return concreteType in (Project._synapse_entity_type, Folder._synapse_entity_type)
-
