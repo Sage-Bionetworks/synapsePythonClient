@@ -19,8 +19,12 @@ jobs:
         with:
           python-version: '3.8'
 
-      - name: install-dev
+      - name: install-dev-deps
         shell: bash
         run: |
           pip install -e .[develop]
 
+      - name: run-tests:
+        shell: bash
+        run: |
+          nosetests --traverse-namespace -s tests/unit
