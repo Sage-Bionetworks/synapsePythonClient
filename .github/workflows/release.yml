@@ -64,7 +64,7 @@ jobs:
          source $VENV_ACTIVATE_PATH
          nosetests --traverse-namespace -s tests/unit
 
-  test:
+  build:
     runs-on: ubuntu-18.04
     needs: test
 
