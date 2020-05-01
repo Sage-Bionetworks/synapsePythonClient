@@ -53,7 +53,6 @@ jobs:
         run: |
           set +e
           nosetests --with-coverage --traverse-namespace -s tests/unit
-          RESULT=$?
-          codecov
-          exit $RESULT
+
+      - uses: codecov/codecov-action@v1
 
