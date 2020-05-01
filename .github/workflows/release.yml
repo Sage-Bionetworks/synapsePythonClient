@@ -82,7 +82,8 @@ jobs:
           PYPI_NAME=testpypi
           PYPI_REPO=https://test.pypi.org/legacy
           EXTENDED_VERSION_NUMBER=0.0.0
-          VERSION=EXTENDED_VERSION_NUMBER
+          VERSION=0.0.0
+          echo "::set-env name=VERSION::$VERSION"
           # update version
           sed "s|\"latestVersion\":.*$|\"latestVersion\":\"$VERSION\",|g" synapseclient/synapsePythonClient > temp
           rm synapseclient/synapsePythonClient
@@ -100,6 +101,6 @@ jobs:
       - name: upload-artifact
         uses: actions/upload-artifact@v2
         with:
-            name: synapseclient-${VERSION}
+            name: synapseclient-${{env.VERSION}}
             path: dist/*
 
