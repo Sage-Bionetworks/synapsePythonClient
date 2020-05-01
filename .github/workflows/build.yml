@@ -24,7 +24,7 @@ jobs:
         run: |
           pip install -e .[develop]
 
-      - name: run-tests:
+      - name: run-tests
         shell: bash
         run: |
           nosetests --traverse-namespace -s tests/unit
