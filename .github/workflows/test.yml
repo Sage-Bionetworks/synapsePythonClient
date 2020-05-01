@@ -26,7 +26,7 @@ jobs:
           path: .venv
           key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
           restore-keys: |
-            ${{ runner.os }}-venv-v3
+            ${{ runner.os }}-venv-v4
 
       - id: cache-venv-macos
         uses: actions/cache@v1
@@ -35,7 +35,7 @@ jobs:
           path: .venv
           key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
           restore-keys: |
-            ${{ runner.os }}-venv-v3
+            ${{ runner.os }}-venv-v4
 
       - id: cache-venv-windows
         uses: actions/cache@v1
@@ -44,7 +44,7 @@ jobs:
           path: .venv
           key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
           restore-keys: |
-            ${{ runner.os }}-venv-v3
+            ${{ runner.os }}-venv-v4
 
       - name: set-env
         if: ${{steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true'}}
