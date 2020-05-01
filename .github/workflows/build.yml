@@ -19,7 +19,8 @@ jobs:
         with:
           python-version: '3.8'
 
-      - uses: actions/cache@v1
+      - id: cache-pip-linux
+        uses: actions/cache@v1
         if: startsWith(runner.os, 'Linux')
         with:
           path: ~/.cache/pip
@@ -27,7 +28,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-v1
 
-      - uses: actions/cache@v1
+      - id: cache-pip-macos
+        uses: actions/cache@v1
         if: startsWith(runner.os, 'macOS')
         with:
           path: ~/Library/Caches/pip
@@ -35,7 +37,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-v1
 
-      - uses: actions/cache@v1
+      - id: cache-pip-windows
+        uses: actions/cache@v1
         if: startsWith(runner.os, 'Windows')
         with:
           path: ~\AppData\Local\pip\Cache
@@ -44,6 +47,7 @@ jobs:
             ${{ runner.os }}-pip-v1
 
       - name: install-pip
+        if: ${{steps.cache-pip-linux.outputs.cache-hit != 'true' && steps.cache-pip-macos.outputs.cache-hit != 'true' && steps.cache-pip-windows.outputs-cache-hit != 'true'}}
         shell: bash
         run: |
           pip install -e .[develop,pandas]
