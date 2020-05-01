@@ -2,7 +2,7 @@ import synapseclient
 from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity
 from synapseclient.core.cache import Cache
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.core.constants.limits import *
+from synapseclient.core.constants.limits import MAX_FILE_HANDLE_PER_COPY_REQUEST
 import re
 import json
 import itertools
@@ -30,9 +30,13 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds,
                                     and if copying a wiki attachment, the object id is the wiki subpage id.
                                     (Must be the same length as fileHandles)
 
-    :param newContentTypes:         (Optional) List of content types. Set each item to a new content type for each file handle, or leave the item as None to keep the original content type. Default None, which keeps all original content types.
+    :param newContentTypes:         (Optional) List of content types. Set each item to a new content type for each file
+                                    handle, or leave the item as None to keep the original content type. Default None,
+                                    which keeps all original content types.
 
-    :param newFileNames:            (Optional) List of filenames. Set each item to a new filename for each file handle, or leave the item as None to keep the original name. Default None, which keeps all original file names.
+    :param newFileNames:            (Optional) List of filenames. Set each item to a new filename for each file handle,
+                                    or leave the item as None to keep the original name. Default None, which keeps all
+                                    original file names.
 
     :return:                        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
                                     NOT_FOUND
@@ -197,6 +201,7 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
     ent.dataFileHandleId = copyResult['newFileHandle']['id']
     ent = syn.store(ent)
     return ent
+
 
 def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):
     """

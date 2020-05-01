@@ -4,7 +4,7 @@ from .monitor import notifyMe
 from synapseclient.entity import is_container
 from synapseclient.core.utils import id_of, is_url, is_synapse_id
 from synapseclient import File, table
-from synapseclient.core.exceptions import *
+from synapseclient.core import exceptions, utils
 import os
 import io
 import sys
@@ -151,7 +151,7 @@ def _get_file_entity_provenance_dict(syn, entity):
                 'executed': ';'.join(prov._getExecutedStringList()),
                 'activityName': prov.get('name', ''),
                 'activityDescription': prov.get('description', '')}
-    except SynapseHTTPError as e:
+    except exceptions.SynapseHTTPError as e:
         if e.response.status_code == 404:
             return {}  # No provenance present return empty dict
         else:
@@ -183,21 +183,26 @@ def _sortAndFixProvenance(syn, df):
                 try:
                     bundle = syn._getFromFile(item)
                     return bundle
-                except SynapseFileNotFoundError:
-                    SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
-                                            "Specifically %s is not being uploaded and is not in Synapse."
-                                            % (path, item)))
+                except exceptions.SynapseFileNotFoundError:
+                    exceptions.SynapseProvenanceError(
+                        ("The provenance record for file: %s is incorrect.\n"
+                         "Specifically %s is not being uploaded and is not in Synapse."
+                         % (path, item)
+                         )
+                    )
 
         elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
-            raise SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
-                                          "Specifically %s, is neither a valid URL or synapseId.") % (path, item))
+            raise exceptions.SynapseProvenanceError(
+                ("The provenance record for file: %s is incorrect.\n"
+                 "Specifically %s, is neither a valid URL or synapseId.") % (path, item)
+            )
         return item
 
     for path, row in df.iterrows():
         allRefs = []
         if 'used' in row:
             used = row['used'].split(';') if (row['used'].strip() != '') else []  # Get None or split if string
-            df.at[path, 'used']=[_checkProvenace(item, path) for item in used]
+            df.at[path, 'used'] = [_checkProvenace(item, path) for item in used]
             allRefs.extend(df.loc[path, 'used'])
         if 'executed' in row:
             # Get None or split if string
@@ -275,12 +280,12 @@ def readManifestFile(syn, manifestFile):
     for synId in parents:
         try:
             container = syn.get(synId, downloadFile=False)
-        except SynapseHTTPError:
+        except exceptions.SynapseHTTPError:
             sys.stdout.write('\n%s in the parent column is not a valid Synapse Id\n' % synId)
             raise
         if not is_container(container):
             sys.stdout.write('\n%s in the parent column is is not a Folder or Project\n' % synId)
-            raise SynapseHTTPError
+            raise exceptions.SynapseHTTPError
     sys.stdout.write('OK\n')
     return df
 
