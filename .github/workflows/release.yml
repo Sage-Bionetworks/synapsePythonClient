@@ -4,11 +4,12 @@ on:
   push
 
 jobs:
-  build:
+  test:
 
     strategy:
       matrix:
-        os: [ubuntu-18.04]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: [3.6, 3.7, 3.8]
  
     runs-on: ${{ matrix.os }}
 
@@ -17,7 +18,7 @@ jobs:
 
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: ${{runner.python-version}}
 
       - id: cache-venv-linux
         uses: actions/cache@v1
@@ -46,33 +47,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-venv-v2
 
-      - id: cache-pip-linux
-        uses: actions/cache@v1
-        if: startsWith(runner.os, 'Linux')
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-v2
-
-      - id: cache-pip-macos
-        uses: actions/cache@v1
-        if: startsWith(runner.os, 'macOS')
-        with:
-          path: ~/Library/Caches/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-v2
-
-      - id: cache-pip-windows
-        uses: actions/cache@v1
-        if: startsWith(runner.os, 'Windows')
-        with:
-          path: ~\AppData\Local\pip\Cache
-          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-v2
-
       - name: set-env
         if: ${{steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true'}}
         shell: bash
@@ -85,10 +59,5 @@ jobs:
         shell: bash
         run: |
          source .venv/bin/activate 
-         nosetests --with-coverage --cover-html --cover-package=synapseclient --cover-package=synapseutils --traverse-namespace -s tests/unit
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: coverage-report
-          path: ./cover
+         nosetests --traverse-namespace -s tests/unit
 

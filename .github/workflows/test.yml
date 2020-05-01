@@ -1,0 +1,67 @@
+name: test
+
+on:
+  push
+
+jobs:
+  test:
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04]
+ 
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - id: cache-venv-linux
+        uses: actions/cache@v1
+        if: startsWith(runner.os, 'Linux')
+        with:
+          path: .venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-venv-v3
+
+      - id: cache-venv-macos
+        uses: actions/cache@v1
+        if: startsWith(runner.os, 'macOS')
+        with:
+          path: .venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-venv-v3
+
+      - id: cache-venv-windows
+        uses: actions/cache@v1
+        if: startsWith(runner.os, 'Windows')
+        with:
+          path: .venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-venv-v3
+
+      - name: set-env
+        if: ${{steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true'}}
+        shell: bash
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -e .[develop,pandas]
+
+      - name: run-tests
+        shell: bash
+        run: |
+         source .venv/bin/activate 
+         nosetests --with-coverage --cover-html --cover-package=synapseclient --cover-package=synapseutils --traverse-namespace -s tests/unit
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: coverage-report
+          path: ./cover
+
