@@ -250,10 +250,8 @@ class Synapse(object):
             config = configparser.RawConfigParser()
             config.read(configPath)  # Does not fail if the file does not exist
             return config
-        except configparser.Error:
-            self.logger.error('Error parsing Synapse config file: %s' % configPath)
-            self.logger.debug("Synapse config file parse failure:", exc_info=True)
-            raise
+        except configparser.Error as ex:
+            raise ValueError("Error parsing Synapse config file: {}".format(configPath)) from ex
 
     def setEndpoints(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                      skip_checks=False):

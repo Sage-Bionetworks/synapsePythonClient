@@ -1234,6 +1234,23 @@ class TestSetAnnotations:
                                                        '"value": ["bar"]}}}')
 
 
+def test_get_unparseable_config():
+    """Verify that if the synapseConfig is not parseable we fail
+    in an expected way and surface the underlying parse error."""
+    config_error_msg = 'bad config'
+    with patch('configparser.RawConfigParser.read') as read_config:
+        read_config.side_effect = configparser.Error(config_error_msg)
+
+        with assert_raises(ValueError) as cm:
+            Synapse(debug=False, skip_checks=True, configPath='/foo')
+
+        # underlying error should be chained
+        assert_equal(
+            config_error_msg,
+            str(cm.exception.__context__)
+        )
+
+
 def test_get_config_file_caching():
     """Verify we read a config file once per Synapse and are not
     parsing the file multiple times just on init."""
