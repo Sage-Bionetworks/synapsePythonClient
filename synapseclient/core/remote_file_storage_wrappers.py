@@ -1,9 +1,22 @@
+import importlib
 import os
 import time
 import multiprocessing
 import urllib.parse as urllib_parse
 
 from synapseclient.core.utils import printTransferProgress, attempt_import
+
+
+try:
+    boto3 = importlib.import_module('boto3')
+except ImportError:
+    # boto is not a requirement to load this module,
+    # we are able to optionally use functionality if it's available
+    boto3 = None
+
+
+def is_boto_installed():
+    return boto3 is not None
 
 
 class S3ClientWrapper:
@@ -14,7 +27,7 @@ class S3ClientWrapper:
     @staticmethod
     def _attempt_import_boto3():
         """
-        Check if pysftp is installed and give instructions if not.
+        Check if boto3 installed and give instructions if not.
         """
         return attempt_import("boto3",
                               "\n\nLibraries required for client authenticated S3 access are not installed!\n"
@@ -34,13 +47,27 @@ class S3ClientWrapper:
         return progress_callback
 
     @staticmethod
-    def download_file(bucket, endpoint_url, remote_file_key, download_file_path, profile_name=None, show_progress=True):
+    def download_file(bucket, endpoint_url, remote_file_key, download_file_path,
+                      *, profile_name=None, credentials=None, show_progress=True):
+        """
+        Download a file from s3 using boto3.
+
+        :param bucket:              name of bucket to upload to
+        :param endpoint_url:        a boto3 compatible endpoint url
+        :param remote_file_key:     object key to upload the file to
+        :param download_file_path:  local path to save the file to
+        :param profile_name:        AWS profile name from local aws config, mutually exclusive with credentials
+        :param credentials:         a dictionary of AWS credentials to use, mutually exclusive with profile_name
+                                    (aws_access_key_id, aws_secret_access_key, aws_session_token)
+        :param show_progress:       whether to print progress indicator to console
+        """
 
         boto3 = S3ClientWrapper._attempt_import_boto3()
         # if we boto3 is importable, botocore should also be importable since it is a dependency of boto3
         import botocore
 
-        boto_session = boto3.session.Session(profile_name=profile_name)
+        session_args = credentials if credentials else {'profile_name': profile_name}
+        boto_session = boto3.session.Session(**session_args)
         s3 = boto_session.resource('s3', endpoint_url=endpoint_url)
 
         try:
@@ -62,14 +89,29 @@ class S3ClientWrapper:
                 raise
 
     @staticmethod
-    def upload_file(bucket, endpoint_url, remote_file_key, upload_file_path, profile_name=None, show_progress=True):
+    def upload_file(bucket, endpoint_url, remote_file_key, upload_file_path,
+                    *, profile_name=None, credentials=None, show_progress=True):
+        """
+        Upload a file to s3 using boto3.
+
+        :param bucket:              name of bucket to upload to
+        :param endpoint_url:        a boto3 compatible endpoint url
+        :param remote_file_key:     object key to upload the file to
+        :param upload_file_path:    local path of the file to upload
+        :param profile_name:        AWS profile name from local aws config, mutually exclusive with credentials
+        :param credentials:         a dictionary of AWS credentials to use, mutually exclusive with profile_name
+                                    (aws_access_key_id, aws_secret_access_key, aws_session_token)
+        :param show_progress:       whether to print progress indicator to console
+        """
+
         boto3 = S3ClientWrapper._attempt_import_boto3()
 
         if not os.path.isfile(upload_file_path):
             raise ValueError("The path: [%s] does not exist or is not a file", upload_file_path)
 
-        boto_session = boto3.session.Session(profile_name=profile_name)
-        s3 = boto_session.resource('s3', endpoint_url=endpoint_url)
+        session_args = credentials if credentials else {'profile_name': profile_name}
+        boto_session = boto3.session.Session(**session_args)
+        s3 = boto_session.resource('s3', endpoint_url=endpoint_url )
 
         progress_callback = None
         if show_progress:

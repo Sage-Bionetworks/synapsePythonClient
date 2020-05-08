@@ -68,8 +68,9 @@ from synapseclient.core.exceptions import *
 from synapseclient.core.version_check import version_check
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
-    find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
+    find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param, snake_case
 from synapseclient.core.retry import with_retry
+from synapseclient.core.sts import get_sts_credentials
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.upload_functions import upload_file_handle, upload_synapse_s3
@@ -1691,17 +1692,37 @@ class Synapse(object):
             try:
                 fileResult = self._getFileHandleDownload(fileHandleId, objectId, objectType)
                 fileHandle = fileResult['fileHandle']
-                if fileHandle['concreteType'] == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
+                concreteType = fileHandle['concreteType']
+                storageLocationId = fileHandle.get('storageLocationId')
+
+                if concreteType == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
                     profile = self._get_client_authenticated_s3_profile(fileHandle['endpointUrl'], fileHandle['bucket'])
                     downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'],
                                                                     fileHandle['fileKey'], destination,
                                                                     profile_name=profile)
-                elif self.multi_threaded and fileHandle['concreteType'] == concrete_types.S3_FILE_HANDLE:
+
+                elif self.multi_threaded and concreteType == concrete_types.S3_FILE_HANDLE:
                     downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
                                                                              objectId,
                                                                              objectType,
                                                                              destination,
                                                                              expected_md5=fileHandle.get('contentMd5'))
+                elif concreteType == concrete_types.S3_FILE_HANDLE and \
+                    storageLocationId and \
+                    self.restGET(
+                        f'/entity/{objectId}/uploadDestination/{storageLocationId}',
+                        endpoint=self.fileHandleEndpoint
+                    ).get('stsEnabled'):
+                    # TODO additionally check synapseConfig
+
+                    bucket_name = fileHandle['bucketName']
+                    s3_key = fileHandle['key']
+                    credentials = get_sts_credentials(self, objectId, True)
+
+                    downloaded_path = S3ClientWrapper.download_file(
+                        bucket_name, None, s3_key, destination, credentials=credentials
+                    )
+
                 else:
                     downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
                                                               destination,
@@ -1895,30 +1916,49 @@ class Synapse(object):
 
     def _createExternalFileHandle(self, externalURL, mimetype=None, md5=None, fileSize=None):
         """Create a new FileHandle representing an external URL."""
-
         fileName = externalURL.split('/')[-1]
         externalURL = utils.as_url(externalURL)
-        fileHandle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
-                      'fileName': fileName,
-                      'externalURL': externalURL,
-                      'contentMd5':  md5,
-                      'contentSize': fileSize}
+        fileHandle = {
+            'concreteType': concrete_types.EXTERNAL_FILE_HANDLE,
+            'fileName': fileName,
+            'externalURL': externalURL,
+            'contentMd5':  md5,
+            'contentSize': fileSize
+        }
         if mimetype is None:
             (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
         if mimetype is not None:
             fileHandle['contentType'] = mimetype
         return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
 
+    def _createExternalS3FileHandle(self, bucket_name, s3_file_key, file_path, storage_location_id, mimetype=None):
+        if mimetype is None:
+            mimetype, enc = mimetypes.guess_type(file_path, strict=False)
+        file_handle = {
+            'concreteType': 'org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle',
+            'key': s3_file_key,
+            'bucketName': bucket_name,
+            'fileName': os.path.basename(file_path),
+            'contentMd5': utils.md5_for_file(file_path).hexdigest(),
+            'contentSize': os.stat(file_path).st_size,
+            'storageLocationId': storage_location_id,
+            'contentType': mimetype
+        }
+
+        return self.restPOST('/externalFileHandle/s3', json.dumps(file_handle), self.fileHandleEndpoint)
+
     def _createExternalObjectStoreFileHandle(self, s3_file_key, file_path, storage_location_id, mimetype=None):
         if mimetype is None:
             mimetype, enc = mimetypes.guess_type(file_path, strict=False)
-        file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle',
-                       'fileKey': s3_file_key,
-                       'fileName': os.path.basename(file_path),
-                       'contentMd5': utils.md5_for_file(file_path).hexdigest(),
-                       'contentSize': os.stat(file_path).st_size,
-                       'storageLocationId': storage_location_id,
-                       'contentType': mimetype}
+        file_handle = {
+            'concreteType': concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE,
+            'fileKey': s3_file_key,
+            'fileName': os.path.basename(file_path),
+            'contentMd5': utils.md5_for_file(file_path).hexdigest(),
+            'contentSize': os.stat(file_path).st_size,
+            'storageLocationId': storage_location_id,
+            'contentType': mimetype
+        }
 
         return self.restPOST('/externalFileHandle', json.dumps(file_handle), self.fileHandleEndpoint)
 
@@ -2078,6 +2118,39 @@ class Synapse(object):
         response = self.restGET('/projectSettings/{projectId}/type/{type}'.format(projectId=id_of(project),
                                                                                   type=setting_type))
         return response if response else None  # if no project setting, a empty string is returned as the response
+
+    def get_sts_credentials(self, id, permission, store_token=True):
+        try:
+            response = self.restGET(f'/entity/{id}/sts?permission={permission}')
+            if store_token:
+                requestedObjects = {
+                    'includeEntityPath': True,
+                    'includeFileHandles': True,
+                    'includeFileName': True,
+                }
+                resp = self._getEntityBundle(id, requestedObjects=requestedObjects)
+                resp2 = self.get(id, downloadFile=False)
+                resp3 = self.restGET(f'/entity/{id}/uploadDestinationLocations', endpoint=self.fileHandleEndpoint)
+                storageLocationId = resp3['list'][0]['storageLocationId']
+                resp4 = self.restGET(f'/entity/{id}/uploadDestination', endpoint=self.fileHandleEndpoint)
+                resp5 = self.restGET(f'/entity/{id}/uploadDestination/{storageLocationId}',
+                                     endpoint=self.fileHandleEndpoint)
+                #               rest5 = self.restGET('f/storageLocation/{id}')
+                #                rest6 = self.restGET('f/file/{id}', endpoint=self.fileHandleEndpoint)
+                rest7 = self.restGET(f'/storageLocation/{id}')
+
+                import json
+                print(json.dumps(resp))
+                # print(json.dumps(resp2))
+
+
+        except SynapseHTTPError as e:
+            raise ValueError(
+                f"Unable to retrieve STS token for entity {id}, are you sure its represents an \
+                STS enabled S3 storage location?"
+            ) from e
+
+        return response
 
     ############################################################
     #                   CRUD for Evaluations                   #
