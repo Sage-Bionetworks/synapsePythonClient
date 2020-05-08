@@ -75,9 +75,9 @@ import re
 
 import synapseclient
 import synapseutils
-from . import Activity
-from .wiki import Wiki
-from .annotations import Annotations
+from synapseclient import Activity
+from synapseclient.wiki import Wiki
+from synapseclient.annotations import Annotations
 from synapseclient.core.exceptions import *
 
 
