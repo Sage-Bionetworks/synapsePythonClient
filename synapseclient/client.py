@@ -1931,7 +1931,7 @@ class Synapse(object):
         if mimetype is None:
             mimetype, enc = mimetypes.guess_type(file_path, strict=False)
         file_handle = {
-            'concreteType': 'org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle',
+            'concreteType': concrete_types.S3_FILE_HANDLE,
             'key': s3_file_key,
             'bucketName': bucket_name,
             'fileName': os.path.basename(file_path),
@@ -2115,38 +2115,8 @@ class Synapse(object):
                                                                                   type=setting_type))
         return response if response else None  # if no project setting, a empty string is returned as the response
 
-    def get_sts_credentials(self, id, permission, store_token=True):
-        try:
-            response = self.restGET(f'/entity/{id}/sts?permission={permission}')
-            if store_token:
-                requestedObjects = {
-                    'includeEntityPath': True,
-                    'includeFileHandles': True,
-                    'includeFileName': True,
-                }
-                resp = self._getEntityBundle(id, requestedObjects=requestedObjects)
-                resp2 = self.get(id, downloadFile=False)
-                resp3 = self.restGET(f'/entity/{id}/uploadDestinationLocations', endpoint=self.fileHandleEndpoint)
-                storageLocationId = resp3['list'][0]['storageLocationId']
-                resp4 = self.restGET(f'/entity/{id}/uploadDestination', endpoint=self.fileHandleEndpoint)
-                resp5 = self.restGET(f'/entity/{id}/uploadDestination/{storageLocationId}',
-                                     endpoint=self.fileHandleEndpoint)
-                #               rest5 = self.restGET('f/storageLocation/{id}')
-                #                rest6 = self.restGET('f/file/{id}', endpoint=self.fileHandleEndpoint)
-                rest7 = self.restGET(f'/storageLocation/{id}')
-
-                import json
-                print(json.dumps(resp))
-                # print(json.dumps(resp2))
-
-
-        except SynapseHTTPError as e:
-            raise ValueError(
-                f"Unable to retrieve STS token for entity {id}, are you sure its represents an \
-                STS enabled S3 storage location?"
-            ) from e
-
-        return response
+    def get_sts(self, entity_id, write=False, output_format='json'):
+        return sts_transfer.get_sts_credentials(self, entity_id, write=write, output_format=output_format)
 
     ############################################################
     #                   CRUD for Evaluations                   #
