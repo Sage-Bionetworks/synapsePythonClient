@@ -6,7 +6,7 @@ Utility Functions
 Utility functions useful in the implementation and testing of the Synapse client.
 
 """
-
+import collections.abc
 import os
 import sys
 import hashlib
@@ -17,7 +17,6 @@ import errno
 import inspect
 import random
 import requests
-import collections
 import tempfile
 import platform
 import functools
@@ -292,7 +291,7 @@ def is_date(dt):
 
 def to_list(value):
     """Convert the value (an iterable or a scalar value) to a list."""
-    if isinstance(value, collections.Iterable) and not isinstance(value, str):
+    if isinstance(value, collections.abc.Iterable) and not isinstance(value, str):
         return list(value)
     else:
         return [value]
@@ -300,7 +299,7 @@ def to_list(value):
 
 def _to_iterable(value):
     """Convert the value (an iterable or a scalar value) to an iterable."""
-    if isinstance(value, collections.Iterable):
+    if isinstance(value, collections.abc.Iterable):
         return value
     return value,
 
