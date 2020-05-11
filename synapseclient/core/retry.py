@@ -38,6 +38,7 @@ def with_retry(function, verbose=False,
     total_wait = 0
     while True:
         # Start with a clean slate
+        exc = None
         exc_info = None
         retry = False
         response = None
@@ -46,41 +47,43 @@ def with_retry(function, verbose=False,
         try:
             response = function()
         except Exception as ex:
+            exc = ex
             exc_info = sys.exc_info()
             logger.debug("calling %s resulted in an Exception" % function)
             if hasattr(ex, 'response'):
                 response = ex.response
 
         # Check if we got a retry-able error
-        if response is not None:
-            if response.status_code in retry_status_codes:
-                response_message = _get_message(response)
-                retry = True
-                logger.debug("retrying on status code: %s" % str(response.status_code))
-                # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
-                logger.debug(str(response_message))
-                if (response.status_code == 429) and (wait > 10):
-                    logger.warning('%s...\n' % response_message)
-                    logger.warning('Retrying in %i seconds' % wait)
+        if response is not None and hasattr(response, 'status_code'):
+           if response.status_code in retry_status_codes:
+               response_message = _get_message(response)
+               retry = True
+               logger.debug("retrying on status code: %s" % str(response.status_code))
+               # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
+               logger.debug(str(response_message))
+               if (response.status_code == 429) and (wait > 10):
+                   logger.warning('%s...\n' % response_message)
+                   logger.warning('Retrying in %i seconds' % wait)
 
-            elif response.status_code not in range(200, 299):
-                # For all other non 200 messages look for retryable errors in the body or reason field
-                response_message = _get_message(response)
-                if any([msg.lower() in response_message.lower() for msg in retry_errors]):
-                    retry = True
-                    logger.debug('retrying %s' % response_message)
-                # special case for message throttling
-                elif 'Please slow down.  You may send a maximum of 10 message' in response:
-                    retry = True
-                    wait = 16
-                    logger.debug("retrying " + response_message)
+           elif response.status_code not in range(200, 299):
+               # For all other non 200 messages look for retryable errors in the body or reason field
+               response_message = _get_message(response)
+               if any([msg.lower() in response_message.lower() for msg in retry_errors]):
+                   retry = True
+                   logger.debug('retrying %s' % response_message)
+               # special case for message throttling
+               elif 'Please slow down.  You may send a maximum of 10 message' in response:
+                   retry = True
+                   wait = 16
+                   logger.debug("retrying " + response_message)
 
         # Check if we got a retry-able exception
-        if exc_info is not None:
-            if (exc_info[1].__class__.__name__ in retry_exceptions
-                    or any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors])):
+        if exc is not None:
+            if (exc.__class__.__name__ in retry_exceptions or
+                    exc.__class__ in retry_exceptions or
+                    any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors])):
                 retry = True
-                logger.debug("retrying exception: " + exc_info[1].__class__.__name__ + str(exc_info[1]))
+                logger.debug("retrying exception: " + str(exc))
 
         # Wait then retry
         retries -= 1
@@ -96,7 +99,7 @@ def with_retry(function, verbose=False,
         # Out of retries, re-raise the exception or return the response
         if exc_info is not None and exc_info[0] is not None:
             logger.debug("retries have run out. re-raising the exception", exc_info=True)
-            raise exc_info[0](exc_info[1]).with_traceback(exc_info[2])
+            raise exc
         return response
 
 
