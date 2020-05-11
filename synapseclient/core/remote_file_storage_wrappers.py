@@ -1,22 +1,9 @@
-import importlib
 import os
 import time
 import multiprocessing
 import urllib.parse as urllib_parse
 
 from synapseclient.core.utils import printTransferProgress, attempt_import
-
-
-try:
-    boto3 = importlib.import_module('boto3')
-except ImportError:
-    # boto is not a requirement to load this module,
-    # we are able to optionally use functionality if it's available
-    boto3 = None
-
-
-def is_boto_installed():
-    return boto3 is not None
 
 
 class S3ClientWrapper:

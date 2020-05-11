@@ -4,8 +4,8 @@ import uuid
 
 from synapseclient.core.utils import is_url, md5_for_file, as_url, file_url_to_path, id_of, snake_case
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper, is_boto_installed
-from synapseclient.core.sts import get_sts_credentials
+from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
+from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file
 from synapseclient.core.exceptions import SynapseMd5MismatchError
 
@@ -53,9 +53,9 @@ def upload_file_handle(
     location = syn._getDefaultUploadDestination(entity_parent_id)
     upload_destination_type = location['concreteType']
 
-    if location.get('stsEnabled') and \
-       upload_destination_type ==  concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION and \
-       is_boto_installed():
+    if sts_transfer.is_boto_sts_transfer_enabled(syn) and \
+       sts_transfer.is_storage_location_sts_enabled(syn, entity_parent_id, location) and \
+       upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
 
         return upload_synapse_sts_boto_s3(
             syn,
@@ -152,7 +152,7 @@ def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None, max
 
 
 def upload_synapse_sts_boto_s3(syn, parent_id, upload_destination, local_path, mimetype=None):
-    credentials = get_sts_credentials(syn, parent_id, True)
+    credentials = sts_transfer.get_sts_credentials(syn, parent_id, True)
 
     # when uploading to synapse storage normally the back end will generate a random prefix
     # for our uploaded object. since in this case the client is responsible for the remote

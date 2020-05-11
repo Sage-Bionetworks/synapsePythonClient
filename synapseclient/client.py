@@ -70,7 +70,7 @@ from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
     find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param, snake_case
 from synapseclient.core.retry import with_retry
-from synapseclient.core.sts import get_sts_credentials
+from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.upload_functions import upload_file_handle, upload_synapse_s3
@@ -1707,17 +1707,13 @@ class Synapse(object):
                                                                              objectType,
                                                                              destination,
                                                                              expected_md5=fileHandle.get('contentMd5'))
-                elif concreteType == concrete_types.S3_FILE_HANDLE and \
-                    storageLocationId and \
-                    self.restGET(
-                        f'/entity/{objectId}/uploadDestination/{storageLocationId}',
-                        endpoint=self.fileHandleEndpoint
-                    ).get('stsEnabled'):
-                    # TODO additionally check synapseConfig
+                elif sts_transfer.is_boto_sts_transfer_enabled(self) and \
+                    sts_transfer.is_storage_location_sts_enabled(self, objectId, storageLocationId) and \
+                    concreteType == concrete_types.S3_FILE_HANDLE:
 
                     bucket_name = fileHandle['bucketName']
                     s3_key = fileHandle['key']
-                    credentials = get_sts_credentials(self, objectId, True)
+                    credentials = sts_transfer.get_sts_credentials(self, objectId, True)
 
                     downloaded_path = S3ClientWrapper.download_file(
                         bucket_name, None, s3_key, destination, credentials=credentials
