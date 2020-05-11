@@ -3238,7 +3238,7 @@ class Synapse(object):
         col_indices = [i for i, h in enumerate(table.headers) if h.name in columns]
         # see: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
         file_handle_associations = []
-        file_handle_to_path_map = collections.abc.OrderedDict()
+        file_handle_to_path_map = collections.OrderedDict()
         seen_file_handle_ids = set()  # ensure not sending duplicate requests for the same FileHandle IDs
         for row in table:
             for col_index in col_indices:
