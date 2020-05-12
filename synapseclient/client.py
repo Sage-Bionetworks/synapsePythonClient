@@ -28,6 +28,7 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 
 """
 import collections
+import collections.abc
 import configparser
 import deprecated
 import functools
@@ -490,7 +491,7 @@ class Synapse(object):
             # if id is unset or a userID, this will succeed
             id = '' if id is None else int(id)
         except (TypeError, ValueError):
-            if isinstance(id, collections.Mapping) and 'ownerId' in id:
+            if isinstance(id, collections.abc.Mapping) and 'ownerId' in id:
                 id = id.ownerId
             elif isinstance(id, TeamMember):
                 id = id.member.ownerId
@@ -1122,7 +1123,7 @@ class Synapse(object):
                                 'includeAnnotations': True,
                                 'includeFileHandles': True,
                                 'includeRestrictionInformation': True}
-        if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
+        if isinstance(entity, collections.abc.Mapping) and 'id' not in entity and 'name' in entity:
             entity = self.findEntityId(entity['name'], entity.get('parentId', None))
 
         # Avoid an exception from finding an ID from a NoneType
@@ -3158,7 +3159,7 @@ class Synapse(object):
             raise ValueError("downloadTableColumn doesn't work with rowsets. Please use default tableQuery settings.")
         if isinstance(columns, str):
             columns = [columns]
-        if not isinstance(columns, collections.Iterable):
+        if not isinstance(columns, collections.abc.Iterable):
             raise TypeError('Columns parameter requires a list of column names')
 
         file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(table, columns)

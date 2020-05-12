@@ -111,7 +111,7 @@ def _annotation_value_list_element_type(annotation_values: typing.List):
 def is_submission_status_annotations(annotations):
     """Tests if the given dictionary is in the form of annotations to submission status"""
     keys = ['objectId', 'scopeId', 'stringAnnos', 'longAnnos', 'doubleAnnos']
-    if not isinstance(annotations, collections.Mapping):
+    if not isinstance(annotations, collections.abc.Mapping):
         return False
     return all([key in keys for key in annotations.keys()])
 

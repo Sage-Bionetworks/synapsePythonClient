@@ -286,6 +286,7 @@ See also:
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
 """
+import collections.abc
 import csv
 import io
 import os
@@ -1003,7 +1004,7 @@ class PartialRowset(AppendableRowset):
         :param originalQueryResult:
         :return: a PartialRowSet that can be syn.store()-ed to apply the changes
         """
-        if not isinstance(mapping, collections.Mapping):
+        if not isinstance(mapping, collections.abc.Mapping):
             raise ValueError("mapping must be a supported Mapping type such as 'dict'")
 
         try:
@@ -1157,7 +1158,7 @@ class PartialRow(DictObject):
 
     def __init__(self, values, rowId, etag=None, nameToColumnId=None):
         super(PartialRow, self).__init__()
-        if not isinstance(values, collections.Mapping):
+        if not isinstance(values, collections.abc.Mapping):
             raise ValueError("values must be a Mapping")
 
         rowId = int(rowId)
@@ -1268,7 +1269,7 @@ def Table(schema, values, **kwargs):
         raise ValueError("Don't know how to make tables from values of type %s." % type(values))
 
 
-class TableAbstractBaseClass(collections.Iterable, collections.Sized):
+class TableAbstractBaseClass(collections.abc.Iterable, collections.abc.Sized):
     """
     Abstract base class for Tables based on different data containers.
     """
