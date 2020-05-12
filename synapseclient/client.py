@@ -2115,8 +2115,8 @@ class Synapse(object):
                                                                                   type=setting_type))
         return response if response else None  # if no project setting, a empty string is returned as the response
 
-    def get_sts(self, entity_id, write=False, output_format='json'):
-        return sts_transfer.get_sts_credentials(self, entity_id, write=write, output_format=output_format)
+    def get_sts(self, entity_id, permission, output_format='json'):
+        return sts_transfer.get_sts_credentials(self, entity_id, permission, output_format=output_format)
 
     ############################################################
     #                   CRUD for Evaluations                   #

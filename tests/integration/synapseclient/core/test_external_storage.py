@@ -127,8 +127,8 @@ class ExernalStorageTest(unittest.TestCase):
         bucket_name, _ = get_aws_env()
         _, folder, storage_location_id = self._configure_storage_location(sts_enabled=True)
 
-        sts_read_creds = syn.get_sts(folder['id'], write=False, output_format='boto')
-        sts_write_creds = syn.get_sts(folder['id'], write=True, output_format='boto')
+        sts_read_creds = syn.get_sts(folder['id'], 'read_only', output_format='boto')
+        sts_write_creds = syn.get_sts(folder['id'], 'read_write', output_format='boto')
 
         s3_read_client = boto3.client('s3', **sts_read_creds)
         s3_write_client = boto3.client('s3', **sts_write_creds)
@@ -177,6 +177,6 @@ class ExernalStorageTest(unittest.TestCase):
         file_entity = syn.store(file)
 
         # now should be able to retrieve the file via synapse
-        file_entity = syn.get(file_entity['id'])
-        print(file_entity)
-
+        retrieved_file_entity = syn.get(file_entity['id'])
+        with open(retrieved_file_entity.path, 'r') as f:
+            assert_equal(file_contents, f.read())
