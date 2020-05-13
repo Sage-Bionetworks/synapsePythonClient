@@ -51,8 +51,9 @@ def is_boto_sts_transfer_enabled(syn):
     :returns: True if STS if enabled, False otherwise
     """
 
-    use_boto_sts = syn._get_config_section_dict('transfer').get('use_boto_sts', '')
-    return boto3 and 'true' == use_boto_sts.lower()
+    #use_boto_sts = syn._get_config_section_dict('transfer').get('use_boto_sts', '')
+    #return boto3 and 'true' == use_boto_sts.lower()
+    return True
 
 
 def is_storage_location_sts_enabled(syn, entity_id, location):
@@ -81,25 +82,9 @@ def is_storage_location_sts_enabled(syn, entity_id, location):
 
 class _TokenCache(collections.OrderedDict):
 
-    def __init__(self, min_life_delta, max_size):
+    def __init__(self, max_size):
         super().__init__()
-        self.min_life_delta = min_life_delta
         self.max_size = max_size
-
-    def _check_retrieved_token(self, key, token):
-        if token and iso_to_datetime(token['expiration']) < (datetime.datetime.utcnow() + self.min_life_delta):
-            # the token is too old to return
-            del self[key]
-            return None
-        return token
-
-    def __getitem__(self, key):
-        token = super().__getitem__(key)
-        return self._check_retrieved_token(key, token)
-
-    def get(self, key, default=None):
-        token = super().get(key, default)
-        return self._check_retrieved_token(key, token)
 
     def __setitem__(self, key, value):
         super().__setitem__(key, value)
@@ -110,7 +95,7 @@ class _TokenCache(collections.OrderedDict):
             self.popitem(last=False)
 
         to_delete = []
-        before_timestamp = (datetime.datetime.utcnow() + self.min_life_delta).timestamp()
+        before_timestamp = datetime.datetime.utcnow().timestamp()
         for entity_id, token in self.items():
             expiration_iso_str = token['expiration']
 
@@ -144,18 +129,22 @@ class _StsTokenStore:
     # hand out an about-to-expire cached token.
     DEFAULT_MIN_LIFE=datetime.timedelta(hours=1)
 
-    def __init__(self, min_life_delta=DEFAULT_MIN_LIFE, max_token_cache_size=DEFAULT_TOKEN_CACHE_SIZE):
-        self._tokens = {p: _TokenCache(min_life_delta, max_token_cache_size) for p in STS_PERMISSIONS}
+    def __init__(self, max_token_cache_size=DEFAULT_TOKEN_CACHE_SIZE):
+        self._tokens = {p: _TokenCache(max_token_cache_size) for p in STS_PERMISSIONS}
         self._lock = threading.Lock()
 
-    def get_token(self, syn, entity_id, permission):
+    def get_token(self, syn, entity_id, permission, min_remaining_life: datetime.timedelta=None):
+        min_remaining_life = min_remaining_life if min_remaining_life is not None else self.DEFAULT_MIN_LIFE
+
+        utcnow = datetime.datetime.utcnow()
         with self._lock:
             token_cache = self._tokens.get(permission)
             if token_cache is None:
                 raise ValueError(f"Invalid STS permission {permission}")
 
             token = token_cache.get(entity_id)
-            if not token:
+            if not token or (iso_to_datetime(token['expiration']) - utcnow) < min_remaining_life:
+                # either there is no cached token or the remaining life on the token isn't enough so fetch new
                 token = token_cache[entity_id] = self._fetch_token(syn, entity_id, permission)
 
         return token
@@ -168,8 +157,9 @@ class _StsTokenStore:
 _TOKEN_STORE = _StsTokenStore()
 
 
-def get_sts_credentials(syn, entity_id, permission, output_format=None, ):
-    value = _TOKEN_STORE.get_token(syn, entity_id, permission)
+def get_sts_credentials(syn, entity_id, permission, output_format=None, **kwargs):
+    value = _TOKEN_STORE.get_token(syn, entity_id, permission, **kwargs)
+    value['secretAccessKey'] = value['secretAccessKey']
 
     if output_format == 'boto':
         # the Synapse STS API returns camel cased keys that we need to convert to use with boto.
@@ -200,3 +190,32 @@ export AWS_SESSION_TOKEN={value['sessionToken']}
 """
 
     return value
+
+
+def with_boto_sts_credentials(fn, *args, **kwargs):
+    """A wrapper around a function that will get sts credentials and try to use them on the given
+    # function which should take aws_access_key_id, aws_secret_access_key, and aws_session_token as
+    kwarg parameters. If the given function returns a boto error that looks like the token has expired
+    it will retry once after fetching fresh credentials.
+
+    The purpose is to be able to use potentially cached credentials in long running tasks while reducing
+    worry that they will expire in the middle of running and cause an unrecoverable error.
+    The alternative of fetching a fresh STS token for every request might be okay for a few large files
+    but would greatly slow down transferring many small files.
+    """
+
+    # the passed fn takes boto style credentials
+    token_kwargs = dict(kwargs)
+    token_kwargs['output_format'] = 'boto'
+
+    for attempt in range(2):
+        credentials = get_sts_credentials(*args, **token_kwargs)
+        try:
+            response = fn(**credentials)
+        except boto3.exceptions.Boto3Error as ex:
+            if 'ExpiredToken' in str(ex) and attempt == 0:
+                continue
+            else:
+                raise
+
+        return response

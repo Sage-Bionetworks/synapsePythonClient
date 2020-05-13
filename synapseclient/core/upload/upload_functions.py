@@ -152,8 +152,6 @@ def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None, max
 
 
 def upload_synapse_sts_boto_s3(syn, parent_id, upload_destination, local_path, mimetype=None):
-    credentials = sts_transfer.get_sts_credentials(syn, parent_id, True)
-
     # when uploading to synapse storage normally the back end will generate a random prefix
     # for our uploaded object. since in this case the client is responsible for the remote
     # key, the client will instead generate a random prefix. this both ensures we don't have a collision
@@ -165,9 +163,25 @@ def upload_synapse_sts_boto_s3(syn, parent_id, upload_destination, local_path, m
     bucket_name = upload_destination['bucket']
     storage_location_id = upload_destination['storageLocationId']
     remote_file_key = "/".join([upload_destination['baseKey'], key_prefix, os.path.basename(local_path)])
-    S3ClientWrapper.upload_file(upload_destination['bucket'], None, remote_file_key, local_path, credentials=credentials)
 
-    return syn._createExternalS3FileHandle( bucket_name, remote_file_key, storage_location_id, mimetype=mimetype)
+    def upload_fn(**credentials):
+        return S3ClientWrapper.upload_file(
+            upload_destination['bucket'],
+            None,
+            remote_file_key,
+            local_path,
+            credentials=credentials,
+            transfer_config_kwargs={'max_concurrency': syn.max_threads}
+        )
+
+    sts_transfer.with_boto_sts_credentials(upload_fn, syn, parent_id, 'read_write')
+    return syn._createExternalS3FileHandle(
+        bucket_name,
+        remote_file_key,
+        local_path,
+        storage_location_id,
+        mimetype=mimetype
+    )
 
 
 def upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id, mimetype=None):

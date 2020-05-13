@@ -1708,15 +1708,24 @@ class Synapse(object):
                                                                              destination,
                                                                              expected_md5=fileHandle.get('contentMd5'))
                 elif sts_transfer.is_boto_sts_transfer_enabled(self) and \
-                    sts_transfer.is_storage_location_sts_enabled(self, objectId, storageLocationId) and \
-                    concreteType == concrete_types.S3_FILE_HANDLE:
+                        sts_transfer.is_storage_location_sts_enabled(self, objectId, storageLocationId) and \
+                        concreteType == concrete_types.S3_FILE_HANDLE:
 
-                    bucket_name = fileHandle['bucketName']
-                    s3_key = fileHandle['key']
-                    credentials = sts_transfer.get_sts_credentials(self, objectId, True)
+                    def download_fn(**credentials):
+                        return S3ClientWrapper.download_file(
+                            fileHandle['bucketName'],
+                            None,
+                            fileHandle['key'],
+                            destination,
+                            credentials=credentials,
+                            transfer_config_kwargs={'max_concurrency': self.max_threads},
+                        )
 
-                    downloaded_path = S3ClientWrapper.download_file(
-                        bucket_name, None, s3_key, destination, credentials=credentials
+                    downloaded_path = sts_transfer.with_boto_sts_credentials(
+                        download_fn,
+                        self,
+                        objectId,
+                        'read_only',
                     )
 
                 else:

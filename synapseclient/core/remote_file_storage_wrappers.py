@@ -35,7 +35,7 @@ class S3ClientWrapper:
 
     @staticmethod
     def download_file(bucket, endpoint_url, remote_file_key, download_file_path,
-                      *, profile_name=None, credentials=None, show_progress=True):
+                      *, profile_name=None, credentials=None, show_progress=True, transfer_config_kwargs=None):
         """
         Download a file from s3 using boto3.
 
@@ -49,9 +49,11 @@ class S3ClientWrapper:
         :param show_progress:       whether to print progress indicator to console
         """
 
-        boto3 = S3ClientWrapper._attempt_import_boto3()
-        # if we boto3 is importable, botocore should also be importable since it is a dependency of boto3
+        S3ClientWrapper._attempt_import_boto3()
+
         import botocore
+        import boto3.s3.transfer
+        transfer_config = boto3.s3.transfer.TransferConfig(**(transfer_config_kwargs or {}))
 
         session_args = credentials if credentials else {'profile_name': profile_name}
         boto_session = boto3.session.Session(**session_args)
@@ -67,7 +69,11 @@ class S3ClientWrapper:
                 filename = os.path.basename(download_file_path)
                 progress_callback = S3ClientWrapper._create_progress_callback_func(file_size, filename,
                                                                                    prefix='Downloading')
-            s3_obj.download_file(download_file_path, Callback=progress_callback)
+            s3_obj.download_file(
+                download_file_path,
+                Callback=progress_callback,
+                Config=transfer_config,
+            )
             return download_file_path
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
@@ -77,7 +83,7 @@ class S3ClientWrapper:
 
     @staticmethod
     def upload_file(bucket, endpoint_url, remote_file_key, upload_file_path,
-                    *, profile_name=None, credentials=None, show_progress=True):
+                    *, profile_name=None, credentials=None, show_progress=True, transfer_config_kwargs=None):
         """
         Upload a file to s3 using boto3.
 
@@ -91,7 +97,10 @@ class S3ClientWrapper:
         :param show_progress:       whether to print progress indicator to console
         """
 
-        boto3 = S3ClientWrapper._attempt_import_boto3()
+        S3ClientWrapper._attempt_import_boto3()
+
+        import boto3.s3.transfer
+        transfer_config = boto3.s3.transfer.TransferConfig(**(transfer_config_kwargs or {}))
 
         if not os.path.isfile(upload_file_path):
             raise ValueError("The path: [%s] does not exist or is not a file", upload_file_path)
@@ -107,7 +116,12 @@ class S3ClientWrapper:
             progress_callback = S3ClientWrapper._create_progress_callback_func(file_size, filename, prefix='Uploading')
 
         # automatically determines whether to perform multi-part upload
-        s3.Bucket(bucket).upload_file(upload_file_path, remote_file_key, Callback=progress_callback)
+        s3.Bucket(bucket).upload_file(
+            upload_file_path,
+            remote_file_key,
+            Callback=progress_callback,
+            Config=transfer_config
+        )
         return upload_file_path
 
 

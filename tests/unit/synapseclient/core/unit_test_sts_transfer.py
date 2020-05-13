@@ -1,13 +1,15 @@
 from collections import OrderedDict
+import boto3
 import datetime
 
 
-from synapseclient.core.sts_transfer import _StsTokenStore, _TokenCache
+from synapseclient.core import sts_transfer
+from synapseclient.core.sts_transfer import _StsTokenStore, _TokenCache, with_boto_sts_credentials
 
 from synapseclient.core.utils import iso_to_datetime, datetime_to_iso
 
 import mock
-from nose.tools import assert_equal, assert_is, assert_is_none, assert_raises
+from nose.tools import assert_equal, assert_is, assert_is_none, assert_raises, assert_true
 
 
 class TestTokenCache:
@@ -17,7 +19,7 @@ class TestTokenCache:
         max_size = 5
         ejections = 3
 
-        token_cache = _TokenCache(datetime.timedelta(hours=1), max_size)
+        token_cache = _TokenCache(max_size)
         token = {'expiration': datetime_to_iso(datetime.datetime.utcnow() + datetime.timedelta(days=1))}
 
         for i in range(max_size + ejections):
@@ -38,38 +40,26 @@ class TestTokenCache:
             return_value=utc_now
         )
 
-        token_cache = _TokenCache(datetime.timedelta(minutes=60), 1000)
+        token_cache = _TokenCache(1000)
 
         # this token should be immediately pruned
-        token_cache['syn_1'] = {'expiration': datetime_to_iso(utc_now)}
+        token_cache['syn_1'] = {'expiration': datetime_to_iso(utc_now - datetime.timedelta(seconds=1))}
         assert_equal(0, len(token_cache))
 
-        token_cache['syn_2'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(minutes=60))}
-        token_cache['syn_3'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(minutes=60))}
-        token_cache['syn_4'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(minutes=60))}
-        token_cache['syn_5'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(minutes=60))}
-        token_cache['syn_6'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(minutes=75))}
-        token_cache['syn_7'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(minutes=90))}
-        token_cache['syn_8'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(minutes=105))}
+        token_cache['syn_2'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(seconds=1))}
+        token_cache['syn_3'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(minutes=1))}
+        token_cache['syn_4'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(hours=1))}
 
-        # all the aditional keys should still be there
-        expected_keys = [f"syn_{i}" for i in range(2, 9)]
-        assert_equal(expected_keys, list(token_cache.keys()))
+        # all the additional keys should still be there
+        assert_equal(['syn_2', 'syn_3', 'syn_4'], list(token_cache.keys()))
 
-        token_cache.min_life_delta = datetime.timedelta(minutes=90)
+        # if we set a new key in the future any keys that are expired at that time should be pruned
+        mock_datetime.datetime.utcnow = mock.Mock(
+            return_value=utc_now + datetime.timedelta(minutes=30)
+        )
 
-        # the cache still thinks there are some stale entries, but attempting to retrieve them will
-        # cause them to be removed
-        assert_equal(expected_keys, list(token_cache.keys()))
-        assert_is_none(token_cache['syn_3'])
-        assert_is_none(token_cache['syn_4'])
-        expected_keys = ['syn_2', 'syn_5', 'syn_6', 'syn_7', 'syn_8']
-        assert_equal(expected_keys, list(token_cache.keys()))
-
-        # setting another token should cause all remaining stale tokens to be removed
-        expected_keys = ['syn_7', 'syn_8', 'syn_9']
-        token_cache['syn_9'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(minutes=110))}
-        assert_equal(expected_keys, list(token_cache.keys()))
+        token_cache['syn_5'] = {'expiration': datetime_to_iso(utc_now + datetime.timedelta(days=1))}
+        assert_equal(['syn_4', 'syn_5'], list(token_cache.keys()))
 
 
 class TestStsTokenStore:
@@ -112,3 +102,105 @@ class TestStsTokenStore:
         token = token_store.get_token(syn, entity_id, 'read_write')
         assert_is(token, write_token)
         assert_equal(syn.restGET.call_count, 2)
+
+
+@mock.patch.object(sts_transfer, 'get_sts_credentials')
+class TestWithBotoStsCredentials:
+
+    @staticmethod
+    def _make_credentials():
+        return {
+            'aws_access_key_id': 'foo',
+            'aws_secret_access_key': 'bar',
+            'aws_session_token': 'baz',
+        }
+
+    def test_successful_request(self, mock_get_sts_credentials):
+        """Verify that a successful request with valid unexpired credentials
+        passes through as expected and returns the proper value."""
+
+        return_value = 'success!!!'
+
+        def fn(**credentials):
+            assert_equal(credentials, self._make_credentials())
+            return return_value
+
+        syn = mock.Mock()
+        entity_id = 'syn_1'
+        permission = 'read_write'
+        mock_get_sts_credentials.return_value = self._make_credentials()
+
+        # additional args/kwargs should be passed through to the get token function
+        args = ['these', 'are', 'args']
+        kwargs = {'and': 'these', 'are': 'kwargs'}
+
+        result = with_boto_sts_credentials(fn, syn, entity_id, permission, *args, **kwargs)
+        assert_equal(result, return_value)
+
+        expected_get_sts_call = mock.call(
+            *[syn, entity_id, permission, *args],
+            output_format='boto',
+            **kwargs,
+        )
+
+        assert_equal(expected_get_sts_call, mock_get_sts_credentials.call_args)
+
+    def test_other_error(self, mock_get_sts_credentials):
+        """Verify any error that isn't expired credentials is raised straight away"""
+
+        ex_message = 'This is not a boto error'
+
+        def fn(**credentials):
+            raise ValueError(ex_message)
+
+        entity_id = 'syn_1'
+        permission = 'read_write'
+        mock_get_sts_credentials.return_value = self._make_credentials()
+
+        with assert_raises(ValueError) as ex_cm:
+            with_boto_sts_credentials(fn, entity_id, permission)
+        assert_true(ex_message == str(ex_cm.exception))
+
+    def test_expired_creds(self, mock_get_sts_credentials):
+        """Verify that a request with expired creds retries once."""
+
+        ex_message = 'This error is the result of an ExpiredToken'
+        return_value = 'success!!!'
+
+        call_count = 0
+
+        def fn(**credentials):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise boto3.exceptions.Boto3Error(ex_message)
+
+            return return_value
+
+        entity_id = 'syn_1'
+        permission = 'read_write'
+        mock_get_sts_credentials.return_value = self._make_credentials()
+
+        result = with_boto_sts_credentials(fn, entity_id, permission)
+        assert_equal(result, return_value)
+        assert_equal(call_count, 2)
+
+    def test_error_raised_if_multiple_errors(self, mock_get_sts_credentials):
+        """Verify that if we end up with multiple consecutive expired error tokens
+        somehow we just raise it and don't get stuck in an infinite retry loop"""
+        ex_message = 'error is the result of an ExpiredToken'
+        call_count = 0
+
+        def fn(**credentials):
+            nonlocal call_count
+            call_count += 1
+            raise boto3.exceptions.Boto3Error(ex_message)
+
+        entity_id = 'syn_1'
+        permission = 'read_write'
+        mock_get_sts_credentials.return_value = self._make_credentials()
+
+        with assert_raises(boto3.exceptions.Boto3Error) as ex_cm:
+            with_boto_sts_credentials(fn, entity_id, permission)
+        assert_equal(ex_message, str(ex_cm.exception))
+        assert_equal(2, call_count)
