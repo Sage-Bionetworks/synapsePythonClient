@@ -12,7 +12,6 @@ import mock
 from nose.tools import assert_equal, assert_false, assert_is, assert_is_none, assert_raises, assert_true
 
 
-
 @mock.patch.object(sts_transfer._TOKEN_STORE, 'get_token')
 class TestGetStsCredentials:
 
@@ -50,8 +49,10 @@ class TestGetStsCredentials:
         mock_get_token.assert_called_once_with(syn, entity_id, permission, **kwargs)
 
     @mock.patch.object(sts_transfer, 'platform')
-    def test_shell_format__windows_cmd(self, mock_platform, mock_get_token):
+    @mock.patch.object(sts_transfer, 'os')
+    def test_shell_format__windows_cmd(self, mock_os, mock_platform, mock_get_token):
         """Verify Windows cmd compatible shell output"""
+        mock_os.environ = {}
         mock_platform.system.return_value = 'Windows'
         mock_get_token.return_value = self._make_credentials()
 
@@ -86,8 +87,8 @@ export AWS_SESSION_TOKEN="baz"
         assert_equal(credentials, expected_output)
         mock_get_token.assert_called_with(syn, entity_id, permission)
 
-    @mock.patch.object(sts_transfer, 'os')
     @mock.patch.object(sts_transfer, 'platform')
+    @mock.patch.object(sts_transfer, 'os')
     def test_shell_format__windows_bash(self, mock_os, mock_platform, mock_get_token):
         """Verify that a bash shell on Windows is treated as bash on shell output"""
         mock_platform.system.return_value = 'Windows'

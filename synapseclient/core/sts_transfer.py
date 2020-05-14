@@ -115,7 +115,7 @@ def get_sts_credentials(syn, entity_id, permission, output_format=None, **kwargs
         # make output in the form of commands that will set the credentials into the user's
         # environment such that they can e.g. run awscli commands
 
-        if platform.system() == 'Windows' and 'bash' not in os.environ.get('SHELL'):
+        if platform.system() == 'Windows' and 'bash' not in os.environ.get('SHELL', ''):
             # if we're running on windows and we can't detect we're running a bash shell
             # then we make the output compatible for a windows cmd prompt environment.
             value = f"""\
