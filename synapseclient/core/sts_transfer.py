@@ -2,10 +2,8 @@ import collections
 import collections.abc
 import datetime
 import importlib
-import json
 import os
 import threading
-import typing
 import platform
 
 from synapseclient.core.utils import iso_to_datetime, snake_case
@@ -18,8 +16,6 @@ except ImportError:
     boto3 = None
 
 STS_PERMISSIONS = set(['read_only', 'read_write'])
-
-
 
 
 class _TokenCache(collections.OrderedDict):
@@ -203,4 +199,3 @@ def is_storage_location_sts_enabled(syn, entity_id, location):
         )
 
     return destination.get('stsEnabled', False)
-

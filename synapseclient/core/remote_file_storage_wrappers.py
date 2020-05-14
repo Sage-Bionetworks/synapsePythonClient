@@ -39,14 +39,16 @@ class S3ClientWrapper:
         """
         Download a file from s3 using boto3.
 
-        :param bucket:              name of bucket to upload to
-        :param endpoint_url:        a boto3 compatible endpoint url
-        :param remote_file_key:     object key to upload the file to
-        :param download_file_path:  local path to save the file to
-        :param profile_name:        AWS profile name from local aws config, mutually exclusive with credentials
-        :param credentials:         a dictionary of AWS credentials to use, mutually exclusive with profile_name
-                                    (aws_access_key_id, aws_secret_access_key, aws_session_token)
-        :param show_progress:       whether to print progress indicator to console
+        :param bucket:                  name of bucket to upload to
+        :param endpoint_url:            a boto3 compatible endpoint url
+        :param remote_file_key:         object key to upload the file to
+        :param download_file_path:      local path to save the file to
+        :param profile_name:            AWS profile name from local aws config, mutually exclusive with credentials
+        :param credentials:             a dictionary of AWS credentials to use, mutually exclusive with profile_name
+                                        (aws_access_key_id, aws_secret_access_key, aws_session_token)
+        :param show_progress:           whether to print progress indicator to console
+        :param transfer_config_kwargs:  boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
+
         """
 
         S3ClientWrapper._attempt_import_boto3()
@@ -67,14 +69,21 @@ class S3ClientWrapper:
                 s3_obj.load()
                 file_size = s3_obj.content_length
                 filename = os.path.basename(download_file_path)
-                progress_callback = S3ClientWrapper._create_progress_callback_func(file_size, filename,
-                                                                                   prefix='Downloading')
+                progress_callback = S3ClientWrapper._create_progress_callback_func(
+                    file_size,
+                    filename,
+                    prefix='Downloading',
+                )
+
             s3_obj.download_file(
                 download_file_path,
                 Callback=progress_callback,
                 Config=transfer_config,
             )
+
+            # why return what we were passed...?
             return download_file_path
+
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
                 raise ValueError("The key:%s does not exist in bucket:%s.", remote_file_key, bucket)
@@ -87,23 +96,23 @@ class S3ClientWrapper:
         """
         Upload a file to s3 using boto3.
 
-        :param bucket:              name of bucket to upload to
-        :param endpoint_url:        a boto3 compatible endpoint url
-        :param remote_file_key:     object key to upload the file to
-        :param upload_file_path:    local path of the file to upload
-        :param profile_name:        AWS profile name from local aws config, mutually exclusive with credentials
-        :param credentials:         a dictionary of AWS credentials to use, mutually exclusive with profile_name
-                                    (aws_access_key_id, aws_secret_access_key, aws_session_token)
-        :param show_progress:       whether to print progress indicator to console
+        :param bucket:                  name of bucket to upload to
+        :param endpoint_url:            a boto3 compatible endpoint url
+        :param remote_file_key:         object key to upload the file to
+        :param upload_file_path:        local path of the file to upload
+        :param profile_name:            AWS profile name from local aws config, mutually exclusive with credentials
+        :param credentials:             a dictionary of AWS credentials to use, mutually exclusive with profile_name
+                                        (aws_access_key_id, aws_secret_access_key, aws_session_token)
+        :param show_progress:           whether to print progress indicator to console
+        :param transfer_config_kwargs:  boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
         """
-
-        S3ClientWrapper._attempt_import_boto3()
-
-        import boto3.s3.transfer
-        transfer_config = boto3.s3.transfer.TransferConfig(**(transfer_config_kwargs or {}))
 
         if not os.path.isfile(upload_file_path):
             raise ValueError("The path: [%s] does not exist or is not a file", upload_file_path)
+
+        S3ClientWrapper._attempt_import_boto3()
+        import boto3.s3.transfer
+        transfer_config = boto3.s3.transfer.TransferConfig(**(transfer_config_kwargs or {}))
 
         session_args = credentials if credentials else {'profile_name': profile_name}
         boto_session = boto3.session.Session(**session_args)
