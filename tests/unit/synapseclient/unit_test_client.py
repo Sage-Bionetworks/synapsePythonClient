@@ -225,6 +225,78 @@ class TestPrivateGetWithEntityBundle:
         # TODO: add more test cases for flag combination of this method
         # TODO: separate into another test?
 
+
+class TestDownloadFileHandle:
+    # TODO missing tests for the other ways of downloading a file handle should be backfilled...
+
+    @patch.object(client, 'S3ClientWrapper')
+    @patch.object(client, 'sts_transfer')
+    @patch.object(client, 'os')
+    def test_download_file_handle__sts_boto(
+            self,
+            mock_os,
+            mock_sts_transfer,
+            mock_s3_client_wrapper,
+    ):
+        """Verify that we download S3 file handles using boto if the configuration specifies
+        # it and if the storage location supports STS"""
+
+        file_handle_id = 1234
+        entity_id = 'syn_5678'
+        bucket_name = 'fooBucket'
+        key = '/tmp/fooKey'
+        destination = '/tmp'
+        credentials = {
+            'aws_access_key_id': 'foo',
+            'aws_secret_access_key': 'bar',
+            'aws_session_token': 'baz',
+        }
+
+        mock_sts_transfer.is_boto_sts_transfer_enabled.return_value = True
+        mock_sts_transfer.is_storage_location_sts_enabled.return_value = True
+
+        def mock_with_boto_sts_credentials(download_fn, syn, objectId, permission):
+            assert_equal(permission, 'read_only')
+            assert_equal(entity_id, objectId)
+            return download_fn(**credentials)
+
+        mock_sts_transfer.with_boto_sts_credentials = mock_with_boto_sts_credentials
+
+        expected_download_path = '/tmp/fooKey'
+        mock_s3_client_wrapper.download_file.return_value = expected_download_path
+
+        with patch.object(syn, '_getFileHandleDownload') as mock_get_file_handle_download,\
+                patch.object(syn, 'cache') as cache:
+            mock_get_file_handle_download.return_value = {
+                'fileHandle': {
+                    'id': file_handle_id,
+                    'bucketName': bucket_name,
+                    'key': key,
+                    'concreteType': concrete_types.S3_FILE_HANDLE,
+                    'storageLocationId': 9876
+                }
+            }
+
+            download_path = syn._downloadFileHandle(
+                fileHandleId=file_handle_id,
+                objectId=entity_id,
+                objectType='FileEntity',
+                destination=destination,
+            )
+
+            cache.add.assert_called_once_with(file_handle_id, download_path)
+
+        assert_equal(expected_download_path, download_path)
+        mock_s3_client_wrapper.download_file.assert_called_once_with(
+            bucket_name,
+            None,
+            key,
+            destination,
+            credentials=credentials,
+            transfer_config_kwargs={'max_concurrency': syn.max_threads},
+        )
+
+
 class TestPrivateSubmit:
 
     def setup(self):
