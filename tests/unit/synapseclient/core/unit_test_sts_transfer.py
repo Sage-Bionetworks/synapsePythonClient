@@ -9,7 +9,158 @@ from synapseclient.core.sts_transfer import _StsTokenStore, _TokenCache, with_bo
 from synapseclient.core.utils import iso_to_datetime, datetime_to_iso
 
 import mock
-from nose.tools import assert_equal, assert_is, assert_is_none, assert_raises, assert_true
+from nose.tools import assert_equal, assert_false, assert_is, assert_is_none, assert_raises, assert_true
+
+
+class TestIsStorageLocationStsEnabled:
+
+    def test_none_location(self):
+        """A None location is not enabled"""
+        assert_false(sts_transfer.is_storage_location_sts_enabled(mock.Mock(), 'syn_1', None))
+
+    def test_location_mapping(self):
+        """Check a storage location dictionary as returned by e.g. """
+
+        for sts_enabled in (True, False, None):
+            location = {}
+            if sts_enabled:
+                location['stsEnabled'] = sts_enabled
+
+            assert_equal(sts_transfer.is_storage_location_sts_enabled(
+                mock.Mock(),
+                'syn_1',
+                location,
+            ), bool(sts_enabled))
+
+    def test_storage_location_id(self):
+        """Test with determining if a storage_location_id is STS enabled by
+        fetching the upload destination."""
+
+        syn = mock.Mock()
+        entity_id = 'syn_1'
+        storage_location_id = 1234
+
+        for sts_enabled in (True, False, None):
+            location = {}
+            if sts_enabled:
+                location['stsEnabled'] = sts_enabled
+
+            syn.restGET.return_value = location
+            assert_equal(
+                bool(sts_enabled),
+                sts_transfer.is_storage_location_sts_enabled(syn, entity_id, storage_location_id)
+            )
+
+            syn.restGET.assert_called_with(
+                f'/entity/{entity_id}/uploadDestination/{storage_location_id}',
+                endpoint=syn.fileHandleEndpoint,
+            )
+
+@mock.patch.object(sts_transfer._TOKEN_STORE, 'get_token')
+class TestGetStsCredentials:
+
+    @classmethod
+    def setUpClass(cls):
+        cls._utcnow = datetime.datetime.utcnow()
+
+    @classmethod
+    def _make_credentials(cls):
+        return {
+            'accessKeyId': 'foo',
+            'secretAccessKey': 'bar',
+            'sessionToken': 'baz',
+            'expiration': datetime_to_iso(cls._utcnow),
+        }
+
+    def test_boto_format(self, mock_get_token):
+        """Verify that tokens returned in boto format are as expected,
+        i.e. a dictionary that can be passed to a boto session"""
+        mock_get_token.return_value = self._make_credentials()
+
+        syn = mock.Mock()
+        entity_id = 'syn_1'
+        permission = 'read_write'
+
+        expected_output = {
+            'aws_access_key_id': 'foo',
+            'aws_secret_access_key': 'bar',
+            'aws_session_token': 'baz',
+        }
+
+        kwargs = {'extra': 'kwargs', 'are': 'passed'}
+        credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='boto', **kwargs)
+        assert_equal(credentials, expected_output)
+        mock_get_token.assert_called_once_with(syn, entity_id, permission, **kwargs)
+
+    @mock.patch.object(sts_transfer, 'platform')
+    def test_shell_format__windows_cmd(self, mock_platform, mock_get_token):
+        """Verify Windows cmd compatible shell output"""
+        mock_platform.system.return_value = 'Windows'
+        mock_get_token.return_value = self._make_credentials()
+
+        syn = mock.Mock()
+        entity_id = 'syn_1'
+        permission = 'read_write'
+
+        expected_output = f"""\
+setx AWS_ACCESS_KEY_ID "foo"
+setx AWS_SECRET_ACCESS_KEY "bar"
+setx AWS_SESSION_TOKEN "baz"
+"""
+
+        credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='shell')
+        assert_equal(credentials, expected_output)
+        mock_get_token.assert_called_once_with(syn, entity_id, permission)
+
+    def _bash_shell_test(self, mock_get_token):
+        mock_get_token.return_value = self._make_credentials()
+
+        syn = mock.Mock()
+        entity_id = 'syn_1'
+        permission = 'read'
+
+        expected_output = f"""\
+export AWS_ACCESS_KEY_ID="foo"
+export AWS_SECRET_ACCESS_KEY="bar"
+export AWS_SESSION_TOKEN="baz"
+"""
+
+        credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='shell')
+        assert_equal(credentials, expected_output)
+        mock_get_token.assert_called_with(syn, entity_id, permission)
+
+    @mock.patch.object(sts_transfer, 'os')
+    @mock.patch.object(sts_transfer, 'platform')
+    def test_shell_format__windows_bash(self, mock_os, mock_platform, mock_get_token):
+        """Verify that a bash shell on Windows is treated as bash on shell output"""
+        mock_platform.system.return_value = 'Windows'
+        mock_os.environ = {'SHELL': 'bash'}
+        mock_get_token.return_value = self._make_credentials()
+
+        self._bash_shell_test(mock_get_token)
+
+    @mock.patch.object(sts_transfer, 'platform')
+    def test_shell__other_oses(self, mock_platform, mock_get_token):
+        """Verify we treat any other os as running in a bash compatible shell"""
+        for platform in ('Linux', 'Darwin', 'AnythingElse'):
+            mock_platform.system.return_value = platform
+            mock_get_token.return_value = self._make_credentials()
+
+            self._bash_shell_test(mock_get_token)
+
+    @mock.patch.object(sts_transfer, 'platform')
+    def test_other_format__passed_through(self, mock_platform, mock_get_token):
+        """Verify that any other output_format just results in the raw dictionary being passed through."""
+        expected_credentials = mock_get_token.return_value = self._make_credentials()
+
+        syn = mock.Mock()
+        entity_id = 'syn_1'
+        permission = 'read'
+
+        for output_format in ('json', None):
+            credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format=output_format)
+            assert_equal(expected_credentials, credentials)
+            mock_get_token.assert_called_with(syn, entity_id, permission)
 
 
 class TestTokenCache:

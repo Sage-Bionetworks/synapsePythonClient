@@ -1,7 +1,6 @@
 import collections
 import collections.abc
 import datetime
-from enum import Enum, auto
 import importlib
 import json
 import os
@@ -19,27 +18,6 @@ except ImportError:
     boto3 = None
 
 STS_PERMISSIONS = set(['read_only', 'read_write'])
-
-def enable_sts(syn, folder_id):
-    destination = {
-        'uploadType': 'S3',
-        'stsEnabled': True,
-        'concreteType': 'org.sagebionetworks.repo.model.project.S3StorageLocationSetting',
-    }
-
-    destination = syn.restPOST('/storageLocation', body=json.dumps(destination))
-
-    project_destination = {
-        'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
-        'settingsType': 'upload',
-        'locations': [destination['storageLocationId']],
-        'projectId': folder_id
-    }
-
-    return syn.restPOST('/projectSettings', body=json.dumps(project_destination))
-
-
-
 
 
 def is_boto_sts_transfer_enabled(syn):
@@ -66,6 +44,9 @@ def is_storage_location_sts_enabled(syn, entity_id, location):
                                 these)
     :returns: True if STS if enabled for the location, False otherwise
     """
+    if not location:
+        return False
+
     if isinstance(location, collections.abc.Mapping):
         # looks like this is already an upload destination dict
         destination = location
@@ -177,16 +158,16 @@ def get_sts_credentials(syn, entity_id, permission, output_format=None, **kwargs
             # if we're running on windows and we can't detect we're running a bash shell
             # then we make the output compatible for a windows cmd prompt environment.
             value = f"""\
-setx AWS_ACCESS_KEY_ID {value['accessKeyId']}
-setx AWS_SECRET_ACCESS_KEY {value['secretAccessKey']}
-setx AWS_SESSION_TOKEN {value['sessionToken']}
+setx AWS_ACCESS_KEY_ID "{value['accessKeyId']}"
+setx AWS_SECRET_ACCESS_KEY "{value['secretAccessKey']}"
+setx AWS_SESSION_TOKEN "{value['sessionToken']}"
 """
         else:
             # assume bourne shell compatible (i.e. bash, zsh, etc)
             value = f"""\
-export AWS_ACCESS_KEY_ID={value['accessKeyId']}
-export AWS_SECRET_ACCESS_KEY={value['secretAccessKey']}
-export AWS_SESSION_TOKEN={value['sessionToken']}
+export AWS_ACCESS_KEY_ID="{value['accessKeyId']}"
+export AWS_SECRET_ACCESS_KEY="{value['secretAccessKey']}"
+export AWS_SESSION_TOKEN="{value['sessionToken']}"
 """
 
     return value
