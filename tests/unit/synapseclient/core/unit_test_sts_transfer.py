@@ -12,49 +12,6 @@ import mock
 from nose.tools import assert_equal, assert_false, assert_is, assert_is_none, assert_raises, assert_true
 
 
-class TestIsStorageLocationStsEnabled:
-
-    def test_none_location(self):
-        """A None location is not enabled"""
-        assert_false(sts_transfer.is_storage_location_sts_enabled(mock.Mock(), 'syn_1', None))
-
-    def test_location_mapping(self):
-        """Check a storage location dictionary as returned by e.g. """
-
-        for sts_enabled in (True, False, None):
-            location = {}
-            if sts_enabled:
-                location['stsEnabled'] = sts_enabled
-
-            assert_equal(sts_transfer.is_storage_location_sts_enabled(
-                mock.Mock(),
-                'syn_1',
-                location,
-            ), bool(sts_enabled))
-
-    def test_storage_location_id(self):
-        """Test with determining if a storage_location_id is STS enabled by
-        fetching the upload destination."""
-
-        syn = mock.Mock()
-        entity_id = 'syn_1'
-        storage_location_id = 1234
-
-        for sts_enabled in (True, False, None):
-            location = {}
-            if sts_enabled:
-                location['stsEnabled'] = sts_enabled
-
-            syn.restGET.return_value = location
-            assert_equal(
-                bool(sts_enabled),
-                sts_transfer.is_storage_location_sts_enabled(syn, entity_id, storage_location_id)
-            )
-
-            syn.restGET.assert_called_with(
-                f'/entity/{entity_id}/uploadDestination/{storage_location_id}',
-                endpoint=syn.fileHandleEndpoint,
-            )
 
 @mock.patch.object(sts_transfer._TOKEN_STORE, 'get_token')
 class TestGetStsCredentials:
@@ -355,3 +312,85 @@ class TestWithBotoStsCredentials:
             with_boto_sts_credentials(fn, entity_id, permission)
         assert_equal(ex_message, str(ex_cm.exception))
         assert_equal(2, call_count)
+
+
+class TestIsBotoStsTransferEnabled:
+
+    @mock.patch.object(sts_transfer, 'boto3', new_callable=mock.PropertyMock)
+    def test_get_transfer_config__use_boto_sts(self, mock_boto3):
+        """Verify reading use_boto_sts from the [transfer] stanza of the synapse config
+        which determines whether synapseclient will automatically try to use boto to
+        upload and download files from supported STS enabled storage locations."""
+
+        # boto3 is mocked and non-None so it will be treated as if it was imported for this test
+
+        syn = mock.Mock()
+        for value, expected_enabled in [
+            ('', False),
+            ('false', False),
+            ('False', False),
+            ('0', False),
+            ('1', False),
+            ('xyz', False),
+
+            # only enabled when case insensitive True
+            ('true', True),
+            ('TRUE', True),
+            ('True', True),
+        ]:
+            syn._get_config_section_dict.return_value = {'use_boto_sts': value}
+            assert_equal(expected_enabled, sts_transfer.is_boto_sts_transfer_enabled(syn))
+
+    @mock.patch.object(sts_transfer, 'boto3', new_callable=mock.PropertyMock(return_value=None))
+    def test_boto_import_required(self, mock_boto3):
+        """Verify that if boto3 is not importable that sts transfers are always
+        disabled no matter what the config says."""
+
+        syn = mock.Mock()
+        syn._get_config_section_dict.return_value = {'use_boto_sts': 'true'}
+        assert_false(sts_transfer.is_boto_sts_transfer_enabled(syn))
+
+
+class TestIsStorageLocationStsEnabled:
+
+    def test_none_location(self):
+        """A None location is not enabled"""
+        assert_false(sts_transfer.is_storage_location_sts_enabled(mock.Mock(), 'syn_1', None))
+
+    def test_location_mapping(self):
+        """Check a storage location dictionary as returned by e.g. """
+
+        for sts_enabled in (True, False, None):
+            location = {}
+            if sts_enabled:
+                location['stsEnabled'] = sts_enabled
+
+            assert_equal(sts_transfer.is_storage_location_sts_enabled(
+                mock.Mock(),
+                'syn_1',
+                location,
+            ), bool(sts_enabled))
+
+    def test_storage_location_id(self):
+        """Test with determining if a storage_location_id is STS enabled by
+        fetching the upload destination."""
+
+        syn = mock.Mock()
+        entity_id = 'syn_1'
+        storage_location_id = 1234
+
+        for sts_enabled in (True, False, None):
+            location = {}
+            if sts_enabled:
+                location['stsEnabled'] = sts_enabled
+
+            syn.restGET.return_value = location
+            assert_equal(
+                bool(sts_enabled),
+                sts_transfer.is_storage_location_sts_enabled(syn, entity_id, storage_location_id)
+            )
+
+            syn.restGET.assert_called_with(
+                f'/entity/{entity_id}/uploadDestination/{storage_location_id}',
+                endpoint=syn.fileHandleEndpoint,
+            )

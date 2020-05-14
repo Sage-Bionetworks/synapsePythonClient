@@ -20,45 +20,6 @@ except ImportError:
 STS_PERMISSIONS = set(['read_only', 'read_write'])
 
 
-def is_boto_sts_transfer_enabled(syn):
-    """
-    Check if the boto/STS transfers are enabled in the Synapse configuration
-
-    :param syn:         A Synapse client
-
-    :returns: True if STS if enabled, False otherwise
-    """
-
-    #use_boto_sts = syn._get_config_section_dict('transfer').get('use_boto_sts', '')
-    #return boto3 and 'true' == use_boto_sts.lower()
-    return True
-
-
-def is_storage_location_sts_enabled(syn, entity_id, location):
-    """
-    Returns whether the given storage location is enabled for STS.
-
-    :param syn:         A Synapse client
-    :param entity_id:   id of synapse entity whose storage location we want to check for sts access
-    :param location:    a storage location id or an dictionary representing the location UploadDestination
-                                these)
-    :returns: True if STS if enabled for the location, False otherwise
-    """
-    if not location:
-        return False
-
-    if isinstance(location, collections.abc.Mapping):
-        # looks like this is already an upload destination dict
-        destination = location
-
-    else:
-        # otherwise treat it as a storage location id,
-        destination = syn.restGET(
-            f'/entity/{entity_id}/uploadDestination/{location}',
-            endpoint=syn.fileHandleEndpoint
-        )
-
-    return destination.get('stsEnabled', False)
 
 
 class _TokenCache(collections.OrderedDict):
@@ -200,3 +161,46 @@ def with_boto_sts_credentials(fn, *args, **kwargs):
                 raise
 
         return response
+
+
+def is_boto_sts_transfer_enabled(syn):
+    """
+    Check if the boto/STS transfers are enabled in the Synapse configuration.
+    If enabled then synapseclient will attempt to automatically use boto to upload
+    and download from supported storage locations that are sts enabled.
+
+    :param syn:         A Synapse client
+
+    :returns: True if STS if enabled, False otherwise
+    """
+
+    use_boto_sts = syn._get_config_section_dict('transfer').get('use_boto_sts', '')
+    return boto3 and 'true' == use_boto_sts.lower()
+
+
+def is_storage_location_sts_enabled(syn, entity_id, location):
+    """
+    Returns whether the given storage location is enabled for STS.
+
+    :param syn:         A Synapse client
+    :param entity_id:   id of synapse entity whose storage location we want to check for sts access
+    :param location:    a storage location id or an dictionary representing the location UploadDestination
+                                these)
+    :returns: True if STS if enabled for the location, False otherwise
+    """
+    if not location:
+        return False
+
+    if isinstance(location, collections.abc.Mapping):
+        # looks like this is already an upload destination dict
+        destination = location
+
+    else:
+        # otherwise treat it as a storage location id,
+        destination = syn.restGET(
+            f'/entity/{entity_id}/uploadDestination/{location}',
+            endpoint=syn.fileHandleEndpoint
+        )
+
+    return destination.get('stsEnabled', False)
+
