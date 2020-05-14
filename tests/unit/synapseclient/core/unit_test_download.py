@@ -11,6 +11,7 @@ from nose.tools import assert_raises, assert_equals, assert_false
 
 import synapseclient.core.constants.concrete_types as concrete_types
 import synapseclient.core.multithread_download as multithread_download
+from synapseclient.core import sts_transfer
 from synapseclient import *
 from synapseclient import client
 from synapseclient.core import utils
@@ -176,8 +177,8 @@ def test_mock_download():
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch.object(Synapse, '_getFileHandleDownload',
-                      return_value=_getFileHandleDownload_return_value):
+         patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
+         patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
         syn._downloadFileHandle(fileHandleId, objectId, objectType, destination=temp_dir)
 
     # 4. as long as we're making progress, keep trying
@@ -197,8 +198,8 @@ def test_mock_download():
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch.object(Synapse, '_getFileHandleDownload',
-                      return_value=_getFileHandleDownload_return_value):
+         patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
+         patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
 
         syn._downloadFileHandle(fileHandleId, objectId, objectType, destination=temp_dir)
 
@@ -237,8 +238,8 @@ def test_mock_download():
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch.object(Synapse, '_getFileHandleDownload',
-                      return_value=_getFileHandleDownload_return_value):
+         patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
+         patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
         syn._downloadFileHandle(fileHandleId, objectId, objectType, destination=temp_dir)
 
     # 7. Too many redirects
@@ -249,8 +250,8 @@ def test_mock_download():
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch.object(Synapse, '_getFileHandleDownload',
-                      return_value=_getFileHandleDownload_return_value):
+         patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
+         patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
         assert_raises(SynapseHTTPError, syn._downloadFileHandle, fileHandleId, objectId, objectType,
                       destination=temp_dir)
 
@@ -283,7 +284,8 @@ class Test__downloadFileHandle(unittest.TestCase):
         with patch.object(os, "makedirs") as mock_makedirs, \
                 patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
                 patch.object(syn, "_download_from_URL") as mock_download_from_URL, \
-                patch.object(syn, "cache") as mock_cache:
+                patch.object(syn, "cache") as mock_cache, \
+                patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
             mock_getFileHandleDownload.return_value = {
                 'fileHandle': {
                     'id': '123',
@@ -303,7 +305,8 @@ class Test__downloadFileHandle(unittest.TestCase):
         with patch.object(os, "makedirs") as mock_makedirs, \
                 patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
                 patch.object(syn, "_download_from_URL") as mock_download_from_URL, \
-                patch.object(syn, "cache") as mock_cache:
+                patch.object(syn, "cache") as mock_cache, \
+                patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
             mock_getFileHandleDownload.return_value = {
                 'fileHandle': {
                     'id': '123',
