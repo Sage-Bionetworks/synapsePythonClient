@@ -166,7 +166,7 @@ def upload_synapse_sts_boto_s3(syn, parent_id, upload_destination, local_path, m
 
     def upload_fn(**credentials):
         return S3ClientWrapper.upload_file(
-            upload_destination['bucket'],
+            bucket_name,
             None,
             remote_file_key,
             local_path,

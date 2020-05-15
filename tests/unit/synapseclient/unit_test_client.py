@@ -283,7 +283,7 @@ class TestDownloadFileHandle:
                 objectType='FileEntity',
                 destination=destination,
             )
-
+            mock_os.makedirs.assert_called_once_with(mock_os.path.dirname(destination), exist_ok=True)
             cache.add.assert_called_once_with(file_handle_id, download_path)
 
         assert_equal(expected_download_path, download_path)

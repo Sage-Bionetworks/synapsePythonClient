@@ -1718,6 +1718,7 @@ class Synapse(object):
                             fileHandle['key'],
                             destination,
                             credentials=credentials,
+                            # pass through our synapse threading config to boto s3
                             transfer_config_kwargs={'max_concurrency': self.max_threads},
                         )
 
