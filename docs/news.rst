@@ -29,7 +29,41 @@ Highlights:
      [transfer]
      max_threads=16
 
-  This release also includes other optimizations associated with file uploads.
+- This release includes support for directly accessing
+  `STS storage locations <https://docs.synapse.org/articles/sts_storage_locations.html>`__.
+  This allows reading and writing data to Synapse storage using external tools, such as the boto3 Python library and
+  the awscli. Currently this feature is limited to Amazon S3 storage at locations enabled for STS, and is limited to
+  read_only for Synapse storage while read_write is supported for
+  `custom S3 storage locations <https://docs.synapse.org/articles/custom_storage_location.html>`__ enabled for STS.
+
+  .. code-block::
+
+    # get an STS token for a previously enabled storage location and use with boto
+    import boto3
+    boto_credentials = synapseclient.get_sts_storage_token(folder_id, 'read_only', output_format='boto')
+    s3_client = boto3.client('s3', **boto_credentials)
+    s3_client.download_file(<bucket>, <key>, <filename>)
+
+  .. code-block::
+
+    # from the command line output commands that can be used to supply credentials to the awscli
+    $ synapse get-sts-token <synapse folder id> read_only --output shell
+    export AWS_ACCESS_KEY_ID="<key_id>"
+    export AWS_SECRET_ACCESS_KEY="<key secret>"
+    export AWS_SESSION_TOKEN="<session token>"
+
+  In addition, a **use_boto_sts=true** value in the *[transfer]* stanza of the
+  `synapseConfig configuration file <https://docs.synapse.org/articles/client_configuration.html>`__ will direct
+  the synapseclient to automatically favor using the boto3 library (if installed) for data transfers to and from
+  Synapse on supported storage locations without any other changes in Synapse usage. This may improve performance
+  in some situations by allowing the data transfers to be conducted directly with S3 without intermediate
+  communication with Synapse.
+
+  .. code-block::
+
+    [transfer]
+    use_boto_sts=true
+
 
 - The :code:`getAnnotations` and :code:`setAnnotations` methods of the Synapse object have been **deprecated** in
   favor of newer :code:`get_annotations` and :code:`set_annotations` methods, respectively. The newer versions
@@ -67,7 +101,8 @@ Improvement
 
 -  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1029>`__] -
    Make upload speeds comparable to those of the AWS S3 CLI
-
+-  [`SYNPY-1049 <https://sagebionetworks.jira.com/browse/SYNPY-1049>`__] -
+   Expose STS-related APIs
 
 2.0.0 (2020-03-23)
 ==================
