@@ -2125,8 +2125,22 @@ class Synapse(object):
                                                                                   type=setting_type))
         return response if response else None  # if no project setting, a empty string is returned as the response
 
-    def get_sts(self, entity_id, permission, output_format='json'):
-        return sts_transfer.get_sts_credentials(self, entity_id, permission, output_format=output_format)
+    def get_sts_storage_token(self, id, permission, output_format='json'):
+        """
+        Get a temporary STS token for the Synapse folder with the given identifier. The folder must
+        have been previously enabled to allow STS tokens.
+
+        :param id:              the Synapse ID of the STS enabled folder
+        :param permission:      one of "read_only" or "read_write" for those respective capabilities
+        :param output_format::  one of "json", "boto", or "shell"
+                                json: the dictionary returned directly by the Synapse API
+                                boto: a dictionary compatible with the AWS boto API, including aws_access_key_id,
+                                    aws_secret_access_key, and aws_session_token keys
+                                shell: a string including commands to export the token into your local shel
+                                    environment for use with e.g. the awscli
+        """
+
+        return sts_transfer.get_sts_credentials(self, id, permission, output_format=output_format)
 
     ############################################################
     #                   CRUD for Evaluations                   #

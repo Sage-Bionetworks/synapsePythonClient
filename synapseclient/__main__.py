@@ -65,6 +65,7 @@ Commands
   * **test-encoding**    - test character encoding to help diagnose problems
 """
 import argparse
+import collections.abc
 import os
 import sys
 import signal
@@ -486,6 +487,20 @@ def test_encoding(args, syn):
           "\u0167\u1e17\u1e8b\u0167 \u0192\u01ff\u0159 \u0167\u1e17\u015f\u0167\u012b\u019e\u0260'", )
 
 
+def get_sts_token(args, syn):
+    """Get an STS storage token for use with the given folder"""
+
+    # output is either a dictionary of keys or a string consisting of shell commands
+    # serialize dictionaries, and pass strings through as they are
+    resp = syn.get_sts_storage_token(args.id, args.permission, output_format=args.output)
+    if isinstance(resp, collections.abc.Mapping):
+        sts_string = json.dumps(resp)
+    else:
+        sts_string = str(resp)
+
+    print(sts_string)
+
+
 def build_parser():
     """Builds the argument parser and returns the result."""
 
@@ -866,6 +881,19 @@ def build_parser():
     parser_test_encoding = subparsers.add_parser('test-encoding',
                                                  help='test character encoding to help diagnose problems')
     parser_test_encoding.set_defaults(func=test_encoding)
+
+    # get an sts token for s3 access to stroge
+    parser_get_sts_token = subparsers.add_parser('get-sts-token',
+                            help='Get an STS token for access to AWS S3 storage underlying Synapse')
+    parser_get_sts_token.add_argument('id', type=str, help='Synapse id')
+    parser_get_sts_token.add_argument('permission', type=str, choices=['read_write', 'read_only'])
+    parser_get_sts_token.add_argument(
+        '-o',
+        '--output',
+        dest='output',
+        default='json',
+        choices=['json', 'boto', 'shell'])
+    parser_get_sts_token.set_defaults(func=get_sts_token)
 
     return parser
 
