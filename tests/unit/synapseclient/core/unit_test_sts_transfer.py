@@ -1,7 +1,5 @@
-from collections import OrderedDict
 import boto3
 import datetime
-
 
 from synapseclient.core import sts_transfer
 from synapseclient.core.sts_transfer import _StsTokenStore, _TokenCache, with_boto_sts_credentials
@@ -107,7 +105,7 @@ export AWS_SESSION_TOKEN="baz"
             self._bash_shell_test(mock_get_token)
 
     @mock.patch.object(sts_transfer, 'platform')
-    def test_other_format__passed_through(self, mock_platform, mock_get_token):
+    def test_json_format(self, mock_platform, mock_get_token):
         """Verify that any other output_format just results in the raw dictionary being passed through."""
         expected_credentials = mock_get_token.return_value = self._make_credentials()
 
@@ -115,10 +113,20 @@ export AWS_SESSION_TOKEN="baz"
         entity_id = 'syn_1'
         permission = 'read'
 
-        for output_format in ('json', None):
-            credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format=output_format)
-            assert_equal(expected_credentials, credentials)
-            mock_get_token.assert_called_with(syn, entity_id, permission)
+        credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='json')
+        assert_equal(expected_credentials, credentials)
+        mock_get_token.assert_called_with(syn, entity_id, permission)
+
+    def test_other_formats_rejected(self, mock_get_token):
+        mock_get_token.return_value = self._make_credentials()
+
+        syn = mock.Mock()
+        entity_id = 'syn_1'
+        permission = 'read'
+
+        for output_format in ('', None, 'foobar'):
+            with assert_raises(ValueError):
+                sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format=output_format)
 
 
 class TestTokenCache:

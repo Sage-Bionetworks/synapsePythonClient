@@ -95,7 +95,10 @@ class _StsTokenStore:
 _TOKEN_STORE = _StsTokenStore()
 
 
-def get_sts_credentials(syn, entity_id, permission, output_format=None, **kwargs):
+def get_sts_credentials(syn, entity_id, permission, output_format='json', **kwargs):
+    """Get STS credentials for the given entity_id and permission, outputting it in the given format
+    """
+
     value = _TOKEN_STORE.get_token(syn, entity_id, permission, **kwargs)
     value['secretAccessKey'] = value['secretAccessKey']
 
@@ -126,6 +129,8 @@ export AWS_ACCESS_KEY_ID="{value['accessKeyId']}"
 export AWS_SECRET_ACCESS_KEY="{value['secretAccessKey']}"
 export AWS_SESSION_TOKEN="{value['sessionToken']}"
 """
+    elif output_format != 'json':
+        raise ValueError(f'Unrecognized output_format {output_format}')
 
     return value
 
