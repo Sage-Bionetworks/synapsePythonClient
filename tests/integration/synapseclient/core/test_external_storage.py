@@ -37,6 +37,7 @@ def check_test_preconditions():
 
     return skip_tests, reason
 
+
 def setup(module):
     module.syn = integration.syn
     module.project = integration.project
@@ -127,8 +128,8 @@ class ExernalStorageTest(unittest.TestCase):
         bucket_name, _ = get_aws_env()
         _, folder, storage_location_id = self._configure_storage_location(sts_enabled=True)
 
-        sts_read_creds = syn.get_sts(folder['id'], 'read_only', output_format='boto')
-        sts_write_creds = syn.get_sts(folder['id'], 'read_write', output_format='boto')
+        sts_read_creds = syn.get_sts_storage_token(folder['id'], 'read_only', output_format='boto')
+        sts_write_creds = syn.get_sts_storage_token(folder['id'], 'read_write', output_format='boto')
 
         s3_read_client = boto3.client('s3', **sts_read_creds)
         s3_write_client = boto3.client('s3', **sts_write_creds)
