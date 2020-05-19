@@ -125,6 +125,12 @@ class ExernalStorageTest(unittest.TestCase):
         s3_client.get_object(Bucket=bucket_name, Key=file_handle['key'])
 
     def test_sts_external_storage_location(self):
+        """Test creating and using an external STS storage location.
+        A custom storage location is created with sts enabled,
+        a file is uploaded directly via boto using STS credentials,
+        a file handle is created for it, and then it is read directly
+        via boto using STS read credentials.
+        """
         bucket_name, _ = get_aws_env()
         _, folder, storage_location_id = self._configure_storage_location(sts_enabled=True)
 

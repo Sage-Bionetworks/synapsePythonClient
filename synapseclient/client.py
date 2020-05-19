@@ -2136,7 +2136,7 @@ class Synapse(object):
                                 json: the dictionary returned directly by the Synapse API
                                 boto: a dictionary compatible with the AWS boto API, including aws_access_key_id,
                                     aws_secret_access_key, and aws_session_token keys
-                                shell: a string including commands to export the token into your local shel
+                                shell: a string including commands to export the token into your local shell
                                     environment for use with e.g. the awscli
         """
 

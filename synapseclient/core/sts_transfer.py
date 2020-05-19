@@ -19,6 +19,10 @@ STS_PERMISSIONS = set(['read_only', 'read_write'])
 
 
 class _TokenCache(collections.OrderedDict):
+    """A self pruning dictionary of STS tokens.
+    It will prune itself as new keys are added, removing the oldest if the
+    max_size is exceeded, and always removing all tokens that have expired
+    on each additional insert."""
 
     def __init__(self, max_size):
         super().__init__()
