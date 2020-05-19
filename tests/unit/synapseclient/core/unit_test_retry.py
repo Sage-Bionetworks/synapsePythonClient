@@ -67,6 +67,7 @@ def test_with_retry__no_status_code():
     and back off capabiliies."""
 
     x = 0
+
     def fn():
         nonlocal x
         x += 1
@@ -76,5 +77,3 @@ def test_with_retry__no_status_code():
 
     response = with_retry(fn, retry_exceptions=[ValueError])
     assert_equals(2, response)
-
-

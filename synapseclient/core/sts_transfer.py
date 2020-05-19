@@ -69,13 +69,13 @@ class _StsTokenStore:
     # we won't hand out previously retrieved tokens that have less than this amount of
     # time left on them. we don't know exactly when they'll be used so we don't want to
     # hand out an about-to-expire cached token.
-    DEFAULT_MIN_LIFE=datetime.timedelta(hours=1)
+    DEFAULT_MIN_LIFE = datetime.timedelta(hours=1)
 
     def __init__(self, max_token_cache_size=DEFAULT_TOKEN_CACHE_SIZE):
         self._tokens = {p: _TokenCache(max_token_cache_size) for p in STS_PERMISSIONS}
         self._lock = threading.Lock()
 
-    def get_token(self, syn, entity_id, permission, min_remaining_life: datetime.timedelta=None):
+    def get_token(self, syn, entity_id, permission, min_remaining_life: datetime.timedelta = None):
         min_remaining_life = min_remaining_life if min_remaining_life is not None else self.DEFAULT_MIN_LIFE
 
         utcnow = datetime.datetime.utcnow()

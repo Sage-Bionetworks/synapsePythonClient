@@ -55,27 +55,27 @@ def with_retry(function, verbose=False,
 
         # Check if we got a retry-able error
         if response is not None and hasattr(response, 'status_code'):
-           if response.status_code in retry_status_codes:
-               response_message = _get_message(response)
-               retry = True
-               logger.debug("retrying on status code: %s" % str(response.status_code))
-               # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
-               logger.debug(str(response_message))
-               if (response.status_code == 429) and (wait > 10):
-                   logger.warning('%s...\n' % response_message)
-                   logger.warning('Retrying in %i seconds' % wait)
+            if response.status_code in retry_status_codes:
+                response_message = _get_message(response)
+                retry = True
+                logger.debug("retrying on status code: %s" % str(response.status_code))
+                # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
+                logger.debug(str(response_message))
+                if (response.status_code == 429) and (wait > 10):
+                    logger.warning('%s...\n' % response_message)
+                    logger.warning('Retrying in %i seconds' % wait)
 
-           elif response.status_code not in range(200, 299):
-               # For all other non 200 messages look for retryable errors in the body or reason field
-               response_message = _get_message(response)
-               if any([msg.lower() in response_message.lower() for msg in retry_errors]):
-                   retry = True
-                   logger.debug('retrying %s' % response_message)
-               # special case for message throttling
-               elif 'Please slow down.  You may send a maximum of 10 message' in response:
-                   retry = True
-                   wait = 16
-                   logger.debug("retrying " + response_message)
+            elif response.status_code not in range(200, 299):
+                # For all other non 200 messages look for retryable errors in the body or reason field
+                response_message = _get_message(response)
+                if any([msg.lower() in response_message.lower() for msg in retry_errors]):
+                    retry = True
+                    logger.debug('retrying %s' % response_message)
+                # special case for message throttling
+                elif 'Please slow down.  You may send a maximum of 10 message' in response:
+                    retry = True
+                    wait = 16
+                    logger.debug("retrying " + response_message)
 
         # Check if we got a retry-able exception
         if exc is not None:

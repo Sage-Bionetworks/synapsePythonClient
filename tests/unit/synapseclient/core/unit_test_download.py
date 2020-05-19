@@ -176,9 +176,9 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
-         patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
+            patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+            patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
+            patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
         syn._downloadFileHandle(fileHandleId, objectId, objectType, destination=temp_dir)
 
     # 4. as long as we're making progress, keep trying
@@ -197,9 +197,9 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
-         patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
+            patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+            patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
+            patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
 
         syn._downloadFileHandle(fileHandleId, objectId, objectType, destination=temp_dir)
 
@@ -219,9 +219,8 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch.object(Synapse, '_getFileHandleDownload',
-                      return_value=_getFileHandleDownload_return_value):
+            patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+            patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value):
 
         assert_raises(Exception,
                       syn._downloadFileHandle, fileHandleId, objectId, objectType, destination=temp_dir)
@@ -237,9 +236,9 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
-         patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
+            patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+            patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
+            patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
         syn._downloadFileHandle(fileHandleId, objectId, objectType, destination=temp_dir)
 
     # 7. Too many redirects
@@ -249,9 +248,9 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
-         patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
+            patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+            patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
+            patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
         assert_raises(SynapseHTTPError, syn._downloadFileHandle, fileHandleId, objectId, objectType,
                       destination=temp_dir)
 

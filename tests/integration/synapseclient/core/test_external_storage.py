@@ -49,11 +49,12 @@ def get_aws_env():
         'aws_secret_access_key': os.environ['EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY'],
     }
 
+
 @unittest.skipIf(*check_test_preconditions())
 class ExernalStorageTest(unittest.TestCase):
 
     @classmethod
-    def _make_temp_file(cls,contents=None, **kwargs):
+    def _make_temp_file(cls, contents=None, **kwargs):
         tmp_file = tempfile.NamedTemporaryFile(**kwargs)
 
         if contents:

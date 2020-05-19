@@ -116,7 +116,7 @@ class S3ClientWrapper:
 
         session_args = credentials if credentials else {'profile_name': profile_name}
         boto_session = boto3.session.Session(**session_args)
-        s3 = boto_session.resource('s3', endpoint_url=endpoint_url )
+        s3 = boto_session.resource('s3', endpoint_url=endpoint_url)
 
         progress_callback = None
         if show_progress:

@@ -883,8 +883,10 @@ def build_parser():
     parser_test_encoding.set_defaults(func=test_encoding)
 
     # get an sts token for s3 access to storage
-    parser_get_sts_token = subparsers.add_parser('get-sts-token',
-                            help='Get an STS token for access to AWS S3 storage underlying Synapse')
+    parser_get_sts_token = subparsers.add_parser(
+        'get-sts-token',
+        help='Get an STS token for access to AWS S3 storage underlying Synapse'
+    )
     parser_get_sts_token.add_argument('id', type=str, help='Synapse id')
     parser_get_sts_token.add_argument('permission', type=str, choices=['read_write', 'read_only'])
     parser_get_sts_token.add_argument(
