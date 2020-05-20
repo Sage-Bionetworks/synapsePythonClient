@@ -883,5 +883,5 @@ def require_param(param, name):
 
 def snake_case(string):
     """Convert the given string from CamelCase to snake_case"""
-    # https: // stackoverflow.com / a / 1176023
+    # https://stackoverflow.com/a/1176023
     return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
