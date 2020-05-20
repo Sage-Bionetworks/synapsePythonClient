@@ -56,6 +56,7 @@ def upload_file_handle(
     if sts_transfer.is_boto_sts_transfer_enabled(syn) and \
        sts_transfer.is_storage_location_sts_enabled(syn, entity_parent_id, location) and \
        upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
+        syn.logger.info('\n' + '#' * 50 + '\n Uploading file to external S3 storage using boto3 \n' + '#' * 50 + '\n')
 
         return upload_synapse_sts_boto_s3(
             syn,
