@@ -35,6 +35,7 @@ Highlights:
   the awscli. Currently this feature is limited to Amazon S3 storage at locations enabled for STS, and is limited to
   read_only for Synapse storage while read_write is supported for
   `custom S3 storage locations <https://docs.synapse.org/articles/custom_storage_location.html>`__ enabled for STS.
+  Tokens expire 12 hours after issuance.
 
   .. code-block::
 
@@ -57,7 +58,8 @@ Highlights:
   the synapseclient to automatically favor using the boto3 library (if installed) for data transfers to and from
   Synapse on supported storage locations without any other changes in Synapse usage. This may improve performance
   in some situations by allowing the data transfers to be conducted directly with S3 without intermediate
-  communication with Synapse.
+  communication with Synapse. Token issuance and the underlying boto3 usage occurs automatically when using
+  a client is configured in this fashion.
 
   .. code-block::
 
