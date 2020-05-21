@@ -17,6 +17,9 @@ except ImportError:
 
 STS_PERMISSIONS = set(['read_only', 'read_write'])
 
+# default minimum life left on a cached token that we'll hand out.
+DEFAULT_MIN_LIFE = datetime.timedelta(hours=1)
+
 
 class _TokenCache(collections.OrderedDict):
     """A self pruning dictionary of STS tokens.
@@ -66,20 +69,13 @@ class _StsTokenStore:
     # a memory leak.
     DEFAULT_TOKEN_CACHE_SIZE = 5000
 
-    # we won't hand out previously retrieved tokens that have less than this amount of
-    # time left on them. we don't know exactly when they'll be used so we don't want to
-    # hand out an about-to-expire cached token.
-    DEFAULT_MIN_LIFE = datetime.timedelta(hours=1)
-
     def __init__(self, max_token_cache_size=DEFAULT_TOKEN_CACHE_SIZE):
         self._tokens = {p: _TokenCache(max_token_cache_size) for p in STS_PERMISSIONS}
         self._lock = threading.Lock()
 
-    def get_token(self, syn, entity_id, permission, min_remaining_life: datetime.timedelta = None):
-        min_remaining_life = min_remaining_life if min_remaining_life is not None else self.DEFAULT_MIN_LIFE
-
-        utcnow = datetime.datetime.utcnow()
+    def get_token(self, syn, entity_id, permission, min_remaining_life: datetime.timedelta):
         with self._lock:
+            utcnow = datetime.datetime.utcnow()
             token_cache = self._tokens.get(permission)
             if token_cache is None:
                 raise ValueError(f"Invalid STS permission {permission}")
@@ -99,12 +95,17 @@ class _StsTokenStore:
 _TOKEN_STORE = _StsTokenStore()
 
 
-def get_sts_credentials(syn, entity_id, permission, output_format='json', **kwargs):
+def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min_remaining_life=DEFAULT_MIN_LIFE):
     """Get STS credentials for the given entity_id and permission, outputting it in the given format
+
+    :param syn: the Synapse object
+    :param entity_id: the id of the entity whose credentials are being returned
+    :param permission: one of 'read_only' or 'read_write'
+    :param min_remaining_life: the minimum allowable remaining life on a cached token to return. if a cached token
+        has left than this amount of time left a fresh token will be fetched
     """
 
-    value = _TOKEN_STORE.get_token(syn, entity_id, permission, **kwargs)
-    value['secretAccessKey'] = value['secretAccessKey']
+    value = _TOKEN_STORE.get_token(syn, entity_id, permission, min_remaining_life)
 
     if output_format == 'boto':
         # the Synapse STS API returns camel cased keys that we need to convert to use with boto.

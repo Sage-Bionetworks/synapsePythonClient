@@ -41,10 +41,14 @@ class TestGetStsCredentials:
             'aws_session_token': 'baz',
         }
 
-        kwargs = {'extra': 'kwargs', 'are': 'passed'}
-        credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='boto', **kwargs)
+        credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='boto')
         assert_equal(credentials, expected_output)
-        mock_get_token.assert_called_once_with(syn, entity_id, permission, **kwargs)
+        mock_get_token.assert_called_once_with(
+            syn,
+            entity_id,
+            permission,
+            sts_transfer.DEFAULT_MIN_LIFE
+        )
 
     @mock.patch.object(sts_transfer, 'platform')
     @mock.patch.object(sts_transfer, 'os')
@@ -64,9 +68,16 @@ setx AWS_SECRET_ACCESS_KEY "bar"
 setx AWS_SESSION_TOKEN "baz"
 """
 
-        credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='shell')
+        min_remaining_life = datetime.timedelta(minutes=30)
+        credentials = sts_transfer.get_sts_credentials(
+            syn,
+            entity_id,
+            permission,
+            output_format='shell',
+            min_remaining_life=datetime.timedelta(minutes=30),
+        )
         assert_equal(credentials, expected_output)
-        mock_get_token.assert_called_once_with(syn, entity_id, permission)
+        mock_get_token.assert_called_once_with(syn, entity_id, permission, min_remaining_life)
 
     def _bash_shell_test(self, mock_get_token):
         mock_get_token.return_value = self._make_credentials()
@@ -83,7 +94,7 @@ export AWS_SESSION_TOKEN="baz"
 
         credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='shell')
         assert_equal(credentials, expected_output)
-        mock_get_token.assert_called_with(syn, entity_id, permission)
+        mock_get_token.assert_called_with(syn, entity_id, permission, sts_transfer.DEFAULT_MIN_LIFE)
 
     @mock.patch.object(sts_transfer, 'platform')
     @mock.patch.object(sts_transfer, 'os')
@@ -113,9 +124,16 @@ export AWS_SESSION_TOKEN="baz"
         entity_id = 'syn_1'
         permission = 'read'
 
-        credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='json')
+        min_remaining_life = datetime.timedelta(hours=2)
+        credentials = sts_transfer.get_sts_credentials(
+            syn,
+            entity_id,
+            permission,
+            output_format='json',
+            min_remaining_life=min_remaining_life,
+        )
         assert_equal(expected_credentials, credentials)
-        mock_get_token.assert_called_with(syn, entity_id, permission)
+        mock_get_token.assert_called_with(syn, entity_id, permission, min_remaining_life)
 
     def test_other_formats_rejected(self, mock_get_token):
         mock_get_token.return_value = self._make_credentials()
@@ -183,11 +201,12 @@ class TestStsTokenStore:
 
     def test_invalid_permission(self):
         with assert_raises(ValueError):
-            _StsTokenStore().get_token(mock.Mock(), 'syn_1', 'not_a_valid_permission')
+            _StsTokenStore().get_token(mock.Mock(), 'syn_1', 'not_a_valid_permission', datetime.timedelta(hours=1))
 
     def test_fetch_and_cache_token(self):
         entity_id = 'syn_1'
         token_store = _StsTokenStore()
+        min_remaining_life = datetime.timedelta(hours=1)
 
         expiration = datetime_to_iso(datetime.datetime.utcnow() + datetime.timedelta(hours=10))
         read_token = {'accessKeyId': '123', 'expiration': expiration}
@@ -199,24 +218,24 @@ class TestStsTokenStore:
             return read_token
         syn = mock.Mock(restGET=mock.Mock(side_effect=synGET))
 
-        token = token_store.get_token(syn, entity_id, 'read_only')
+        token = token_store.get_token(syn, entity_id, 'read_only', min_remaining_life)
         assert_is(token, read_token)
         assert_equal(syn.restGET.call_count, 1)
         assert_equal(f"/entity/{entity_id}/sts?permission=read_only", syn.restGET.call_args[0][0])
 
         # getting the token again shouldn't cause it to be fetched again
-        token = token_store.get_token(syn, entity_id, 'read_only')
+        token = token_store.get_token(syn, entity_id, 'read_only', min_remaining_life)
         assert_is(token, read_token)
         assert_equal(syn.restGET.call_count, 1)
 
         # however fetching a read_write token should cause a separate fetch
-        token = token_store.get_token(syn, entity_id, 'read_write')
+        token = token_store.get_token(syn, entity_id, 'read_write', min_remaining_life)
         assert_is(token, write_token)
         assert_equal(syn.restGET.call_count, 2)
         assert_equal(f"/entity/{entity_id}/sts?permission=read_write", syn.restGET.call_args[0][0])
 
         # but that should also b cached now
-        token = token_store.get_token(syn, entity_id, 'read_write')
+        token = token_store.get_token(syn, entity_id, 'read_write', min_remaining_life)
         assert_is(token, write_token)
         assert_equal(syn.restGET.call_count, 2)
 
