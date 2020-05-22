@@ -1,13 +1,14 @@
 import boto3
 import datetime
 
+from synapseclient import Synapse
 from synapseclient.core import sts_transfer
 from synapseclient.core.sts_transfer import _StsTokenStore, _TokenCache, with_boto_sts_credentials
 
-from synapseclient.core.utils import iso_to_datetime, datetime_to_iso
+from synapseclient.core.utils import datetime_to_iso
 
 import mock
-from nose.tools import assert_equal, assert_false, assert_is, assert_is_none, assert_raises, assert_true
+from nose.tools import assert_equal, assert_false, assert_is, assert_raises, assert_true
 
 
 @mock.patch.object(sts_transfer._TOKEN_STORE, 'get_token')
@@ -345,29 +346,14 @@ class TestWithBotoStsCredentials:
 class TestIsBotoStsTransferEnabled:
 
     @mock.patch.object(sts_transfer, 'boto3', new_callable=mock.PropertyMock)
-    def test_get_transfer_config__use_boto_sts(self, mock_boto3):
-        """Verify reading use_boto_sts from the [transfer] stanza of the synapse config
-        which determines whether synapseclient will automatically try to use boto to
-        upload and download files from supported STS enabled storage locations."""
-
-        # boto3 is mocked and non-None so it will be treated as if it was imported for this test
+    def test_config_enabled(self, mock_boto3):
+        """Verify that so long as boto3 is importable we are enabled for boto transfers
+        if the synapse object is configured for it"""
 
         syn = mock.Mock()
-        for value, expected_enabled in [
-            ('', False),
-            ('false', False),
-            ('False', False),
-            ('0', False),
-            ('1', False),
-            ('xyz', False),
-
-            # only enabled when case insensitive True
-            ('true', True),
-            ('TRUE', True),
-            ('True', True),
-        ]:
-            syn._get_config_section_dict.return_value = {'use_boto_sts': value}
-            assert_equal(expected_enabled, sts_transfer.is_boto_sts_transfer_enabled(syn))
+        for val in (True, False):
+            syn.use_boto_sts_transfers = val
+            assert_equal(val, sts_transfer.is_boto_sts_transfer_enabled(syn))
 
     @mock.patch.object(sts_transfer, 'boto3', new_callable=mock.PropertyMock(return_value=None))
     def test_boto_import_required(self, mock_boto3):

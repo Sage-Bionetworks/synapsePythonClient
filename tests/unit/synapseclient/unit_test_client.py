@@ -1355,27 +1355,58 @@ def test_max_threads_bounded():
     assert_equal(syn.max_threads, 1)
 
 
-def test_get_transfer_config_max_threads():
+@patch('synapseclient.Synapse._get_config_section_dict')
+def test_get_transfer_config(mock_config_dict):
     """Verify reading transfer.maxThreads from synapseConfig"""
 
     # note that RawConfigParser lower cases its option values so we
     # simulate that behavior in our mocked values here
 
-    with patch.object(syn, "_get_config_section_dict") as mock_config_dict:
-        empty_value_dicts = [{}]
-        empty_value_dicts.extend([{'max_threads': v} for v in ('', None)])
-        for empty_value_dict in empty_value_dicts:
-            mock_config_dict.return_value = empty_value_dict
-            assert_is_none(syn._get_transfer_config_max_threads())
+    default_values = {'max_threads': client.DEFAULT_NUM_THREADS, 'use_boto_sts_transfers': False}
 
-        for max_threads in (1, 7, 100):
-            mock_config_dict.return_value = {'max_threads': str(max_threads)}
-            assert_equal(max_threads, syn._get_transfer_config_max_threads())
+    for config_dict, expected_values in [
+        # empty values get defaults
+        ({}, default_values),
+        ({'max_threads': '', 'use_boto_sts': ''}, default_values),
+        ({'max_thraeds': None, 'use_boto_sts': None}, default_values),
 
+        # explicit values should be parsed
+        ({'max_threads': '1', 'use_boto_sts': 'True'}, {'max_threads': 1, 'use_boto_sts_transfers': True}),
+        ({'max_threads': '7', 'use_boto_sts': 'true'}, {'max_threads': 7, 'use_boto_sts_transfers': True}),
+        ({'max_threads': '100', 'use_boto_sts': 'false'}, {'max_threads': 100, 'use_boto_sts_transfers': False}),
+    ]:
+        mock_config_dict.return_value = config_dict
+        syn = Synapse()
+        for k, v in expected_values.items():
+            assert_equal(v, getattr(syn, k))
+
+    # invalid value for max threads should raise an error
+    for invalid_max_thread_value in ('not a number', '12.2', 'true'):
+        mock_config_dict.return_value = {'max_threads': invalid_max_thread_value}
         with assert_raises(ValueError):
-            for invalid_value in ('not a number', '12.2', 'true'):
-                mock_config_dict.return_value = {'max_threads': invalid_value}
-                syn._get_transfer_config_max_threads()
+            Synapse()
+
+    # invalid value for use_boto_sts should raise an error
+    for invalid_max_thread_value in ('not true', '1.2', '0', 'falsey'):
+        mock_config_dict.return_value = {'use_boto_sts': invalid_max_thread_value}
+        with assert_raises(ValueError):
+            Synapse()
+
+
+@patch('synapseclient.Synapse._get_config_section_dict')
+def test_transfer_config_values_overridable(mock_config_dict):
+    """Verify we can override the default transfer config values by setting them directly on the Synapse object"""
+
+    mock_config_dict.return_value = {'max_threads': 24, 'use_boto_sts': False}
+    syn = Synapse()
+
+    assert_equal(24, syn.max_threads)
+    assert_equal(False, syn.use_boto_sts_transfers)
+
+    syn.max_threads = 5
+    syn.use_boto_sts_transfers = True
+    assert_equal(5, syn.max_threads)
+    assert_equal(True, syn.use_boto_sts_transfers)
 
 
 def test_store__needsUploadFalse__fileHandleId_not_in_local_state():

@@ -207,7 +207,10 @@ class Synapse(object):
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
         self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
-        self.max_threads = self._get_transfer_config_max_threads() or DEFAULT_NUM_THREADS
+
+        transfer_config = self._get_transfer_config()
+        self.max_threads = transfer_config['max_threads']
+        self.use_boto_sts_transfers = transfer_config['use_boto_sts']
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
@@ -405,14 +408,29 @@ class Synapse(object):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get("profile_name", "default")
 
-    def _get_transfer_config_max_threads(self):
-        max_threads = self._get_config_section_dict('transfer').get('max_threads')
-        if max_threads:
-            try:
-                return int(max_threads)
-            except ValueError as cause:
-                raise ValueError("Invalid transfer.maxThreads config setting (%s)", max_threads) from cause
-        return None
+    def _get_transfer_config(self):
+        # defaults
+        transfer_config = {
+            'max_threads': DEFAULT_NUM_THREADS,
+            'use_boto_sts': False
+        }
+
+        for k, v in self._get_config_section_dict('transfer').items():
+            if v:
+                if k == 'max_threads' and v:
+                    try:
+                        transfer_config['max_threads'] = int(v)
+                    except ValueError as cause:
+                        raise ValueError(f"Invalid transfer.max_threads config setting {v}") from cause
+
+                elif k == 'use_boto_sts':
+                    lower_v = v.lower()
+                    if lower_v not in ('true', 'false'):
+                        raise ValueError(f"Invalid transfer.use_boto_sts config setting {v}")
+
+                    transfer_config['use_boto_sts'] = 'true' == lower_v
+
+        return transfer_config
 
     def _getSessionToken(self, email, password):
         """Returns a validated session token."""

@@ -179,9 +179,7 @@ def is_boto_sts_transfer_enabled(syn):
 
     :returns: True if STS if enabled, False otherwise
     """
-
-    use_boto_sts = syn._get_config_section_dict('transfer').get('use_boto_sts', '')
-    return boto3 and 'true' == use_boto_sts.lower()
+    return bool(boto3 and syn.use_boto_sts_transfers)
 
 
 def is_storage_location_sts_enabled(syn, entity_id, location):
