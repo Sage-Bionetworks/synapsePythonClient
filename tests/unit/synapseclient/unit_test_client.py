@@ -784,6 +784,42 @@ def test_move():
         syn_store_patch.assert_called_once_with(moved_entity, forceVersion=False)
 
 
+def test_delete__bad_attribute():
+    assert_raises(SynapseError, syn.delete, ["foo"])
+
+
+def test_delete__string():
+    with patch.object(syn, "restDELETE") as patch_rest_delete:
+        syn.delete("syn1235")
+        patch_rest_delete.assert_called_once_with(uri="/entity/syn1235")
+
+
+def test_delete__string_version():
+    with patch.object(syn, "restDELETE") as patch_rest_delete:
+        syn.delete("syn1235", version=1)
+        patch_rest_delete.assert_called_once_with(uri="/entity/syn1235/version/1")
+
+
+def test_delete__has_synapse_delete_attr():
+    mock_obj = Mock()
+    delete_obj = syn.delete(mock_obj)
+    mock_obj._synapse_delete.assert_called_once()
+
+
+def test_delete__entity():
+    entity = Folder(name="folder", parent="syn456", id="syn1111")
+    with patch.object(syn, "restDELETE") as patch_rest_delete:
+        syn.delete(entity)
+        patch_rest_delete.assert_called_once_with("/entity/syn1111")
+
+
+def test_delete__entity_version():
+    entity = File(name="file", parent="syn456", id="syn1111")
+    with patch.object(syn, "restDELETE") as patch_rest_delete:
+        syn.delete(entity, version=2)
+        patch_rest_delete.assert_called_once_with("/entity/syn1111/version/2")
+
+
 def test_setPermissions__default_permissions():
     entity = Folder(name="folder", parent="syn456", id="syn1")
     principalId = 123
