@@ -95,6 +95,29 @@ class _StsTokenStore:
 _TOKEN_STORE = _StsTokenStore()
 
 
+def _get_bash_shell_command(credentials):
+    return f"""\
+export AWS_ACCESS_KEY_ID="{credentials['accessKeyId']}"
+export AWS_SECRET_ACCESS_KEY="{credentials['secretAccessKey']}"
+export AWS_SESSION_TOKEN="{credentials['sessionToken']}"
+"""
+
+def _get_cmd_shell_command(credentials):
+    return f"""\
+set AWS_ACCESS_KEY_ID "{credentials['accessKeyId']}"
+set AWS_SECRET_ACCESS_KEY "{credentials['secretAccessKey']}"
+set AWS_SESSION_TOKEN "{credentials['sessionToken']}"
+"""
+
+
+def _get_powershell_shell_command(credentials):
+    return f"""\
+$Env:AWS_ACCESS_KEY_ID="{credentials['accessKeyId']}"
+$Env:AWS_SECRET_ACCESS_KEY="{credentials['secretAccessKey']}"
+$Env:AWS_SESSION_TOKEN="{credentials['sessionToken']}"
+"""
+
+
 def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min_remaining_life=DEFAULT_MIN_LIFE):
     """Get STS credentials for the given entity_id and permission, outputting it in the given format
 
@@ -118,22 +141,25 @@ def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min
     elif output_format == 'shell':
         # make output in the form of commands that will set the credentials into the user's
         # environment such that they can e.g. run awscli commands
+        # for "shell" we try to detect what is best for the system.
 
         if platform.system() == 'Windows' and 'bash' not in os.environ.get('SHELL', ''):
             # if we're running on windows and we can't detect we're running a bash shell
             # then we make the output compatible for a windows cmd prompt environment.
-            value = f"""\
-setx AWS_ACCESS_KEY_ID "{value['accessKeyId']}"
-setx AWS_SECRET_ACCESS_KEY "{value['secretAccessKey']}"
-setx AWS_SESSION_TOKEN "{value['sessionToken']}"
-"""
+            value = _get_cmd_shell_command(value)
+
         else:
             # assume bourne shell compatible (i.e. bash, zsh, etc)
-            value = f"""\
-export AWS_ACCESS_KEY_ID="{value['accessKeyId']}"
-export AWS_SECRET_ACCESS_KEY="{value['secretAccessKey']}"
-export AWS_SESSION_TOKEN="{value['sessionToken']}"
-"""
+            value = _get_bash_shell_command(value)
+
+    # otherwise if they have explicitly told us what shell to use then we do that
+    elif output_format == "bash":
+        value = _get_bash_shell_command(value)
+    elif output_format == "cmd":
+        value = _get_cmd_shell_command(value)
+    elif output_format == 'powershell':
+        value = _get_powershell_shell_command(value)
+
     elif output_format != 'json':
         raise ValueError(f'Unrecognized output_format {output_format}')
 

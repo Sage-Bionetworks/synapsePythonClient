@@ -51,51 +51,68 @@ class TestGetStsCredentials:
             sts_transfer.DEFAULT_MIN_LIFE
         )
 
-    @mock.patch.object(sts_transfer, 'platform')
-    @mock.patch.object(sts_transfer, 'os')
-    def test_shell_format__windows_cmd(self, mock_os, mock_platform, mock_get_token):
-        """Verify Windows cmd compatible shell output"""
-        mock_os.environ = {}
-        mock_platform.system.return_value = 'Windows'
-        mock_get_token.return_value = self._make_credentials()
-
+    def _command_output_test(self, mock_get_token, output_format, expected_output):
         syn = mock.Mock()
         entity_id = 'syn_1'
         permission = 'read_write'
-
-        expected_output = f"""\
-setx AWS_ACCESS_KEY_ID "foo"
-setx AWS_SECRET_ACCESS_KEY "bar"
-setx AWS_SESSION_TOKEN "baz"
-"""
+        mock_get_token.return_value = self._make_credentials()
 
         min_remaining_life = datetime.timedelta(minutes=30)
         credentials = sts_transfer.get_sts_credentials(
             syn,
             entity_id,
             permission,
-            output_format='shell',
+            output_format=output_format,
             min_remaining_life=datetime.timedelta(minutes=30),
         )
         assert_equal(credentials, expected_output)
-        mock_get_token.assert_called_once_with(syn, entity_id, permission, min_remaining_life)
+        mock_get_token.assert_called_with(syn, entity_id, permission, min_remaining_life)
 
-    def _bash_shell_test(self, mock_get_token):
+    def _cmd_test(self, mock_get_token, output_format):
+        expected_output = f"""\
+set AWS_ACCESS_KEY_ID "foo"
+set AWS_SECRET_ACCESS_KEY "bar"
+set AWS_SESSION_TOKEN "baz"
+"""
+        self._command_output_test(mock_get_token, output_format, expected_output)
+
+    @mock.patch.object(sts_transfer, 'platform')
+    @mock.patch.object(sts_transfer, 'os')
+    def test_shell_format__windows_cmd(self, mock_os, mock_platform, mock_get_token):
+        """Verify Windows cmd compatible shell output"""
+
+        # we should print cmd commands either if on Windows and not detectable
+        # bash or it was explicitly requested
+        mock_os.environ = {}
+        mock_platform.system.return_value = 'Windows'
         mock_get_token.return_value = self._make_credentials()
 
-        syn = mock.Mock()
-        entity_id = 'syn_1'
-        permission = 'read'
+        self._cmd_test(mock_get_token, 'shell')
 
+    def test_explicit_cmd(self, mock_get_token):
+        """Verify cmd compatible shell output when explicitly requested, not detected"""
+        self._cmd_test(mock_get_token, 'cmd')
+
+    def test_powershell(self,mock_get_token):
+        """Powershell output only by explicit request"""
+        expected_output = f"""\
+$Env:AWS_ACCESS_KEY_ID="foo"
+$Env:AWS_SECRET_ACCESS_KEY="bar"
+$Env:AWS_SESSION_TOKEN="baz"
+"""
+        self._command_output_test(mock_get_token, 'powershell', expected_output)
+
+    def _bash_test(self, mock_get_token, output_format):
         expected_output = f"""\
 export AWS_ACCESS_KEY_ID="foo"
 export AWS_SECRET_ACCESS_KEY="bar"
 export AWS_SESSION_TOKEN="baz"
 """
+        self._command_output_test(mock_get_token, output_format, expected_output)
 
-        credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='shell')
-        assert_equal(credentials, expected_output)
-        mock_get_token.assert_called_with(syn, entity_id, permission, sts_transfer.DEFAULT_MIN_LIFE)
+    def test_explicit_bash(self, mock_get_token):
+        """Bash explicitly requested"""
+        self._bash_test(mock_get_token, 'bash')
 
     @mock.patch.object(sts_transfer, 'platform')
     @mock.patch.object(sts_transfer, 'os')
@@ -105,7 +122,7 @@ export AWS_SESSION_TOKEN="baz"
         mock_os.environ = {'SHELL': 'bash'}
         mock_get_token.return_value = self._make_credentials()
 
-        self._bash_shell_test(mock_get_token)
+        self._bash_test(mock_get_token, 'shell')
 
     @mock.patch.object(sts_transfer, 'platform')
     def test_shell__other_oses(self, mock_platform, mock_get_token):
@@ -114,7 +131,7 @@ export AWS_SESSION_TOKEN="baz"
             mock_platform.system.return_value = platform
             mock_get_token.return_value = self._make_credentials()
 
-            self._bash_shell_test(mock_get_token)
+            self._bash_test(mock_get_token, 'shell')
 
     @mock.patch.object(sts_transfer, 'platform')
     def test_json_format(self, mock_platform, mock_get_token):
