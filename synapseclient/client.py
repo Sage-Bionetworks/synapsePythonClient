@@ -1723,7 +1723,7 @@ class Synapse(object):
                         sts_transfer.is_storage_location_sts_enabled(self, objectId, storageLocationId) and \
                         concreteType == concrete_types.S3_FILE_HANDLE:
 
-                    def download_fn(**credentials):
+                    def download_fn(credentials):
                         return S3ClientWrapper.download_file(
                             fileHandle['bucketName'],
                             None,

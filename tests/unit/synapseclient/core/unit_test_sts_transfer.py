@@ -258,7 +258,7 @@ class TestWithBotoStsCredentials:
 
         return_value = 'success!!!'
 
-        def fn(**credentials):
+        def fn(credentials):
             assert_equal(credentials, self._make_credentials())
             return return_value
 
@@ -268,18 +268,10 @@ class TestWithBotoStsCredentials:
         mock_get_sts_credentials.return_value = self._make_credentials()
 
         # additional args/kwargs should be passed through to the get token function
-        args = ['these', 'are', 'args']
-        kwargs = {'and': 'these', 'are': 'kwargs'}
-
-        result = with_boto_sts_credentials(fn, syn, entity_id, permission, *args, **kwargs)
+        result = with_boto_sts_credentials(fn, syn, entity_id, permission)
         assert_equal(result, return_value)
 
-        expected_get_sts_call = mock.call(
-            *[syn, entity_id, permission, *args],
-            output_format='boto',
-            **kwargs,
-        )
-
+        expected_get_sts_call = mock.call(syn, entity_id, permission, output_format='boto')
         assert_equal(expected_get_sts_call, mock_get_sts_credentials.call_args)
 
     def test_other_error(self, mock_get_sts_credentials):
@@ -287,15 +279,16 @@ class TestWithBotoStsCredentials:
 
         ex_message = 'This is not a boto error'
 
-        def fn(**credentials):
+        def fn(credentials):
             raise ValueError(ex_message)
 
+        syn = mock.Mock()
         entity_id = 'syn_1'
         permission = 'read_write'
         mock_get_sts_credentials.return_value = self._make_credentials()
 
         with assert_raises(ValueError) as ex_cm:
-            with_boto_sts_credentials(fn, entity_id, permission)
+            with_boto_sts_credentials(fn, syn, entity_id, permission)
         assert_true(ex_message == str(ex_cm.exception))
 
     def test_expired_creds(self, mock_get_sts_credentials):
@@ -306,7 +299,7 @@ class TestWithBotoStsCredentials:
 
         call_count = 0
 
-        def fn(**credentials):
+        def fn(credentials):
             nonlocal call_count
             call_count += 1
             if call_count < 2:
@@ -314,11 +307,12 @@ class TestWithBotoStsCredentials:
 
             return return_value
 
+        syn = mock.Mock()
         entity_id = 'syn_1'
         permission = 'read_write'
         mock_get_sts_credentials.return_value = self._make_credentials()
 
-        result = with_boto_sts_credentials(fn, entity_id, permission)
+        result = with_boto_sts_credentials(fn, syn, entity_id, permission)
         assert_equal(result, return_value)
         assert_equal(call_count, 2)
 
@@ -328,17 +322,18 @@ class TestWithBotoStsCredentials:
         ex_message = 'error is the result of an ExpiredToken'
         call_count = 0
 
-        def fn(**credentials):
+        def fn(credentials):
             nonlocal call_count
             call_count += 1
             raise boto3.exceptions.Boto3Error(ex_message)
 
+        syn = mock.Mock()
         entity_id = 'syn_1'
         permission = 'read_write'
         mock_get_sts_credentials.return_value = self._make_credentials()
 
         with assert_raises(boto3.exceptions.Boto3Error) as ex_cm:
-            with_boto_sts_credentials(fn, entity_id, permission)
+            with_boto_sts_credentials(fn, syn, entity_id, permission)
         assert_equal(ex_message, str(ex_cm.exception))
         assert_equal(2, call_count)
 

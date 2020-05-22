@@ -140,7 +140,7 @@ export AWS_SESSION_TOKEN="{value['sessionToken']}"
     return value
 
 
-def with_boto_sts_credentials(fn, *args, **kwargs):
+def with_boto_sts_credentials(fn, syn, entity_id, permission):
     """A wrapper around a function that will get sts credentials and try to use them on the given
     # function which should take aws_access_key_id, aws_secret_access_key, and aws_session_token as
     kwarg parameters. If the given function returns a boto error that looks like the token has expired
@@ -152,14 +152,10 @@ def with_boto_sts_credentials(fn, *args, **kwargs):
     but would greatly slow down transferring many small files.
     """
 
-    # the passed fn takes boto style credentials
-    token_kwargs = dict(kwargs)
-    token_kwargs['output_format'] = 'boto'
-
     for attempt in range(2):
-        credentials = get_sts_credentials(*args, **token_kwargs)
+        credentials = get_sts_credentials(syn, entity_id, permission, output_format='boto')
         try:
-            response = fn(**credentials)
+            response = fn(credentials)
         except boto3.exceptions.Boto3Error as ex:
             if 'ExpiredToken' in str(ex) and attempt == 0:
                 continue

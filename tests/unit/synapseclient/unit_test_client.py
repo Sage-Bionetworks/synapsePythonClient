@@ -258,7 +258,7 @@ class TestDownloadFileHandle:
         def mock_with_boto_sts_credentials(download_fn, syn, objectId, permission):
             assert_equal(permission, 'read_only')
             assert_equal(entity_id, objectId)
-            return download_fn(**credentials)
+            return download_fn(credentials)
 
         mock_sts_transfer.with_boto_sts_credentials = mock_with_boto_sts_credentials
 

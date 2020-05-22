@@ -14,6 +14,9 @@ class TestUploadFileHandle:
     @mock.patch.object(upload_functions, 'upload_synapse_sts_boto_s3')
     @mock.patch.object(upload_functions, 'sts_transfer')
     def test_upload_handle__sts_boto(self, mock_sts_transfer, mock_upload_synapse_sts_boto_s3):
+        """Verify that that boto is picked as the upload method when conditions are met
+        (configured, boto installed, and storage location supports it"""
+
         syn = mock.Mock()
         parent_entity = 'syn_12345'
         path = '/tmp/upload_me'
@@ -42,6 +45,9 @@ class TestUploadFileHandle:
 @mock.patch.object(upload_functions, 'S3ClientWrapper')
 @mock.patch('uuid.uuid4')
 def test_upload_synapse_sts_boto_s3(mock_uuid4, mock_s3_client_wrapper, mock_sts_transfer):
+    """Verify that when we upload using boto the file is uploaded through our S3 wrapper
+    and an external S3 file handle is created for the uploaded file."""
+
     syn = mock.Mock()
     parent_id = 'syn_12345'
     storage_location_id = 1234
@@ -64,7 +70,7 @@ def test_upload_synapse_sts_boto_s3(mock_uuid4, mock_s3_client_wrapper, mock_sts
     def mock_with_boto_sts_credentials(upload_fn, syn, objectId, permission):
         assert_equal(permission, 'read_write')
         assert_equal(parent_id, objectId)
-        return upload_fn(**credentials)
+        return upload_fn(credentials)
 
     mock_sts_transfer.with_boto_sts_credentials = mock_with_boto_sts_credentials
 
