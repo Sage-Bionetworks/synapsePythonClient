@@ -166,8 +166,8 @@ def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min
 
 def with_boto_sts_credentials(fn, syn, entity_id, permission):
     """A wrapper around a function that will get sts credentials and try to use them on the given
-    # function which should take aws_access_key_id, aws_secret_access_key, and aws_session_token as
-    kwarg parameters. If the given function returns a boto error that looks like the token has expired
+    function which should take a dictionary with the aws_access_key_id, aws_secret_access_key, and aws_session_token
+    as keys. If the given function returns a boto error that looks like the token has expired
     it will retry once after fetching fresh credentials.
 
     The purpose is to be able to use potentially cached credentials in long running tasks while reducing
