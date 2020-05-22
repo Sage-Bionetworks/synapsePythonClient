@@ -265,6 +265,10 @@ class TestDownloadFileHandle:
         expected_download_path = '/tmp/fooKey'
         mock_s3_client_wrapper.download_file.return_value = expected_download_path
 
+        # this is another opt-in download method.
+        # for enabled storage locations sts should be preferred
+        syn.multi_threaded = True
+
         with patch.object(syn, '_getFileHandleDownload') as mock_get_file_handle_download,\
                 patch.object(syn, 'cache') as cache:
             mock_get_file_handle_download.return_value = {

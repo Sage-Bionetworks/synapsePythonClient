@@ -1719,12 +1719,6 @@ class Synapse(object):
                                                                     fileHandle['fileKey'], destination,
                                                                     profile_name=profile)
 
-                elif self.multi_threaded and concreteType == concrete_types.S3_FILE_HANDLE:
-                    downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
-                                                                             objectId,
-                                                                             objectType,
-                                                                             destination,
-                                                                             expected_md5=fileHandle.get('contentMd5'))
                 elif sts_transfer.is_boto_sts_transfer_enabled(self) and \
                         sts_transfer.is_storage_location_sts_enabled(self, objectId, storageLocationId) and \
                         concreteType == concrete_types.S3_FILE_HANDLE:
@@ -1746,6 +1740,13 @@ class Synapse(object):
                         objectId,
                         'read_only',
                     )
+
+                elif self.multi_threaded and concreteType == concrete_types.S3_FILE_HANDLE:
+                    downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
+                                                                             objectId,
+                                                                             objectType,
+                                                                             destination,
+                                                                             expected_md5=fileHandle.get('contentMd5'))
 
                 else:
                     downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
