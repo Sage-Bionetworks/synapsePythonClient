@@ -1,12 +1,13 @@
 import base64
 import configparser
+import datetime
 import json
 import os
 import tempfile
 import uuid
 
-from mock import call, create_autospec, Mock, patch
-from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
+from mock import ANY, call, create_autospec, Mock, patch
+from nose.tools import assert_equal, assert_false, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
 
 import synapseclient
@@ -992,6 +993,160 @@ class TestSetStorageLocation:
         assert_equal(2, self.mock_getProjectSetting.call_count)
         self.mock_restPUT.assert_called_once_with('/projectSettings', body=json.dumps(new_location))
         self.mock_restPOST.assert_not_called()
+
+
+@patch('synapseclient.core.sts_transfer.get_sts_credentials')
+def test_get_sts_storage_token(mock_get_sts_credentials):
+    """Verify get_sts_storage_token passes through to the underlying function as expected"""
+    token = {'key': 'val'}
+    mock_get_sts_credentials.return_value = token
+
+    entity = 'syn_1'
+    permission = 'read_write'
+    output_format = 'boto'
+    min_remaining_life = datetime.timedelta(hours=1)
+
+    result = syn.get_sts_storage_token(
+        entity, permission,
+        output_format=output_format, min_remaining_life=min_remaining_life
+    )
+    assert_equal(token, result)
+    mock_get_sts_credentials.assert_called_once_with(
+        syn, entity, permission,
+        output_format=output_format, min_remaining_life=min_remaining_life
+    )
+
+
+class TestCreateS3StorageLocation:
+
+    def test_folder_and_parent(self):
+        """Verify we fail as expected if both parent and folder are passed"""
+        with assert_raises(ValueError):
+            syn.create_s3_storage_location(folder_name='foo', parent=Mock(), folder=Mock())
+
+    def test_folder_or_parent(self):
+        """Verify we fail as expected if neither parent or folder are passed"""
+        with assert_raises(ValueError):
+            syn.create_s3_storage_location()
+
+    def _create_storage_location_test(self, expected_post_body, *args, **kwargs):
+        with patch.object(syn, 'restPOST') as mock_post,\
+                patch.object(syn, 'setStorageLocation') as mock_set_storage_location,\
+                patch.object(syn, 'store') as syn_store:
+            mock_post.return_value = {'storageLocationId': 456}
+            mock_set_storage_location.return_value = {'id': 'foo'}
+
+            # either passed a folder or expected to create one
+            expected_folder = kwargs.get('folder')
+            if not expected_folder:
+                expected_folder = syn_store.return_value = Mock()
+
+            result = syn.create_s3_storage_location(*args, **kwargs)
+
+            if 'folder_name' in kwargs:
+                stored_folder = syn_store.call_args[0][0]
+                assert_equal(stored_folder.name, kwargs['folder_name'])
+                assert_equal(stored_folder.parentId, kwargs['parent'])
+            else:
+                assert_false(syn_store.called)
+
+            assert_equal(expected_folder, result[0])
+            assert_equal(mock_post.return_value, result[1])
+            assert_equal(mock_set_storage_location.return_value, result[2])
+
+            mock_post.assert_called_with('/storageLocation', ANY)
+            assert_equal(expected_post_body, json.loads(mock_post.call_args[0][1]))
+
+    def test_synapse_s3(self):
+        """Verify we create a Synapse S3 storage location if bucket is not passed
+        and that we don't create a new folder if a folder is passed."""
+        folder = Mock()
+        for sts_enabled in (True, False):
+            expected_post_body = {
+                'uploadType': 'S3',
+                'concreteType': concrete_types.SYNAPSE_S3_STORAGE_LOCATION_SETTING,
+                'stsEnabled': sts_enabled
+            }
+
+            self._create_storage_location_test(expected_post_body, folder=folder, sts_enabled=sts_enabled)
+
+    def test_external_s3(self):
+        """Verify we create an External S3 storage location if bucket details are passed
+        and that we create a folder if passed a name and a parent."""
+        folder_name = 'foo'
+        parent = 'syn_123'
+        bucket_name = 'test_bucket'
+        base_key = 'foobarbaz'
+        for sts_enabled in (True, False):
+            expected_post_body = {
+                'uploadType': 'S3',
+                'concreteType': concrete_types.EXTERNAL_S3_STORAGE_LOCATION_SETTING,
+                'stsEnabled': sts_enabled,
+                'bucket': bucket_name,
+                'baseKey': base_key,
+            }
+
+            self._create_storage_location_test(
+                expected_post_body,
+                folder_name=folder_name, parent=parent, sts_enabled=sts_enabled,
+                bucket_name=bucket_name, base_key=base_key,
+            )
+
+
+class TestCreateExternalS3FileHandle:
+
+    def _s3_file_handle_test(self, **kwargs):
+        with patch.object(syn, '_getDefaultUploadDestination') as mock_get_upload_dest,\
+            patch.object(os, 'path') as mock_os_path, \
+            patch.object(os, 'stat') as mock_os_stat, \
+            patch.object(utils, 'md5_for_file') as mock_md5, \
+            patch('mimetypes.guess_type') as mock_guess_mimetype, \
+                patch.object(syn, 'restPOST') as mock_post:
+
+            bucket_name = 'foo_bucket'
+            s3_file_key = '/foo/bar/baz'
+            file_path = '/tmp/foo'
+
+            mock_get_upload_dest.return_value = {'storageLocationId': 123}
+            mock_guess_mimetype.return_value = 'text/plain', None
+            mock_post.return_value = {'foo': 'bar'}
+
+            mock_os_path.basename.return_value = 'foo'
+            mock_os_stat.return_value.st_size = 1024
+            mock_md5.return_value.hexdigest.return_value = 'fakemd5'
+
+            expected_post_body = {
+                'concreteType': concrete_types.S3_FILE_HANDLE,
+                'key': s3_file_key,
+                'bucketName': bucket_name,
+                'fileName': mock_os_path.basename.return_value,
+                'contentMd5': mock_md5.return_value.hexdigest.return_value,
+                'contentSize': mock_os_stat.return_value.st_size,
+                'storageLocationId': 123,
+                'contentType': kwargs.get('mimetype', 'text/plain')
+            }
+
+            result = syn.create_external_s3_file_handle(bucket_name, s3_file_key, file_path, **kwargs)
+            assert_equal(mock_post.return_value, result)
+
+            if 'storage_location_id' in kwargs:
+                assert_false(mock_get_upload_dest.called)
+            else:
+                mock_get_upload_dest.assert_called_once_with(kwargs['parent'])
+
+            mock_post.assert_called_once_with('/externalFileHandle/s3', ANY, endpoint=syn.fileHandleEndpoint)
+            assert_equal(expected_post_body, json.loads(mock_post.call_args[0][1]))
+
+    def test_with_parent_entity(self):
+        """If passed a parent entity we should fetch the default upload destination
+        of the entity and use that as the storage location of the file handle"""
+        self._s3_file_handle_test(parent=Mock())
+
+
+    def test_with_storage_location_id(self):
+        """If passed a storage location id we should use that.
+        Also customize mimetype"""
+        self._s3_file_handle_test(storage_location_id=123, mimetype='text/html')
 
 class TestMembershipInvitation:
 

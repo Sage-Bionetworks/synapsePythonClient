@@ -176,11 +176,11 @@ def upload_synapse_sts_boto_s3(syn, parent_id, upload_destination, local_path, m
         )
 
     sts_transfer.with_boto_sts_credentials(upload_fn, syn, parent_id, 'read_write')
-    return syn._createExternalS3FileHandle(
+    return syn.create_external_s3_file_handle(
         bucket_name,
         remote_file_key,
         local_path,
-        storage_location_id,
+        storage_location_id=storage_location_id,
         mimetype=mimetype
     )
 

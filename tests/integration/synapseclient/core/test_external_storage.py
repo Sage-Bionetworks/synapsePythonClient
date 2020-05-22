@@ -78,25 +78,16 @@ class ExernalStorageTest(unittest.TestCase):
         folder_name = str(uuid.uuid4())
         s3_client = self._prepare_bucket_location(folder_name)
 
-        folder = syn.store(Folder(name=folder_name, parent=integration.project))
-
-        storage_type = 'ExternalS3Storage'
         bucket_name, _ = get_aws_env()
-
-        storage_location = syn.createStorageLocationSetting(
-            storage_type,
-            bucket=bucket_name,
-            baseKey=folder_name,
-            stsEnabled=sts_enabled,
+        folder, storage_location_setting, _ = syn.create_s3_storage_location(
+            parent=integration.project,
+            folder_name=folder_name,
+            bucket_name=bucket_name,
+            base_key=folder_name,
+            sts_enabled=sts_enabled
         )
 
-        storage_location_id = storage_location['storageLocationId']
-        syn.setStorageLocation(
-            folder,
-            storage_location_id,
-        )
-
-        return s3_client, folder, storage_location_id
+        return s3_client, folder, storage_location_setting['storageLocationId']
 
     def test_set_external_storage_location(self):
         """Test configuring an external storage location,
@@ -175,11 +166,11 @@ class ExernalStorageTest(unittest.TestCase):
         )
 
         # create an external file handle so we can read it via synapse
-        file_handle = syn._createExternalS3FileHandle(
+        file_handle = syn.create_external_s3_file_handle(
             bucket_name,
             remote_key,
             temp_file.name,
-            storage_location_id,
+            storage_location_id=storage_location_id,
         )
         file = File(parentId=folder['id'], dataFileHandleId=file_handle['id'])
         file_entity = syn.store(file)

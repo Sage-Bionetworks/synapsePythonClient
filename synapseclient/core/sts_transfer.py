@@ -116,15 +116,9 @@ $Env:AWS_SESSION_TOKEN="{credentials['sessionToken']}"
 """
 
 
-def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min_remaining_life=DEFAULT_MIN_LIFE):
-    """Get STS credentials for the given entity_id and permission, outputting it in the given format
-
-    :param syn: the Synapse object
-    :param entity_id: the id of the entity whose credentials are being returned
-    :param permission: one of 'read_only' or 'read_write'
-    :param min_remaining_life: the minimum allowable remaining life on a cached token to return. if a cached token
-        has left than this amount of time left a fresh token will be fetched
-    """
+def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min_remaining_life=None):
+    """See Synapse.get_sts_storage_token"""
+    min_remaining_life = min_remaining_life or DEFAULT_MIN_LIFE
 
     value = syn._sts_token_store.get_token(syn, entity_id, permission, min_remaining_life)
 

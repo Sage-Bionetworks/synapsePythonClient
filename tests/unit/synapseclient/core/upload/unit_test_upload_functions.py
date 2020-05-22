@@ -80,12 +80,12 @@ def test_upload_synapse_sts_boto_s3(mock_uuid4, mock_s3_client_wrapper, mock_sts
         upload_destination,
         local_path,
     )
-    assert_equal(returned_file_handle, syn._createExternalS3FileHandle.return_value)
+    assert_equal(returned_file_handle, syn.create_external_s3_file_handle.return_value)
     remote_file_key = "/".join([base_key, key_prefix, os.path.basename(local_path)])
-    syn._createExternalS3FileHandle.assert_called_once_with(
+    syn.create_external_s3_file_handle.assert_called_once_with(
         bucket_name,
         remote_file_key,
         local_path,
-        storage_location_id,
+        storage_location_id=storage_location_id,
         mimetype=None,
     )

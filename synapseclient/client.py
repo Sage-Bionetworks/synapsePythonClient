@@ -52,7 +52,8 @@ import synapseclient
 from .annotations import from_synapse_annotations, to_synapse_annotations, Annotations, convert_old_annotation_json
 from .activity import Activity
 import synapseclient.core.multithread_download as multithread_download
-from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
+from .entity import Entity, File, Folder, Versionable,\
+    split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import SchemaBase, Column, TableQueryResult, CsvFileTable
@@ -1957,22 +1958,6 @@ class Synapse(object):
             fileHandle['contentType'] = mimetype
         return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
 
-    def _createExternalS3FileHandle(self, bucket_name, s3_file_key, file_path, storage_location_id, mimetype=None):
-        if mimetype is None:
-            mimetype, enc = mimetypes.guess_type(file_path, strict=False)
-        file_handle = {
-            'concreteType': concrete_types.S3_FILE_HANDLE,
-            'key': s3_file_key,
-            'bucketName': bucket_name,
-            'fileName': os.path.basename(file_path),
-            'contentMd5': utils.md5_for_file(file_path).hexdigest(),
-            'contentSize': os.stat(file_path).st_size,
-            'storageLocationId': storage_location_id,
-            'contentType': mimetype
-        }
-
-        return self.restPOST('/externalFileHandle/s3', json.dumps(file_handle), self.fileHandleEndpoint)
-
     def _createExternalObjectStoreFileHandle(self, s3_file_key, file_path, storage_location_id, mimetype=None):
         if mimetype is None:
             mimetype, enc = mimetypes.guess_type(file_path, strict=False)
@@ -1987,6 +1972,48 @@ class Synapse(object):
         }
 
         return self.restPOST('/externalFileHandle', json.dumps(file_handle), self.fileHandleEndpoint)
+
+    def create_external_s3_file_handle(self, bucket_name, s3_file_key, file_path, *,
+                                       parent=None, storage_location_id=None, mimetype=None):
+        """
+        Create an external S3 file handle for e.g. a file that has been uploaded directly to
+        an external S3 storage location.
+
+        :param bucket_name:             Name of the S3 bucket
+        :param s3_file_key:             S3 key of the uploaded object
+        :param file_path:               Local path of the uploaded file
+        :param parent:                  Parent entity to create the file handle in, the file handle will be created
+                                            in the default storage location of the parent. Mutually exclusive with
+                                            storage_location_id
+        :param storage_location_id:     Explicit storage location id to create the file handle in, mutually exclusive
+                                            with parent
+        :param mimetype:                Mimetype of the file, if known
+        """
+
+        if storage_location_id:
+            if parent:
+                raise ValueError("Pass parent or storage_location_id, not both")
+        elif not parent:
+            raise ValueError("One of parent or storage_location_id is required")
+        else:
+            upload_destination = self._getDefaultUploadDestination(parent)
+            storage_location_id = upload_destination['storageLocationId']
+
+        if mimetype is None:
+            mimetype, enc = mimetypes.guess_type(file_path, strict=False)
+
+        file_handle = {
+            'concreteType': concrete_types.S3_FILE_HANDLE,
+            'key': s3_file_key,
+            'bucketName': bucket_name,
+            'fileName': os.path.basename(file_path),
+            'contentMd5': utils.md5_for_file(file_path).hexdigest(),
+            'contentSize': os.stat(file_path).st_size,
+            'storageLocationId': storage_location_id,
+            'contentType': mimetype
+        }
+
+        return self.restPOST('/externalFileHandle/s3', json.dumps(file_handle), endpoint=self.fileHandleEndpoint)
 
     def _get_file_handle_as_creator(self, fileHandle):
         """Retrieve a fileHandle from the fileHandle service.
@@ -2145,22 +2172,79 @@ class Synapse(object):
                                                                                   type=setting_type))
         return response if response else None  # if no project setting, a empty string is returned as the response
 
-    def get_sts_storage_token(self, id, permission, output_format='json'):
-        """
-        Get a temporary STS token for the Synapse folder with the given identifier. The folder must
-        have been previously enabled to allow STS tokens.
+    def get_sts_storage_token(self, entity, permission, *, output_format='json', min_remaining_life=None):
+        """Get STS credentials for the given entity_id and permission, outputting it in the given format
 
-        :param id:              the Synapse ID of the STS enabled folder
-        :param permission:      one of "read_only" or "read_write" for those respective capabilities
-        :param output_format::  one of "json", "boto", or "shell"
-                                json: the dictionary returned directly by the Synapse API
-                                boto: a dictionary compatible with the AWS boto API, including aws_access_key_id,
-                                    aws_secret_access_key, and aws_session_token keys
-                                shell: a string including commands to export the token into your local shell
-                                    environment for use with e.g. the awscli
+        :param entity_id: the id of the entity whose credentials are being returned
+        :param permission: one of 'read_only' or 'read_write'
+        :param output_format: one of 'json', 'boto', 'shell', 'bash', 'cmd', 'powershell'
+                                json: the dictionary returned from the Synapse STS API including expiration
+                                boto: a dictionary compatible with a boto session (aws_access_key_id, etc)
+                                shell: output commands for exporting credentials appropriate for the detected shell
+                                bash: output commands for exporting credentials into a bash shell
+                                cmd: output commands for exporting credentials into a windows cmd shell
+                                powershell: output commands for exporting credentials into a windows powershell
+        :param min_remaining_life: the minimum allowable remaining life on a cached token to return. if a cached token
+            has left than this amount of time left a fresh token will be fetched
         """
+        return sts_transfer.get_sts_credentials(
+            self, id_of(entity), permission,
+            output_format=output_format, min_remaining_life=min_remaining_life
+        )
 
-        return sts_transfer.get_sts_credentials(self, id, permission, output_format=output_format)
+    def create_s3_storage_location(self, *,
+                                   parent=None, folder_name=None,
+                                   folder=None,
+                                   bucket_name=None, base_key=None,
+                                   sts_enabled=False):
+        """
+        Create a storage location in the given parent, either in the given folder or by creating a new
+        folder in that parent with the given name. This will both create a StorageLocationSetting,
+        and a ProjectSetting together, optionally creating a new folder in which to locate it,
+        and optionally enabling this storage location for access via STS.
+
+        :param parent:              The parent in which to locate the storage location (mutually exclusive with folder)
+        :param folder_name:         The name of a new folder to create (mutually exclusive with folder)
+        :param folder:              The existing folder in which to create the storage location
+                                        (mutually exclusive with folder_name)
+        :param bucket_name:         The name of an S3 bucket, if this is an external storage location,
+                                        if None will use Synapse S3 storage
+        :param base_key:            The base key of within the bucket, None to use the bucket root,
+                                        only applicable if bucket_name is passed
+        :param sts_enabled:         Whether this storage location should be STS enabled
+        """
+        if folder_name and parent:
+            if folder:
+                raise ValueError("folder and  folder_name are mutually exclusive, only one should be passed")
+
+            folder = self.store(Folder(name=folder_name, parent=parent))
+
+        elif not folder:
+            raise ValueError("either folder or folder_name should be required")
+
+        storage_location_kwargs = {
+            'uploadType': 'S3',
+            'stsEnabled': sts_enabled,
+        }
+
+        if bucket_name:
+            storage_location_kwargs['concreteType'] = concrete_types.EXTERNAL_S3_STORAGE_LOCATION_SETTING
+            storage_location_kwargs['bucket'] = bucket_name
+            if base_key:
+                storage_location_kwargs['baseKey'] = base_key
+        else:
+            storage_location_kwargs['concreteType'] = concrete_types.SYNAPSE_S3_STORAGE_LOCATION_SETTING
+
+        storage_location_setting = self.restPOST('/storageLocation', json.dumps(storage_location_kwargs))
+
+        storage_location_id = storage_location_setting['storageLocationId']
+        project_setting = self.setStorageLocation(
+            folder,
+            storage_location_id,
+        )
+
+        return folder, storage_location_setting, project_setting
+
 
     ############################################################
     #                   CRUD for Evaluations                   #
