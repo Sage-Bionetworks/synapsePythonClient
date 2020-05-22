@@ -1142,11 +1142,11 @@ class TestCreateExternalS3FileHandle:
         of the entity and use that as the storage location of the file handle"""
         self._s3_file_handle_test(parent=Mock())
 
-
     def test_with_storage_location_id(self):
         """If passed a storage location id we should use that.
         Also customize mimetype"""
         self._s3_file_handle_test(storage_location_id=123, mimetype='text/html')
+
 
 class TestMembershipInvitation:
 
