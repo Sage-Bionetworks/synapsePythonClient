@@ -53,13 +53,22 @@ class TestGetStsCredentials:
             sts_transfer.DEFAULT_MIN_LIFE
         )
 
-    def _command_output_test(self, output_format, expected_output):
+    def _command_output_test(self, output_format, expected_output, upload_destination=None):
         entity_id = 'syn_1'
         permission = 'read_write'
+
+        if upload_destination is None:
+            upload_destination = {
+                'bucket': 'bucket1',
+                'baseKey': 'key1',
+            }
 
         syn = mock.Mock(
             _sts_token_store=mock.Mock(
                 get_token=mock.Mock(return_value=self._make_credentials())
+            ),
+            _getDefaultUploadDestination=mock.Mock(
+                return_value=upload_destination
             )
         )
 
@@ -75,10 +84,11 @@ class TestGetStsCredentials:
         syn._sts_token_store.get_token.assert_called_with(syn, entity_id, permission, min_remaining_life)
 
     def _cmd_test(self, output_format):
-        expected_output = f"""\
-set AWS_ACCESS_KEY_ID "foo"
-set AWS_SECRET_ACCESS_KEY "bar"
-set AWS_SESSION_TOKEN "baz"
+        expected_output = """\
+set SYNAPSE_STS_S3_LOCATION="s3://bucket1/key1"
+set AWS_ACCESS_KEY_ID="foo"
+set AWS_SECRET_ACCESS_KEY="bar"
+set AWS_SESSION_TOKEN="baz"
 """
         self._command_output_test(output_format, expected_output)
 
@@ -100,7 +110,8 @@ set AWS_SESSION_TOKEN "baz"
 
     def test_powershell(self):
         """Powershell output only by explicit request"""
-        expected_output = f"""\
+        expected_output = """\
+$Env:SYNAPSE_STS_S3_LOCATION="s3://bucket1/key1"
 $Env:AWS_ACCESS_KEY_ID="foo"
 $Env:AWS_SECRET_ACCESS_KEY="bar"
 $Env:AWS_SESSION_TOKEN="baz"
@@ -108,7 +119,8 @@ $Env:AWS_SESSION_TOKEN="baz"
         self._command_output_test('powershell', expected_output)
 
     def _bash_test(self, output_format):
-        expected_output = f"""\
+        expected_output = """\
+export SYNAPSE_STS_S3_LOCATION="s3://bucket1/key1"
 export AWS_ACCESS_KEY_ID="foo"
 export AWS_SECRET_ACCESS_KEY="bar"
 export AWS_SESSION_TOKEN="baz"
@@ -166,6 +178,16 @@ export AWS_SESSION_TOKEN="baz"
         for output_format in ('', None, 'foobar'):
             with assert_raises(ValueError):
                 sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format=output_format)
+
+    def test_missing_bucket(self):
+        """Verify we don't blow up and just return token output without the bucket location
+        if the backend doesn't return that data since that is a bit in flux still."""
+        expected_output = """\
+export AWS_ACCESS_KEY_ID="foo"
+export AWS_SECRET_ACCESS_KEY="bar"
+export AWS_SESSION_TOKEN="baz"
+"""
+        self._command_output_test('bash', expected_output, upload_destination={})
 
 
 class TestTokenCache:

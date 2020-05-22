@@ -92,28 +92,41 @@ class StsTokenStore:
         return syn.restGET(f'/entity/{entity_id}/sts?permission={permission}')
 
 
-def _get_bash_shell_command(credentials):
-    return f"""\
-export AWS_ACCESS_KEY_ID="{credentials['accessKeyId']}"
-export AWS_SECRET_ACCESS_KEY="{credentials['secretAccessKey']}"
-export AWS_SESSION_TOKEN="{credentials['sessionToken']}"
+EXPORT_TEMPLATE_STRINGS = {
+    'bash': """\
+export SYNAPSE_STS_S3_LOCATION="s3://{bucket}/{baseKey}"
+export AWS_ACCESS_KEY_ID="{accessKeyId}"
+export AWS_SECRET_ACCESS_KEY="{secretAccessKey}"
+export AWS_SESSION_TOKEN="{sessionToken}"
+""",
+    'cmd': """\
+set SYNAPSE_STS_S3_LOCATION="s3://{bucket}/{baseKey}"
+set AWS_ACCESS_KEY_ID="{accessKeyId}"
+set AWS_SECRET_ACCESS_KEY="{secretAccessKey}"
+set AWS_SESSION_TOKEN="{sessionToken}"
+""",
+    'powershell': """\
+$Env:SYNAPSE_STS_S3_LOCATION="s3://{bucket}/{baseKey}"
+$Env:AWS_ACCESS_KEY_ID="{accessKeyId}"
+$Env:AWS_SECRET_ACCESS_KEY="{secretAccessKey}"
+$Env:AWS_SESSION_TOKEN="{sessionToken}"
 """
+}
 
 
-def _get_cmd_shell_command(credentials):
-    return f"""\
-set AWS_ACCESS_KEY_ID "{credentials['accessKeyId']}"
-set AWS_SECRET_ACCESS_KEY "{credentials['secretAccessKey']}"
-set AWS_SESSION_TOKEN "{credentials['sessionToken']}"
-"""
-
-
-def _get_powershell_shell_command(credentials):
-    return f"""\
-$Env:AWS_ACCESS_KEY_ID="{credentials['accessKeyId']}"
-$Env:AWS_SECRET_ACCESS_KEY="{credentials['secretAccessKey']}"
-$Env:AWS_SESSION_TOKEN="{credentials['sessionToken']}"
-"""
+def _format_export_template_string(syn, entity_id, credentials, template_string):
+    upload_destination = syn._getDefaultUploadDestination(entity_id)
+    # we print the bucket location if we have it, but if we don't exclude
+    # that line of the template string (the first). it's useful to have, but it's
+    # not currently available for non-external storage locations and might become
+    # available via the STS endpoint itself in the future per:
+    # https://sagebionetworks.jira.com/browse/PLFM-6226
+    if 'bucket' not in upload_destination or 'baseKey' not in upload_destination:
+        template_string = template_string[template_string.find('\n') + 1:]
+    subs = {}
+    subs.update(credentials)
+    subs.update(upload_destination)
+    return template_string.format(**subs)
 
 
 def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min_remaining_life=None):
@@ -138,19 +151,21 @@ def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min
         if platform.system() == 'Windows' and 'bash' not in os.environ.get('SHELL', ''):
             # if we're running on windows and we can't detect we're running a bash shell
             # then we make the output compatible for a windows cmd prompt environment.
-            value = _get_cmd_shell_command(value)
+            template_string = EXPORT_TEMPLATE_STRINGS['cmd']
 
         else:
             # assume bourne shell compatible (i.e. bash, zsh, etc)
-            value = _get_bash_shell_command(value)
+            template_string = EXPORT_TEMPLATE_STRINGS['bash']
+
+        value = _format_export_template_string(syn, entity_id, value, template_string)
 
     # otherwise if they have explicitly told us what shell to use then we do that
     elif output_format == "bash":
-        value = _get_bash_shell_command(value)
+        value = _format_export_template_string(syn, entity_id, value, EXPORT_TEMPLATE_STRINGS['bash'])
     elif output_format == "cmd":
-        value = _get_cmd_shell_command(value)
+        value = _format_export_template_string(syn, entity_id, value, EXPORT_TEMPLATE_STRINGS['cmd'])
     elif output_format == 'powershell':
-        value = _get_powershell_shell_command(value)
+        value = _format_export_template_string(syn, entity_id, value, EXPORT_TEMPLATE_STRINGS['powershell'])
 
     elif output_format != 'json':
         raise ValueError(f'Unrecognized output_format {output_format}')
