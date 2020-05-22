@@ -54,7 +54,7 @@ class _TokenCache(collections.OrderedDict):
             del self[entity_id]
 
 
-class _StsTokenStore:
+class StsTokenStore:
     """
     Cache STS tokens in memory for observed entity ids.
     An optimization for long lived Synapse objects that will interact with the same
@@ -92,15 +92,13 @@ class _StsTokenStore:
         return syn.restGET(f'/entity/{entity_id}/sts?permission={permission}')
 
 
-_TOKEN_STORE = _StsTokenStore()
-
-
 def _get_bash_shell_command(credentials):
     return f"""\
 export AWS_ACCESS_KEY_ID="{credentials['accessKeyId']}"
 export AWS_SECRET_ACCESS_KEY="{credentials['secretAccessKey']}"
 export AWS_SESSION_TOKEN="{credentials['sessionToken']}"
 """
+
 
 def _get_cmd_shell_command(credentials):
     return f"""\
@@ -128,7 +126,7 @@ def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min
         has left than this amount of time left a fresh token will be fetched
     """
 
-    value = _TOKEN_STORE.get_token(syn, entity_id, permission, min_remaining_life)
+    value = syn._sts_token_store.get_token(syn, entity_id, permission, min_remaining_life)
 
     if output_format == 'boto':
         # the Synapse STS API returns camel cased keys that we need to convert to use with boto.

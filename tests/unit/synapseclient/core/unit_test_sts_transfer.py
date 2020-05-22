@@ -3,7 +3,7 @@ import datetime
 
 from synapseclient import Synapse
 from synapseclient.core import sts_transfer
-from synapseclient.core.sts_transfer import _StsTokenStore, _TokenCache, with_boto_sts_credentials
+from synapseclient.core.sts_transfer import StsTokenStore, _TokenCache, with_boto_sts_credentials
 
 from synapseclient.core.utils import datetime_to_iso
 
@@ -11,7 +11,6 @@ import mock
 from nose.tools import assert_equal, assert_false, assert_is, assert_raises, assert_true
 
 
-@mock.patch.object(sts_transfer._TOKEN_STORE, 'get_token')
 class TestGetStsCredentials:
 
     @classmethod
@@ -27,12 +26,15 @@ class TestGetStsCredentials:
             'expiration': datetime_to_iso(cls._utcnow),
         }
 
-    def test_boto_format(self, mock_get_token):
+    def test_boto_format(self):
         """Verify that tokens returned in boto format are as expected,
         i.e. a dictionary that can be passed to a boto session"""
-        mock_get_token.return_value = self._make_credentials()
 
-        syn = mock.Mock()
+        syn = mock.Mock(
+            _sts_token_store=mock.Mock(
+                get_token=mock.Mock(return_value=self._make_credentials())
+            )
+        )
         entity_id = 'syn_1'
         permission = 'read_write'
 
@@ -44,18 +46,22 @@ class TestGetStsCredentials:
 
         credentials = sts_transfer.get_sts_credentials(syn, entity_id, permission, output_format='boto')
         assert_equal(credentials, expected_output)
-        mock_get_token.assert_called_once_with(
+        syn._sts_token_store.get_token.assert_called_once_with(
             syn,
             entity_id,
             permission,
             sts_transfer.DEFAULT_MIN_LIFE
         )
 
-    def _command_output_test(self, mock_get_token, output_format, expected_output):
-        syn = mock.Mock()
+    def _command_output_test(self, output_format, expected_output):
         entity_id = 'syn_1'
         permission = 'read_write'
-        mock_get_token.return_value = self._make_credentials()
+
+        syn = mock.Mock(
+            _sts_token_store=mock.Mock(
+                get_token=mock.Mock(return_value=self._make_credentials())
+            )
+        )
 
         min_remaining_life = datetime.timedelta(minutes=30)
         credentials = sts_transfer.get_sts_credentials(
@@ -66,81 +72,80 @@ class TestGetStsCredentials:
             min_remaining_life=datetime.timedelta(minutes=30),
         )
         assert_equal(credentials, expected_output)
-        mock_get_token.assert_called_with(syn, entity_id, permission, min_remaining_life)
+        syn._sts_token_store.get_token.assert_called_with(syn, entity_id, permission, min_remaining_life)
 
-    def _cmd_test(self, mock_get_token, output_format):
+    def _cmd_test(self, output_format):
         expected_output = f"""\
 set AWS_ACCESS_KEY_ID "foo"
 set AWS_SECRET_ACCESS_KEY "bar"
 set AWS_SESSION_TOKEN "baz"
 """
-        self._command_output_test(mock_get_token, output_format, expected_output)
+        self._command_output_test(output_format, expected_output)
 
     @mock.patch.object(sts_transfer, 'platform')
     @mock.patch.object(sts_transfer, 'os')
-    def test_shell_format__windows_cmd(self, mock_os, mock_platform, mock_get_token):
+    def test_shell_format__windows_cmd(self, mock_os, mock_platform):
         """Verify Windows cmd compatible shell output"""
 
         # we should print cmd commands either if on Windows and not detectable
         # bash or it was explicitly requested
         mock_os.environ = {}
         mock_platform.system.return_value = 'Windows'
-        mock_get_token.return_value = self._make_credentials()
 
-        self._cmd_test(mock_get_token, 'shell')
+        self._cmd_test('shell')
 
-    def test_explicit_cmd(self, mock_get_token):
+    def test_explicit_cmd(self):
         """Verify cmd compatible shell output when explicitly requested, not detected"""
-        self._cmd_test(mock_get_token, 'cmd')
+        self._cmd_test('cmd')
 
-    def test_powershell(self,mock_get_token):
+    def test_powershell(self):
         """Powershell output only by explicit request"""
         expected_output = f"""\
 $Env:AWS_ACCESS_KEY_ID="foo"
 $Env:AWS_SECRET_ACCESS_KEY="bar"
 $Env:AWS_SESSION_TOKEN="baz"
 """
-        self._command_output_test(mock_get_token, 'powershell', expected_output)
+        self._command_output_test('powershell', expected_output)
 
-    def _bash_test(self, mock_get_token, output_format):
+    def _bash_test(self, output_format):
         expected_output = f"""\
 export AWS_ACCESS_KEY_ID="foo"
 export AWS_SECRET_ACCESS_KEY="bar"
 export AWS_SESSION_TOKEN="baz"
 """
-        self._command_output_test(mock_get_token, output_format, expected_output)
+        self._command_output_test(output_format, expected_output)
 
-    def test_explicit_bash(self, mock_get_token):
+    def test_explicit_bash(self):
         """Bash explicitly requested"""
-        self._bash_test(mock_get_token, 'bash')
+        self._bash_test('bash')
 
     @mock.patch.object(sts_transfer, 'platform')
     @mock.patch.object(sts_transfer, 'os')
-    def test_shell_format__windows_bash(self, mock_os, mock_platform, mock_get_token):
+    def test_shell_format__windows_bash(self, mock_os, mock_platform):
         """Verify that a bash shell on Windows is treated as bash on shell output"""
         mock_platform.system.return_value = 'Windows'
         mock_os.environ = {'SHELL': 'bash'}
-        mock_get_token.return_value = self._make_credentials()
-
-        self._bash_test(mock_get_token, 'shell')
+        self._bash_test('shell')
 
     @mock.patch.object(sts_transfer, 'platform')
-    def test_shell__other_oses(self, mock_platform, mock_get_token):
+    def test_shell__other_oses(self, mock_platform):
         """Verify we treat any other os as running in a bash compatible shell"""
         for platform in ('Linux', 'Darwin', 'AnythingElse'):
             mock_platform.system.return_value = platform
-            mock_get_token.return_value = self._make_credentials()
-
-            self._bash_test(mock_get_token, 'shell')
+            self._bash_test('shell')
 
     @mock.patch.object(sts_transfer, 'platform')
-    def test_json_format(self, mock_platform, mock_get_token):
+    def test_json_format(self, mock_platform):
         """Verify that any other output_format just results in the raw dictionary being passed through."""
-        expected_credentials = mock_get_token.return_value = self._make_credentials()
-
-        syn = mock.Mock()
         entity_id = 'syn_1'
         permission = 'read'
+
+        expected_credentials = self._make_credentials()
+        syn = mock.Mock(
+            _sts_token_store=mock.Mock(
+                get_token=mock.Mock(return_value=expected_credentials)
+            )
+        )
 
         min_remaining_life = datetime.timedelta(hours=2)
         credentials = sts_transfer.get_sts_credentials(
@@ -151,11 +156,9 @@ export AWS_SESSION_TOKEN="baz"
             min_remaining_life=min_remaining_life,
         )
         assert_equal(expected_credentials, credentials)
-        mock_get_token.assert_called_with(syn, entity_id, permission, min_remaining_life)
+        syn._sts_token_store.get_token.assert_called_with(syn, entity_id, permission, min_remaining_life)
 
-    def test_other_formats_rejected(self, mock_get_token):
-        mock_get_token.return_value = self._make_credentials()
-
+    def test_other_formats_rejected(self):
         syn = mock.Mock()
         entity_id = 'syn_1'
         permission = 'read'
@@ -219,11 +222,11 @@ class TestStsTokenStore:
 
     def test_invalid_permission(self):
         with assert_raises(ValueError):
-            _StsTokenStore().get_token(mock.Mock(), 'syn_1', 'not_a_valid_permission', datetime.timedelta(hours=1))
+            StsTokenStore().get_token(mock.Mock(), 'syn_1', 'not_a_valid_permission', datetime.timedelta(hours=1))
 
     def test_fetch_and_cache_token(self):
         entity_id = 'syn_1'
-        token_store = _StsTokenStore()
+        token_store = StsTokenStore()
         min_remaining_life = datetime.timedelta(hours=1)
 
         expiration = datetime_to_iso(datetime.datetime.utcnow() + datetime.timedelta(hours=10))
@@ -256,6 +259,37 @@ class TestStsTokenStore:
         token = token_store.get_token(syn, entity_id, 'read_write', min_remaining_life)
         assert_is(token, write_token)
         assert_equal(syn.restGET.call_count, 2)
+
+    @mock.patch('synapseclient.core.sts_transfer.StsTokenStore._fetch_token')
+    def test_synapse_client__discrete_sts_token_stores(self, mock_fetch_token):
+        """Verify that two Synapse objects will not share the same cached tokens"""
+        syn1 = Synapse()
+        syn2 = Synapse()
+
+        expected_token = {
+            'awsAccessKeyId': 'ABC',
+            'awsSecretAccessKey': '456',
+            'expiration': datetime_to_iso(datetime.datetime.utcnow() + datetime.timedelta(hours=12))
+        }
+        mock_fetch_token.return_value = expected_token
+
+        synapse_id = 'syn_123'
+        permission = 'read_write'
+
+        token = syn1.get_sts_storage_token(synapse_id, permission)
+        assert_equal(expected_token, token)
+        assert_equal(mock_fetch_token.call_count, 1)
+
+        token = syn1.get_sts_storage_token(synapse_id, permission)
+        assert_equal(expected_token, token)
+
+        # should have been satisfied from cache, not fetched again
+        assert_equal(mock_fetch_token.call_count, 1)
+
+        # but now fetching from a separate synapse object should not be satisfied from a common cache
+        token = syn2.get_sts_storage_token(synapse_id, permission)
+        assert_equal(expected_token, token)
+        assert_equal(mock_fetch_token.call_count, 2)
 
 
 @mock.patch.object(sts_transfer, 'get_sts_credentials')

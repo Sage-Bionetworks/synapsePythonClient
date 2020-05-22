@@ -193,6 +193,7 @@ class Synapse(object):
             debug = config_debug if config_debug is not None else DEBUG_DEFAULT
 
         self.cache = cache.Cache(cache_root_dir)
+        self._sts_token_store = sts_transfer.StsTokenStore()
 
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
 
