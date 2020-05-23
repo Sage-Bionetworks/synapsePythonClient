@@ -83,40 +83,48 @@ class TestGetStsCredentials:
         assert_equal(credentials, expected_output)
         syn._sts_token_store.get_token.assert_called_with(syn, entity_id, permission, min_remaining_life)
 
-    def _cmd_test(self, output_format):
+    @mock.patch.object(sts_transfer, 'platform')
+    @mock.patch.object(sts_transfer, 'os')
+    def test_cmd(self, mock_os, mock_platform):
+        """Verify cases where we expect cmd compatible output"""
+
         expected_output = """\
 set SYNAPSE_STS_S3_LOCATION="s3://bucket1/key1"
 set AWS_ACCESS_KEY_ID="foo"
 set AWS_SECRET_ACCESS_KEY="bar"
 set AWS_SESSION_TOKEN="baz"
 """
-        self._command_output_test(output_format, expected_output)
+        # cmd explicitly selected
+        self._command_output_test('cmd', expected_output)
 
-    @mock.patch.object(sts_transfer, 'platform')
-    @mock.patch.object(sts_transfer, 'os')
-    def test_shell_format__windows_cmd(self, mock_os, mock_platform):
-        """Verify Windows cmd compatible shell output"""
-
-        # we should print cmd commands either if on Windows and not detectable
-        # bash or it was explicitly requested
+        # Windows where bash or powershell not detectable
         mock_os.environ = {}
         mock_platform.system.return_value = 'Windows'
 
-        self._cmd_test('shell')
+        self._command_output_test('shell', expected_output)
 
-    def test_explicit_cmd(self):
-        """Verify cmd compatible shell output when explicitly requested, not detected"""
-        self._cmd_test('cmd')
-
-    def test_powershell(self):
-        """Powershell output only by explicit request"""
+    @mock.patch.object(sts_transfer, 'platform')
+    @mock.patch.object(sts_transfer, 'os')
+    def test_powershell(self, mock_os, mock_platform):
+        """Verify cases where we expect powershell compatible output"""
         expected_output = """\
 $Env:SYNAPSE_STS_S3_LOCATION="s3://bucket1/key1"
 $Env:AWS_ACCESS_KEY_ID="foo"
 $Env:AWS_SECRET_ACCESS_KEY="bar"
 $Env:AWS_SESSION_TOKEN="baz"
 """
+        # powershell explicitly selected
         self._command_output_test('powershell', expected_output)
+
+        # powershell detected
+        mock_os.getenv.return_value = """C:\\Users\\USERNAME\\Documents\\WindowsPowerShell\\Modules;
+C:\\Program Files\\WindowsPowerShell\\Modules;
+C:\\WINDOWS\\system32\\WindowsPowerShell\\v1.0\\Modules
+"""
+        mock_os.pathsep = ';'
+        mock_platform.system.return_value = 'Windows'
+        self._command_output_test('shell', expected_output)
+        mock_os.getenv.assert_called_with('PSModulePath', '')
 
     def _bash_test(self, output_format):
         expected_output = """\

@@ -139,38 +139,30 @@ def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min
         # the Synapse STS API returns camel cased keys that we need to convert to use with boto.
         # prefix with "aws_", convert to snake case, and exclude any other key/value pairs in the value
         # e.g. expiration
-        value = {"aws_{}".format(snake_case(k)): value[k] for k in (
+        return {"aws_{}".format(snake_case(k)): value[k] for k in (
             'accessKeyId', 'secretAccessKey', 'sessionToken'
         )}
+    elif output_format == 'json':
+        # pass through what server sent
+        return value
 
     elif output_format == 'shell':
-        # make output in the form of commands that will set the credentials into the user's
-        # environment such that they can e.g. run awscli commands
-        # for "shell" we try to detect what is best for the system.
-
+        # for "shell" we try to detect what is best for the system
+        # assume bourne compatible output outside of windows
         if platform.system() == 'Windows' and 'bash' not in os.environ.get('SHELL', ''):
-            # if we're running on windows and we can't detect we're running a bash shell
-            # then we make the output compatible for a windows cmd prompt environment.
-            template_string = EXPORT_TEMPLATE_STRINGS['cmd']
-
+            if len(os.getenv('PSModulePath', '').split(os.pathsep)) >= 3:
+                # https://stackoverflow.com/a/55598796
+                output_format = 'powershell'
+            else:
+                output_format = 'cmd'
         else:
-            # assume bourne shell compatible (i.e. bash, zsh, etc)
-            template_string = EXPORT_TEMPLATE_STRINGS['bash']
+            output_format = 'bash'
 
-        value = _format_export_template_string(syn, entity_id, value, template_string)
-
-    # otherwise if they have explicitly told us what shell to use then we do that
-    elif output_format == "bash":
-        value = _format_export_template_string(syn, entity_id, value, EXPORT_TEMPLATE_STRINGS['bash'])
-    elif output_format == "cmd":
-        value = _format_export_template_string(syn, entity_id, value, EXPORT_TEMPLATE_STRINGS['cmd'])
-    elif output_format == 'powershell':
-        value = _format_export_template_string(syn, entity_id, value, EXPORT_TEMPLATE_STRINGS['powershell'])
-
-    elif output_format != 'json':
+    template_string = EXPORT_TEMPLATE_STRINGS.get(output_format)
+    if not template_string:
         raise ValueError(f'Unrecognized output_format {output_format}')
 
-    return value
+    return _format_export_template_string(syn, entity_id, value, template_string)
 
 
 def with_boto_sts_credentials(fn, syn, entity_id, permission):
