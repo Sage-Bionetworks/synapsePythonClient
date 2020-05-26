@@ -893,7 +893,7 @@ def build_parser():
         '-o',
         '--output',
         dest='output',
-        default='json',
+        default='shell',
         choices=['json', 'boto', 'shell', 'bash', 'cmd', 'powershell'])
     parser_get_sts_token.set_defaults(func=get_sts_token)
 
