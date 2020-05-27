@@ -2,7 +2,7 @@
 
 <!doctype html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <meta charset="utf-8" />
     <title>Overview &#8212; Synapse Python Client 2.0.0 documentation</title>
@@ -164,9 +164,9 @@ synapseutils.copy(syn, “syn123450”,”syn345678”,excludeTypes=[“file”,
 </div>
 <div class="section" id="module-synapseutils.walk">
 <span id="walk"></span><h1>walk<a class="headerlink" href="#module-synapseutils.walk" title="Permalink to this headline">¶</a></h1>
-<dl class="function">
+<dl class="py function">
 <dt id="synapseutils.walk.walk">
-<code class="sig-prename descclassname">synapseutils.walk.</code><code class="sig-name descname">walk</code><span class="sig-paren">(</span><em class="sig-param">syn</em>, <em class="sig-param">synId</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.walk.walk" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">synapseutils.walk.</code><code class="sig-name descname">walk</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">synId</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.walk.walk" title="Permalink to this definition">¶</a></dt>
 <dd><p>Traverse through the hierarchy of files and folders stored under the synId. Has the same behavior as os.walk()</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -190,9 +190,9 @@ synapseutils.copy(syn, “syn123450”,”syn345678”,excludeTypes=[“file”,
 </div>
 <div class="section" id="module-synapseutils.sync">
 <span id="sync"></span><h1>sync<a class="headerlink" href="#module-synapseutils.sync" title="Permalink to this headline">¶</a></h1>
-<dl class="function">
+<dl class="py function">
 <dt id="synapseutils.sync.generateManifest">
-<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">generateManifest</code><span class="sig-paren">(</span><em class="sig-param">syn</em>, <em class="sig-param">allFiles</em>, <em class="sig-param">filename</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.generateManifest" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">generateManifest</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">allFiles</span></em>, <em class="sig-param"><span class="n">filename</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.generateManifest" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generates a manifest file based on a list of entities objects.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -204,9 +204,9 @@ synapseutils.copy(syn, “syn123450”,”syn345678”,excludeTypes=[“file”,
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="synapseutils.sync.readManifestFile">
-<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">readManifestFile</code><span class="sig-paren">(</span><em class="sig-param">syn</em>, <em class="sig-param">manifestFile</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.readManifestFile" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">readManifestFile</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">manifestFile</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.readManifestFile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Verifies a file manifest and returns a reordered dataframe ready for upload.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -226,9 +226,9 @@ See below for details</p></li>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="synapseutils.sync.syncFromSynapse">
-<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">syncFromSynapse</code><span class="sig-paren">(</span><em class="sig-param">syn</em>, <em class="sig-param">entity</em>, <em class="sig-param">path=None</em>, <em class="sig-param">ifcollision='overwrite.local'</em>, <em class="sig-param">allFiles=None</em>, <em class="sig-param">followLink=False</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.syncFromSynapse" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">syncFromSynapse</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">path</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ifcollision</span><span class="o">=</span><span class="default_value">'overwrite.local'</span></em>, <em class="sig-param"><span class="n">allFiles</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">followLink</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.syncFromSynapse" title="Permalink to this definition">¶</a></dt>
 <dd><p>Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
 metadata.</p>
 <dl class="field-list simple">
@@ -265,9 +265,9 @@ Download and print the paths of all downloaded files:</p>
 </div>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="synapseutils.sync.syncToSynapse">
-<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">syncToSynapse</code><span class="sig-paren">(</span><em class="sig-param">syn</em>, <em class="sig-param">manifestFile</em>, <em class="sig-param">dryRun=False</em>, <em class="sig-param">sendMessages=True</em>, <em class="sig-param">retries=4</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.syncToSynapse" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">syncToSynapse</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">manifestFile</span></em>, <em class="sig-param"><span class="n">dryRun</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">sendMessages</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">retries</span><span class="o">=</span><span class="default_value">4</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.syncToSynapse" title="Permalink to this definition">¶</a></dt>
 <dd><p>Synchronizes files specified in the manifest file to Synapse</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -438,9 +438,9 @@ Any additional columns will be added as annotations.</p>
 </div>
 <div class="section" id="module-synapseutils.monitor">
 <span id="monitor"></span><h1>monitor<a class="headerlink" href="#module-synapseutils.monitor" title="Permalink to this headline">¶</a></h1>
-<dl class="function">
+<dl class="py function">
 <dt id="synapseutils.monitor.notifyMe">
-<code class="sig-prename descclassname">synapseutils.monitor.</code><code class="sig-name descname">notifyMe</code><span class="sig-paren">(</span><em class="sig-param">syn</em>, <em class="sig-param">messageSubject=''</em>, <em class="sig-param">retries=0</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.monitor.notifyMe" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">synapseutils.monitor.</code><code class="sig-name descname">notifyMe</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">messageSubject</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">retries</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.monitor.notifyMe" title="Permalink to this definition">¶</a></dt>
 <dd><p>Function decorator that notifies you via email whenever an function completes running or there is a failure.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -479,9 +479,9 @@ Any additional columns will be added as annotations.</p>
 </div>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="synapseutils.monitor.with_progress_bar">
-<code class="sig-prename descclassname">synapseutils.monitor.</code><code class="sig-name descname">with_progress_bar</code><span class="sig-paren">(</span><em class="sig-param">func</em>, <em class="sig-param">totalCalls</em>, <em class="sig-param">prefix=''</em>, <em class="sig-param">postfix=''</em>, <em class="sig-param">isBytes=False</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.monitor.with_progress_bar" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">synapseutils.monitor.</code><code class="sig-name descname">with_progress_bar</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">func</span></em>, <em class="sig-param"><span class="n">totalCalls</span></em>, <em class="sig-param"><span class="n">prefix</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">postfix</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">isBytes</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.monitor.with_progress_bar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Wraps a function to add a progress bar based on the number of calls to that function.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -521,8 +521,8 @@ Any additional columns will be added as annotations.</p>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Mar 23, 2020.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.4.4.
+      Last updated on May 27, 2020.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
