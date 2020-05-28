@@ -55,7 +55,7 @@ setuptools.setup(
 
     # test
     test_suite='nose.collector',
-    tests_require=['nose', 'mock'],
+    tests_require=['nose'],
 
     # metadata to display on PyPI
     description=description,

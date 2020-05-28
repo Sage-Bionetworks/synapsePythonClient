@@ -1,5 +1,5 @@
 from nose.tools import assert_raises, assert_equals, assert_true
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from synapseclient.core.retry import with_retry
 from synapseclient.core.exceptions import *

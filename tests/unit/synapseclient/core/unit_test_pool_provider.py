@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from mock import call, MagicMock, patch
+from unittest.mock import call, MagicMock, patch
 from nose.tools import assert_is_instance, assert_equal, assert_true
 from multiprocessing.sharedctypes import Synchronized
 from multiprocessing.pool import ThreadPool

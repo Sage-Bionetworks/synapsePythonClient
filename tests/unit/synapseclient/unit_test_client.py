@@ -5,7 +5,7 @@ import os
 import tempfile
 import uuid
 
-from mock import call, create_autospec, Mock, patch
+from unittest.mock import call, create_autospec, Mock, patch
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
 

@@ -1,7 +1,7 @@
 import json
 import uuid
 
-from mock import patch, call
+from unittest.mock import patch, call
 from nose.tools import assert_raises, assert_equal
 
 import synapseclient

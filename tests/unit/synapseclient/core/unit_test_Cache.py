@@ -3,7 +3,7 @@ import os
 import tempfile
 import time
 import random
-from mock import patch
+from unittest.mock import patch
 from nose.tools import assert_equal, assert_is_none, assert_is_not_none, assert_in, assert_false, assert_true,\
     assert_less
 from collections import OrderedDict

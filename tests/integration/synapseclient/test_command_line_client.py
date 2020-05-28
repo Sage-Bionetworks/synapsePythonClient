@@ -10,7 +10,7 @@ import time
 import tempfile
 from nose.tools import assert_raises, assert_equals, assert_true, assert_in
 import shutil
-from mock import patch
+from unittest.mock import patch
 from synapseclient import client
 
 from synapseclient.core.exceptions import *

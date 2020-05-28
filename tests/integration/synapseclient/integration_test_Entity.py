@@ -6,7 +6,7 @@ import tempfile
 from datetime import datetime as Datetime
 from nose.tools import assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_true, assert_false, \
     assert_equals, assert_is_not_none, assert_raises
-from mock import patch
+from unittest.mock import patch
 from synapseclient.core.upload.upload_functions import create_external_file_handle
 
 from synapseclient import *

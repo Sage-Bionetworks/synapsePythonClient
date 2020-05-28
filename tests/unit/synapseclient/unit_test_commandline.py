@@ -3,7 +3,7 @@
 """
 
 from nose.tools import assert_equals, assert_true, assert_false
-from mock import patch
+from unittest.mock import patch
 
 import synapseutils
 import synapseclient.__main__ as cmdline

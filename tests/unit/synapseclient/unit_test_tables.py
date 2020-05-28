@@ -7,7 +7,7 @@ import tempfile
 
 import time
 from builtins import zip
-from mock import MagicMock
+from unittest.mock import MagicMock
 from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_in, assert_sequence_equal,\
     assert_true, assert_is_none, assert_is_instance, raises, assert_equals
 import pandas as pd
@@ -25,7 +25,7 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
 from tests import unit
 
 from synapseclient.core.utils import from_unix_epoch_time
-from mock import patch
+from unittest.mock import patch
 from collections import OrderedDict
 
 def setup(module):

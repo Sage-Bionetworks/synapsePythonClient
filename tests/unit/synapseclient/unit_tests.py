@@ -4,7 +4,7 @@ import re
 import sys
 import inspect
 from nose import SkipTest
-from mock import patch, mock_open
+from unittest.mock import patch, mock_open
 import tempfile
 from shutil import rmtree
 

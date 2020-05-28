@@ -1,5 +1,5 @@
 from nose.tools import assert_raises, assert_equals, raises
-from mock import patch, mock_open
+from unittest.mock import patch, mock_open
 
 from synapseclient import *
 

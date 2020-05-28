@@ -1,4 +1,4 @@
-from mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call
 from nose.tools import assert_equal, assert_in, assert_tuple_equal
 
 import synapseutils

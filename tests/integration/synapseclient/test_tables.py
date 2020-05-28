@@ -9,7 +9,7 @@ import uuid
 from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true, assert_is_not_none
 from pandas.util.testing import assert_frame_equal
 from datetime import datetime
-from mock import patch
+from unittest.mock import patch
 
 import pandas as pd
 import numpy as np
