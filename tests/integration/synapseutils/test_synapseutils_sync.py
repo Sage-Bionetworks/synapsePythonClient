@@ -234,41 +234,6 @@ def test_write_manifest_data__unicode_characters_in_rows():
         assert_equals(datarow['col_B'], dfrow.col_B)
 
 
-def test_syncFromSynapse():
-    """This function tests recursive download as defined in syncFromSynapse
-    most of the functionality of this function are already tested in the
-    tests/integration/test_command_line_client::test_command_get_recursive_and_query
-
-    which means that the only test if for path=None
-    """
-    # Create a Project
-    project_entity = syn.store(Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
-
-    # Create a Folder in Project
-    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
-
-    # Create and upload two files in Folder
-    uploaded_paths = []
-    for i in range(2):
-        f = utils.make_bogus_data_file()
-        uploaded_paths.append(f)
-        schedule_for_cleanup(f)
-        syn.store(File(f, parent=folder_entity))
-    # Add a file in the project level as well
-    f = utils.make_bogus_data_file()
-    uploaded_paths.append(f)
-    schedule_for_cleanup(f)
-    syn.store(File(f, parent=project_entity))
-
-    # Test recursive get
-    output = synapseutils.syncFromSynapse(syn, project_entity)
-
-    assert_equals(len(output), len(uploaded_paths))
-    for f in output:
-        assert_in(f.path, uploaded_paths)
-
-
 def test_syncFromSynapse__given_file_id():
     file_path = utils.make_bogus_data_file()
     schedule_for_cleanup(file_path)
