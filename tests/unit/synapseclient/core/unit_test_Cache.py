@@ -43,7 +43,7 @@ def test_cache_concurrent_access():
         cache_map = my_cache._read_cache_map(my_cache.get_cache_dir(file_handle_id))
         process_ids = set()
         for path, iso_time in cache_map.items():
-            m = re.match("file_handle_%d_process_(\d+).junk" % file_handle_id, os.path.basename(path))
+            m = re.match("file_handle_%d_process_(\\d+).junk" % file_handle_id, os.path.basename(path))
             if m:
                 process_ids.add(int(m.group(1)))
         assert_equal(process_ids, set(range(20)))

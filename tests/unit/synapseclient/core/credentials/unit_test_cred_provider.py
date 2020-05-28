@@ -2,7 +2,15 @@ import base64
 from unittest.mock import create_autospec, patch
 from nose.tools import assert_equals, assert_is_none, assert_is_instance
 
-from synapseclient.core.credentials.credential_provider import *
+from synapseclient.core.credentials.credential_provider import (
+    cached_sessions,
+    CachedCredentialsProvider,
+    ConfigFileCredentialsProvider,
+    SynapseCredentialsProvider,
+    SynapseCredentialsProviderChain,
+    UserArgsCredentialsProvider,
+    UserArgsSessionTokenCredentialsProvider,
+)
 from synapseclient.core.credentials.cred_data import UserLoginArgs, SynapseCredentials
 from tests import unit
 

@@ -18,8 +18,8 @@ from synapseclient.annotations import (
     is_synapse_annotations,
     set_privacy,
 )
-from synapseclient.core.exceptions import *
 from synapseclient.entity import File
+import synapseclient.core.utils as utils
 
 
 def test_annotations():

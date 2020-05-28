@@ -1,7 +1,7 @@
 from nose.tools import assert_raises, assert_equals, raises
 from unittest.mock import patch, mock_open
 
-from synapseclient import *
+from synapseclient import Synapse, Wiki
 
 
 def test_Wiki():
@@ -45,7 +45,7 @@ def test_Wiki__markdown_is_None_markdownFile_defined():
     with patch("synapseclient.wiki.open", mock_open(), create=True) as mocked_open,\
             patch("os.path.isfile", return_value=True):
         # method under test
-        wiki = Wiki(owner="doesn't matter", markdownFile=markdown_path)
+        Wiki(owner="doesn't matter", markdownFile=markdown_path)
 
         mocked_open.assert_called_once_with(markdown_path, 'r')
         mocked_open().read.assert_called_once_with()
@@ -68,6 +68,6 @@ def test_Wiki__markdownFile_path_not_exist():
 
 def test_wiki_with_none_attachments():
     syn = Synapse()
-    with patch.object(syn, 'restPOST') as mock_restPOST:
+    with patch.object(syn, 'restPOST'):
         w = Wiki(owner="syn1", markdown="markdown", attachments=None)
         syn.store(w)

@@ -14,8 +14,8 @@ import pandas as pd
 
 from tests.unit.test_utils.unit_utils import StringIOContextManager
 
-from synapseclient import *
-from synapseclient.core.exceptions import *
+from synapseclient import Entity, Synapse
+from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
 from synapseclient.entity import split_entity_namespaces
 import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
@@ -653,8 +653,8 @@ def test_EntityViewSchema__ignore_annotation_column_names():
 
     with patch.object(syn, '_get_annotation_entity_view_columns', return_value=mocked_annotation_result1)\
             as mocked_get_annotations,\
-        patch.object(syn, 'getColumns') as mocked_get_columns,\
-        patch.object(SchemaBase, "_before_synapse_store"):
+            patch.object(syn, 'getColumns') as mocked_get_columns,\
+            patch.object(SchemaBase, "_before_synapse_store"):
 
         entity_view._before_synapse_store(syn)
 

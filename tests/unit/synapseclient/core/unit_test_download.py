@@ -11,7 +11,7 @@ from nose.tools import assert_raises, assert_equals, assert_false
 
 import synapseclient.core.constants.concrete_types as concrete_types
 import synapseclient.core.multithread_download as multithread_download
-from synapseclient import *
+from synapseclient import File, Synapse
 from synapseclient import client
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError, SynapseError, \
@@ -261,10 +261,10 @@ class Test__downloadFileHandle(unittest.TestCase):
         syn.multi_threaded = False
 
     def test_multithread_true__S3_fileHandle(self):
-        with patch.object(os, "makedirs") as mock_makedirs, \
+        with patch.object(os, "makedirs"), \
                 patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
                 patch.object(syn, "_download_from_url_multi_threaded") as mock_multi_thread_download, \
-                patch.object(syn, "cache") as mock_cache:
+                patch.object(syn, "cache"):
             mock_getFileHandleDownload.return_value = {
                 'fileHandle': {
                     'id': '123',
@@ -280,10 +280,10 @@ class Test__downloadFileHandle(unittest.TestCase):
                                                                expected_md5="someMD5")
 
     def test_multithread_True__other_file_handle_type(self):
-        with patch.object(os, "makedirs") as mock_makedirs, \
+        with patch.object(os, "makedirs"), \
                 patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
                 patch.object(syn, "_download_from_URL") as mock_download_from_URL, \
-                patch.object(syn, "cache") as mock_cache:
+                patch.object(syn, "cache"):
             mock_getFileHandleDownload.return_value = {
                 'fileHandle': {
                     'id': '123',
@@ -300,10 +300,10 @@ class Test__downloadFileHandle(unittest.TestCase):
             mock_download_from_URL.assert_called_once_with("asdf.com", "/myfakepath", "123", expected_md5="someMD5")
 
     def test_multithread_false__S3_fileHandle(self):
-        with patch.object(os, "makedirs") as mock_makedirs, \
+        with patch.object(os, "makedirs"), \
                 patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
                 patch.object(syn, "_download_from_URL") as mock_download_from_URL, \
-                patch.object(syn, "cache") as mock_cache:
+                patch.object(syn, "cache"):
             mock_getFileHandleDownload.return_value = {
                 'fileHandle': {
                     'id': '123',

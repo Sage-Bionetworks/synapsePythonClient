@@ -8,10 +8,9 @@ from unittest.mock import patch, mock_open
 import tempfile
 from shutil import rmtree
 
-from synapseclient import *
-from synapseclient.core.exceptions import _raise_for_status
-from synapseclient.core.utils import _find_used
-from synapseclient.core.exceptions import *
+from synapseclient import Activity
+import synapseclient.core.utils as utils
+from synapseclient.core.exceptions import SynapseHTTPError, SynapseMalformedEntityError, _raise_for_status
 from synapseclient.core.models.dict_object import DictObject
 
 
@@ -45,11 +44,11 @@ def test_activity_used_execute_methods():
     assert_equals(a['name'], 'Fuzz')
     assert_equals(a['description'], 'hipster beard dataset')
 
-    used_syn101 = _find_used(a, lambda res: res['reference']['targetId'] == 'syn101')
+    used_syn101 = utils._find_used(a, lambda res: res['reference']['targetId'] == 'syn101')
     assert_equals(used_syn101['reference']['targetVersionNumber'], 42)
     assert_false(used_syn101['wasExecuted'])
 
-    used_syn102 = _find_used(a, lambda res: res['reference']['targetId'] == 'syn102')
+    used_syn102 = utils._find_used(a, lambda res: res['reference']['targetId'] == 'syn102')
     assert_equals(used_syn102['reference']['targetVersionNumber'], 1)
     assert_true(used_syn102['wasExecuted'])
 
@@ -63,17 +62,17 @@ def test_activity_creation_by_constructor():
 
     a = Activity(name='Fuzz', description='hipster beard dataset', used=[ue1, ue3], executed=[ue2])
 
-    used_syn101 = _find_used(a, lambda res: res['reference']['targetId'] == 'syn101')
+    used_syn101 = utils._find_used(a, lambda res: res['reference']['targetId'] == 'syn101')
     assert_is_not_none(used_syn101)
     assert_equals(used_syn101['reference']['targetVersionNumber'], 42)
     assert_false(used_syn101['wasExecuted'])
 
-    used_syn102 = _find_used(a, lambda res: res['reference']['targetId'] == 'syn102')
+    used_syn102 = utils._find_used(a, lambda res: res['reference']['targetId'] == 'syn102')
     assert_is_not_none(used_syn102)
     assert_equals(used_syn102['reference']['targetVersionNumber'], 2)
     assert_true(used_syn102['wasExecuted'])
 
-    used_syn103 = _find_used(a, lambda res: res['reference']['targetId'] == 'syn103')
+    used_syn103 = utils._find_used(a, lambda res: res['reference']['targetId'] == 'syn103')
     assert_is_not_none(used_syn103)
 
 
@@ -91,32 +90,32 @@ def test_activity_used_url():
     a.executed(url='http://cran.r-project.org/web/packages/glmnet/index.html', name='glm.net')
     a.used(url='http://earthquake.usgs.gov/earthquakes/feed/geojson/2.5/day', name='earthquakes')
 
-    u = _find_used(a, lambda res: 'url' in res and res['url'] == u1)
+    u = utils._find_used(a, lambda res: 'url' in res and res['url'] == u1)
     assert_is_not_none(u)
     assert_equals(u['url'], u1)
     assert_false(u['wasExecuted'])
 
-    u = _find_used(a, lambda res: 'name' in res and res['name'] == 'The Onion')
+    u = utils._find_used(a, lambda res: 'name' in res and res['name'] == 'The Onion')
     assert_is_not_none(u)
     assert_equals(u['url'], 'http://theonion.com')
     assert_false(u['wasExecuted'])
 
-    u = _find_used(a, lambda res: 'name' in res and res['name'] == 'Seriously advanced code')
+    u = utils._find_used(a, lambda res: 'name' in res and res['name'] == 'Seriously advanced code')
     assert_is_not_none(u)
     assert_equals(u['url'], u3['url'])
     assert_equals(u['wasExecuted'], u3['wasExecuted'])
 
-    u = _find_used(a, lambda res: 'name' in res and res['name'] == 'Heavy duty algorithm')
+    u = utils._find_used(a, lambda res: 'name' in res and res['name'] == 'Heavy duty algorithm')
     assert_is_not_none(u)
     assert_equals(u['url'], u4['url'])
     assert_true(u['wasExecuted'])
 
-    u = _find_used(a, lambda res: 'name' in res and res['name'] == 'glm.net')
+    u = utils._find_used(a, lambda res: 'name' in res and res['name'] == 'glm.net')
     assert_is_not_none(u)
     assert_equals(u['url'], 'http://cran.r-project.org/web/packages/glmnet/index.html')
     assert_true(u['wasExecuted'])
 
-    u = _find_used(a, lambda res: 'name' in res and res['name'] == 'earthquakes')
+    u = utils._find_used(a, lambda res: 'name' in res and res['name'] == 'earthquakes')
     assert_is_not_none(u)
     assert_equals(u['url'], 'http://earthquake.usgs.gov/earthquakes/feed/geojson/2.5/day')
     assert_false(u['wasExecuted'])

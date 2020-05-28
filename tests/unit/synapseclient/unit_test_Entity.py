@@ -2,9 +2,9 @@ import collections
 from nose.tools import assert_raises, assert_true, assert_false, assert_equals, raises, assert_in, assert_is_instance
 from unittest.mock import patch
 
-from synapseclient import *
+from synapseclient import DockerRepository, Entity, File, Folder, Link, Project, Synapse
 from synapseclient.entity import split_entity_namespaces, is_container, is_versionable
-from synapseclient.core.exceptions import *
+from synapseclient.core.exceptions import SynapseMalformedEntityError
 
 
 def test_Entity():

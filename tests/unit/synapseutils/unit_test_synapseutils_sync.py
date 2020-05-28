@@ -6,7 +6,7 @@ import pandas.util.testing as pdt
 from io import StringIO
 
 import synapseutils
-from synapseclient import *
+from synapseclient import File, Folder, Project, Schema
 from synapseclient.core.exceptions import SynapseHTTPError
 from tests import unit
 

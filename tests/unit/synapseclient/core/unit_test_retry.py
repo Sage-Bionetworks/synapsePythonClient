@@ -2,7 +2,7 @@ from nose.tools import assert_raises, assert_equals, assert_true
 from unittest.mock import MagicMock
 
 from synapseclient.core.retry import with_retry
-from synapseclient.core.exceptions import *
+from synapseclient.core.exceptions import SynapseError
 from tests import unit
 
 
@@ -15,18 +15,18 @@ def test_with_retry():
     response = MagicMock()
     function = MagicMock()
     function.return_value = response
-    
-    # -- No failures -- 
+
+    # -- No failures --
     response.status_code.__eq__.side_effect = lambda x: x == 250
     with_retry(function, verbose=True, **retryParams)
     assert_equals(function.call_count, 1)
-    
-    # -- Always fail -- 
+
+    # -- Always fail --
     response.status_code.__eq__.side_effect = lambda x: x == 503
     with_retry(function, verbose=True, **retryParams)
     assert_equals(function.call_count, 1 + 4)
-    
-    # -- Fail then succeed -- 
+
+    # -- Fail then succeed --
     thirdTimes = [3, 2, 1]
 
     def theCharm(x):
@@ -37,7 +37,7 @@ def test_with_retry():
     response.status_code.__eq__.side_effect = theCharm
     with_retry(function, verbose=True, **retryParams)
     assert_equals(function.call_count, 1 + 4 + 3)
-    
+
     # -- Retry with an error message --
     retryErrorMessages = ["Foo"]
     retryParams["retry_errors"] = retryErrorMessages
@@ -49,7 +49,7 @@ def test_with_retry():
     with_retry(function, **retryParams)
     assert_true(response.headers.get.called)
     assert_equals(function.call_count, 1 + 4 + 3 + 4)
-    
+
     # -- Propagate an error up --
     print("Expect a SynapseError: Bar")
 
@@ -58,4 +58,3 @@ def test_with_retry():
     function.side_effect = foo
     assert_raises(SynapseError, with_retry, function, **retryParams)
     assert_equals(function.call_count, 1 + 4 + 3 + 4 + 1)
-

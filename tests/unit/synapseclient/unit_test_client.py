@@ -12,16 +12,32 @@ from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, a
 import synapseclient
 from synapseclient.annotations import convert_old_annotation_json
 from synapseclient import client
-from synapseclient import *
-from synapseclient.core.exceptions import *
-from synapseclient.core.upload import upload_functions, multipart_upload
+from synapseclient import (
+    Annotations,
+    Column,
+    DockerRepository,
+    Entity,
+    EntityViewSchema,
+    File,
+    Folder,
+    Team,
+    Synapse,
+)
+from synapseclient.core.exceptions import (
+    SynapseAuthenticationError,
+    SynapseError,
+    SynapseFileNotFoundError,
+    SynapseHTTPError,
+    SynapseUnmetAccessRestrictions,
+)
+from synapseclient.core.upload import upload_functions
+import synapseclient.core.utils as utils
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs
 from synapseclient.core.credentials.cred_data import SynapseCredentials
 from synapseclient.core.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.utils import id_of
 from tests import unit
 
 
@@ -300,7 +316,7 @@ class TestSubmit:
             'name': self.entity['name'],
             'entityId': self.entity['id'],
             'versionNumber': self.entity['versionNumber'],
-            'teamId': id_of(self.team['id']),
+            'teamId': utils.id_of(self.team['id']),
             'contributors': self.contributors,
             'submitterAlias': self.team['name']
         }
@@ -412,7 +428,6 @@ class TestSubmit:
         docker_entity.id = "syn123"
         docker_entity.etag = "Fake etag"
 
-        docker_digest = 'sha256:6b079ae764a6affcb632231349d4a5e1b084bece8c46883c099863ee2aeb5cf8'
         assert_raises(ValueError, syn.submit, '9090',
                       docker_entity, "George", dockerTag=None)
 
@@ -430,7 +445,7 @@ class TestSubmit:
             'versionNumber': self.entity['versionNumber'],
             'dockerDigest': docker_digest,
             'dockerRepositoryName': docker_entity['repositoryName'],
-            'teamId': id_of(self.team['id']),
+            'teamId': utils.id_of(self.team['id']),
             'contributors': self.contributors,
             'submitterAlias': self.team['name']}
         with patch.object(syn, "get",
@@ -438,7 +453,7 @@ class TestSubmit:
             patch.object(syn, "_get_docker_digest",
                          return_value=docker_digest) as patch_get_digest, \
             patch.object(syn, "_submit",
-                         return_value=expected_submission) as patch__submit:
+                         return_value=expected_submission):
             submission = syn.submit('9090', patch_syn_get, name='George')
             patch_get_digest.assert_called_once_with(docker_entity, "latest")
             assert_equal(submission, expected_submission)
@@ -1067,7 +1082,6 @@ class TestMembershipInvitation:
 
     def test_invite_to_team__ismember(self):
         """None returned when user is already a member"""
-        invite_body = {'inviteeId': self.userid}
         with patch.object(syn, "get_membership_status",
                           return_value=self.member_status) as patch_getmem,\
             patch.object(syn, "get_team_open_invitations",
@@ -1251,7 +1265,7 @@ def test_get_config_file_caching():
         assert_equal(1, read_config.call_count)
 
         # however a new instance should not be cached
-        syn2 = Synapse(debug=False, skip_checks=True, configPath='/foo')
+        Synapse(debug=False, skip_checks=True, configPath='/foo')
         assert_equal(2, read_config.call_count)
 
         # but an additional call on that instance should be
