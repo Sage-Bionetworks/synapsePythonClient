@@ -115,7 +115,7 @@ rather than Synapse’s default internal S3 storage.</p>
 </ol>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># create a new folder to use with external S3 storage</span>
-<span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Folder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">))</span>
+<span class="n">folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Folder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">))</span>
 <span class="n">syn</span><span class="o">.</span><span class="n">create_s3_storage_location</span><span class="p">(</span>
     <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
     <span class="n">bucket_name</span><span class="o">=</span><span class="s1">&#39;my-external-synapse-bucket&#39;</span><span class="p">,</span>
@@ -166,7 +166,7 @@ awscli and the boto3 library separately from Synapse to read and write files to 
 time passing an additional <strong>sts_enabled=True</strong> keyword parameter</p>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># create a new folder to use with STS and external S3 storage</span>
-<span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Folder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">))</span>
+<span class="n">folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Folder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">))</span>
 <span class="n">syn</span><span class="o">.</span><span class="n">create_s3_storage_location</span><span class="p">(</span>
     <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
     <span class="n">bucket_name</span><span class="o">=</span><span class="s1">&#39;my-external-synapse-bucket&#39;</span><span class="p">,</span>
@@ -281,7 +281,7 @@ Note that if boto3 is not installed then these settings will have no effect.</p>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on May 27, 2020.
+      Last updated on May 28, 2020.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
     </div>
     <script type="text/javascript">
