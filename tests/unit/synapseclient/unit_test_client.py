@@ -1,12 +1,13 @@
 import base64
 import configparser
+import datetime
 import json
 import os
 import tempfile
 import uuid
 
-from mock import call, create_autospec, Mock, patch
-from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
+from mock import ANY, call, create_autospec, Mock, patch
+from nose.tools import assert_equal, assert_false, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
 
 import synapseclient
@@ -224,6 +225,82 @@ class TestPrivateGetWithEntityBundle:
 
         # TODO: add more test cases for flag combination of this method
         # TODO: separate into another test?
+
+
+class TestDownloadFileHandle:
+    # TODO missing tests for the other ways of downloading a file handle should be backfilled...
+
+    @patch.object(client, 'S3ClientWrapper')
+    @patch.object(client, 'sts_transfer')
+    @patch.object(client, 'os')
+    def test_download_file_handle__sts_boto(
+            self,
+            mock_os,
+            mock_sts_transfer,
+            mock_s3_client_wrapper,
+    ):
+        """Verify that we download S3 file handles using boto if the configuration specifies
+        # it and if the storage location supports STS"""
+
+        file_handle_id = 1234
+        entity_id = 'syn_5678'
+        bucket_name = 'fooBucket'
+        key = '/tmp/fooKey'
+        destination = '/tmp'
+        credentials = {
+            'aws_access_key_id': 'foo',
+            'aws_secret_access_key': 'bar',
+            'aws_session_token': 'baz',
+        }
+
+        mock_sts_transfer.is_boto_sts_transfer_enabled.return_value = True
+        mock_sts_transfer.is_storage_location_sts_enabled.return_value = True
+
+        def mock_with_boto_sts_credentials(download_fn, syn, objectId, permission):
+            assert_equal(permission, 'read_only')
+            assert_equal(entity_id, objectId)
+            return download_fn(credentials)
+
+        mock_sts_transfer.with_boto_sts_credentials = mock_with_boto_sts_credentials
+
+        expected_download_path = '/tmp/fooKey'
+        mock_s3_client_wrapper.download_file.return_value = expected_download_path
+
+        # this is another opt-in download method.
+        # for enabled storage locations sts should be preferred
+        syn.multi_threaded = True
+
+        with patch.object(syn, '_getFileHandleDownload') as mock_get_file_handle_download,\
+                patch.object(syn, 'cache') as cache:
+            mock_get_file_handle_download.return_value = {
+                'fileHandle': {
+                    'id': file_handle_id,
+                    'bucketName': bucket_name,
+                    'key': key,
+                    'concreteType': concrete_types.S3_FILE_HANDLE,
+                    'storageLocationId': 9876
+                }
+            }
+
+            download_path = syn._downloadFileHandle(
+                fileHandleId=file_handle_id,
+                objectId=entity_id,
+                objectType='FileEntity',
+                destination=destination,
+            )
+            mock_os.makedirs.assert_called_once_with(mock_os.path.dirname(destination), exist_ok=True)
+            cache.add.assert_called_once_with(file_handle_id, download_path)
+
+        assert_equal(expected_download_path, download_path)
+        mock_s3_client_wrapper.download_file.assert_called_once_with(
+            bucket_name,
+            None,
+            key,
+            destination,
+            credentials=credentials,
+            transfer_config_kwargs={'max_concurrency': syn.max_threads},
+        )
+
 
 class TestPrivateSubmit:
 
@@ -953,6 +1030,160 @@ class TestSetStorageLocation:
         self.mock_restPUT.assert_called_once_with('/projectSettings', body=json.dumps(new_location))
         self.mock_restPOST.assert_not_called()
 
+
+@patch('synapseclient.core.sts_transfer.get_sts_credentials')
+def test_get_sts_storage_token(mock_get_sts_credentials):
+    """Verify get_sts_storage_token passes through to the underlying function as expected"""
+    token = {'key': 'val'}
+    mock_get_sts_credentials.return_value = token
+
+    entity = 'syn_1'
+    permission = 'read_write'
+    output_format = 'boto'
+    min_remaining_life = datetime.timedelta(hours=1)
+
+    result = syn.get_sts_storage_token(
+        entity, permission,
+        output_format=output_format, min_remaining_life=min_remaining_life
+    )
+    assert_equal(token, result)
+    mock_get_sts_credentials.assert_called_once_with(
+        syn, entity, permission,
+        output_format=output_format, min_remaining_life=min_remaining_life
+    )
+
+
+class TestCreateS3StorageLocation:
+
+    def test_folder_and_parent(self):
+        """Verify we fail as expected if both parent and folder are passed"""
+        with assert_raises(ValueError):
+            syn.create_s3_storage_location(folder_name='foo', parent=Mock(), folder=Mock())
+
+    def test_folder_or_parent(self):
+        """Verify we fail as expected if neither parent or folder are passed"""
+        with assert_raises(ValueError):
+            syn.create_s3_storage_location()
+
+    def _create_storage_location_test(self, expected_post_body, *args, **kwargs):
+        with patch.object(syn, 'restPOST') as mock_post,\
+                patch.object(syn, 'setStorageLocation') as mock_set_storage_location,\
+                patch.object(syn, 'store') as syn_store:
+            mock_post.return_value = {'storageLocationId': 456}
+            mock_set_storage_location.return_value = {'id': 'foo'}
+
+            # either passed a folder or expected to create one
+            expected_folder = kwargs.get('folder')
+            if not expected_folder:
+                expected_folder = syn_store.return_value = Mock()
+
+            result = syn.create_s3_storage_location(*args, **kwargs)
+
+            if 'folder_name' in kwargs:
+                stored_folder = syn_store.call_args[0][0]
+                assert_equal(stored_folder.name, kwargs['folder_name'])
+                assert_equal(stored_folder.parentId, kwargs['parent'])
+            else:
+                assert_false(syn_store.called)
+
+            assert_equal(expected_folder, result[0])
+            assert_equal(mock_post.return_value, result[1])
+            assert_equal(mock_set_storage_location.return_value, result[2])
+
+            mock_post.assert_called_with('/storageLocation', ANY)
+            assert_equal(expected_post_body, json.loads(mock_post.call_args[0][1]))
+
+    def test_synapse_s3(self):
+        """Verify we create a Synapse S3 storage location if bucket is not passed
+        and that we don't create a new folder if a folder is passed."""
+        folder = Mock()
+        for sts_enabled in (True, False):
+            expected_post_body = {
+                'uploadType': 'S3',
+                'concreteType': concrete_types.SYNAPSE_S3_STORAGE_LOCATION_SETTING,
+                'stsEnabled': sts_enabled
+            }
+
+            self._create_storage_location_test(expected_post_body, folder=folder, sts_enabled=sts_enabled)
+
+    def test_external_s3(self):
+        """Verify we create an External S3 storage location if bucket details are passed
+        and that we create a folder if passed a name and a parent."""
+        folder_name = 'foo'
+        parent = 'syn_123'
+        bucket_name = 'test_bucket'
+        base_key = 'foobarbaz'
+        for sts_enabled in (True, False):
+            expected_post_body = {
+                'uploadType': 'S3',
+                'concreteType': concrete_types.EXTERNAL_S3_STORAGE_LOCATION_SETTING,
+                'stsEnabled': sts_enabled,
+                'bucket': bucket_name,
+                'baseKey': base_key,
+            }
+
+            self._create_storage_location_test(
+                expected_post_body,
+                folder_name=folder_name, parent=parent, sts_enabled=sts_enabled,
+                bucket_name=bucket_name, base_key=base_key,
+            )
+
+
+class TestCreateExternalS3FileHandle:
+
+    def _s3_file_handle_test(self, **kwargs):
+        with patch.object(syn, '_getDefaultUploadDestination') as mock_get_upload_dest,\
+            patch.object(os, 'path') as mock_os_path, \
+            patch.object(os, 'stat') as mock_os_stat, \
+            patch.object(utils, 'md5_for_file') as mock_md5, \
+            patch('mimetypes.guess_type') as mock_guess_mimetype, \
+                patch.object(syn, 'restPOST') as mock_post:
+
+            bucket_name = 'foo_bucket'
+            s3_file_key = '/foo/bar/baz'
+            file_path = '/tmp/foo'
+
+            mock_get_upload_dest.return_value = {'storageLocationId': 123}
+            mock_guess_mimetype.return_value = 'text/plain', None
+            mock_post.return_value = {'foo': 'bar'}
+
+            mock_os_path.basename.return_value = 'foo'
+            mock_os_stat.return_value.st_size = 1024
+            mock_md5.return_value.hexdigest.return_value = 'fakemd5'
+
+            expected_post_body = {
+                'concreteType': concrete_types.S3_FILE_HANDLE,
+                'key': s3_file_key,
+                'bucketName': bucket_name,
+                'fileName': mock_os_path.basename.return_value,
+                'contentMd5': mock_md5.return_value.hexdigest.return_value,
+                'contentSize': mock_os_stat.return_value.st_size,
+                'storageLocationId': 123,
+                'contentType': kwargs.get('mimetype', 'text/plain')
+            }
+
+            result = syn.create_external_s3_file_handle(bucket_name, s3_file_key, file_path, **kwargs)
+            assert_equal(mock_post.return_value, result)
+
+            if 'storage_location_id' in kwargs:
+                assert_false(mock_get_upload_dest.called)
+            else:
+                mock_get_upload_dest.assert_called_once_with(kwargs['parent'])
+
+            mock_post.assert_called_once_with('/externalFileHandle/s3', ANY, endpoint=syn.fileHandleEndpoint)
+            assert_equal(expected_post_body, json.loads(mock_post.call_args[0][1]))
+
+    def test_with_parent_entity(self):
+        """If passed a parent entity we should fetch the default upload destination
+        of the entity and use that as the storage location of the file handle"""
+        self._s3_file_handle_test(parent=Mock())
+
+    def test_with_storage_location_id(self):
+        """If passed a storage location id we should use that.
+        Also customize mimetype"""
+        self._s3_file_handle_test(storage_location_id=123, mimetype='text/html')
+
+
 class TestMembershipInvitation:
 
     def setup(self):
@@ -1270,6 +1501,23 @@ class TestSetAnnotations:
                                                        '"value": ["bar"]}}}')
 
 
+def test_get_unparseable_config():
+    """Verify that if the synapseConfig is not parseable we fail
+    in an expected way and surface the underlying parse error."""
+    config_error_msg = 'bad config'
+    with patch('configparser.RawConfigParser.read') as read_config:
+        read_config.side_effect = configparser.Error(config_error_msg)
+
+        with assert_raises(ValueError) as cm:
+            Synapse(debug=False, skip_checks=True, configPath='/foo')
+
+        # underlying error should be chained
+        assert_equal(
+            config_error_msg,
+            str(cm.exception.__context__)
+        )
+
+
 def test_get_config_file_caching():
     """Verify we read a config file once per Synapse and are not
     parsing the file multiple times just on init."""
@@ -1302,27 +1550,58 @@ def test_max_threads_bounded():
     assert_equal(syn.max_threads, 1)
 
 
-def test_get_transfer_config_max_threads():
+@patch('synapseclient.Synapse._get_config_section_dict')
+def test_get_transfer_config(mock_config_dict):
     """Verify reading transfer.maxThreads from synapseConfig"""
 
     # note that RawConfigParser lower cases its option values so we
     # simulate that behavior in our mocked values here
 
-    with patch.object(syn, "_get_config_section_dict") as mock_config_dict:
-        empty_value_dicts = [{}]
-        empty_value_dicts.extend([{'max_threads': v} for v in ('', None)])
-        for empty_value_dict in empty_value_dicts:
-            mock_config_dict.return_value = empty_value_dict
-            assert_is_none(syn._get_transfer_config_max_threads())
+    default_values = {'max_threads': client.DEFAULT_NUM_THREADS, 'use_boto_sts_transfers': False}
 
-        for max_threads in (1, 7, 100):
-            mock_config_dict.return_value = {'max_threads': str(max_threads)}
-            assert_equal(max_threads, syn._get_transfer_config_max_threads())
+    for config_dict, expected_values in [
+        # empty values get defaults
+        ({}, default_values),
+        ({'max_threads': '', 'use_boto_sts': ''}, default_values),
+        ({'max_thraeds': None, 'use_boto_sts': None}, default_values),
 
+        # explicit values should be parsed
+        ({'max_threads': '1', 'use_boto_sts': 'True'}, {'max_threads': 1, 'use_boto_sts_transfers': True}),
+        ({'max_threads': '7', 'use_boto_sts': 'true'}, {'max_threads': 7, 'use_boto_sts_transfers': True}),
+        ({'max_threads': '100', 'use_boto_sts': 'false'}, {'max_threads': 100, 'use_boto_sts_transfers': False}),
+    ]:
+        mock_config_dict.return_value = config_dict
+        syn = Synapse()
+        for k, v in expected_values.items():
+            assert_equal(v, getattr(syn, k))
+
+    # invalid value for max threads should raise an error
+    for invalid_max_thread_value in ('not a number', '12.2', 'true'):
+        mock_config_dict.return_value = {'max_threads': invalid_max_thread_value}
         with assert_raises(ValueError):
-            for invalid_value in ('not a number', '12.2', 'true'):
-                mock_config_dict.return_value = {'max_threads': invalid_value}
-                syn._get_transfer_config_max_threads()
+            Synapse()
+
+    # invalid value for use_boto_sts should raise an error
+    for invalid_max_thread_value in ('not true', '1.2', '0', 'falsey'):
+        mock_config_dict.return_value = {'use_boto_sts': invalid_max_thread_value}
+        with assert_raises(ValueError):
+            Synapse()
+
+
+@patch('synapseclient.Synapse._get_config_section_dict')
+def test_transfer_config_values_overridable(mock_config_dict):
+    """Verify we can override the default transfer config values by setting them directly on the Synapse object"""
+
+    mock_config_dict.return_value = {'max_threads': 24, 'use_boto_sts': False}
+    syn = Synapse()
+
+    assert_equal(24, syn.max_threads)
+    assert_equal(False, syn.use_boto_sts_transfers)
+
+    syn.max_threads = 5
+    syn.use_boto_sts_transfers = True
+    assert_equal(5, syn.max_threads)
+    assert_equal(True, syn.use_boto_sts_transfers)
 
 
 def test_store__needsUploadFalse__fileHandleId_not_in_local_state():

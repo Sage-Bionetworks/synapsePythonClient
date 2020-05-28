@@ -1,9 +1,11 @@
 import os
 import urllib.parse as urllib_parse
+import uuid
 
-from synapseclient.core.utils import is_url, md5_for_file, as_url, file_url_to_path, id_of
+from synapseclient.core.utils import is_url, md5_for_file, as_url, file_url_to_path, id_of, snake_case
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
+from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file
 from synapseclient.core.exceptions import SynapseMd5MismatchError
 
@@ -50,9 +52,24 @@ def upload_file_handle(
     # determine the upload function based on the UploadDestination
     location = syn._getDefaultUploadDestination(entity_parent_id)
     upload_destination_type = location['concreteType']
-    # synapse managed S3
-    if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION \
-            or upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
+
+    if sts_transfer.is_boto_sts_transfer_enabled(syn) and \
+       sts_transfer.is_storage_location_sts_enabled(syn, entity_parent_id, location) and \
+       upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
+        syn.logger.info('\n' + '#' * 50 + '\n Uploading file to external S3 storage using boto3 \n' + '#' * 50 + '\n')
+
+        return upload_synapse_sts_boto_s3(
+            syn,
+            entity_parent_id,
+            location,
+            expanded_upload_path,
+            mimetype=mimetype,
+        )
+
+    elif upload_destination_type in (
+        concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION,
+        concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION,
+    ):
         storageString = 'Synapse' \
             if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION \
             else 'your external S3'
@@ -133,6 +150,39 @@ def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None, max
     syn.cache.add(file_handle_id, file_path)
 
     return syn._get_file_handle_as_creator(file_handle_id)
+
+
+def upload_synapse_sts_boto_s3(syn, parent_id, upload_destination, local_path, mimetype=None):
+    # when uploading to synapse storage normally the back end will generate a random prefix
+    # for our uploaded object. since in this case the client is responsible for the remote
+    # key, the client will instead generate a random prefix. this both ensures we don't have a collision
+    # with an existing S3 object and also mitigates potential performance issues, although
+    # key locality performance issues are likely resolved as of:
+    # https://aws.amazon.com/about-aws/whats-new/2018/07/amazon-s3-announces-increased-request-rate-performance/
+    key_prefix = str(uuid.uuid4())
+
+    bucket_name = upload_destination['bucket']
+    storage_location_id = upload_destination['storageLocationId']
+    remote_file_key = "/".join([upload_destination['baseKey'], key_prefix, os.path.basename(local_path)])
+
+    def upload_fn(credentials):
+        return S3ClientWrapper.upload_file(
+            bucket_name,
+            None,
+            remote_file_key,
+            local_path,
+            credentials=credentials,
+            transfer_config_kwargs={'max_concurrency': syn.max_threads}
+        )
+
+    sts_transfer.with_boto_sts_credentials(upload_fn, syn, parent_id, 'read_write')
+    return syn.create_external_s3_file_handle(
+        bucket_name,
+        remote_file_key,
+        local_path,
+        storage_location_id=storage_location_id,
+        mimetype=mimetype
+    )
 
 
 def upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id, mimetype=None):

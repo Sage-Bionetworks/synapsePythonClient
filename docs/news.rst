@@ -2,7 +2,7 @@
 Release Notes
 =============
 
-2.1.0 (2020-04-1?)
+2.1.0 (2020-05-XX)
 ==================
 
 Highlights:
@@ -29,7 +29,10 @@ Highlights:
      [transfer]
      max_threads=16
 
-  This release also includes other optimizations associated with file uploads.
+- This release includes support for directly accessing S3 storage locations using AWS Security Token Service
+  credentials. This allows use of external AWS clients and libraries with Synapse storage, and can be used to
+  accelerate file transfers under certain conditions. To create an STS enabled folder and set-up direct access to S3
+  storage, see :ref:`here <sts_storage_locations>`.
 
 - The :code:`getAnnotations` and :code:`setAnnotations` methods of the Synapse object have been **deprecated** in
   favor of newer :code:`get_annotations` and :code:`set_annotations` methods, respectively. The newer versions
@@ -67,7 +70,8 @@ Improvement
 
 -  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1029>`__] -
    Make upload speeds comparable to those of the AWS S3 CLI
-
+-  [`SYNPY-1049 <https://sagebionetworks.jira.com/browse/SYNPY-1049>`__] -
+   Expose STS-related APIs
 
 2.0.0 (2020-03-23)
 ==================

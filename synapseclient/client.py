@@ -52,7 +52,8 @@ import synapseclient
 from .annotations import from_synapse_annotations, to_synapse_annotations, Annotations, convert_old_annotation_json
 from .activity import Activity
 import synapseclient.core.multithread_download as multithread_download
-from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
+from .entity import Entity, File, Folder, Versionable,\
+    split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import SchemaBase, Column, TableQueryResult, CsvFileTable
@@ -68,8 +69,9 @@ from synapseclient.core.exceptions import *
 from synapseclient.core.version_check import version_check
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
-    find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
+    find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param, snake_case
 from synapseclient.core.retry import with_retry
+from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.upload_functions import upload_file_handle, upload_synapse_s3
@@ -192,6 +194,7 @@ class Synapse(object):
             debug = config_debug if config_debug is not None else DEBUG_DEFAULT
 
         self.cache = cache.Cache(cache_root_dir)
+        self._sts_token_store = sts_transfer.StsTokenStore()
 
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
 
@@ -206,7 +209,10 @@ class Synapse(object):
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
         self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
-        self.max_threads = self._get_transfer_config_max_threads() or DEFAULT_NUM_THREADS
+
+        transfer_config = self._get_transfer_config()
+        self.max_threads = transfer_config['max_threads']
+        self.use_boto_sts_transfers = transfer_config['use_boto_sts']
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
@@ -250,10 +256,8 @@ class Synapse(object):
             config = configparser.RawConfigParser()
             config.read(configPath)  # Does not fail if the file does not exist
             return config
-        except configparser.Error:
-            self.logger.error('Error parsing Synapse config file: %s' % configPath)
-            self.logger.debug("Synapse config file parse failure:", exc_info=True)
-            raise
+        except configparser.Error as ex:
+            raise ValueError("Error parsing Synapse config file: {}".format(configPath)) from ex
 
     def setEndpoints(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                      skip_checks=False):
@@ -406,14 +410,29 @@ class Synapse(object):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get("profile_name", "default")
 
-    def _get_transfer_config_max_threads(self):
-        max_threads = self._get_config_section_dict('transfer').get('max_threads')
-        if max_threads:
-            try:
-                return int(max_threads)
-            except ValueError as cause:
-                raise ValueError("Invalid transfer.maxThreads config setting (%s)", max_threads) from cause
-        return None
+    def _get_transfer_config(self):
+        # defaults
+        transfer_config = {
+            'max_threads': DEFAULT_NUM_THREADS,
+            'use_boto_sts': False
+        }
+
+        for k, v in self._get_config_section_dict('transfer').items():
+            if v:
+                if k == 'max_threads' and v:
+                    try:
+                        transfer_config['max_threads'] = int(v)
+                    except ValueError as cause:
+                        raise ValueError(f"Invalid transfer.max_threads config setting {v}") from cause
+
+                elif k == 'use_boto_sts':
+                    lower_v = v.lower()
+                    if lower_v not in ('true', 'false'):
+                        raise ValueError(f"Invalid transfer.use_boto_sts config setting {v}")
+
+                    transfer_config['use_boto_sts'] = 'true' == lower_v
+
+        return transfer_config
 
     def _getSessionToken(self, email, password):
         """Returns a validated session token."""
@@ -1695,17 +1714,44 @@ class Synapse(object):
             try:
                 fileResult = self._getFileHandleDownload(fileHandleId, objectId, objectType)
                 fileHandle = fileResult['fileHandle']
-                if fileHandle['concreteType'] == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
+                concreteType = fileHandle['concreteType']
+                storageLocationId = fileHandle.get('storageLocationId')
+
+                if concreteType == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
                     profile = self._get_client_authenticated_s3_profile(fileHandle['endpointUrl'], fileHandle['bucket'])
                     downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'],
                                                                     fileHandle['fileKey'], destination,
                                                                     profile_name=profile)
-                elif self.multi_threaded and fileHandle['concreteType'] == concrete_types.S3_FILE_HANDLE:
+
+                elif sts_transfer.is_boto_sts_transfer_enabled(self) and \
+                        sts_transfer.is_storage_location_sts_enabled(self, objectId, storageLocationId) and \
+                        concreteType == concrete_types.S3_FILE_HANDLE:
+
+                    def download_fn(credentials):
+                        return S3ClientWrapper.download_file(
+                            fileHandle['bucketName'],
+                            None,
+                            fileHandle['key'],
+                            destination,
+                            credentials=credentials,
+                            # pass through our synapse threading config to boto s3
+                            transfer_config_kwargs={'max_concurrency': self.max_threads},
+                        )
+
+                    downloaded_path = sts_transfer.with_boto_sts_credentials(
+                        download_fn,
+                        self,
+                        objectId,
+                        'read_only',
+                    )
+
+                elif self.multi_threaded and concreteType == concrete_types.S3_FILE_HANDLE:
                     downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
                                                                              objectId,
                                                                              objectType,
                                                                              destination,
                                                                              expected_md5=fileHandle.get('contentMd5'))
+
                 else:
                     downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
                                                               destination,
@@ -1899,14 +1945,15 @@ class Synapse(object):
 
     def _createExternalFileHandle(self, externalURL, mimetype=None, md5=None, fileSize=None):
         """Create a new FileHandle representing an external URL."""
-
         fileName = externalURL.split('/')[-1]
         externalURL = utils.as_url(externalURL)
-        fileHandle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
-                      'fileName': fileName,
-                      'externalURL': externalURL,
-                      'contentMd5':  md5,
-                      'contentSize': fileSize}
+        fileHandle = {
+            'concreteType': concrete_types.EXTERNAL_FILE_HANDLE,
+            'fileName': fileName,
+            'externalURL': externalURL,
+            'contentMd5':  md5,
+            'contentSize': fileSize
+        }
         if mimetype is None:
             (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
         if mimetype is not None:
@@ -1916,15 +1963,59 @@ class Synapse(object):
     def _createExternalObjectStoreFileHandle(self, s3_file_key, file_path, storage_location_id, mimetype=None):
         if mimetype is None:
             mimetype, enc = mimetypes.guess_type(file_path, strict=False)
-        file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle',
-                       'fileKey': s3_file_key,
-                       'fileName': os.path.basename(file_path),
-                       'contentMd5': utils.md5_for_file(file_path).hexdigest(),
-                       'contentSize': os.stat(file_path).st_size,
-                       'storageLocationId': storage_location_id,
-                       'contentType': mimetype}
+        file_handle = {
+            'concreteType': concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE,
+            'fileKey': s3_file_key,
+            'fileName': os.path.basename(file_path),
+            'contentMd5': utils.md5_for_file(file_path).hexdigest(),
+            'contentSize': os.stat(file_path).st_size,
+            'storageLocationId': storage_location_id,
+            'contentType': mimetype
+        }
 
         return self.restPOST('/externalFileHandle', json.dumps(file_handle), self.fileHandleEndpoint)
+
+    def create_external_s3_file_handle(self, bucket_name, s3_file_key, file_path, *,
+                                       parent=None, storage_location_id=None, mimetype=None):
+        """
+        Create an external S3 file handle for e.g. a file that has been uploaded directly to
+        an external S3 storage location.
+
+        :param bucket_name:             Name of the S3 bucket
+        :param s3_file_key:             S3 key of the uploaded object
+        :param file_path:               Local path of the uploaded file
+        :param parent:                  Parent entity to create the file handle in, the file handle will be created
+                                            in the default storage location of the parent. Mutually exclusive with
+                                            storage_location_id
+        :param storage_location_id:     Explicit storage location id to create the file handle in, mutually exclusive
+                                            with parent
+        :param mimetype:                Mimetype of the file, if known
+        """
+
+        if storage_location_id:
+            if parent:
+                raise ValueError("Pass parent or storage_location_id, not both")
+        elif not parent:
+            raise ValueError("One of parent or storage_location_id is required")
+        else:
+            upload_destination = self._getDefaultUploadDestination(parent)
+            storage_location_id = upload_destination['storageLocationId']
+
+        if mimetype is None:
+            mimetype, enc = mimetypes.guess_type(file_path, strict=False)
+
+        file_handle = {
+            'concreteType': concrete_types.S3_FILE_HANDLE,
+            'key': s3_file_key,
+            'bucketName': bucket_name,
+            'fileName': os.path.basename(file_path),
+            'contentMd5': utils.md5_for_file(file_path).hexdigest(),
+            'contentSize': os.stat(file_path).st_size,
+            'storageLocationId': storage_location_id,
+            'contentType': mimetype
+        }
+
+        return self.restPOST('/externalFileHandle/s3', json.dumps(file_handle), endpoint=self.fileHandleEndpoint)
 
     def _get_file_handle_as_creator(self, fileHandle):
         """Retrieve a fileHandle from the fileHandle service.
@@ -2082,6 +2173,80 @@ class Synapse(object):
         response = self.restGET('/projectSettings/{projectId}/type/{type}'.format(projectId=id_of(project),
                                                                                   type=setting_type))
         return response if response else None  # if no project setting, a empty string is returned as the response
+
+    def get_sts_storage_token(self, entity, permission, *, output_format='json', min_remaining_life=None):
+        """Get STS credentials for the given entity_id and permission, outputting it in the given format
+
+        :param entity_id: the id of the entity whose credentials are being returned
+        :param permission: one of 'read_only' or 'read_write'
+        :param output_format: one of 'json', 'boto', 'shell', 'bash', 'cmd', 'powershell'
+                                json: the dictionary returned from the Synapse STS API including expiration
+                                boto: a dictionary compatible with a boto session (aws_access_key_id, etc)
+                                shell: output commands for exporting credentials appropriate for the detected shell
+                                bash: output commands for exporting credentials into a bash shell
+                                cmd: output commands for exporting credentials into a windows cmd shell
+                                powershell: output commands for exporting credentials into a windows powershell
+        :param min_remaining_life: the minimum allowable remaining life on a cached token to return. if a cached token
+            has left than this amount of time left a fresh token will be fetched
+        """
+        return sts_transfer.get_sts_credentials(
+            self, id_of(entity), permission,
+            output_format=output_format, min_remaining_life=min_remaining_life
+        )
+
+    def create_s3_storage_location(self, *,
+                                   parent=None, folder_name=None,
+                                   folder=None,
+                                   bucket_name=None, base_key=None,
+                                   sts_enabled=False):
+        """
+        Create a storage location in the given parent, either in the given folder or by creating a new
+        folder in that parent with the given name. This will both create a StorageLocationSetting,
+        and a ProjectSetting together, optionally creating a new folder in which to locate it,
+        and optionally enabling this storage location for access via STS.
+
+        :param parent:              The parent in which to locate the storage location (mutually exclusive with folder)
+        :param folder_name:         The name of a new folder to create (mutually exclusive with folder)
+        :param folder:              The existing folder in which to create the storage location
+                                        (mutually exclusive with folder_name)
+        :param bucket_name:         The name of an S3 bucket, if this is an external storage location,
+                                        if None will use Synapse S3 storage
+        :param base_key:            The base key of within the bucket, None to use the bucket root,
+                                        only applicable if bucket_name is passed
+        :param sts_enabled:         Whether this storage location should be STS enabled
+        """
+        if folder_name and parent:
+            if folder:
+                raise ValueError("folder and  folder_name are mutually exclusive, only one should be passed")
+
+            folder = self.store(Folder(name=folder_name, parent=parent))
+
+        elif not folder:
+            raise ValueError("either folder or folder_name should be required")
+
+        storage_location_kwargs = {
+            'uploadType': 'S3',
+            'stsEnabled': sts_enabled,
+        }
+
+        if bucket_name:
+            storage_location_kwargs['concreteType'] = concrete_types.EXTERNAL_S3_STORAGE_LOCATION_SETTING
+            storage_location_kwargs['bucket'] = bucket_name
+            if base_key:
+                storage_location_kwargs['baseKey'] = base_key
+        else:
+            storage_location_kwargs['concreteType'] = concrete_types.SYNAPSE_S3_STORAGE_LOCATION_SETTING
+
+        storage_location_setting = self.restPOST('/storageLocation', json.dumps(storage_location_kwargs))
+
+        storage_location_id = storage_location_setting['storageLocationId']
+        project_setting = self.setStorageLocation(
+            folder,
+            storage_location_id,
+        )
+
+        return folder, storage_location_setting, project_setting
+
 
     ############################################################
     #                   CRUD for Evaluations                   #
