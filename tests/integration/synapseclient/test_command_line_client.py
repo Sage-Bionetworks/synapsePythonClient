@@ -13,9 +13,9 @@ import shutil
 from unittest.mock import patch
 from synapseclient import client
 
-from synapseclient.core.exceptions import *
-from synapseclient import *
+from synapseclient import Annotations, Column, Evaluation, File, Folder, Project, Row, RowSet, Schema, Synapse
 import synapseclient.__main__ as cmdline
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup
 

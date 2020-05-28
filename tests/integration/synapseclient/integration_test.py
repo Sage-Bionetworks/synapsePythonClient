@@ -12,8 +12,9 @@ from nose.tools import assert_raises, assert_equals, assert_true, assert_false, 
 from unittest.mock import patch
 from synapseclient import client
 
-from synapseclient import *
-from synapseclient.core.exceptions import *
+from synapseclient import Activity, Annotations, File, Folder, login, Project, Synapse, Team
+from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseHTTPError, SynapseNoCredentialsError
+import synapseclient.core.utils as utils
 from synapseclient.core.version_check import version_check
 from tests import integration
 from tests.integration import schedule_for_cleanup

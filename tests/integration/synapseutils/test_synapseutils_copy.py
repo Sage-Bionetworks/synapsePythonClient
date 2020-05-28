@@ -4,8 +4,9 @@ import time
 from nose.tools import assert_raises, assert_equals
 import re
 import json
-from synapseclient.core.exceptions import *
-from synapseclient import *
+from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient import Activity, Annotations, Column, File, Folder, Link, Project, Row, RowSet, Schema, Wiki
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup
 import synapseutils

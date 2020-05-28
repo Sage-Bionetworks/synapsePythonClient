@@ -7,8 +7,9 @@ import tempfile
 import shutil
 import time
 
-from synapseclient.core.exceptions import *
-from synapseclient import *
+from synapseclient import File
+from synapseclient.core.exceptions import SynapseMd5MismatchError
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup
 

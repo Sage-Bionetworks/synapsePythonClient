@@ -9,8 +9,9 @@ from nose.tools import assert_equal, assert_is_none, assert_not_equal, assert_is
 from unittest.mock import patch
 from synapseclient.core.upload.upload_functions import create_external_file_handle
 
-from synapseclient import *
-from synapseclient.core.exceptions import *
+from synapseclient import Activity, DockerRepository, File, Folder, Link, Project
+from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup
 

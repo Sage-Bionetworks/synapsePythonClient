@@ -6,8 +6,9 @@ import tempfile
 from nose.tools import assert_raises, assert_equals, assert_less, assert_in, assert_true
 import pandas as pd
 
-from synapseclient.core.exceptions import *
-from synapseclient import *
+from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient import Entity, File, Folder, Link, Project, Schema
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 import synapseutils

@@ -2,15 +2,15 @@ import os
 import uuid
 from nose.tools import assert_raises, assert_equal, assert_in, assert_equals, assert_true
 
-from synapseclient.core.exceptions import *
-from synapseclient import *
+from synapseclient import Project, Wiki
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload.upload_functions import upload_synapse_s3
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup
 
 
 def setup(module):
-
     module.syn = integration.syn
     module.project = integration.project
 

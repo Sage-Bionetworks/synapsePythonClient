@@ -15,7 +15,7 @@ import shutil
 import tempfile
 
 
-from synapseclient import *
+from synapseclient import Entity, Synapse, Project
 from synapseclient.core import utils
 from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 

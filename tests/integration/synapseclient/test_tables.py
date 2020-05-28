@@ -12,9 +12,20 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-from synapseclient.core.utils import id_of
-from synapseclient.core.exceptions import *
-from synapseclient import *
+from synapseclient import (
+    as_table_columns,
+    Column,
+    EntityViewSchema,
+    EntityViewType,
+    File,
+    Folder,
+    PartialRowset,
+    Row,
+    RowSet,
+    Schema,
+    Table,
+)
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
@@ -316,7 +327,7 @@ def test_store_table_datetime():
     rowset = RowSet(rows=[Row([current_datetime])], schema=schema)
     syn.store(Table(schema, rowset))
 
-    query_result = syn.tableQuery("select * from %s" % id_of(schema), resultsAs="rowset")
+    query_result = syn.tableQuery("select * from %s" % utils.id_of(schema), resultsAs="rowset")
     assert_equals(current_datetime, query_result.rowset['rows'][0]['values'][0])
 
 

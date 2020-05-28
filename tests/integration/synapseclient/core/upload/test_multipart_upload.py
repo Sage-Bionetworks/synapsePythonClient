@@ -1,15 +1,22 @@
 import filecmp
+import os
+import random
+import requests
+import tempfile
 import traceback
 from io import open
 
 from nose.tools import assert_equals, assert_true, assert_is_not_none
 from unittest import mock
 
+from synapseclient import File
 import synapseclient.core.config
-from synapseclient.core.utils import *
-from synapseclient.core.exceptions import *
-from synapseclient import *
-from synapseclient.core.upload.multipart_upload import *
+import synapseclient.core.utils as utils
+from synapseclient.core.upload.multipart_upload import (
+    MIN_PART_SIZE,
+    multipart_upload_file,
+    multipart_upload_string
+)
 from tests import integration
 from tests.integration import schedule_for_cleanup
 
