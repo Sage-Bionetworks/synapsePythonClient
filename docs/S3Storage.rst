@@ -67,15 +67,15 @@ a file handle for that object using the Python client and then storing the file 
 STS Storage Locations
 =====================
 
-S3 storage locations can also be interacted with using
-`AWS Security Token Service <https://docs.synapse.org/articles/sts_storage_locations.html>`__ credentials that can
-be obtained for enabled folders. These credentials can be used with external S3 tools such as the
-awscli and the boto3 library separately from Synapse to read and write files to and from Synapse storage.
+Create an STS enabled folder to use
+`AWS Security Token Service <https://docs.synapse.org/articles/sts_storage_locations.html>`__ credentials
+with S3 storage locations. These credentials can be used with external S3 tools such as the awscli and the boto3
+library separately from Synapse to read and write files to and from Synapse storage.
 
 Creating an STS enabled folder
 ------------------------------
 Creating an STS enabled folder is similar to creating an external storage folder as described above, but this
-time passing an additional **sts_enabled=True** keyword parameter
+time passing an additional **sts_enabled=True** keyword parameter.
 
   .. code-block::
 
@@ -132,10 +132,10 @@ The Python Synapse client can be configured to automatically use STS tokens to p
 storage locations using an installed boto3 library rather than through the traditional Synapse client APIs.
 This can improve performance in certain situations, particularly uploads of large files, as the data transfer itself
 can be conducted purely against the AWS S3 APIs, only invoking the Synapse APIs to retrieve the necessary token and
-to update Synapse meta data in the case of an upload. Once configured to do so, retrieval of STS tokens for supported
+to update Synapse metadata in the case of an upload. Once configured to do so, retrieval of STS tokens for supported
 operations occurs automatically without any change in synapseclient usage.
 
-To enable STS/boto3 transfers, do the following:
+To enable STS/boto3 transfers on all `get` and `store` operations, do the following:
 
 1. Ensure that boto3 is installed in the same Python installation as synapseclient.
 
@@ -143,9 +143,10 @@ To enable STS/boto3 transfers, do the following:
 
     pip install boto3
 
-2. Update your Synapse client configuration file (typically ".synapseConfig" in your $HOME directory unless otherwise
-   configured) with the following (adding the [transfer] section if it is not already present), or configure
-   it on a per Synapse client object basis by setting the **use_boto_sts_transfers** property.
+2. To enable automatic transfers on all uploads and downloads, update your Synapse client configuration file
+   (typically “.synapseConfig” in your $HOME directory, unless otherwise configured) with the [transfer] section,
+   if it is not already present. To leverage STS/boto3 transfers on a per Synapse client object basis, set
+   the **use_boto_sts_transfers** property.
 
   .. code-block::
 
@@ -156,6 +157,4 @@ To enable STS/boto3 transfers, do the following:
     # alternatively set on a per instance basis within python code
     syn.use_boto_sts_transfers = True
 
-Once this is done any get or store operation through the configured client to or from STS enabed storage locations
-will be automatically conducted using the boto3 library rather than through the normal Synapse APIs.
-Note that if boto3 is not installed then these settings will have no effect.
+Note that if boto3 is not installed, then these settings will have no effect.

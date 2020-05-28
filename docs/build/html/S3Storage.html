@@ -156,14 +156,14 @@ a file handle for that object using the Python client and then storing the file 
 </div>
 <div class="section" id="sts-storage-locations">
 <span id="id1"></span><h2>STS Storage Locations<a class="headerlink" href="#sts-storage-locations" title="Permalink to this headline">¶</a></h2>
-<p>S3 storage locations can also be interacted with using
-<a class="reference external" href="https://docs.synapse.org/articles/sts_storage_locations.html">AWS Security Token Service</a> credentials that can
-be obtained for enabled folders. These credentials can be used with external S3 tools such as the
-awscli and the boto3 library separately from Synapse to read and write files to and from Synapse storage.</p>
+<p>Create an STS enabled folder to use
+<a class="reference external" href="https://docs.synapse.org/articles/sts_storage_locations.html">AWS Security Token Service</a> credentials
+with S3 storage locations. These credentials can be used with external S3 tools such as the awscli and the boto3
+library separately from Synapse to read and write files to and from Synapse storage.</p>
 <div class="section" id="creating-an-sts-enabled-folder">
 <h3>Creating an STS enabled folder<a class="headerlink" href="#creating-an-sts-enabled-folder" title="Permalink to this headline">¶</a></h3>
 <p>Creating an STS enabled folder is similar to creating an external storage folder as described above, but this
-time passing an additional <strong>sts_enabled=True</strong> keyword parameter</p>
+time passing an additional <strong>sts_enabled=True</strong> keyword parameter.</p>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># create a new folder to use with STS and external S3 storage</span>
 <span class="n">folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Folder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">))</span>
@@ -222,9 +222,9 @@ in this case to upload a file.</p>
 storage locations using an installed boto3 library rather than through the traditional Synapse client APIs.
 This can improve performance in certain situations, particularly uploads of large files, as the data transfer itself
 can be conducted purely against the AWS S3 APIs, only invoking the Synapse APIs to retrieve the necessary token and
-to update Synapse meta data in the case of an upload. Once configured to do so, retrieval of STS tokens for supported
+to update Synapse metadata in the case of an upload. Once configured to do so, retrieval of STS tokens for supported
 operations occurs automatically without any change in synapseclient usage.</p>
-<p>To enable STS/boto3 transfers, do the following:</p>
+<p>To enable STS/boto3 transfers on all <cite>get</cite> and <cite>store</cite> operations, do the following:</p>
 <ol class="arabic simple">
 <li><p>Ensure that boto3 is installed in the same Python installation as synapseclient.</p></li>
 </ol>
@@ -234,9 +234,10 @@ operations occurs automatically without any change in synapseclient usage.</p>
 </div>
 </div></blockquote>
 <ol class="arabic simple" start="2">
-<li><p>Update your Synapse client configuration file (typically “.synapseConfig” in your $HOME directory unless otherwise
-configured) with the following (adding the [transfer] section if it is not already present), or configure
-it on a per Synapse client object basis by setting the <strong>use_boto_sts_transfers</strong> property.</p></li>
+<li><p>To enable automatic transfers on all uploads and downloads, update your Synapse client configuration file
+(typically “.synapseConfig” in your $HOME directory, unless otherwise configured) with the [transfer] section,
+if it is not already present. To leverage STS/boto3 transfers on a per Synapse client object basis, set
+the <strong>use_boto_sts_transfers</strong> property.</p></li>
 </ol>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># add to .synapseConfig to automatically apply as default for all synapse client instances</span>
@@ -248,9 +249,7 @@ it on a per Synapse client object basis by setting the <strong>use_boto_sts_tran
 </pre></div>
 </div>
 </div></blockquote>
-<p>Once this is done any get or store operation through the configured client to or from STS enabed storage locations
-will be automatically conducted using the boto3 library rather than through the normal Synapse APIs.
-Note that if boto3 is not installed then these settings will have no effect.</p>
+<p>Note that if boto3 is not installed, then these settings will have no effect.</p>
 </div>
 </div>
 </div>

@@ -194,9 +194,10 @@ as the default if a value is not explicitly set.</p>
 </pre></div>
 </div>
 </li>
-<li><p>This release includes support for directly accessing enabled S3 storage locations using AWS Security Token Service
-credentials.  This allows use of external AWS clients and libraries with Synapse storage, and can be used to
-accelerate file transfers under certain conditions. See <a class="reference internal" href="S3Storage.html#sts-storage-locations"><span class="std std-ref">here</span></a> for more details.</p></li>
+<li><p>This release includes support for directly accessing S3 storage locations using AWS Security Token Service
+credentials. This allows use of external AWS clients and libraries with Synapse storage, and can be used to
+accelerate file transfers under certain conditions. To create an STS enabled folder and set-up direct access to S3
+storage, see <a class="reference internal" href="S3Storage.html#sts-storage-locations"><span class="std std-ref">here</span></a>.</p></li>
 <li><p>The <code class="code docutils literal notranslate"><span class="pre">getAnnotations</span></code> and <code class="code docutils literal notranslate"><span class="pre">setAnnotations</span></code> methods of the Synapse object have been <strong>deprecated</strong> in
 favor of newer <code class="code docutils literal notranslate"><span class="pre">get_annotations</span></code> and <code class="code docutils literal notranslate"><span class="pre">set_annotations</span></code> methods, respectively. The newer versions
 are parameterized with a typed <code class="code docutils literal notranslate"><span class="pre">Annotations</span></code> dictionary rather than a plain Python dictionary to prevent
