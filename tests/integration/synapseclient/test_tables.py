@@ -1,15 +1,13 @@
 import csv
 import io
-import filecmp
 import os
 import random
 import tempfile
 import time
 import uuid
-from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true, assert_is_not_none
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_true, assert_is_not_none
 from pandas.util.testing import assert_frame_equal
 from datetime import datetime
-from unittest.mock import patch
 
 import pandas as pd
 import numpy as np
@@ -136,7 +134,8 @@ def test_entity_view_add_annotation_columns():
     syn.store(entity_view)
 
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False,
-                                   addAnnotationColumns=True, includeEntityTypes=[EntityViewType.PROJECT], parent=project)
+                                   addAnnotationColumns=True, includeEntityTypes=[EntityViewType.PROJECT],
+                                   parent=project)
     syn.store(entity_view)
 
 

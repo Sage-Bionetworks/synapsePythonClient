@@ -107,7 +107,7 @@ def test_evaluations():
         # Score the submissions
         submissions = syn.getSubmissions(ev, limit=num_of_submissions-1)
         for submission in submissions:
-            assert_true(re.match('Submission \d+', submission['name']))
+            assert_true(re.match('Submission \\d+', submission['name']))
             status = syn.getSubmissionStatus(submission)
             status.score = random.random()
             if submission['name'] == 'Submission 01':
@@ -153,7 +153,7 @@ def test_evaluations():
                 results = syn.restGET(
                     "/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
                 assert_equals(len(results['rows']), num_of_submissions)
-            except AssertionError as ex1:
+            except AssertionError:
                 attempts -= 1
                 time.sleep(2)
             else:

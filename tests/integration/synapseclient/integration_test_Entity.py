@@ -370,7 +370,7 @@ def test_store_isRestricted_flag():
 
 def test_ExternalFileHandle():
     # Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
-    singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
+    singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'  # noqa
     singapore = File(singapore_url, parent=project, synapseStore=False)
     singapore = syn.store(singapore)
 

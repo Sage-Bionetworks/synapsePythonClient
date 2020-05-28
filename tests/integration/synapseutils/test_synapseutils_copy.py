@@ -1,7 +1,7 @@
 import uuid
 import time
 
-from nose.tools import assert_raises, assert_equals, assert_is_none, assert_is_not_none
+from nose.tools import assert_raises, assert_equals
 import re
 import json
 from synapseclient.core.exceptions import *
@@ -9,7 +9,6 @@ from synapseclient import *
 from tests import integration
 from tests.integration import schedule_for_cleanup
 import synapseutils
-import synapseclient
 
 
 def setup(module):
@@ -210,7 +209,7 @@ class TestCopyWiki:
         md = """
         This is a test wiki
         =======================
-    
+
         Blabber jabber blah blah boo.
         syn123
         syn456
@@ -228,9 +227,9 @@ class TestCopyWiki:
         second_md = """
         Testing internal links
         ======================
-    
+
         [test](#!Synapse:%s/wiki/%s)
-    
+
         %s)
         """ % (self.project_entity.id, self.subwiki.id, file_entity.id)
 

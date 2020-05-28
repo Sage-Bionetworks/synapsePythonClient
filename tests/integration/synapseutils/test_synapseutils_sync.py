@@ -75,7 +75,7 @@ def test_syncToSynapse():
     # Download using syncFromSynapse
     tmpdir = tempfile.mkdtemp()
     schedule_for_cleanup(tmpdir)
-    entities = synapseutils.syncFromSynapse(syn, project, path=tmpdir)
+    synapseutils.syncFromSynapse(syn, project, path=tmpdir)
 
     orig_df = pd.read_csv(manifest, sep='\t')
     orig_df.index = [os.path.basename(p) for p in orig_df.path]
@@ -111,7 +111,7 @@ def test_syncToSynapse():
 
 def test_syncFromSynapse():
     """This function tests recursive download as defined in syncFromSynapse
-    most of the functionality of this function are already tested in the 
+    most of the functionality of this function are already tested in the
     tests/integration/test_command_line_client::test_command_get_recursive_and_query
 
     which means that the only test if for path=None
@@ -172,7 +172,7 @@ def test_syncFromSynapse__children_contain_non_file():
 
 def test_syncFromSynapse_Links():
     """This function tests recursive download of links as defined in syncFromSynapse
-    most of the functionality of this function are already tested in the 
+    most of the functionality of this function are already tested in the
     tests/integration/test_command_line_client::test_command_get_recursive_and_query
 
     which means that the only test if for path=None
