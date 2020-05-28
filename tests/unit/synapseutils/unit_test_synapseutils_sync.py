@@ -31,7 +31,7 @@ def test_readManifest__sync_order_with_home_directory():
     # mock isfile() to always return true to avoid having to create files in the home directory
     # side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
     with patch.object(syn, "get", return_value=Project()), \
-         patch.object(os.path, "isfile", side_effect=[True, True, True, False]):
+            patch.object(os.path, "isfile", side_effect=[True, True, True, False]):
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
         expected_order = pd.Series([os.path.normpath(os.path.expanduser(file_path2)),
                                     os.path.normpath(os.path.expanduser(file_path1))])
@@ -54,7 +54,7 @@ def test_readManifestFile__synapseStore_values_not_set():
 
     manifest = StringIO(header+row1+row2)
     with patch.object(syn, "get", return_value=Project()),\
-         patch.object(os.path, "isfile", return_value=True):  # side effect mocks values for: file1.txt
+            patch.object(os.path, "isfile", return_value=True):  # side effect mocks values for: file1.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
         actual_synapseStore = (manifest_dataframe.set_index('path')['synapseStore'].to_dict())
         assert_dict_equal(expected_synapseStore, actual_synapseStore)
@@ -89,7 +89,7 @@ def test_readManifestFile__synapseStore_values_are_set():
 
     manifest = StringIO(header+row1+row2+row3+row4+row5+row6)
     with patch.object(syn, "get", return_value=Project()),\
-         patch.object(os.path, "isfile", return_value=True):  # mocks values for: file1.txt, file3.txt, file5.txt
+            patch.object(os.path, "isfile", return_value=True):  # mocks values for: file1.txt, file3.txt, file5.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
 
         actual_synapseStore = (manifest_dataframe.set_index('path')['synapseStore'].to_dict())
@@ -99,21 +99,21 @@ def test_readManifestFile__synapseStore_values_are_set():
 def test_syncFromSynapse__non_file_entity():
     table_schema = "syn12345"
     with patch.object(syn, "getChildren", return_value=[]),\
-         patch.object(syn, "get", return_value=Schema(name="asssdfa", parent="whatever")):
+            patch.object(syn, "get", return_value=Schema(name="asssdfa", parent="whatever")):
         assert_raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
 
 
 def test_syncFromSynapse__empty_folder():
     folder = Folder(name="the folder", parent="whatever", id="syn123")
     with patch.object(syn, "getChildren", return_value=[]),\
-         patch.object(syn, "get", return_value=Folder(name="asssdfa", parent="whatever")):
+            patch.object(syn, "get", return_value=Folder(name="asssdfa", parent="whatever")):
         assert_equals(list(), synapseutils.syncFromSynapse(syn, folder))
 
 
 def test_syncFromSynapse__file_entity():
     file = File(name="a file", parent="some parent", id="syn456")
     with patch.object(syn, "getChildren", return_value=[file]) as patch_syn_get_children,\
-         patch.object(syn, "get", return_value=file):
+            patch.object(syn, "get", return_value=file):
         assert_equals([file], synapseutils.syncFromSynapse(syn, file))
         patch_syn_get_children.assert_not_called()
 
@@ -122,7 +122,7 @@ def test_syncFromSynapse__folder_contains_one_file():
     folder = Folder(name="the folder", parent="whatever", id="syn123")
     file = File(name="a file", parent=folder, id="syn456")
     with patch.object(syn, "getChildren", return_value=[file]) as patch_syn_get_children,\
-         patch.object(syn, "get", return_value=file):
+            patch.object(syn, "get", return_value=file):
         assert_equals([file], synapseutils.syncFromSynapse(syn, folder))
         patch_syn_get_children.called_with(folder['id'])
 
@@ -132,7 +132,7 @@ def test_syncFromSynapse__project_contains_empty_folder():
     file = File(name="a file", parent=project, id="syn456")
     folder = Folder(name="a folder", parent=project, id="syn789")
     with patch.object(syn, "getChildren", side_effect=[[folder, file], []]) as patch_syn_get_children,\
-         patch.object(syn, "get", side_effect=[folder, file]) as patch_syn_get:
+            patch.object(syn, "get", side_effect=[folder, file]) as patch_syn_get:
         assert_equals([file], synapseutils.syncFromSynapse(syn, project))
         expected_get_children_agrs = [call(project['id']), call(folder['id'])]
         assert_list_equal(expected_get_children_agrs, patch_syn_get_children.call_args_list)
@@ -171,6 +171,7 @@ class TestGetFileEntityProvenanceDict:
     """
     test synapseutils.sync._get_file_entity_provenance_dict
     """
+
     def setup(self):
         self.mock_syn = create_autospec(syn)
 

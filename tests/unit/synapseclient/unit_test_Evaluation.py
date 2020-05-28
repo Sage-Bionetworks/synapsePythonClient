@@ -21,5 +21,3 @@ def test_Submission():
     """Test the construction and accessors of Evaluation objects."""
 
     assert_raises(KeyError, Submission, foo='bar')
-
-

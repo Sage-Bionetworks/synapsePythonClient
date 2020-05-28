@@ -17,16 +17,15 @@ def setup(module):
     module.project = integration.project
 
 
-
 def test_evaluations():
     # Create an Evaluation
     name = 'Test Evaluation %s' % str(uuid.uuid4())
-    ev = Evaluation(name=name, description='Evaluation for testing', 
+    ev = Evaluation(name=name, description='Evaluation for testing',
                     contentSource=project['id'], status='CLOSED')
     ev = syn.store(ev)
 
     try:
-        
+
         # -- Get the Evaluation by name
         evalNamed = syn.getEvaluationByName(name)
         assert_equals(ev['contentSource'], evalNamed['contentSource'])
@@ -37,7 +36,7 @@ def test_evaluations():
         assert_equals(ev['name'], evalNamed['name'])
         assert_equals(ev['ownerId'], evalNamed['ownerId'])
         assert_equals(ev['status'], evalNamed['status'])
-        
+
         # -- Get the Evaluation by project
         evalProj = syn.getEvaluationByContentSource(project)
         evalProj = next(evalProj)
@@ -49,7 +48,7 @@ def test_evaluations():
         assert_equals(ev['name'], evalProj['name'])
         assert_equals(ev['ownerId'], evalProj['ownerId'])
         assert_equals(ev['status'], evalProj['status'])
-        
+
         # Update the Evaluation
         ev['status'] = 'OPEN'
         ev = syn.store(ev, createOrUpdate=True)

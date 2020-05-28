@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 import filecmp
 import os
 import traceback
-import uuid 
+import uuid
 from nose.tools import assert_is_not_none, assert_equals
 import tempfile
 import shutil

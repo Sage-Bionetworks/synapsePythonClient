@@ -26,7 +26,7 @@ def test_Wiki__with_markdown_file():
                     """
     markdown_path = "/somewhere/over/the/rainbow.txt"
     with patch("synapseclient.wiki.open", mock_open(read_data=markdown_data), create=True) as mocked_open,\
-         patch("os.path.isfile", return_value=True):
+            patch("os.path.isfile", return_value=True):
         # method under test
         wiki = Wiki(owner="doesn't matter", markdownFile=markdown_path)
 
@@ -37,13 +37,13 @@ def test_Wiki__with_markdown_file():
 
 @raises(ValueError)
 def test_Wiki__markdown_and_markdownFile_both_defined():
-        Wiki(owner="doesn't matter", markdown="asdf", markdownFile="~/fakeFile.txt")
+    Wiki(owner="doesn't matter", markdown="asdf", markdownFile="~/fakeFile.txt")
 
 
 def test_Wiki__markdown_is_None_markdownFile_defined():
     markdown_path = "/somewhere/over/the/rainbow.txt"
     with patch("synapseclient.wiki.open", mock_open(), create=True) as mocked_open,\
-         patch("os.path.isfile", return_value=True):
+            patch("os.path.isfile", return_value=True):
         # method under test
         wiki = Wiki(owner="doesn't matter", markdownFile=markdown_path)
 

@@ -496,11 +496,11 @@ def test_command_line_store_and_submit():
     schedule_for_cleanup(filename)
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
     run('synapse', '--skip-checks', 'submit',
-         '--evalID', eval.id,
-         '--file', filename,
-         '--parent', project_id,
-         '--used', exteral_entity_id,
-         '--executed', repo_url)
+        '--evalID', eval.id,
+        '--file', filename,
+        '--parent', project_id,
+        '--used', exteral_entity_id,
+        '--executed', repo_url)
 
     # Delete project
     run('synapse', '--skip-checks', 'delete', project_id)
@@ -513,10 +513,10 @@ def test_command_get_recursive_and_query():
 
     # Create Folders in Project
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
+                                     parent=project_entity))
 
     folder_entity2 = syn.store(Folder(name=str(uuid.uuid4()),
-                                                    parent=folder_entity))
+                                      parent=folder_entity))
 
     # Create and upload two files in sub-Folder
     uploaded_paths = []
@@ -589,7 +589,7 @@ def test_command_copy():
 
     # Create a Folder in Project
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
+                                     parent=project_entity))
     schedule_for_cleanup(folder_entity.id)
     # Create and upload a file in Folder
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
@@ -754,7 +754,7 @@ def test_login():
     password = "password"
     with patch.object(alt_syn, "login") as mock_login, \
             patch.object(alt_syn, "getUserProfile", return_value={"userName": "test_user", "ownerId": "ownerId"})\
-                    as mock_get_user_profile:
+    as mock_get_user_profile:
         run('synapse', '--skip-checks', 'login',
             '-u', username,
             '-p', password,

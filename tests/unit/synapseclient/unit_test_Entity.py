@@ -19,7 +19,7 @@ def test_Entity():
         # Should be able to create an Entity from an Entity
         if i == 1:
             e = Entity.create(e)
-            
+
         assert_equals(e.parentId, 'syn1234')
         assert_equals(e['parentId'], 'syn1234')
         assert_equals(e.properties['parentId'], 'syn1234')
@@ -84,7 +84,7 @@ def test_Entity():
 
 def test_subclassing():
     """Test ability to subclass and add a member variable"""
-    
+
     # define a subclass of Entity to make sure subclassing and creating
     # a new member variable works
     class FoobarEntity(Entity):

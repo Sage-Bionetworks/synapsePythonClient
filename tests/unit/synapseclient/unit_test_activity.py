@@ -12,4 +12,3 @@ def test_private_getStringList():
                'url': url_string}
               ])
     assert_equals([url_string], act._getStringList())
-

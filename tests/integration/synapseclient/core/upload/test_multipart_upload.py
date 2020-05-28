@@ -135,4 +135,3 @@ def test_multipart_upload_big_string():
         retrieved_text = f.read()
 
     assert_equals(retrieved_text, text)
-

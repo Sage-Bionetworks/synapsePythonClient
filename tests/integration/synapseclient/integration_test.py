@@ -58,7 +58,7 @@ def test_login():
         # mock to make the config file empty
         with patch.object(syn, "_get_config_authentication", return_value={}):
 
-            # Login with no credentials 
+            # Login with no credentials
             assert_raises(SynapseNoCredentialsError, syn.login)
 
             # remember login info in cache
@@ -135,8 +135,8 @@ def test_entity_version():
     assert_equals(returnEntity.versionNumber, 1)
     assert_equals(returnEntity['fizzbuzz'][0], 111222)
     assert_not_in('foo', returnEntity)
-    
-    # Delete version 2 
+
+    # Delete version 2
     syn.delete(entity, version=2)
     returnEntity = syn.get(entity)
     assert_equals(returnEntity.versionNumber, 1)
@@ -147,14 +147,14 @@ def test_md5_query():
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
     repeated = File(path, parent=project['id'], description='Same data over and over again')
-    
+
     # Retrieve the data via MD5
     num = 5
     stored = []
     for i in range(num):
         repeated.name = 'Repeated data %d.dat' % i
         stored.append(syn.store(repeated).id)
-    
+
     # Although we expect num results, it is possible for the MD5 to be non-unique
     results = syn.md5Query(utils.md5_for_file(path).hexdigest())
     assert_equals(str(sorted(stored)), str(sorted([res['id'] for res in results])))
@@ -163,12 +163,12 @@ def test_md5_query():
 
 def test_uploadFile_given_dictionary():
     # Make a Folder Entity the old fashioned way
-    folder = {'concreteType': Folder._synapse_entity_type, 
+    folder = {'concreteType': Folder._synapse_entity_type,
               'parentId': project['id'],
               'name': 'fooDictionary',
               'foo': 334455}
     entity = syn.store(folder)
-    
+
     # Download and verify that it is the same file
     entity = syn.get(entity)
     assert_equals(entity.parentId, project.id)
@@ -238,6 +238,7 @@ def test_download_multithreaded():
     assert_true(filecmp.cmp(fname, entity['path']))
     syn.multi_threaded = False
 
+
 def test_downloadFile():
     # See if the a "wget" works
     filename = utils.download_file("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
@@ -284,13 +285,13 @@ def test_provenance():
             """))
     schedule_for_cleanup(path)
     code_entity = syn.store(File(path, parent=project['id']))
-    
+
     # Create a new Activity asserting that the Code Entity was 'used'
     activity = Activity(name='random.gauss', description='Generate some random numbers')
     activity.used(code_entity, wasExecuted=True)
     activity.used({'name': 'Superhack', 'url': 'https://github.com/joe_coder/Superhack'}, wasExecuted=True)
     activity = syn.setProvenance(data_entity, activity)
-    
+
     # Retrieve and verify the saved Provenance record
     retrieved_activity = syn.getProvenance(data_entity)
     assert_equals(retrieved_activity, activity)
@@ -333,13 +334,13 @@ def test_annotations():
     annote['goobers'] = ['chris', 'jen', 'jane']
     annote['present_time'] = datetime.now()
     syn.set_annotations(annote)
-    
+
     # Check it again
     annotation = syn.get_annotations(entity)
     assert_equals(annotation['primes'], [2, 3, 5, 7, 11, 13, 17, 19, 23, 29])
     assert_equals(annotation['phat_numbers'], [1234.5678, 8888.3333, 1212.3434, 6677.8899])
     assert_equals(annotation['goobers'], ['chris', 'jen', 'jane'])
-    assert_equals(annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S'), \
+    assert_equals(annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S'),
                   annote['present_time'].strftime('%Y-%m-%d %H:%M:%S'))
 
 

@@ -310,6 +310,7 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
     df2 = table_from_dataframe.asDataFrame()
     assert_frame_equal(df, df2)
 
+
 def test_store_table_datetime():
     current_datetime = datetime.fromtimestamp(round(time.time(), 3))
     schema = syn.store(Schema("testTable", [Column(name="testerino", columnType='DATE')], project))
@@ -423,4 +424,3 @@ class TestPartialRowSet(object):
         return syn.store(
             EntityViewSchema(name='PartialRowTestViews' + str(uuid.uuid4()), columns=cols, addDefaultViewColumns=False,
                              parent=project, scopes=[folder]))
-

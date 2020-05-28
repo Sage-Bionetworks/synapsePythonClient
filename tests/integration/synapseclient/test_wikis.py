@@ -23,7 +23,7 @@ def test_wikiAttachment():
     schedule_for_cleanup(attachname)
     fileHandle = upload_synapse_s3(syn, filename)
 
-    # Create and store a Wiki 
+    # Create and store a Wiki
     # The constructor should accept both file handles and file paths
     md = """
     This is a test wiki
@@ -31,16 +31,16 @@ def test_wikiAttachment():
 
     Blabber jabber blah blah boo.
     """
-    wiki = Wiki(owner=project, title='A Test Wiki', markdown=md, 
-                fileHandles=[fileHandle['id']], 
+    wiki = Wiki(owner=project, title='A Test Wiki', markdown=md,
+                fileHandles=[fileHandle['id']],
                 attachments=[attachname])
     wiki = syn.store(wiki)
-    
+
     # Create a Wiki sub-page
-    subwiki = Wiki(owner=project, title='A sub-wiki', 
+    subwiki = Wiki(owner=project, title='A sub-wiki',
                    markdown='nothing', parentWikiId=wiki.id)
     subwiki = syn.store(subwiki)
-    
+
     # Retrieve the root Wiki from Synapse
     wiki2 = syn.getWiki(project)
     # due to the new wiki api, we'll get back some new properties,

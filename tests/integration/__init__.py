@@ -37,7 +37,7 @@ def setup_module(module):
     syn.login()
     module.syn = syn
     module._to_cleanup = []
-    
+
     # Make one project for all the tests to use
     project = syn.store(Project(name="integration_test_project"+str(uuid.uuid4())))
     schedule_for_cleanup(project)

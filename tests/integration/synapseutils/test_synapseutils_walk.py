@@ -66,4 +66,3 @@ def test_walk():
 
     temp = synapseutils.walk(syn, second_file.id)
     assert_equals(list(temp), [])
-
