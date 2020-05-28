@@ -212,7 +212,7 @@ def _sortAndFixProvenance(syn, df):
         uploadOrder[path] = allRefs
 
     uploadOrder = utils.topolgical_sort(uploadOrder)
-    df = df.reindex([l[0] for l in uploadOrder])
+    df = df.reindex([i[0] for i in uploadOrder])
     return df.reset_index()
 
 
