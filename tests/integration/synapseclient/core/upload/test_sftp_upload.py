@@ -9,7 +9,7 @@ import tempfile
 import shutil
 
 from synapseclient import File
-from synapseclient.core.utils import MB
+import synapseclient.core.utils as utils
 from synapseclient.core.remote_file_storage_wrappers import SFTPWrapper
 from tests import integration
 from tests.integration import schedule_for_cleanup
@@ -45,7 +45,7 @@ def teardown(module):
 
 def test_synStore_sftpIntegration():
     """Creates a File Entity on an sftp server and add the external url. """
-    filepath = utils.make_bogus_binary_file(1 * MB - 777771)
+    filepath = utils.make_bogus_binary_file(1 * utils.MB - 777771)
     try:
         file = syn.store(File(filepath, parent=project))
         file2 = syn.get(file)
@@ -70,7 +70,7 @@ def test_synStore_sftpIntegration():
 def test_synGet_sftpIntegration():
     # Create file by uploading directly to sftp and creating entity from URL
     serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/test_synGet_sftpIntegration/' + str(uuid.uuid1())
-    filepath = utils.make_bogus_binary_file(1 * MB - 777771)
+    filepath = utils.make_bogus_binary_file(1 * utils.MB - 777771)
 
     username, password = syn._getUserCredentials(SFTP_SERVER_PREFIX)
 
@@ -84,7 +84,7 @@ def test_synGet_sftpIntegration():
 def test_utils_sftp_upload_and_download():
     """Tries to upload a file to an sftp file """
     serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/test_utils_sftp_upload_and_download/' + str(uuid.uuid1())
-    filepath = utils.make_bogus_binary_file(1 * MB - 777771)
+    filepath = utils.make_bogus_binary_file(1 * utils.MB - 777771)
 
     tempdir = tempfile.mkdtemp()
 
