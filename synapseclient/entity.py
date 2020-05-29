@@ -138,7 +138,7 @@ See also:
 
 """
 
-import collections
+import collections.abc
 import itertools
 import io
 import os
@@ -167,7 +167,7 @@ class Versionable(object):
 # entity_object branch)
 # - giving up on hiding the difference between properties and annotations
 
-class Entity(collections.MutableMapping):
+class Entity(collections.abc.MutableMapping):
     """
     A Synapse entity is an object that has metadata, access control, and potentially a file. It can represent data,
     source code, or a folder that contains other entities.
@@ -235,8 +235,8 @@ class Entity(collections.MutableMapping):
     def __init__(self, properties=None, annotations=None, local_state=None, parent=None, **kwargs):
 
         if properties:
-            if isinstance(properties, collections.Mapping):
-                if 'annotations' in properties and isinstance(properties['annotations'], collections.Mapping):
+            if isinstance(properties, collections.abc.Mapping):
+                if 'annotations' in properties and isinstance(properties['annotations'], collections.abc.Mapping):
                     annotations.update(properties['annotations'])
                     del properties['annotations']
                 self.__dict__['properties'].update(properties)
@@ -246,7 +246,7 @@ class Entity(collections.MutableMapping):
                 )
 
         if annotations:
-            if isinstance(annotations, collections.Mapping):
+            if isinstance(annotations, collections.abc.Mapping):
                 self.__dict__['annotations'].update(annotations)
             elif isinstance(annotations, str):
                 self.properties['annotations'] = annotations
@@ -256,7 +256,7 @@ class Entity(collections.MutableMapping):
                 )
 
         if local_state:
-            if isinstance(local_state, collections.Mapping):
+            if isinstance(local_state, collections.abc.Mapping):
                 self.local_state(local_state)
             else:
                 raise exceptions.SynapseMalformedEntityError(
@@ -736,7 +736,7 @@ ENTITY_TYPES = [
 def is_synapse_entity(entity):
     if isinstance(entity, Entity):
         return True
-    if isinstance(entity, collections.Mapping):
+    if isinstance(entity, collections.abc.Mapping):
         return entity.get('concreteType', None) in ENTITY_TYPES
     return False
 
@@ -761,7 +761,7 @@ def is_container(entity):
         concreteType = entity['concreteType']
     elif 'type' in entity:
         concreteType = entity['type']
-    elif isinstance(entity, collections.Mapping):
+    elif isinstance(entity, collections.abc.Mapping):
         prefix = utils.extract_prefix(entity.keys())
         if prefix+'concreteType' in entity:
             concreteType = entity[prefix+'concreteType'][0]

@@ -10,7 +10,7 @@ Implements a cache on local disk for Synapse file entities and other objects wit
 This is part of the internal implementation of the client and should not be accessed directly by users of the client.
 """
 
-import collections
+import collections.abc
 import datetime
 import json
 import operator
@@ -87,7 +87,7 @@ class Cache:
         self.cache_map_file_name = ".cacheMap"
 
     def get_cache_dir(self, file_handle_id):
-        if isinstance(file_handle_id, collections.Mapping):
+        if isinstance(file_handle_id, collections.abc.Mapping):
             if 'dataFileHandleId' in file_handle_id:
                 file_handle_id = file_handle_id['dataFileHandleId']
             elif 'concreteType' in file_handle_id \
@@ -238,7 +238,7 @@ class Cache:
         cache_dir = self.get_cache_dir(file_handle_id)
 
         # if we've passed an entity and not a path, get path from entity
-        if path is None and isinstance(file_handle_id, collections.Mapping) and 'path' in file_handle_id:
+        if path is None and isinstance(file_handle_id, collections.abc.Mapping) and 'path' in file_handle_id:
             path = file_handle_id['path']
 
         with Lock(self.cache_map_file_name, dir=cache_dir):

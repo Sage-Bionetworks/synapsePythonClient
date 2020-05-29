@@ -69,7 +69,7 @@ Activity
 
 """
 
-import collections
+import collections.abc
 
 from synapseclient.core.utils import is_url, is_synapse_id
 from synapseclient.entity import is_synapse_entity
@@ -80,7 +80,7 @@ def is_used_entity(x):
     """Returns True if the given object represents a UsedEntity."""
 
     # A UsedEntity must be a dictionary with a 'reference' field, with a 'targetId' field
-    if not isinstance(x, collections.Mapping) \
+    if not isinstance(x, collections.abc.Mapping) \
             or 'reference' not in x \
             or 'targetId' not in x['reference']:
         return False
@@ -100,7 +100,7 @@ def is_used_url(x):
     """Returns True if the given object represents a UsedURL."""
 
     # A UsedURL must be a dictionary with a 'url' field
-    if not isinstance(x, collections.Mapping) or 'url' not in x:
+    if not isinstance(x, collections.abc.Mapping) or 'url' not in x:
         return False
 
     # Must only have four keys

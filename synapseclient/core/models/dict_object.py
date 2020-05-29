@@ -3,7 +3,7 @@
 # chris.bare@sagebase.org
 ############################################################
 
-import collections
+import collections.abc
 import json
 
 
@@ -17,7 +17,7 @@ class DictObject(dict):
     def __init__(self, *args, **kwargs):
         self.__dict__ = self
         for arg in args:
-            if isinstance(arg, collections.Mapping):
+            if isinstance(arg, collections.abc.Mapping):
                 self.__dict__.update(arg)
         self.__dict__.update(kwargs)
 

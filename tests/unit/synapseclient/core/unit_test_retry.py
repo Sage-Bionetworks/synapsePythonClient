@@ -58,3 +58,22 @@ def test_with_retry():
     function.side_effect = foo
     assert_raises(SynapseError, with_retry, function, **retryParams)
     assert_equals(function.call_count, 1 + 4 + 3 + 4 + 1)
+
+
+def test_with_retry__no_status_code():
+    """Verify that with_retry can also be used on any function
+    even whose return values don't have status_codes.
+    In that case just for its exception retrying
+    and back off capabiliies."""
+
+    x = 0
+
+    def fn():
+        nonlocal x
+        x += 1
+        if x < 2:
+            raise ValueError('not yet')
+        return x
+
+    response = with_retry(fn, retry_exceptions=[ValueError])
+    assert_equals(2, response)
