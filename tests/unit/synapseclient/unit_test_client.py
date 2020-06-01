@@ -1608,19 +1608,22 @@ def test_store__needsUploadFalse__fileHandleId_not_in_local_state():
     returned_file_handle = {
         'id': '1234'
     }
+    synapse_id = 'syn123'
+    etag = 'db9bc70b-1eb6-4a21-b3e8-9bf51d964031'
     returned_bundle = {'entity': {'name': 'fake_file.txt',
-                                  'id': 'syn123',
-                                  'etag': 'db9bc70b-1eb6-4a21-b3e8-9bf51d964031',
+                                  'id': synapse_id,
+                                  'etag': etag,
                                   'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
                                   'dataFileHandleId': '123412341234'},
                        'entityType': 'file',
                        'fileHandles': [{'id': '123412341234',
-                                        'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle'}]
+                                        'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle'}],
+                       'annotations': {'id': synapse_id, 'etag': etag, 'annotations': {}},
                        }
     with patch.object(syn, '_getEntityBundle', return_value=returned_bundle), \
          patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
          patch.object(syn.cache, 'contains', return_value=True), \
-         patch.object(syn, '_createEntity'), \
+         patch.object(syn, '_updateEntity'), \
          patch.object(syn, 'set_annotations'), \
          patch.object(Entity, 'create'), \
          patch.object(syn, 'get'):

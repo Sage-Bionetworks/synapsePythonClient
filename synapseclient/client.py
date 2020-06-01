@@ -857,6 +857,15 @@ class Synapse(object):
                                  'for "ifcollision"' % ifcollision)
         return downloadPath
 
+    def _merge_update_with_bundle(self, bundle, properties, annotations):
+        existing_entity = bundle['entity']
+        existing_annos = from_synapse_annotations(bundle['annotations'])
+
+        merged_props = {**existing_entity, **properties}
+        merged_annos = {**existing_annos, **annotations}
+
+        return merged_props, merged_annos
+
     def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
               activity=None, used=None, executed=None, activityName=None, activityDescription=None):
         """
@@ -952,6 +961,15 @@ class Synapse(object):
             bundle = self._getEntityBundle(entity)
 
             if bundle:
+                if createOrUpdate:
+                    # update our properties from the existing bundle so that we have
+                    # enough to process this as an entity update.
+                    properties, annotations = self._merge_update_with_bundle(
+                        bundle,
+                        properties,
+                        annotations,
+                    )
+
                 # Check if the file should be uploaded
                 fileHandle = find_data_file_handle(bundle)
                 if fileHandle \
@@ -1040,17 +1058,14 @@ class Synapse(object):
                                                        requestedObjects={'includeEntity': True,
                                                                          'includeAnnotations': True})
 
-                    # Need some fields from the existing entity: id, etag, and version info.
-                    existing_entity = bundle['entity']
+                    properties, annotations = self._merge_update_with_bundle(
+                        bundle,
+                        properties,
+                        annotations,
+                    )
 
-                    # Update the conflicting Entity
-                    existing_entity.update(properties)
-                    properties = self._updateEntity(existing_entity, forceVersion, versionLabel)
+                    properties = self._updateEntity(properties, forceVersion, versionLabel)
 
-                    # Merge new annotations with existing annotations
-                    existing_annos = from_synapse_annotations(bundle['annotations'])
-                    existing_annos.update(annotations)
-                    annotations = existing_annos
                 else:
                     raise
 
