@@ -857,6 +857,7 @@ class Synapse(object):
                                  'for "ifcollision"' % ifcollision)
         return downloadPath
 
+
     def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
               activity=None, used=None, executed=None, activityName=None, activityDescription=None):
         """
@@ -952,6 +953,11 @@ class Synapse(object):
             bundle = self._getEntityBundle(entity)
 
             if bundle:
+                if createOrUpdate:
+                    # update our properties from the existing bundle so that we have
+                    # enough to process this as an entity update.
+                    properties = {**bundle['entity'], **properties}
+
                 # Check if the file should be uploaded
                 fileHandle = find_data_file_handle(bundle)
                 if fileHandle \
@@ -1040,17 +1046,15 @@ class Synapse(object):
                                                        requestedObjects={'includeEntity': True,
                                                                          'includeAnnotations': True})
 
-                    # Need some fields from the existing entity: id, etag, and version info.
-                    existing_entity = bundle['entity']
+                    properties = {**bundle['entity'], **properties}
 
-                    # Update the conflicting Entity
-                    existing_entity.update(properties)
-                    properties = self._updateEntity(existing_entity, forceVersion, versionLabel)
+                    # we additionally merge the annotations under the assumption that a missing annotation
+                    # from a resolved conflict represents an newer annotation that should be preserved
+                    # rather than an intentionally deleted annotation.
+                    annotations = {**from_synapse_annotations(bundle['annotations']), **annotations}
 
-                    # Merge new annotations with existing annotations
-                    existing_annos = from_synapse_annotations(bundle['annotations'])
-                    existing_annos.update(annotations)
-                    annotations = existing_annos
+                    properties = self._updateEntity(properties, forceVersion, versionLabel)
+
                 else:
                     raise
 
