@@ -1608,6 +1608,7 @@ def test_store__needsUploadFalse__fileHandleId_not_in_local_state():
     returned_file_handle = {
         'id': '1234'
     }
+    parent_id = 'syn122'
     synapse_id = 'syn123'
     etag = 'db9bc70b-1eb6-4a21-b3e8-9bf51d964031'
     returned_bundle = {'entity': {'name': 'fake_file.txt',
@@ -1628,9 +1629,129 @@ def test_store__needsUploadFalse__fileHandleId_not_in_local_state():
          patch.object(Entity, 'create'), \
          patch.object(syn, 'get'):
 
-        f = File('/fake_file.txt', parent='syn123')
+        f = File('/fake_file.txt', parent=parent_id)
         syn.store(f)
         # test passes if no KeyError exception is thrown
+
+
+def _existing_processed_as_update_test(bundle_initially_returned):
+    # helper for running a test that checks storing an entity
+    # that already exists without its id. bundle_initially_returned specifies whether
+    # an initial check to fetch a bundle for the entity finds a matching entity,
+    # if not we simulate a create that results in a 409 that then process it
+    # as an update.
+
+    file_handle_id = '123412341234'
+    returned_file_handle = {
+        'id': file_handle_id
+    }
+
+    parent_id = 'syn122'
+    synapse_id = 'syn123'
+    etag = 'db9bc70b-1eb6-4a21-b3e8-9bf51d964031'
+    file_name = 'fake_file.txt'
+
+    existing_bundle_annotations = {
+        'foo': {
+            'type': 'LONG',
+            'value': ['1']
+        },
+        'bar': {
+            'type': 'LONG',
+            'value': ['2']
+        },
+    }
+    new_annotations = {
+        'foo': [3],
+        'baz': [4],
+    }
+
+    returned_bundle = {
+        'entity': {
+            'name': file_name,
+            'id': synapse_id,
+            'etag': etag,
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'dataFileHandleId': file_handle_id,
+        },
+        'entityType': 'file',
+        'fileHandles': [
+            {
+                'id': file_handle_id,
+                'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle',
+            }
+        ],
+        'annotations': {
+            'id': synapse_id,
+            'etag': etag,
+            'annotations': existing_bundle_annotations
+        },
+    }
+
+    expected_create_properties = {
+        'name': file_name,
+        'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+        'dataFileHandleId': file_handle_id,
+        'parentId': parent_id,
+
+    }
+    expected_update_properties = {
+        **expected_create_properties,
+        'id': synapse_id,
+        'etag': etag,
+    }
+    expected_annotations = {
+        'foo': [3],
+        'bar': [2],
+        'baz': [4],
+    }
+
+    with patch.object(syn, '_getEntityBundle') as mock_get_entity_bundle, \
+         patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
+         patch.object(syn.cache, 'contains', return_value=True), \
+         patch.object(syn, '_createEntity') as mock_createEntity, \
+         patch.object(syn, '_updateEntity') as mock_updateEntity, \
+         patch.object(syn, 'findEntityId') as mock_findEntityId, \
+         patch.object(syn, 'set_annotations') as mock_set_annotations, \
+         patch.object(Entity, 'create'), \
+         patch.object(syn, 'get'):
+
+        bundle_side_effect = [returned_bundle]
+        if not bundle_initially_returned:
+            bundle_side_effect.insert(0, None)
+            mock_createEntity.side_effect = SynapseHTTPError(response=DictObject({'status_code': 409}))
+            mock_findEntityId.return_value = synapse_id
+        mock_get_entity_bundle.side_effect = bundle_side_effect
+
+        f = File(f"/{file_name}", parent=parent_id, **new_annotations)
+        syn.store(f)
+
+        mock_updateEntity.assert_called_once_with(
+            expected_update_properties,
+            True,  # createOrUpdate
+            None,  # versionLabel
+        )
+
+        mock_set_annotations.assert_called_once_with(expected_annotations)
+
+        if bundle_initially_returned:
+            assert_false(mock_createEntity.called)
+            assert_false(mock_findEntityId.called)
+        else:
+            mock_createEntity.assert_called_once_with(expected_create_properties)
+            mock_findEntityId.assert_called_once_with(file_name, parent_id)
+
+
+def test_store__existing_processed_as_update():
+    """Test that storing an entity without its id but that matches an existing
+    entity bundle will be processed as an entity update"""
+    _existing_processed_as_update_test(True)
+
+
+def test_store__409_processed_as_update():
+    """Test that if we get a 409 conflict when creating an entity we re-retrieve its
+    associated bundle and process it as an entity update instead."""
+    _existing_processed_as_update_test(False)
 
 
 def test_get_submission_with_annotations():
