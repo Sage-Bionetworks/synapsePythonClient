@@ -1754,6 +1754,59 @@ def test_store__409_processed_as_update():
     _existing_processed_as_update_test(False)
 
 
+def test_store__existing_no_update():
+    """Test that we won't try processing a store as an update if there's an existing
+    bundle if createOrUpdate is not specified."""
+
+    file_handle_id = '123412341234'
+    returned_file_handle = {
+        'id': file_handle_id
+    }
+
+    parent_id = 'syn122'
+    synapse_id = 'syn123'
+    etag = 'db9bc70b-1eb6-4a21-b3e8-9bf51d964031'
+    file_name = 'fake_file.txt'
+
+    returned_bundle = {
+        'entity': {
+            'name': file_name,
+            'id': synapse_id,
+            'etag': etag,
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'dataFileHandleId': file_handle_id,
+        },
+        'entityType': 'file',
+        'fileHandles': [
+            {
+                'id': file_handle_id,
+                'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle',
+            }
+        ],
+        'annotations': {}
+    }
+
+    with patch.object(syn, '_getEntityBundle') as mock_get_entity_bundle, \
+         patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
+         patch.object(syn.cache, 'contains', return_value=True), \
+         patch.object(syn, '_createEntity') as mock_createEntity, \
+         patch.object(syn, '_updateEntity') as mock_updatentity, \
+         patch.object(syn, 'get'):
+
+        mock_get_entity_bundle.return_value = returned_bundle
+        mock_createEntity.side_effect = SynapseHTTPError(response=DictObject({'status_code': 409}))
+
+        f = File(f"/{file_name}", parent=parent_id)
+
+        with assert_raises(SynapseHTTPError) as ex_cm:
+            syn.store(f, createOrUpdate=False)
+
+        assert_equal(409, ex_cm.exception.response.status_code)
+
+        # should not have attempted an update
+        assert_false(mock_updatentity.called)
+
+
 def test_get_submission_with_annotations():
     """Verify a getSubmission with annotation entityBundleJSON that
     uses the old style annotations is converted to bundle v2 style
