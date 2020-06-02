@@ -857,14 +857,6 @@ class Synapse(object):
                                  'for "ifcollision"' % ifcollision)
         return downloadPath
 
-    def _merge_update_with_bundle(self, bundle, properties, annotations):
-        existing_entity = bundle['entity']
-        existing_annos = from_synapse_annotations(bundle['annotations'])
-
-        merged_props = {**existing_entity, **properties}
-        merged_annos = {**existing_annos, **annotations}
-
-        return merged_props, merged_annos
 
     def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
               activity=None, used=None, executed=None, activityName=None, activityDescription=None):
@@ -964,11 +956,7 @@ class Synapse(object):
                 if createOrUpdate:
                     # update our properties from the existing bundle so that we have
                     # enough to process this as an entity update.
-                    properties, annotations = self._merge_update_with_bundle(
-                        bundle,
-                        properties,
-                        annotations,
-                    )
+                    properties = {**bundle['entity'], **properties}
 
                 # Check if the file should be uploaded
                 fileHandle = find_data_file_handle(bundle)
@@ -1058,11 +1046,12 @@ class Synapse(object):
                                                        requestedObjects={'includeEntity': True,
                                                                          'includeAnnotations': True})
 
-                    properties, annotations = self._merge_update_with_bundle(
-                        bundle,
-                        properties,
-                        annotations,
-                    )
+                    properties = {**bundle['entity'], **properties}
+
+                    # we additionally merge the annotations under the assumption that a missing annotation
+                    # from a resolved conflict represents an newer annotation that should be preserved
+                    # rather than an intentionally deleted annotation.
+                    annotations = {**from_synapse_annotations(bundle['annotations']), **annotations}
 
                     properties = self._updateEntity(properties, forceVersion, versionLabel)
 
