@@ -700,7 +700,7 @@ def split_entity_namespaces(entity):
         # Defensive programming: return copies
         return entity.properties.copy(), entity.annotations.copy(), entity.local_state()
 
-    if not isinstance(entity, collections.Mapping):
+    if not isinstance(entity, collections.abc.Mapping):
         raise SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
 
     if 'concreteType' in entity and entity['concreteType'] in entity_type_to_class:
