@@ -69,7 +69,7 @@ from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_N
 from synapseclient.core.version_check import version_check
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
-    find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param, snake_case
+    find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
 from synapseclient.core.retry import with_retry
 from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
@@ -2254,7 +2254,6 @@ class Synapse(object):
         )
 
         return folder, storage_location_setting, project_setting
-
 
     ############################################################
     #                   CRUD for Evaluations                   #

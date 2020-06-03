@@ -893,7 +893,7 @@ def test_delete__string_version():
 
 def test_delete__has_synapse_delete_attr():
     mock_obj = Mock()
-    delete_obj = syn.delete(mock_obj)
+    syn.delete(mock_obj)
     mock_obj._synapse_delete.assert_called_once()
 
 

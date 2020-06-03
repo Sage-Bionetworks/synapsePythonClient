@@ -12,16 +12,19 @@ if sys.version_info.major < 3 and sys.version_info.minor < 6:
     sys.exit(-1)
 
 # figure out the version
-__version__=json.loads(open('synapseclient/synapsePythonClient').read())['latestVersion']
+__version__ = json.loads(open('synapseclient/synapsePythonClient').read())['latestVersion']
 
-description = """A client for Synapse, a collaborative compute space 
-that allows scientists to share and analyze data together.""".replace("\n", " ")
+description = """A client for Synapse, a collaborative compute space
+ that allows scientists to share and analyze data together.""".replace("\n", " ")
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 # make sure not to overwrite existing .synapseConfig with our example one
-data_files = [(os.path.expanduser('~'), ['synapseclient/.synapseConfig'])] if not os.path.exists(os.path.expanduser('~/.synapseConfig')) else []
+data_files =\
+    [(os.path.expanduser('~'), ['synapseclient/.synapseConfig'])]\
+    if not os.path.exists(os.path.expanduser('~/.synapseConfig'))\
+    else []
 
 setuptools.setup(
     # basic
@@ -39,7 +42,7 @@ setuptools.setup(
     extras_require={
         'pandas': ["pandas==0.25.0"],
         'pysftp': ["pysftp>=0.2.8"],
-        'boto3' : ["boto3"],
+        'boto3': ["boto3"],
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt==3.1'],
     },
 
