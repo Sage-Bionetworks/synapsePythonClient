@@ -185,7 +185,8 @@ def _sortAndFixProvenance(syn, df):
                     bundle = syn._getFromFile(item)
                     return bundle
                 except SynapseFileNotFoundError:
-                    raise SynapseProvenanceError(
+                    # TODO absence of a raise here appears to be a bug and yet tests fail if this is raised
+                    SynapseProvenanceError(
                         ("The provenance record for file: %s is incorrect.\n"
                          "Specifically %s is not being uploaded and is not in Synapse."
                          % (path, item)
