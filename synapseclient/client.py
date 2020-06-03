@@ -2181,9 +2181,9 @@ class Synapse(object):
     def get_sts_storage_token(self, entity, permission, *, output_format='json', min_remaining_life=None):
         """Get STS credentials for the given entity_id and permission, outputting it in the given format
 
-        :param entity_id: the id of the entity whose credentials are being returned
-        :param permission: one of 'read_only' or 'read_write'
-        :param output_format: one of 'json', 'boto', 'shell', 'bash', 'cmd', 'powershell'
+        :param entity:          the entity or entity id whose credentials are being returned
+        :param permission:      one of 'read_only' or 'read_write'
+        :param output_format:   one of 'json', 'boto', 'shell', 'bash', 'cmd', 'powershell'
                                 json: the dictionary returned from the Synapse STS API including expiration
                                 boto: a dictionary compatible with a boto session (aws_access_key_id, etc)
                                 shell: output commands for exporting credentials appropriate for the detected shell
