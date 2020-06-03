@@ -145,9 +145,10 @@ import os
 import inspect
 import urllib.parse as urllib_parse
 
+from synapseclient.core import utils
+from synapseclient.core.exceptions import SynapseMalformedEntityError
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of, itersubclasses
-from synapseclient.core import exceptions, utils
 
 
 class Versionable(object):
@@ -241,7 +242,7 @@ class Entity(collections.abc.MutableMapping):
                     del properties['annotations']
                 self.__dict__['properties'].update(properties)
             else:
-                raise exceptions.SynapseMalformedEntityError(
+                raise SynapseMalformedEntityError(
                     'Unknown argument type: properties is a %s' % str(type(properties))
                 )
 
@@ -251,7 +252,7 @@ class Entity(collections.abc.MutableMapping):
             elif isinstance(annotations, str):
                 self.properties['annotations'] = annotations
             else:
-                raise exceptions.SynapseMalformedEntityError(
+                raise SynapseMalformedEntityError(
                     'Unknown argument type: annotations is a %s' % str(type(annotations))
                 )
 
@@ -259,7 +260,7 @@ class Entity(collections.abc.MutableMapping):
             if isinstance(local_state, collections.abc.Mapping):
                 self.local_state(local_state)
             else:
-                raise exceptions.SynapseMalformedEntityError(
+                raise SynapseMalformedEntityError(
                     'Unknown argument type: local_state is a %s' % str(type(local_state))
                 )
 
@@ -274,12 +275,12 @@ class Entity(collections.abc.MutableMapping):
                     kwargs['parentId'] = id_of(parent)
                 except Exception:
                     if isinstance(parent, Entity) and 'id' not in parent:
-                        raise exceptions.SynapseMalformedEntityError(
+                        raise SynapseMalformedEntityError(
                             "Couldn't find 'id' of parent."
                             " Has it been stored in Synapse?"
                         )
                     else:
-                        raise exceptions.SynapseMalformedEntityError("Couldn't find 'id' of parent.")
+                        raise SynapseMalformedEntityError("Couldn't find 'id' of parent.")
 
         # Note: that this will work properly if derived classes declare their internal state variable *before* invoking
         # super(...).__init__(...)
@@ -293,7 +294,7 @@ class Entity(collections.abc.MutableMapping):
         if 'parentId' not in self \
                 and not isinstance(self, Project) \
                 and not type(self) == Entity:
-            raise exceptions.SynapseMalformedEntityError("Entities of type %s must have a parentId." % type(self))
+            raise SynapseMalformedEntityError("Entities of type %s must have a parentId." % type(self))
 
     def postURI(self):
         return '/entity'
@@ -522,7 +523,7 @@ class Link(Entity):
         elif properties is not None and 'linksTo' in properties:
             pass
         else:
-            raise exceptions.SynapseMalformedEntityError("Must provide a target id")
+            raise SynapseMalformedEntityError("Must provide a target id")
         super(Link, self).__init__(concreteType=Link._synapse_entity_type, properties=properties,
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
@@ -676,7 +677,7 @@ class DockerRepository(Entity):
         super(DockerRepository, self).__init__(properties=properties, annotations=annotations, local_state=local_state,
                                                parent=parent, **kwargs)
         if 'repositoryName' not in self:
-            raise exceptions.SynapseMalformedEntityError("DockerRepository must have a repositoryName.")
+            raise SynapseMalformedEntityError("DockerRepository must have a repositoryName.")
 
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
@@ -700,7 +701,7 @@ def split_entity_namespaces(entity):
         return entity.properties.copy(), entity.annotations.copy(), entity.local_state()
 
     if not isinstance(entity, collections.Mapping):
-        raise exceptions.SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
+        raise SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
 
     if 'concreteType' in entity and entity['concreteType'] in entity_type_to_class:
         entity_class = entity_type_to_class[entity['concreteType']]

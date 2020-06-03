@@ -4,7 +4,8 @@ from .monitor import notifyMe
 from synapseclient.entity import is_container
 from synapseclient.core.utils import id_of, is_url, is_synapse_id
 from synapseclient import File, table
-from synapseclient.core import exceptions, utils
+from synapseclient.core import utils
+from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseProvenanceError
 import os
 import io
 import sys
@@ -151,7 +152,7 @@ def _get_file_entity_provenance_dict(syn, entity):
                 'executed': ';'.join(prov._getExecutedStringList()),
                 'activityName': prov.get('name', ''),
                 'activityDescription': prov.get('description', '')}
-    except exceptions.SynapseHTTPError as e:
+    except SynapseHTTPError as e:
         if e.response.status_code == 404:
             return {}  # No provenance present return empty dict
         else:
@@ -183,8 +184,8 @@ def _sortAndFixProvenance(syn, df):
                 try:
                     bundle = syn._getFromFile(item)
                     return bundle
-                except exceptions.SynapseFileNotFoundError:
-                    exceptions.SynapseProvenanceError(
+                except SynapseFileNotFoundError:
+                    raise SynapseProvenanceError(
                         ("The provenance record for file: %s is incorrect.\n"
                          "Specifically %s is not being uploaded and is not in Synapse."
                          % (path, item)
@@ -192,7 +193,7 @@ def _sortAndFixProvenance(syn, df):
                     )
 
         elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
-            raise exceptions.SynapseProvenanceError(
+            raise SynapseProvenanceError(
                 ("The provenance record for file: %s is incorrect.\n"
                  "Specifically %s, is neither a valid URL or synapseId.") % (path, item)
             )
@@ -280,12 +281,12 @@ def readManifestFile(syn, manifestFile):
     for synId in parents:
         try:
             container = syn.get(synId, downloadFile=False)
-        except exceptions.SynapseHTTPError:
+        except SynapseHTTPError:
             sys.stdout.write('\n%s in the parent column is not a valid Synapse Id\n' % synId)
             raise
         if not is_container(container):
             sys.stdout.write('\n%s in the parent column is is not a Folder or Project\n' % synId)
-            raise exceptions.SynapseHTTPError
+            raise SynapseHTTPError
     sys.stdout.write('OK\n')
     return df
 

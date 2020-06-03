@@ -80,7 +80,8 @@ import synapseutils
 from synapseclient import Activity
 from synapseclient.wiki import Wiki
 from synapseclient.annotations import Annotations
-from synapseclient.core import exceptions, utils
+from synapseclient.core import utils
+from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseNoCredentialsError
 
 
 def query(args, syn):
@@ -243,7 +244,7 @@ def associate(args, syn):
     for fp in files:
         try:
             ent = syn.get(fp, limitSearch=args.limitSearch)
-        except exceptions.SynapseFileNotFoundError:
+        except SynapseFileNotFoundError:
             print('WARNING: The file %s is not available in Synapse' % fp)
         else:
             print('%s.%i\t%s' % (ent.id, ent.versionNumber, fp))
@@ -290,7 +291,7 @@ def show(args, syn):
     try:
         prov = syn.getProvenance(ent)
         print(prov)
-    except exceptions.SynapseHTTPError:
+    except SynapseHTTPError:
         print('  No Activity specified.\n')
 
 
@@ -914,7 +915,7 @@ def perform_main(args, syn):
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
     try:
         syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
-    except exceptions.SynapseNoCredentialsError:
+    except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
         while not user:
             user = input("Synapse username: ")

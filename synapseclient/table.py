@@ -302,7 +302,7 @@ import json
 from builtins import zip
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
-from synapseclient.core import exceptions
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, Versionable, entity_type_to_class
 from synapseclient.core.constants import concrete_types
@@ -1421,7 +1421,7 @@ class TableQueryResult(TableAbstractBaseClass):
             etag=self.rowset.get('etag', None))
 
     def _synapse_store(self, syn):
-        raise exceptions.SynapseError(
+        raise SynapseError(
             "A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a"
             " DataFrame or RowSet instead."
         )
@@ -1689,7 +1689,7 @@ class CsvFileTable(TableAbstractBaseClass):
         # if the column already exists verify the column data is same as what we parsed
         if col_name in dataframe.columns:
             if dataframe[col_name].tolist() != insert_column_data:
-                raise exceptions.SynapseError(
+                raise SynapseError(
                     ("A column named '{0}' already exists and does not match the '{0}' values present in"
                      " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
                      " column for your data because it is necessary for version tracking in Synapse's"
