@@ -98,7 +98,7 @@ def query(args, syn):
 
     queryString = ' '.join(args.queryString)
 
-    if re.search('from syn\d', queryString.lower()):  # noqa probably should be \\d
+    if re.search('from syn\\d', queryString.lower()):
         results = syn.tableQuery(queryString)
         reader = csv.reader(open(results.filepath))
         for row in reader:
@@ -111,7 +111,7 @@ def query(args, syn):
 def _getIdsFromQuery(queryString, syn):
     """Helper function that extracts the ids out of returned query."""
 
-    if re.search('from syn\d', queryString.lower()):  # noqa probably should be \\d
+    if re.search('from syn\\d', queryString.lower()):
         tbl = syn.tableQuery(queryString)
 
         check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
