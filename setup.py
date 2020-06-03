@@ -26,6 +26,8 @@ data_files =\
     if not os.path.exists(os.path.expanduser('~/.synapseConfig'))\
     else []
 
+test_deps = ['nose', 'flake8']
+
 setuptools.setup(
     # basic
     name='synapseclient',
@@ -43,6 +45,7 @@ setuptools.setup(
         'pandas': ["pandas==0.25.0"],
         'pysftp': ["pysftp>=0.2.8"],
         'boto3': ["boto3"],
+        'tests': test_deps,
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt==3.1'],
     },
 
@@ -58,7 +61,7 @@ setuptools.setup(
 
     # test
     test_suite='nose.collector',
-    tests_require=['nose'],
+    tests_require=test_deps,
 
     # metadata to display on PyPI
     description=description,
