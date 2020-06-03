@@ -45,6 +45,8 @@ before_install:
     pyenv install $PY_VERSION
     export PYENV_VERSION=$PY_VERSION
     export PATH="/Users/travis/.pyenv/shims:${PATH}"
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
     pyenv virtualenv venv
     pyenv activate venv
   fi
