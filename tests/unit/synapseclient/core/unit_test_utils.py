@@ -43,6 +43,26 @@ def test_is_in_path():
     assert_false(utils.is_in_path('syn123', path))
 
 
+def test_humanizeBytes():
+    for (input_bytes, expected_output) in [
+        (-1, '-1.0bytes'),
+        (0, '0.0bytes'),
+        (1, '1.0bytes'),
+        (10, '10.0bytes'),
+        ((2 ** 10) - 1, '1023.0bytes'),
+        ((2 ** 10), '1.0kB'),
+        ((2 ** 20), '1.0MB'),
+        ((2 ** 20) * 1.5, '1.5MB'),
+        ((2 ** 70), 'Oops larger than Exabytes'),
+    ]:
+        assert_equals(utils.humanizeBytes(input_bytes), expected_output)
+
+
+def test_humanizeBytes__None():
+    with assert_raises(ValueError):
+        utils.humanizeBytes(None)
+
+
 def test_id_of():
     assert_equals(utils.id_of(1), '1')
     assert_equals(utils.id_of('syn12345'), 'syn12345')

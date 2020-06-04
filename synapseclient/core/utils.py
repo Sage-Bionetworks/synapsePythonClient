@@ -646,14 +646,17 @@ def printTransferProgress(transferred, toBeTransferred, prefix='', postfix='', i
     sys.stdout.flush()
 
 
-def humanizeBytes(bytes):
-    bytes = float(bytes)
+def humanizeBytes(num_bytes):
+    if num_bytes is None:
+        raise ValueError('bytes must be a number')
+
+    num_bytes = float(num_bytes)
     units = ['bytes', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB']
     for i, unit in enumerate(units):
-        if bytes < 1024:
-            return '%3.1f%s' % (bytes, units[i])
+        if num_bytes < 1024:
+            return '%3.1f%s' % (num_bytes, units[i])
         else:
-            bytes /= 1024
+            num_bytes /= 1024
     return 'Oops larger than Exabytes'
 
 
