@@ -547,7 +547,7 @@ def query_limit_and_offset(query, hard_limit=1000):
     """
     # Regex a lower-case string to simplify matching
     tempQueryStr = query.lower()
-    regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'  # noqa double backslashes?
+    regex = r'\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
 
     # Continue to strip off and save the last limit/offset
     match = re.search(regex, tempQueryStr)
