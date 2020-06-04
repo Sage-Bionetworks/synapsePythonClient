@@ -5,8 +5,9 @@ import uuid
 import random
 from nose.tools import assert_raises, assert_false, assert_is_not_none, assert_true, assert_equals, assert_in
 
-from synapseclient.core.exceptions import *
-from synapseclient import *
+
+from synapseclient import Evaluation, File, Team
+from synapseclient.core.exceptions import SynapseHTTPError
 from tests import integration
 from tests.integration import schedule_for_cleanup
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
@@ -17,16 +18,15 @@ def setup(module):
     module.project = integration.project
 
 
-
 def test_evaluations():
     # Create an Evaluation
     name = 'Test Evaluation %s' % str(uuid.uuid4())
-    ev = Evaluation(name=name, description='Evaluation for testing', 
+    ev = Evaluation(name=name, description='Evaluation for testing',
                     contentSource=project['id'], status='CLOSED')
     ev = syn.store(ev)
 
     try:
-        
+
         # -- Get the Evaluation by name
         evalNamed = syn.getEvaluationByName(name)
         assert_equals(ev['contentSource'], evalNamed['contentSource'])
@@ -37,7 +37,7 @@ def test_evaluations():
         assert_equals(ev['name'], evalNamed['name'])
         assert_equals(ev['ownerId'], evalNamed['ownerId'])
         assert_equals(ev['status'], evalNamed['status'])
-        
+
         # -- Get the Evaluation by project
         evalProj = syn.getEvaluationByContentSource(project)
         evalProj = next(evalProj)
@@ -49,7 +49,7 @@ def test_evaluations():
         assert_equals(ev['name'], evalProj['name'])
         assert_equals(ev['ownerId'], evalProj['ownerId'])
         assert_equals(ev['status'], evalProj['status'])
-        
+
         # Update the Evaluation
         ev['status'] = 'OPEN'
         ev = syn.store(ev, createOrUpdate=True)
@@ -108,7 +108,7 @@ def test_evaluations():
         # Score the submissions
         submissions = syn.getSubmissions(ev, limit=num_of_submissions-1)
         for submission in submissions:
-            assert_true(re.match('Submission \d+', submission['name']))
+            assert_true(re.match('Submission \\d+', submission['name']))
             status = syn.getSubmissionStatus(submission)
             status.score = random.random()
             if submission['name'] == 'Submission 01':
@@ -154,7 +154,7 @@ def test_evaluations():
                 results = syn.restGET(
                     "/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
                 assert_equals(len(results['rows']), num_of_submissions)
-            except AssertionError as ex1:
+            except AssertionError:
                 attempts -= 1
                 time.sleep(2)
             else:

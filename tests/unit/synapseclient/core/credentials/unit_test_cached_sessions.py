@@ -1,10 +1,10 @@
 import json
 
-from mock import patch, mock_open, create_autospec, call
+from unittest.mock import patch, mock_open, create_autospec, call
 from nose.tools import assert_equals
 
 import synapseclient.core.credentials.cached_sessions as cached_sessions
-from synapseclient import *
+from synapseclient import Synapse
 
 
 @patch.object(cached_sessions, "keyring", autospec=True)
@@ -42,11 +42,13 @@ class TestCachedSessionsKeyring:
                                                                self.username)
 
     def test_set_api_key(self, mocked_keyring):
-            # function under test
-            cached_sessions.set_api_key(self.username, self.api_key)
+        # function under test
+        cached_sessions.set_api_key(self.username, self.api_key)
 
-            mocked_keyring.set_password.assert_called_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME,
-                                                           self.username, self.api_key)
+        mocked_keyring.set_password.assert_called_with(
+            cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME,
+            self.username, self.api_key,
+        )
 
 
 class TestCachedSessionsMostRecentUserFile:

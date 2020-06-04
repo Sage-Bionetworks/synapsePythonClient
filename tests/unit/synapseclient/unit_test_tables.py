@@ -7,15 +7,15 @@ import tempfile
 
 import time
 from builtins import zip
-from mock import MagicMock
+from unittest.mock import MagicMock
 from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_in, assert_sequence_equal,\
     assert_true, assert_is_none, assert_is_instance, raises, assert_equals
 import pandas as pd
 
 from tests.unit.test_utils.unit_utils import StringIOContextManager
 
-from synapseclient import *
-from synapseclient.core.exceptions import *
+from synapseclient import Entity, Synapse
+from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
 from synapseclient.entity import split_entity_namespaces
 import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
@@ -25,8 +25,9 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
 from tests import unit
 
 from synapseclient.core.utils import from_unix_epoch_time
-from mock import patch
+from unittest.mock import patch
 from collections import OrderedDict
+
 
 def setup(module):
     module.syn = unit.syn
@@ -68,6 +69,7 @@ def test_cast_values():
     row = ('true', '211', '1.61803398875', '1421365')
     assert_equals(cast_values(row, selectColumns), [True, 211, 1.61803398875, 1421365])
 
+
 def test_cast_values__unknown_column_type():
     selectColumns = [{'id': '353',
                       'name': 'name',
@@ -75,7 +77,7 @@ def test_cast_values__unknown_column_type():
                      {'id': '354',
                       'name': 'foo',
                       'columnType': 'DEFINTELY_NOT_A_EXISTING_TYPE'},
-                    ]
+                     ]
 
     row = ('123', 'othervalue')
     assert_equals(cast_values(row, selectColumns),
@@ -95,11 +97,10 @@ def test_cast_values__list_type():
                      {'id': '358',
                       'name': 'boom',
                       'columnType': 'DATE_LIST'}]
-    now_millis = int(round(time.time() * 1000));
-    row = ('["foo", "bar"]', '[1,2,3]', '[true, false]', '['+ str(now_millis) +']')
+    now_millis = int(round(time.time() * 1000))
+    row = ('["foo", "bar"]', '[1,2,3]', '[true, false]', '[' + str(now_millis) + ']')
     assert_equals(cast_values(row, selectColumns),
-                  [["foo", "bar"], [1,2,3], [True, False], [from_unix_epoch_time(now_millis)]])
-
+                  [["foo", "bar"], [1, 2, 3], [True, False], [from_unix_epoch_time(now_millis)]])
 
 
 def test_schema():
@@ -141,23 +142,23 @@ def test_RowSetTable():
     row_set_json = {
         'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
         'headers': [
-         {'columnType': 'STRING', 'id': '353', 'name': 'name'},
-         {'columnType': 'DOUBLE', 'id': '355', 'name': 'x'},
-         {'columnType': 'DOUBLE', 'id': '3020', 'name': 'y'},
-         {'columnType': 'INTEGER', 'id': '891', 'name': 'n'}],
+            {'columnType': 'STRING', 'id': '353', 'name': 'name'},
+            {'columnType': 'DOUBLE', 'id': '355', 'name': 'x'},
+            {'columnType': 'DOUBLE', 'id': '3020', 'name': 'y'},
+            {'columnType': 'INTEGER', 'id': '891', 'name': 'n'}],
         'rows': [{
-          'rowId': 5,
-          'values': ['foo', '1.23', '2.2', '101'],
-          'versionNumber': 3},
-         {'rowId': 6,
-          'values': ['bar', '1.34', '2.4', '101'],
-          'versionNumber': 3},
-         {'rowId': 7,
-          'values': ['foo', '1.23', '2.2', '101'],
-          'versionNumber': 4},
-         {'rowId': 8,
-          'values': ['qux', '1.23', '2.2', '102'],
-          'versionNumber': 3}],
+            'rowId': 5,
+            'values': ['foo', '1.23', '2.2', '101'],
+            'versionNumber': 3},
+            {'rowId': 6,
+             'values': ['bar', '1.34', '2.4', '101'],
+             'versionNumber': 3},
+            {'rowId': 7,
+             'values': ['foo', '1.23', '2.2', '101'],
+             'versionNumber': 4},
+            {'rowId': 8,
+             'values': ['qux', '1.23', '2.2', '102'],
+             'versionNumber': 3}],
         'tableId': 'syn2976298'}
 
     row_set = RowSet.from_json(row_set_json)
@@ -188,7 +189,7 @@ def test_as_table_columns__with_pandas_DataFrame():
         'n': (101, 202, 303, 404, 505),
         'really': (False, True, False, True, False),
         'size': ('small', 'large', 'medium', 'medium', 'large')},
-    columns=['foobar', 'x', 'n', 'really', 'size'])
+        columns=['foobar', 'x', 'n', 'really', 'size'])
 
     cols = as_table_columns(df)
 
@@ -412,22 +413,22 @@ def test_aggregate_query_result_to_data_frame():
                     'maxRowsPerPage': 2,
                     'queryCount': 4,
                     'queryResult': {
-                         'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
-                         'nextPageToken': 'aaaaaaaa',
-                         'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-                                          'headers': [
-                                              {'columnType': 'STRING',  'name': 'State'},
-                                              {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
-                                              {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
-                                              {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
-                                          'rows': [
-                                               {'values': ['PA', '1935', '2', '1.1']},
-                                               {'values': ['MO', '1928', '3', '2.38']}],
-                                          'tableId': 'syn2757980'}},
+                        'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                        'nextPageToken': 'aaaaaaaa',
+                        'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                                         'headers': [
+                                             {'columnType': 'STRING',  'name': 'State'},
+                                             {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
+                                             {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
+                                             {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
+                                         'rows': [
+                                             {'values': ['PA', '1935', '2', '1.1']},
+                                             {'values': ['MO', '1928', '3', '2.38']}],
+                                         'tableId': 'syn2757980'}},
                     'selectColumns': [{
-                         'columnType': 'STRING',
-                         'id': '1387',
-                         'name': 'State'}]}
+                        'columnType': 'STRING',
+                        'id': '1387',
+                        'name': 'State'}]}
 
         def _queryTableNext(self, nextPageToken, tableId):
             return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
@@ -626,7 +627,7 @@ def test_Schema__max_column_check():
                      for i in range(MAX_NUM_TABLE_COLUMNS + 1))
     assert_raises(ValueError, syn.store, table)
 
-    
+
 def test_EntityViewSchema__ignore_column_names_set_info_preserved():
     """
     tests that ignoredAnnotationColumnNames will be preserved after creating a new EntityViewSchema from properties,
@@ -652,8 +653,8 @@ def test_EntityViewSchema__ignore_annotation_column_names():
 
     with patch.object(syn, '_get_annotation_entity_view_columns', return_value=mocked_annotation_result1)\
             as mocked_get_annotations,\
-         patch.object(syn, 'getColumns') as mocked_get_columns,\
-         patch.object(SchemaBase, "_before_synapse_store"):
+            patch.object(syn, 'getColumns') as mocked_get_columns,\
+            patch.object(SchemaBase, "_before_synapse_store"):
 
         entity_view._before_synapse_store(syn)
 
@@ -699,30 +700,30 @@ def test_EntityViewSchema__repeated_columnName_same_type():
 
 def test_rowset_asDataFrame__with_ROW_ETAG_column():
     query_result = {
-                   'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
-                   'maxRowsPerPage': 6990,
-                   'selectColumns': [
-                       {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
-                       {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}
-                   ],
-                   'queryCount': 1,
-                   'queryResult': {
-                       'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
-                       'nextPageToken': 'sometoken',
-                       'queryResults': {
-                           'headers': [
-                               {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
-                               {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
-                           'concreteType': 'org.sagebionetworks.repo.model.table.RowSet',
-                           'etag': 'DEFAULT',
-                           'tableId': 'syn11363411',
+        'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
+        'maxRowsPerPage': 6990,
+        'selectColumns': [
+            {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
+            {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}
+        ],
+        'queryCount': 1,
+        'queryResult': {
+            'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+            'nextPageToken': 'sometoken',
+            'queryResults': {
+                'headers': [
+                    {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
+                    {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
+                'concreteType': 'org.sagebionetworks.repo.model.table.RowSet',
+                'etag': 'DEFAULT',
+                'tableId': 'syn11363411',
                            'rows': [{'values': ['initial_value1', 'initial_value2'],
                                      'etag': '7de0f326-9ef7-4fde-9e4a-ac0babca73f6',
                                      'rowId': 123,
                                      'versionNumber':456}]
-                       }
-                   }
-                }
+            }
+        }
+    }
     query_result_next_page = {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
                               'queryResults': {
                                   'etag': 'DEFAULT',
@@ -736,7 +737,7 @@ def test_rowset_asDataFrame__with_ROW_ETAG_column():
                                   'tableId': 'syn11363411'}}
 
     with patch.object(syn, "_queryTable", return_value=query_result),\
-         patch.object(syn, "_queryTableNext", return_value=query_result_next_page):
+            patch.object(syn, "_queryTableNext", return_value=query_result_next_page):
         table = syn.tableQuery("select something from syn123", resultsAs='rowset')
         dataframe = table.asDataFrame()
         assert_not_in("ROW_ETAG", dataframe.columns)
@@ -775,7 +776,7 @@ def test_build_table__with_csv():
     with patch.object(synapseclient.table, "as_table_columns",
                       return_value=[Column(name="a", columnType="INTEGER"),
                                     Column(name="b", columnType="STRING")]),\
-         patch.object(io, "open", return_value=string_io):
+            patch.object(io, "open", return_value=string_io):
         table = build_table("test", "syn123", "some_file_name")
         for col, row in enumerate(table):
             assert_equals(row[0], (col + 1))
@@ -947,7 +948,7 @@ class TestCsvFileTable:
         cols = as_table_columns(StringIOContextManager(data))
         headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
                    SelectColumn(name="ROW_VERSION", columnType="STRING")] + \
-                  [SelectColumn.from_column(col) for col in cols]
+            [SelectColumn.from_column(col) for col in cols]
         with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             iter = table.__iter__()
@@ -970,11 +971,11 @@ class TestCsvFileTable:
         # self.headers and csv file headers contains mismatch row metadata
         data = "ROW_ID,ROW_VERSION,ROW_ETAG,col\n" \
                "1,2,etag1,\"I like trains\"\n" \
-                "5,1,etag2,\"weeeeeeeeeeee\"\n"
+            "5,1,etag2,\"weeeeeeeeeeee\"\n"
         cols = as_table_columns(StringIOContextManager(data))
         headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
                    SelectColumn(name="ROW_VERSION", columnType="STRING")] + \
-                  [SelectColumn.from_column(col) for col in cols]
+            [SelectColumn.from_column(col) for col in cols]
         with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             iter = table.__iter__()
@@ -1002,13 +1003,14 @@ class TestCsvFileTable:
         headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
                    SelectColumn(name="ROW_VERSION", columnType="STRING"),
                    SelectColumn(name="ROW_ETAG", columnType="STRING")] + \
-                  [SelectColumn.from_column(col) for col in cols]
+            [SelectColumn.from_column(col) for col in cols]
         with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             expected_rows = [['1', '2', "etag1", "I like trains"],
                              ['5', '1', "etag2", "weeeeeeeeeeee"]]
             for expected_row, table_row in zip(expected_rows, table):
                 assert_equals(expected_row, table_row)
+
 
 def test_Row_forward_compatibility():
     row = Row("2, 3, 4", rowId=1, versionNumber=1, etag=None, new_field="new")
@@ -1065,6 +1067,7 @@ def test_get_view_type_mask():
                                                EntityViewType.DOCKER
                                                ]))
 
+
 def test_update_existing_view_type_mask():
     properties = {
         'id': 'syn123',
@@ -1085,4 +1088,3 @@ def test_set_view_types_invalid_input():
     view = EntityViewSchema(type='project', properties=properties)
     assert_equals(view['viewTypeMask'], 2)
     assert_raises(ValueError, view.set_entity_types, None)
-

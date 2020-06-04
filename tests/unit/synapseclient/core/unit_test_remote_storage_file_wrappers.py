@@ -1,7 +1,7 @@
 import botocore.exceptions
 import os.path
 
-import mock
+from unittest import mock
 from nose.tools import assert_equal, assert_false, assert_raises, assert_true
 
 from synapseclient.core import remote_file_storage_wrappers
@@ -20,7 +20,7 @@ class TestS3ClientWrapper:
         download_file_path = '/tmp/download'
         endpoint_url = 'http://foo.s3.amazon.com'
 
-        with assert_raises(ImportError) as ex:
+        with assert_raises(ImportError):
             S3ClientWrapper.download_file(bucket_name, endpoint_url, remote_file_key, download_file_path)
 
     @staticmethod

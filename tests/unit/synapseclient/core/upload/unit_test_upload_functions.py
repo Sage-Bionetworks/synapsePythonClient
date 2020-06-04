@@ -1,6 +1,6 @@
 import os
 
-import mock
+from unittest import mock
 from nose.tools import assert_equal
 
 from synapseclient.core.constants import concrete_types

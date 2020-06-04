@@ -547,7 +547,7 @@ def query_limit_and_offset(query, hard_limit=1000):
     """
     # Regex a lower-case string to simplify matching
     tempQueryStr = query.lower()
-    regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+    regex = r'\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
 
     # Continue to strip off and save the last limit/offset
     match = re.search(regex, tempQueryStr)
@@ -795,7 +795,7 @@ def topolgical_sort(graph):
     """Given a graph in the form of a dictionary returns a sorted list
 
     Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
-    
+
     :param graph: a dictionary with values containing lists of keys referencing back into the dictionary
 
     :returns: sorted list of items

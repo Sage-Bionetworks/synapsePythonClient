@@ -12,19 +12,19 @@ def with_retry(function, verbose=False,
                retries=3, wait=1, back_off=2, max_wait=30):
     """
     Retries the given function under certain conditions.
-    
-    :param function:           A function with no arguments.  If arguments are needed, use a lambda (see example).  
+
+    :param function:           A function with no arguments.  If arguments are needed, use a lambda (see example).
     :param retry_status_codes: What status codes to retry upon in the case of a SynapseHTTPError.
     :param retry_errors:       What reasons to retry upon, if function().response.json()['reason'] exists.
     :param retry_exceptions:   What types of exceptions, specified as strings, to retry upon.
     :param retries:            How many times to retry maximum.
-    :param wait:               How many seconds to wait between retries.  
-    :param back_off:           Exponential constant to increase wait for between progressive failures.  
-    
+    :param wait:               How many seconds to wait between retries.
+    :param back_off:           Exponential constant to increase wait for between progressive failures.
+
     :returns: function()
-    
+
     Example::
-        
+
         def foo(a, b, c): return [a, b, c]
         result = self._with_retry(lambda: foo("1", "2", "3"), **STANDARD_RETRY_PARAMS)
     """

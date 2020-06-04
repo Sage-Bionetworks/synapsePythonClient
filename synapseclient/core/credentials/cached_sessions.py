@@ -17,16 +17,16 @@ def get_api_key(username):
     :rtype: str
     """
     if username is not None:
-            return keyring.get_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
+        return keyring.get_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
     return None
 
 
 def remove_api_key(username):
-        try:
-            keyring.delete_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
-        except keyring_errors.PasswordDeleteError:
-            # The API key does not exist, but that is fine
-            pass
+    try:
+        keyring.delete_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
+    except keyring_errors.PasswordDeleteError:
+        # The API key does not exist, but that is fine
+        pass
 
 
 def set_api_key(username, api_key):
@@ -50,7 +50,7 @@ def _read_session_cache(filepath):
         result = json.load(file)
         if isinstance(result, dict):
             return result
-    except:
+    except:  # noqa
         # If we cannot parse the cache for any reason, treat it as if the cache is empty
         pass
     return {}

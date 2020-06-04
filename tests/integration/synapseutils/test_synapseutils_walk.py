@@ -3,8 +3,8 @@ import os
 
 from nose.tools import assert_equals, assert_in
 
-from synapseclient.core.exceptions import *
-from synapseclient import *
+from synapseclient import File, Folder, Project
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup
 import synapseutils
@@ -66,4 +66,3 @@ def test_walk():
 
     temp = synapseutils.walk(syn, second_file.id)
     assert_equals(list(temp), [])
-

@@ -145,9 +145,10 @@ import os
 import inspect
 import urllib.parse as urllib_parse
 
+from synapseclient.core import utils
+from synapseclient.core.exceptions import SynapseMalformedEntityError
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of, itersubclasses
-from synapseclient.core.exceptions import *
 
 
 class Versionable(object):
@@ -241,7 +242,9 @@ class Entity(collections.abc.MutableMapping):
                     del properties['annotations']
                 self.__dict__['properties'].update(properties)
             else:
-                raise SynapseMalformedEntityError('Unknown argument type: properties is a %s' % str(type(properties)))
+                raise SynapseMalformedEntityError(
+                    'Unknown argument type: properties is a %s' % str(type(properties))
+                )
 
         if annotations:
             if isinstance(annotations, collections.abc.Mapping):
@@ -249,13 +252,17 @@ class Entity(collections.abc.MutableMapping):
             elif isinstance(annotations, str):
                 self.properties['annotations'] = annotations
             else:
-                raise SynapseMalformedEntityError('Unknown argument type: annotations is a %s' % str(type(annotations)))
+                raise SynapseMalformedEntityError(
+                    'Unknown argument type: annotations is a %s' % str(type(annotations))
+                )
 
         if local_state:
             if isinstance(local_state, collections.abc.Mapping):
                 self.local_state(local_state)
             else:
-                raise SynapseMalformedEntityError('Unknown argument type: local_state is a %s' % str(type(local_state)))
+                raise SynapseMalformedEntityError(
+                    'Unknown argument type: local_state is a %s' % str(type(local_state))
+                )
 
         for key in self.__class__._local_keys:
             if key not in self.__dict__:
@@ -268,8 +275,10 @@ class Entity(collections.abc.MutableMapping):
                     kwargs['parentId'] = id_of(parent)
                 except Exception:
                     if isinstance(parent, Entity) and 'id' not in parent:
-                        raise SynapseMalformedEntityError("Couldn't find 'id' of parent."
-                                                          " Has it been stored in Synapse?")
+                        raise SynapseMalformedEntityError(
+                            "Couldn't find 'id' of parent."
+                            " Has it been stored in Synapse?"
+                        )
                     else:
                         raise SynapseMalformedEntityError("Couldn't find 'id' of parent.")
 
@@ -403,7 +412,7 @@ class Entity(collections.abc.MutableMapping):
 
         return f.getvalue()
 
-    def _str_localstate(self, f):  # type: (StringIO) -> None
+    def _str_localstate(self, f):  # type: (io.StringIO) -> None
         """
         Helper method for writing the string representation of the local state to a StringIO object
         :param f: a StringIO object to which the local state string will be written
@@ -439,7 +448,7 @@ class Project(Entity):
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param local_state:     Internal use only
-    
+
     Example::
 
         project = Project('Foobarbat project')
@@ -460,7 +469,7 @@ class Folder(Entity):
     Represents a folder in Synapse.
 
     Folders must have a name and a parent and can optionally have annotations.
-    
+
     :param name:            The name of the folder
     :param parent:          The parent project or folder
     :param properties:      A map of Synapse properties
@@ -495,7 +504,7 @@ class Link(Entity):
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param local_state:     Internal use only
-    
+
     Example::
 
         link = Link('targetID', parent=folder)
@@ -540,7 +549,7 @@ class File(Entity, Versionable):
     :param properties:          A map of Synapse properties
     :param annotations:         A map of user defined annotations
     :param local_state:         Internal use only
-    
+
     Example::
 
         data = File('/path/to/file/data.xyz', parent=folder)
@@ -584,7 +593,7 @@ class File(Entity, Versionable):
     def _update_file_handle(self, file_handle_update_dict=None):
         """
         Sets the file handle
-        
+
         Should not need to be called by users
         """
 
@@ -593,7 +602,8 @@ class File(Entity, Versionable):
         self.__dict__['_file_handle'] = fh_dict
 
         if file_handle_update_dict is not None \
-                and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
+                and file_handle_update_dict.get('concreteType') ==\
+                "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
                 and urllib_parse.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
             self.__dict__['synapseStore'] = False
 
@@ -642,19 +652,19 @@ class File(Entity, Versionable):
 class DockerRepository(Entity):
     """
     A Docker repository is a lightweight virtual machine image.
-    
-    NOTE: store()-ing a DockerRepository created in the Python client will always result in it being treated as a 
-    reference to an external Docker repository that is not managed by synapse. 
+
+    NOTE: store()-ing a DockerRepository created in the Python client will always result in it being treated as a
+    reference to an external Docker repository that is not managed by synapse.
     To upload a docker image that is managed by Synapse please use the official Docker client and read
      http://docs.synapse.org/articles/docker.html for instructions on uploading a Docker Image to Synapse
-    
+
     :param repositoryName: the name of the Docker Repository. Usually in the format: [host[:port]/]path.
      If host is not set, it will default to that of DockerHub. port can only be specified if the host is also specified.
     :param parent: the parent project for the Docker repository
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param local_state:     Internal use only
-    
+
     :return:  an object of type :py:class:`synapseclient.entity.DockerRepository`
     """
     _synapse_entity_type = 'org.sagebionetworks.repo.model.docker.DockerRepository'
@@ -763,4 +773,3 @@ def is_container(entity):
     else:
         return False
     return concreteType in (Project._synapse_entity_type, Folder._synapse_entity_type)
-

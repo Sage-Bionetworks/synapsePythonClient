@@ -5,7 +5,7 @@ Unit tests for the Synapse Client for Python
 import logging
 import sys
 
-from synapseclient import *
+from synapseclient import Synapse
 from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 
 

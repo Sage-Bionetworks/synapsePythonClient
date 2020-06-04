@@ -7,7 +7,7 @@ from synapseclient.core.sts_transfer import StsTokenStore, _TokenCache, with_bot
 
 from synapseclient.core.utils import datetime_to_iso
 
-import mock
+from unittest import mock
 from nose.tools import assert_equal, assert_false, assert_is, assert_raises, assert_true
 
 

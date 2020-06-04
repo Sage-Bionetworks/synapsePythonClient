@@ -15,7 +15,7 @@ import shutil
 import tempfile
 
 
-from synapseclient import *
+from synapseclient import Entity, Synapse, Project
 from synapseclient.core import utils
 from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 
@@ -37,7 +37,7 @@ def setup_module(module):
     syn.login()
     module.syn = syn
     module._to_cleanup = []
-    
+
     # Make one project for all the tests to use
     project = syn.store(Project(name="integration_test_project"+str(uuid.uuid4())))
     schedule_for_cleanup(project)

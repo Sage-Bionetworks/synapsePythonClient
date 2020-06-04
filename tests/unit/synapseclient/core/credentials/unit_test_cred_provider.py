@@ -1,9 +1,16 @@
 import base64
-import mock
-from mock import patch
+from unittest.mock import create_autospec, patch
 from nose.tools import assert_equals, assert_is_none, assert_is_instance
 
-from synapseclient.core.credentials.credential_provider import *
+from synapseclient.core.credentials.credential_provider import (
+    cached_sessions,
+    CachedCredentialsProvider,
+    ConfigFileCredentialsProvider,
+    SynapseCredentialsProvider,
+    SynapseCredentialsProviderChain,
+    UserArgsCredentialsProvider,
+    UserArgsSessionTokenCredentialsProvider,
+)
 from synapseclient.core.credentials.cred_data import UserLoginArgs, SynapseCredentials
 from tests import unit
 
@@ -15,7 +22,7 @@ def setup_module(module):
 class TestSynapseCredentialsProviderChain(object):
 
     def setup(self):
-        self.cred_provider = mock.create_autospec(SynapseCredentialsProvider)
+        self.cred_provider = create_autospec(SynapseCredentialsProvider)
         self.user_login_args = UserLoginArgs(*(None,) * 4)  # user login args don't matter for these tests
         self.credential_provider_chain = SynapseCredentialsProviderChain([self.cred_provider])
 
@@ -40,8 +47,8 @@ class TestSynapseCredentialsProviderChain(object):
         self.cred_provider.get_synapse_credentials.assert_called_once_with(syn, self.user_login_args)
 
     def test_get_credentials__multiple_providers(self):
-        cred_provider2 = mock.create_autospec(SynapseCredentialsProvider)
-        cred_provider3 = mock.create_autospec(SynapseCredentialsProvider)
+        cred_provider2 = create_autospec(SynapseCredentialsProvider)
+        cred_provider3 = create_autospec(SynapseCredentialsProvider)
 
         self.cred_provider.get_synapse_credentials.return_value = None
         cred_provider2.get_synapse_credentials.return_value = SynapseCredentials("asdf",

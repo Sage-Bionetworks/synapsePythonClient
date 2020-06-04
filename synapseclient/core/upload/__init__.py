@@ -3,5 +3,5 @@
 # The Synapse Engineering team is free to change their signatures and implementations anytime.
 # Please use them at your own risk.
 
-from .upload_functions import upload_file_handle, upload_synapse_s3
-from .multipart_upload import multipart_upload_file, multipart_upload_string
+from .upload_functions import upload_file_handle, upload_synapse_s3  # noqa
+from .multipart_upload import multipart_upload_file, multipart_upload_string  # noqa

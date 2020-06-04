@@ -19,4 +19,3 @@ def test_datetime_json():
     datetime_json_str = json.dumps(datetime_obj)
     datetime_from_json = datetime.datetime.strptime(json.loads(datetime_json_str), "%Y-%m-%d %H:%M:%S.%f")
     assert_equals(datetime_obj, datetime_from_json)
-

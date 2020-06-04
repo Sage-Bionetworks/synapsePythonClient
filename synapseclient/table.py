@@ -229,7 +229,7 @@ Schema
 .. autoclass:: synapseclient.table.Schema
    :members:
    :noindex:
-   
+
 .. autoclass:: synapseclient.table.EntityViewSchema
    :members:
    :noindex:
@@ -302,7 +302,7 @@ import json
 from builtins import zip
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
-from synapseclient.core.exceptions import *
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, Versionable, entity_type_to_class
 from synapseclient.core.constants import concrete_types
@@ -346,6 +346,7 @@ def _get_view_type_mask(types_to_include):
         mask = mask | input.value
     return mask
 
+
 def _get_view_type_mask_for_deprecated_type(type):
     if not type:
         raise ValueError("Please specify the deprecated type to convert to viewTypeMask")
@@ -360,9 +361,9 @@ def _get_view_type_mask_for_deprecated_type(type):
 
 def test_import_pandas():
     try:
-        import pandas as pd
+        import pandas as pd  # noqa F401
     # used to catch ImportError, but other errors can happen (see SYNPY-177)
-    except:
+    except:  # noqa
         sys.stderr.write("""\n\nPandas not installed!\n
         The synapseclient package recommends but doesn't require the
         installation of Pandas. If you'd like to use Pandas DataFrames,
@@ -683,7 +684,7 @@ class Schema(SchemaBase):
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param local_state:     Internal use only
-                            
+
     Example::
 
         cols = [Column(name='Isotope', columnType='STRING'),
@@ -734,11 +735,11 @@ class EntityViewSchema(SchemaBase):
     :param properties:                      A map of Synapse properties
     :param annotations:                     A map of user defined annotations
     :param local_state:                     Internal use only
-    
+
     Example::
         from synapseclient import EntityViewType
 
-        project_or_folder = syn.get("syn123")  
+        project_or_folder = syn.get("syn123")
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
          includeEntityTypes=[EntityViewType.FILE]))
     """
@@ -1084,8 +1085,8 @@ class RowSet(AppendableRowset):
         super(RowSet, self).__init__(schema, **kwargs)
 
     def _synapse_store(self, syn):
-            response = super(RowSet, self)._synapse_store(syn)
-            return response.get('rowReferenceSet', response)
+        response = super(RowSet, self)._synapse_store(syn)
+        return response.get('rowReferenceSet', response)
 
     def _synapse_delete(self, syn):
         """
@@ -1197,7 +1198,7 @@ def build_table(name, parent, values):
     try:
         import pandas as pd
         pandas_available = True
-    except:
+    except:  # noqa
         pandas_available = False
 
     if not pandas_available:
@@ -1223,8 +1224,7 @@ def Table(schema, values, **kwargs):
                       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
                       - a dict which will be wrapped by a Pandas \
                        `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
-      
-      
+
     :return: a Table object suitable for storing
 
     Usually, the immediate next step after creating a Table object is to store it::
@@ -1242,7 +1242,7 @@ def Table(schema, values, **kwargs):
     try:
         import pandas as pd
         pandas_available = True
-    except:
+    except:  # noqa
         pandas_available = False
 
     # a RowSet
@@ -1388,7 +1388,7 @@ class TableQueryResult(TableAbstractBaseClass):
     The TableQueryResult object can be used to iterate over results of a query.
 
     Example ::
-    
+
         results = syn.tableQuery("select * from syn1234")
         for row in results:
             print(row)
@@ -1421,8 +1421,10 @@ class TableQueryResult(TableAbstractBaseClass):
             etag=self.rowset.get('etag', None))
 
     def _synapse_store(self, syn):
-        raise SynapseError("A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a"
-                           " DataFrame or RowSet instead.")
+        raise SynapseError(
+            "A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a"
+            " DataFrame or RowSet instead."
+        )
 
     def asDataFrame(self, rowIdAndVersionInIndex=True):
         """
@@ -1687,11 +1689,12 @@ class CsvFileTable(TableAbstractBaseClass):
         # if the column already exists verify the column data is same as what we parsed
         if col_name in dataframe.columns:
             if dataframe[col_name].tolist() != insert_column_data:
-                raise SynapseError(("A column named '{0}' already exists and does not match the '{0}' values present in"
-                                    " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
-                                    " column for your data because it is necessary for version tracking in Synapse's"
-                                    " tables")
-                                   .format(col_name))
+                raise SynapseError(
+                    ("A column named '{0}' already exists and does not match the '{0}' values present in"
+                     " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
+                     " column for your data because it is necessary for version tracking in Synapse's"
+                     " tables").format(col_name)
+                )
         else:
             dataframe.insert(insert_index, col_name, insert_column_data)
 
@@ -1804,7 +1807,7 @@ class CsvFileTable(TableAbstractBaseClass):
                                         (and row_etag if it exists)
         :param convert_to_datetime:     If set to True, will convert all Synapse DATE columns from UNIX timestamp
                                         integers into UTC datetime objects
-        :return: 
+        :return:
         """
         test_import_pandas()
         import pandas as pd
