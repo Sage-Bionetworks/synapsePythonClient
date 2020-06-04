@@ -39,7 +39,6 @@ def test_download_check_md5():
 
 def test_resume_partial_download():
     original_file = utils.make_bogus_data_file(40000)
-    utils.md5_for_file(original_file).hexdigest()
 
     entity = File(original_file, parent=project['id'])
     entity = syn.store(entity)
