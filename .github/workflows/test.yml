@@ -55,7 +55,7 @@ jobs:
         run: |
           python -m venv venv
           source $VENV_ACTIVATE_PATH
-          pip install -e .[develop,pandas]
+          pip install -e ".[tests,pandas]"
 
       - name: run-tests
         shell: bash

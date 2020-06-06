@@ -26,7 +26,11 @@ data_files =\
     if not os.path.exists(os.path.expanduser('~/.synapseConfig'))\
     else []
 
-test_deps = ['nose', 'flake8']
+test_deps = [
+    'coverage',
+    'flake8',
+    'nose',
+]
 
 setuptools.setup(
     # basic
