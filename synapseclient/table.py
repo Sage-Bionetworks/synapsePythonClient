@@ -944,11 +944,11 @@ class SubmissionViewSchema(SchemaBase):
         if self.addDefaultViewColumns:
             additional_columns.extend(syn._get_default_submission_view_columns())
 
-    #     # get default annotations
-    #     if self.addAnnotationColumns:
-    #         anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self['viewTypeMask'])
-    #                         if x['name'] not in self.ignoredAnnotationColumnNames]
-    #         additional_columns.extend(anno_columns)
+        # get default annotations
+        if self.addAnnotationColumns:
+            anno_columns = [x for x in syn._get_annotation_submission_view_columns(self.scopeIds)
+                            if x['name'] not in self.ignoredAnnotationColumnNames]
+            additional_columns.extend(anno_columns)
 
         self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
 
