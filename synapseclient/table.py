@@ -952,7 +952,7 @@ class SubmissionViewSchema(SchemaBase):
 
         self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
 
-    #     # set these boolean flags to false so they are not repeated.
+        # set these boolean flags to false so they are not repeated.
         self.addDefaultViewColumns = False
         self.addAnnotationColumns = False
 
