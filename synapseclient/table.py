@@ -880,19 +880,19 @@ class SubmissionViewSchema(SchemaBase):
                                             The default columns will be added after a call to
                                             :py:meth:`synapseclient.Synapse.store`.
     :param addAnnotationColumns:            If true, adds columns for all annotation keys defined across all Entities in
-                                            the EntityViewSchema's scope. Defaults to True.
+                                            the SubmissionViewSchema's scope. Defaults to True.
                                             The annotation columns will be added after a call to
                                             :py:meth:`synapseclient.Synapse.store`.
     :param ignoredAnnotationColumnNames:    A list of strings representing annotation names.
                                             When addAnnotationColumns is True, the names in this list will not be
-                                            automatically added as columns to the EntityViewSchema if they exist in any
+                                            automatically added as columns to the SubmissionViewSchema if they exist in any
                                             of the defined scopes.
     :param properties:                      A map of Synapse properties
     :param annotations:                     A map of user defined annotations
     :param local_state:                     Internal use only
 
     Example::
-        from synapseclient import EntityViewType
+        from synapseclient import SubmissionViewSchema
 
         project_or_folder = syn.get("syn123")
         schema = syn.store(SubmissionViewSchema(name='My Submission View', parent=project, scopes=['9614543']))
