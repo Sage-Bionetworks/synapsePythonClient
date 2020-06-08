@@ -3449,6 +3449,15 @@ class Synapse(object):
         return [Column(**col)
                 for col in self.restGET("/column/tableview/defaults?viewTypeMask=%s" % view_type_mask)['list']]
 
+    @memoize
+    def _get_default_submission_view_columns(self):
+        return [
+            Column(**col)
+            for col in self.restGET(
+                "/column/tableview/defaults?viewEntityType=submissionview"
+            )['list']
+        ]
+
     def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
         view_scope = {'scope': scope_ids,
                       'viewTypeMask': view_type_mask}
