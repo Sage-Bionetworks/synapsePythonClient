@@ -954,7 +954,7 @@ class SubmissionViewSchema(SchemaBase):
 
     #     # set these boolean flags to false so they are not repeated.
         self.addDefaultViewColumns = False
-    #     self.addAnnotationColumns = False
+        self.addAnnotationColumns = False
 
         super(SubmissionViewSchema, self)._before_synapse_store(syn)
 
