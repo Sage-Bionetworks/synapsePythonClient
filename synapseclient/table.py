@@ -874,7 +874,7 @@ class SubmissionViewSchema(SchemaBase):
     :param name:                            the name of the Entity View Table object
     :param columns:                         a list of :py:class:`Column` objects or their IDs. These are optional.
     :param parent:                          the project in Synapse to which this table belongs
-    :param scopes:                          a list of Projects/Folders or their ids
+    :param scopes:                          a list of Evaluation Queues or their ids
     :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
                                             Defaults to True.
                                             The default columns will be added after a call to
