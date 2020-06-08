@@ -894,9 +894,8 @@ class SubmissionViewSchema(SchemaBase):
     Example::
         from synapseclient import EntityViewType
 
-        project_or_folder = syn.get("syn123")syn4990358
-        schema = syn.store(SubmissionViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
-         includeEntityTypes=[EntityViewType.FILE]))
+        project_or_folder = syn.get("syn123")
+        schema = syn.store(SubmissionViewSchema(name='My Submission View', parent=project, scopes=['9614543']))
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.SubmissionView'
