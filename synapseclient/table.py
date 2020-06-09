@@ -885,8 +885,8 @@ class SubmissionViewSchema(SchemaBase):
                                             :py:meth:`synapseclient.Synapse.store`.
     :param ignoredAnnotationColumnNames:    A list of strings representing annotation names.
                                             When addAnnotationColumns is True, the names in this list will not be
-                                            automatically added as columns to the SubmissionViewSchema if they exist in any
-                                            of the defined scopes.
+                                            automatically added as columns to the SubmissionViewSchema if they exist in
+                                            any of the defined scopes.
     :param properties:                      A map of Synapse properties
     :param annotations:                     A map of user defined annotations
     :param local_state:                     Internal use only
