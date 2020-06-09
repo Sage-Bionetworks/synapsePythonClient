@@ -3087,8 +3087,8 @@ class Synapse(object):
         snapshot_body = {"snapshotComment": comment,
                          "snapshotLabel": label,
                          "snapshotActivityId": activity}
-        snapshot = self.syn.restPOST("/entity/{}/table/snapshot".format(id_of(table)),
-                                     body=json.dumps(snapshot_body))
+        snapshot = self.restPOST("/entity/{}/table/snapshot".format(id_of(table)),
+                                 body=json.dumps(snapshot_body))
         return snapshot
 
     def _async_table_update(self, table, changes=[], create_snapshot=False,
@@ -3110,8 +3110,8 @@ class Synapse(object):
                              'snapshotOptions': {'snapshotComment': comment,
                                                  'snapshotLabel': label,
                                                  'snapshotActivityId': activity}}
-        snapshot = self.syn.restPOST("/entity/{}/table/transaction/async/start".format(id_of(table)),
-                                     body=json.dumps(table_update_body))
+        snapshot = self.restPOST("/entity/{}/table/transaction/async/start".format(id_of(table)),
+                                 body=json.dumps(table_update_body))
         return snapshot
 
     def getTableColumns(self, table):

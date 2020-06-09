@@ -19,6 +19,7 @@ from synapseclient import (
     DockerRepository,
     Entity,
     EntityViewSchema,
+    Schema,
     File,
     Folder,
     Team,
@@ -1687,3 +1688,68 @@ def test_get_submission_with_annotations():
         )
 
         assert_equal(evaluation_id, response["evaluationId"])
+
+
+def test__create_table_snapshot():
+    """Testing creating table snapshots"""
+    snapshot = {'snapshotVersionNumber': 2}
+    with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
+        syn._create_table_snapshot("syn1234", comment="foo", label="new_label",
+                                   activity=2)
+        restpost.assert_called_once_with(
+            "/entity/syn1234/table/snapshot",
+            body = '{"snapshotComment": "foo", "snapshotLabel": "new_label", '
+                   '"snapshotActivityId": 2}'
+        )
+
+
+def test__async_table_update():
+    """Async table update"""
+    snapshot = {'snapshotVersionNumber': 2}
+    with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
+        syn._async_table_update("syn1234", create_snapshot=True,
+                                   comment="foo", label="new_label",
+                                   activity=2)
+        restpost.assert_called_once_with(
+            "/entity/syn1234/table/transaction/async/start",
+            body = '{"changes": [], "createSnapshot": true, '
+                   '"snapshotOptions": {"snapshotComment": "foo", '
+                   '"snapshotLabel": "new_label", '
+                   '"snapshotActivityId": 2}}'
+        )
+
+
+def test_create_snapshot_table():
+    """Create Table snapshot"""
+    table = Mock(Schema)
+    with patch.object(syn, 'get', return_value=table) as get,\
+            patch.object(syn, '_create_table_snapshot') as create:
+        syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2)
+        create.assert_called_once_with(
+            "syn1234",
+            comment="foo", label="new_label",
+            activity=2
+        )
+
+
+def test_create_snapshot_entityview():
+    """Create Entity View"""
+    entity_view = Mock(EntityViewSchema)
+    with patch.object(syn, 'get', return_value=entity_view) as get,\
+            patch.object(syn, '_async_table_update') as update:
+        syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2)
+        update.assert_called_once_with(
+            "syn1234", create_snapshot=True,
+            comment="foo", label="new_label",
+            activity=2
+        )
+
+
+def test_create_snapshot_raiseerror():
+    """Raise error if entity view or table not passed in"""
+    wrong_type = Mock()
+    with patch.object(syn, 'get', return_value=wrong_type):
+        assert_raises(
+            ValueError,
+            "This function only accepts Synapse ids of Tables or EntityViews"
+        )
