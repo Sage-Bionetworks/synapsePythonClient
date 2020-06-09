@@ -1708,8 +1708,8 @@ def test__async_table_update():
     snapshot = {'snapshotVersionNumber': 2}
     with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
         syn._async_table_update("syn1234", create_snapshot=True,
-                                   comment="foo", label="new_label",
-                                   activity=2)
+                                comment="foo", label="new_label",
+                                activity=2)
         restpost.assert_called_once_with(
             "/entity/syn1234/table/transaction/async/start",
             body = '{"changes": [], "createSnapshot": true, '
