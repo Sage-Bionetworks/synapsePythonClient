@@ -24,7 +24,7 @@ import synapseclient
 import sys
 
 
-_VERSION_URL = 'https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/master/synapseclient/synapsePythonClient'
+_VERSION_URL = 'https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/master/synapseclient/synapsePythonClient'  # noqa
 
 
 def version_check(current_version=None, version_url=_VERSION_URL, check_for_point_releases=False):

@@ -48,6 +48,9 @@ div.body {
     margin: 0;
     padding: 0.5em 20px 20px 20px;
 }
+div.bodywrapper {
+    margin: 0 0 0 calc(210px + 30px);
+}
 
 div.related {
     font-size: 1em;
@@ -398,6 +401,15 @@ p.versionchanged span.versionmodified {
     margin-right: 0.2em;
     padding: 0.1em;
     background-color: #DCE6A0;
+}
+
+dl.field-list > dt {
+    color: white;
+    background-color: #82A0BE;
+}
+
+dl.field-list > dd {
+    background-color: #f7f7f7;
 }
 
 /* -- table styles ---------------------------------------------------------- */

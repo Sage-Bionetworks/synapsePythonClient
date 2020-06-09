@@ -9,11 +9,12 @@ import configparser
 
 from datetime import datetime
 from nose.tools import assert_raises, assert_equals, assert_true, assert_false, assert_not_in
-from mock import patch
+from unittest.mock import patch
 from synapseclient import client
 
-from synapseclient import *
-from synapseclient.core.exceptions import *
+from synapseclient import Activity, Annotations, File, Folder, login, Project, Synapse, Team
+from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseHTTPError, SynapseNoCredentialsError
+import synapseclient.core.utils as utils
 from synapseclient.core.version_check import version_check
 from tests import integration
 from tests.integration import schedule_for_cleanup
@@ -58,7 +59,7 @@ def test_login():
         # mock to make the config file empty
         with patch.object(syn, "_get_config_authentication", return_value={}):
 
-            # Login with no credentials 
+            # Login with no credentials
             assert_raises(SynapseNoCredentialsError, syn.login)
 
             # remember login info in cache
@@ -102,8 +103,8 @@ def test_entity_version():
     entity['path'] = utils.make_bogus_data_file()
     schedule_for_cleanup(entity['path'])
     entity = syn.store(entity)
-    
-    syn.setAnnotations(entity, {'fizzbuzz': 111222})
+
+    syn.set_annotations(Annotations(entity, entity.etag, {'fizzbuzz': 111222}))
     entity = syn.get(entity)
     assert_equals(entity.versionNumber, 1)
 
@@ -111,11 +112,11 @@ def test_entity_version():
     entity.foo = 998877
     entity['name'] = 'foobarbat'
     entity['description'] = 'This is a test entity...'
-    entity = syn.store(entity, incrementVersion=True, versionLabel="Prada remix")
+    entity = syn.store(entity, forceVersion=True, versionLabel="Prada remix")
     assert_equals(entity.versionNumber, 2)
 
     # Get the older data and verify the random stuff is still there
-    annotations = syn.getAnnotations(entity, version=1)
+    annotations = syn.get_annotations(entity, version=1)
     assert_equals(annotations['fizzbuzz'][0], 111222)
     returnEntity = syn.get(entity, version=1)
     assert_equals(returnEntity.versionNumber, 1)
@@ -135,8 +136,8 @@ def test_entity_version():
     assert_equals(returnEntity.versionNumber, 1)
     assert_equals(returnEntity['fizzbuzz'][0], 111222)
     assert_not_in('foo', returnEntity)
-    
-    # Delete version 2 
+
+    # Delete version 2
     syn.delete(entity, version=2)
     returnEntity = syn.get(entity)
     assert_equals(returnEntity.versionNumber, 1)
@@ -147,14 +148,14 @@ def test_md5_query():
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
     repeated = File(path, parent=project['id'], description='Same data over and over again')
-    
+
     # Retrieve the data via MD5
     num = 5
     stored = []
     for i in range(num):
         repeated.name = 'Repeated data %d.dat' % i
         stored.append(syn.store(repeated).id)
-    
+
     # Although we expect num results, it is possible for the MD5 to be non-unique
     results = syn.md5Query(utils.md5_for_file(path).hexdigest())
     assert_equals(str(sorted(stored)), str(sorted([res['id'] for res in results])))
@@ -163,12 +164,12 @@ def test_md5_query():
 
 def test_uploadFile_given_dictionary():
     # Make a Folder Entity the old fashioned way
-    folder = {'concreteType': Folder._synapse_entity_type, 
+    folder = {'concreteType': Folder._synapse_entity_type,
               'parentId': project['id'],
               'name': 'fooDictionary',
               'foo': 334455}
     entity = syn.store(folder)
-    
+
     # Download and verify that it is the same file
     entity = syn.get(entity)
     assert_equals(entity.parentId, project.id)
@@ -222,6 +223,23 @@ def test_uploadFileEntity():
     assert_true(filecmp.cmp(fname, entity['path']))
 
 
+def test_download_multithreaded():
+    # Create a FileEntity
+    # Dictionaries default to FileEntity as a type
+    fname = utils.make_bogus_data_file()
+    schedule_for_cleanup(fname)
+    entity = File(name='testMultiThreadDownload' + str(uuid.uuid4()), path=fname, parentId=project['id'])
+    entity = syn.store(entity)
+
+    # Download and verify
+    syn.multi_threaded = True
+    entity = syn.get(entity)
+
+    assert_equals(entity['files'][0], os.path.basename(fname))
+    assert_true(filecmp.cmp(fname, entity['path']))
+    syn.multi_threaded = False
+
+
 def test_downloadFile():
     # See if the a "wget" works
     filename = utils.download_file("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
@@ -268,13 +286,13 @@ def test_provenance():
             """))
     schedule_for_cleanup(path)
     code_entity = syn.store(File(path, parent=project['id']))
-    
+
     # Create a new Activity asserting that the Code Entity was 'used'
     activity = Activity(name='random.gauss', description='Generate some random numbers')
     activity.used(code_entity, wasExecuted=True)
     activity.used({'name': 'Superhack', 'url': 'https://github.com/joe_coder/Superhack'}, wasExecuted=True)
     activity = syn.setProvenance(data_entity, activity)
-    
+
     # Retrieve and verify the saved Provenance record
     retrieved_activity = syn.getProvenance(data_entity)
     assert_equals(retrieved_activity, activity)
@@ -294,7 +312,7 @@ def test_provenance():
 def test_annotations():
     # Get the annotations of an Entity
     entity = syn.store(Folder(parent=project['id']))
-    anno = syn.getAnnotations(entity)
+    anno = syn.get_annotations(entity)
     assert_true(hasattr(anno, 'id'))
     assert_true(hasattr(anno, 'etag'))
     assert_equals(anno.id, entity.id)
@@ -302,10 +320,10 @@ def test_annotations():
 
     # Set the annotations, with keywords too
     anno['bogosity'] = 'total'
-    syn.setAnnotations(entity, anno, wazoo='Frank', label='Barking Pumpkin', shark=16776960)
+    syn.set_annotations(Annotations(entity, entity.etag, anno, wazoo='Frank', label='Barking Pumpkin', shark=16776960))
 
     # Check the update
-    annote = syn.getAnnotations(entity)
+    annote = syn.get_annotations(entity)
     assert_equals(annote['bogosity'], ['total'])
     assert_equals(annote['wazoo'], ['Frank'])
     assert_equals(annote['label'], ['Barking Pumpkin'])
@@ -316,14 +334,14 @@ def test_annotations():
     annote['phat_numbers'] = [1234.5678, 8888.3333, 1212.3434, 6677.8899]
     annote['goobers'] = ['chris', 'jen', 'jane']
     annote['present_time'] = datetime.now()
-    syn.setAnnotations(entity, annote)
-    
+    syn.set_annotations(annote)
+
     # Check it again
-    annotation = syn.getAnnotations(entity)
+    annotation = syn.get_annotations(entity)
     assert_equals(annotation['primes'], [2, 3, 5, 7, 11, 13, 17, 19, 23, 29])
     assert_equals(annotation['phat_numbers'], [1234.5678, 8888.3333, 1212.3434, 6677.8899])
     assert_equals(annotation['goobers'], ['chris', 'jen', 'jane'])
-    assert_equals(annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S'), \
+    assert_equals(annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S'),
                   annote['present_time'].strftime('%Y-%m-%d %H:%M:%S'))
 
 

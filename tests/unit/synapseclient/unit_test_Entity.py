@@ -1,10 +1,10 @@
 import collections
 from nose.tools import assert_raises, assert_true, assert_false, assert_equals, raises, assert_in, assert_is_instance
-from mock import patch
+from unittest.mock import patch
 
-from synapseclient import *
+from synapseclient import DockerRepository, Entity, File, Folder, Link, Project, Synapse
 from synapseclient.entity import split_entity_namespaces, is_container, is_versionable
-from synapseclient.core.exceptions import *
+from synapseclient.core.exceptions import SynapseMalformedEntityError
 
 
 def test_Entity():
@@ -19,7 +19,7 @@ def test_Entity():
         # Should be able to create an Entity from an Entity
         if i == 1:
             e = Entity.create(e)
-            
+
         assert_equals(e.parentId, 'syn1234')
         assert_equals(e['parentId'], 'syn1234')
         assert_equals(e.properties['parentId'], 'syn1234')
@@ -84,7 +84,7 @@ def test_Entity():
 
 def test_subclassing():
     """Test ability to subclass and add a member variable"""
-    
+
     # define a subclass of Entity to make sure subclassing and creating
     # a new member variable works
     class FoobarEntity(Entity):

@@ -81,3 +81,16 @@ To test a specific feature, specify the full path to the function to run:
 # Test table query functionality from the command line client
 nosetests -vs tests/integration/test_command_line_client.py:test_table_query
 ````
+
+### Code style
+
+The Synapse Python Client uses [`flake8`](https://pypi.org/project/flake8/) to enforce 
+[`PEP8`](https://legacy.python.org/dev/peps/pep-0008/) style consistency and to check for possible errors.
+You can verify your code matches these expectations by running the **flake8** command from the project root directory:
+
+```
+# ensure that you have the flake8 package installed
+pip install flake8
+
+flake8
+```

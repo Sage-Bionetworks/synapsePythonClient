@@ -14,7 +14,7 @@ class S3ClientWrapper:
     @staticmethod
     def _attempt_import_boto3():
         """
-        Check if pysftp is installed and give instructions if not.
+        Check if boto3 installed and give instructions if not.
         """
         return attempt_import("boto3",
                               "\n\nLibraries required for client authenticated S3 access are not installed!\n"
@@ -34,13 +34,31 @@ class S3ClientWrapper:
         return progress_callback
 
     @staticmethod
-    def download_file(bucket, endpoint_url, remote_file_key, download_file_path, profile_name=None, show_progress=True):
+    def download_file(bucket, endpoint_url, remote_file_key, download_file_path,
+                      *, profile_name=None, credentials=None, show_progress=True, transfer_config_kwargs=None):
+        """
+        Download a file from s3 using boto3.
 
-        boto3 = S3ClientWrapper._attempt_import_boto3()
-        # if we boto3 is importable, botocore should also be importable since it is a dependency of boto3
+        :param bucket:                  name of bucket to upload to
+        :param endpoint_url:            a boto3 compatible endpoint url
+        :param remote_file_key:         object key to upload the file to
+        :param download_file_path:      local path to save the file to
+        :param profile_name:            AWS profile name from local aws config, mutually exclusive with credentials
+        :param credentials:             a dictionary of AWS credentials to use, mutually exclusive with profile_name
+                                        (aws_access_key_id, aws_secret_access_key, aws_session_token)
+        :param show_progress:           whether to print progress indicator to console
+        :param transfer_config_kwargs:  boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
+
+        """
+
+        S3ClientWrapper._attempt_import_boto3()
+
         import botocore
+        import boto3.s3.transfer
+        transfer_config = boto3.s3.transfer.TransferConfig(**(transfer_config_kwargs or {}))
 
-        boto_session = boto3.session.Session(profile_name=profile_name)
+        session_args = credentials if credentials else {'profile_name': profile_name}
+        boto_session = boto3.session.Session(**session_args)
         s3 = boto_session.resource('s3', endpoint_url=endpoint_url)
 
         try:
@@ -51,10 +69,21 @@ class S3ClientWrapper:
                 s3_obj.load()
                 file_size = s3_obj.content_length
                 filename = os.path.basename(download_file_path)
-                progress_callback = S3ClientWrapper._create_progress_callback_func(file_size, filename,
-                                                                                   prefix='Downloading')
-            s3_obj.download_file(download_file_path, Callback=progress_callback)
+                progress_callback = S3ClientWrapper._create_progress_callback_func(
+                    file_size,
+                    filename,
+                    prefix='Downloading',
+                )
+
+            s3_obj.download_file(
+                download_file_path,
+                Callback=progress_callback,
+                Config=transfer_config,
+            )
+
+            # why return what we were passed...?
             return download_file_path
+
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
                 raise ValueError("The key:%s does not exist in bucket:%s.", remote_file_key, bucket)
@@ -62,13 +91,31 @@ class S3ClientWrapper:
                 raise
 
     @staticmethod
-    def upload_file(bucket, endpoint_url, remote_file_key, upload_file_path, profile_name=None, show_progress=True):
-        boto3 = S3ClientWrapper._attempt_import_boto3()
+    def upload_file(bucket, endpoint_url, remote_file_key, upload_file_path,
+                    *, profile_name=None, credentials=None, show_progress=True, transfer_config_kwargs=None):
+        """
+        Upload a file to s3 using boto3.
+
+        :param bucket:                  name of bucket to upload to
+        :param endpoint_url:            a boto3 compatible endpoint url
+        :param remote_file_key:         object key to upload the file to
+        :param upload_file_path:        local path of the file to upload
+        :param profile_name:            AWS profile name from local aws config, mutually exclusive with credentials
+        :param credentials:             a dictionary of AWS credentials to use, mutually exclusive with profile_name
+                                        (aws_access_key_id, aws_secret_access_key, aws_session_token)
+        :param show_progress:           whether to print progress indicator to console
+        :param transfer_config_kwargs:  boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
+        """
 
         if not os.path.isfile(upload_file_path):
             raise ValueError("The path: [%s] does not exist or is not a file", upload_file_path)
 
-        boto_session = boto3.session.Session(profile_name=profile_name)
+        S3ClientWrapper._attempt_import_boto3()
+        import boto3.s3.transfer
+        transfer_config = boto3.s3.transfer.TransferConfig(**(transfer_config_kwargs or {}))
+
+        session_args = credentials if credentials else {'profile_name': profile_name}
+        boto_session = boto3.session.Session(**session_args)
         s3 = boto_session.resource('s3', endpoint_url=endpoint_url)
 
         progress_callback = None
@@ -78,7 +125,12 @@ class S3ClientWrapper:
             progress_callback = S3ClientWrapper._create_progress_callback_func(file_size, filename, prefix='Uploading')
 
         # automatically determines whether to perform multi-part upload
-        s3.Bucket(bucket).upload_file(upload_file_path, remote_file_key, Callback=progress_callback)
+        s3.Bucket(bucket).upload_file(
+            upload_file_path,
+            remote_file_key,
+            Callback=progress_callback,
+            Config=transfer_config
+        )
         return upload_file_path
 
 
@@ -97,7 +149,7 @@ class SFTPWrapper:
                               "For Windows systems without a C/C++ compiler, install the appropriate binary "
                               "distribution of pycrypto from:\n"
                               "http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n"
-                              "For more information, see: http://docs.synapse.org/python/sftp.html")
+                              "For more information, see: http://python-docs.synapse.org/build/html/sftp.html")
 
     @staticmethod
     def _parse_for_sftp(url):

@@ -180,4 +180,3 @@ class WikiAttachment(DictObject):
 
     def __init__(self, **kwargs):
         super(WikiAttachment, self).__init__(**kwargs)
-

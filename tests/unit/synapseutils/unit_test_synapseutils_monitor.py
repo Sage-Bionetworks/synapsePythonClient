@@ -1,4 +1,4 @@
-from mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call
 from nose.tools import assert_equal, assert_in, assert_tuple_equal
 
 import synapseutils
@@ -15,7 +15,7 @@ def test_notifyMe__successful_call():
     owner_id = '12434'
     user_profile = {'ownerId': owner_id}
     with patch.object(syn, "sendMessage") as mocked_send_message,\
-         patch.object(syn, "getUserProfile", return_value=user_profile) as mocked_get_user_profile:
+            patch.object(syn, "getUserProfile", return_value=user_profile) as mocked_get_user_profile:
         mocked_func = MagicMock()
 
         @notifyMe(syn, messageSubject=subject)
@@ -33,7 +33,7 @@ def test_notifyMe__exception_thrown_and_retry_fail():
     owner_id = '12434'
     user_profile = {'ownerId': owner_id}
     with patch.object(syn, "sendMessage") as mocked_send_message,\
-         patch.object(syn, "getUserProfile", return_value=user_profile):
+            patch.object(syn, "getUserProfile", return_value=user_profile):
         mocked_func = MagicMock(side_effect=[Exception('first time fails'), 'second time is Fine'])
 
         @notifyMe(syn, messageSubject=subject, retries=1)

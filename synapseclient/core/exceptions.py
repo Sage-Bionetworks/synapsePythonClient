@@ -62,9 +62,20 @@ class SynapseHTTPError(SynapseError, requests.exceptions.HTTPError):
     `HTTPError <http://docs.python-requests.org/en/latest/api/?highlight=exceptions#requests.exceptions.HTTPError>`_"""
 
 
+class SynapseUploadAbortedException(SynapseError):
+    """Raised when a worker thread detects the upload was
+    aborted and stops further processing."""
+    pass
+
+
+class SynapseUploadFailedException(SynapseError):
+    """Raised when an upload failed. Should be chained to a cause Exception"""
+    pass
+
+
 def _raise_for_status(response, verbose=False):
     """
-    Replacement for requests.response.raise_for_status(). 
+    Replacement for requests.response.raise_for_status().
     Catches and wraps any Synapse-specific HTTP errors with appropriate text.
     """
 
@@ -135,7 +146,7 @@ def _raise_for_status(response, verbose=False):
                 message += "\n\n>>>>>> Request <<<<<<\n%s %s" % (response.request.url, response.request.method)
                 message += "\n>>> Headers: %s" % response.request.headers
                 message += "\n>>> Body: %s" % response.request.body
-            except:
+            except:  # noqa
                 message += "\nCould not append all request info"
 
             try:
@@ -143,7 +154,7 @@ def _raise_for_status(response, verbose=False):
                 message += "\n\n>>>>>> Response <<<<<<\n%s" % str(response)
                 message += "\n>>> Headers: %s" % response.headers
                 message += "\n>>> Body: %s\n\n" % response.text
-            except:
+            except:  # noqa
                 message += "\nCould not append all response info"
 
         raise SynapseHTTPError(message, response=response)

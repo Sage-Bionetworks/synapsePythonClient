@@ -1,6 +1,6 @@
 from nose.tools import assert_raises, assert_equals
 
-from synapseclient import *
+from synapseclient import Evaluation, Submission
 
 
 def test_Evaluation():
@@ -21,5 +21,3 @@ def test_Submission():
     """Test the construction and accessors of Evaluation objects."""
 
     assert_raises(KeyError, Submission, foo='bar')
-
-

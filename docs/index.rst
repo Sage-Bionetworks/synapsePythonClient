@@ -14,6 +14,7 @@ Articles
    Credentials
    Views
    Upload
+   S3Storage
 
 =========
 Reference

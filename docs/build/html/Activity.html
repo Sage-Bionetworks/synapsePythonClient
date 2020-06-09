@@ -2,20 +2,19 @@
 
 <!doctype html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Provenance &#8212; Synapse Python Client 1.9.3 documentation</title>
+    <meta charset="utf-8" />
+    <title>Provenance &#8212; Synapse Python Client 2.0.0 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
-    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script type="text/javascript" src="_static/jquery.js"></script>
-    <script type="text/javascript" src="_static/underscore.js"></script>
-    <script type="text/javascript" src="_static/doctools.js"></script>
-    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <script type="text/javascript" src="_static/bizstyle.js"></script>
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="_static/bizstyle.js"></script>
     <link rel="shortcut icon" href="_static/favicon.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -23,7 +22,7 @@
     <link rel="prev" title="Evaluations" href="Evaluation.html" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <!--[if lt IE 9]>
-    <script type="text/javascript" src="_static/css3-mediaqueries.js"></script>
+    <script src="_static/css3-mediaqueries.js"></script>
     <![endif]-->
   </head><body>
 <div class="header">
@@ -46,23 +45,21 @@
         <li class="right" >
           <a href="Evaluation.html" title="Evaluations"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.9.3 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.0.0 documentation</a> &#187;</li> 
       </ul>
     </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
   <h3><a href="index.html">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Provenance</a><ul>
@@ -103,7 +100,7 @@
 combination of data and code which are either <strong>used</strong> or <strong>executed</strong>.</p>
 <div class="section" id="imports">
 <h2>Imports<a class="headerlink" href="#imports" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Activity</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">Activity</span>
 </pre></div>
 </div>
 </div>
@@ -136,7 +133,7 @@ in syn1234 and syn1235.</p>
 </div>
 <div class="section" id="recording-data-source">
 <h2>Recording data source<a class="headerlink" href="#recording-data-source" title="Permalink to this headline">¶</a></h2>
-<p>The <a class="reference internal" href="Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a> has shortcuts for specifying the used and executed lists directly.
+<p>The <a class="reference internal" href="index.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a> has shortcuts for specifying the used and executed lists directly.
 For example, when storing a data entity, it’s a good idea to record its source:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">excellent_data</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">excellent_data</span><span class="p">,</span>
                            <span class="n">activityName</span><span class="o">=</span><span class="s1">&#39;data-r-us&#39;</span>
@@ -147,45 +144,42 @@ For example, when storing a data entity, it’s a good idea to record its source
 </div>
 <div class="section" id="activity">
 <h2>Activity<a class="headerlink" href="#activity" title="Permalink to this headline">¶</a></h2>
-<dl class="class">
+<dl class="py class">
 <dt id="synapseclient.activity.Activity">
-<em class="property">class </em><code class="descclassname">synapseclient.activity.</code><code class="descname">Activity</code><span class="sig-paren">(</span><em>name=None</em>, <em>description=None</em>, <em>used=None</em>, <em>executed=None</em>, <em>data={}</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.activity.Activity" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">synapseclient.activity.</code><code class="sig-name descname">Activity</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">description</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">used</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">executed</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">data</span><span class="o">=</span><span class="default_value">{}</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.activity.Activity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Represents the provenance of a Synapse Entity.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>name</strong> – name of the Activity</li>
-<li><strong>description</strong> – a short text description of the Activity</li>
-<li><strong>used</strong> – <p>Either a list of:
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – name of the Activity</p></li>
+<li><p><strong>description</strong> – a short text description of the Activity</p></li>
+<li><p><strong>used</strong> – <p>Either a list of:
 - <a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Reference.html">reference objects</a></p>
 <blockquote>
-<div>(e.g. <code class="docutils literal notranslate"><span class="pre">[{'targetId':'syn123456',</span> <span class="pre">'targetVersionNumber':1}]</span></code>)</div></blockquote>
+<div><p>(e.g. <code class="docutils literal notranslate"><span class="pre">[{'targetId':'syn123456',</span> <span class="pre">'targetVersionNumber':1}]</span></code>)</p>
+</div></blockquote>
 <ul>
-<li>a list of Synapse Entities or Entity IDs</li>
-<li>a list of URL’s</li>
+<li><p>a list of Synapse Entities or Entity IDs</p></li>
+<li><p>a list of URL’s</p></li>
 </ul>
-</li>
-<li><strong>executed</strong> – A code resource that was executed to generate the Entity.</li>
-<li><strong>data</strong> – A dictionary representation of an Activity, with fields ‘name’, ‘description’ and ‘used’
-(a list of reference objects)</li>
+</p></li>
+<li><p><strong>executed</strong> – A code resource that was executed to generate the Entity.</p></li>
+<li><p><strong>data</strong> – A dictionary representation of an Activity, with fields ‘name’, ‘description’ and ‘used’
+(a list of reference objects)</p></li>
 </ul>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 <p>See also: The <a class="reference external" href="http://www.w3.org/TR/prov-o/">W3C’s provenance ontology</a></p>
-<dl class="method">
+<dl class="py method">
 <dt id="synapseclient.activity.Activity.executed">
-<code class="descname">executed</code><span class="sig-paren">(</span><em>target=None</em>, <em>targetVersion=None</em>, <em>url=None</em>, <em>name=None</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.activity.Activity.executed" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">executed</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">target</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">targetVersion</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">url</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">name</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.activity.Activity.executed" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a code resource that was executed during the activity.
 See <a class="reference internal" href="#synapseclient.activity.Activity.used" title="synapseclient.activity.Activity.used"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.activity.Activity.used()</span></code></a></p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="synapseclient.activity.Activity.used">
-<code class="descname">used</code><span class="sig-paren">(</span><em>target=None</em>, <em>targetVersion=None</em>, <em>wasExecuted=None</em>, <em>url=None</em>, <em>name=None</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.activity.Activity.used" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">used</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">target</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">targetVersion</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">wasExecuted</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">url</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">name</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.activity.Activity.used" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a resource used by the activity.</p>
 <p>This method tries to be as permissive as possible. It accepts a string which might be a synapse ID or a URL,
 a synapse entity, a UsedEntity or UsedURL dictionary or a list containing any combination of these.</p>
@@ -220,24 +214,6 @@ For example, this UsedURL will have wasExecuted set to False:</p>
 </div>
 </dd></dl>
 
-<dl class="method">
-<dt id="synapseclient.activity.Activity.usedEntity">
-<code class="descname">usedEntity</code><span class="sig-paren">(</span><em>target</em>, <em>targetVersion=None</em>, <em>wasExecuted=False</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.activity.Activity.usedEntity" title="Permalink to this definition">¶</a></dt>
-<dd><p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Activity.used()</span></code>.</p>
-<div class="deprecated">
-<p><span class="versionmodified">Deprecated since version 1.9.0: </span>This will be removed in 2.0. Please use used() instead.</p>
-</div>
-</dd></dl>
-
-<dl class="method">
-<dt id="synapseclient.activity.Activity.usedURL">
-<code class="descname">usedURL</code><span class="sig-paren">(</span><em>url</em>, <em>name=None</em>, <em>wasExecuted=False</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.activity.Activity.usedURL" title="Permalink to this definition">¶</a></dt>
-<dd><p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Activity.used()</span></code>.</p>
-<div class="deprecated">
-<p><span class="versionmodified">Deprecated since version 1.9.0: </span>This will be removed in 2.0. Please use used() instead.</p>
-</div>
-</dd></dl>
-
 </dd></dl>
 
 </div>
@@ -264,13 +240,13 @@ For example, this UsedURL will have wasExecuted set to False:</p>
         <li class="right" >
           <a href="Evaluation.html" title="Evaluations"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.9.3 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.0.0 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jun 28, 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.1.
+      Last updated on May 27, 2020.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

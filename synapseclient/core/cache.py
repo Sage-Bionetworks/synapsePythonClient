@@ -10,7 +10,7 @@ Implements a cache on local disk for Synapse file entities and other objects wit
 This is part of the internal implementation of the client and should not be accessed directly by users of the client.
 """
 
-import collections
+import collections.abc
 import datetime
 import json
 import operator
@@ -20,7 +20,7 @@ import shutil
 import math
 
 from synapseclient.core.lock import Lock
-from synapseclient.core.exceptions import *
+from synapseclient.core import utils
 
 
 CACHE_ROOT_DIR = os.path.join('~', '.synapseCache')
@@ -87,7 +87,7 @@ class Cache:
         self.cache_map_file_name = ".cacheMap"
 
     def get_cache_dir(self, file_handle_id):
-        if isinstance(file_handle_id, collections.Mapping):
+        if isinstance(file_handle_id, collections.abc.Mapping):
             if 'dataFileHandleId' in file_handle_id:
                 file_handle_id = file_handle_id['dataFileHandleId']
             elif 'concreteType' in file_handle_id \
@@ -184,7 +184,7 @@ class Cache:
                                 # or have been modified
                                 del cache_map[cached_file_path]
                                 removed_entry_from_cache = True
-                                
+
                     if removed_entry_from_cache:
                         # write cache_map with non-existent entries removed
                         self._write_cache_map(cache_dir, cache_map)
@@ -238,7 +238,7 @@ class Cache:
         cache_dir = self.get_cache_dir(file_handle_id)
 
         # if we've passed an entity and not a path, get path from entity
-        if path is None and isinstance(file_handle_id, collections.Mapping) and 'path' in file_handle_id:
+        if path is None and isinstance(file_handle_id, collections.abc.Mapping) and 'path' in file_handle_id:
             path = file_handle_id['path']
 
         with Lock(self.cache_map_file_name, dir=cache_dir):
@@ -269,10 +269,10 @@ class Cache:
         """
         for item1 in os.listdir(self.cache_root_dir):
             path1 = os.path.join(self.cache_root_dir, item1)
-            if os.path.isdir(path1) and re.match('\d+', item1):
+            if os.path.isdir(path1) and re.match('\\d+', item1):
                 for item2 in os.listdir(path1):
                     path2 = os.path.join(path1, item2)
-                    if os.path.isdir(path2) and re.match('\d+', item2):
+                    if os.path.isdir(path2) and re.match('\\d+', item2):
                         yield path2
 
     def purge(self, before_date, dry_run=False):
@@ -297,4 +297,3 @@ class Cache:
                     shutil.rmtree(cache_dir)
                 count += 1
         return count
-
