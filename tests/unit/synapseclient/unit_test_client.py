@@ -1725,6 +1725,7 @@ def test_create_snapshot_table():
     with patch.object(syn, 'get', return_value=table) as get,\
             patch.object(syn, '_create_table_snapshot') as create:
         syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2)
+        get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
         create.assert_called_once_with(
             "syn1234",
             comment="foo", label="new_label",
@@ -1733,11 +1734,12 @@ def test_create_snapshot_table():
 
 
 def test_create_snapshot_entityview():
-    """Create Entity View"""
+    """Create Entity View snapshot"""
     entity_view = Mock(EntityViewSchema)
     with patch.object(syn, 'get', return_value=entity_view) as get,\
             patch.object(syn, '_async_table_update') as update:
         syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2)
+        get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
         update.assert_called_once_with(
             "syn1234", create_snapshot=True,
             comment="foo", label="new_label",
@@ -1751,5 +1753,5 @@ def test_create_snapshot_raiseerror():
     with patch.object(syn, 'get', return_value=wrong_type):
         assert_raises(
             ValueError,
-            "This function only accepts Synapse ids of Tables or EntityViews"
+            syn.create_snapshot, "syn1234"
         )
