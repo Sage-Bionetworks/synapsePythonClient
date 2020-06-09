@@ -1698,7 +1698,7 @@ def test__create_table_snapshot():
                                    activity=2)
         restpost.assert_called_once_with(
             "/entity/syn1234/table/snapshot",
-            body = '{"snapshotComment": "foo", "snapshotLabel": "new_label", '
+            body='{"snapshotComment": "foo", "snapshotLabel": "new_label", '
                    '"snapshotActivityId": 2}'
         )
 
