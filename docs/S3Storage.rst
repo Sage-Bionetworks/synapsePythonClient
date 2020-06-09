@@ -99,7 +99,7 @@ by subsequent aws cli commands.
 
   .. code-block::
 
-    $ synapseclient get-sts-token -o shell syn123 read_write
+    $ synapse get-sts-token -o shell syn123 read_write
 
     export SYNAPSE_STS_S3_LOCATION="s3://my-external-synapse-bucket/path/within/bucket"
     export AWS_ACCESS_KEY_ID="<access_key_id>"
