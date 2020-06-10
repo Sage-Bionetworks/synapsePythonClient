@@ -77,6 +77,8 @@ Submission Status
 """
 
 from synapseclient.core.models.dict_object import DictObject
+from synapseclient.annotations import (from_synapse_annotations,
+                                       to_synapse_annotations)
 
 
 class Evaluation(DictObject):
@@ -195,12 +197,22 @@ class SubmissionStatus(DictObject):
         return '/evaluation/submission/%s/status' % id
 
     def __init__(self, **kwargs):
+        if kwargs.get("submissionAnnotations"):
+            kwargs['submissionAnnotations'] = from_synapse_annotations(
+                kwargs['submissionAnnotations']
+            )
+        else:
+            kwargs['submissionAnnotations'] = {}
         super(SubmissionStatus, self).__init__(kwargs)
 
     def postURI(self):
         return '/evaluation/submission/%s/status' % self.id
 
     def putURI(self):
+        if self.submissionAnnotations:
+            self.submissionAnnotations = to_synapse_annotations(
+                self.submissionAnnotations
+            )
         return '/evaluation/submission/%s/status' % self.id
 
     def deleteURI(self):
