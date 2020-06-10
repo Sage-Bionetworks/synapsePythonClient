@@ -929,7 +929,7 @@ class SubmissionViewSchema(SchemaBase):
 
     def add_scope(self, entities):
         """
-        :param entities: a Project or Folder object or its ID, can also be a list of them
+        :param entities: an Evaluation object or its ID, can also be a list of them
         """
         if isinstance(entities, list):
             # add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
