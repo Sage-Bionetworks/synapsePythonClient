@@ -1699,7 +1699,7 @@ def test__create_table_snapshot():
         restpost.assert_called_once_with(
             "/entity/syn1234/table/snapshot",
             body='{"snapshotComment": "foo", "snapshotLabel": "new_label", '
-                   '"snapshotActivityId": 2}'
+                 '"snapshotActivityId": 2}'
         )
 
 
@@ -1713,9 +1713,9 @@ def test__async_table_update():
         restpost.assert_called_once_with(
             "/entity/syn1234/table/transaction/async/start",
             body='{"changes": [], "createSnapshot": true, '
-                   '"snapshotOptions": {"snapshotComment": "foo", '
-                   '"snapshotLabel": "new_label", '
-                   '"snapshotActivityId": 2}}'
+                 '"snapshotOptions": {"snapshotComment": "foo", '
+                 '"snapshotLabel": "new_label", '
+                 '"snapshotActivityId": 2}}'
         )
 
 
