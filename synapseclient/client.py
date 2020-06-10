@@ -2207,7 +2207,8 @@ class Synapse(object):
         Create a storage location in the given parent, either in the given folder or by creating a new
         folder in that parent with the given name. This will both create a StorageLocationSetting,
         and a ProjectSetting together, optionally creating a new folder in which to locate it,
-        and optionally enabling this storage location for access via STS.
+        and optionally enabling this storage location for access via STS. If enabling an existing folder for STS,
+        it must be empty.
 
         :param parent:              The parent in which to locate the storage location (mutually exclusive with folder)
         :param folder_name:         The name of a new folder to create (mutually exclusive with folder)
