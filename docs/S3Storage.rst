@@ -69,9 +69,11 @@ STS Storage Locations
 
 Create an STS enabled folder to use
 `AWS Security Token Service <https://docs.synapse.org/articles/sts_storage_locations.html>`__ credentials
-with S3 storage locations. These credentials can be used with external S3 tools such as the awscli and the boto3
-library separately from Synapse to read and write files to and from Synapse storage. Please read the linked
-documentation for a complete understanding of the capabilities and restrictions of STS enabled folders.
+with S3 storage locations. These credentials can be scoped to access individual Synapse files or folders and can be used
+with external S3 tools such as the awscli and the boto3 library separately from Synapse to read and write files to and
+from Synapse storage. At this time read and write capabilities are supported for external storage locations, while default
+Synapse storage is limited to read only. Please read the linked documentation for a complete understanding of the capabilities
+and restrictions of STS enabled folders.
 
 Creating an STS enabled folder
 ------------------------------
