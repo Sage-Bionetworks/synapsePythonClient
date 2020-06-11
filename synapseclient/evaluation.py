@@ -199,9 +199,7 @@ class SubmissionStatus(DictObject):
         return '/evaluation/submission/%s/status' % id
 
     def __init__(self, **kwargs):
-        annotations = kwargs.get('submissionAnnotations')
-        if annotations is None:
-            annotations = {}
+        annotations = kwargs.get('submissionAnnotations', {})
         # If it is synapse annotations, turn into a format
         # that can be worked with otherwise, create
         # synapseclient.Annotations
