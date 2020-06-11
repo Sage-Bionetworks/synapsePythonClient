@@ -3482,7 +3482,7 @@ class Synapse(object):
                 }
             }
             if next_page_token:
-                view_scope['nextPageToken'] =  next_page_token
+                view_scope['nextPageToken'] = next_page_token
             response = self._waitForAsync(
                 uri='/column/view/scope/async',
                 request=view_scope
