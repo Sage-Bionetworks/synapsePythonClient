@@ -935,7 +935,9 @@ def test_get_default_view_columns():
     mask = 5
     with patch.object(syn, "restGET") as mock_restGET:
         syn._get_default_entity_view_columns(mask)
-        mock_restGET.assert_called_with("/column/tableview/defaults?viewTypeMask=5")
+        mock_restGET.assert_called_with(
+            "/column/tableview/defaults?viewEntityType=entityview&viewTypeMask=5"
+        )
 
 
 def test_get_annotation_entity_view_columns():
@@ -1687,3 +1689,42 @@ def test_get_submission_with_annotations():
         )
 
         assert_equal(evaluation_id, response["evaluationId"])
+
+
+def test__get_annotation_view_columns_onepage():
+    """Test getting a view's columns based on existing annotations"""
+    page1 = {'results': [{'id': 5}],
+             'nextPageToken': 'a'}
+    page2 = {'results': [],
+             'nextPageToken': None}
+    view_scope1 = {
+        'concreteType': 'org.sagebionetworks.repo.model.table.ViewColumnModelRequest',
+        'viewScope': {
+            'scope': ['syn1234'],
+            'viewEntityType': "submissionview",
+            'viewTypeMask': "0x1"
+        }
+    }
+    view_scope2 = {
+        'concreteType': 'org.sagebionetworks.repo.model.table.ViewColumnModelRequest',
+        'viewScope': {
+            'scope': ['syn1234'],
+            'viewEntityType': "submissionview",
+            'viewTypeMask': "0x1"
+        },
+        'nextPageToken': 'a'
+    }
+    call_list = [call(uri="/column/view/scope/async",
+                      request=view_scope1),
+                 call(uri="/column/view/scope/async",
+                      request=view_scope2)]
+
+    with patch.object(syn, "_waitForAsync",
+                      side_effect=[page1, page2]) as wait_for_async:
+        columns = syn._get_annotation_view_columns(
+            scope_ids=['syn1234'],
+            view_type="submissionview",
+            view_type_mask="0x1"
+        )
+        wait_for_async.assert_has_calls(call_list)
+        assert_equal(columns, [synapseclient.Column(id=5)])

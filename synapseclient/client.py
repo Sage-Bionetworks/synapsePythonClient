@@ -3447,31 +3447,40 @@ class Synapse(object):
         """Get default view columns"""
         uri = f"/column/tableview/defaults?viewEntityType={view_type}"
         if view_type_mask:
-            uri + f"&viewTypeMask={view_type_mask}"
+            uri += f"&viewTypeMask={view_type_mask}"
         return [Column(**col)
                 for col in self.restGET(uri)['list']]
 
-    # @memoize
-    # def _get_default_entity_view_columns(self, view_type_mask):
-    #     return self._get_default_view_columns("entityview",
-    #                                           view_type_mask=view_type_mask)
+    @memoize
+    def _get_default_entity_view_columns(self, view_type_mask):
+        return self._get_default_view_columns("entityview",
+                                              view_type_mask=view_type_mask)
 
-    # @memoize
-    # def _get_default_submission_view_columns(self):
-    #     return self._get_default_view_columns("submissionview")
+    @memoize
+    def _get_default_submission_view_columns(self):
+        return self._get_default_view_columns("submissionview")
 
-    def _get_column_model_request(self, scope_ids, view_type, view_type_mask=None):
-        view_scope = {
-            'concreteType': 'org.sagebionetworks.repo.model.table.ViewColumnModelRequest',
-            'viewScope': {
-                'scope': scope_ids,
-                'viewEntityType': view_type,
-                'viewTypeMask': view_type_mask
-            }
-        }
+    def _get_annotation_view_columns(self, scope_ids: list, view_type: str,
+                                     view_type_mask: str = None) -> list:
+        """Get all the columns of a submission of entity view based on existing annotations
+
+        :param scope_ids:  List of Evaluation Queue or Project/Folder Ids
+        :param view_type: submissionview or entityview
+        :param view_type_mask: Bit mask representing the types to include in the view.
+
+        :returns: list of columns
+        """
         columns = []
         next_page_token = None
         while True:
+            view_scope = {
+                'concreteType': 'org.sagebionetworks.repo.model.table.ViewColumnModelRequest',
+                'viewScope': {
+                    'scope': scope_ids,
+                    'viewEntityType': view_type,
+                    'viewTypeMask': view_type_mask
+                }
+            }
             if next_page_token:
                 view_scope['nextPageToken'] =  next_page_token
             response = self._waitForAsync(
@@ -3487,7 +3496,7 @@ class Synapse(object):
     # TODO: Uncomment once this is in prod
     # def _get_annotation_submission_view_columns(self, scope_ids):
     #     """Get submission view columns"""
-    #     columns = self._get_column_model_request(scope_ids, "submissionview")
+    #     columns = self._get_annotation_view_columns(scope_ids, "submissionview")
     #     return columns
 
     def _get_annotation_submission_view_columns(self, scope_ids):
@@ -3509,8 +3518,8 @@ class Synapse(object):
     # TODO: Uncomment once this is in prod
     # def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
     #     """Get entity view columns"""
-    #     columns = self._get_column_model_request(scope_ids, "entityview",
-    #                                              view_type_mask=view_type_mask)
+    #     columns = self._get_annotation_view_columns(scope_ids, "entityview",
+    #                                                 view_type_mask=view_type_mask)
     #     return columns
 
     def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
