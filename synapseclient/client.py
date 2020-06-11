@@ -2970,7 +2970,6 @@ class Synapse(object):
     def _waitForAsync(self, uri, request, endpoint=None):
         if endpoint is None:
             endpoint = self.repoEndpoint
-
         async_job_id = self.restPOST(uri+'/start', body=json.dumps(request), endpoint=endpoint)
 
         # http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
@@ -3458,6 +3457,36 @@ class Synapse(object):
             )['list']
         ]
 
+    def _get_column_model_request(self, scope_ids, entity_type, view_type_mask=None):
+        view_scope = {
+            'concreteType': 'org.sagebionetworks.repo.model.table.ViewColumnModelRequest',
+            'viewScope': {
+                'scope': scope_ids,
+                'viewEntityType': entity_type,
+                'viewTypeMask': view_type_mask
+            }
+        }
+        columns = []
+        next_page_token = None
+        while True:
+            if next_page_token:
+                view_scope['nextPageToken'] =  next_page_token
+            response = self._waitForAsync(
+                uri='/column/view/scope/async',
+                request=view_scope
+            )
+            columns.extend(Column(**column) for column in response['results'])
+            next_page_token = response.get('nextPageToken')
+            if next_page_token is None:
+                break
+        return columns
+
+    # TODO: Uncomment once this is in prod
+    # def _get_annotation_submission_view_columns(self, scope_ids):
+    #     """Get submission view columns"""
+    #     columns = self._get_column_model_request(scope_ids, "submissionview")
+    #     return columns
+
     def _get_annotation_submission_view_columns(self, scope_ids):
         view_scope = {'scope': scope_ids,
                       'viewEntityType': 'submissionview'}
@@ -3474,6 +3503,7 @@ class Synapse(object):
                 break
         return columns
 
+    # TODO: Use _get_column_model_request
     def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
         view_scope = {'scope': scope_ids,
                       'viewTypeMask': view_type_mask}
