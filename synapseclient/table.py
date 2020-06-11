@@ -810,7 +810,10 @@ class EntityViewSchema(SchemaBase):
         # get the default EntityView columns from Synapse and add them to the columns list
         additional_columns = []
         if self.addDefaultViewColumns:
-            additional_columns.extend(syn._get_default_entity_view_columns(self['viewTypeMask']))
+            additional_columns.extend(
+                syn._get_default_view_columns("entityview",
+                                              view_type_mask=self['viewTypeMask'])
+            )
 
         # get default annotations
         if self.addAnnotationColumns:
@@ -942,7 +945,7 @@ class SubmissionViewSchema(SchemaBase):
         # get the default EntityView columns from Synapse and add them to the columns list
         additional_columns = []
         if self.addDefaultViewColumns:
-            additional_columns.extend(syn._get_default_submission_view_columns())
+            additional_columns.extend(syn._get_default_view_columns("submissionview"))
 
         # get default annotations
         if self.addAnnotationColumns:

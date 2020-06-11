@@ -3443,26 +3443,29 @@ class Synapse(object):
                     warnings.warn("Weird file handle: %s" % file_handle_id)
         return file_handle_associations, file_handle_to_path_map
 
-    @memoize
-    def _get_default_entity_view_columns(self, view_type_mask):
+    def _get_default_view_columns(self, view_type, view_type_mask=None):
+        """Get default view columns"""
+        uri = f"/column/tableview/defaults?viewEntityType={view_type}"
+        if view_type_mask:
+            uri + f"&viewTypeMask={view_type_mask}"
         return [Column(**col)
-                for col in self.restGET("/column/tableview/defaults?viewTypeMask=%s" % view_type_mask)['list']]
+                for col in self.restGET(uri)['list']]
 
-    @memoize
-    def _get_default_submission_view_columns(self):
-        return [
-            Column(**col)
-            for col in self.restGET(
-                "/column/tableview/defaults?viewEntityType=submissionview"
-            )['list']
-        ]
+    # @memoize
+    # def _get_default_entity_view_columns(self, view_type_mask):
+    #     return self._get_default_view_columns("entityview",
+    #                                           view_type_mask=view_type_mask)
 
-    def _get_column_model_request(self, scope_ids, entity_type, view_type_mask=None):
+    # @memoize
+    # def _get_default_submission_view_columns(self):
+    #     return self._get_default_view_columns("submissionview")
+
+    def _get_column_model_request(self, scope_ids, view_type, view_type_mask=None):
         view_scope = {
             'concreteType': 'org.sagebionetworks.repo.model.table.ViewColumnModelRequest',
             'viewScope': {
                 'scope': scope_ids,
-                'viewEntityType': entity_type,
+                'viewEntityType': view_type,
                 'viewTypeMask': view_type_mask
             }
         }
