@@ -3493,49 +3493,15 @@ class Synapse(object):
                 break
         return columns
 
-    # TODO: Uncomment once this is in prod
-    # def _get_annotation_submission_view_columns(self, scope_ids):
-    #     """Get submission view columns"""
-    #     columns = self._get_annotation_view_columns(scope_ids, "submissionview")
-    #     return columns
-
     def _get_annotation_submission_view_columns(self, scope_ids):
-        view_scope = {'scope': scope_ids,
-                      'viewEntityType': 'submissionview'}
-        columns = []
-        next_page_token = None
-        while True:
-            params = {}
-            if next_page_token:
-                params = {'nextPageToken': next_page_token}
-            response = self.restPOST('/column/view/scope', json.dumps(view_scope), params=params)
-            columns.extend(Column(**column) for column in response['results'])
-            next_page_token = response.get('nextPageToken')
-            if next_page_token is None:
-                break
+        """Get submission view columns"""
+        columns = self._get_annotation_view_columns(scope_ids, "submissionview")
         return columns
 
-    # TODO: Uncomment once this is in prod
-    # def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
-    #     """Get entity view columns"""
-    #     columns = self._get_annotation_view_columns(scope_ids, "entityview",
-    #                                                 view_type_mask=view_type_mask)
-    #     return columns
-
     def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
-        view_scope = {'scope': scope_ids,
-                      'viewTypeMask': view_type_mask}
-        columns = []
-        next_page_token = None
-        while True:
-            params = {}
-            if next_page_token:
-                params = {'nextPageToken': next_page_token}
-            response = self.restPOST('/column/view/scope', json.dumps(view_scope), params=params)
-            columns.extend(Column(**column) for column in response['results'])
-            next_page_token = response.get('nextPageToken')
-            if next_page_token is None:
-                break
+        """Get entity view columns"""
+        columns = self._get_annotation_view_columns(scope_ids, "entityview",
+                                                    view_type_mask=view_type_mask)
         return columns
 
     ############################################################
