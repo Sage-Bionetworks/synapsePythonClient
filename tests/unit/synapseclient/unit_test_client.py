@@ -931,30 +931,60 @@ def test_get_unsaved_entity():
     assert_raises(ValueError, syn.get, Folder(name="folder", parent="syn456"))
 
 
-def test_get_default_view_columns():
+def test_get_default_entity_view_columns():
+    mask = 5
+    with patch.object(syn, "_get_default_view_columns") as mock_get:
+        syn._get_default_entity_view_columns(mask)
+        mock_get.assert_called_with("entityview",
+                                    view_type_mask=mask)
+
+
+def test_get_default_submission_view_columns():
+    with patch.object(syn, "_get_default_view_columns") as mock_get:
+        syn._get_default_submission_view_columns()
+        mock_get.assert_called_with("submissionview")
+
+
+def test_get_default_view_columns_nomask():
+    """Test no mask passed in"""
+    with patch.object(syn, "restGET") as mock_restGET:
+        syn._get_default_view_columns("viewtype")
+        mock_restGET.assert_called_with(
+            "/column/tableview/defaults?viewEntityType=viewtype"
+        )
+
+
+def test_get_default_view_columns_mask():
+    """Test mask passed in"""
     mask = 5
     with patch.object(syn, "restGET") as mock_restGET:
-        syn._get_default_entity_view_columns(mask)
+        syn._get_default_view_columns("viewtype", mask)
         mock_restGET.assert_called_with(
-            "/column/tableview/defaults?viewEntityType=entityview&viewTypeMask=5"
+            "/column/tableview/defaults?viewEntityType=viewtype&viewTypeMask=5"
         )
 
 
 def test_get_annotation_entity_view_columns():
-    scope_ids = 3
-    mask = 5
-    view_scope = {'scope': scope_ids,
-                  'viewTypeMask': mask}
-    page1 = {'results': [],
-             'nextPageToken': 'a'}
-    page2 = {'results': [],
-             'nextPageToken': None}
-    call_list = [call('/column/view/scope', json.dumps(view_scope), params={}),
-                 call('/column/view/scope', json.dumps(view_scope), params={'nextPageToken': 'a'})]
-    with patch.object(syn, "restPOST", side_effect=[page1, page2]) as mock_restPOST:
-        syn._get_annotation_entity_view_columns(scope_ids, mask)
-        mock_restPOST.assert_has_calls(call_list)
+    expected = Mock()
+    with patch.object(syn, "_get_annotation_view_columns") as get_annotation:
+        get_annotation.return_value = expected
+        col = syn._get_annotation_entity_view_columns(['syn123'], "0x1")
+        get_annotation.assert_called_once_with(
+            ['syn123'], "entityview",
+            view_type_mask="0x1"
+        )
+        assert_equal(col, expected)
 
+
+def test_get_annotation_submission_view_columns():
+    expected = Mock()
+    with patch.object(syn, "_get_annotation_view_columns") as get_annotation:
+        get_annotation.return_value = expected
+        col = syn._get_annotation_submission_view_columns(['1234'])
+        get_annotation.assert_called_once_with(
+            ['1234'], "submissionview"
+        )
+        assert_equal(col, expected)
 
 class TestCreateStorageLocationSetting:
 
@@ -1691,7 +1721,7 @@ def test_get_submission_with_annotations():
         assert_equal(evaluation_id, response["evaluationId"])
 
 
-def test__get_annotation_view_columns_onepage():
+def test__get_annotation_view_columns():
     """Test getting a view's columns based on existing annotations"""
     page1 = {'results': [{'id': 5}],
              'nextPageToken': 'a'}
