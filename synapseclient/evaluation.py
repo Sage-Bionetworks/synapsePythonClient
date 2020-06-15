@@ -75,6 +75,7 @@ Submission Status
    :members: __init__
 
 """
+import typing
 
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.annotations import (Annotations,
@@ -186,6 +187,28 @@ class Submission(DictObject):
         return '/evaluation/submission/%s' % self.id
 
 
+def _convert_to_annotation_cls(
+        id: str, etag: str,
+        values: typing.Union[Annotations, dict]) -> Annotations:
+    """Convert synapse style annotation or dict to synapseclient.Annotation
+
+    :param id:  The id of the entity / submission
+    :param etag: The etag of the entity / submission
+    :param values:  A synapseclient.Annotations or dict
+
+    :returns: A synapseclient.Annotations
+    """
+    if isinstance(values, Annotations):
+        return values
+    if is_synapse_annotations(values):
+        values = from_synapse_annotations(values)
+    else:
+        values = Annotations(id=id,
+                             etag=etag,
+                             values=values)
+    return values
+
+
 class SubmissionStatus(DictObject):
     """
     Builds an Synapse submission status object.
@@ -203,16 +226,12 @@ class SubmissionStatus(DictObject):
         # If it is synapse annotations, turn into a format
         # that can be worked with otherwise, create
         # synapseclient.Annotations
-        if is_synapse_annotations(annotations):
-            kwargs['submissionAnnotations'] = from_synapse_annotations(
-                annotations
-            )
-        else:
-            kwargs['submissionAnnotations'] = Annotations(
-                id=kwargs['id'],
-                etag=kwargs['etag'],
-                values=annotations
-            )
+        kwargs['submissionAnnotations'] = _convert_to_annotation_cls(
+            id=kwargs['id'],
+            etag=kwargs['etag'],
+            values=annotations
+        )
+
         super(SubmissionStatus, self).__init__(kwargs)
 
     def postURI(self):
@@ -222,15 +241,14 @@ class SubmissionStatus(DictObject):
         # If not synapse annotations, turn them into synapseclient.Annotations
         # must have id and etag to turn into synapse annotations
         if not is_synapse_annotations(self.submissionAnnotations):
-            self.submissionAnnotations = Annotations(
-                id=self.id,
-                etag=self.etag,
+            annotations = _convert_to_annotation_cls(
+                id=self.id, etag=self.etag,
                 values=self.submissionAnnotations
             )
-        # Turn into synapse annotation
-        self.submissionAnnotations = to_synapse_annotations(
-            self.submissionAnnotations
-        )
+            # Turn into synapse annotation
+            self.submissionAnnotations = to_synapse_annotations(
+                annotations
+            )
         return '/evaluation/submission/%s/status' % self.id
 
     def deleteURI(self):
