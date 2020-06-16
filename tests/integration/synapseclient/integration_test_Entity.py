@@ -375,7 +375,7 @@ def test_ExternalFileHandle():
     singapore = syn.store(singapore)
 
     # Verify the file handle
-    fileHandle = syn._getFileHandle(singapore.dataFileHandleId)
+    fileHandle = syn._get_file_handle_as_creator(singapore.dataFileHandleId)
     assert_equals(fileHandle['concreteType'], 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
     assert_equals(fileHandle['externalURL'], singapore_url)
 

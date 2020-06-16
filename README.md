@@ -5,8 +5,8 @@ Python Synapse Client
  ---|---------|-------------
 Travis | develop | [![Build Status develop branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
 Travis | master  | [![Build Status master branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=master)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
-AppVeyor | develop | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/develop.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
-AppVeyor | master | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/master.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
+AppVeyor | develop | [![AppVeyor branch](https://ci.appveyor.com/api/projects/status/gdq095nuitwm86il/branch/develop?svg=true)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
+AppVeyor | master  | [![AppVeyor branch](https://ci.appveyor.com/api/projects/status/gdq095nuitwm86il/branch/master?svg=true)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
 
 
 [![Get the synapseclient from PyPI](https://img.shields.io/pypi/v/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Supported Python Versions](https://img.shields.io/pypi/pyversions/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) 
@@ -14,18 +14,6 @@ AppVeyor | master | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageB
 A Python client for [Sage Bionetworks'](https://www.sagebase.org) [Synapse](https://www.synapse.org/), a collaborative compute space that allows scientists to share and analyze data together. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
 
 There is also a [Synapse client for R](https://github.com/Sage-Bionetworks/synapser/).
-
-
-Python 2 Support
-----------------
-
-The sun is setting on Python 2. Many major open source Python packages are moving to require Python 3.
-
-The last version that works with Python 2 is Synapse Python client version 1.9.4. 
-There are no plans for future maintenance of version 1.9.x.
-
-**Starting from Synapse Python client version 2.0, Synapse Python client requires Python 3.6+**
-
 
 Documentation
 -------------
@@ -40,11 +28,20 @@ For more information about interacting with Synapse, see:
  * [User guides (including Python examples)](http://docs.synapse.org/articles/)
  * [Getting Started Guide to Synapse](http://docs.synapse.org/articles/getting_started.html)
 
+For release information, see:
+
+ * [Release notes](https://python-docs.synapse.org/build/html/news.html)
+
+Subscribe to release and other announcements [here](https://groups.google.com/a/sagebase.org/forum/#!forum/python-announce)
+or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python-announce+subscribe@sagebase.org)
+
 
 Installation
 ------------
 
 The Python Synapse client has been tested on 3.6, 3.7, and 3.8 on Mac OS X, Ubuntu Linux and Windows.
+
+**Starting from Synapse Python client version 2.0, Synapse Python client requires Python 3.6+**
 
 ### Install using pip
 

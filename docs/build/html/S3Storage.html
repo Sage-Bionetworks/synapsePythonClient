@@ -1,0 +1,300 @@
+
+
+<!doctype html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>S3 Storage Features &#8212; Synapse Python Client 2.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="_static/bizstyle.js"></script>
+    <link rel="shortcut icon" href="_static/favicon.png"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Synapse Client" href="Client.html" />
+    <link rel="prev" title="File Upload" href="Upload.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+<div class="header">
+  <a href="https://www.synapse.org/"><img src="_static/synapse_logo.png" alt='Synapse' style="object-fit: scale-down; height:100%"/></a>
+  <h1>Synapse Python Client API</h1>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Client.html" title="Synapse Client"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Upload.html" title="File Upload"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.0.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">S3 Storage Features</a><ul>
+<li><a class="reference internal" href="#external-storage-locations">External storage locations</a></li>
+<li><a class="reference internal" href="#sts-storage-locations">STS Storage Locations</a><ul>
+<li><a class="reference internal" href="#creating-an-sts-enabled-folder">Creating an STS enabled folder</a></li>
+<li><a class="reference internal" href="#using-credentials-with-the-awscli">Using credentials with the awscli</a></li>
+<li><a class="reference internal" href="#using-credentials-with-boto3-in-python">Using credentials with boto3 in python</a></li>
+<li><a class="reference internal" href="#automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient">Automatic transfers to/from STS storage locations using boto3 with synapseclient</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="Upload.html"
+                        title="previous chapter">File Upload</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Client.html"
+                        title="next chapter">Synapse Client</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/S3Storage.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="s3-storage-features">
+<h1>S3 Storage Features<a class="headerlink" href="#s3-storage-features" title="Permalink to this headline">¶</a></h1>
+<p>Synapse can use a variety of storage mechanisms to store content, however the most common
+storage solution is AWS S3. This article illustrates some special features that can be used with S3 storage
+and how they interact with the Python client.</p>
+<div class="section" id="external-storage-locations">
+<h2>External storage locations<a class="headerlink" href="#external-storage-locations" title="Permalink to this headline">¶</a></h2>
+<p>Synapse folders can be configured to use custom implementations for their underlying data storage.
+More information on this feature can be found
+<a class="reference external" href="https://docs.synapse.org/articles/custom_storage_location.html">here</a>.
+The most common implementation of this is to configure a folder to store data in a user controlled AWS S3 bucket
+rather than Synapse’s default internal S3 storage.</p>
+<p>The following illustrates creating a new folder backed by a user specified S3 bucket.</p>
+<ol class="arabic simple">
+<li><p>Ensure that the bucket is <a class="reference external" href="https://docs.synapse.org/articles/custom_storage_location.html#setting-up-an-external-aws-s3-bucket">properly configured</a>.</p></li>
+<li><p>Create a folder and configure it to use external S3 storage:</p></li>
+</ol>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># create a new folder to use with external S3 storage</span>
+<span class="n">folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Folder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">))</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">create_s3_storage_location</span><span class="p">(</span>
+    <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+    <span class="n">bucket_name</span><span class="o">=</span><span class="s1">&#39;my-external-synapse-bucket&#39;</span><span class="p">,</span>
+    <span class="n">base_key</span><span class="o">=</span><span class="s1">&#39;path/within/bucket&#39;</span><span class="p">,</span>
+ <span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Once an external S3 storage folder exists, you can interact with it as you would any other folder using
+Synapse tools. If you wish to add an object that is stored within the bucket to Synapse you can do that by adding
+a file handle for that object using the Python client and then storing the file to that handle.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">parent_synapse_folder_id</span> <span class="o">=</span> <span class="s1">&#39;syn123&#39;</span>
+<span class="n">local_file_path</span> <span class="o">=</span> <span class="s1">&#39;/path/to/local/file&#39;</span>
+<span class="n">bucket</span> <span class="o">=</span> <span class="s1">&#39;my-external-synapse-bucket&#39;</span>
+<span class="n">s3_key</span> <span class="o">=</span> <span class="s1">&#39;path/within/bucket/file&#39;</span>
+
+<span class="c1"># in this example we use boto to create a file independently of Synapse</span>
+<span class="n">s3_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">)</span>
+<span class="n">s3_client</span><span class="o">.</span><span class="n">upload_file</span><span class="p">(</span>
+    <span class="n">Filename</span><span class="o">=</span><span class="n">local_file_path</span><span class="p">,</span>
+    <span class="n">Bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span>
+    <span class="n">Key</span><span class="o">=</span><span class="n">s3_key</span>
+<span class="p">)</span>
+
+<span class="c1"># now we add a file handle for that file and store the file to that handle</span>
+<span class="n">file_handle</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">create_external_s3_file_handle</span><span class="p">(</span>
+    <span class="n">bucket</span><span class="p">,</span>
+    <span class="n">s3_key</span><span class="p">,</span>
+    <span class="n">local_file_path</span><span class="p">,</span>
+    <span class="n">parent</span><span class="o">=</span><span class="n">parent_synapse_folder_id</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">parentId</span><span class="o">=</span><span class="n">folder</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">dataFileHandleId</span><span class="o">=</span><span class="n">file_handle</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+<span class="n">file_entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="sts-storage-locations">
+<span id="id1"></span><h2>STS Storage Locations<a class="headerlink" href="#sts-storage-locations" title="Permalink to this headline">¶</a></h2>
+<p>Create an STS enabled folder to use
+<a class="reference external" href="https://docs.synapse.org/articles/aws_sts_storage_locations.html">AWS Security Token Service</a> credentials
+with S3 storage locations. These credentials can be scoped to access individual Synapse files or folders and can be used
+with external S3 tools such as the awscli and the boto3 library separately from Synapse to read and write files to and
+from Synapse storage. At this time read and write capabilities are supported for external storage locations, while default
+Synapse storage is limited to read only. Please read the linked documentation for a complete understanding of the capabilities
+and restrictions of STS enabled folders.</p>
+<div class="section" id="creating-an-sts-enabled-folder">
+<h3>Creating an STS enabled folder<a class="headerlink" href="#creating-an-sts-enabled-folder" title="Permalink to this headline">¶</a></h3>
+<p>Creating an STS enabled folder is similar to creating an external storage folder as described above, but this
+time passing an additional <strong>sts_enabled=True</strong> keyword parameter. The <strong>bucket_name</strong> and <strong>base_key</strong>
+parameters apply to external storage locations and can be omitted to use Synapse internal storage.
+Note also that STS can only be enabled on an empty folder.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># create a new folder to use with STS and external S3 storage</span>
+<span class="n">folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Folder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">))</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">create_s3_storage_location</span><span class="p">(</span>
+    <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+    <span class="n">bucket_name</span><span class="o">=</span><span class="s1">&#39;my-external-synapse-bucket&#39;</span><span class="p">,</span>
+    <span class="n">base_key</span><span class="o">=</span><span class="s1">&#39;path/within/bucket&#39;</span><span class="p">,</span>
+    <span class="n">sts_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+ <span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="using-credentials-with-the-awscli">
+<h3>Using credentials with the awscli<a class="headerlink" href="#using-credentials-with-the-awscli" title="Permalink to this headline">¶</a></h3>
+<p>This example illustrates obtaining STS credentials and using them with the awscli command line tool.
+The first command outputs the credentials as shell commands to execute which will then be picked up
+by subsequent aws cli commands.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ synapse get-sts-token -o shell syn123 read_write
+
+export SYNAPSE_STS_S3_LOCATION=&quot;s3://my-external-synapse-bucket/path/within/bucket&quot;
+export AWS_ACCESS_KEY_ID=&quot;&lt;access_key_id&gt;&quot;
+export AWS_SECRET_ACCESS_KEY=&quot;&lt;secret_access_key&gt;&quot;
+export AWS_SESSION_TOKEN=&quot;&lt;session_token&gt;
+
+# if the above are executed in the shell, the awscli will automatically apply them
+
+# e.g. copy a file directly to the bucket using the exported credentials
+$ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="using-credentials-with-boto3-in-python">
+<h3>Using credentials with boto3 in python<a class="headerlink" href="#using-credentials-with-boto3-in-python" title="Permalink to this headline">¶</a></h3>
+<p>This example illustrates retrieving STS credentials and using them with boto3 within python code,
+in this case to upload a file.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># the boto output_format is compatible with the boto3 session api.</span>
+<span class="n">credentials</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get_sts_storage_token</span><span class="p">(</span><span class="s1">&#39;syn123&#39;</span><span class="p">,</span> <span class="s1">&#39;read_write&#39;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s1">&#39;boto&#39;</span><span class="p">)</span>
+
+<span class="n">s3_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">credentials</span><span class="p">)</span>
+<span class="n">s3_client</span><span class="o">.</span><span class="n">upload_file</span><span class="p">(</span>
+    <span class="n">Filename</span><span class="o">=</span><span class="s1">&#39;/path/to/local/file,</span>
+    <span class="n">Bucket</span><span class="o">=</span><span class="s1">&#39;my-external-synapse-bucket&#39;</span><span class="p">,</span>
+    <span class="n">Key</span><span class="o">=</span><span class="s1">&#39;path/within/bucket/file&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient">
+<h3>Automatic transfers to/from STS storage locations using boto3 with synapseclient<a class="headerlink" href="#automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient" title="Permalink to this headline">¶</a></h3>
+<p>The Python Synapse client can be configured to automatically use STS tokens to perform uploads and downloads to enabled
+storage locations using an installed boto3 library rather than through the traditional Synapse client APIs.
+This can improve performance in certain situations, particularly uploads of large files, as the data transfer itself
+can be conducted purely against the AWS S3 APIs, only invoking the Synapse APIs to retrieve the necessary token and
+to update Synapse metadata in the case of an upload. Once configured to do so, retrieval of STS tokens for supported
+operations occurs automatically without any change in synapseclient usage.</p>
+<p>To enable STS/boto3 transfers on all <cite>get</cite> and <cite>store</cite> operations, do the following:</p>
+<ol class="arabic simple">
+<li><p>Ensure that boto3 is installed in the same Python installation as synapseclient.</p></li>
+</ol>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">boto3</span>
+</pre></div>
+</div>
+</div></blockquote>
+<ol class="arabic simple" start="2">
+<li><p>To enable automatic transfers on all uploads and downloads, update your Synapse client configuration file
+(typically “.synapseConfig” in your $HOME directory, unless otherwise configured) with the [transfer] section,
+if it is not already present. To leverage STS/boto3 transfers on a per Synapse client object basis, set
+the <strong>use_boto_sts_transfers</strong> property.</p></li>
+</ol>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># add to .synapseConfig to automatically apply as default for all synapse client instances</span>
+<span class="p">[</span><span class="n">transfer</span><span class="p">]</span>
+<span class="n">use_boto_sts</span><span class="o">=</span><span class="n">true</span>
+
+<span class="c1"># alternatively set on a per instance basis within python code</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">use_boto_sts_transfers</span> <span class="o">=</span> <span class="kc">True</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Note that if boto3 is not installed, then these settings will have no effect.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Client.html" title="Synapse Client"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Upload.html" title="File Upload"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.0.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Jun 16, 2020.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+  </body>
+</html>

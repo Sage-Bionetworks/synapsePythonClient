@@ -51,3 +51,10 @@
 #authEndpoint=<authEndpoint>
 #fileHandleEndpoint=<fileHandleEndpoint>
 #portalEndpoint=<portalEndpoint>
+
+## Settings to configure how Synapse uploads/downloads data
+#[transfer]
+
+# use this to configure the default for how many threads/connections Synapse will use to perform file transfers.
+# Currently this applies only to files whose underlying storage is AWS S3.
+# max_threads=16

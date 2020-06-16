@@ -289,7 +289,7 @@ def download_file(client,
     # use a single worker to write to the file
     write_to_file_thread = DataChunkWriteToFileThread(data_queue, download_request.path, file_size)
     data_chunk_download_threads = [DataChunkDownloadThread(pre_signed_url_provider, range_queue, data_queue)
-                                   for _ in range(num_threads)]
+                                   for _ in range(max(num_threads, 1))]
 
     chunk_range_generator = _generate_chunk_ranges(file_size)
 

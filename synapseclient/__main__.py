@@ -65,6 +65,7 @@ Commands
   * **test-encoding**    - test character encoding to help diagnose problems
 """
 import argparse
+import collections.abc
 import os
 import sys
 import signal
@@ -75,8 +76,9 @@ import re
 
 import synapseclient
 import synapseutils
-from . import Activity
-from .wiki import Wiki
+from synapseclient import Activity
+from synapseclient.wiki import Wiki
+from synapseclient.annotations import Annotations
 from synapseclient.core.exceptions import *
 
 
@@ -382,21 +384,20 @@ def setAnnotations(args, syn):
             "For example, to set an annotations called 'foo' to the value 1, the format should be "
             "'{\"foo\": 1, \"bar\":\"quux\"}'.")
 
-    entity = syn.get(args.id, downloadFile=False)
+    annots = syn.get_annotations(args.id)
 
     if args.replace:
-        annots = newannots
+        annots = Annotations(annots.id, annots.etag, newannots)
     else:
-        annots = syn.getAnnotations(entity)
         annots.update(newannots)
 
-    syn.setAnnotations(entity, annots)
+    syn.set_annotations(annots)
 
     sys.stderr.write('Set annotations on entity %s\n' % (args.id,))
 
 
 def getAnnotations(args, syn):
-    annotations = syn.getAnnotations(args.id)
+    annotations = syn.get_annotations(args.id)
 
     if args.output is None or args.output == 'STDOUT':
         print(json.dumps(annotations, sort_keys=True, indent=2))
@@ -484,6 +485,20 @@ def test_encoding(args, syn):
     print("latin1 chars =                 D\xe9j\xe0 vu, \xfcml\xf8\xfats")
     print("Some non-ascii chars =         '\u0227\u0188\u0188\u1e17\u019e\u0167\u1e17\u1e13 u\u028dop-\u01ddp\u0131sdn "
           "\u0167\u1e17\u1e8b\u0167 \u0192\u01ff\u0159 \u0167\u1e17\u015f\u0167\u012b\u019e\u0260'", )
+
+
+def get_sts_token(args, syn):
+    """Get an STS storage token for use with the given folder"""
+
+    # output is either a dictionary of keys or a string consisting of shell commands
+    # serialize dictionaries, and pass strings through as they are
+    resp = syn.get_sts_storage_token(args.id, args.permission, output_format=args.output)
+    if isinstance(resp, collections.abc.Mapping):
+        sts_string = json.dumps(resp)
+    else:
+        sts_string = str(resp)
+
+    print(sts_string)
 
 
 def build_parser():
@@ -866,6 +881,21 @@ def build_parser():
     parser_test_encoding = subparsers.add_parser('test-encoding',
                                                  help='test character encoding to help diagnose problems')
     parser_test_encoding.set_defaults(func=test_encoding)
+
+    # get an sts token for s3 access to storage
+    parser_get_sts_token = subparsers.add_parser(
+        'get-sts-token',
+        help='Get an STS token for access to AWS S3 storage underlying Synapse'
+    )
+    parser_get_sts_token.add_argument('id', type=str, help='Synapse id')
+    parser_get_sts_token.add_argument('permission', type=str, choices=['read_write', 'read_only'])
+    parser_get_sts_token.add_argument(
+        '-o',
+        '--output',
+        dest='output',
+        default='shell',
+        choices=['json', 'boto', 'shell', 'bash', 'cmd', 'powershell'])
+    parser_get_sts_token.set_defaults(func=get_sts_token)
 
     return parser
 
