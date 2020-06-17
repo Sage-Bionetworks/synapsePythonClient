@@ -18,13 +18,17 @@ class TestGetStsCredentials:
         cls._utcnow = datetime.datetime.utcnow()
 
     @classmethod
-    def _make_credentials(cls):
-        return {
+    def _make_credentials(cls, bucket_items=None):
+        credentials = {
             'accessKeyId': 'foo',
             'secretAccessKey': 'bar',
             'sessionToken': 'baz',
             'expiration': datetime_to_iso(cls._utcnow),
         }
+        if bucket_items:
+            credentials.update(bucket_items)
+
+        return credentials
 
     def test_boto_format(self):
         """Verify that tokens returned in boto format are as expected,
@@ -53,22 +57,19 @@ class TestGetStsCredentials:
             sts_transfer.DEFAULT_MIN_LIFE
         )
 
-    def _command_output_test(self, output_format, expected_output, upload_destination=None):
+    def _command_output_test(self, output_format, expected_output, *, bucket_items=None, upload_destination=None):
         entity_id = 'syn_1'
         permission = 'read_write'
 
-        if upload_destination is None:
-            upload_destination = {
-                'bucket': 'bucket1',
-                'baseKey': 'key1',
-            }
-
         syn = mock.Mock(
             _sts_token_store=mock.Mock(
-                get_token=mock.Mock(return_value=self._make_credentials())
+                get_token=mock.Mock(return_value=self._make_credentials(bucket_items=bucket_items))
             ),
             _getDefaultUploadDestination=mock.Mock(
-                return_value=upload_destination
+                return_value=upload_destination if upload_destination is not None else {
+                    'bucket': 'bucket1',
+                    'baseKey': 'key1',
+                }
             )
         )
 
@@ -82,6 +83,13 @@ class TestGetStsCredentials:
         )
         assert_equal(credentials, expected_output)
         syn._sts_token_store.get_token.assert_called_with(syn, entity_id, permission, min_remaining_life)
+
+        # if the initial response from the back end included the keys we shouldn't
+        # have made a separate call to get the bucket info
+        if bucket_items and all(k in bucket_items for k in {'bucket', 'baseKey'}):
+            assert_false(syn._getDefaultUploadDestination.called)
+        else:
+            syn._getDefaultUploadDestination.assert_called_once()
 
     @mock.patch.object(sts_transfer, 'platform')
     @mock.patch.object(sts_transfer, 'os')
@@ -154,8 +162,7 @@ export AWS_SESSION_TOKEN="baz"
             mock_platform.system.return_value = platform
             self._bash_test('shell')
 
-    @mock.patch.object(sts_transfer, 'platform')
-    def test_json_format(self, mock_platform):
+    def test_json_format(self):
         """Verify that any other output_format just results in the raw dictionary being passed through."""
         entity_id = 'syn_1'
         permission = 'read'
@@ -196,6 +203,30 @@ export AWS_SECRET_ACCESS_KEY="bar"
 export AWS_SESSION_TOKEN="baz"
 """
         self._command_output_test('bash', expected_output, upload_destination={})
+
+    def test_json_format__bucket_included(self):
+        """Verify that if the backend includes bucket and baseKey that we use those (and don't make
+        an extra call to get them from the upload destination."""
+        expected_output = """\
+export SYNAPSE_STS_S3_LOCATION="s3://bucket2/key2"
+export AWS_ACCESS_KEY_ID="foo"
+export AWS_SECRET_ACCESS_KEY="bar"
+export AWS_SESSION_TOKEN="baz"
+"""
+        bucket_items = {'bucket': 'bucket2', 'baseKey': 'key2'}
+        self._command_output_test('bash', expected_output, bucket_items=bucket_items)
+
+    def test_json_format__bucket_half_included(self):
+        """Verify that if the backend includes an incomplete bucket response not both keys)
+        we fetch the additional one from the a separate call to fetch the upload destination."""
+        expected_output = """\
+export SYNAPSE_STS_S3_LOCATION="s3://bucket2/key1"
+export AWS_ACCESS_KEY_ID="foo"
+export AWS_SECRET_ACCESS_KEY="bar"
+export AWS_SESSION_TOKEN="baz"
+"""
+        bucket_items = {'bucket': 'bucket2'}  # no baseKey
+        self._command_output_test('bash', expected_output, bucket_items=bucket_items)
 
 
 class TestTokenCache:
