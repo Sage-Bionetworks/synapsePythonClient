@@ -2,7 +2,7 @@
 Release Notes
 =============
 
-2.1.0 (2020-05-XX)
+2.1.0 (2020-06-16)
 ==================
 
 Highlights:
@@ -58,12 +58,14 @@ A full list of issues addressed in this release are below.
 Bug
 ---
 
--  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1036>`__] -
-   different users storing same file to same folder results in 403
 -  [`SYNPY-913 <https://sagebionetworks.jira.com/browse/SYNPY-913>`__] -
    Travis Build badge for develop branch is pointing to pull request
 -  [`SYNPY-960 <https://sagebionetworks.jira.com/browse/SYNPY-960>`__] -
    AppVeyor build badge appears to be failed while the builds are passed
+-  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1036>`__] -
+   different users storing same file to same folder results in 403
+-  [`SYNPY-1056 <https://sagebionetworks.jira.com/browse/SYNPY-1056>`__] -
+   syn.getSubmissions fails due to new Annotation class in v2.1.0-rc
 
 Improvement
 -----------
@@ -72,6 +74,13 @@ Improvement
    Make upload speeds comparable to those of the AWS S3 CLI
 -  [`SYNPY-1049 <https://sagebionetworks.jira.com/browse/SYNPY-1049>`__] -
    Expose STS-related APIs
+
+Task
+----
+
+-  [`SYNPY-1059 <https://sagebionetworks.jira.com/browse/SYNPY-1059>`__] -
+   Use collections.abc instead of collections
+
 
 2.0.0 (2020-03-23)
 ==================
