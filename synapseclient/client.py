@@ -2827,6 +2827,7 @@ class Synapse(object):
             # getWithEntityBundle expects a bundle services v2 style
             # annotations dict, but the evaluations API may return
             # an older format annotations object in the encoded JSON
+            # depending on when the original submission was made.
             annotations = entityBundleJSON.get('annotations')
             if annotations:
                 entityBundleJSON['annotations'] = convert_old_annotation_json(annotations)

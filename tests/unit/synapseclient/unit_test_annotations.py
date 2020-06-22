@@ -271,7 +271,6 @@ def test_convert_old_annotation_json():
         'dateAnnotations': {'now': [now, now + 1]},
 
         'blobAnnotations': {'blobs': ['are ignored']},
-        'anything else': 'is ignored',
     }
 
     converted = convert_old_annotation_json(old_json)
@@ -301,3 +300,28 @@ def test_convert_old_annotation_json():
     }
 
     assert_equals(converted, expected)
+
+
+def test_convert_old_annotations_json__already_v2():
+    """Test that the presence of any loose annotations key not consistent
+    with v1 annotations causes annotations conversion to v2 to be short
+    circuited and the dictionary passed through as-is."""
+
+    annos_dict = {
+        'id': 'foo',
+        'etag': str(uuid.uuid4()),
+    }
+
+    # these keys are consistent with old style v1 annos
+    v1_keys = {
+        'stringAnnotations': ['foo'],
+        'longAnnotations': [1, 2, 3],
+    }
+    annos_dict.update(v1_keys)
+
+    # however this key is not so its presence reveals this to be to a v2 dict
+    # (and the above keys just happen to be v1 looking keys in a v2 annotations dict
+    annos_dict['v2_key'] = ['these are actually v2 annotations']
+
+    converted = convert_old_annotation_json(annos_dict)
+    assert_equals(annos_dict, converted)
