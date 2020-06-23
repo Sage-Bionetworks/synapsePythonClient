@@ -38,13 +38,13 @@ setuptools.setup(
     python_requires='>=3.6.*',
     install_requires=[
         'requests>=2.22.0',
-        'keyring==12.0.2',
-        'deprecated==1.2.4',
+        'keyring>=12.0.2',
+        'deprecated>=1.2.4',
     ],
     extras_require={
-        'pandas': ["pandas==0.25.0"],
+        'pandas': ["pandas>=0.25.0"],
         'pysftp': ["pysftp>=0.2.8"],
-        'boto3': ["boto3"],
+        'boto3': ["boto3>=1.7.0"],
         'tests': test_deps,
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt==3.1'],
     },
