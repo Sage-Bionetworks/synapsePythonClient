@@ -310,6 +310,8 @@ def test_convert_old_annotations_json__already_v2():
     annos_dict = {
         'id': 'foo',
         'etag': str(uuid.uuid4()),
+        'creationDate': '1444559717946',
+        'uri': '/entity/syn123/annotations',
     }
 
     # these keys are consistent with old style v1 annos

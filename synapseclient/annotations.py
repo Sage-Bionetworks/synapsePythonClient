@@ -339,7 +339,7 @@ def convert_old_annotation_json(annotations):
     """Transforms a parsed JSON dictionary of old style annotations
     into a new style consistent with the entity bundle v2 format."""
 
-    meta_keys = ('id', 'etag')
+    meta_keys = ('id', 'etag', 'creationDate', 'uri')
 
     type_mapping = {
         'doubleAnnotations': 'DOUBLE',
