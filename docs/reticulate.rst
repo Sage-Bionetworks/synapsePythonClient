@@ -44,6 +44,12 @@ intend to use with reticulate. This may be a particular installation of Python, 
 `Python version configuration documentation <https://rstudio.github.io/reticulate/articles/versions.html>`__ for more
 information on how reticulate can be configured to use particular Python environments.
 
+For help installing a reticulate compatible Python, see the reticulate version of the
+`SynapseShinyApp <https://github.com/jkiang13/SynapseShinyApp/tree/reticulate>`__.
+
+..
+    TODO move the above branch into the Sage repo
+
 Once you have ensured you are interacting with your intended Python interpreter, follow the standard synapseclient
 `installation instructions <index.html#installation>`__ to install synapseclient.
 
@@ -86,6 +92,21 @@ Once synapseclient is installed it can be used once it is imported through R's `
   .. code-block::
 
     synapseclient <- import("synapseclient")
+
+If you are using synapseclient with reticulate when writing an R package, you will want to wrap
+the import in an onLoad and use the delay_load option, .e.g.
+
+  .. code-block::
+
+    synapseclient  <- NULL
+
+    .onLoad <- function(libname, pkgname) {
+      synapseclient <<- reticulate::import("synapseclient", delay_load = TRUE)
+    }
+
+This will allow users of your package to configure their reticulate usage properly regardless of when
+they load your package. More information on this technique can be found `here <https://rstudio.github.io/reticulate/articles/package.html>`__.
+
 
 If you are familiar with the **synapser** R package, many of the commands will be similar, but unlike in synapser
 where package functions and classes are made available in the global namespace through the search path,
@@ -206,7 +227,7 @@ This illustrates adding annotations to a Synapse entity.
   .. code-block::
 
     # first retrieve the existing annotations object
-    annotations = syn$get_annotations(project)
+    annotations <- syn$get_annotations(project)
 
     annotations$foo <- "bar"
     annotations$fooList <- list("bar", "baz")
@@ -238,7 +259,7 @@ See `here <index.html#provenance>`__ for more information on Provenance related 
     close(connection)
 
     file = synapseclient$File(filePath, name="provenance_file.txt", parent=project)
-    file <- syn$store(, activity = act)
+    file <- syn$store(file, activity = act)
 
 
 Tables
@@ -272,8 +293,8 @@ from the data types of the values within the data frame.
     table <- syn$store(table)
 
 Alternately the schema can be specified. At this time when using date values it is necessary
-to use string or millisecond values and explicitly specify the type in the schema due to how
-dates are translated to the Python client.
+to use a date string formatted in "YYYY-MM-dd HH:mm:ss.mmm" format or integer unix epoch millisecond
+value and explicitly specify the type in the schema due to how dates are translated to the Python client.
 
   .. code-block::
 
@@ -389,8 +410,6 @@ List submissions:
 Retrieving submission by id:
 
   .. code-block::
-
-    # Not evaluating this section because of SYNPY-235
     submission <- syn$getSubmission(submission$id)
 
 Retrieving the submission status:
@@ -514,4 +533,18 @@ Update View's Content
     view$set_entity_types(list(synapseclient$EntityViewType$FILE))
 
 
+Using with a Shiny App
+======================
+
+Reticulate and the Python synapseclient can be used to workaround an issue that exists when using
+synapser with a Shiny App. Since synapser shares a Synapse client instance within the R process,
+multiple users of a synapser integrated Shiny App may end up sharing a login if precautions aren't
+taken. When using reticulate with synapseclient, session scoped Synapse client objects can be created
+that avoid this issue.
+
+See `SynapseShinyApp <https://github.com/Sage-Bionetworks/SynapseShinyApp>`__ for a sample application
+and a discussion of the issue, and the `reticulate <https://github.com/jkiang13/SynapseShinyApp/tree/reticulate>`__ branch for an alternative implementation using reticulate with synapseclient.
+
+..
+    Move the second repo link above to Sage
 
