@@ -35,12 +35,13 @@ def test_SubmissionStatus():
     assert_true(isinstance(status['submissionAnnotations'], Annotations))
 
 
-def test_SubmissionStatus_post():
-    """Test the post URI changes annotations to synapse style annotations"""
+def test_SubmissionStatus_json():
+    """Test the overloaded json to changes annotations to synapse style
+    annotations"""
     status = SubmissionStatus(
         id="foo", etag="bar", submissionAnnotations={"foo": "baz"}
     )
-    status.putURI()
+    status.json()
     expected_status = {
         "etag": "bar",
         "id": "foo",
