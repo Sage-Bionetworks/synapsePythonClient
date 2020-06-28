@@ -75,6 +75,7 @@ Submission Status
    :members: __init__
 
 """
+import json
 import typing
 
 from synapseclient.core.models.dict_object import DictObject
@@ -212,9 +213,14 @@ def _convert_to_annotation_cls(
 class SubmissionStatus(DictObject):
     """
     Builds an Synapse submission status object.
+    https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatus.html
 
-    :param score:      The score of the submission
-    :param status:     Status can be one of {'OPEN', 'CLOSED', 'SCORED', 'INVALID'}.
+    :param id: Unique immutable Synapse Id of the Submission
+    :param status: Status can be one of
+                   https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html.
+    :param submissionAnnotations: synapseclient.Annotations to store annotations of submission
+    :param canCancel: Can this submission be cancelled?
+    :param cancelRequested: Has user requested to cancel this submission?
     """
 
     @classmethod
@@ -234,10 +240,16 @@ class SubmissionStatus(DictObject):
 
         super(SubmissionStatus, self).__init__(kwargs)
 
-    def postURI(self):
-        return '/evaluation/submission/%s/status' % self.id
+    # def postURI(self):
+    #     return '/evaluation/submission/%s/status' % self.id
 
     def putURI(self):
+        return '/evaluation/submission/%s/status' % self.id
+
+    # def deleteURI(self):
+    #     return '/evaluation/submission/%s/status' % self.id
+
+    def json(self, ensure_ascii=True):
         # If not synapse annotations, turn them into synapseclient.Annotations
         # must have id and etag to turn into synapse annotations
         if not is_synapse_annotations(self.submissionAnnotations):
@@ -249,7 +261,4 @@ class SubmissionStatus(DictObject):
             self.submissionAnnotations = to_synapse_annotations(
                 annotations
             )
-        return '/evaluation/submission/%s/status' % self.id
-
-    def deleteURI(self):
-        return '/evaluation/submission/%s/status' % self.id
+        return json.dumps(self, sort_keys=True, indent=2, ensure_ascii=ensure_ascii)
