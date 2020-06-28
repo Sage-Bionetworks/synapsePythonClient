@@ -986,6 +986,7 @@ def test_get_annotation_submission_view_columns():
         )
         assert_equal(col, expected)
 
+
 class TestCreateStorageLocationSetting:
 
     def setup(self):
