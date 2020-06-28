@@ -780,7 +780,8 @@ class ViewBase(SchemaBase):
 
         # get default annotations
         if self.addAnnotationColumns:
-            anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, mask)
+            anno_columns = [x for x in syn._get_annotation_view_columns(self.scopeIds, view_type,
+                                                                        view_type_mask=mask)
                             if x['name'] not in self.ignoredAnnotationColumnNames]
             additional_columns.extend(anno_columns)
 
