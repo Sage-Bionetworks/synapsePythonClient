@@ -711,6 +711,7 @@ class ViewBase(SchemaBase):
     _property_keys = SchemaBase._property_keys + ['viewTypeMask', 'scopeIds']
     _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns',
                                             'ignoredAnnotationColumnNames']
+
     def add_scope(self, entities):
         """
         :param entities: a Project, Folder, Evaluation object or its ID, can also be a list of them
@@ -942,6 +943,7 @@ class SubmissionViewSchema(ViewBase):
         # add the scopes last so that we can append the passed in scopes to those defined in properties
         if scopes is not None:
             self.add_scope(scopes)
+
 
 # add Schema to the map of synapse entity types to their Python representations
 entity_type_to_class[Schema._synapse_entity_type] = Schema

@@ -21,7 +21,7 @@ import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
     PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask, \
-    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema, ViewBase
+    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema
 from tests import unit
 
 from synapseclient.core.utils import from_unix_epoch_time

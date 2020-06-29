@@ -3,14 +3,13 @@ import time
 import re
 import uuid
 import random
-from nose.tools import assert_raises, assert_false, assert_is_not_none, assert_true, assert_equals, assert_in
+from nose.tools import assert_raises, assert_is_not_none, assert_true, assert_equals, assert_in
 
 
 from synapseclient import Evaluation, File, Team, SubmissionViewSchema
 from synapseclient.core.exceptions import SynapseHTTPError
 from tests import integration
 from tests.integration import schedule_for_cleanup
-from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
 
 
 def setup(module):
