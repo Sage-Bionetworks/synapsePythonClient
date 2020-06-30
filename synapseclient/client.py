@@ -3493,16 +3493,16 @@ class Synapse(object):
                 break
         return columns
 
-    def _get_annotation_submission_view_columns(self, scope_ids):
-        """Get submission view columns"""
-        columns = self._get_annotation_view_columns(scope_ids, "submissionview")
-        return columns
+    # def _get_annotation_submission_view_columns(self, scope_ids):
+    #     """Get submission view columns"""
+    #     columns = self._get_annotation_view_columns(scope_ids, "submissionview")
+    #     return columns
 
-    def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
-        """Get entity view columns"""
-        columns = self._get_annotation_view_columns(scope_ids, "entityview",
-                                                    view_type_mask=view_type_mask)
-        return columns
+    # def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
+    #     """Get entity view columns"""
+    #     columns = self._get_annotation_view_columns(scope_ids, "entityview",
+    #                                                 view_type_mask=view_type_mask)
+    #     return columns
 
     ############################################################
     #              CRUD for Entities (properties)              #
