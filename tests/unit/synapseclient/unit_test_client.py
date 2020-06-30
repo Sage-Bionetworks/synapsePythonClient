@@ -931,18 +931,18 @@ def test_get_unsaved_entity():
     assert_raises(ValueError, syn.get, Folder(name="folder", parent="syn456"))
 
 
-def test_get_default_entity_view_columns():
-    mask = 5
-    with patch.object(syn, "_get_default_view_columns") as mock_get:
-        syn._get_default_entity_view_columns(mask)
-        mock_get.assert_called_with("entityview",
-                                    view_type_mask=mask)
+# def test_get_default_entity_view_columns():
+#     mask = 5
+#     with patch.object(syn, "_get_default_view_columns") as mock_get:
+#         syn._get_default_entity_view_columns(mask)
+#         mock_get.assert_called_with("entityview",
+#                                     view_type_mask=mask)
 
 
-def test_get_default_submission_view_columns():
-    with patch.object(syn, "_get_default_view_columns") as mock_get:
-        syn._get_default_submission_view_columns()
-        mock_get.assert_called_with("submissionview")
+# def test_get_default_submission_view_columns():
+#     with patch.object(syn, "_get_default_view_columns") as mock_get:
+#         syn._get_default_submission_view_columns()
+#         mock_get.assert_called_with("submissionview")
 
 
 def test_get_default_view_columns_nomask():
@@ -964,27 +964,27 @@ def test_get_default_view_columns_mask():
         )
 
 
-def test_get_annotation_entity_view_columns():
-    expected = Mock()
-    with patch.object(syn, "_get_annotation_view_columns") as get_annotation:
-        get_annotation.return_value = expected
-        col = syn._get_annotation_entity_view_columns(['syn123'], "0x1")
-        get_annotation.assert_called_once_with(
-            ['syn123'], "entityview",
-            view_type_mask="0x1"
-        )
-        assert_equal(col, expected)
+# def test_get_annotation_entity_view_columns():
+#     expected = Mock()
+#     with patch.object(syn, "_get_annotation_view_columns") as get_annotation:
+#         get_annotation.return_value = expected
+#         col = syn._get_annotation_entity_view_columns(['syn123'], "0x1")
+#         get_annotation.assert_called_once_with(
+#             ['syn123'], "entityview",
+#             view_type_mask="0x1"
+#         )
+#         assert_equal(col, expected)
 
 
-def test_get_annotation_submission_view_columns():
-    expected = Mock()
-    with patch.object(syn, "_get_annotation_view_columns") as get_annotation:
-        get_annotation.return_value = expected
-        col = syn._get_annotation_submission_view_columns(['1234'])
-        get_annotation.assert_called_once_with(
-            ['1234'], "submissionview"
-        )
-        assert_equal(col, expected)
+# def test_get_annotation_submission_view_columns():
+#     expected = Mock()
+#     with patch.object(syn, "_get_annotation_view_columns") as get_annotation:
+#         get_annotation.return_value = expected
+#         col = syn._get_annotation_submission_view_columns(['1234'])
+#         get_annotation.assert_called_once_with(
+#             ['1234'], "submissionview"
+#         )
+#         assert_equal(col, expected)
 
 
 class TestCreateStorageLocationSetting:
