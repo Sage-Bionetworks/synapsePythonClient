@@ -250,15 +250,22 @@ class SubmissionStatus(DictObject):
     #     return '/evaluation/submission/%s/status' % self.id
 
     def json(self, ensure_ascii=True):
+        """Overloaded json function, turning submissionAnnotations into
+        synapse style annotations"""
+
+        json_dict = self
         # If not synapse annotations, turn them into synapseclient.Annotations
         # must have id and etag to turn into synapse annotations
         if not is_synapse_annotations(self.submissionAnnotations):
+            json_dict = self.copy()
+
             annotations = _convert_to_annotation_cls(
                 id=self.id, etag=self.etag,
                 values=self.submissionAnnotations
             )
             # Turn into synapse annotation
-            self.submissionAnnotations = to_synapse_annotations(
+            json_dict['submissionAnnotations'] = to_synapse_annotations(
                 annotations
             )
-        return json.dumps(self, sort_keys=True, indent=2, ensure_ascii=ensure_ascii)
+        return json.dumps(json_dict, sort_keys=True, indent=2,
+                          ensure_ascii=ensure_ascii)

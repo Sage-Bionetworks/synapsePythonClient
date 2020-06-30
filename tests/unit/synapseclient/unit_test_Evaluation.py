@@ -1,3 +1,5 @@
+import json
+
 from nose.tools import assert_raises, assert_equals, assert_true
 
 from synapseclient import (Evaluation, Submission, SubmissionStatus,
@@ -41,7 +43,7 @@ def test_SubmissionStatus_json():
     status = SubmissionStatus(
         id="foo", etag="bar", submissionAnnotations={"foo": "baz"}
     )
-    status.json()
+    returned_json_str = status.json()
     expected_status = {
         "etag": "bar",
         "id": "foo",
@@ -56,7 +58,10 @@ def test_SubmissionStatus_json():
             "id": "foo"
         }
     }
-    assert_equals(status, expected_status)
+    expected_str = json.dumps(expected_status, sort_keys=True, indent=2,
+                              ensure_ascii=True)
+
+    assert_equals(returned_json_str, expected_str)
 
 
 def test__convert_to_annotation_cls_dict():
