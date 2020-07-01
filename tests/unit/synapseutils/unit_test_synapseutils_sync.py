@@ -1,4 +1,5 @@
 import os
+import csv
 from unittest.mock import patch, create_autospec, Mock, call
 from nose.tools import assert_dict_equal, assert_raises, assert_equals, assert_list_equal
 import pandas as pd
@@ -143,6 +144,15 @@ def test_syncFromSynapse__project_contains_empty_folder():
         assert_list_equal(expected_get_args, patch_syn_get.call_args_list)
 
 
+def _compareCsv(expected_csv_string, csv_path):
+    # compare our expected csv with the one written to the given path.
+    # compare parsed dictionaries vs just comparing strings to avoid newline differences across platforms
+    expected = [r for r in csv.DictReader(StringIO(expected_csv_string), delimiter='\t')]
+    with open(csv_path, 'r') as csv_file:
+        actual = [r for r in csv.DictReader(csv_file, delimiter='\t')]
+    assert_equals(expected, actual)
+
+
 def test_syncFromSynase__manifest():
     """Verify that we generate manifest files when syncing to a location outside of the cache."""
 
@@ -194,13 +204,14 @@ def test_syncFromSynase__manifest():
 
             # we should have two manifest files, one rooted at the project and one rooted in the sub folder
 
-            with open(os.path.join(sync_dir, synapseutils.sync.MANIFEST_FILENAME), 'r') as manifest_file:
-                manifest_data = manifest_file.read()
-                assert_equals(expected_project_manifest, manifest_data)
-
-            with open(os.path.join(sync_dir, folder.name, synapseutils.sync.MANIFEST_FILENAME), 'r') as manifest_file:
-                manifest_data = manifest_file.read()
-                assert_equals(expected_folder_manifest, manifest_data)
+            _compareCsv(
+                expected_project_manifest,
+                os.path.join(sync_dir, synapseutils.sync.MANIFEST_FILENAME)
+            )
+            _compareCsv(
+                expected_folder_manifest,
+                os.path.join(sync_dir, folder.name, synapseutils.sync.MANIFEST_FILENAME)
+            )
 
 
 def test_extract_file_entity_metadata__ensure_correct_row_metadata():
