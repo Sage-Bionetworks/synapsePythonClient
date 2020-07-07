@@ -315,3 +315,26 @@ def test_snake_case():
         ('camel123Abc', 'camel123_abc'),
     ]:
         assert_equals(expected_output, utils.snake_case(input_word))
+
+
+def test_deprecated_keyword_param():
+
+    keywords = ['foo', 'baz']
+    version = '2.1.1'
+    reason = "keyword is no longer used"
+
+    fn_return_val = 'expected return'
+
+    @utils.deprecated_keyword_param(keywords, version, reason)
+    def test_fn(positional, foo=None, bar=None, baz=None):
+        return fn_return_val
+
+    with patch('warnings.warn') as mock_warn:
+        return_val = test_fn('positional', foo='foo', bar='bar', baz='baz')
+
+    assert_equals(fn_return_val, return_val)
+    mock_warn.assert_called_once_with(
+        "Parameter(s) ['baz', 'foo'] deprecated since version 2.1.1; keyword is no longer used",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
