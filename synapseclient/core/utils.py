@@ -906,7 +906,7 @@ class deprecated_keyword_param:
             if found:
                 warnings.warn(
                     "Parameter(s) {} deprecated since version {}; {}".format(
-                        list(found), self.version, self.reason
+                        sorted(list(found)), self.version, self.reason
                     ),
                     category=DeprecationWarning,
                     stacklevel=2
