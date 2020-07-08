@@ -765,14 +765,8 @@ class ViewBase(SchemaBase):
     def _before_synapse_store(self, syn):
         # get the default EntityView columns from Synapse and add them to the columns list
         additional_columns = []
-        if self._synapse_entity_type == "org.sagebionetworks.repo.model.table.SubmissionView":
-            view_type = "submissionview"
-            mask = None
-        elif self._synapse_entity_type == "org.sagebionetworks.repo.model.table.EntityView":
-            view_type = "entityview"
-            mask = self['viewTypeMask']
-        else:
-            raise ValueError("_synapse_entity_type not set")
+        view_type = self._synapse_entity_type.split(".")[-1].lower()
+        mask = self.get("viewTypeMask")
 
         if self.addDefaultViewColumns:
             additional_columns.extend(
