@@ -55,7 +55,7 @@ def test_create_and_update_file_view():
     # Add new columns for the annotations on this file and get their IDs
     my_added_cols = [syn.store(Column(name=k, columnType="STRING")) for k in file_annotations.keys()]
     my_added_cols_ids = [c['id'] for c in my_added_cols]
-    view_default_ids = [c['id'] for c in syn._get_default_entity_view_columns(EntityViewType.FILE.value)]
+    view_default_ids = [c['id'] for c in syn._get_default_view_columns("entityview", EntityViewType.FILE.value)]
     col_ids = my_added_cols_ids + view_default_ids
     scopeIds = [folder['id'].lstrip('syn')]
 

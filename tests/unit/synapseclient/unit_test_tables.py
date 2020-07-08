@@ -21,7 +21,7 @@ import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
     PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask, \
-    MAX_NUM_TABLE_COLUMNS
+    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema
 from tests import unit
 
 from synapseclient.core.utils import from_unix_epoch_time
@@ -562,6 +562,44 @@ def test_build_table_download_file_handle_list__repeated_file_handles():
     assert_equals(0, len(file_handle_to_path_map))
 
 
+def test_SubmissionViewSchema__default_params():
+    submission_view = SubmissionViewSchema(parent="idk")
+    assert_equals([], submission_view.scopeIds)
+    assert_true(submission_view.addDefaultViewColumns)
+
+
+def test_SubmissionViewSchema__before_synapse_store():
+    syn = Synapse(debug=True, skip_checks=True)
+
+    with patch.object(syn, '_get_default_view_columns') as mocked_get_default,\
+            patch.object(syn, '_get_annotation_view_columns') as mocked_get_annotations,\
+            patch.object(SchemaBase, "_before_synapse_store"):
+
+        submission_view = SubmissionViewSchema(scopes=['123'], parent="idk")
+        submission_view._before_synapse_store(syn)
+        mocked_get_default.assert_called_once_with("submissionview",
+                                                   view_type_mask=None)
+        mocked_get_annotations.assert_called_once_with(['123'],
+                                                       "submissionview",
+                                                       view_type_mask=None)
+
+
+def test_EntityViewSchema__before_synapse_store():
+    syn = Synapse(debug=True, skip_checks=True)
+
+    with patch.object(syn, '_get_default_view_columns') as mocked_get_default,\
+            patch.object(syn, '_get_annotation_view_columns') as mocked_get_annotations,\
+            patch.object(SchemaBase, "_before_synapse_store"):
+
+        submission_view = EntityViewSchema(scopes=['syn123'], parent="idk")
+        submission_view._before_synapse_store(syn)
+        mocked_get_default.assert_called_once_with("entityview",
+                                                   view_type_mask=1)
+        mocked_get_annotations.assert_called_once_with(['syn123'],
+                                                       "entityview",
+                                                       view_type_mask=1)
+
+
 def test_EntityViewSchema__default_params():
     entity_view = EntityViewSchema(parent="idk")
     assert_equals(EntityViewType.FILE.value, entity_view.viewTypeMask)
@@ -651,7 +689,7 @@ def test_EntityViewSchema__ignore_annotation_column_names():
     mocked_annotation_result1 = [Column(name='long1', columnType='INTEGER'), Column(name='long2',
                                                                                     columnType='INTEGER')]
 
-    with patch.object(syn, '_get_annotation_entity_view_columns', return_value=mocked_annotation_result1)\
+    with patch.object(syn, '_get_annotation_view_columns', return_value=mocked_annotation_result1)\
             as mocked_get_annotations,\
             patch.object(syn, 'getColumns') as mocked_get_columns,\
             patch.object(SchemaBase, "_before_synapse_store"):
@@ -659,7 +697,8 @@ def test_EntityViewSchema__ignore_annotation_column_names():
         entity_view._before_synapse_store(syn)
 
         mocked_get_columns.assert_called_once_with([])
-        mocked_get_annotations.assert_called_once_with(scopeIds, EntityViewType.FILE.value)
+        mocked_get_annotations.assert_called_once_with(scopeIds, "entityview",
+                                                       view_type_mask=EntityViewType.FILE.value)
 
         assert_equals([Column(name='long2', columnType='INTEGER')], entity_view.columns_to_store)
 
