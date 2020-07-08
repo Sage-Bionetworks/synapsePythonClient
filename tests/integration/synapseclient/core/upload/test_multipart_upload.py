@@ -6,7 +6,6 @@ import tempfile
 import traceback
 from io import open
 
-from nose.tools import assert_equals, assert_true, assert_is_not_none
 from unittest import mock
 
 from synapseclient import File
@@ -17,16 +16,9 @@ from synapseclient.core.upload.multipart_upload import (
     multipart_upload_file,
     multipart_upload_string
 )
-from tests import integration
-from tests.integration import schedule_for_cleanup
 
 
-def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
-
-
-def test_round_trip():
+def test_round_trip(syn, project, schedule_for_cleanup):
     fhid = None
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE + 777771)
     try:
@@ -39,7 +31,7 @@ def test_round_trip():
         schedule_for_cleanup(tmp_path)
 
         junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-        assert_true(filecmp.cmp(filepath, junk.path))
+        assert filecmp.cmp(filepath, junk.path)
 
     finally:
         try:
@@ -53,16 +45,16 @@ def test_round_trip():
             print(traceback.format_exc())
 
 
-def test_single_thread_upload():
+def test_single_thread_upload(syn):
     synapseclient.core.config.single_threaded = True
     try:
         filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + 1)
-        assert_is_not_none(multipart_upload_file(syn, filepath))
+        assert multipart_upload_file(syn, filepath) is not None
     finally:
         synapseclient.core.config.single_threaded = False
 
 
-def test_randomly_failing_parts():
+def test_randomly_failing_parts(syn, project, schedule_for_cleanup):
     """Verify that we can recover gracefully with some randomly inserted errors
     while uploading parts."""
 
@@ -99,7 +91,7 @@ def test_randomly_failing_parts():
             schedule_for_cleanup(tmp_path)
 
             junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-            assert_true(filecmp.cmp(filepath, junk.path))
+            assert filecmp.cmp(filepath, junk.path)
 
         finally:
             try:
@@ -113,7 +105,7 @@ def test_randomly_failing_parts():
                 print(traceback.format_exc())
 
 
-def test_multipart_upload_big_string():
+def test_multipart_upload_big_string(syn, project, schedule_for_cleanup):
     cities = ["Seattle", "Portland", "Vancouver", "Victoria",
               "San Francisco", "Los Angeles", "New York",
               "Oaxaca", "Cancún", "Curaçao", "जोधपुर",
@@ -141,4 +133,4 @@ def test_multipart_upload_big_string():
     with open(junk.path, encoding='utf-8') as f:
         retrieved_text = f.read()
 
-    assert_equals(retrieved_text, text)
+    assert retrieved_text == text

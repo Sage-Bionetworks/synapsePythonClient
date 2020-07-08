@@ -1,26 +1,17 @@
-
-from nose.tools import assert_raises, assert_not_equal, assert_true
-
 import filecmp
 import os
 import tempfile
 import shutil
 import time
 
+import pytest
+
 from synapseclient import File
 from synapseclient.core.exceptions import SynapseMd5MismatchError
 import synapseclient.core.utils as utils
-from tests import integration
-from tests.integration import schedule_for_cleanup
 
 
-def setup(module):
-
-    module.syn = integration.syn
-    module.project = integration.project
-
-
-def test_download_check_md5():
+def test_download_check_md5(syn, project, schedule_for_cleanup):
     tempfile_path = utils.make_bogus_data_file()
     schedule_for_cleanup(tempfile_path)
     entity = File(parent=project['id'])
@@ -33,11 +24,11 @@ def test_download_check_md5():
     schedule_for_cleanup(tempfile_path2)
     entity_bad_md5 = syn.store(File(path=tempfile_path2, parent=project['id'], synapseStore=False))
 
-    assert_raises(SynapseMd5MismatchError, syn._download_from_URL, entity_bad_md5['externalURL'], tempfile.gettempdir(),
+    pytest.raises(SynapseMd5MismatchError, syn._download_from_URL, entity_bad_md5['externalURL'], tempfile.gettempdir(),
                   entity_bad_md5['dataFileHandleId'], expected_md5="2345a")
 
 
-def test_resume_partial_download():
+def test_resume_partial_download(syn, project, schedule_for_cleanup):
     original_file = utils.make_bogus_data_file(40000)
 
     entity = File(original_file, parent=project['id'])
@@ -67,10 +58,10 @@ def test_resume_partial_download():
     path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId,
                                   expected_md5=entity.md5)
 
-    assert_true(filecmp.cmp(original_file, path), "File comparison failed")
+    assert filecmp.cmp(original_file, path), "File comparison failed"
 
 
-def test_http_download__range_request_error():
+def test_http_download__range_request_error(syn, project):
     # SYNPY-525
 
     file_path = utils.make_bogus_data_file()
@@ -82,5 +73,5 @@ def test_http_download__range_request_error():
     shutil.move(file_entity.path, utils.temp_download_filename(file_entity.path, file_entity.dataFileHandleId))
     file_entity = syn.get(file_entity)
 
-    assert_not_equal(file_path, file_entity.path)
-    assert_true(filecmp.cmp(file_path, file_entity.path))
+    assert file_path != file_entity.path
+    assert filecmp.cmp(file_path, file_entity.path)
