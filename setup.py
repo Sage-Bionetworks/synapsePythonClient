@@ -26,7 +26,10 @@ data_files =\
     if not os.path.exists(os.path.expanduser('~/.synapseConfig'))\
     else []
 
-test_deps = ['nose', 'flake8']
+test_deps = [
+    "pytest>=5.0.0,<6.0",
+    "flake8>=3.7.0,<4.0"
+]
 
 setuptools.setup(
     # basic
