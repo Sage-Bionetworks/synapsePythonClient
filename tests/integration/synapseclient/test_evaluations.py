@@ -109,13 +109,10 @@ def test_evaluations():
         for submission in submissions:
             assert_true(re.match('Submission \\d+', submission['name']))
             status = syn.getSubmissionStatus(submission)
-            # status.score = random.random()
             if submission['name'] == 'Submission 01':
                 status.status = 'INVALID'
-            #    status.report = 'Uh-oh, something went wrong!'
             else:
                 status.status = 'SCORED'
-            #    status.report = 'a fabulous effort!'
             syn.store(status)
 
         # Annotate the submissions
@@ -127,8 +124,6 @@ def test_evaluations():
             bogosity[submission.id] = b
             a = dict(foo='bar', bogosity=b)
             b += 123
-            # status['annotations'] = to_submission_status_annotations(a)
-            # set_privacy(status['annotations'], key='bogosity', is_private=False)
             status.submissionAnnotations = a
             syn.store(status)
 
@@ -138,9 +133,6 @@ def test_evaluations():
             a = status.submissionAnnotations
             assert_equals(a['foo'], ['bar'])
             assert_equals(a['bogosity'], [bogosity[submission.id]])
-            # for kvp in status.annotations['longAnnos']:
-            #     if kvp['key'] == 'bogosity':
-            #         assert_false(kvp['isPrivate'])
 
         # test query by submission annotations
         # These queries run against an eventually consistent index table which is
