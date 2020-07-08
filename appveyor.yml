@@ -5,9 +5,8 @@ environment:
         - PYTHON: "C:\\Python38-x64"
 
 install:
-    - "%PYTHON%\\python.exe -m pip install nose mock pysftp cython pandas boto3"
     - "cd %APPVEYOR_BUILD_FOLDER%"
-    - "%PYTHON%\\python.exe setup.py install"
+    - "%PYTHON%\\python.exe -m pip install \".[pysftp,pandas,boto3,tests]\""
 
 build: off
 
