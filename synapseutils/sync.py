@@ -154,7 +154,7 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
 
         entity_id = entity['id']
         row_provenance = provenance_cache.get(entity_id) if provenance_cache is not None else None
-        if not row_provenance:
+        if row_provenance is None:
             row_provenance = _get_file_entity_provenance_dict(syn, entity)
 
             if provenance_cache is not None:
