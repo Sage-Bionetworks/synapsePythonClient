@@ -1,6 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import call, MagicMock, patch
-from nose.tools import assert_is_instance, assert_equal, assert_true
 from multiprocessing.sharedctypes import Synchronized
 from multiprocessing.pool import ThreadPool
 
@@ -35,8 +34,8 @@ class TestSingleThreadExecutor:
                 lambda: i
             )
 
-            assert_true(result.done)
-            assert_equal(i, result.result())
+            assert result.done
+            assert i == result.result()
 
 
 def _patch_config(single_threaded: bool):
@@ -51,22 +50,22 @@ class TestExecutorProvider:
 
     def test_get_executor_for_single_thread(self):
         with _patch_config(True):
-            assert_is_instance(get_executor(), SingleThreadExecutor)
+            assert isinstance(get_executor(), SingleThreadExecutor)
 
     def test_get_executor_for_multiple_thread(self):
         with _patch_config(False):
-            assert_is_instance(get_executor(), ThreadPoolExecutor)
+            assert isinstance(get_executor(), ThreadPoolExecutor)
 
 
 class TestPoolProvider:
 
     def test_get_pool_for_single_thread(self):
         with _patch_config(True):
-            assert_is_instance(get_pool(), SingleThreadPool)
+            assert isinstance(get_pool(), SingleThreadPool)
 
     def test_get_pool_for_multiple_thread(self):
         with _patch_config(False):
-            assert_is_instance(get_pool(), ThreadPool)
+            assert isinstance(get_pool(), ThreadPool)
 
 
 class TestGetValue:
@@ -77,20 +76,20 @@ class TestGetValue:
         synapseclient.core.config.single_threaded = False
         test_value = get_value('d', 500)
         type(test_value)
-        assert_is_instance(test_value, Synchronized)
-        assert_equal(test_value.value, 500)
+        assert isinstance(test_value, Synchronized)
+        assert test_value.value == 500
 
         test_value.get_lock()
         test_value.value = 900
-        assert_equal(test_value.value, 900)
+        assert test_value.value == 900
 
     def test_get_value_for_single_thread(self):
         synapseclient.core.config.single_threaded = True
         test_value = get_value('d', 500)
-        assert_is_instance(test_value, SingleValue)
+        assert isinstance(test_value, SingleValue)
         test_value.value
-        assert_equal(test_value.value, 500)
+        assert test_value.value == 500
 
         test_value.get_lock()
         test_value.value = 900
-        assert_equal(test_value.value, 900)
+        assert test_value.value == 900

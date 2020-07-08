@@ -1,18 +1,14 @@
 import json
 import uuid
 
+import pytest
 from unittest.mock import patch, call
-from nose.tools import assert_raises, assert_equal
 
 import synapseclient
 import synapseutils
 from synapseutils.copy_functions import _copy_file_handles_batch, _create_batch_file_handle_copy_request, \
     _batch_iterator_generator
-from tests import unit
-
-
-def setup(module):
-    module.syn = unit.syn
+from tests.unit import syn
 
 
 def test_copyWiki_empty_Wiki():
@@ -47,7 +43,7 @@ def test_copyWiki_input_validation():
                               updateLinks=False)
         mock_getWiki.assert_has_calls(expected_calls)
 
-        assert_raises(ValueError, synapseutils.copyWiki, syn, "syn123", "syn456", entitySubPageId="some_string",
+        pytest.raises(ValueError, synapseutils.copyWiki, syn, "syn123", "syn456", entitySubPageId="some_string",
                       updateLinks=False)
 
 
@@ -64,7 +60,7 @@ class TestCopyFileHandles:
         file_handles = ["test"]
         obj_types = []
         obj_ids = ["123"]
-        assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids)
+        pytest.raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids)
         self.mock_private_copy.assert_not_called()
 
     def test_copy_file_handles__invalid_input_params_branch2(self):
@@ -72,7 +68,7 @@ class TestCopyFileHandles:
         obj_types = ["FileEntity"]
         obj_ids = ["123"]
         new_con_type = []
-        assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids, new_con_type)
+        pytest.raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids, new_con_type)
         self.mock_private_copy.assert_not_called()
 
     def test_copy_file_handles__invalid_input_params_branch3(self):
@@ -81,7 +77,7 @@ class TestCopyFileHandles:
         obj_ids = ["123"]
         new_con_type = ["text/plain"]
         new_file_name = []
-        assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids, new_con_type,
+        pytest.raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids, new_con_type,
                       new_file_name)
         self.mock_private_copy.assert_not_called()
 
@@ -123,10 +119,10 @@ class TestCopyFileHandles:
 
         self.mock_private_copy.side_effect = [return_val_1, return_val_2]  # define multiple returns
         result = synapseutils.copyFileHandles(syn, file_handles, obj_types, obj_ids, con_types, file_names)
-        assert_equal(expected_calls, self.mock_private_copy.call_args_list)
+        assert expected_calls == self.mock_private_copy.call_args_list
 
-        assert_equal(result, expected_return)
-        assert_equal(self.mock_private_copy.call_count, 2)
+        assert result == expected_return
+        assert self.mock_private_copy.call_count == 2
 
 
 class TestProtectedCopyFileHandlesBatch:
@@ -205,7 +201,7 @@ class TestProtectedCopyFileHandlesBatch:
         post_return_val = {"copyResults": return_val}
         self.mock_restPOST.return_value = post_return_val
         result = _copy_file_handles_batch(syn, file_handles, obj_types, obj_ids, con_types, file_names)
-        assert_equal(result, return_val)
+        assert result == return_val
         self.mock_restPOST.assert_called_once_with('/filehandles/copy', body=json.dumps(expected_input),
                                                    endpoint=syn.fileHandleEndpoint)
 
@@ -233,7 +229,7 @@ class TestProtectedCreateBatchFileHandleCopyRequest:
         }
         result = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, new_con_types,
                                                         new_file_names)
-        assert_equal(expected_result, result)
+        assert expected_result == result
 
     def test__create_batch_file_handle_copy_request__two_file_request(self):
         file_handle_ids = ["345", "789"]
@@ -265,7 +261,7 @@ class TestProtectedCreateBatchFileHandleCopyRequest:
         }
         result = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, new_con_types,
                                                         new_file_names)
-        assert_equal(expected_result, result)
+        assert expected_result == result
 
 
 class TestProtectedBatchIteratorGenerator:
@@ -273,7 +269,7 @@ class TestProtectedBatchIteratorGenerator:
     def test__batch_iterator_generator__empty_iterable(self):
         iterables = []
         batch_size = 2
-        with assert_raises(ValueError):
+        with pytest.raises(ValueError):
             list(_batch_iterator_generator(iterables, batch_size))
 
     def test__batch_iterator_generator__single_iterable(self):
@@ -281,14 +277,14 @@ class TestProtectedBatchIteratorGenerator:
         batch_size = 3
         expected_result_list = [["ABC"], ["DEF"], ["G"]]
         result_list = list(_batch_iterator_generator(iterables, batch_size))
-        assert_equal(expected_result_list, result_list)
+        assert expected_result_list == result_list
 
     def test__batch_iterator_generator__two_iterables(self):
         iterables = [[1, 2, 3], [4, 5, 6]]
         batch_size = 2
         expected_result_list = [[[1, 2], [4, 5]], [[3], [6]]]
         result_list = list(_batch_iterator_generator(iterables, batch_size))
-        assert_equal(expected_result_list, result_list)
+        assert expected_result_list == result_list
 
 
 class TestCopyPermissions:
@@ -313,7 +309,7 @@ class TestCopyPermissions:
             copied_file = synapseutils.copy(syn, self.file_ent,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
-            assert_equal(copied_file, dict())
+            assert copied_file == dict()
             patch_syn_get.assert_called_once_with(self.file_ent,
                                                   downloadFile=False)
             rest_call = "/entity/{}/permissions".format(self.file_ent.id)
@@ -344,7 +340,7 @@ class TestCopyAccessRestriction:
             copied_file = synapseutils.copy(syn, self.file_ent,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
-            assert_equal(copied_file, dict())
+            assert copied_file == dict()
             patch_syn_get.assert_called_once_with(self.file_ent,
                                                   downloadFile=False)
             calls = [call('/entity/{}/accessRequirement'.format(self.file_ent.id)),
@@ -377,8 +373,10 @@ class TestCopy:
             copied_file = synapseutils.copy(syn, self.project_entity,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
-            assert_equal(copied_file, {self.project_entity.id:
-                                       self.second_project.id})
+            assert copied_file == {
+                self.project_entity.id:
+                self.second_project.id
+            }
             calls = [call(self.project_entity, downloadFile=False),
                      call(self.second_project.id)]
             patch_syn_get.assert_has_calls(calls)

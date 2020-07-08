@@ -1,7 +1,6 @@
 import os
 
 from unittest import mock
-from nose.tools import assert_equal
 
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.upload import upload_functions
@@ -68,8 +67,8 @@ def test_upload_synapse_sts_boto_s3(mock_uuid4, mock_s3_client_wrapper, mock_sts
     key_prefix = mock_uuid4.return_value = 'af88c590-dfd2-4ab9-a36f-2829c44b5239'
 
     def mock_with_boto_sts_credentials(upload_fn, syn, objectId, permission):
-        assert_equal(permission, 'read_write')
-        assert_equal(parent_id, objectId)
+        assert permission == 'read_write'
+        assert parent_id == objectId
         return upload_fn(credentials)
 
     mock_sts_transfer.with_boto_sts_credentials = mock_with_boto_sts_credentials
@@ -80,7 +79,7 @@ def test_upload_synapse_sts_boto_s3(mock_uuid4, mock_s3_client_wrapper, mock_sts
         upload_destination,
         local_path,
     )
-    assert_equal(returned_file_handle, syn.create_external_s3_file_handle.return_value)
+    assert returned_file_handle == syn.create_external_s3_file_handle.return_value
     remote_file_key = "/".join([base_key, key_prefix, os.path.basename(local_path)])
     syn.create_external_s3_file_handle.assert_called_once_with(
         bucket_name,

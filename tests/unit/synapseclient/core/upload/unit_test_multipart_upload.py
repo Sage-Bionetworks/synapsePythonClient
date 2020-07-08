@@ -3,8 +3,8 @@ import hashlib
 import json
 import math
 
+import pytest
 from unittest import mock
-from nose.tools import assert_equal, assert_false, assert_raises, assert_true
 
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
@@ -72,7 +72,7 @@ class TestUploadAttempt:
         response = mock.Mock()
         upload._syn.restPOST.return_value = response
 
-        assert_equal(upload._create_synapse_upload(), response)
+        assert upload._create_synapse_upload() == response
 
         upload._syn.restPOST.assert_called_once_with(
             expected_uri,
@@ -113,7 +113,7 @@ class TestUploadAttempt:
             requests_session=session,
         )
 
-        assert_equal(pre_signed_urls, expected_return)
+        assert pre_signed_urls == expected_return
 
         expected_uri =\
             "/file/multipart/{upload_id}/presigned/url/batch".format(
@@ -162,7 +162,7 @@ class TestUploadAttempt:
                 current_url,
             )
 
-            assert_equal(refreshed_url, pre_signed_url)
+            assert refreshed_url == pre_signed_url
 
             fetch_urls.assert_called_once_with(
                 upload._upload_id,
@@ -198,7 +198,7 @@ class TestUploadAttempt:
 
             # should return the new url already on file without having
             # to have made a remote call.
-            assert_equal(refreshed_url, current_url)
+            assert refreshed_url == current_url
             fetch_urls.assert_not_called()
 
     def test_handle_part_aborted(self):
@@ -208,7 +208,7 @@ class TestUploadAttempt:
         upload = self._init_upload_attempt()
         upload._aborted = True
 
-        with assert_raises(SynapseUploadAbortedException):
+        with pytest.raises(SynapseUploadAbortedException):
             upload._handle_part(5)
 
     def _handle_part_success_test(
@@ -245,15 +245,13 @@ class TestUploadAttempt:
         expected_put_calls = [
             aws_call[0] for aws_call in aws_calls
         ]
-        assert_equal(
-            mock_session.put.call_args_list,
-            expected_put_calls
-        )
+        assert (
+            mock_session.put.call_args_list ==
+            expected_put_calls)
 
-        assert_equal(
-            result,
-            (part_number, len(chunk)),
-        )
+        assert (
+            result ==
+            (part_number, len(chunk)))
 
         if refresh_url_response:
             refresh_urls.assert_called_once_with(
@@ -261,7 +259,7 @@ class TestUploadAttempt:
                 expired_url,
             )
         else:
-            assert_false(refresh_urls.called)
+            assert not refresh_urls.called
 
         upload._syn.restPUT.assert_called_once_with(
             "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}"
@@ -274,7 +272,7 @@ class TestUploadAttempt:
             endpoint=upload._syn.fileHandleEndpoint
         )
 
-        assert_true(part_number not in upload._pre_signed_part_urls)
+        assert part_number not in upload._pre_signed_part_urls
 
     def test_handle_part_success(self):
         """Verify behavior of a successful processing of a part.
@@ -376,7 +374,7 @@ class TestUploadAttempt:
                 reason=''
             )
 
-            with assert_raises(SynapseHTTPError):
+            with pytest.raises(SynapseHTTPError):
                 upload._handle_part(1)
 
     def test_call_upload(self):
@@ -426,7 +424,7 @@ class TestUploadAttempt:
 
             upload._syn.restPUT.return_value = upload_response
             result = upload()
-            assert_equal(result, upload_response)
+            assert result == upload_response
 
             upload._syn.restPUT.assert_called_once_with(
                 "/file/multipart/{upload_id}/complete".format(
@@ -468,7 +466,7 @@ class TestUploadAttempt:
 
             get_executor.return_value.submit.return_value = future
 
-            with assert_raises(expected_raised_exception):
+            with pytest.raises(expected_raised_exception):
                 upload()
 
     def test_call_upload__part_failure(self):
@@ -509,12 +507,12 @@ class TestUploadAttempt:
             create_synapse_upload.return_value = upload_status_response
 
             upload_result = upload()
-            assert_equal(upload_status_response, upload_result)
+            assert upload_status_response == upload_result
 
             # we should have been able to short circuit any further
             # upload work and have returned immediately
-            assert_false(fetch_pre_signed_urls.called)
-            assert_false(get_executor.called)
+            assert not fetch_pre_signed_urls.called
+            assert not get_executor.called
 
     def test_all_parts_completed(self):
         """Verify that if all the parts are already complete but
@@ -548,15 +546,15 @@ class TestUploadAttempt:
             restPUT.return_value = complete_status_response
 
             upload_result = upload()
-            assert_equal(complete_status_response, upload_result)
+            assert complete_status_response == upload_result
 
             restPUT.assert_called_once()
-            assert_true(f"/file/multipart/{upload_id}/complete" in restPUT.call_args_list[0][0])
+            assert f"/file/multipart/{upload_id}/complete" in restPUT.call_args_list[0][0]
 
             # we should have been able to short circuit any further
             # upload work and have returned immediately
-            assert_false(fetch_pre_signed_urls.called)
-            assert_false(get_executor.called)
+            assert not fetch_pre_signed_urls.called
+            assert not get_executor.called
 
 
 class TestMultipartUpload:
@@ -589,13 +587,13 @@ class TestMultipartUpload:
             os_path_exists.return_value = False
 
             # bad file
-            with assert_raises(IOError):
+            with pytest.raises(IOError):
                 multipart_upload_file(syn, file_path)
 
             os_path_exists.return_value = True
             os_path_is_dir.return_value = True
 
-            with assert_raises(IOError):
+            with pytest.raises(IOError):
                 multipart_upload_file(syn, file_path)
 
             os_path_is_dir.return_value = False
@@ -843,8 +841,8 @@ class TestMultipartUpload:
 
         # should have been called multiple times but returned
         # the result in the end.
-        assert_equal(result_file_handle_id, result)
-        assert_equal(len(upload_side_effect), upload_mock.call_count)
+        assert result_file_handle_id == result
+        assert len(upload_side_effect) == upload_mock.call_count
 
     def test_multipart_upload__retry_failure(self):
         """Verify if we run out of upload attempts we give up
@@ -859,7 +857,7 @@ class TestMultipartUpload:
         storage_location_id = 3210
         upload_side_effect = SynapseUploadFailedException()
 
-        with assert_raises(SynapseUploadFailedException):
+        with pytest.raises(SynapseUploadFailedException):
             self._multipart_upload_test(
                 upload_side_effect,
                 syn,

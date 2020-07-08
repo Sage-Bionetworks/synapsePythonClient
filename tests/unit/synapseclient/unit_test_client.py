@@ -6,9 +6,8 @@ import os
 import tempfile
 import uuid
 
+import pytest
 from unittest.mock import ANY, call, create_autospec, Mock, patch
-from nose.tools import assert_equal, assert_false, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
-    assert_not_equals, assert_true
 
 import synapseclient
 from synapseclient.annotations import convert_old_annotation_json
@@ -39,11 +38,7 @@ from synapseclient.core.credentials import UserLoginArgs
 from synapseclient.core.credentials.cred_data import SynapseCredentials
 from synapseclient.core.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.core.models.dict_object import DictObject
-from tests import unit
-
-
-def setup(module):
-    module.syn = unit.syn
+from tests.unit import syn
 
 
 class TestLogout:
@@ -55,14 +50,14 @@ class TestLogout:
         with patch.object(client, "cached_sessions") as mock_cached_session:
             syn.credentials = self.credentials
             syn.logout(True)
-            assert_is_none(syn.credentials)
+            assert syn.credentials is None
             mock_cached_session.remove_api_key.assert_called_with(self.username)
 
     def test_logout__forgetMe_is_False(self):
         with patch.object(client, "cached_sessions") as mock_cached_session:
             syn.credentials = self.credentials
             syn.logout(False)
-            assert_is_none(syn.credentials)
+            assert syn.credentials is None
             mock_cached_session.remove_api_key.assert_not_called()
 
 
@@ -86,7 +81,7 @@ class TestLogin:
         self.mocked_credential_chain.get_credentials.return_value = None
 
         # method under test
-        assert_raises(SynapseAuthenticationError, syn.login, **self.login_args)
+        pytest.raises(SynapseAuthenticationError, syn.login, **self.login_args)
 
         self.mocked_get_credential_chain.assert_called_once_with()
         self.mocked_credential_chain.get_credentials.assert_called_once_with(syn, self.expected_user_args)
@@ -97,7 +92,7 @@ class TestLogin:
 
         self.mocked_get_credential_chain.assert_called_once_with()
         self.mocked_credential_chain.get_credentials.assert_called_once_with(syn, self.expected_user_args)
-        assert_equal(self.synapse_creds, syn.credentials)
+        assert self.synapse_creds == syn.credentials
 
     def test_login__silentIsFalse(self):
         with patch.object(syn, "getUserProfile") as mocked_get_user_profile, \
@@ -139,7 +134,7 @@ class TestPrivateGetWithEntityBundle:
         with patch.object(syn.logger, "warning") as mocked_warn:
             entity_no_download = syn._getWithEntityBundle(entityBundle=bundle)
             mocked_warn.assert_called_once()
-            assert_is_none(entity_no_download.path)
+            assert entity_no_download.path is None
 
     def test_getWithEntityBundle(self, download_file_mock, get_file_URL_and_metadata_mock):
         # Note: one thing that remains unexplained is why the previous version of
@@ -198,32 +193,34 @@ class TestPrivateGetWithEntityBundle:
                                      downloadLocation=temp_dir1,
                                      ifcollision="overwrite.local")
 
-        assert_equal(e.name, bundle["entity"]["name"])
-        assert_equal(e.parentId, bundle["entity"]["parentId"])
-        assert_equal(utils.normalize_path(os.path.abspath(os.path.dirname(e.path))), utils.normalize_path(temp_dir1))
-        assert_equal(bundle["fileHandles"][0]["fileName"], os.path.basename(e.path))
-        assert_equal(utils.normalize_path(os.path.abspath(e.path)),
-                     utils.normalize_path(os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])))
+        assert e.name == bundle["entity"]["name"]
+        assert e.parentId == bundle["entity"]["parentId"]
+        assert utils.normalize_path(os.path.abspath(os.path.dirname(e.path))) == utils.normalize_path(temp_dir1)
+        assert bundle["fileHandles"][0]["fileName"] == os.path.basename(e.path)
+        assert (
+            utils.normalize_path(os.path.abspath(e.path)) ==
+            utils.normalize_path(os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"]))
+        )
 
         # 2. ----------------------------------------------------------------------
         # get without specifying downloadLocation
         e = syn._getWithEntityBundle(entityBundle=bundle, ifcollision="overwrite.local")
 
-        assert_equal(e.name, bundle["entity"]["name"])
-        assert_equal(e.parentId, bundle["entity"]["parentId"])
-        assert_in(bundle["fileHandles"][0]["fileName"], e.files)
+        assert e.name == bundle["entity"]["name"]
+        assert e.parentId == bundle["entity"]["parentId"]
+        assert bundle["fileHandles"][0]["fileName"] in e.files
 
         # 3. ----------------------------------------------------------------------
         # download to another location
         temp_dir2 = tempfile.mkdtemp()
-        assert_not_equals(temp_dir2, temp_dir1)
+        assert temp_dir2 != temp_dir1
         e = syn._getWithEntityBundle(entityBundle=bundle,
                                      downloadLocation=temp_dir2,
                                      ifcollision="overwrite.local")
 
-        assert_in(bundle["fileHandles"][0]["fileName"], e.files)
-        assert_is_not_none(e.path)
-        assert_true(utils.equal_paths(os.path.dirname(e.path), temp_dir2))
+        assert bundle["fileHandles"][0]["fileName"] in e.files
+        assert e.path is not None
+        assert utils.equal_paths(os.path.dirname(e.path), temp_dir2)
 
         # 4. ----------------------------------------------------------------------
         # test preservation of local state
@@ -234,9 +231,9 @@ class TestPrivateGetWithEntityBundle:
         e = File(name='anonymous', parentId="syn12345", synapseStore=False, externalURL=url)
         e.local_state({'zap': 'pow'})
         e = syn._getWithEntityBundle(entityBundle=externalURLBundle, entity=e)
-        assert_equal(e.local_state()['zap'], 'pow')
-        assert_equal(e.synapseStore, False)
-        assert_equal(e.externalURL, url)
+        assert e.local_state()['zap'] == 'pow'
+        assert e.synapseStore is False
+        assert e.externalURL == url
 
         # TODO: add more test cases for flag combination of this method
         # TODO: separate into another test?
@@ -272,18 +269,14 @@ class TestDownloadFileHandle:
         mock_sts_transfer.is_storage_location_sts_enabled.return_value = True
 
         def mock_with_boto_sts_credentials(download_fn, syn, objectId, permission):
-            assert_equal(permission, 'read_only')
-            assert_equal(entity_id, objectId)
+            assert permission == 'read_only'
+            assert entity_id == objectId
             return download_fn(credentials)
 
         mock_sts_transfer.with_boto_sts_credentials = mock_with_boto_sts_credentials
 
         expected_download_path = '/tmp/fooKey'
         mock_s3_client_wrapper.download_file.return_value = expected_download_path
-
-        # this is another opt-in download method.
-        # for enabled storage locations sts should be preferred
-        syn.multi_threaded = True
 
         with patch.object(syn, '_getFileHandleDownload') as mock_get_file_handle_download,\
                 patch.object(syn, 'cache') as cache:
@@ -297,16 +290,25 @@ class TestDownloadFileHandle:
                 }
             }
 
-            download_path = syn._downloadFileHandle(
-                fileHandleId=file_handle_id,
-                objectId=entity_id,
-                objectType='FileEntity',
-                destination=destination,
-            )
+            # this is another opt-in download method.
+            # for enabled storage locations sts should be preferred
+            multi_threaded = syn.multi_threaded
+            try:
+                syn.multi_threaded = True
+                download_path = syn._downloadFileHandle(
+                    fileHandleId=file_handle_id,
+                    objectId=entity_id,
+                    objectType='FileEntity',
+                    destination=destination,
+                )
+                # restore to whatever it was before
+            finally:
+                syn.multi_threaded = multi_threaded
+
             mock_os.makedirs.assert_called_once_with(mock_os.path.dirname(destination), exist_ok=True)
             cache.add.assert_called_once_with(file_handle_id, download_path)
 
-        assert_equal(expected_download_path, download_path)
+        assert expected_download_path == download_path
         mock_s3_client_wrapper.download_file.assert_called_once_with(
             bucket_name,
             None,
@@ -340,18 +342,18 @@ class TestPrivateSubmit:
         self.patch_restPOST.stop()
 
     def test_invalid_submission(self):
-        assert_raises(ValueError, syn._submit, None, self.etag, self.submission)
+        pytest.raises(ValueError, syn._submit, None, self.etag, self.submission)
 
     def test_invalid_etag(self):
-        assert_raises(ValueError, syn._submit, self.submission, None, self.submission)
+        pytest.raises(ValueError, syn._submit, self.submission, None, self.submission)
 
     def test_without_eligibility_hash(self):
-        assert_equal(self.submission, syn._submit(self.submission, self.etag, None))
+        assert self.submission == syn._submit(self.submission, self.etag, None)
         uri = '/evaluation/submission?etag={0}'.format(self.etag)
         self.mock_restPOST.assert_called_once_with(uri, json.dumps(self.submission))
 
     def test_with_eligibitiy_hash(self):
-        assert_equal(self.submission, syn._submit(self.submission, self.etag, self.eligibility_hash))
+        assert self.submission == syn._submit(self.submission, self.etag, self.eligibility_hash)
         uri = '/evaluation/submission?etag={0}&submissionEligibilityHash={1}'.format(self.etag, self.eligibility_hash)
         self.mock_restPOST.assert_called_once_with(uri, json.dumps(self.submission))
 
@@ -419,7 +421,7 @@ class TestSubmit:
         self.patch_get_contributors.stop()
 
     def test_min_requirements(self):
-        assert_equal(self.submission, syn.submit(self.eval_id, self.entity))
+        assert self.submission == syn.submit(self.eval_id, self.entity)
 
         expected_request_body = self.submission
         expected_request_body.pop('id')
@@ -434,7 +436,7 @@ class TestSubmit:
         self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
 
     def test_only_entity_id_provided(self):
-        assert_equal(self.submission, syn.submit(self.eval_id, self.entity['id']))
+        assert self.submission == syn.submit(self.eval_id, self.entity['id'])
 
         expected_request_body = self.submission
         expected_request_body.pop('id')
@@ -449,7 +451,7 @@ class TestSubmit:
         self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
 
     def test_team_is_given(self):
-        assert_equal(self.submission, syn.submit(self.eval_id, self.entity, team=self.team['id']))
+        assert self.submission == syn.submit(self.eval_id, self.entity, team=self.team['id'])
 
         expected_request_body = self.submission
         expected_request_body.pop('id')
@@ -463,7 +465,7 @@ class TestSubmit:
 
     def test_team_not_eligible(self):
         self.mock_get_contributors.side_effect = SynapseError()
-        assert_raises(SynapseError, syn.submit, self.eval_id, self.entity, team=self.team['id'])
+        pytest.raises(SynapseError, syn.submit, self.eval_id, self.entity, team=self.team['id'])
         self.mock_private_submit.assert_not_called()
         self.mock_get.assert_not_called()
         self.mock_getTeam.assert_called_once_with(self.team['id'])
@@ -478,7 +480,7 @@ class TestSubmit:
                           return_value=docker_commits) as patch_syn_get_paginated:
             digest = syn._get_docker_digest('syn1234')
             patch_syn_get_paginated.assert_called_once_with("/entity/syn1234/dockerTag")
-            assert_equal(digest, latest_sha)
+            assert digest == latest_sha
 
     def test_get_docker_digest_specifytag(self):
         test_sha = 'sha256:ffffff'
@@ -488,7 +490,7 @@ class TestSubmit:
                           return_value=docker_commits) as patch_syn_get_paginated:
             digest = syn._get_docker_digest('syn1234', docker_tag="test")
             patch_syn_get_paginated.assert_called_once_with("/entity/syn1234/dockerTag")
-            assert_equal(digest, test_sha)
+            assert digest == test_sha
 
     def test_get_docker_digest_specifywrongtag(self):
         test_sha = 'sha256:ffffff'
@@ -496,7 +498,7 @@ class TestSubmit:
                            'digest': test_sha}]
         with patch.object(syn, "_GET_paginated",
                           return_value=docker_commits) as patch_syn_get_paginated:
-            assert_raises(ValueError, syn._get_docker_digest, 'syn1234', docker_tag="foo")
+            pytest.raises(ValueError, syn._get_docker_digest, 'syn1234', docker_tag="foo")
             patch_syn_get_paginated.assert_called_once_with("/entity/syn1234/dockerTag")
 
     def test_submit_docker_nonetag(self):
@@ -504,7 +506,7 @@ class TestSubmit:
         docker_entity.id = "syn123"
         docker_entity.etag = "Fake etag"
 
-        assert_raises(ValueError, syn.submit, '9090',
+        pytest.raises(ValueError, syn.submit, '9090',
                       docker_entity, "George", dockerTag=None)
 
     def test_submit_docker(self):
@@ -532,7 +534,7 @@ class TestSubmit:
                          return_value=expected_submission):
             submission = syn.submit('9090', patch_syn_get, name='George')
             patch_get_digest.assert_called_once_with(docker_entity, "latest")
-            assert_equal(submission, expected_submission)
+            assert submission == expected_submission
 
 
 class TestPrivateGetContributor:
@@ -593,18 +595,18 @@ class TestPrivateGetContributor:
         self.patch_restGET.stop()
 
     def test_none_team(self):
-        assert_equal((None, None), syn._get_contributors(self.eval_id, None))
+        assert (None, None) == syn._get_contributors(self.eval_id, None)
         self.mock_restGET.assert_not_called()
 
     def test_none_eval_id(self):
-        assert_equal((None, None), syn._get_contributors(None, self.team))
+        assert (None, None) == syn._get_contributors(None, self.team)
         self.mock_restGET.assert_not_called()
 
     def test_not_registered(self):
         self.eligibility['teamEligibility']['isEligible'] = False
         self.eligibility['teamEligibility']['isRegistered'] = False
         self.patch_restGET.return_value = self.eligibility
-        assert_raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
+        pytest.raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
         uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
         self.mock_restGET.assert_called_once_with(uri)
 
@@ -612,21 +614,23 @@ class TestPrivateGetContributor:
         self.eligibility['teamEligibility']['isEligible'] = False
         self.eligibility['teamEligibility']['isQuotaFilled'] = True
         self.patch_restGET.return_value = self.eligibility
-        assert_raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
+        pytest.raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
         uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
         self.mock_restGET.assert_called_once_with(uri)
 
     def test_empty_members(self):
         self.eligibility['membersEligibility'] = []
         self.patch_restGET.return_value = self.eligibility
-        assert_equal(([], self.eligibility['eligibilityStateHash']), syn._get_contributors(self.eval_id, self.team))
+        assert ([], self.eligibility['eligibilityStateHash']) == syn._get_contributors(self.eval_id, self.team)
         uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
         self.mock_restGET.assert_called_once_with(uri)
 
     def test_happy_case(self):
         contributors = [{'principalId': self.member_eligible['principalId']}]
-        assert_equal((contributors, self.eligibility['eligibilityStateHash']),
-                     syn._get_contributors(self.eval_id, self.team))
+        assert (
+            (contributors, self.eligibility['eligibilityStateHash']) ==
+            syn._get_contributors(self.eval_id, self.team)
+        )
         uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
         self.mock_restGET.assert_called_once_with(uri)
 
@@ -644,9 +648,9 @@ def test_send_message():
             messageSubject="Xanadu",
             messageBody=messageBody)
         msg = json.loads(post_mock.call_args_list[0][1]['body'])
-        assert_equal(msg["fileHandleId"], "7365905", msg)
-        assert_equal(msg["recipients"], [1421212], msg)
-        assert_equal(msg["subject"], "Xanadu", msg)
+        assert msg["fileHandleId"] == "7365905", msg
+        assert msg["recipients"] == [1421212], msg
+        assert msg["subject"] == "Xanadu", msg
         mock_upload_string.assert_called_once_with(syn, messageBody, content_type="text/plain")
 
 
@@ -694,7 +698,7 @@ def test_findEntityIdByNameAndParent__None_parent():
     with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
         entity_id = syn.findEntityId(entity_name)
         mocked_POST.assert_called_once_with(expected_uri, body=expected_body)
-        assert_equal(expected_id, entity_id)
+        assert expected_id == entity_id
 
 
 def test_findEntityIdByNameAndParent__with_parent():
@@ -708,14 +712,14 @@ def test_findEntityIdByNameAndParent__with_parent():
     with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
         entity_id = syn.findEntityId(entity_name, parent_entity)
         mocked_POST.assert_called_once_with(expected_uri, body=expected_body)
-        assert_equal(expected_id, entity_id)
+        assert expected_id == entity_id
 
 
 def test_findEntityIdByNameAndParent__404_error_no_result():
     entity_name = "Kappa 123"
     fake_response = DictObject({"status_code": 404})
     with patch.object(syn, "restPOST", side_effect=SynapseHTTPError(response=fake_response)):
-        assert_is_none(syn.findEntityId(entity_name))
+        assert syn.findEntityId(entity_name) is None
 
 
 def test_getChildren__nextPageToken():
@@ -743,10 +747,10 @@ def test_getChildren__nextPageToken():
 
         # assert check the results of the generator
         result = next(children_generator)
-        assert_equal(first_page, result)
+        assert first_page == result
         result = next(children_generator)
-        assert_equal(second_page, result)
-        assert_raises(StopIteration, next, children_generator)
+        assert second_page == result
+        pytest.raises(StopIteration, next, children_generator)
 
         # check that the correct POST requests were sent
         # genrates JSOn for the expected request body
@@ -772,7 +776,7 @@ def test_check_entity_restrictions__unmet_restriction_downloadFile_is_True():
     with patch("warnings.warn") as mocked_warn:
         restriction_requirements = {'hasUnmetAccessRequirement': True}
 
-        assert_raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, restriction_requirements,
+        pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, restriction_requirements,
                       "syn123", True)
 
         mocked_warn.assert_not_called()
@@ -794,13 +798,13 @@ class TestGetColumns(object):
                 as mock_get_table_coulmns:
             schema = EntityViewSchema(parentId="syn123")
             results = list(syn.getColumns(schema))
-            assert_equal(get_table_colums_results, results)
+            assert get_table_colums_results == results
             mock_get_table_coulmns.assert_called_with(schema)
 
 
 def test_username_property__credentials_is_None():
     syn.credentials = None
-    assert_is_none(syn.username)
+    assert syn.username is None
 
 
 class TestPrivateGetEntityBundle:
@@ -821,11 +825,11 @@ class TestPrivateGetEntityBundle:
         self.patch_restPOST.stop()
 
     def test__getEntityBundle__with_version_as_number(self):
-        assert_equal(self.bundle, syn._getEntityBundle("syn10101", 6))
+        assert self.bundle == syn._getEntityBundle("syn10101", 6)
 
     def test__getEntityBundle__with_version_as_string(self):
-        assert_equal(self.bundle, syn._getEntityBundle("syn10101", '6'))
-        assert_raises(ValueError, syn._getEntityBundle, "syn10101", 'current')
+        assert self.bundle == syn._getEntityBundle("syn10101", '6')
+        pytest.raises(ValueError, syn._getEntityBundle, "syn10101", 'current')
 
     def test_access_restrictions(self):
         with patch.object(syn, '_getEntityBundle', return_value={
@@ -854,29 +858,29 @@ class TestPrivateGetEntityBundle:
             'restrictionInformation': {'hasUnmetAccessRequirement': True}
         }):
             entity = syn.get('syn1000002', downloadFile=False)
-            assert_is_not_none(entity)
-            assert_is_none(entity.path)
+            assert entity is not None
+            assert entity.path is None
 
             # Downloading the file is the default, but is an error if we have unmet access requirements
-            assert_raises(SynapseUnmetAccessRestrictions, syn.get, 'syn1000002',
+            pytest.raises(SynapseUnmetAccessRestrictions, syn.get, 'syn1000002',
                           downloadFile=True)
 
 
 def test_move():
-    assert_raises(SynapseFileNotFoundError, syn.move, "abc", "syn123")
+    pytest.raises(SynapseFileNotFoundError, syn.move, "abc", "syn123")
 
     entity = Folder(name="folder", parent="syn456")
     moved_entity = entity
     moved_entity.parentId = "syn789"
     with patch.object(syn, "get", return_value=entity) as syn_get_patch,\
             patch.object(syn, "store", return_value=moved_entity) as syn_store_patch:
-        assert_equal(moved_entity, syn.move("syn123", "syn789"))
+        assert moved_entity == syn.move("syn123", "syn789")
         syn_get_patch.assert_called_once_with("syn123", downloadFile=False)
         syn_store_patch.assert_called_once_with(moved_entity, forceVersion=False)
 
 
 def test_delete__bad_attribute():
-    assert_raises(SynapseError, syn.delete, ["foo"])
+    pytest.raises(SynapseError, syn.delete, ["foo"])
 
 
 def test_delete__string():
@@ -923,12 +927,12 @@ def test_setPermissions__default_permissions():
     with patch.object(syn, "_getBenefactor", return_value=entity), \
             patch.object(syn, "_getACL", return_value=acl), \
             patch.object(syn, "_storeACL", return_value=update_acl) as patch_store_acl:
-        assert_equal(update_acl, syn.setPermissions(entity, principalId))
+        assert update_acl == syn.setPermissions(entity, principalId)
         patch_store_acl.assert_called_once_with(entity, update_acl)
 
 
 def test_get_unsaved_entity():
-    assert_raises(ValueError, syn.get, Folder(name="folder", parent="syn456"))
+    pytest.raises(ValueError, syn.get, Folder(name="folder", parent="syn456"))
 
 
 def test_get_default_view_columns():
@@ -964,7 +968,7 @@ class TestCreateStorageLocationSetting:
         self.patch_restPOST.stop()
 
     def test_invalid(self):
-        assert_raises(ValueError, syn.createStorageLocationSetting, "new storage type")
+        pytest.raises(ValueError, syn.createStorageLocationSetting, "new storage type")
 
     def test_ExternalObjectStorage(self):
         syn.createStorageLocationSetting("ExternalObjectStorage")
@@ -1040,7 +1044,7 @@ class TestSetStorageLocation:
         new_location['locations'] = [storage_location_id]
         syn.setStorageLocation(self.entity, storage_location_id)
         self.mock_getProjectSetting.assert_called_with(self.entity, 'upload')
-        assert_equal(2, self.mock_getProjectSetting.call_count)
+        assert 2 == self.mock_getProjectSetting.call_count
         self.mock_restPUT.assert_called_once_with('/projectSettings', body=json.dumps(new_location))
         self.mock_restPOST.assert_not_called()
 
@@ -1060,7 +1064,7 @@ def test_get_sts_storage_token(mock_get_sts_credentials):
         entity, permission,
         output_format=output_format, min_remaining_life=min_remaining_life
     )
-    assert_equal(token, result)
+    assert token == result
     mock_get_sts_credentials.assert_called_once_with(
         syn, entity, permission,
         output_format=output_format, min_remaining_life=min_remaining_life
@@ -1071,12 +1075,12 @@ class TestCreateS3StorageLocation:
 
     def test_folder_and_parent(self):
         """Verify we fail as expected if both parent and folder are passed"""
-        with assert_raises(ValueError):
+        with pytest.raises(ValueError):
             syn.create_s3_storage_location(folder_name='foo', parent=Mock(), folder=Mock())
 
     def test_folder_or_parent(self):
         """Verify we fail as expected if neither parent or folder are passed"""
-        with assert_raises(ValueError):
+        with pytest.raises(ValueError):
             syn.create_s3_storage_location()
 
     def _create_storage_location_test(self, expected_post_body, *args, **kwargs):
@@ -1095,17 +1099,17 @@ class TestCreateS3StorageLocation:
 
             if 'folder_name' in kwargs:
                 stored_folder = syn_store.call_args[0][0]
-                assert_equal(stored_folder.name, kwargs['folder_name'])
-                assert_equal(stored_folder.parentId, kwargs['parent'])
+                assert stored_folder.name == kwargs['folder_name']
+                assert stored_folder.parentId == kwargs['parent']
             else:
-                assert_false(syn_store.called)
+                assert not syn_store.called
 
-            assert_equal(expected_folder, result[0])
-            assert_equal(mock_post.return_value, result[1])
-            assert_equal(mock_set_storage_location.return_value, result[2])
+            assert expected_folder == result[0]
+            assert mock_post.return_value == result[1]
+            assert mock_set_storage_location.return_value == result[2]
 
             mock_post.assert_called_with('/storageLocation', ANY)
-            assert_equal(expected_post_body, json.loads(mock_post.call_args[0][1]))
+            assert expected_post_body == json.loads(mock_post.call_args[0][1])
 
     def test_synapse_s3(self):
         """Verify we create a Synapse S3 storage location if bucket is not passed
@@ -1177,15 +1181,15 @@ class TestCreateExternalS3FileHandle:
             }
 
             result = syn.create_external_s3_file_handle(bucket_name, s3_file_key, file_path, **kwargs)
-            assert_equal(mock_post.return_value, result)
+            assert mock_post.return_value == result
 
             if 'storage_location_id' in kwargs:
-                assert_false(mock_get_upload_dest.called)
+                assert not mock_get_upload_dest.called
             else:
                 mock_get_upload_dest.assert_called_once_with(kwargs['parent'])
 
             mock_post.assert_called_once_with('/externalFileHandle/s3', ANY, endpoint=syn.fileHandleEndpoint)
-            assert_equal(expected_post_body, json.loads(mock_post.call_args[0][1]))
+            assert expected_post_body == json.loads(mock_post.call_args[0][1])
 
     def test_with_parent_entity(self):
         """If passed a parent entity we should fetch the default upload destination
@@ -1217,7 +1221,7 @@ class TestMembershipInvitation:
             response = syn.get_team_open_invitations(self.team)
             request = "/team/{team}/openInvitation".format(team=self.team.id)
             patch_get_paginated.assert_called_once_with(request)
-            assert_equal(response, self.response)
+            assert response == self.response
 
     def test_get_team_open_invitations__teamid(self):
         """Get team open invitations when team id is passed in"""
@@ -1226,7 +1230,7 @@ class TestMembershipInvitation:
             response = syn.get_team_open_invitations(self.team.id)
             request = "/team/{team}/openInvitation".format(team=self.team.id)
             patch_get_paginated.assert_called_once_with(request)
-            assert_equal(response, self.response)
+            assert response == self.response
 
     def test_teamid_get_membership_status__rest_get(self):
         """Get membership status when team id is passed in"""
@@ -1237,7 +1241,7 @@ class TestMembershipInvitation:
                 team=self.team.id,
                 user=self.userid)
             patch_restget.assert_called_once_with(request)
-            assert_equal(response, self.response)
+            assert response == self.response
 
     def test_delete_membership_invitation__rest_delete(self):
         """Delete open membership invitation"""
@@ -1272,12 +1276,12 @@ class TestMembershipInvitation:
 
     def test_invite_to_team__bothuseremail_specified(self):
         """Raise error when user and email is passed in"""
-        assert_raises(ValueError, syn.invite_to_team, self.team,
+        pytest.raises(ValueError, syn.invite_to_team, self.team,
                       user=self.userid, inviteeEmail=self.email)
 
     def test_invite_to_team__bothuseremail_notspecified(self):
         """Raise error when user and email is passed in"""
-        assert_raises(ValueError, syn.invite_to_team, self.team,
+        pytest.raises(ValueError, syn.invite_to_team, self.team,
                       user=None, inviteeEmail=None)
 
     def test_invite_to_team__email(self):
@@ -1293,7 +1297,7 @@ class TestMembershipInvitation:
                          return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, inviteeEmail=self.email,
                                         message=self.message)
-            assert_equal(invite, self.response)
+            assert invite == self.response
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_get_profile.assert_not_called()
             patch_invitation.assert_called_once_with(self.team.id,
@@ -1320,7 +1324,7 @@ class TestMembershipInvitation:
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_invitation.assert_called_once_with(self.team.id,
                                                      **invite_body)
-            assert_equal(invite, self.response)
+            assert invite == self.response
 
     def test_invite_to_team__username(self):
         """Invite user to team via their Synapse username"""
@@ -1343,7 +1347,7 @@ class TestMembershipInvitation:
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_invitation.assert_called_once_with(self.team.id,
                                                      **invite_body)
-            assert_equal(invite, self.response)
+            assert invite == self.response
 
     def test_invite_to_team__ismember(self):
         """None returned when user is already a member"""
@@ -1361,7 +1365,7 @@ class TestMembershipInvitation:
             patch_get_profile.assert_called_once_with(self.userid)
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_invitation.assert_not_called()
-            assert_is_none(invite)
+            assert invite is None
 
     def test_invite_to_team__user_openinvite(self):
         """None returned when user already has an invitation"""
@@ -1383,7 +1387,7 @@ class TestMembershipInvitation:
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_invitation.assert_not_called()
             patch_delete.assert_not_called()
-            assert_is_none(invite)
+            assert invite is None
 
     def test_invite_to_team__email_openinvite(self):
         """None returned when email already has an invitation"""
@@ -1397,7 +1401,7 @@ class TestMembershipInvitation:
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_invitation.assert_not_called()
             patch_delete.assert_not_called()
-            assert_is_none(invite)
+            assert invite is None
             patch_delete.assert_not_called()
 
     def test_invite_to_team__none_matching_invitation(self):
@@ -1411,7 +1415,7 @@ class TestMembershipInvitation:
             invite = syn.invite_to_team(self.team, inviteeEmail=self.email)
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_delete.assert_not_called()
-            assert_equal(invite, self.response)
+            assert invite == self.response
             patch_invitation.assert_called_once()
 
     def test_invite_to_team__force_invite(self):
@@ -1427,7 +1431,7 @@ class TestMembershipInvitation:
                                         force=True)
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_delete.assert_called_once_with(open_invitations['id'])
-            assert_equal(invite, self.response)
+            assert invite == self.response
             patch_invitation.assert_called_once()
 
 
@@ -1497,7 +1501,7 @@ class TestSetAnnotations:
     def test_not_annotation(self):
         with patch.object(syn, "restPUT") as mock_rest_put:
             # pass in non-annotation object
-            assert_raises(TypeError, syn.set_annotations, {})
+            pytest.raises(TypeError, syn.set_annotations, {})
             mock_rest_put.assert_not_called()
 
     def test_with_annotations(self):
@@ -1521,14 +1525,13 @@ def test_get_unparseable_config():
     with patch('configparser.RawConfigParser.read') as read_config:
         read_config.side_effect = configparser.Error(config_error_msg)
 
-        with assert_raises(ValueError) as cm:
+        with pytest.raises(ValueError) as cm:
             Synapse(debug=False, skip_checks=True, configPath='/foo')
 
         # underlying error should be chained
-        assert_equal(
-            config_error_msg,
-            str(cm.exception.__context__)
-        )
+        assert (
+            config_error_msg ==
+            str(cm.value.__context__))
 
 
 def test_get_config_file_caching():
@@ -1543,24 +1546,24 @@ def test_get_config_file_caching():
         # additional calls shouldn't be returned via a cached value
         config1a = syn1.getConfigFile('/foo')
         config1b = syn1.getConfigFile('/foo')
-        assert_equal(config1a, config1b)
-        assert_equal(1, read_config.call_count)
+        assert config1a == config1b
+        assert 1 == read_config.call_count
 
         # however a new instance should not be cached
         Synapse(debug=False, skip_checks=True, configPath='/foo')
-        assert_equal(2, read_config.call_count)
+        assert 2 == read_config.call_count
 
         # but an additional call on that instance should be
-        assert_equal(2, read_config.call_count)
+        assert 2 == read_config.call_count
 
 
 def test_max_threads_bounded():
     """Verify we disallow setting max threads higher than our cap."""
     syn.max_threads = client.MAX_THREADS_CAP + 1
-    assert_equal(syn.max_threads, client.MAX_THREADS_CAP)
+    assert syn.max_threads == client.MAX_THREADS_CAP
 
     syn.max_threads = 0
-    assert_equal(syn.max_threads, 1)
+    assert syn.max_threads == 1
 
 
 @patch('synapseclient.Synapse._get_config_section_dict')
@@ -1586,18 +1589,18 @@ def test_get_transfer_config(mock_config_dict):
         mock_config_dict.return_value = config_dict
         syn = Synapse()
         for k, v in expected_values.items():
-            assert_equal(v, getattr(syn, k))
+            assert v == getattr(syn, k)
 
     # invalid value for max threads should raise an error
     for invalid_max_thread_value in ('not a number', '12.2', 'true'):
         mock_config_dict.return_value = {'max_threads': invalid_max_thread_value}
-        with assert_raises(ValueError):
+        with pytest.raises(ValueError):
             Synapse()
 
     # invalid value for use_boto_sts should raise an error
     for invalid_max_thread_value in ('not true', '1.2', '0', 'falsey'):
         mock_config_dict.return_value = {'use_boto_sts': invalid_max_thread_value}
-        with assert_raises(ValueError):
+        with pytest.raises(ValueError):
             Synapse()
 
 
@@ -1608,13 +1611,13 @@ def test_transfer_config_values_overridable(mock_config_dict):
     mock_config_dict.return_value = {'max_threads': 24, 'use_boto_sts': False}
     syn = Synapse()
 
-    assert_equal(24, syn.max_threads)
-    assert_equal(False, syn.use_boto_sts_transfers)
+    assert 24 == syn.max_threads
+    assert not syn.use_boto_sts_transfers
 
     syn.max_threads = 5
     syn.use_boto_sts_transfers = True
-    assert_equal(5, syn.max_threads)
-    assert_equal(True, syn.use_boto_sts_transfers)
+    assert 5 == syn.max_threads
+    assert syn.use_boto_sts_transfers
 
 
 def test_store__needsUploadFalse__fileHandleId_not_in_local_state():
@@ -1737,8 +1740,8 @@ def test_store__existing_processed_as_update():
 
         mock_set_annotations.assert_called_once_with(expected_annotations)
 
-        assert_false(mock_createEntity.called)
-        assert_false(mock_findEntityId.called)
+        assert not mock_createEntity.called
+        assert not mock_findEntityId.called
 
 
 def test_store__409_processed_as_update():
@@ -1883,13 +1886,13 @@ def test_store__existing_no_update():
 
         f = File(f"/{file_name}", parent=parent_id)
 
-        with assert_raises(SynapseHTTPError) as ex_cm:
+        with pytest.raises(SynapseHTTPError) as ex_cm:
             syn.store(f, createOrUpdate=False)
 
-        assert_equal(409, ex_cm.exception.response.status_code)
+        assert 409 == ex_cm.value.response.status_code
 
         # should not have attempted an update
-        assert_false(mock_updatentity.called)
+        assert not mock_updatentity.called
 
 
 def test_get_submission_with_annotations():
@@ -1935,4 +1938,4 @@ def test_get_submission_with_annotations():
             submission=str(submission_id),
         )
 
-        assert_equal(evaluation_id, response["evaluationId"])
+        assert evaluation_id == response["evaluationId"]
