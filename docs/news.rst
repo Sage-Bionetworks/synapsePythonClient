@@ -2,6 +2,30 @@
 Release Notes
 =============
 
+2.1.1 (2020-07-09)
+==================
+
+Highlights:
+----------------
+
+This version primarily includes a performance improvement for **syncFromSynapse** downloads
+of deep folder hierarchies to local filesystem locations outside of the Synapse cache.
+
+Bug
+---
+
+-  [`SYNPY-1075 <https://sagebionetworks.jira.com/browse/SYNPY-1075>`__] -
+   Error in Python test (submission annotations)
+-  [`SYNPY-1076 <https://sagebionetworks.jira.com/browse/SYNPY-1076>`__] -
+   Upgrade/fix Pandas dependency
+
+Improvement
+-----------
+
+-  [`SYNPY-1078 <https://sagebionetworks.jira.com/browse/SYNPY-1078>`__] -
+   Improve syncFromSynapse performance for large folder structures synced to external paths
+
+
 2.1.0 (2020-06-16)
 ==================
 
