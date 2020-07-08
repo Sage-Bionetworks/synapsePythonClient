@@ -3451,15 +3451,6 @@ class Synapse(object):
         return [Column(**col)
                 for col in self.restGET(uri)['list']]
 
-    @memoize
-    def _get_default_entity_view_columns(self, view_type_mask):
-        return self._get_default_view_columns("entityview",
-                                              view_type_mask=view_type_mask)
-
-    @memoize
-    def _get_default_submission_view_columns(self):
-        return self._get_default_view_columns("submissionview")
-
     def _get_annotation_view_columns(self, scope_ids: list, view_type: str,
                                      view_type_mask: str = None) -> list:
         """Get all the columns of a submission of entity view based on existing annotations
@@ -3492,17 +3483,6 @@ class Synapse(object):
             if next_page_token is None:
                 break
         return columns
-
-    # def _get_annotation_submission_view_columns(self, scope_ids):
-    #     """Get submission view columns"""
-    #     columns = self._get_annotation_view_columns(scope_ids, "submissionview")
-    #     return columns
-
-    # def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
-    #     """Get entity view columns"""
-    #     columns = self._get_annotation_view_columns(scope_ids, "entityview",
-    #                                                 view_type_mask=view_type_mask)
-    #     return columns
 
     ############################################################
     #              CRUD for Entities (properties)              #
