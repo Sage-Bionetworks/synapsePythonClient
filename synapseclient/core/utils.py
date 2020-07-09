@@ -25,6 +25,7 @@ import uuid
 import importlib
 import numbers
 import urllib.parse as urllib_parse
+import warnings
 
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0)
@@ -888,3 +889,29 @@ def snake_case(string):
     """Convert the given string from CamelCase to snake_case"""
     # https://stackoverflow.com/a/1176023
     return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
+
+
+class deprecated_keyword_param:
+    """A decorator to use to warn when a keyword parameter from a function has been deprecated
+    and is intended for future removal. Will emit a warning such a keyword is passed."""
+
+    def __init__(self, keywords, version, reason):
+        self.keywords = set(keywords)
+        self.version = version
+        self.reason = reason
+
+    def __call__(self, fn):
+        def wrapper(*args, **kwargs):
+            found = self.keywords.intersection(kwargs)
+            if found:
+                warnings.warn(
+                    "Parameter(s) {} deprecated since version {}; {}".format(
+                        sorted(list(found)), self.version, self.reason
+                    ),
+                    category=DeprecationWarning,
+                    stacklevel=2
+                )
+
+            return fn(*args, **kwargs)
+
+        return wrapper
