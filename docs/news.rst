@@ -2,14 +2,26 @@
 Release Notes
 =============
 
-2.1.1 (2020-07-09)
+2.1.1 (2020-07-10)
 ==================
 
 Highlights:
 ----------------
 
-This version primarily includes a performance improvement for **syncFromSynapse** downloads
-of deep folder hierarchies to local filesystem locations outside of the Synapse cache.
+- This version includes a performance improvement for **syncFromSynapse** downloads
+  of deep folder hierarchies to local filesystem locations outside of the Synapse cache.
+
+- Support is added for **SubmissionViews** that can be used to query and edit
+  a set of submissions through table services.
+
+  .. code-block:: python
+
+   from synapseclient import SubmissionViewSchema
+
+   project_or_folder = syn.get("syn123")
+   evaluation_id = '9876543'
+   view = syn.store(SubmissionViewSchema(name='My Submission View', parent=project_or_folder, scopes=[evaluation_id]))
+   view_table = syn.tableQuery(f"select * from {view.id}")
 
 Bug
 ---
@@ -22,6 +34,8 @@ Bug
 Improvement
 -----------
 
+-  [`SYNPY-1070 <https://sagebionetworks.jira.com/browse/SYNPY-1070>`__] -
+   Add support for submission views
 -  [`SYNPY-1078 <https://sagebionetworks.jira.com/browse/SYNPY-1078>`__] -
    Improve syncFromSynapse performance for large folder structures synced to external paths
 
