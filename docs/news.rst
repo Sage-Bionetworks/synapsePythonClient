@@ -18,9 +18,9 @@ Highlights:
 
    from synapseclient import SubmissionViewSchema
 
-   project_or_folder = syn.get("syn123")
+   project = syn.get("syn123")
    evaluation_id = '9876543'
-   view = syn.store(SubmissionViewSchema(name='My Submission View', parent=project_or_folder, scopes=[evaluation_id]))
+   view = syn.store(SubmissionViewSchema(name='My Submission View', parent=project, scopes=[evaluation_id]))
    view_table = syn.tableQuery(f"select * from {view.id}")
 
 Bug
