@@ -9,7 +9,7 @@ Highlights:
 ----------------
 
 - This version includes a performance improvement for
-  `syncFromSynapse <python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse>`__
+  `syncFromSynapse <https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse>`__
   downloads of deep folder hierarchies to local filesystem locations outside of the
   `Synapse cache <https://docs.synapse.org/articles/downloading_data.html#downloading-a-file>`__.
 
