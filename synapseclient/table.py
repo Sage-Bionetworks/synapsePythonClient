@@ -908,7 +908,7 @@ class SubmissionViewSchema(ViewBase):
     Example::
         from synapseclient import SubmissionViewSchema
 
-        project_or_folder = syn.get("syn123")
+        project = syn.get("syn123")
         schema = syn.store(SubmissionViewSchema(name='My Submission View', parent=project, scopes=['9614543']))
     """
 
