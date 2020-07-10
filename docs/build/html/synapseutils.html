@@ -5,7 +5,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Overview &#8212; Synapse Python Client 2.0.0 documentation</title>
+    <title>copy &#8212; Synapse Python Client 2.0.0 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -54,10 +54,9 @@
 <script>$('#searchbox').show(0);</script>
   <h3><a href="index.html">Table of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">Overview</a></li>
-<li><a class="reference internal" href="#module-synapseutils.copy">copy</a></li>
+<li><a class="reference internal" href="#">copy</a></li>
 <li><a class="reference internal" href="#module-synapseutils.walk">walk</a></li>
-<li><a class="reference internal" href="#module-synapseutils.sync">sync</a></li>
+<li><a class="reference internal" href="#sync">sync</a></li>
 <li><a class="reference internal" href="#module-synapseutils.monitor">monitor</a></li>
 </ul>
 
@@ -76,91 +75,8 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <span class="target" id="module-synapseutils"></span><div class="section" id="overview">
-<h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h1>
-<p>The <code class="docutils literal notranslate"><span class="pre">synapseutils</span></code> package provides both higher level functions as well as utilities for interacting with
-<a class="reference external" href="http://www.synapse.org">Synapse</a>.  These functionalities include:</p>
-<ul class="simple">
-<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">copy.copy()</span></code></p></li>
-<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">copy.copyWiki()</span></code></p></li>
-<li><p><a class="reference internal" href="#synapseutils.walk.walk" title="synapseutils.walk.walk"><code class="xref py py-func docutils literal notranslate"><span class="pre">walk.walk()</span></code></a></p></li>
-<li><p><a class="reference internal" href="#synapseutils.sync.syncFromSynapse" title="synapseutils.sync.syncFromSynapse"><code class="xref py py-func docutils literal notranslate"><span class="pre">sync.syncFromSynapse()</span></code></a></p></li>
-<li><p><a class="reference internal" href="#synapseutils.sync.syncToSynapse" title="synapseutils.sync.syncToSynapse"><code class="xref py py-func docutils literal notranslate"><span class="pre">sync.syncToSynapse()</span></code></a></p></li>
-<li><p><a class="reference internal" href="#synapseutils.monitor.notifyMe" title="synapseutils.monitor.notifyMe"><code class="xref py py-func docutils literal notranslate"><span class="pre">monitor.notifyMe()</span></code></a></p></li>
-</ul>
-</div>
-<div class="section" id="module-synapseutils.copy">
-<span id="copy"></span><h1>copy<a class="headerlink" href="#module-synapseutils.copy" title="Permalink to this headline">¶</a></h1>
-<ul class="simple">
-<li><p>This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
-and will recursively copy everything in directories.</p></li>
-<li><p>A Mapping of the old entities to the new entities will be created and all the wikis of each entity
-will also be copied over and links to synapse Ids will be updated.</p></li>
-</ul>
-<dl class="field-list simple">
-<dt class="field-odd">param syn</dt>
-<dd class="field-odd"><p>A synapse object: syn = synapseclient.login()- Must be logged into synapse</p>
-</dd>
-<dt class="field-even">param entity</dt>
-<dd class="field-even"><p>A synapse entity ID</p>
-</dd>
-<dt class="field-odd">param destinationId</dt>
-<dd class="field-odd"><p>Synapse ID of a folder/project that the copied entity is being copied to</p>
-</dd>
-<dt class="field-even">param skipCopyWikiPage</dt>
-<dd class="field-even"><p>Skip copying the wiki pages
-Default is False</p>
-</dd>
-<dt class="field-odd">param skipCopyAnnotations</dt>
-<dd class="field-odd"><p>Skips copying the annotations
-Default is False</p>
-</dd>
-</dl>
-<p>Examples::                        
-import synapseutils
-import synapseclient
-syn = synapseclient.login()
-synapseutils.copy(syn, …)</p>
-<p>Examples and extra parameters unique to each copy function
-– COPYING FILES</p>
-<dl class="field-list simple">
-<dt class="field-odd">param version</dt>
-<dd class="field-odd"><p>Can specify version of a file. 
-Default to None</p>
-</dd>
-<dt class="field-even">param updateExisting</dt>
-<dd class="field-even"><p>When the destination has an entity that has the same name, 
-users can choose to update that entity.  
-It must be the same entity type
-Default to False</p>
-</dd>
-<dt class="field-odd">param setProvenance</dt>
-<dd class="field-odd"><p>Has three values to set the provenance of the copied entity:
-traceback: Sets to the source entity
-existing: Sets to source entity’s original provenance (if it exists)
-None: No provenance is set</p>
-</dd>
-</dl>
-<dl class="simple">
-<dt>Examples::</dt><dd><p>synapseutils.copy(syn, “syn12345”, “syn45678”, updateExisting=False, setProvenance = “traceback”,version=None)</p>
-</dd>
-</dl>
-<p>– COPYING FOLDERS/PROJECTS</p>
-<dl class="field-list simple">
-<dt class="field-odd">param excludeTypes</dt>
-<dd class="field-odd"><p>Accepts a list of entity types (file, table, link) which determines which entity types to
-not copy.
-Defaults to an empty list.</p>
-</dd>
-</dl>
-<p>Examples::
-#This will copy everything in the project into the destinationId except files and tables.
-synapseutils.copy(syn, “syn123450”,”syn345678”,excludeTypes=[“file”,”table”])</p>
-<dl class="field-list simple">
-<dt class="field-odd">returns</dt>
-<dd class="field-odd"><p>a mapping between the original and copied entity: {‘syn1234’:’syn33455’}</p>
-</dd>
-</dl>
+  <div class="section" id="copy">
+<h1>copy<a class="headerlink" href="#copy" title="Permalink to this headline">¶</a></h1>
 </div>
 <div class="section" id="module-synapseutils.walk">
 <span id="walk"></span><h1>walk<a class="headerlink" href="#module-synapseutils.walk" title="Permalink to this headline">¶</a></h1>
@@ -188,253 +104,8 @@ synapseutils.copy(syn, “syn123450”,”syn345678”,excludeTypes=[“file”,
 </dd></dl>
 
 </div>
-<div class="section" id="module-synapseutils.sync">
-<span id="sync"></span><h1>sync<a class="headerlink" href="#module-synapseutils.sync" title="Permalink to this headline">¶</a></h1>
-<dl class="py function">
-<dt id="synapseutils.sync.generateManifest">
-<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">generateManifest</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">allFiles</span></em>, <em class="sig-param"><span class="n">filename</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.generateManifest" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generates a manifest file based on a list of entities objects.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>allFiles</strong> – A list of File Entities</p></li>
-<li><p><strong>filename</strong> – file where manifest will be written</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt id="synapseutils.sync.readManifestFile">
-<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">readManifestFile</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">manifestFile</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.readManifestFile" title="Permalink to this definition">¶</a></dt>
-<dd><p>Verifies a file manifest and returns a reordered dataframe ready for upload.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>syn</strong> – A synapse object as obtained with syn = synapseclient.login()</p></li>
-<li><p><strong>manifestFile</strong> – A tsv file with file locations and metadata to be pushed to Synapse.
-See below for details</p></li>
-</ul>
-</dd>
-</dl>
-<p>:returns A pandas dataframe if the manifest is validated.</p>
-<dl class="simple">
-<dt>See also for a description of the file format:</dt><dd><ul class="simple">
-<li><p><a class="reference internal" href="#synapseutils.sync.syncToSynapse" title="synapseutils.sync.syncToSynapse"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseutils.sync.syncToSynapse()</span></code></a></p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt id="synapseutils.sync.syncFromSynapse">
-<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">syncFromSynapse</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">path</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ifcollision</span><span class="o">=</span><span class="default_value">'overwrite.local'</span></em>, <em class="sig-param"><span class="n">allFiles</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">followLink</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.syncFromSynapse" title="Permalink to this definition">¶</a></dt>
-<dd><p>Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
-metadata.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>syn</strong> – A synapse object as obtained with syn = synapseclient.login()</p></li>
-<li><p><strong>entity</strong> – A Synapse ID, a Synapse Entity object of type file, folder or project.</p></li>
-<li><p><strong>path</strong> – An optional path where the file hierarchy will be reproduced. If not specified the files will by
-default be placed in the synapseCache.</p></li>
-<li><p><strong>ifcollision</strong> – Determines how to handle file collisions. Maybe “overwrite.local”, “keep.local”, or “keep.both”.
-Defaults to “overwrite.local”.</p></li>
-<li><p><strong>followLink</strong> – Determines whether the link returns the target Entity.
-Defaults to False</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>list of entities (files, tables, links)</p>
-</dd>
-</dl>
-<p>This function will crawl all subfolders of the project/folder specified by <cite>entity</cite> and download all files that have
-not already been downloaded.  If there are newer files in Synapse (or a local file has been edited outside of the
-cache) since the last download then local the file will be replaced by the new file unless “ifcollision” is changed.</p>
-<p>If the files are being downloaded to a specific location outside of the Synapse cache a file
-(SYNAPSE_METADATA_MANIFEST.tsv) will also be added in the path that contains the metadata (annotations, storage
-location and provenance of all downloaded files).</p>
-<p>See also:
-- <a class="reference internal" href="#synapseutils.sync.syncToSynapse" title="synapseutils.sync.syncToSynapse"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseutils.sync.syncToSynapse()</span></code></a></p>
-<p>Example:
-Download and print the paths of all downloaded files:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entities</span> <span class="o">=</span> <span class="n">syncFromSynapse</span><span class="p">(</span><span class="n">syn</span><span class="p">,</span> <span class="s2">&quot;syn1234&quot;</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
-</pre></div>
-</div>
-</dd></dl>
-
-<dl class="py function">
-<dt id="synapseutils.sync.syncToSynapse">
-<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">syncToSynapse</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">manifestFile</span></em>, <em class="sig-param"><span class="n">dryRun</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">sendMessages</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">retries</span><span class="o">=</span><span class="default_value">4</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.syncToSynapse" title="Permalink to this definition">¶</a></dt>
-<dd><p>Synchronizes files specified in the manifest file to Synapse</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>syn</strong> – A synapse object as obtained with syn = synapseclient.login()</p></li>
-<li><p><strong>manifestFile</strong> – A tsv file with file locations and metadata to be pushed to Synapse.
-See below for details</p></li>
-<li><p><strong>dryRun</strong> – Performs validation without uploading if set to True (default is False)</p></li>
-</ul>
-</dd>
-</dl>
-<p>Given a file describing all of the uploads uploads the content to Synapse and optionally notifies you via Synapse
-messagging (email) at specific intervals, on errors and on completion.</p>
-<p><strong>Manifest file format</strong></p>
-<p>The format of the manifest file is a tab delimited file with one row per file to upload and columns describing the
-file. The minimum required columns are <strong>path</strong> and <strong>parent</strong> where path is the local file path and parent is the
-Synapse Id of the project or folder where the file is uploaded to. In addition to these columns you can specify any
-of the parameters to the File constructor (<strong>name</strong>, <strong>synapseStore</strong>, <strong>contentType</strong>) as well as parameters to the
-syn.store command (<strong>used</strong>, <strong>executed</strong>, <strong>activityName</strong>, <strong>activityDescription</strong>, <strong>forceVersion</strong>).
-Used and executed can be semi-colon (“;”) separated lists of Synapse ids, urls and/or local filepaths of files
-already stored in Synapse (or being stored in Synapse by the manifest).
-Any additional columns will be added as annotations.</p>
-<p><strong>Required fields:</strong></p>
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 11%" />
-<col style="width: 39%" />
-<col style="width: 50%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Field</p></th>
-<th class="head"><p>Meaning</p></th>
-<th class="head"><p>Example</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>path</p></td>
-<td><p>local file path or URL</p></td>
-<td><p>/path/to/local/file.txt</p></td>
-</tr>
-<tr class="row-odd"><td><p>parent</p></td>
-<td><p>synapse id</p></td>
-<td><p>syn1235</p></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Common fields:</strong></p>
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 28%" />
-<col style="width: 50%" />
-<col style="width: 22%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Field</p></th>
-<th class="head"><p>Meaning</p></th>
-<th class="head"><p>Example</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>name</p></td>
-<td><p>name of file in Synapse</p></td>
-<td><p>Example_file</p></td>
-</tr>
-<tr class="row-odd"><td><p>forceVersion</p></td>
-<td><p>whether to update version</p></td>
-<td><p>False</p></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Provenance fields:</strong></p>
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 20%" />
-<col style="width: 37%" />
-<col style="width: 43%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Field</p></th>
-<th class="head"><p>Meaning</p></th>
-<th class="head"><p>Example</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>used</p></td>
-<td><p>List of items used to generate file</p></td>
-<td><p>syn1235; /path/to_local/file.txt</p></td>
-</tr>
-<tr class="row-odd"><td><p>executed</p></td>
-<td><p>List of items exectued</p></td>
-<td><p><a class="reference external" href="https://github.org/">https://github.org/</a>; /path/to_local/code.py</p></td>
-</tr>
-<tr class="row-even"><td><p>activityName</p></td>
-<td><p>Name of activity in provenance</p></td>
-<td><p>“Ran normalization”</p></td>
-</tr>
-<tr class="row-odd"><td><p>activityDescription</p></td>
-<td><p>Text description on what was done</p></td>
-<td><p>“Ran algorithm xyx with parameters…”</p></td>
-</tr>
-</tbody>
-</table>
-<p>Annotations:</p>
-<p><strong>Annotations:</strong></p>
-<p>Any columns that are not in the reserved names described above will be interpreted as annotations of the file</p>
-<p><strong>Other optional fields:</strong></p>
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 22%" />
-<col style="width: 61%" />
-<col style="width: 17%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Field</p></th>
-<th class="head"><p>Meaning</p></th>
-<th class="head"><p>Example</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>synapseStore</p></td>
-<td><p>Boolean describing whether to upload files</p></td>
-<td><p>True</p></td>
-</tr>
-<tr class="row-odd"><td><p>contentType</p></td>
-<td><p>content type of file to overload defaults</p></td>
-<td><p>text/html</p></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Example manifest file</strong></p>
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 16%" />
-<col style="width: 9%" />
-<col style="width: 8%" />
-<col style="width: 8%" />
-<col style="width: 29%" />
-<col style="width: 30%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>path</p></th>
-<th class="head"><p>parent</p></th>
-<th class="head"><p>annot1</p></th>
-<th class="head"><p>annot2</p></th>
-<th class="head"><p>used</p></th>
-<th class="head"><p>executed</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>/path/file1.txt</p></td>
-<td><p>syn1243</p></td>
-<td><p>“bar”</p></td>
-<td><p>3.1415</p></td>
-<td><p>“syn124; /path/file2.txt”</p></td>
-<td><p>“<a class="reference external" href="https://github.org/foo/bar">https://github.org/foo/bar</a>”</p></td>
-</tr>
-<tr class="row-odd"><td><p>/path/file2.txt</p></td>
-<td><p>syn12433</p></td>
-<td><p>“baz”</p></td>
-<td><p>2.71</p></td>
-<td><p>“”</p></td>
-<td><p>“<a class="reference external" href="https://github.org/foo/baz">https://github.org/foo/baz</a>”</p></td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
+<div class="section" id="sync">
+<h1>sync<a class="headerlink" href="#sync" title="Permalink to this headline">¶</a></h1>
 </div>
 <div class="section" id="module-synapseutils.monitor">
 <span id="monitor"></span><h1>monitor<a class="headerlink" href="#module-synapseutils.monitor" title="Permalink to this headline">¶</a></h1>
@@ -521,7 +192,7 @@ Any additional columns will be added as annotations.</p>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on May 28, 2020.
+      Last updated on Jul 10, 2020.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
     </div>
     <script type="text/javascript">
