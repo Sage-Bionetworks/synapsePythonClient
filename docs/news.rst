@@ -8,8 +8,10 @@ Release Notes
 Highlights:
 ----------------
 
-- This version includes a performance improvement for **syncFromSynapse** downloads
-  of deep folder hierarchies to local filesystem locations outside of the Synapse cache.
+- This version includes a performance improvement for
+  `syncFromSynapse <python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse>`__
+  downloads of deep folder hierarchies to local filesystem locations outside of the
+  `Synapse cache <https://docs.synapse.org/articles/downloading_data.html#downloading-a-file>`__.
 
 - Support is added for **SubmissionViews** that can be used to query and edit
   a set of submissions through table services.
