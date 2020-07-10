@@ -2,7 +2,7 @@ import synapseclient
 from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity
 from synapseclient.core.cache import Cache
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.core.constants.limits import *
+from synapseclient.core.constants.limits import MAX_FILE_HANDLE_PER_COPY_REQUEST
 import re
 import json
 import itertools
@@ -30,9 +30,13 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds,
                                     and if copying a wiki attachment, the object id is the wiki subpage id.
                                     (Must be the same length as fileHandles)
 
-    :param newContentTypes:         (Optional) List of content types. Set each item to a new content type for each file handle, or leave the item as None to keep the original content type. Default None, which keeps all original content types.
+    :param newContentTypes:         (Optional) List of content types. Set each item to a new content type for each file
+                                    handle, or leave the item as None to keep the original content type. Default None,
+                                    which keeps all original content types.
 
-    :param newFileNames:            (Optional) List of filenames. Set each item to a new filename for each file handle, or leave the item as None to keep the original name. Default None, which keeps all original file names.
+    :param newFileNames:            (Optional) List of filenames. Set each item to a new filename for each file handle,
+                                    or leave the item as None to keep the original name. Default None, which keeps all
+                                    original file names.
 
     :return:                        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
                                     NOT_FOUND
@@ -198,6 +202,7 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
     ent = syn.store(ent)
     return ent
 
+
 def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):
     """
     - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
@@ -217,7 +222,7 @@ def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations
     :param skipCopyAnnotations: Skips copying the annotations
                                 Default is False
 
-    Examples::                        
+    Examples::
     import synapseutils
     import synapseclient
     syn = synapseclient.login()
@@ -226,14 +231,14 @@ def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations
     Examples and extra parameters unique to each copy function
     -- COPYING FILES
 
-    :param version:         Can specify version of a file. 
+    :param version:         Can specify version of a file.
                             Default to None
 
-    :param updateExisting:  When the destination has an entity that has the same name, 
-                            users can choose to update that entity.  
+    :param updateExisting:  When the destination has an entity that has the same name,
+                            users can choose to update that entity.
                             It must be the same entity type
                             Default to False
-    
+
     :param setProvenance:   Has three values to set the provenance of the copied entity:
                             traceback: Sets to the source entity
                             existing: Sets to source entity's original provenance (if it exists)
@@ -275,7 +280,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     :param entity:              A synapse entity ID
 
     :param destinationId:       Synapse ID of a folder/project that the copied entity is being copied to
-    
+
     :param skipCopyAnnotations: Skips copying the annotations
                                 Default is False
 
@@ -290,9 +295,9 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         mapping = dict()
     # Check that passed in excludeTypes is file, table, and link
     if not isinstance(excludeTypes, list):
-        raise ValueError("Excluded types must be a list") 
+        raise ValueError("Excluded types must be a list")
     elif not all([i in ["file", "link", "table"] for i in excludeTypes]):
-        raise ValueError("Excluded types can only be a list of these values: file, table, and link") 
+        raise ValueError("Excluded types can only be a list of these values: file, table, and link")
 
     ent = syn.get(entity, downloadFile=False)
     if ent.id == destinationId:
@@ -355,7 +360,7 @@ def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=Fa
     :param entity:              A synapse ID of a Folder entity
 
     :param destinationId:       Synapse ID of a project/folder that the folder wants to be copied to
-    
+
     :param skipCopyAnnotations: Skips copying the annotations
                                 Default is False
     """
@@ -390,12 +395,12 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
 
     :param destinationId:       Synapse ID of a folder/project that the file wants to be copied to
 
-    :param version:             Can specify version of a file. 
+    :param version:             Can specify version of a file.
                                 Default to None
 
-    :param updateExisting:      Can choose to update files that have the same name 
+    :param updateExisting:      Can choose to update files that have the same name
                                 Default to False
-    
+
     :param setProvenance:       Has three values to set the provenance of the copied entity:
                                     traceback: Sets to the source entity
                                     existing: Sets to source entity's original provenance (if it exists)
@@ -467,7 +472,7 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
 
     :param destinationId:   Synapse ID of a project that the Table wants to be copied to
 
-    :param updateExisting:  Can choose to update files that have the same name 
+    :param updateExisting:  Can choose to update files that have the same name
                             Default to False
     """
 
@@ -498,8 +503,8 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
     :param entity:          A synapse ID of a Link entity
 
     :param destinationId:   Synapse ID of a folder/project that the file wants to be copied to
-    
-    :param updateExisting:  Can choose to update files that have the same name 
+
+    :param updateExisting:  Can choose to update files that have the same name
                             Default to False
     """
     ent = syn.get(entity)
@@ -528,7 +533,7 @@ def _getSubWikiHeaders(wikiHeaders, subPageId, mapping=None):
     """
     subPageId = str(subPageId)
     for i in wikiHeaders:
-        # This is for the first match 
+        # This is for the first match
         # If it isnt the actual parent, it will turn the first match into a parent node which will not have a parentId
         if i['id'] == subPageId:
             if mapping is None:
@@ -570,7 +575,7 @@ def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
         s = newWiki["markdown"]
         # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
         # where wikiIdMap maps abc->xyz
-        # replace <entity>/wiki/<oldWikiId> with <destinationId>/wiki/<newWikiId> 
+        # replace <entity>/wiki/<oldWikiId> with <destinationId>/wiki/<newWikiId>
         for oldWikiId2 in wikiIdMap.keys():
             oldProjectAndWikiId = "%s/wiki/%s\\b" % (entity, oldWikiId2)
             newProjectAndWikiId = "%s/wiki/%s" % (destinationId, wikiIdMap[oldWikiId2])
@@ -591,7 +596,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     :param entity:                  A synapse ID of an entity whose wiki you want to copy
 
     :param destinationId:           Synapse ID of a folder/project that the wiki wants to be copied to
-    
+
     :param updateLinks:             Update all the internal links. (e.g. syn1234/wiki/34345 becomes syn3345/wiki/49508)
                                     Defaults to True
 
@@ -600,12 +605,12 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
 
     :param entityMap:               An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the
                                     wiki.
-                                    Defaults to None 
+                                    Defaults to None
 
     :param entitySubPageId:         Can specify subPageId and copy all of its subwikis
                                     Defaults to None, which copies the entire wiki subPageId can be found:
                                     https://www.synapse.org/#!Synapse:syn123/wiki/1234
-                                    In this case, 1234 is the subPageId. 
+                                    In this case, 1234 is the subPageId.
 
     :param destinationSubPageId:    Can specify destination subPageId to copy wikis to
                                     Defaults to None
@@ -695,7 +700,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
 
     if updateSynIds and entityMap is not None:
         newWikis = _updateSynIds(newWikis, wikiIdMap, entityMap)
-    
+
     print("Storing new Wikis\n")
     for oldWikiId in wikiIdMap.keys():
         newWikiId = wikiIdMap[oldWikiId]

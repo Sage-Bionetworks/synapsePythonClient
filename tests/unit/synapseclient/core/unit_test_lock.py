@@ -6,6 +6,7 @@ from nose.tools import assert_true, assert_false, assert_less, assert_greater, a
 
 from synapseclient.core.lock import Lock
 
+
 def test_lock():
     user1_lock = Lock("foo", max_age=timedelta(seconds=5))
     user2_lock = Lock("foo", max_age=timedelta(seconds=5))
@@ -66,7 +67,7 @@ def test_multithreaded():
     threads = [Thread(target=do_stuff_with_a_locked_resource, args=("thread %d" % i, event_log)) for i in range(4)]
 
     for thread in threads:
-        thread.start() 
+        thread.start()
 
     for thread in threads:
         thread.join()

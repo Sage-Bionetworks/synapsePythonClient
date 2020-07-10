@@ -76,10 +76,12 @@ import re
 
 import synapseclient
 import synapseutils
+
 from synapseclient import Activity
 from synapseclient.wiki import Wiki
 from synapseclient.annotations import Annotations
-from synapseclient.core.exceptions import *
+from synapseclient.core import utils
+from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseNoCredentialsError
 
 
 def query(args, syn):
@@ -96,7 +98,7 @@ def query(args, syn):
 
     queryString = ' '.join(args.queryString)
 
-    if re.search('from syn\d', queryString.lower()):
+    if re.search('from syn\\d', queryString.lower()):
         results = syn.tableQuery(queryString)
         reader = csv.reader(open(results.filepath))
         for row in reader:
@@ -109,7 +111,7 @@ def query(args, syn):
 def _getIdsFromQuery(queryString, syn):
     """Helper function that extracts the ids out of returned query."""
 
-    if re.search('from syn\d', queryString.lower()):
+    if re.search('from syn\\d', queryString.lower()):
         tbl = syn.tableQuery(queryString)
 
         check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
@@ -120,7 +122,6 @@ def _getIdsFromQuery(queryString, syn):
     else:
         raise ValueError('Input query cannot be parsed. Please see our documentation for writing Synapse query:'
                          ' https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html')
-
 
 
 def get(args, syn):
@@ -707,7 +708,7 @@ def build_parser():
                                          help='Performs SQL like queries on Synapse')
     parser_query.add_argument('queryString', metavar='string', type=str, nargs='*',
                               help='A query string, see '
-                                   'https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html'
+                                   'https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html'  # noqa
                                    ' for more information')
     parser_query.set_defaults(func=query)
 

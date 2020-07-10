@@ -2,7 +2,7 @@ import os
 import urllib.parse as urllib_parse
 import uuid
 
-from synapseclient.core.utils import is_url, md5_for_file, as_url, file_url_to_path, id_of, snake_case
+from synapseclient.core.utils import is_url, md5_for_file, as_url, file_url_to_path, id_of
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core import sts_transfer
@@ -35,7 +35,7 @@ def upload_file_handle(
     :param file_size:       The MIME type the file, if known. Otherwise if the file is a local file, it will be
                             calculated automatically.
 
-    :returns: a dict of a new FileHandle as a dict that represents the uploaded file 
+    :returns: a dict of a new FileHandle as a dict that represents the uploaded file
     """
     if path is None:
         raise ValueError('path can not be None')

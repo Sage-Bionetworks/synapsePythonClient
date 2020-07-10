@@ -236,7 +236,7 @@ class Annotations(dict):
         :param etag: etag of the Synapse Entity
         :param values:  (Optional) dictionary of values to be copied into annotations
 
-        :param \**kwargs: additional key-value pairs to be added as annotations
+        :param **kwargs: additional key-value pairs to be added as annotations
 
         Example::
 
@@ -339,17 +339,28 @@ def convert_old_annotation_json(annotations):
     """Transforms a parsed JSON dictionary of old style annotations
     into a new style consistent with the entity bundle v2 format."""
 
-    converted = {k: v for k, v in annotations.items() if k in ('id', 'etag')}
-    converted_annos = converted['annotations'] = {}
+    meta_keys = ('id', 'etag', 'creationDate', 'uri')
 
     type_mapping = {
         'doubleAnnotations': 'DOUBLE',
         'stringAnnotations': 'STRING',
         'longAnnotations': "LONG",
         'dateAnnotations': 'TIMESTAMP_MS',
-
-        # TODO what to do with blobAnnotations
     }
+
+    annos_v1_keys = set(meta_keys) | set(type_mapping.keys())
+
+    # blobAnnotations appear to be little/unused and there is no mapping defined here but if they
+    # are present on the annos we should treat it as an old style annos dict
+    annos_v1_keys.add('blobAnnotations')
+
+    # if any keys in the annos dict are not consistent with an old style annotations then we treat
+    # it as an annotations2 style dictionary that is not in need of any conversion
+    if any(k not in annos_v1_keys for k in annotations.keys()):
+        return annotations
+
+    converted = {k: v for k, v in annotations.items() if k in meta_keys}
+    converted_annos = converted['annotations'] = {}
 
     for old_type_key, converted_type in type_mapping.items():
         values = annotations.get(old_type_key)

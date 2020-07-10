@@ -10,12 +10,12 @@ import time
 import tempfile
 from nose.tools import assert_raises, assert_equals, assert_true, assert_in
 import shutil
-from mock import patch
+from unittest.mock import patch
 from synapseclient import client
 
-from synapseclient.core.exceptions import *
-from synapseclient import *
+from synapseclient import Annotations, Column, Evaluation, File, Folder, Project, Row, RowSet, Schema, Synapse
 import synapseclient.__main__ as cmdline
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup
 
@@ -429,7 +429,7 @@ def test_command_line_store_and_submit():
                  'Some random name',
                  '--entity',
                  file_entity_id)
-    submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
+    parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
 
     # testing different commmand line options for submitting to an evaluation
     # submitting to an evaluation by evaluationID
@@ -444,7 +444,7 @@ def test_command_line_store_and_submit():
                  'My Team',
                  '--entity',
                  file_entity_id)
-    submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
+    parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
 
     # Update the file
     filename = utils.make_bogus_data_file()
@@ -460,13 +460,13 @@ def test_command_line_store_and_submit():
     schedule_for_cleanup(updated_entity_id)
 
     # Submit an updated bogus file and this time by evaluation name
-    output = run('synapse',
-                 '--skip-checks',
-                 'submit',
-                 '--evaluationName',
-                 eval.name,
-                 '--entity',
-                 file_entity_id)
+    run('synapse',
+        '--skip-checks',
+        'submit',
+        '--evaluationName',
+        eval.name,
+        '--entity',
+        file_entity_id)
 
     # Tests shouldn't have external dependencies, but here it's required
     ducky_url = 'https://www.synapse.org/Portal/clear.cache.gif'
@@ -496,11 +496,11 @@ def test_command_line_store_and_submit():
     schedule_for_cleanup(filename)
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
     run('synapse', '--skip-checks', 'submit',
-         '--evalID', eval.id,
-         '--file', filename,
-         '--parent', project_id,
-         '--used', exteral_entity_id,
-         '--executed', repo_url)
+        '--evalID', eval.id,
+        '--file', filename,
+        '--parent', project_id,
+        '--used', exteral_entity_id,
+        '--executed', repo_url)
 
     # Delete project
     run('synapse', '--skip-checks', 'delete', project_id)
@@ -513,10 +513,10 @@ def test_command_get_recursive_and_query():
 
     # Create Folders in Project
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
+                                     parent=project_entity))
 
     folder_entity2 = syn.store(Folder(name=str(uuid.uuid4()),
-                                                    parent=folder_entity))
+                                      parent=folder_entity))
 
     # Create and upload two files in sub-Folder
     uploaded_paths = []
@@ -566,8 +566,8 @@ def test_command_get_recursive_and_query():
 
     time.sleep(3)  # get -q are eventually consistent
     # Test Table/View query get
-    output = run('synapse', '--skip-checks', 'get', '-q',
-                 "select id from %s" % schema1.id)
+    run('synapse', '--skip-checks', 'get', '-q',
+        "select id from %s" % schema1.id)
     # Verify that we downloaded files:
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
@@ -589,7 +589,7 @@ def test_command_copy():
 
     # Create a Folder in Project
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
+                                     parent=project_entity))
     schedule_for_cleanup(folder_entity.id)
     # Create and upload a file in Folder
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
@@ -678,7 +678,7 @@ def test_command_line_using_paths():
                  '-used', filename,
                  '-executed', repo_url,
                  '-limitSearch', folder_entity.id)
-    activity_id = parse(r'Set provenance record (\d+) on entity syn\d+', output)
+    parse(r'Set provenance record (\d+) on entity syn\d+', output)
 
     output = run('synapse', '--skip-checks', 'get-provenance',
                  '-id', file_entity2.id)
@@ -754,7 +754,7 @@ def test_login():
     password = "password"
     with patch.object(alt_syn, "login") as mock_login, \
             patch.object(alt_syn, "getUserProfile", return_value={"userName": "test_user", "ownerId": "ownerId"})\
-                    as mock_get_user_profile:
+            as mock_get_user_profile:
         run('synapse', '--skip-checks', 'login',
             '-u', username,
             '-p', password,

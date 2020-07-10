@@ -1,22 +1,31 @@
 import csv
 import io
-import filecmp
 import os
 import random
 import tempfile
 import time
 import uuid
-from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true, assert_is_not_none
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_true, assert_is_not_none
 from pandas.util.testing import assert_frame_equal
 from datetime import datetime
-from mock import patch
 
 import pandas as pd
 import numpy as np
 
-from synapseclient.core.utils import id_of
-from synapseclient.core.exceptions import *
-from synapseclient import *
+from synapseclient import (
+    as_table_columns,
+    Column,
+    EntityViewSchema,
+    EntityViewType,
+    File,
+    Folder,
+    PartialRowset,
+    Row,
+    RowSet,
+    Schema,
+    Table,
+)
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
@@ -46,7 +55,7 @@ def test_create_and_update_file_view():
     # Add new columns for the annotations on this file and get their IDs
     my_added_cols = [syn.store(Column(name=k, columnType="STRING")) for k in file_annotations.keys()]
     my_added_cols_ids = [c['id'] for c in my_added_cols]
-    view_default_ids = [c['id'] for c in syn._get_default_entity_view_columns(EntityViewType.FILE.value)]
+    view_default_ids = [c['id'] for c in syn._get_default_view_columns("entityview", EntityViewType.FILE.value)]
     col_ids = my_added_cols_ids + view_default_ids
     scopeIds = [folder['id'].lstrip('syn')]
 
@@ -136,7 +145,8 @@ def test_entity_view_add_annotation_columns():
     syn.store(entity_view)
 
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False,
-                                   addAnnotationColumns=True, includeEntityTypes=[EntityViewType.PROJECT], parent=project)
+                                   addAnnotationColumns=True, includeEntityTypes=[EntityViewType.PROJECT],
+                                   parent=project)
     syn.store(entity_view)
 
 
@@ -310,13 +320,14 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
     df2 = table_from_dataframe.asDataFrame()
     assert_frame_equal(df, df2)
 
+
 def test_store_table_datetime():
     current_datetime = datetime.fromtimestamp(round(time.time(), 3))
     schema = syn.store(Schema("testTable", [Column(name="testerino", columnType='DATE')], project))
     rowset = RowSet(rows=[Row([current_datetime])], schema=schema)
     syn.store(Table(schema, rowset))
 
-    query_result = syn.tableQuery("select * from %s" % id_of(schema), resultsAs="rowset")
+    query_result = syn.tableQuery("select * from %s" % utils.id_of(schema), resultsAs="rowset")
     assert_equals(current_datetime, query_result.rowset['rows'][0]['values'][0])
 
 
@@ -423,4 +434,3 @@ class TestPartialRowSet(object):
         return syn.store(
             EntityViewSchema(name='PartialRowTestViews' + str(uuid.uuid4()), columns=cols, addDefaultViewColumns=False,
                              parent=project, scopes=[folder]))
-

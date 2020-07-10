@@ -1,7 +1,7 @@
 import base64
 import time
 from nose.tools import assert_equals
-from mock import patch
+from unittest.mock import patch
 
 from synapseclient.core.credentials.cred_data import SynapseCredentials
 

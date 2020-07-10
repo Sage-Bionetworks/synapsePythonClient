@@ -1,7 +1,7 @@
 import json
 import uuid
 
-from mock import patch, call
+from unittest.mock import patch, call
 from nose.tools import assert_raises, assert_equal
 
 import synapseclient
@@ -14,25 +14,27 @@ from tests import unit
 def setup(module):
     module.syn = unit.syn
 
+
 def test_copyWiki_empty_Wiki():
     entity = {"id": "syn123"}
     with patch.object(syn, "getWikiHeaders", return_value=None), \
             patch.object(syn, "get", return_value=entity):
         synapseutils.copyWiki(syn, "syn123", "syn456", updateLinks=False)
 
+
 def test_copyWiki_input_validation():
-    to_copy=[{'id': '8688', 'title': 'A Test Wiki'},
-             {'id': '8689', 'title': 'A sub-wiki', 'parentId': '8688'},
-             {'id': '8690', 'title': 'A sub-sub-wiki', 'parentId': '8689'}]
-    wiki={"id": "8786",
-          "title": "A Test Wiki",
-          "markdown": "some text"
-         }
-    entity={"id":"syn123"}
-    expected_calls=[call({'id': 'syn123'}, '4'),
-                    call({'id': 'syn123'}, '8688'),
-                    call({'id': 'syn123'}, '8689'),
-                    call({'id': 'syn123'}, '8690')]
+    to_copy = [{'id': '8688', 'title': 'A Test Wiki'},
+               {'id': '8689', 'title': 'A sub-wiki', 'parentId': '8688'},
+               {'id': '8690', 'title': 'A sub-sub-wiki', 'parentId': '8689'}]
+    wiki = {"id": "8786",
+            "title": "A Test Wiki",
+            "markdown": "some text"
+            }
+    entity = {"id": "syn123"}
+    expected_calls = [call({'id': 'syn123'}, '4'),
+                      call({'id': 'syn123'}, '8688'),
+                      call({'id': 'syn123'}, '8689'),
+                      call({'id': 'syn123'}, '8690')]
     with patch.object(syn, "getWikiHeaders", return_value=to_copy),\
             patch.object(syn, "get", return_value=entity),\
             patch.object(syn, "getWiki", return_value=wiki) as mock_getWiki,\
@@ -95,27 +97,27 @@ class TestCopyFileHandles:
                           ((syn, file_handles[1:2], obj_types[1:2], obj_ids[1:2], con_types[1:2], file_names[1:2]),)]
 
         return_val_1 = [{
-                            "newFileHandle": {
-                                "contentMd5": "alpha_num_1",
-                                "bucketName": "bucket.sagebase.org",
-                                "fileName": "Name1.txt",
-                                "createdBy": "111",
-                                "contentSize": 16,
-                                "concreteType": "type1",
+            "newFileHandle": {
+                "contentMd5": "alpha_num_1",
+                "bucketName": "bucket.sagebase.org",
+                "fileName": "Name1.txt",
+                "createdBy": "111",
+                "contentSize": 16,
+                "concreteType": "type1",
                                 "etag": "etag1",
                                 "id": "0987",
                                 "storageLocationId": 1,
                                 "createdOn": "2019-07-24T21:49:40.615Z",
                                 "contentType": "text/plain",
                                 "key": "key1"
-                            },
-                            "originalFileHandleId": "789"
-                        }]
+            },
+            "originalFileHandleId": "789"
+        }]
 
         return_val_2 = [{
-                            "failureCode": "UNAUTHORIZED",
-                            "originalFileHandleId": "NotAccessibleFile"
-                        }]
+            "failureCode": "UNAUTHORIZED",
+            "originalFileHandleId": "NotAccessibleFile"
+        }]
 
         expected_return = return_val_1 + return_val_2
 
@@ -143,33 +145,33 @@ class TestProtectedCopyFileHandlesBatch:
         con_types = [None, "text/plain"]
         file_names = [None, "test"]
         expected_input = {
-                            "copyRequests": [
-                                {
-                                    "originalFile": {
-                                        "fileHandleId": "123",
+            "copyRequests": [
+                {
+                    "originalFile": {
+                        "fileHandleId": "123",
                                         "associateObjectId": "321",
                                         "associateObjectType": "FileEntity"
-                                    },
-                                    "newContentType": None,
-                                    "newFileName": None
-                                },
-                                {
-                                    "originalFile": {
-                                        "fileHandleId": "456",
+                    },
+                    "newContentType": None,
+                    "newFileName": None
+                },
+                {
+                    "originalFile": {
+                        "fileHandleId": "456",
                                         "associateObjectId": "645",
                                         "associateObjectType": "FileEntity"
-                                    },
-                                    "newContentType": "text/plain",
-                                    "newFileName": "test"
-                                }
-                            ]
-                        }
+                    },
+                    "newContentType": "text/plain",
+                    "newFileName": "test"
+                }
+            ]
+        }
         return_val = [
-                        {
-                            "newFileHandle": {
-                                "contentMd5": "alpha_num_1",
-                                "bucketName": "bucket.sagebase.org",
-                                "fileName": "Name1.txt",
+            {
+                "newFileHandle": {
+                    "contentMd5": "alpha_num_1",
+                    "bucketName": "bucket.sagebase.org",
+                    "fileName": "Name1.txt",
                                 "createdBy": "111",
                                 "contentSize": 16,
                                 "concreteType": "type1",
@@ -179,14 +181,14 @@ class TestProtectedCopyFileHandlesBatch:
                                 "createdOn": "2019-07-24T21:49:40.615Z",
                                 "contentType": "text/plain",
                                 "key": "key1"
-                            },
-                            "originalFileHandleId": "122"
-                        },
-                        {
-                            "newFileHandle": {
-                                "contentMd5": "alpha_num2",
-                                "bucketName": "bucket.sagebase.org",
-                                "fileName": "Name2.txt",
+                },
+                "originalFileHandleId": "122"
+            },
+            {
+                "newFileHandle": {
+                    "contentMd5": "alpha_num2",
+                    "bucketName": "bucket.sagebase.org",
+                    "fileName": "Name2.txt",
                                 "createdBy": "111",
                                 "contentSize": 5,
                                 "concreteType": "type2",
@@ -196,10 +198,10 @@ class TestProtectedCopyFileHandlesBatch:
                                 "createdOn": "2019-07-24T21:49:40.638Z",
                                 "contentType": "text/plain",
                                 "key": "key2"
-                            },
-                            "originalFileHandleId": "124"
-                        }
-                    ]
+                },
+                "originalFileHandleId": "124"
+            }
+        ]
         post_return_val = {"copyResults": return_val}
         self.mock_restPOST.return_value = post_return_val
         result = _copy_file_handles_batch(syn, file_handles, obj_types, obj_ids, con_types, file_names)
@@ -217,18 +219,18 @@ class TestProtectedCreateBatchFileHandleCopyRequest:
         new_con_types = []
         new_file_names = []
         expected_result = {
-                            "copyRequests": [
-                                {
-                                    "originalFile": {
-                                        "fileHandleId": "123",
+            "copyRequests": [
+                {
+                    "originalFile": {
+                        "fileHandleId": "123",
                                         "associateObjectId": "321",
                                         "associateObjectType": "FileEntity"
-                                    },
-                                    "newFileName": None,
-                                    "newContentType": None
-                                }
-                            ]
-                        }
+                    },
+                    "newFileName": None,
+                    "newContentType": None
+                }
+            ]
+        }
         result = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, new_con_types,
                                                         new_file_names)
         assert_equal(expected_result, result)
@@ -240,27 +242,27 @@ class TestProtectedCreateBatchFileHandleCopyRequest:
         new_con_types = [None, "text/plain"]
         new_file_names = [None, "test"]
         expected_result = {
-                            "copyRequests": [
-                                {
-                                    "originalFile": {
-                                        "fileHandleId": "345",
+            "copyRequests": [
+                {
+                    "originalFile": {
+                        "fileHandleId": "345",
                                         "associateObjectId": "543",
                                         "associateObjectType": "FileEntity"
-                                    },
-                                    "newFileName": None,
-                                    "newContentType": None
-                                },
-                                {
-                                    "originalFile": {
-                                        "fileHandleId": "789",
+                    },
+                    "newFileName": None,
+                    "newContentType": None
+                },
+                {
+                    "originalFile": {
+                        "fileHandleId": "789",
                                         "associateObjectId": "987",
                                         "associateObjectType": "FileEntity"
-                                    },
-                                    "newFileName": "test",
-                                    "newContentType": "text/plain"
-                                }
-                            ]
-                        }
+                    },
+                    "newFileName": "test",
+                    "newContentType": "text/plain"
+                }
+            ]
+        }
         result = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, new_con_types,
                                                         new_file_names)
         assert_equal(expected_result, result)
@@ -291,6 +293,7 @@ class TestProtectedBatchIteratorGenerator:
 
 class TestCopyPermissions:
     """Test copy entities with different permissions"""
+
     def setup(self):
         self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
                                                     id="syn1234")
@@ -305,8 +308,8 @@ class TestCopyPermissions:
         permissions = {'canDownload': False}
         with patch.object(syn, "get",
                           return_value=self.file_ent) as patch_syn_get,\
-             patch.object(syn, "restGET",
-                          return_value=permissions) as patch_rest_get:
+            patch.object(syn, "restGET",
+                         return_value=permissions) as patch_rest_get:
             copied_file = synapseutils.copy(syn, self.file_ent,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
@@ -319,6 +322,7 @@ class TestCopyPermissions:
 
 class TestCopyAccessRestriction:
     """Test that entities with access restrictions aren't copied"""
+
     def setup(self):
         self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
                                                     id="syn1234")
@@ -334,9 +338,9 @@ class TestCopyAccessRestriction:
         permissions = {'canDownload': True}
         with patch.object(syn, "get",
                           return_value=self.file_ent) as patch_syn_get,\
-             patch.object(syn, "restGET",
-                          side_effects=[permissions,
-                                        access_requirements]) as patch_rest_get:
+            patch.object(syn, "restGET",
+                         side_effects=[permissions,
+                                       access_requirements]) as patch_rest_get:
             copied_file = synapseutils.copy(syn, self.file_ent,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
@@ -350,6 +354,7 @@ class TestCopyAccessRestriction:
 
 class TestCopy:
     """Test that certain entities aren't copied"""
+
     def setup(self):
         self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
                                                     id="syn1234")
@@ -365,12 +370,12 @@ class TestCopy:
         permissions = {'canDownload': True}
         with patch.object(syn, "get",
                           return_value=self.project_entity) as patch_syn_get,\
-             patch.object(syn, "restGET",
-                          side_effect=[permissions,
-                                       access_requirements]) as patch_rest_get,\
-             patch.object(syn, "getChildren") as patch_get_children:
+                patch.object(syn, "restGET",
+                             side_effect=[permissions,
+                                          access_requirements]) as patch_rest_get,\
+                patch.object(syn, "getChildren") as patch_get_children:
             copied_file = synapseutils.copy(syn, self.project_entity,
-                                             destinationId=self.second_project.id,
+                                            destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
             assert_equal(copied_file, {self.project_entity.id:
                                        self.second_project.id})

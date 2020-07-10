@@ -229,7 +229,7 @@ Schema
 .. autoclass:: synapseclient.table.Schema
    :members:
    :noindex:
-   
+
 .. autoclass:: synapseclient.table.EntityViewSchema
    :members:
    :noindex:
@@ -302,7 +302,7 @@ import json
 from builtins import zip
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
-from synapseclient.core.exceptions import *
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, Versionable, entity_type_to_class
 from synapseclient.core.constants import concrete_types
@@ -346,6 +346,7 @@ def _get_view_type_mask(types_to_include):
         mask = mask | input.value
     return mask
 
+
 def _get_view_type_mask_for_deprecated_type(type):
     if not type:
         raise ValueError("Please specify the deprecated type to convert to viewTypeMask")
@@ -360,9 +361,9 @@ def _get_view_type_mask_for_deprecated_type(type):
 
 def test_import_pandas():
     try:
-        import pandas as pd
+        import pandas as pd  # noqa F401
     # used to catch ImportError, but other errors can happen (see SYNPY-177)
-    except:
+    except:  # noqa
         sys.stderr.write("""\n\nPandas not installed!\n
         The synapseclient package recommends but doesn't require the
         installation of Pandas. If you'd like to use Pandas DataFrames,
@@ -683,7 +684,7 @@ class Schema(SchemaBase):
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param local_state:     Internal use only
-                            
+
     Example::
 
         cols = [Column(name='Isotope', columnType='STRING'),
@@ -701,89 +702,19 @@ class Schema(SchemaBase):
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
-class EntityViewSchema(SchemaBase):
+class ViewBase(SchemaBase):
     """
-    A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects
-    (depending on user choice) within a given set of scopes
-
-    :param name:                            the name of the Entity View Table object
-    :param columns:                         a list of :py:class:`Column` objects or their IDs. These are optional.
-    :param parent:                          the project in Synapse to which this table belongs
-    :param scopes:                          a list of Projects/Folders or their ids
-    :param type:                            This field is deprecated. Please use `includeEntityTypes`
-    :param includeEntityTypes:              a list of entity types to include in the view. Supported entity types are:
-                                                EntityViewType.FILE,
-                                                EntityViewType.PROJECT,
-                                                EntityViewType.TABLE,
-                                                EntityViewType.FOLDER,
-                                                EntityViewType.VIEW,
-                                                EntityViewType.DOCKER
-                                            If none is provided, the view will default to include EntityViewType.FILE.
-    :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
-                                            Defaults to True.
-                                            The default columns will be added after a call to
-                                            :py:meth:`synapseclient.Synapse.store`.
-    :param addAnnotationColumns:            If true, adds columns for all annotation keys defined across all Entities in
-                                            the EntityViewSchema's scope. Defaults to True.
-                                            The annotation columns will be added after a call to
-                                            :py:meth:`synapseclient.Synapse.store`.
-    :param ignoredAnnotationColumnNames:    A list of strings representing annotation names.
-                                            When addAnnotationColumns is True, the names in this list will not be
-                                            automatically added as columns to the EntityViewSchema if they exist in any
-                                            of the defined scopes.
-    :param properties:                      A map of Synapse properties
-    :param annotations:                     A map of user defined annotations
-    :param local_state:                     Internal use only
-    
-    Example::
-        from synapseclient import EntityViewType
-
-        project_or_folder = syn.get("syn123")  
-        schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
-         includeEntityTypes=[EntityViewType.FILE]))
+    This is a helper class for EntityViewSchema and SubmissionViewSchema
+    containing the common methods for both.
     """
-
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
+    _synapse_entity_type = ""
     _property_keys = SchemaBase._property_keys + ['viewTypeMask', 'scopeIds']
     _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns',
                                             'ignoredAnnotationColumnNames']
 
-    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, includeEntityTypes=None,
-                 addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[],
-                 properties=None, annotations=None, local_state=None, **kwargs):
-        if includeEntityTypes:
-            kwargs['viewTypeMask'] = _get_view_type_mask(includeEntityTypes)
-        elif type:
-            kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(type)
-        elif properties and 'type' in properties:
-            kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(properties['type'])
-            properties['type'] = None
-
-        self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
-        super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
-                                               annotations=annotations, local_state=local_state, parent=parent,
-                                               **kwargs)
-
-        # This is a hacky solution to make sure we don't try to add columns to schemas that we retrieve from synapse
-        is_from_normal_constructor = not (properties or local_state)
-        # allowing annotations because user might want to update annotations all at once
-        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor
-        self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
-
-        # set default values after constructor so we don't overwrite the values defined in properties using .get()
-        # because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
-        if self.get('viewTypeMask') is None:
-            self.viewTypeMask = EntityViewType.FILE.value
-        if self.get('scopeIds') is None:
-            self.scopeIds = []
-
-        # add the scopes last so that we can append the passed in scopes to those defined in properties
-        if scopes is not None:
-            self.add_scope(scopes)
-
     def add_scope(self, entities):
         """
-        :param entities: a Project or Folder object or its ID, can also be a list of them
+        :param entities: a Project, Folder, Evaluation object or its ID, can also be a list of them
         """
         if isinstance(entities, list):
             # add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
@@ -791,39 +722,6 @@ class EntityViewSchema(SchemaBase):
             self.scopeIds.extend(temp_list)
         else:
             self.scopeIds.append(id_of(entities))
-
-    def set_entity_types(self, includeEntityTypes):
-        """
-        :param includeEntityTypes: a list of entity types to include in the view. This list will replace the previous
-                                   settings. Supported entity types are:
-                                        EntityViewType.FILE,
-                                        EntityViewType.PROJECT,
-                                        EntityViewType.TABLE,
-                                        EntityViewType.FOLDER,
-                                        EntityViewType.VIEW,
-                                        EntityViewType.DOCKER
-        """
-        self.viewTypeMask = _get_view_type_mask(includeEntityTypes)
-
-    def _before_synapse_store(self, syn):
-        # get the default EntityView columns from Synapse and add them to the columns list
-        additional_columns = []
-        if self.addDefaultViewColumns:
-            additional_columns.extend(syn._get_default_entity_view_columns(self['viewTypeMask']))
-
-        # get default annotations
-        if self.addAnnotationColumns:
-            anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self['viewTypeMask'])
-                            if x['name'] not in self.ignoredAnnotationColumnNames]
-            additional_columns.extend(anno_columns)
-
-        self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
-
-        # set these boolean flags to false so they are not repeated.
-        self.addDefaultViewColumns = False
-        self.addAnnotationColumns = False
-
-        super(EntityViewSchema, self)._before_synapse_store(syn)
 
     def _filter_duplicate_columns(self, syn, columns_to_add):
         """
@@ -864,10 +762,187 @@ class EntityViewSchema(SchemaBase):
                 valid_columns.append(column)
         return valid_columns
 
+    def _before_synapse_store(self, syn):
+        # get the default EntityView columns from Synapse and add them to the columns list
+        additional_columns = []
+        view_type = self._synapse_entity_type.split(".")[-1].lower()
+        mask = self.get("viewTypeMask")
+
+        if self.addDefaultViewColumns:
+            additional_columns.extend(
+                syn._get_default_view_columns(view_type, view_type_mask=mask)
+            )
+
+        # get default annotations
+        if self.addAnnotationColumns:
+            anno_columns = [x for x in syn._get_annotation_view_columns(self.scopeIds, view_type,
+                                                                        view_type_mask=mask)
+                            if x['name'] not in self.ignoredAnnotationColumnNames]
+            additional_columns.extend(anno_columns)
+
+        self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
+
+        # set these boolean flags to false so they are not repeated.
+        self.addDefaultViewColumns = False
+        self.addAnnotationColumns = False
+
+        super(ViewBase, self)._before_synapse_store(syn)
+
+
+class EntityViewSchema(ViewBase):
+    """
+    A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects
+    (depending on user choice) within a given set of scopes
+
+    :param name:                            the name of the Entity View Table object
+    :param columns:                         a list of :py:class:`Column` objects or their IDs. These are optional.
+    :param parent:                          the project in Synapse to which this table belongs
+    :param scopes:                          a list of Projects/Folders or their ids
+    :param type:                            This field is deprecated. Please use `includeEntityTypes`
+    :param includeEntityTypes:              a list of entity types to include in the view. Supported entity types are:
+                                                EntityViewType.FILE,
+                                                EntityViewType.PROJECT,
+                                                EntityViewType.TABLE,
+                                                EntityViewType.FOLDER,
+                                                EntityViewType.VIEW,
+                                                EntityViewType.DOCKER
+                                            If none is provided, the view will default to include EntityViewType.FILE.
+    :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
+                                            Defaults to True.
+                                            The default columns will be added after a call to
+                                            :py:meth:`synapseclient.Synapse.store`.
+    :param addAnnotationColumns:            If true, adds columns for all annotation keys defined across all Entities in
+                                            the EntityViewSchema's scope. Defaults to True.
+                                            The annotation columns will be added after a call to
+                                            :py:meth:`synapseclient.Synapse.store`.
+    :param ignoredAnnotationColumnNames:    A list of strings representing annotation names.
+                                            When addAnnotationColumns is True, the names in this list will not be
+                                            automatically added as columns to the EntityViewSchema if they exist in any
+                                            of the defined scopes.
+    :param properties:                      A map of Synapse properties
+    :param annotations:                     A map of user defined annotations
+    :param local_state:                     Internal use only
+
+    Example::
+        from synapseclient import EntityViewType
+
+        project_or_folder = syn.get("syn123")
+        schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
+         includeEntityTypes=[EntityViewType.FILE]))
+    """
+
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
+
+    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, includeEntityTypes=None,
+                 addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[],
+                 properties=None, annotations=None, local_state=None, **kwargs):
+        if includeEntityTypes:
+            kwargs['viewTypeMask'] = _get_view_type_mask(includeEntityTypes)
+        elif type:
+            kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(type)
+        elif properties and 'type' in properties:
+            kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(properties['type'])
+            properties['type'] = None
+
+        self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
+        super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
+                                               annotations=annotations, local_state=local_state, parent=parent,
+                                               **kwargs)
+
+        # This is a hacky solution to make sure we don't try to add columns to schemas that we retrieve from synapse
+        is_from_normal_constructor = not (properties or local_state)
+        # allowing annotations because user might want to update annotations all at once
+        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor
+        self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
+
+        # set default values after constructor so we don't overwrite the values defined in properties using .get()
+        # because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
+        if self.get('viewTypeMask') is None:
+            self.viewTypeMask = EntityViewType.FILE.value
+        if self.get('scopeIds') is None:
+            self.scopeIds = []
+
+        # add the scopes last so that we can append the passed in scopes to those defined in properties
+        if scopes is not None:
+            self.add_scope(scopes)
+
+    def set_entity_types(self, includeEntityTypes):
+        """
+        :param includeEntityTypes: a list of entity types to include in the view. This list will replace the previous
+                                   settings. Supported entity types are:
+                                        EntityViewType.FILE,
+                                        EntityViewType.PROJECT,
+                                        EntityViewType.TABLE,
+                                        EntityViewType.FOLDER,
+                                        EntityViewType.VIEW,
+                                        EntityViewType.DOCKER
+        """
+        self.viewTypeMask = _get_view_type_mask(includeEntityTypes)
+
+
+class SubmissionViewSchema(ViewBase):
+    """
+    A SubmissionViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects
+    (depending on user choice) within a given set of scopes
+
+    :param name:                            the name of the Entity View Table object
+    :param columns:                         a list of :py:class:`Column` objects or their IDs. These are optional.
+    :param parent:                          the project in Synapse to which this table belongs
+    :param scopes:                          a list of Evaluation Queues or their ids
+    :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
+                                            Defaults to True.
+                                            The default columns will be added after a call to
+                                            :py:meth:`synapseclient.Synapse.store`.
+    :param addAnnotationColumns:            If true, adds columns for all annotation keys defined across all Entities in
+                                            the SubmissionViewSchema's scope. Defaults to True.
+                                            The annotation columns will be added after a call to
+                                            :py:meth:`synapseclient.Synapse.store`.
+    :param ignoredAnnotationColumnNames:    A list of strings representing annotation names.
+                                            When addAnnotationColumns is True, the names in this list will not be
+                                            automatically added as columns to the SubmissionViewSchema if they exist in
+                                            any of the defined scopes.
+    :param properties:                      A map of Synapse properties
+    :param annotations:                     A map of user defined annotations
+    :param local_state:                     Internal use only
+
+    Example::
+        from synapseclient import SubmissionViewSchema
+
+        project = syn.get("syn123")
+        schema = syn.store(SubmissionViewSchema(name='My Submission View', parent=project, scopes=['9614543']))
+    """
+
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.SubmissionView'
+
+    def __init__(self, name=None, columns=None, parent=None, scopes=None,
+                 addDefaultViewColumns=True, addAnnotationColumns=True,
+                 ignoredAnnotationColumnNames=[],
+                 properties=None, annotations=None, local_state=None, **kwargs):
+
+        self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
+        super(SubmissionViewSchema, self).__init__(
+            name=name, columns=columns, properties=properties,
+            annotations=annotations, local_state=local_state, parent=parent,
+            **kwargs
+        )
+        # This is a hacky solution to make sure we don't try to add columns to schemas that we retrieve from synapse
+        is_from_normal_constructor = not (properties or local_state)
+        # allowing annotations because user might want to update annotations all at once
+        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor
+        self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
+
+        if self.get('scopeIds') is None:
+            self.scopeIds = []
+
+        # add the scopes last so that we can append the passed in scopes to those defined in properties
+        if scopes is not None:
+            self.add_scope(scopes)
+
 
 # add Schema to the map of synapse entity types to their Python representations
 entity_type_to_class[Schema._synapse_entity_type] = Schema
 entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
+entity_type_to_class[SubmissionViewSchema._synapse_entity_type] = SubmissionViewSchema
 
 
 class SelectColumn(DictObject):
@@ -1084,8 +1159,8 @@ class RowSet(AppendableRowset):
         super(RowSet, self).__init__(schema, **kwargs)
 
     def _synapse_store(self, syn):
-            response = super(RowSet, self)._synapse_store(syn)
-            return response.get('rowReferenceSet', response)
+        response = super(RowSet, self)._synapse_store(syn)
+        return response.get('rowReferenceSet', response)
 
     def _synapse_delete(self, syn):
         """
@@ -1197,7 +1272,7 @@ def build_table(name, parent, values):
     try:
         import pandas as pd
         pandas_available = True
-    except:
+    except:  # noqa
         pandas_available = False
 
     if not pandas_available:
@@ -1223,8 +1298,7 @@ def Table(schema, values, **kwargs):
                       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
                       - a dict which will be wrapped by a Pandas \
                        `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
-      
-      
+
     :return: a Table object suitable for storing
 
     Usually, the immediate next step after creating a Table object is to store it::
@@ -1242,7 +1316,7 @@ def Table(schema, values, **kwargs):
     try:
         import pandas as pd
         pandas_available = True
-    except:
+    except:  # noqa
         pandas_available = False
 
     # a RowSet
@@ -1388,7 +1462,7 @@ class TableQueryResult(TableAbstractBaseClass):
     The TableQueryResult object can be used to iterate over results of a query.
 
     Example ::
-    
+
         results = syn.tableQuery("select * from syn1234")
         for row in results:
             print(row)
@@ -1421,8 +1495,10 @@ class TableQueryResult(TableAbstractBaseClass):
             etag=self.rowset.get('etag', None))
 
     def _synapse_store(self, syn):
-        raise SynapseError("A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a"
-                           " DataFrame or RowSet instead.")
+        raise SynapseError(
+            "A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a"
+            " DataFrame or RowSet instead."
+        )
 
     def asDataFrame(self, rowIdAndVersionInIndex=True):
         """
@@ -1687,11 +1763,12 @@ class CsvFileTable(TableAbstractBaseClass):
         # if the column already exists verify the column data is same as what we parsed
         if col_name in dataframe.columns:
             if dataframe[col_name].tolist() != insert_column_data:
-                raise SynapseError(("A column named '{0}' already exists and does not match the '{0}' values present in"
-                                    " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
-                                    " column for your data because it is necessary for version tracking in Synapse's"
-                                    " tables")
-                                   .format(col_name))
+                raise SynapseError(
+                    ("A column named '{0}' already exists and does not match the '{0}' values present in"
+                     " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
+                     " column for your data because it is necessary for version tracking in Synapse's"
+                     " tables").format(col_name)
+                )
         else:
             dataframe.insert(insert_index, col_name, insert_column_data)
 
@@ -1804,7 +1881,7 @@ class CsvFileTable(TableAbstractBaseClass):
                                         (and row_etag if it exists)
         :param convert_to_datetime:     If set to True, will convert all Synapse DATE columns from UNIX timestamp
                                         integers into UTC datetime objects
-        :return: 
+        :return:
         """
         test_import_pandas()
         import pandas as pd

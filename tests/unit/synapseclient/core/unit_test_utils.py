@@ -2,7 +2,7 @@
 
 import os
 import re
-from mock import patch, mock_open
+from unittest.mock import patch, mock_open
 import tempfile
 from shutil import rmtree
 
@@ -41,6 +41,26 @@ def test_is_in_path():
 
     assert_true(utils.is_in_path('syn537704', path))
     assert_false(utils.is_in_path('syn123', path))
+
+
+def test_humanizeBytes():
+    for (input_bytes, expected_output) in [
+        (-1, '-1.0bytes'),
+        (0, '0.0bytes'),
+        (1, '1.0bytes'),
+        (10, '10.0bytes'),
+        ((2 ** 10) - 1, '1023.0bytes'),
+        ((2 ** 10), '1.0kB'),
+        ((2 ** 20), '1.0MB'),
+        ((2 ** 20) * 1.5, '1.5MB'),
+        ((2 ** 70), 'Oops larger than Exabytes'),
+    ]:
+        assert_equals(utils.humanizeBytes(input_bytes), expected_output)
+
+
+def test_humanizeBytes__None():
+    with assert_raises(ValueError):
+        utils.humanizeBytes(None)
 
 
 def test_id_of():
@@ -295,3 +315,26 @@ def test_snake_case():
         ('camel123Abc', 'camel123_abc'),
     ]:
         assert_equals(expected_output, utils.snake_case(input_word))
+
+
+def test_deprecated_keyword_param():
+
+    keywords = ['foo', 'baz']
+    version = '2.1.1'
+    reason = "keyword is no longer used"
+
+    fn_return_val = 'expected return'
+
+    @utils.deprecated_keyword_param(keywords, version, reason)
+    def test_fn(positional, foo=None, bar=None, baz=None):
+        return fn_return_val
+
+    with patch('warnings.warn') as mock_warn:
+        return_val = test_fn('positional', foo='foo', bar='bar', baz='baz')
+
+    assert_equals(fn_return_val, return_val)
+    mock_warn.assert_called_once_with(
+        "Parameter(s) ['baz', 'foo'] deprecated since version 2.1.1; keyword is no longer used",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )

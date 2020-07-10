@@ -25,6 +25,7 @@ import uuid
 import importlib
 import numbers
 import urllib.parse as urllib_parse
+import warnings
 
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0)
@@ -547,7 +548,7 @@ def query_limit_and_offset(query, hard_limit=1000):
     """
     # Regex a lower-case string to simplify matching
     tempQueryStr = query.lower()
-    regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+    regex = r'\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
 
     # Continue to strip off and save the last limit/offset
     match = re.search(regex, tempQueryStr)
@@ -646,14 +647,17 @@ def printTransferProgress(transferred, toBeTransferred, prefix='', postfix='', i
     sys.stdout.flush()
 
 
-def humanizeBytes(bytes):
-    bytes = float(bytes)
+def humanizeBytes(num_bytes):
+    if num_bytes is None:
+        raise ValueError('bytes must be a number')
+
+    num_bytes = float(num_bytes)
     units = ['bytes', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB']
     for i, unit in enumerate(units):
-        if bytes < 1024:
-            return '%3.1f%s' % (bytes, units[i])
+        if num_bytes < 1024:
+            return '%3.1f%s' % (num_bytes, units[i])
         else:
-            bytes /= 1024
+            num_bytes /= 1024
     return 'Oops larger than Exabytes'
 
 
@@ -795,7 +799,7 @@ def topolgical_sort(graph):
     """Given a graph in the form of a dictionary returns a sorted list
 
     Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
-    
+
     :param graph: a dictionary with values containing lists of keys referencing back into the dictionary
 
     :returns: sorted list of items
@@ -885,3 +889,29 @@ def snake_case(string):
     """Convert the given string from CamelCase to snake_case"""
     # https://stackoverflow.com/a/1176023
     return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
+
+
+class deprecated_keyword_param:
+    """A decorator to use to warn when a keyword parameter from a function has been deprecated
+    and is intended for future removal. Will emit a warning such a keyword is passed."""
+
+    def __init__(self, keywords, version, reason):
+        self.keywords = set(keywords)
+        self.version = version
+        self.reason = reason
+
+    def __call__(self, fn):
+        def wrapper(*args, **kwargs):
+            found = self.keywords.intersection(kwargs)
+            if found:
+                warnings.warn(
+                    "Parameter(s) {} deprecated since version {}; {}".format(
+                        sorted(list(found)), self.version, self.reason
+                    ),
+                    category=DeprecationWarning,
+                    stacklevel=2
+                )
+
+            return fn(*args, **kwargs)
+
+        return wrapper

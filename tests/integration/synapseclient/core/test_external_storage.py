@@ -3,7 +3,7 @@ import os
 import tempfile
 import uuid
 
-from synapseclient import File, Folder
+from synapseclient import File
 from synapseclient.core.retry import with_retry
 
 from nose.tools import assert_equal, assert_raises, assert_true

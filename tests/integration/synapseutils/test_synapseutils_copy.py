@@ -1,15 +1,16 @@
 import uuid
 import time
 
-from nose.tools import assert_raises, assert_equals, assert_is_none, assert_is_not_none
+from nose.tools import assert_raises, assert_equals
 import re
 import json
-from synapseclient.core.exceptions import *
-from synapseclient import *
+from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient import Activity, Annotations, Column, File, Folder, Link, Project, Row, RowSet, Schema, Wiki
+import synapseclient.core.utils as utils
 from tests import integration
 from tests.integration import schedule_for_cleanup
 import synapseutils
-import synapseclient
+
 
 def setup(module):
     module.syn = integration.syn
@@ -209,7 +210,7 @@ class TestCopyWiki:
         md = """
         This is a test wiki
         =======================
-    
+
         Blabber jabber blah blah boo.
         syn123
         syn456
@@ -227,9 +228,9 @@ class TestCopyWiki:
         second_md = """
         Testing internal links
         ======================
-    
+
         [test](#!Synapse:%s/wiki/%s)
-    
+
         %s)
         """ % (self.project_entity.id, self.subwiki.id, file_entity.id)
 
@@ -278,7 +279,7 @@ class TestCopyWiki:
             orig_file = [i['fileName'] for i in orig_attach
                          if not i['isPreview']]
             new_file = [i['fileName'] for i in new_attach
-                        if  not i['isPreview']]
+                        if not i['isPreview']]
 
             # check that attachment file names are the same
             assert_equals(orig_file, new_file)
@@ -296,9 +297,9 @@ class TestCopyWiki:
 
         # Test: destinationSubPageId
         third_header = synapseutils.copyWiki(syn, self.project_entity.id, self.second_project.id,
-                                              entitySubPageId=self.subwiki.id,
-                                              destinationSubPageId=test_ent_subpage.id, updateLinks=False,
-                                              updateSynIds=False, entityMap=None)
+                                             entitySubPageId=self.subwiki.id,
+                                             destinationSubPageId=test_ent_subpage.id, updateLinks=False,
+                                             updateSynIds=False, entityMap=None)
         temp = syn.getWiki(self.second_project.id, third_header[0]['id'])
         # There are issues where some title pages are blank.  This is an issue that needs to be addressed
         assert_equals(temp.title, self.subwiki.title)
@@ -319,10 +320,10 @@ class TestCopyFileHandles:
 
         # create file entity from externalFileHandle
         external_file_handle_request_1 = {
-                                           "concreteType": "org.sagebionetworks.repo.model.file.ExternalFileHandle",
-                                           "externalURL": "https://www.synapse.org/images/logo.svg",
-                                           "fileName": "testExternalFileHandle"
-                                         }
+            "concreteType": "org.sagebionetworks.repo.model.file.ExternalFileHandle",
+            "externalURL": "https://www.synapse.org/images/logo.svg",
+            "fileName": "testExternalFileHandle"
+        }
         external_response_1 = syn.restPOST('/externalFileHandle', body=json.dumps(external_file_handle_request_1),
                                            endpoint=syn.fileHandleEndpoint)
         self.file_handle_id_1 = external_response_1['id']
@@ -339,4 +340,3 @@ class TestCopyFileHandles:
         copy_results = synapseutils.copyFileHandles(syn, file_handles, associate_object_types, associate_object_ids)
         # assert copy result contains one copy result
         assert_equals(len(copy_results), 1)
-

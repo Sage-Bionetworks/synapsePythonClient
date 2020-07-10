@@ -4,7 +4,8 @@ from .monitor import notifyMe
 from synapseclient.entity import is_container
 from synapseclient.core.utils import id_of, is_url, is_synapse_id
 from synapseclient import File, table
-from synapseclient.core.exceptions import *
+from synapseclient.core import utils
+from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseProvenanceError
 import os
 import io
 import sys
@@ -18,6 +19,7 @@ DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'synapseStore', 'co
                                    'activityName', 'activityDescription']
 
 
+@utils.deprecated_keyword_param(['allFiles'], version="2.1.1", reason="Keyword parameter no longer needed")
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles=None, followLink=False):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
     metadata.
@@ -56,17 +58,34 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
             print(f.path)
 
     """
-    # initialize the result list
+    # the allFiles parameter used to be passed in as part of the recursive implementation of this function
+    # with the public signature invoking itself. now that a private helper exists allFiles has no real utility
+    # but is retained for backwards compatibility in case an external user of this function is passing one in.
     if allFiles is None:
         allFiles = list()
+
+    provenance_cache = {}
+    synced_files = _sync_from(syn, entity, path, ifcollision, followLink, provenance_cache)
+    allFiles.extend(synced_files)
+
+    return allFiles
+
+
+def _sync_from(syn, entity, path, ifcollision, followLink, provenance_cache):
+    """
+    Recursive helper for syncFromSynapse.
+    See its documentation for repeated parameters.
+    :param provenance_cache: an dict of known provenance dicts keyed by entity ids
+    """
+    files = []
 
     # perform validation check on user input
     if is_synapse_id(entity):
         entity = syn.get(entity, downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
 
     if isinstance(entity, File):
-        allFiles.append(entity)
-        return allFiles
+        files.append(entity)
+        return files
 
     entity_id = id_of(entity)
     if not is_container(entity):
@@ -89,37 +108,39 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
             else:
                 new_path = None
             # recursively explore this container's children
-            syncFromSynapse(syn, child['id'], new_path, ifcollision, allFiles, followLink=followLink)
+            child_files = _sync_from(syn, child['id'], new_path, ifcollision, followLink, provenance_cache)
+            files.extend(child_files)
         else:
             # getting the child
             ent = syn.get(child['id'], downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
             if isinstance(ent, File):
-                allFiles.append(ent)
+                files.append(ent)
 
     if path is not None:  # If path is None files are stored in cache.
         filename = os.path.join(path, MANIFEST_FILENAME)
         filename = os.path.expanduser(os.path.normcase(filename))
-        generateManifest(syn, allFiles, filename)
+        generateManifest(syn, files, filename, provenance_cache=provenance_cache)
 
-    return allFiles
+    return files
 
 
-def generateManifest(syn, allFiles, filename):
+def generateManifest(syn, allFiles, filename, *, provenance_cache=None):
     """Generates a manifest file based on a list of entities objects.
 
     :param allFiles:   A list of File Entities
-
     :param filename: file where manifest will be written
+    :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
     """
-    keys, data = _extract_file_entity_metadata(syn, allFiles)
+    keys, data = _extract_file_entity_metadata(syn, allFiles, provenance_cache=provenance_cache)
     _write_manifest_data(filename, keys, data)
 
 
-def _extract_file_entity_metadata(syn, allFiles):
+def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     """
     Extracts metadata from the list of File Entities and returns them in a form usable by csv.DictWriter
     :param syn:         instance of the Synapse client
     :param allFiles:    an iterable that provides File entities
+    :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
 
     :return: (keys: a list column headers, data: a list of dicts containing data from each row)
     """
@@ -131,7 +152,15 @@ def _extract_file_entity_metadata(syn, allFiles):
                'synapseStore': entity.synapseStore, 'contentType': entity['contentType']}
         row.update({key: (val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
 
-        row.update(_get_file_entity_provenance_dict(syn, entity))
+        entity_id = entity['id']
+        row_provenance = provenance_cache.get(entity_id) if provenance_cache is not None else None
+        if row_provenance is None:
+            row_provenance = _get_file_entity_provenance_dict(syn, entity)
+
+            if provenance_cache is not None:
+                provenance_cache[entity_id] = row_provenance
+
+        row.update(row_provenance)
 
         annotKeys.update(set(entity.annotations.keys()))
 
@@ -184,20 +213,26 @@ def _sortAndFixProvenance(syn, df):
                     bundle = syn._getFromFile(item)
                     return bundle
                 except SynapseFileNotFoundError:
-                    SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
-                                            "Specifically %s is not being uploaded and is not in Synapse."
-                                            % (path, item)))
+                    # TODO absence of a raise here appears to be a bug and yet tests fail if this is raised
+                    SynapseProvenanceError(
+                        ("The provenance record for file: %s is incorrect.\n"
+                         "Specifically %s is not being uploaded and is not in Synapse."
+                         % (path, item)
+                         )
+                    )
 
         elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
-            raise SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
-                                          "Specifically %s, is neither a valid URL or synapseId.") % (path, item))
+            raise SynapseProvenanceError(
+                ("The provenance record for file: %s is incorrect.\n"
+                 "Specifically %s, is neither a valid URL or synapseId.") % (path, item)
+            )
         return item
 
     for path, row in df.iterrows():
         allRefs = []
         if 'used' in row:
             used = row['used'].split(';') if (row['used'].strip() != '') else []  # Get None or split if string
-            df.at[path, 'used']=[_checkProvenace(item, path) for item in used]
+            df.at[path, 'used'] = [_checkProvenace(item, path) for item in used]
             allRefs.extend(df.loc[path, 'used'])
         if 'executed' in row:
             # Get None or split if string
@@ -207,7 +242,7 @@ def _sortAndFixProvenance(syn, df):
         uploadOrder[path] = allRefs
 
     uploadOrder = utils.topolgical_sort(uploadOrder)
-    df = df.reindex([l[0] for l in uploadOrder])
+    df = df.reindex([i[0] for i in uploadOrder])
     return df.reset_index()
 
 
@@ -317,18 +352,17 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     path     local file path or URL                  /path/to/local/file.txt
     parent   synapse id                              syn1235
     ======   ======================                  ============================
-                        
-                        
+
     **Common fields:**
-    
+
     ===============        ===========================                   ============
     Field                  Meaning                                       Example
     ===============        ===========================                   ============
     name                   name of file in Synapse                       Example_file
     forceVersion           whether to update version                     False
     ===============        ===========================                   ============
-                        
-    **Provenance fields:**  
+
+    **Provenance fields:**
 
     ====================   =====================================  ==========================================
     Field                  Meaning                                Example
@@ -342,9 +376,9 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     Annotations:
 
     **Annotations:**
-                        
+
     Any columns that are not in the reserved names described above will be interpreted as annotations of the file
-                        
+
     **Other optional fields:**
 
     ===============          ==========================================  ============

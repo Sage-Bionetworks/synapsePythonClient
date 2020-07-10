@@ -6,23 +6,39 @@ import os
 import tempfile
 import uuid
 
-from mock import ANY, call, create_autospec, Mock, patch
+from unittest.mock import ANY, call, create_autospec, Mock, patch
 from nose.tools import assert_equal, assert_false, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
 
 import synapseclient
 from synapseclient.annotations import convert_old_annotation_json
 from synapseclient import client
-from synapseclient import *
-from synapseclient.core.exceptions import *
-from synapseclient.core.upload import upload_functions, multipart_upload
+from synapseclient import (
+    Annotations,
+    Column,
+    DockerRepository,
+    Entity,
+    EntityViewSchema,
+    File,
+    Folder,
+    Team,
+    Synapse,
+)
+from synapseclient.core.exceptions import (
+    SynapseAuthenticationError,
+    SynapseError,
+    SynapseFileNotFoundError,
+    SynapseHTTPError,
+    SynapseUnmetAccessRestrictions,
+)
+from synapseclient.core.upload import upload_functions
+import synapseclient.core.utils as utils
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs
 from synapseclient.core.credentials.cred_data import SynapseCredentials
 from synapseclient.core.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.utils import id_of
 from tests import unit
 
 
@@ -85,7 +101,7 @@ class TestLogin:
 
     def test_login__silentIsFalse(self):
         with patch.object(syn, "getUserProfile") as mocked_get_user_profile, \
-             patch.object(syn, "logger") as mocked_logger:
+                patch.object(syn, "logger") as mocked_logger:
             # method under test
             syn.login(silent=False, **self.login_args)
 
@@ -124,7 +140,6 @@ class TestPrivateGetWithEntityBundle:
             entity_no_download = syn._getWithEntityBundle(entityBundle=bundle)
             mocked_warn.assert_called_once()
             assert_is_none(entity_no_download.path)
-
 
     def test_getWithEntityBundle(self, download_file_mock, get_file_URL_and_metadata_mock):
         # Note: one thing that remains unexplained is why the previous version of
@@ -377,7 +392,7 @@ class TestSubmit:
             'name': self.entity['name'],
             'entityId': self.entity['id'],
             'versionNumber': self.entity['versionNumber'],
-            'teamId': id_of(self.team['id']),
+            'teamId': utils.id_of(self.team['id']),
             'contributors': self.contributors,
             'submitterAlias': self.team['name']
         }
@@ -386,7 +401,7 @@ class TestSubmit:
         self.patch_private_submit = patch.object(syn, "_submit", return_value=self.submission)
         self.patch_getEvaluation = patch.object(syn, "getEvaluation", return_value=self.eval)
         self.patch_get = patch.object(syn, "get", return_value=self.entity)
-        self.patch_getTeam = patch.object(syn, "getTeam", return_value= self.team)
+        self.patch_getTeam = patch.object(syn, "getTeam", return_value=self.team)
         self.patch_get_contributors = patch.object(syn, "_get_contributors",
                                                    return_value=(self.contributors, self.eligibility_hash))
 
@@ -454,11 +469,10 @@ class TestSubmit:
         self.mock_getTeam.assert_called_once_with(self.team['id'])
         self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
 
-
     def test_get_docker_digest_default(self):
         latest_sha = 'sha256:eeeeee'
-        docker_commits= [{'tag': 'latest',
-                          'digest': latest_sha}]
+        docker_commits = [{'tag': 'latest',
+                           'digest': latest_sha}]
 
         with patch.object(syn, "_GET_paginated",
                           return_value=docker_commits) as patch_syn_get_paginated:
@@ -468,8 +482,8 @@ class TestSubmit:
 
     def test_get_docker_digest_specifytag(self):
         test_sha = 'sha256:ffffff'
-        docker_commits= [{'tag': 'test',
-                          'digest': test_sha}]
+        docker_commits = [{'tag': 'test',
+                           'digest': test_sha}]
         with patch.object(syn, "_GET_paginated",
                           return_value=docker_commits) as patch_syn_get_paginated:
             digest = syn._get_docker_digest('syn1234', docker_tag="test")
@@ -478,24 +492,23 @@ class TestSubmit:
 
     def test_get_docker_digest_specifywrongtag(self):
         test_sha = 'sha256:ffffff'
-        docker_commits= [{'tag': 'test',
-                          'digest': test_sha}]
+        docker_commits = [{'tag': 'test',
+                           'digest': test_sha}]
         with patch.object(syn, "_GET_paginated",
                           return_value=docker_commits) as patch_syn_get_paginated:
             assert_raises(ValueError, syn._get_docker_digest, 'syn1234', docker_tag="foo")
             patch_syn_get_paginated.assert_called_once_with("/entity/syn1234/dockerTag")
 
     def test_submit_docker_nonetag(self):
-        docker_entity = DockerRepository("foo", parentId = "syn1000001")
+        docker_entity = DockerRepository("foo", parentId="syn1000001")
         docker_entity.id = "syn123"
         docker_entity.etag = "Fake etag"
 
-        docker_digest = 'sha256:6b079ae764a6affcb632231349d4a5e1b084bece8c46883c099863ee2aeb5cf8'
         assert_raises(ValueError, syn.submit, '9090',
                       docker_entity, "George", dockerTag=None)
 
     def test_submit_docker(self):
-        docker_entity = DockerRepository("foo", parentId = "syn1000001")
+        docker_entity = DockerRepository("foo", parentId="syn1000001")
         docker_entity.id = "syn123"
         docker_entity.etag = "Fake etag"
 
@@ -508,15 +521,15 @@ class TestSubmit:
             'versionNumber': self.entity['versionNumber'],
             'dockerDigest': docker_digest,
             'dockerRepositoryName': docker_entity['repositoryName'],
-            'teamId': id_of(self.team['id']),
+            'teamId': utils.id_of(self.team['id']),
             'contributors': self.contributors,
             'submitterAlias': self.team['name']}
         with patch.object(syn, "get",
                           return_value=docker_entity) as patch_syn_get, \
-             patch.object(syn, "_get_docker_digest",
-                          return_value=docker_digest) as patch_get_digest, \
-             patch.object(syn, "_submit",
-                          return_value=expected_submission) as patch__submit:
+            patch.object(syn, "_get_docker_digest",
+                         return_value=docker_digest) as patch_get_digest, \
+            patch.object(syn, "_submit",
+                         return_value=expected_submission):
             submission = syn.submit('9090', patch_syn_get, name='George')
             patch_get_digest.assert_called_once_with(docker_entity, "latest")
             assert_equal(submission, expected_submission)
@@ -573,7 +586,7 @@ class TestPrivateGetContributor:
             'eligibilityStateHash': self.hash
         }
 
-        self.patch_restGET = patch.object(syn, "restGET", return_value=self.eligibility);
+        self.patch_restGET = patch.object(syn, "restGET", return_value=self.eligibility)
         self.mock_restGET = self.patch_restGET.start()
 
     def teardown(self):
@@ -612,7 +625,8 @@ class TestPrivateGetContributor:
 
     def test_happy_case(self):
         contributors = [{'principalId': self.member_eligible['principalId']}]
-        assert_equal((contributors, self.eligibility['eligibilityStateHash']), syn._get_contributors(self.eval_id, self.team))
+        assert_equal((contributors, self.eligibility['eligibilityStateHash']),
+                     syn._get_contributors(self.eval_id, self.team))
         uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
         self.mock_restGET.assert_called_once_with(uri)
 
@@ -855,7 +869,7 @@ def test_move():
     moved_entity = entity
     moved_entity.parentId = "syn789"
     with patch.object(syn, "get", return_value=entity) as syn_get_patch,\
-         patch.object(syn, "store", return_value=moved_entity) as syn_store_patch:
+            patch.object(syn, "store", return_value=moved_entity) as syn_store_patch:
         assert_equal(moved_entity, syn.move("syn123", "syn789"))
         syn_get_patch.assert_called_once_with("syn123", downloadFile=False)
         syn_store_patch.assert_called_once_with(moved_entity, forceVersion=False)
@@ -879,7 +893,7 @@ def test_delete__string_version():
 
 def test_delete__has_synapse_delete_attr():
     mock_obj = Mock()
-    delete_obj = syn.delete(mock_obj)
+    syn.delete(mock_obj)
     mock_obj._synapse_delete.assert_called_once()
 
 
@@ -907,8 +921,8 @@ def test_setPermissions__default_permissions():
         'resourceAccess': [{u'accessType': ["READ", "DOWNLOAD"], u'principalId': principalId}]
     }
     with patch.object(syn, "_getBenefactor", return_value=entity), \
-         patch.object(syn, "_getACL", return_value=acl), \
-         patch.object(syn, "_storeACL", return_value=update_acl) as patch_store_acl:
+            patch.object(syn, "_getACL", return_value=acl), \
+            patch.object(syn, "_storeACL", return_value=update_acl) as patch_store_acl:
         assert_equal(update_acl, syn.setPermissions(entity, principalId))
         patch_store_acl.assert_called_once_with(entity, update_acl)
 
@@ -917,27 +931,23 @@ def test_get_unsaved_entity():
     assert_raises(ValueError, syn.get, Folder(name="folder", parent="syn456"))
 
 
-def test_get_default_view_columns():
+def test_get_default_view_columns_nomask():
+    """Test no mask passed in"""
+    with patch.object(syn, "restGET") as mock_restGET:
+        syn._get_default_view_columns("viewtype")
+        mock_restGET.assert_called_with(
+            "/column/tableview/defaults?viewEntityType=viewtype"
+        )
+
+
+def test_get_default_view_columns_mask():
+    """Test mask passed in"""
     mask = 5
     with patch.object(syn, "restGET") as mock_restGET:
-        syn._get_default_entity_view_columns(mask)
-        mock_restGET.assert_called_with("/column/tableview/defaults?viewTypeMask=5")
-
-
-def test_get_annotation_entity_view_columns():
-    scope_ids = 3
-    mask = 5
-    view_scope = {'scope': scope_ids,
-                  'viewTypeMask': mask}
-    page1 = {'results': [],
-             'nextPageToken': 'a'}
-    page2 = {'results': [],
-             'nextPageToken': None}
-    call_list = [call('/column/view/scope', json.dumps(view_scope), params={}),
-                 call('/column/view/scope', json.dumps(view_scope), params={'nextPageToken': 'a'})]
-    with patch.object(syn, "restPOST", side_effect=[page1, page2]) as mock_restPOST:
-        syn._get_annotation_entity_view_columns(scope_ids, mask)
-        mock_restPOST.assert_has_calls(call_list)
+        syn._get_default_view_columns("viewtype", mask)
+        mock_restGET.assert_called_with(
+            "/column/tableview/defaults?viewEntityType=viewtype&viewTypeMask=5"
+        )
 
 
 class TestCreateStorageLocationSetting:
@@ -990,7 +1000,7 @@ class TestSetStorageLocation:
     def setup(self):
         self.entity = "syn123"
         self.expected_location = {
-            'concreteType':'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
+            'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
             'settingsType': 'upload',
             'locations': [DEFAULT_STORAGE_LOCATION_ID],
             'projectId': self.entity
@@ -1273,10 +1283,10 @@ class TestMembershipInvitation:
                        'inviteeId': None}
         with patch.object(syn, "get_team_open_invitations",
                           return_value=[]) as patch_get_invites,\
-             patch.object(syn, "getUserProfile",
-                          return_value=self.profile) as patch_get_profile,\
-             patch.object(syn, "send_membership_invitation",
-                          return_value=self.response) as patch_invitation:
+            patch.object(syn, "getUserProfile",
+                         return_value=self.profile) as patch_get_profile,\
+            patch.object(syn, "send_membership_invitation",
+                         return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, inviteeEmail=self.email,
                                         message=self.message)
             assert_equal(invite, self.response)
@@ -1293,12 +1303,12 @@ class TestMembershipInvitation:
                        'message': None}
         with patch.object(syn, "get_membership_status",
                           return_value=self.member_status) as patch_getmem,\
-             patch.object(syn, "get_team_open_invitations",
-                          return_value=[]) as patch_get_invites,\
-             patch.object(syn, "getUserProfile",
-                          return_value=self.profile) as patch_get_profile,\
-             patch.object(syn, "send_membership_invitation",
-                          return_value=self.response) as patch_invitation:
+            patch.object(syn, "get_team_open_invitations",
+                         return_value=[]) as patch_get_invites,\
+            patch.object(syn, "getUserProfile",
+                         return_value=self.profile) as patch_get_profile,\
+            patch.object(syn, "send_membership_invitation",
+                         return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, user=self.userid)
             patch_getmem.assert_called_once_with(self.userid,
                                                  self.team.id)
@@ -1316,12 +1326,12 @@ class TestMembershipInvitation:
                        'message': None}
         with patch.object(syn, "get_membership_status",
                           return_value=self.member_status) as patch_getmem,\
-             patch.object(syn, "get_team_open_invitations",
-                          return_value=[]) as patch_get_invites,\
-             patch.object(syn, "getUserProfile",
-                          return_value=self.profile) as patch_get_profile,\
-             patch.object(syn, "send_membership_invitation",
-                          return_value=self.response) as patch_invitation:
+            patch.object(syn, "get_team_open_invitations",
+                         return_value=[]) as patch_get_invites,\
+            patch.object(syn, "getUserProfile",
+                         return_value=self.profile) as patch_get_profile,\
+            patch.object(syn, "send_membership_invitation",
+                         return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, user=self.username)
             patch_getmem.assert_called_once_with(self.userid,
                                                  self.team.id)
@@ -1333,15 +1343,14 @@ class TestMembershipInvitation:
 
     def test_invite_to_team__ismember(self):
         """None returned when user is already a member"""
-        invite_body = {'inviteeId': self.userid}
         with patch.object(syn, "get_membership_status",
                           return_value=self.member_status) as patch_getmem,\
-             patch.object(syn, "get_team_open_invitations",
-                          return_value=[]) as patch_get_invites,\
-             patch.object(syn, "getUserProfile",
-                          return_value=self.profile) as patch_get_profile,\
-             patch.object(syn, "send_membership_invitation",
-                          return_value=self.response) as patch_invitation:
+            patch.object(syn, "get_team_open_invitations",
+                         return_value=[]) as patch_get_invites,\
+            patch.object(syn, "getUserProfile",
+                         return_value=self.profile) as patch_get_profile,\
+            patch.object(syn, "send_membership_invitation",
+                         return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, user=self.userid)
             patch_getmem.assert_called_once_with(self.userid,
                                                  self.team.id)
@@ -1356,13 +1365,13 @@ class TestMembershipInvitation:
         invite_body = {'inviteeId': self.userid}
         with patch.object(syn, "get_membership_status",
                           return_value=self.member_status) as patch_getmem,\
-             patch.object(syn, "get_team_open_invitations",
-                          return_value=[invite_body]) as patch_get_invites,\
-             patch.object(syn, "getUserProfile",
-                          return_value=self.profile) as patch_get_profile,\
-             patch.object(syn, "_delete_membership_invitation") as patch_delete,\
-             patch.object(syn, "send_membership_invitation",
-                          return_value=self.response) as patch_invitation:
+            patch.object(syn, "get_team_open_invitations",
+                         return_value=[invite_body]) as patch_get_invites,\
+            patch.object(syn, "getUserProfile",
+                         return_value=self.profile) as patch_get_profile,\
+            patch.object(syn, "_delete_membership_invitation") as patch_delete,\
+            patch.object(syn, "send_membership_invitation",
+                         return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, user=self.userid)
             patch_getmem.assert_called_once_with(self.userid,
                                                  self.team.id)
@@ -1377,9 +1386,9 @@ class TestMembershipInvitation:
         invite_body = {'inviteeEmail': self.email}
         with patch.object(syn, "get_team_open_invitations",
                           return_value=[invite_body]) as patch_get_invites,\
-             patch.object(syn, "_delete_membership_invitation") as patch_delete,\
-             patch.object(syn, "send_membership_invitation",
-                          return_value=self.response) as patch_invitation:
+            patch.object(syn, "_delete_membership_invitation") as patch_delete,\
+            patch.object(syn, "send_membership_invitation",
+                         return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, inviteeEmail=self.email)
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_invitation.assert_not_called()
@@ -1392,9 +1401,9 @@ class TestMembershipInvitation:
         invite_body = {'inviteeEmail': self.email + "foo"}
         with patch.object(syn, "get_team_open_invitations",
                           return_value=[invite_body]) as patch_get_invites,\
-             patch.object(syn, "_delete_membership_invitation") as patch_delete,\
-             patch.object(syn, "send_membership_invitation",
-                          return_value=self.response) as patch_invitation:
+            patch.object(syn, "_delete_membership_invitation") as patch_delete,\
+            patch.object(syn, "send_membership_invitation",
+                         return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, inviteeEmail=self.email)
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_delete.assert_not_called()
@@ -1407,9 +1416,9 @@ class TestMembershipInvitation:
         open_invitations = {'inviteeEmail': self.email, 'id': '9938'}
         with patch.object(syn, "get_team_open_invitations",
                           return_value=[open_invitations]) as patch_get_invites,\
-             patch.object(syn, "_delete_membership_invitation") as patch_delete,\
-             patch.object(syn, "send_membership_invitation",
-                          return_value=self.response) as patch_invitation:
+            patch.object(syn, "_delete_membership_invitation") as patch_delete,\
+            patch.object(syn, "send_membership_invitation",
+                         return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, inviteeEmail=self.email,
                                         force=True)
             patch_get_invites.assert_called_once_with(self.team.id)
@@ -1534,7 +1543,7 @@ def test_get_config_file_caching():
         assert_equal(1, read_config.call_count)
 
         # however a new instance should not be cached
-        syn2 = Synapse(debug=False, skip_checks=True, configPath='/foo')
+        Synapse(debug=False, skip_checks=True, configPath='/foo')
         assert_equal(2, read_config.call_count)
 
         # but an additional call on that instance should be
@@ -1923,3 +1932,42 @@ def test_get_submission_with_annotations():
         )
 
         assert_equal(evaluation_id, response["evaluationId"])
+
+
+def test__get_annotation_view_columns():
+    """Test getting a view's columns based on existing annotations"""
+    page1 = {'results': [{'id': 5}],
+             'nextPageToken': 'a'}
+    page2 = {'results': [],
+             'nextPageToken': None}
+    view_scope1 = {
+        'concreteType': 'org.sagebionetworks.repo.model.table.ViewColumnModelRequest',
+        'viewScope': {
+            'scope': ['syn1234'],
+            'viewEntityType': "submissionview",
+            'viewTypeMask': "0x1"
+        }
+    }
+    view_scope2 = {
+        'concreteType': 'org.sagebionetworks.repo.model.table.ViewColumnModelRequest',
+        'viewScope': {
+            'scope': ['syn1234'],
+            'viewEntityType': "submissionview",
+            'viewTypeMask': "0x1"
+        },
+        'nextPageToken': 'a'
+    }
+    call_list = [call(uri="/column/view/scope/async",
+                      request=view_scope1),
+                 call(uri="/column/view/scope/async",
+                      request=view_scope2)]
+
+    with patch.object(syn, "_waitForAsync",
+                      side_effect=[page1, page2]) as wait_for_async:
+        columns = syn._get_annotation_view_columns(
+            scope_ids=['syn1234'],
+            view_type="submissionview",
+            view_type_mask="0x1"
+        )
+        wait_for_async.assert_has_calls(call_list)
+        assert_equal(columns, [synapseclient.Column(id=5)])

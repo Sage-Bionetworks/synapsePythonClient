@@ -38,6 +38,7 @@ import json
 import logging
 import mimetypes
 import os
+import requests
 import shutil
 import sys
 import tempfile
@@ -59,17 +60,27 @@ from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import SchemaBase, Column, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
-from synapseclient.core import cache, exceptions
+from synapseclient.core import cache, exceptions, utils
 from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
 from synapseclient.core.credentials import cached_sessions
+from synapseclient.core.exceptions import (
+    SynapseAuthenticationError,
+    SynapseError,
+    SynapseFileNotFoundError,
+    SynapseHTTPError,
+    SynapseMd5MismatchError,
+    SynapseNoCredentialsError,
+    SynapseProvenanceError,
+    SynapseTimeoutError,
+    SynapseUnmetAccessRestrictions,
+)
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
-from synapseclient.core.exceptions import *
 from synapseclient.core.version_check import version_check
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
-    find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param, snake_case
+    find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
 from synapseclient.core.retry import with_retry
 from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
@@ -634,12 +645,16 @@ class Synapse(object):
             kwargs['path'] = entity
 
         elif isinstance(entity, str) and not utils.is_synapse_id(entity):
-            raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
-                                            ' or a valid entity id' % entity))
+            raise SynapseFileNotFoundError(
+                ('The parameter %s is neither a local file path '
+                 ' or a valid entity id' % entity)
+            )
         # have not been saved entities
         elif isinstance(entity, Entity) and not entity.get('id'):
-            raise ValueError("Cannot retrieve entity that has not been saved."
-                             " Please use syn.store() to save your entity and try again.")
+            raise ValueError(
+                "Cannot retrieve entity that has not been saved."
+                " Please use syn.store() to save your entity and try again."
+            )
         else:
             version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
@@ -857,7 +872,6 @@ class Synapse(object):
                                  'for "ifcollision"' % ifcollision)
         return downloadPath
 
-
     def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
               activity=None, used=None, executed=None, activityName=None, activityDescription=None):
         """
@@ -1069,8 +1083,10 @@ class Synapse(object):
         # If the parameters 'used' or 'executed' are given, create an Activity object
         if used or executed:
             if activity is not None:
-                raise SynapseProvenanceError('Provenance can be specified as an Activity object or as used/executed'
-                                             ' item(s), but not both.')
+                raise SynapseProvenanceError(
+                    'Provenance can be specified as an Activity object or as used/executed'
+                    ' item(s), but not both.'
+                )
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
         # If we have an Activity, set it as the Entity's provenance record
@@ -1188,8 +1204,7 @@ class Synapse(object):
                 else:
                     self.restDELETE(obj.deleteURI())
             except AttributeError:
-                raise SynapseError(f"Can't delete a {type(obj)}. Please "
-                                   "specify a Synapse object or id")
+                raise SynapseError(f"Can't delete a {type(obj)}. Please specify a Synapse object or id")
 
     _user_name_cache = {}
 
@@ -1413,7 +1428,6 @@ class Synapse(object):
                 yield child
             if entityChildrenResponse.get('nextPageToken') is not None:
                 entityChildrenRequest['nextPageToken'] = entityChildrenResponse['nextPageToken']
-
 
     def md5Query(self, md5):
         """
@@ -1693,10 +1707,12 @@ class Synapse(object):
         result = response['requestedFiles'][0]
         failure = result.get('failureCode')
         if failure == 'NOT_FOUND':
-            raise exceptions.SynapseFileNotFoundError("The fileHandleId %s could not be found" % fileHandleId)
+            raise SynapseFileNotFoundError("The fileHandleId %s could not be found" % fileHandleId)
         elif failure == "UNAUTHORIZED":
-            raise exceptions.SynapseError("You are not authorized to access fileHandleId %s associated with the Synapse"
-                                          " %s: %s" % (fileHandleId, objectType, objectId))
+            raise SynapseError(
+                "You are not authorized to access fileHandleId %s associated with the Synapse"
+                " %s: %s" % (fileHandleId, objectType, objectId)
+            )
 
         return result
 
@@ -1801,9 +1817,12 @@ class Synapse(object):
                 except FileNotFoundError:
                     # file already does not exist. nothing to do
                     pass
-                raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
-                                              " {expected_md5}".format(filename=temp_destination, md5=actual_md5,
-                                                                       expected_md5=expected_md5))
+                raise SynapseMd5MismatchError(
+                    "Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+                    " {expected_md5}".format(
+                        filename=temp_destination, md5=actual_md5, expected_md5=expected_md5
+                    )
+                )
         # once download completed, rename to desired destination
         shutil.move(temp_destination, destination)
 
@@ -1941,9 +1960,10 @@ class Synapse(object):
         if expected_md5 and actual_md5 != expected_md5:
             if delete_on_md5_mismatch and os.path.exists(destination):
                 os.remove(destination)
-            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
-                                          " {expected_md5}".format(filename=destination, md5=actual_md5,
-                                                                   expected_md5=expected_md5))
+            raise SynapseMd5MismatchError(
+                "Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+                " {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5)
+            )
 
         return destination
 
@@ -2252,7 +2272,6 @@ class Synapse(object):
 
         return folder, storage_location_setting, project_setting
 
-
     ############################################################
     #                   CRUD for Evaluations                   #
     ############################################################
@@ -2508,7 +2527,8 @@ class Synapse(object):
         :param submitterAlias:  (optional) A nickname, possibly for display in leaderboards in place of the submitter's
                                 name
         :param teamName:        (deprecated) A synonym for submitterAlias
-        :param dockerTag:       (optional) The Docker tag must be specified if the entity is a DockerRepository. Defaults to "latest".
+        :param dockerTag:       (optional) The Docker tag must be specified if the entity is a DockerRepository.
+                                Defaults to "latest".
 
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
@@ -2531,7 +2551,7 @@ class Synapse(object):
 
         entity_id = id_of(entity)
         if isinstance(entity, synapseclient.DockerRepository):
-            #Edge case if dockerTag is specified as None
+            # Edge case if dockerTag is specified as None
             if dockerTag is None:
                 raise ValueError('A dockerTag is required to submit a DockerEntity. Cannot be None')
             docker_repository = entity['repositoryName']
@@ -2560,7 +2580,6 @@ class Synapse(object):
                 submitterAlias = teamName
             elif team and 'name' in team:
                 submitterAlias = team['name']
-
 
         if isinstance(entity, synapseclient.DockerRepository):
             docker_digest = self._get_docker_digest(entity, dockerTag)
@@ -2612,8 +2631,8 @@ class Synapse(object):
             if not eligibility['teamEligibility']['isRegistered']:
                 raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
             if eligibility['teamEligibility']['isQuotaFilled']:
-                raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'
-                                   .format(team=team.name))
+                raise SynapseError(
+                    'Team "{team}" has already submitted the full quota of submissions.'.format(team=team.name))
             raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
 
         # Include all team members who are eligible.
@@ -2809,6 +2828,7 @@ class Synapse(object):
             # getWithEntityBundle expects a bundle services v2 style
             # annotations dict, but the evaluations API may return
             # an older format annotations object in the encoded JSON
+            # depending on when the original submission was made.
             annotations = entityBundleJSON.get('annotations')
             if annotations:
                 entityBundleJSON['annotations'] = convert_old_annotation_json(annotations)
@@ -2956,7 +2976,6 @@ class Synapse(object):
     def _waitForAsync(self, uri, request, endpoint=None):
         if endpoint is None:
             endpoint = self.repoEndpoint
-
         async_job_id = self.restPOST(uri+'/start', body=json.dumps(request), endpoint=endpoint)
 
         # http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
@@ -2983,8 +3002,10 @@ class Synapse(object):
         else:
             raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' % (time.time()-start_time))
         if result.get('jobState', None) == 'FAILED':
-            raise SynapseError(result.get('errorMessage', None) + '\n' + result.get('errorDetails', None),
-                               asynchronousJobStatus=result)
+            raise SynapseError(
+                result.get('errorMessage', None) + '\n' + result.get('errorDetails', None),
+                asynchronousJobStatus=result
+            )
         if progressed:
             utils.printTransferProgress(total, total, message, isBytes=False)
         return result
@@ -3212,9 +3233,9 @@ class Synapse(object):
                         successful_updates.append(entity_id)
 
                 if failed_updates:
-                    raise SynapseError("Not all of the entities were updated."
-                                       " Successful updates: %s.  Failed updates: %s" % (successful_updates,
-                                                                                         failed_updates))
+                    raise SynapseError(
+                        "Not all of the entities were updated."
+                        " Successful updates: %s.  Failed updates: %s" % (successful_updates, failed_updates))
 
             else:
                 warnings.warn("Unexpected result from a table transaction of type [%s]."
@@ -3322,7 +3343,6 @@ class Synapse(object):
 
         """
 
-        FAILURE_CODES = ["NOT_FOUND", "UNAUTHORIZED", "DUPLICATE", "EXCEEDS_SIZE_LIMIT", "UNKNOWN_ERROR"]
         RETRIABLE_FAILURE_CODES = ["EXCEEDS_SIZE_LIMIT"]
         MAX_DOWNLOAD_TRIES = 100
         max_files_per_request = kwargs.get('max_files_per_request', 2500)
@@ -3429,21 +3449,41 @@ class Synapse(object):
                     warnings.warn("Weird file handle: %s" % file_handle_id)
         return file_handle_associations, file_handle_to_path_map
 
-    @memoize
-    def _get_default_entity_view_columns(self, view_type_mask):
+    def _get_default_view_columns(self, view_type, view_type_mask=None):
+        """Get default view columns"""
+        uri = f"/column/tableview/defaults?viewEntityType={view_type}"
+        if view_type_mask:
+            uri += f"&viewTypeMask={view_type_mask}"
         return [Column(**col)
-                for col in self.restGET("/column/tableview/defaults?viewTypeMask=%s" % view_type_mask)['list']]
+                for col in self.restGET(uri)['list']]
 
-    def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
-        view_scope = {'scope': scope_ids,
-                      'viewTypeMask': view_type_mask}
+    def _get_annotation_view_columns(self, scope_ids: list, view_type: str,
+                                     view_type_mask: str = None) -> list:
+        """Get all the columns of a submission of entity view based on existing annotations
+
+        :param scope_ids:  List of Evaluation Queue or Project/Folder Ids
+        :param view_type: submissionview or entityview
+        :param view_type_mask: Bit mask representing the types to include in the view.
+
+        :returns: list of columns
+        """
         columns = []
         next_page_token = None
         while True:
-            params = {}
+            view_scope = {
+                'concreteType': 'org.sagebionetworks.repo.model.table.ViewColumnModelRequest',
+                'viewScope': {
+                    'scope': scope_ids,
+                    'viewEntityType': view_type,
+                    'viewTypeMask': view_type_mask
+                }
+            }
             if next_page_token:
-                params = {'nextPageToken': next_page_token}
-            response = self.restPOST('/column/view/scope', json.dumps(view_scope), params=params)
+                view_scope['nextPageToken'] = next_page_token
+            response = self._waitForAsync(
+                uri='/column/view/scope/async',
+                request=view_scope
+            )
             columns.extend(Column(**column) for column in response['results'])
             next_page_token = response.get('nextPageToken')
             if next_page_token is None:
