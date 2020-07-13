@@ -66,21 +66,21 @@ def test_readManifest(test_state):
 
     # Test that there are no circular references in file and that Provenance is correct
     manifest = _makeManifest(
-        test_state.header+test_state.row1 + test_state.row2 + test_state.row4,
+        test_state.header + test_state.row1 + test_state.row2 + test_state.row4,
         test_state.schedule_for_cleanup
     )
     pytest.raises(RuntimeError, synapseutils.sync.readManifestFile, test_state.syn, manifest)
 
     # Test non existent parent
     manifest = _makeManifest(
-        test_state.header+test_state.row1 + test_state.row5,
+        test_state.header + test_state.row1 + test_state.row5,
         test_state.schedule_for_cleanup
     )
     pytest.raises(SynapseHTTPError, synapseutils.sync.readManifestFile, test_state.syn, manifest)
 
     # Test that all files exist in manifest
     manifest = _makeManifest(
-        test_state.header+test_state.row1 + test_state.row2 + '/bara/basdfasdf/8hiuu.txt	syn123\n',
+        test_state.header + test_state.row1 + test_state.row2 + '/bara/basdfasdf/8hiuu.txt	syn123\n',
         test_state.schedule_for_cleanup
     )
     pytest.raises(IOError, synapseutils.sync.readManifestFile, test_state.syn, manifest)
@@ -89,7 +89,7 @@ def test_readManifest(test_state):
 def test_syncToSynapse(test_state):
     # Test upload of accurate manifest
     manifest = _makeManifest(
-        test_state.header + test_state.row1+test_state.row2 + test_state.row3,
+        test_state.header + test_state.row1 + test_state.row2 + test_state.row3,
         test_state.schedule_for_cleanup
     )
     synapseutils.syncToSynapse(test_state.syn, manifest, sendMessages=False, retries=2)

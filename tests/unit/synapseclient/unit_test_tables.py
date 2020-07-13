@@ -287,7 +287,7 @@ def test_pandas_to_table():
     for i, row in enumerate(table):
         assert row[0] == ["1", "2", "3"][i]
         assert row[1] == ["7", "7", "8"][i]
-        assert row[2] == (i + 1)*100
+        assert row[2] == (i + 1) * 100
         assert row[3] == ["c", "d", "e"][i]
 
     # A dataframe with row id and version in columns
@@ -297,7 +297,7 @@ def test_pandas_to_table():
     for i, row in enumerate(table):
         assert row[0] == ["0", "1", "2"][i]
         assert row[1] == ["8", "9", "9"][i]
-        assert row[2] == (i + 1)*100
+        assert row[2] == (i + 1) * 100
         assert row[3] == ["c", "d", "e"][i]
 
 
