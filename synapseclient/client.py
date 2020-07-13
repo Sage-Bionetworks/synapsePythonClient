@@ -2200,6 +2200,7 @@ class Synapse(object):
 
     def get_sts_storage_token(self, entity, permission, *, output_format='json', min_remaining_life=None):
         """Get STS credentials for the given entity_id and permission, outputting it in the given format
+
         :param entity:          the entity or entity id whose credentials are being returned
         :param permission:      one of 'read_only' or 'read_write'
         :param output_format:   one of 'json', 'boto', 'shell', 'bash', 'cmd', 'powershell'
@@ -2975,7 +2976,6 @@ class Synapse(object):
     def _waitForAsync(self, uri, request, endpoint=None):
         if endpoint is None:
             endpoint = self.repoEndpoint
-
         async_job_id = self.restPOST(uri+'/start', body=json.dumps(request), endpoint=endpoint)
 
         # http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
@@ -3449,21 +3449,41 @@ class Synapse(object):
                     warnings.warn("Weird file handle: %s" % file_handle_id)
         return file_handle_associations, file_handle_to_path_map
 
-    @memoize
-    def _get_default_entity_view_columns(self, view_type_mask):
+    def _get_default_view_columns(self, view_type, view_type_mask=None):
+        """Get default view columns"""
+        uri = f"/column/tableview/defaults?viewEntityType={view_type}"
+        if view_type_mask:
+            uri += f"&viewTypeMask={view_type_mask}"
         return [Column(**col)
-                for col in self.restGET("/column/tableview/defaults?viewTypeMask=%s" % view_type_mask)['list']]
+                for col in self.restGET(uri)['list']]
 
-    def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
-        view_scope = {'scope': scope_ids,
-                      'viewTypeMask': view_type_mask}
+    def _get_annotation_view_columns(self, scope_ids: list, view_type: str,
+                                     view_type_mask: str = None) -> list:
+        """Get all the columns of a submission of entity view based on existing annotations
+
+        :param scope_ids:  List of Evaluation Queue or Project/Folder Ids
+        :param view_type: submissionview or entityview
+        :param view_type_mask: Bit mask representing the types to include in the view.
+
+        :returns: list of columns
+        """
         columns = []
         next_page_token = None
         while True:
-            params = {}
+            view_scope = {
+                'concreteType': 'org.sagebionetworks.repo.model.table.ViewColumnModelRequest',
+                'viewScope': {
+                    'scope': scope_ids,
+                    'viewEntityType': view_type,
+                    'viewTypeMask': view_type_mask
+                }
+            }
             if next_page_token:
-                params = {'nextPageToken': next_page_token}
-            response = self.restPOST('/column/view/scope', json.dumps(view_scope), params=params)
+                view_scope['nextPageToken'] = next_page_token
+            response = self._waitForAsync(
+                uri='/column/view/scope/async',
+                request=view_scope
+            )
             columns.extend(Column(**column) for column in response['results'])
             next_page_token = response.get('nextPageToken')
             if next_page_token is None:

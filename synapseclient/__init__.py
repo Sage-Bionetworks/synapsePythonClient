@@ -279,7 +279,7 @@ from .core.version_check import check_for_updates, release_notes
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, \
-    EntityViewType, build_table
+    EntityViewType, build_table, SubmissionViewSchema
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
@@ -294,7 +294,7 @@ __all__ = [
     # objects
     'Synapse', 'Activity', 'Entity', 'Project', 'Folder', 'File', 'Link', 'DockerRepository', 'Evaluation',
     'Submission', 'SubmissionStatus', 'Schema', 'EntityViewSchema', 'Column', 'Row', 'RowSet', 'Table', 'PartialRowset',
-    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki', 'Annotations',
+    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki', 'Annotations', 'SubmissionViewSchema',
     # functions
     'login', 'build_table', 'as_table_columns', 'check_for_updates', 'release_notes',
     # enum

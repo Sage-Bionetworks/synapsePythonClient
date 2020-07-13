@@ -6,9 +6,8 @@ import random
 
 import pytest
 
-from synapseclient import Evaluation, File, Team
+from synapseclient import Evaluation, File, Team, SubmissionViewSchema
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
 
 
 def test_evaluations(syn, project, schedule_for_cleanup):
@@ -104,13 +103,10 @@ def test_evaluations(syn, project, schedule_for_cleanup):
         for submission in submissions:
             assert re.match('Submission \\d+', submission['name'])
             status = syn.getSubmissionStatus(submission)
-            status.score = random.random()
             if submission['name'] == 'Submission 01':
                 status.status = 'INVALID'
-                status.report = 'Uh-oh, something went wrong!'
             else:
                 status.status = 'SCORED'
-                status.report = 'a fabulous effort!'
             syn.store(status)
 
         # Annotate the submissions
@@ -122,18 +118,14 @@ def test_evaluations(syn, project, schedule_for_cleanup):
             bogosity[submission.id] = b
             a = dict(foo='bar', bogosity=b)
             b += 123
-            status['annotations'] = to_submission_status_annotations(a)
-            set_privacy(status['annotations'], key='bogosity', is_private=False)
+            status.submissionAnnotations = a
             syn.store(status)
 
         # Test that the annotations stuck
         for submission, status in syn.getSubmissionBundles(ev):
-            a = from_submission_status_annotations(status.annotations)
-            assert a['foo'] == 'bar'
-            assert a['bogosity'] == bogosity[submission.id]
-            for kvp in status.annotations['longAnnos']:
-                if kvp['key'] == 'bogosity':
-                    assert not kvp['isPrivate']
+            a = status.submissionAnnotations
+            assert a['foo'] == ['bar']
+            assert a['bogosity'] == [bogosity[submission.id]]
 
         # test query by submission annotations
         # These queries run against an eventually consistent index table which is
@@ -158,6 +150,15 @@ def test_evaluations(syn, project, schedule_for_cleanup):
         invalid_submissions = list(syn.getSubmissions(ev, status='INVALID'))
         assert len(invalid_submissions) == 1, len(invalid_submissions)
         assert invalid_submissions[0]['name'] == 'Submission 01'
+
+        view = SubmissionViewSchema(name="Testing view", scopes=[ev['id']],
+                                    parent=project['id'])
+        view_ent = syn.store(view)
+        view_table = syn.tableQuery(f"select * from {view_ent.id}")
+        viewdf = view_table.asDataFrame()
+        assert viewdf['foo'].tolist() == ["bar", "bar"]
+        assert viewdf['bogosity'].tolist() == [123, 246]
+        assert viewdf['id'].astype(str).tolist() == list(bogosity.keys())
 
     finally:
         # Clean up
