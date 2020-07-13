@@ -264,7 +264,7 @@ def test_pandas_to_table():
     table = Table(schema, df)
 
     for i, row in enumerate(table):
-        assert row[0] == (i+1)
+        assert row[0] == (i + 1)
         assert row[1] == ["c", "d", "e"][i]
 
         assert len(table) == 3
@@ -278,7 +278,7 @@ def test_pandas_to_table():
     for i, row in enumerate(table):
         assert row[0] is None
         assert row[1] is None
-        assert row[2] == (i+1)
+        assert row[2] == (i + 1)
 
     # A dataframe with no row id and version
     df = pd.DataFrame(index=["1_7", "2_7", "3_8"], data=dict(a=[100, 200, 300], b=["c", "d", "e"]))
@@ -287,7 +287,7 @@ def test_pandas_to_table():
     for i, row in enumerate(table):
         assert row[0] == ["1", "2", "3"][i]
         assert row[1] == ["7", "7", "8"][i]
-        assert row[2] == (i+1)*100
+        assert row[2] == (i + 1)*100
         assert row[3] == ["c", "d", "e"][i]
 
     # A dataframe with row id and version in columns
@@ -297,7 +297,7 @@ def test_pandas_to_table():
     for i, row in enumerate(table):
         assert row[0] == ["0", "1", "2"][i]
         assert row[1] == ["8", "9", "9"][i]
-        assert row[2] == (i+1)*100
+        assert row[2] == (i + 1)*100
         assert row[3] == ["c", "d", "e"][i]
 
 
@@ -798,7 +798,7 @@ def test_build_table__with_pandas_DataFrame():
     table = build_table("test", "syn123", df)
 
     for i, row in enumerate(table):
-        assert row[0] == (i+1)
+        assert row[0] == (i + 1)
         assert row[1] == ["c", "d", "e"][i]
     assert len(table) == 3
     headers = [
@@ -1103,7 +1103,7 @@ def test_get_view_type_mask():
     assert 0x08 == _get_view_type_mask([EntityViewType.FOLDER])
     assert 0x10 == _get_view_type_mask([EntityViewType.VIEW])
     assert 0x20 == _get_view_type_mask([EntityViewType.DOCKER])
-    assert 2**6-1 == _get_view_type_mask(
+    assert 2**6 - 1 == _get_view_type_mask(
         [
             EntityViewType.FILE,
             EntityViewType.PROJECT,

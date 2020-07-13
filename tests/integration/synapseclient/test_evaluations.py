@@ -135,7 +135,7 @@ def test_evaluations(syn, project, schedule_for_cleanup):
         while attempts > 0:
             try:
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s" % ev.id)
-                assert len(results['rows']) == num_of_submissions+1
+                assert len(results['rows']) == num_of_submissions + 1
 
                 results = syn.restGET(
                     "/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)

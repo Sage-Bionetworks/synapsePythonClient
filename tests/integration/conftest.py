@@ -42,7 +42,7 @@ def project(syn):
     """
 
     # Make one project for all the tests to use
-    proj = syn.store(Project(name="integration_test_project"+str(uuid.uuid4())))
+    proj = syn.store(Project(name="integration_test_project" + str(uuid.uuid4())))
 
     # set the working directory to a temp directory
     _old_working_directory = os.getcwd()

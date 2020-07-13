@@ -190,7 +190,7 @@ def test_copy(syn, schedule_for_cleanup):
 class TestCopyWiki:
 
     @pytest.fixture(autouse=True)
-    def init(self, syn,  schedule_for_cleanup):
+    def init(self, syn, schedule_for_cleanup):
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
