@@ -45,6 +45,7 @@ import tempfile
 import time
 import typing
 import urllib.parse as urllib_urlparse
+import urllib.request as urllib_request
 import warnings
 import webbrowser
 import zipfile
@@ -1859,7 +1860,7 @@ class Synapse(object):
                 destination = SFTPWrapper.download_file(url, destination, username, password)
                 break
             elif scheme == 'ftp':
-                urllib_urlparse.urlretrieve(url, destination)
+                urllib_request.urlretrieve(url, destination)
                 break
             elif scheme == 'http' or scheme == 'https':
                 # if a partial download exists with the temporary name,
