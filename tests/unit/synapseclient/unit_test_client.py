@@ -324,11 +324,13 @@ class TestDownloadFileHandle:
         entity_id = 'syn5678'
         url = 'ftp://foo.com/bar'
         destination = '/tmp'
+        expected_destination = os.path.abspath(destination)
 
         with patch.object(syn, '_getFileHandleDownload') as mock_get_file_handle_download,\
                 patch.object(syn, 'cache'),\
                 patch.object(urllib_request, 'urlretrieve') as mock_url_retrieve,\
-                patch.object(utils, 'md5_for_file') as mock_md5_for_file:
+                patch.object(utils, 'md5_for_file') as mock_md5_for_file,\
+                patch.object(os, 'makedirs'):
 
             mock_get_file_handle_download.return_value = {
                 'fileHandle': {
@@ -353,8 +355,8 @@ class TestDownloadFileHandle:
                 destination=destination,
             )
 
-            mock_url_retrieve.assert_called_once_with(url, destination)
-            assert_equal(download_path, destination)
+            mock_url_retrieve.assert_called_once_with(url, expected_destination)
+            assert_equal(download_path, expected_destination)
 
 
 class TestPrivateSubmit:
