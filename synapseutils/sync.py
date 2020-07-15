@@ -19,7 +19,6 @@ DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'synapseStore', 'co
                                    'activityName', 'activityDescription']
 
 
-@utils.deprecated_keyword_param(['allFiles'], version="2.1.1", reason="Keyword parameter no longer needed")
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles=None, followLink=False):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
     metadata.
