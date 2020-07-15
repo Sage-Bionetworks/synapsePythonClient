@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 import tempfile
+import urllib.request as urllib_request
 import uuid
 
 from unittest.mock import ANY, call, create_autospec, Mock, patch
@@ -315,6 +316,47 @@ class TestDownloadFileHandle:
             credentials=credentials,
             transfer_config_kwargs={'max_concurrency': syn.max_threads},
         )
+
+    def test_download_file_ftp_link(self):
+        """Verify downloading from an FTP Link entity"""
+
+        file_handle_id = 1234
+        entity_id = 'syn5678'
+        url = 'ftp://foo.com/bar'
+        destination = '/tmp'
+        expected_destination = os.path.abspath(destination)
+
+        with patch.object(syn, '_getFileHandleDownload') as mock_get_file_handle_download,\
+                patch.object(syn, 'cache'),\
+                patch.object(urllib_request, 'urlretrieve') as mock_url_retrieve,\
+                patch.object(utils, 'md5_for_file') as mock_md5_for_file,\
+                patch.object(os, 'makedirs'):
+
+            mock_get_file_handle_download.return_value = {
+                'fileHandle': {
+                    'id': file_handle_id,
+                    'concreteType': concrete_types.EXTERNAL_FILE_HANDLE,
+                    'externalURL': url,
+                    'storageLocationId': 9876,
+                },
+                'preSignedURL': url,
+            }
+
+            mock_md5_for_file.return_value = Mock(
+                hexdigest=Mock(
+                    return_value='abc123'
+                )
+            )
+
+            download_path = syn._downloadFileHandle(
+                fileHandleId=file_handle_id,
+                objectId=entity_id,
+                objectType='FileEntity',
+                destination=destination,
+            )
+
+            mock_url_retrieve.assert_called_once_with(url, expected_destination)
+            assert_equal(download_path, expected_destination)
 
 
 class TestPrivateSubmit:
