@@ -747,6 +747,7 @@ class Synapse(object):
         submission = kwargs.pop('submission', None)
         followLink = kwargs.pop('followLink', False)
         path = kwargs.pop('path', None)
+        executor = kwargs.pop('executor', None)
 
         # make sure user didn't accidentlaly pass a kwarg that we don't handle
         if kwargs:  # if there are remaining items in the kwargs
@@ -778,7 +779,7 @@ class Synapse(object):
 
             if downloadFile:
                 if file_handle:
-                    self._download_file_entity(downloadLocation, entity, ifcollision, submission)
+                    self._download_file_entity(downloadLocation, entity, ifcollision, submission, executor=executor)
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = "WARNING: You have READ permission on this file entity but not DOWNLOAD " \
                                       "permission. The file has NOT been downloaded."
@@ -786,7 +787,7 @@ class Synapse(object):
                                         + '!'*len(warning_message)+'\n')
         return entity
 
-    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
+    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission, *, executor=None):
         # set the initial local state
         entity.path = None
         entity.files = []
