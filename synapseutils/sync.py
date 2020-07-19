@@ -6,6 +6,7 @@ import synapseclient
 from synapseclient.entity import is_container
 from synapseclient.core.utils import id_of, is_url, is_synapse_id
 from synapseclient import File, table
+from synapseclient.core.pool_provider import get_executor
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseProvenanceError
 import os
@@ -20,28 +21,6 @@ MAX_RETRIES = 4
 MANIFEST_FILENAME = 'SYNAPSE_METADATA_MANIFEST.tsv'
 DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'synapseStore', 'contentType', 'used', 'executed',
                                    'activityName', 'activityDescription']
-
-class ContainerProgress:
-    def __init__(self, *, container_id=None, child_ids=None, parent=None):
-        self._container_id = container_id
-        self._parent = parent
-
-        self._lock = threading.Lock()
-        self.pending_ids = set(child_ids or [])
-        self.files = []
-
-    def update(self, finished_id=None, files=None):
-        with self._lock:
-            if finished_id:
-                self.pending_ids.remove(finished_id)
-            if files:
-                self.files.extend(files)
-
-            finished = len(self.pending_ids) == 0
-            if finished:
-                self._parent.update(finished_id=self._container_id, files=self.files)
-
-
 
 
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles=None, followLink=False):
@@ -82,29 +61,67 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
             print(f.path)
 
     """
+
+#    provenance_cache = {}
+#    synced_files = _sync_from(syn, entity, path, ifcollision, followLink, provenance_cache)
+#    allFiles.extend(synced_files)
+#
+#    return allFiles
+
+    executor = get_executor()
+    try:
+        sync_from_synapse = SyncFromSynapse(syn, executor)
+        files = sync_from_synapse.sync(entity, path, ifcollision, followLink)
+    finally:
+        executor.shutdown()
+
+
     # the allFiles parameter used to be passed in as part of the recursive implementation of this function
-    # with the public signature invoking itself. now that a private helper exists allFiles has no real utility
-    # but is retained for backwards compatibility in case an external user of this function is passing one in.
-    if allFiles is None:
-        allFiles = list()
+    # with the public signature invoking itself. now that this isn't a recursive any longer we don't need
+    # allFiles as a parameter (especially on the public signature) but it is retained for now for backwards
+    # compatibility with external invokers.
+    if allFiles is not None:
+        allFiles.extend(files)
+        files = allFiles
 
-    provenance_cache = {}
-    synced_files = _sync_from(syn, entity, path, ifcollision, followLink, provenance_cache)
-    allFiles.extend(synced_files)
+    return files
 
-    return allFiles
+
+class ContainerProgress:
+
+    def __init__(self, *, entity_id=None, child_ids=None, parent=None, notify=None):
+        self._entity_id = entity_id
+        self._parent = parent
+        self._notify = notify
+
+        self._lock = threading.Lock()
+        self.pending_ids = set(child_ids or [])
+        self.files = []
+
+    def update(self, finished_id=None, files=None):
+        with self._lock:
+            if finished_id:
+                self.pending_ids.remove(finished_id)
+            if files:
+                self.files.extend(files)
+
+            finished = len(self.pending_ids) == 0
+            print(len(self.pending_ids))
+            if finished:
+                if self._parent:
+                    self._parent.update(finished_id=self._entity_id, files=self.files)
+                if self._notify:
+                    with self._notify:
+                        self._notify.notifyAll()
 
 
 class SyncFromSynapse:
 
-    def __init__(self, syn, executor: Executor, max_concurrent_files: int = None):
+    def __init__(self, syn, executor: Executor):
         self._syn = syn
         self._executor = executor
 
-        max_concurrent_files = max(int(max_concurrent_files or syn.max_threads / 2), 1)
-        self._entity_semaphore = threading.BoundedSemaphore(max_concurrent_files)
-
-    def sync(self, entity, path, ifcollision, followLink):
+    def sync(self, entity, path, ifcollision, followLink, *, max_concurrent_files=None):
         if is_synapse_id(entity):
             # ensure that we seed with an actual entity
             entity = self._syn.get(
@@ -114,70 +131,100 @@ class SyncFromSynapse:
                 followLink=followLink
             )
 
-        root_progress = ContainerProgress()
-        self._executor.submit(self.sync_node, entity, root_progress, path, ifcollision, followLink)
+        max_concurrent_files = max(int(max_concurrent_files or self._syn.max_threads / 2), 1)
+        file_semaphore = threading.BoundedSemaphore(max_concurrent_files)
+        finished_condition = threading.Condition()
+        if is_container(entity):
+            root_progress = self._sync_root(entity, path, ifcollision, followLink, file_semaphore, finished_condition)
 
-    def sync_node(self, entity, parent_progress, path, ifcollision, followLink):
-        self._concurrent_file_count.acquire()
-        try:
-            entity_id = id_of(entity)
-            if is_container(entity):
-                child_path = None
-                if path is not None:
-                    child_path = os.path.join(path, entity['name'])
-                    os.makedirs(child_path, exist_ok=True)
+            with finished_condition:
+                finished_condition.wait_for(lambda: len(root_progress.pending_ids) == 0)
 
-                print(child_path)
+            files = root_progress.files
 
-                child_ids = []
-                children = []
-                for child in self._syn.getChildren(entity_id):
-                    child_ids.append(id_of(child))
-                    children.append(child)
+        elif isinstance(entity, File):
+            files = [entity]
 
-                container_progress = ContainerProgress(
-                    container_id=entity_id,
-                    child_ids=child_ids,
-                    parent=parent_progress
-                )
+        else:
+            raise ValueError("Cannot initiate a sync from an entity that is not a File or Folder")
 
-                for child in children:
-                    f = self._executor.submit(
-                        self.sync_node,
-                        child,
-                        container_progress,
-                        child_path,
-                        ifcollision,
-                        followLink,
-                    )
+        return files
 
-            else:
-                # we've got the dictionary representing a file as returned by getChildren.
-                # need to fetch the File, unless it's already a File which it may be at the root
-                # depending on what was passed in at the root
-                if not isinstance(entity, File):
-                    entity = self._syn.get(
-                        entity_id,
-                        downloadLocation=path,
-                        ifcollision=ifcollision,
-                        followLink=followLink
-                    )
+    def _sync_file(self, entity_id, parent_progress, path, ifcollision, followLink, file_semaphore):
+        with file_semaphore:
+            entity = self._syn.get(
+                entity_id,
+                downloadLocation=path,
+                ifcollision=ifcollision,
+                followLink=followLink
+            )
 
-                if isinstance(entity, File):
-                    parent_progress.update(finished_id=entity_id, files=[entity])
-                    print(entity['path'])
+        if isinstance(entity, File):
+            parent_progress.update(finished_id=entity_id, files=[entity])
+            print(entity['path'])
 
+        else:
+            # not sure this is actually possible, what else can there be in a File hierarchy
+            raise ValueError(f"The provided id: {entity_id} is neither a Project/Folder nor a File")
+
+    def _sync_root(self, root, path, ifcollision, followLink, file_semaphore, finished_condition):
+        root_progress = None
+        folder_stack = [(root, path, None)]
+
+        while folder_stack:
+            folder, parent_path, parent_progress = folder_stack.pop()
+
+            entity_id = id_of(folder)
+            folder_path = None
+            if parent_path is not None:
+                folder_path = os.path.join(parent_path, folder['name'])
+                os.makedirs(folder_path, exist_ok=True)
+
+            print(folder_path)
+
+            child_ids = []
+            child_file_ids = []
+            child_folders = []
+            for child in self._syn.getChildren(entity_id):
+                child_id = id_of(child)
+                child_ids.append(child_id)
+                if is_container(child):
+                    child_folders.append(child)
                 else:
-                    # should only be possible if a non File/Folder was passed in at the root
-                    raise ValueError(f"The provided id: {entity_id} is neither a Project/Folder nor a File")
+                    child_file_ids.append(child_id)
 
-        except Exception as ex:
-            print(ex)
-            # TODO, cease when error
-            raise
+            progress = ContainerProgress(
+                entity_id=entity_id,
+                child_ids=child_ids,
+                parent=parent_progress,
+                notify=finished_condition if parent_progress is None else None
+            )
 
-        finally:
-            self._entity_sempahore.release()
+            if not root_progress:
+                root_progress = progress
+
+            if child_file_ids:
+                for child_file_id in child_file_ids:
+                    with file_semaphore:
+                        f = self._executor.submit(
+                            self._sync_file,
+                            child_file_id,
+                            progress,
+                            folder_path,
+                            ifcollision,
+                            followLink,
+                            file_semaphore,
+                        )
+                        #print(f)
+                        #print(f.result())
+            else:
+                # this folder has no children, so it is immediately finished
+                parent_progress.update(finished_id=entity_id)
+
+            for child_folder in child_folders:
+                folder_stack.append((child_folder, folder_path, progress))
+
+        return root_progress
 
 
 def _sync_from(syn, entity, path, ifcollision, followLink, provenance_cache):
