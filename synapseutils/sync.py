@@ -212,14 +212,13 @@ class _SyncDownloader:
 
     def _sync_file(self, entity_id, parent_progress, path, ifcollision, followLink):
         try:
-            with self._file_semaphore:
-                entity = self._syn.get(
-                    entity_id,
-                    downloadLocation=path,
-                    ifcollision=ifcollision,
-                    followLink=followLink,
-                    executor=self._executor,
-                )
+            entity = self._syn.get(
+                entity_id,
+                downloadLocation=path,
+                ifcollision=ifcollision,
+                followLink=followLink,
+                executor=self._executor,
+            )
 
             if isinstance(entity, File):
                 print(entity['path'])
@@ -246,6 +245,9 @@ class _SyncDownloader:
             # it is not the responsibility here to recover or retry a particular file
             # download, reasonable recovery should be handled within the file download code.
             parent_progress.set_exception(ex)
+
+        finally:
+            self._file_semaphore.release()
 
     def _sync_root(self, root, root_path, ifcollision, followLink):
         # stack elements are a 3-tuple of:
@@ -304,15 +306,15 @@ class _SyncDownloader:
             else:
                 if child_file_ids:
                     for child_file_id in child_file_ids:
-                        with self._file_semaphore:
-                            self._executor.submit(
-                                self._sync_file,
-                                child_file_id,
-                                progress,
-                                folder_path,
-                                ifcollision,
-                                followLink,
-                            )
+                        self._file_semaphore.acquire()
+                        self._executor.submit(
+                            self._sync_file,
+                            child_file_id,
+                            progress,
+                            folder_path,
+                            ifcollision,
+                            followLink,
+                        )
 
                 for child_folder in child_folders:
                     folder_stack.append((child_folder, folder_path, progress))
