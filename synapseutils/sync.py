@@ -217,7 +217,8 @@ class _SyncDownloader:
                     entity_id,
                     downloadLocation=path,
                     ifcollision=ifcollision,
-                    followLink=followLink
+                    followLink=followLink,
+                    executor=self._executor,
                 )
 
             if isinstance(entity, File):
