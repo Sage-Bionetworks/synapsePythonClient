@@ -1,6 +1,5 @@
 import csv
 import concurrent.futures
-import errno
 from .monitor import notifyMe
 from synapseclient.entity import is_container
 from synapseclient.core import config
@@ -83,7 +82,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
         executor = concurrent.futures.ThreadPoolExecutor(syn.max_threads)
 
     try:
-        sync_from_synapse = SyncFromSynapse(syn, executor)
+        sync_from_synapse = _SyncDownloader(syn, executor)
         files = sync_from_synapse.sync(entity, path, ifcollision, followLink)
     finally:
         executor.shutdown()
@@ -99,7 +98,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     return files
 
 
-class FolderProgress:
+class _FolderProgress:
     """
     A FolderProgress tracks the syncFromSynapse progress associated with a
     Folder/container. It has a link to its parent and is kept updated as the
@@ -108,30 +107,52 @@ class FolderProgress:
     When the root FolderProgress is complete the sync is complete.
     """
 
-    def __init__(self, entity_id, child_ids, parent):
+    def __init__(self, syn, entity_id, path, child_ids, parent):
+        self._syn = syn
         self._entity_id = entity_id
+        self._path = path
         self._parent = parent
 
         self._pending_ids = set(child_ids or [])
         self._files = []
+        self._provenance = {}
         self._exception = None
 
         self._lock = threading.Lock()
         self._finished = threading.Condition(lock=self._lock)
 
-    def update(self, finished_id=None, files=None):
+    def update(self, finished_id=None, files=None, provenance=None):
         with self._lock:
             if finished_id:
                 self._pending_ids.remove(finished_id)
             if files:
                 self._files.extend(files)
+            if provenance:
+                self._provenance.update(provenance)
 
             if self._is_finished():
+                self._generate_folder_manifest()
+
                 if self._parent:
-                    self._parent.update(finished_id=self._entity_id, files=self._files)
+                    self._parent.update(
+                        finished_id=self._entity_id,
+                        files=self._files,
+                        provenance=self._provenance
+                    )
 
                 # in practice only the root progress will be waited on/need notifying
                 self._finished.notifyAll()
+
+    def _generate_folder_manifest(self):
+        # when a folder is complete we write a manifest file iff we are downloading to a path outside
+        # the Synapse cache and there are actually some files in this folder.
+        if self._path and self._files:
+            manifest_filename = os.path.expanduser(
+                os.path.normcase(
+                    os.path.join(self._path, MANIFEST_FILENAME)
+                )
+            )
+            generateManifest(self._syn, self._files, manifest_filename, provenance_cache=self._provenance)
 
     def get_exception(self):
         with self._lock:
@@ -155,26 +176,27 @@ class FolderProgress:
         return len(self._pending_ids) == 0
 
 
-class SyncFromSynapse:
+class _SyncDownloader:
 
-    def __init__(self, syn, executor: concurrent.futures.Executor):
+    def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_downloads=None):
         self._syn = syn
         self._executor = executor
 
-    def sync(self, entity, path, ifcollision, followLink, *, max_concurrent_files=None):
+        max_concurrent_file_downloads = max(int(max_concurrent_file_downloads or self._syn.max_threads / 2), 1)
+        self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_downloads)
+
+    def sync(self, entity, path, ifcollision, followLink):
         if is_synapse_id(entity):
             # ensure that we seed with an actual entity
             entity = self._syn.get(
                 entity,
                 downloadLocation=path,
                 ifcollision=ifcollision,
-                followLink=followLink
+                followLink=followLink,
             )
 
-        max_concurrent_files = max(int(max_concurrent_files or self._syn.max_threads / 2), 1)
-        file_semaphore = threading.BoundedSemaphore(max_concurrent_files)
         if is_container(entity):
-            root_progress = self._sync_root(entity, path, ifcollision, followLink, file_semaphore)
+            root_progress = self._sync_root(entity, path, ifcollision, followLink)
 
             # once the whole folder hierarchy has been traversed this entrant thread waits for
             # all file downloads to complete before returning
@@ -188,9 +210,9 @@ class SyncFromSynapse:
 
         return files
 
-    def _sync_file(self, entity_id, parent_progress, path, ifcollision, followLink, file_semaphore):
+    def _sync_file(self, entity_id, parent_progress, path, ifcollision, followLink):
         try:
-            with file_semaphore:
+            with self._file_semaphore:
                 entity = self._syn.get(
                     entity_id,
                     downloadLocation=path,
@@ -199,10 +221,18 @@ class SyncFromSynapse:
                 )
 
             if isinstance(entity, File):
-                parent_progress.update(finished_id=entity_id, files=[entity])
-#                if entity['path'].endswith('file9.txt'):
-#                    raise ValueError('failed!!!')
                 print(entity['path'])
+
+                provenance = None
+                if path:
+                    entity_provenance = _get_file_entity_provenance_dict(self._syn, entity)
+                    provenance = {entity_id: entity_provenance}
+
+                parent_progress.update(
+                    finished_id=entity_id,
+                    files=[entity],
+                    provenance=provenance,
+                )
 
             else:
                 # not sure this is actually possible, what else can there be in a File hierarchy
@@ -214,10 +244,9 @@ class SyncFromSynapse:
             # that it will abort the sync and raise the error to the entrant thread.
             # it is not the responsibility here to recover or retry a particular file
             # download, reasonable recovery should be handled within the file download code.
-
             parent_progress.set_exception(ex)
 
-    def _sync_root(self, root, path, ifcollision, followLink, file_semaphore):
+    def _sync_root(self, root, path, ifcollision, followLink):
         # stack elements are a 3-tuple of:
         # 1. the folder entity/dict
         # 2. the local path to the folder to download to
@@ -252,7 +281,13 @@ class SyncFromSynapse:
                 else:
                     child_file_ids.append(child_id)
 
-            progress = FolderProgress(entity_id, child_ids, parent_progress)
+            progress = _FolderProgress(
+                self._syn,
+                entity_id,
+                folder_path,
+                child_ids,
+                parent_progress,
+            )
             if not root_progress:
                 root_progress = progress
 
@@ -263,7 +298,7 @@ class SyncFromSynapse:
             else:
                 if child_file_ids:
                     for child_file_id in child_file_ids:
-                        with file_semaphore:
+                        with self._file_semaphore:
                             self._executor.submit(
                                 self._sync_file,
                                 child_file_id,
@@ -271,7 +306,6 @@ class SyncFromSynapse:
                                 folder_path,
                                 ifcollision,
                                 followLink,
-                                file_semaphore,
                             )
 
                 for child_folder in child_folders:
@@ -280,7 +314,7 @@ class SyncFromSynapse:
         return root_progress
 
 
-def generateManifest(syn, allFiles, filename, *, provenance_cache=None):
+def generateManifest(syn, allFiles, filename, provenance_cache=None):
     """Generates a manifest file based on a list of entities objects.
 
     :param allFiles:   A list of File Entities
