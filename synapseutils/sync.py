@@ -246,12 +246,12 @@ class _SyncDownloader:
             # download, reasonable recovery should be handled within the file download code.
             parent_progress.set_exception(ex)
 
-    def _sync_root(self, root, path, ifcollision, followLink):
+    def _sync_root(self, root, root_path, ifcollision, followLink):
         # stack elements are a 3-tuple of:
         # 1. the folder entity/dict
         # 2. the local path to the folder to download to
         # 3. the FolderProgress of the parent to the folder (None at the root)
-        folder_stack = [(root, path, None)]
+        folder_stack = [(root, root_path, None)]
 
         root_progress = None
         while folder_stack:
@@ -267,7 +267,12 @@ class _SyncDownloader:
             entity_id = id_of(folder)
             folder_path = None
             if parent_path is not None:
-                folder_path = os.path.join(parent_path, folder['name'])
+                folder_path = parent_path
+                if root_progress:
+                    # syncFromSynapse behavior is that we do NOT create a folder for the root folder of the sync.
+                    # we treat the download local path folder as the root and write the children of the sync
+                    # directly into that local folder
+                    folder_path = os.path.join(folder_path, folder['name'])
                 os.makedirs(folder_path, exist_ok=True)
 
             child_ids = []
