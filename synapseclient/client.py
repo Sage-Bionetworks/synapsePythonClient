@@ -1700,7 +1700,7 @@ class Synapse(object):
     #                File handle service calls                 #
     ############################################################
 
-    def _getFileHandleDownload(self, fileHandleId,  objectId, objectType='FileEntity'):
+    def _getFileHandleDownload(self, fileHandleId,  objectId, objectType=None):
         """
         Gets the URL and the metadata as filehandle object for a filehandle or fileHandleId
 
@@ -1713,7 +1713,7 @@ class Synapse(object):
         body = {'includeFileHandles': True, 'includePreSignedURLs': True,
                 'requestedFiles': [{'fileHandleId': fileHandleId,
                                     'associateObjectId': objectId,
-                                    'associateObjectType': objectType}]}
+                                    'associateObjectType': objectType or 'FileEntity'}]}
         response = self.restPOST('/fileHandle/batch', body=json.dumps(body),
                                  endpoint=self.fileHandleEndpoint)
         result = response['requestedFiles'][0]
