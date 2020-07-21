@@ -5,26 +5,24 @@ except ImportError:
 import datetime
 
 import concurrent.futures
-
+from http import HTTPStatus
+import os
+from requests import Session, Response
+from requests.adapters import HTTPAdapter
 from typing import Generator, NamedTuple
 from urllib.parse import urlparse, parse_qs
 from urllib3.util.retry import Retry
-from synapseclient.core.utils import printTransferProgress
-from synapseclient.core.exceptions import SynapseError
-from requests import Session, Response
-from requests.adapters import HTTPAdapter
 import time
-from http import HTTPStatus
-import os
 
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.pool_provider import get_executor
+from synapseclient.core.utils import printTransferProgress
 
 # constants
 MAX_QUEUE_SIZE: int = 20
 MAX_RETRIES: int = 20
 MiB: int = 2 ** 20
 SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MiB
-MAX_CHUNK_WRITE_SIZE = 2 * MiB
 ISO_AWS_STR_FORMAT: str = '%Y%m%dT%H%M%SZ'
 CONNECT_FACTOR: int = 3
 BACK_OFF_FACTOR: float = 0.5
@@ -220,43 +218,40 @@ def download_file(
             executor.shutdown()
 
 
-thread_local = _threading.local()
+_thread_local = _threading.local()
+
+
+def _get_thread_session():
+    # get a lazily initialized requests.Session from the thread.
+    # we want to share a requests.Session over the course of a thread
+    # to take advantage of persistent http connection. we put it on a
+    # thread local since Sessions are not thread safe so we need one per
+    # active thread and since we're allowing the use of an externally provided
+    # ExecutorService we don't can't really allocate a pool of Sessions ourselves
+    session = getattr(_thread_local, 'session', None)
+    if not session:
+        session = _thread_local.session = _get_new_session()
+    return session
 
 
 class _MultithreadedDownloader:
+    """
+    An object to manage the downloading of a Synapse file in concurrent chunks from a URL
+    that supports range headers.
+    """
 
     def __init__(self, syn, executor, max_concurrent_parts):
+        """
+        :param syn:                     A synapseclient
+        :param executor:                An ExecutorService that will be used to run part downloads in separate threads
+        :param max_concurrent_parts:    An integer to specify the maximum number of concurrent parts that can be
+                                        downloaded at once. If there are more parts than can be run concurrently
+                                        they will be scheduled in the executor when previously running part downloads
+                                        complete.
+        """
         self._syn = syn
         self._executor = executor
         self._max_concurrent_parts = max_concurrent_parts
-
-    @classmethod
-    def _get_thread_session(cls):
-        # get a lazily initialized requests.Session from the thread.
-        # we want to share a requests.Session over the course of a thread
-        # to take advantage of persistent http connection. we put it on a
-        # thread local since Sessions are not thread safe and since we're allowing
-        # the use of an externally provided ExecutorService we don't can't really
-        # allocate a pool of Sessions ourselves
-        session = getattr(thread_local, 'session', None)
-        if not session:
-            session = thread_local.session = _get_new_session()
-        return session
-
-    def _get_response_with_retry(self, presigned_url_provider, start: int, end: int) -> Response:
-        session = self._get_thread_session()
-        range_header = {'Range': f'bytes={start}-{end}'}
-        response = session.get(presigned_url_provider.get_info().url, headers=range_header, stream=True)
-        # try request until successful or out of retries
-        try_counter = 1
-        while response.status_code != HTTPStatus.PARTIAL_CONTENT:
-            if try_counter >= MAX_RETRIES:
-                raise SynapseError(
-                    f'Could not download the file: {presigned_url_provider.get_info().file_name},'
-                    f' please try again.')
-            response = session.get(presigned_url_provider.get_info().url, headers=range_header, stream=True)
-            try_counter += 1
-        return start, response
 
     def download_file(self, request):
         url_provider = PresignedUrlProvider(self._syn, request)
@@ -282,7 +277,7 @@ class _MultithreadedDownloader:
                 pending_futures,
             )
 
-            self._write_chunks(request.path, completed_futures, transfer_status)
+            self._write_chunks(request, completed_futures, transfer_status)
 
             # once there is nothing else pending we are done with the file download
             pending_futures = pending_futures.union(submitted_futures)
@@ -296,7 +291,24 @@ class _MultithreadedDownloader:
 
             self._check_for_errors(request, completed_futures, pending_futures)
 
-    def _prep_file(self, request):
+    @staticmethod
+    def _get_response_with_retry(presigned_url_provider, start: int, end: int) -> Response:
+        session = _get_thread_session()
+        range_header = {'Range': f'bytes={start}-{end}'}
+        response = session.get(presigned_url_provider.get_info().url, headers=range_header, stream=True)
+        # try request until successful or out of retries
+        try_counter = 1
+        while response.status_code != HTTPStatus.PARTIAL_CONTENT:
+            if try_counter >= MAX_RETRIES:
+                raise SynapseError(
+                    f'Could not download the file: {presigned_url_provider.get_info().file_name},'
+                    f' please try again.')
+            response = session.get(presigned_url_provider.get_info().url, headers=range_header, stream=True)
+            try_counter += 1
+        return start, response
+
+    @staticmethod
+    def _prep_file(request):
         # upon receiving the parts of the file we'll open the file
         # and write the specific byte ranges, but to open it in
         # r+ mode we need to to exist and be empty
@@ -321,9 +333,10 @@ class _MultithreadedDownloader:
 
         return submitted_futures
 
-    def _write_chunks(self, path, completed_futures, transfer_status):
+    @staticmethod
+    def _write_chunks(request, completed_futures, transfer_status):
         if completed_futures:
-            with open(path, 'rb+') as file_write:
+            with open(request.path, 'rb+') as file_write:
                 for chunk_future in completed_futures:
                     start, chunk_response = chunk_future.result()
                     chunk_data = chunk_response.content
@@ -333,10 +346,11 @@ class _MultithreadedDownloader:
                     transfer_status.transferred += len(chunk_data)
                     printTransferProgress(transfer_status.transferred,
                                           transfer_status.total_bytes_to_be_transferred,
-                                          'Downloading ', os.path.basename(path),
+                                          'Downloading ', os.path.basename(request.path),
                                           dt=transfer_status.elapsed_time())
 
-    def _check_for_errors(self, request, completed_futures, pending_futures):
+    @staticmethod
+    def _check_for_errors(request, completed_futures, pending_futures):
         # if any submitted part download failed we abort the download.
         # any retry/recovery should be attempted within the download method
         # submitted to the Executor, if an Exception was flagged on the Future
