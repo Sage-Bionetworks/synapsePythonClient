@@ -1,13 +1,14 @@
 import os
 import csv
 from unittest.mock import patch, create_autospec, Mock, call, ANY
-from nose.tools import assert_dict_equal, assert_raises, assert_equals, assert_list_equal
+from nose.tools import assert_dict_equal, assert_raises, assert_true, assert_equals, assert_list_equal
 import pandas as pd
 import pandas.util.testing as pdt
 from io import StringIO
 import tempfile
 
 import synapseutils
+from synapseutils.sync import _FolderProgress
 from synapseclient import Activity, File, Folder, Project, Schema
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import id_of
@@ -246,6 +247,85 @@ def test_syncFromSynase__manifest():
                 expected_folder_manifest,
                 os.path.join(sync_dir, folder.name, synapseutils.sync.MANIFEST_FILENAME)
             )
+
+
+class TestFolderProgress:
+
+    def test_init(self):
+        syn = Mock()
+        entity_id = 'syn123'
+        path = '/tmp/foo/bar'
+        child_ids = ['syn456', 'syn789']
+
+        parent = _FolderProgress(syn, 'syn987', '/tmp/foo', [entity_id], None)
+        child = _FolderProgress(syn, entity_id, path, child_ids, parent)
+        assert_equals(syn, child._syn)
+        assert_equals(entity_id, child._entity_id)
+        assert_equals(path, child._path)
+        assert_equals(set(child_ids), child._pending_ids)
+        assert_equals(parent, child._parent)
+
+    def test_update(self):
+        syn = Mock()
+        entity_id = 'syn123'
+        path = '/tmp/foo/bar'
+        child_ids = ['syn456', 'syn789']
+        progress = _FolderProgress(syn, entity_id, path, child_ids, None)
+
+        file = Mock()
+        provenance = {'syn456': {'foo': 'bar'}}
+
+        progress.update(finished_id='syn456', files=[file], provenance=provenance)
+        assert_equals(set(['syn789']), progress._pending_ids)
+        assert_equals([file], progress._files)
+        assert_equals(provenance, progress._provenance)
+
+    def _finished_test(self, path):
+        syn = Mock()
+        entity_id = 'syn123'
+        child_ids = ['syn456']
+        file = Mock()
+
+        parent = _FolderProgress(syn, 'syn987', path, [entity_id], None)
+        child = _FolderProgress(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
+
+        child.update(finished_id='syn456', files=[file])
+        assert_true(child._is_finished())
+        assert_true(parent._is_finished())
+        parent.wait_until_finished()
+        return child
+
+    def test_update__finished(self):
+        self._finished_test(None)
+
+    def test_update__finish__generate_manifest(self):
+        with patch.object(synapseutils.sync, 'generateManifest') as mock_generateManifest:
+            progress = self._finished_test('/tmp/foo')
+
+            manifest_filename = progress._manifest_filename()
+            parent_manifest_filename = progress._parent._manifest_filename()
+
+            expected_manifest_calls = [
+                call(progress._syn, progress._files, manifest_filename, provenance_cache={}),
+                call(progress._parent._syn, progress._parent._files, parent_manifest_filename, provenance_cache={}),
+            ]
+            assert_equals(expected_manifest_calls, mock_generateManifest.call_args_list)
+
+    def test_set_exception(self):
+        syn = Mock()
+        path = '/tmp/foo'
+        entity_id = 'syn123'
+        child_ids = ['syn456']
+
+        parent = _FolderProgress(syn, 'syn987', path, [entity_id], None)
+        child = _FolderProgress(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
+
+        exception = ValueError('failed!')
+        child.set_exception(exception)
+        assert_equals(exception, child.get_exception())
+        assert_equals(exception, parent.get_exception())
+        assert_true(child._is_finished())
+        assert_true(parent._is_finished())
 
 
 def test_extract_file_entity_metadata__ensure_correct_row_metadata():

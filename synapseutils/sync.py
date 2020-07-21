@@ -98,6 +98,10 @@ class _FolderProgress:
     children of the associated folder are downloaded, and when complete
     it communicates up its chain to the root that it is completed.
     When the root FolderProgress is complete the sync is complete.
+
+    It serves as a way to track and store the data related to the sync
+    at each folder of the sync so we can generate manifests and notify
+    when finished.
     """
 
     def __init__(self, syn, entity_id, path, child_ids, parent):
@@ -136,16 +140,18 @@ class _FolderProgress:
                 # in practice only the root progress will be waited on/need notifying
                 self._finished.notifyAll()
 
+    def _manifest_filename(self):
+        return os.path.expanduser(
+            os.path.normcase(
+                os.path.join(self._path, MANIFEST_FILENAME)
+            )
+        )
+
     def _generate_folder_manifest(self):
         # when a folder is complete we write a manifest file iff we are downloading to a path outside
         # the Synapse cache and there are actually some files in this folder.
         if self._path and self._files:
-            manifest_filename = os.path.expanduser(
-                os.path.normcase(
-                    os.path.join(self._path, MANIFEST_FILENAME)
-                )
-            )
-            generateManifest(self._syn, self._files, manifest_filename, provenance_cache=self._provenance)
+            generateManifest(self._syn, self._files, self._manifest_filename(), provenance_cache=self._provenance)
 
     def get_exception(self):
         with self._lock:
@@ -160,13 +166,16 @@ class _FolderProgress:
             if self._parent:
                 self._parent.set_exception(exception)
 
+            # an error also results in the folder being finished
+            self._finished.notifyAll()
+
     def wait_until_finished(self):
         with self._finished:
             self._finished.wait_for(self._is_finished)
             return self._files
 
     def _is_finished(self):
-        return len(self._pending_ids) == 0
+        return len(self._pending_ids) == 0 or self._exception
 
 
 class _SyncDownloader:

@@ -1725,7 +1725,6 @@ class Synapse(object):
                 "You are not authorized to access fileHandleId %s associated with the Synapse"
                 " %s: %s" % (fileHandleId, objectType, objectId)
             )
-
         return result
 
     def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, *,
