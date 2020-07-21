@@ -89,6 +89,11 @@ class TestPresignedUrlProvider(object):
             assert_equals(expected, presigned_url_provider._get_pre_signed_info())
 
             mock_pre_signed_url_expiration_time.assert_called_with(fake_url)
+            self.mock_synapse_client._getFileHandleDownload.assert_called_with(
+                self.download_request.file_handle_id,
+                self.download_request.object_id,
+                objectType=self.download_request.object_type,
+            )
 
 
 def test_generate_chunk_ranges():

@@ -125,7 +125,11 @@ class PresignedUrlProvider(object):
         :return: PresignedUrlInfo
         """
         # noinspection PyProtectedMember
-        response = self.client._getFileHandleDownload(self.request.file_handle_id, self.request.object_id)
+        response = self.client._getFileHandleDownload(
+            self.request.file_handle_id,
+            self.request.object_id,
+            objectType=self.request.object_type,
+        )
         file_name = response["fileHandle"]["fileName"]
         pre_signed_url = response["preSignedURL"]
         return PresignedUrlInfo(file_name, pre_signed_url, _pre_signed_url_expiration_time(pre_signed_url))
