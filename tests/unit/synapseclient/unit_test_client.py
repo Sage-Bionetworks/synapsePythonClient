@@ -172,10 +172,11 @@ class TestPrivateGetWithEntityBundle:
         cacheDir = syn.cache.get_cache_dir(fileHandle)
         # Make sure the .cacheMap file does not already exist
         cacheMap = os.path.join(cacheDir, '.cacheMap')
+        executor = Mock()
         if os.path.exists(cacheMap):
             os.remove(cacheMap)
 
-        def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5, max_threads=None):
+        def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5, maxThreads=None, executor=None):
             # touch file at path
             with open(path, 'a'):
                 os.utime(path, None)
@@ -197,7 +198,8 @@ class TestPrivateGetWithEntityBundle:
 
         e = syn._getWithEntityBundle(entityBundle=bundle,
                                      downloadLocation=temp_dir1,
-                                     ifcollision="overwrite.local")
+                                     ifcollision="overwrite.local",
+                                     executor=executor)
 
         assert_equal(e.name, bundle["entity"]["name"])
         assert_equal(e.parentId, bundle["entity"]["parentId"])

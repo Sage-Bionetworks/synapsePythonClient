@@ -795,7 +795,8 @@ class Synapse(object):
                                         + '!'*len(warning_message)+'\n')
         return entity
 
-    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission, *, executor=None, maxThreads=None):
+    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission, *,
+                              executor=None, maxThreads=None):
         # set the initial local state
         entity.path = None
         entity.files = []
@@ -1727,7 +1728,8 @@ class Synapse(object):
 
         return result
 
-    def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, *, retries=5, executor=None, maxThreads=None):
+    def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, *,
+                            retries=5, executor=None, maxThreads=None):
         """
         Download a file from the given URL to the local file system.
 
@@ -1777,7 +1779,7 @@ class Synapse(object):
                         'read_only',
                     )
 
-                elif self.multi_threaded and concreteType == concrete_types.S3_FILE_HANDLE :
+                elif self.multi_threaded and concreteType == concrete_types.S3_FILE_HANDLE:
                     downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
                                                                              objectId,
                                                                              objectType,
