@@ -221,8 +221,6 @@ class _SyncDownloader:
             )
 
             if isinstance(entity, File):
-                print(entity['path'])
-
                 provenance = None
                 if path:
                     entity_provenance = _get_file_entity_provenance_dict(self._syn, entity)
