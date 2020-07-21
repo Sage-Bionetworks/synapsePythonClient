@@ -227,21 +227,23 @@ class _SyncDownloader:
                 executor=self._executor,
             )
 
+            files = []
+            provenance = None
             if isinstance(entity, File):
-                provenance = None
                 if path:
                     entity_provenance = _get_file_entity_provenance_dict(self._syn, entity)
                     provenance = {entity_id: entity_provenance}
 
-                parent_progress.update(
-                    finished_id=entity_id,
-                    files=[entity],
-                    provenance=provenance,
-                )
+                files.append(entity)
 
-            else:
-                # not sure this is actually possible, what else can there be in a File hierarchy
-                raise ValueError(f"The provided id: {entity_id} is neither a Project/Folder nor a File")
+            # else if the entity is not a File (and wasn't a container)
+            # then we ignore it for the purposes of this sync
+
+            parent_progress.update(
+                finished_id=entity_id,
+                files=files,
+                provenance=provenance,
+            )
 
         except Exception as ex:
             # this could be anything raised by any type of download, and so by nature is a broad catch.
