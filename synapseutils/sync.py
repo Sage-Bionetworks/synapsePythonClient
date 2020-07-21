@@ -61,12 +61,6 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     """
 
-#    provenance_cache = {}
-#    synced_files = _sync_from(syn, entity, path, ifcollision, followLink, provenance_cache)
-#    allFiles.extend(synced_files)
-#
-#    return allFiles
-
     # we'll have the following threads:
     # 1. the entrant thread to this function walks the folder hierarchy and schedules files for download,
     #    and then waits for all the file downloads to complete
@@ -74,8 +68,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     # 3. downloads that support S3 multipart concurrent downloads will be scheduled by the thread in #2 and have
     #    their parts downloaded in additional threads in the same Executor
     # To support multipart downloads in #3 using the same Executor as the download thread #2, we need at least
-    # 2 threads always, and limit the number of concurrent files downloading to <= our max threads / 2 in order
-    # to ensure that we don't have deadlocks with downloading threads out of threads to run multipart part downloads.
+    # 2 threads always, if those aren't available then we'll run single threaded to avoid a deadlock
     if syn.max_threads < 2 or config.single_threaded:
         executor = SingleThreadExecutor()
     else:
@@ -177,11 +170,21 @@ class _FolderProgress:
 
 
 class _SyncDownloader:
+    """
+    Manages the downloads associated associated with a syncFromSynapse call concurrently.
+    """
 
     def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_downloads=None):
+        """
+        :param syn:         A synapse client
+        :param executor:    An ExecutorService in which concurrent file downlaods can be scheduled
+        """
         self._syn = syn
         self._executor = executor
 
+        # by default limit the number of concurrent file downloads that can happen at once to some proportion
+        # of the available threads. otherwise we could end up downloading a single part from many files at once
+        # rather than concentrating our download threads on a few files at a time so those files complete faster.
         max_concurrent_file_downloads = max(int(max_concurrent_file_downloads or self._syn.max_threads / 2), 1)
         self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_downloads)
 
@@ -208,6 +211,10 @@ class _SyncDownloader:
         else:
             raise ValueError("Cannot initiate a sync from an entity that is not a File or Folder")
 
+        # since the sub folders could complete out of order from when they were submitted we
+        # sort the files by their path (which includes their local folder) to get a predictable ordering.
+        # not required but nice for testing etc.
+        files.sort(key=lambda f: f.get('path') or '')
         return files
 
     def _sync_file(self, entity_id, parent_progress, path, ifcollision, followLink):
@@ -631,5 +638,3 @@ def _manifest_upload(syn, df):
         kwargs = {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row}
         syn.store(entity, **kwargs)
     return True
-
-
