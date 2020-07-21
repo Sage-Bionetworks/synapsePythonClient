@@ -265,11 +265,13 @@ class Test__downloadFileHandle(unittest.TestCase):
                 patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
                 patch.object(syn, "_download_from_url_multi_threaded") as mock_multi_thread_download, \
                 patch.object(syn, "cache"):
+
             mock_getFileHandleDownload.return_value = {
                 'fileHandle': {
                     'id': '123',
                     'concreteType': concrete_types.S3_FILE_HANDLE,
-                    'contentMd5': 'someMD5'
+                    'contentMd5': 'someMD5',
+                    'contentSize': multithread_download.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE + 1,
                 }
             }
 
@@ -287,18 +289,14 @@ class Test__downloadFileHandle(unittest.TestCase):
                                                                expected_md5="someMD5",
                                                                executor=executor)
 
-    def test_multithread_True__other_file_handle_type(self):
+    def _multithread_not_applicable(self, file_handle):
         with patch.object(os, "makedirs"), \
                 patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
                 patch.object(syn, "_download_from_URL") as mock_download_from_URL, \
                 patch.object(syn, "cache"), \
                 patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
             mock_getFileHandleDownload.return_value = {
-                'fileHandle': {
-                    'id': '123',
-                    'concreteType': "someFakeConcreteType",
-                    'contentMd5': 'someMD5'
-                },
+                'fileHandle': file_handle,
                 'preSignedURL': 'asdf.com'
             }
 
@@ -307,6 +305,26 @@ class Test__downloadFileHandle(unittest.TestCase):
             syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath")
 
             mock_download_from_URL.assert_called_once_with("asdf.com", "/myfakepath", "123", expected_md5="someMD5")
+
+    def test_multithread_True__other_file_handle_type(self):
+        """Verify that even if multithreaded is enabled we won't use it for unsupported file types"""
+        file_handle = {
+            'id': '123',
+            'concreteType': "someFakeConcreteType",
+            'contentMd5': 'someMD5'
+        }
+        self._multithread_not_applicable(file_handle)
+
+    def test_multithread_false__S3_fileHandle__small_file(self):
+        """Verify that even if multithreaded is enabled we still won't use a multithreaded
+        download if the file is not large enough to make it worthwhile"""
+        file_handle = {
+            'id': '123',
+            'concreteType': "someFakeConcreteType",
+            'contentMd5': 'someMD5',
+            'contentSize': multithread_download.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE - 1
+        }
+        self._multithread_not_applicable(file_handle)
 
     def test_multithread_false__S3_fileHandle(self):
         with patch.object(os, "makedirs"), \

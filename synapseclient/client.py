@@ -1778,7 +1778,13 @@ class Synapse(object):
                         'read_only',
                     )
 
-                elif self.multi_threaded and concreteType == concrete_types.S3_FILE_HANDLE:
+                elif self.multi_threaded and \
+                        concreteType == concrete_types.S3_FILE_HANDLE and \
+                        fileHandle.get('contentSize', 0) > multithread_download.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE:
+                    # run the download multi threaded if the file supports it, we're configured to do so,
+                    # and the file is large enough that it would be broken into parts to take advantage of
+                    # multiple downloading threads. otherwise it's more efficient to run the download as a simple
+                    # single threaded URL download.
                     downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
                                                                              objectId,
                                                                              objectType,
