@@ -7,6 +7,7 @@ from synapseclient.core.utils import id_of, is_url, is_synapse_id
 from synapseclient import File, table
 from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core import utils
+from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
 from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseProvenanceError
 import os
 import io
@@ -91,13 +92,13 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     return files
 
 
-class _FolderProgress:
+class _FolderSync:
     """
-    A FolderProgress tracks the syncFromSynapse progress associated with a
+    A FolderSync tracks the syncFromSynapse activity associated with a
     Folder/container. It has a link to its parent and is kept updated as the
     children of the associated folder are downloaded, and when complete
     it communicates up its chain to the root that it is completed.
-    When the root FolderProgress is complete the sync is complete.
+    When the root FolderSync is complete the sync is complete.
 
     It serves as a way to track and store the data related to the sync
     at each folder of the sync so we can generate manifests and notify
@@ -137,7 +138,7 @@ class _FolderProgress:
                         provenance=self._provenance
                     )
 
-                # in practice only the root progress will be waited on/need notifying
+                # in practice only the root folder sync will be waited on/need notifying
                 self._finished.notifyAll()
 
     def _manifest_filename(self):
@@ -198,6 +199,8 @@ class _SyncDownloader:
         self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_downloads)
 
     def sync(self, entity, path, ifcollision, followLink):
+        progress = CumulativeTransferProgress('Downloaded')
+
         if is_synapse_id(entity):
             # ensure that we seed with an actual entity
             entity = self._syn.get(
@@ -208,11 +211,11 @@ class _SyncDownloader:
             )
 
         if is_container(entity):
-            root_progress = self._sync_root(entity, path, ifcollision, followLink)
+            root_folder_sync = self._sync_root(entity, path, ifcollision, followLink, progress)
 
             # once the whole folder hierarchy has been traversed this entrant thread waits for
             # all file downloads to complete before returning
-            files = root_progress.wait_until_finished()
+            files = root_folder_sync.wait_until_finished()
 
         elif isinstance(entity, File):
             files = [entity]
@@ -226,68 +229,70 @@ class _SyncDownloader:
         files.sort(key=lambda f: f.get('path') or '')
         return files
 
-    def _sync_file(self, entity_id, parent_progress, path, ifcollision, followLink):
+    def _sync_file(self, entity_id, parent_folder_sync, path, ifcollision, followLink, progress):
         try:
-            entity = self._syn.get(
-                entity_id,
-                downloadLocation=path,
-                ifcollision=ifcollision,
-                followLink=followLink,
-                executor=self._executor,
-            )
+            with progress.accumulate_progress():
 
-            files = []
-            provenance = None
-            if isinstance(entity, File):
-                if path:
-                    entity_provenance = _get_file_entity_provenance_dict(self._syn, entity)
-                    provenance = {entity_id: entity_provenance}
+                entity = self._syn.get(
+                    entity_id,
+                    downloadLocation=path,
+                    ifcollision=ifcollision,
+                    followLink=followLink,
+                    executor=self._executor,
+                )
 
-                files.append(entity)
+                files = []
+                provenance = None
+                if isinstance(entity, File):
+                    if path:
+                        entity_provenance = _get_file_entity_provenance_dict(self._syn, entity)
+                        provenance = {entity_id: entity_provenance}
 
-            # else if the entity is not a File (and wasn't a container)
-            # then we ignore it for the purposes of this sync
+                    files.append(entity)
 
-            parent_progress.update(
-                finished_id=entity_id,
-                files=files,
-                provenance=provenance,
-            )
+                # else if the entity is not a File (and wasn't a container)
+                # then we ignore it for the purposes of this sync
+
+                parent_folder_sync.update(
+                    finished_id=entity_id,
+                    files=files,
+                    provenance=provenance,
+                )
 
         except Exception as ex:
             # this could be anything raised by any type of download, and so by nature is a broad catch.
-            # the purpose here is not to handle it but just to raise it up the progress chain such
+            # the purpose here is not to handle it but just to raise it up the folder sync chain such
             # that it will abort the sync and raise the error to the entrant thread.
             # it is not the responsibility here to recover or retry a particular file
             # download, reasonable recovery should be handled within the file download code.
-            parent_progress.set_exception(ex)
+            parent_folder_sync.set_exception(ex)
 
         finally:
             self._file_semaphore.release()
 
-    def _sync_root(self, root, root_path, ifcollision, followLink):
+    def _sync_root(self, root, root_path, ifcollision, followLink, progress):
         # stack elements are a 3-tuple of:
         # 1. the folder entity/dict
         # 2. the local path to the folder to download to
-        # 3. the FolderProgress of the parent to the folder (None at the root)
+        # 3. the FolderSync of the parent to the folder (None at the root)
         folder_stack = [(root, root_path, None)]
 
-        root_progress = None
+        root_folder_sync = None
         while folder_stack:
-            if root_progress:
+            if root_folder_sync:
                 # if at any point the sync encounters an exception it will
                 # be communicated up to the root at which point we should abort
-                exception = root_progress.get_exception()
+                exception = root_folder_sync.get_exception()
                 if exception:
                     raise ValueError("File download failed during sync") from exception
 
-            folder, parent_path, parent_progress = folder_stack.pop()
+            folder, parent_path, parent_folder_sync = folder_stack.pop()
 
             entity_id = id_of(folder)
             folder_path = None
             if parent_path is not None:
                 folder_path = parent_path
-                if root_progress:
+                if root_folder_sync:
                     # syncFromSynapse behavior is that we do NOT create a folder for the root folder of the sync.
                     # we treat the download local path folder as the root and write the children of the sync
                     # directly into that local folder
@@ -305,19 +310,19 @@ class _SyncDownloader:
                 else:
                     child_file_ids.append(child_id)
 
-            progress = _FolderProgress(
+            folder_sync = _FolderSync(
                 self._syn,
                 entity_id,
                 folder_path,
                 child_ids,
-                parent_progress,
+                parent_folder_sync,
             )
-            if not root_progress:
-                root_progress = progress
+            if not root_folder_sync:
+                root_folder_sync = folder_sync
 
             if not child_ids:
                 # this folder has no children, so it is immediately finished
-                progress.update()
+                folder_sync.update()
 
             else:
                 if child_file_ids:
@@ -326,16 +331,17 @@ class _SyncDownloader:
                         self._executor.submit(
                             self._sync_file,
                             child_file_id,
-                            progress,
+                            folder_sync,
                             folder_path,
                             ifcollision,
                             followLink,
+                            progress,
                         )
 
                 for child_folder in child_folders:
-                    folder_stack.append((child_folder, folder_path, progress))
+                    folder_stack.append((child_folder, folder_path, folder_sync))
 
-        return root_progress
+        return root_folder_sync
 
 
 def generateManifest(syn, allFiles, filename, provenance_cache=None):

@@ -16,7 +16,7 @@ import time
 
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.pool_provider import get_executor
-from synapseclient.core.utils import printTransferProgress
+from synapseclient.core.cumulative_transfer_progress import printTransferProgress
 
 # constants
 MAX_QUEUE_SIZE: int = 20

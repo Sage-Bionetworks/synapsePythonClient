@@ -64,6 +64,7 @@ from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions, utils
 from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
+from synapseclient.core import cumulative_transfer_progress
 from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
 from synapseclient.core.credentials import cached_sessions
 from synapseclient.core.exceptions import (
@@ -617,8 +618,6 @@ class Synapse(object):
         :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is specified as a local
                                  file.  That is, if the file is stored in multiple locations in Synapse only the ones
                                  in the specified folder/project will be returned.
-        :param maxThreads:      The maximum number of threads to use when downloading the file (currently only
-                                 applies to S3 uploads)
 
         :returns: A new Synapse Entity object of the appropriate type
 
@@ -639,6 +638,10 @@ class Synapse(object):
            print(syn.getProvenance(entity))
 
         """
+        return self._get(entity, **kwargs)
+
+    def _get(self, entity, **kwargs):
+
         # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, str) and os.path.isfile(entity):
             bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
@@ -1954,8 +1957,13 @@ class Synapse(object):
                                 # response.raw.tell() is the total number of response body bytes transferred over the
                                 # wire so far
                                 transferred = response.raw.tell() + previouslyTransferred
-                                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
-                                                            os.path.basename(destination), dt=time.time()-t0)
+                                cumulative_transfer_progress.printTransferProgress(
+                                    transferred,
+                                    toBeTransferred,
+                                    'Downloading ',
+                                    os.path.basename(destination),
+                                    dt=time.time()-t0
+                                )
                     except Exception as ex:  # We will add a progress parameter then push it back to retry.
                         ex.progress = transferred-previouslyTransferred
                         raise

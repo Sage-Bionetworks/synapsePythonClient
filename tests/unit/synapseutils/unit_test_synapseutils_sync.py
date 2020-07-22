@@ -8,7 +8,7 @@ from io import StringIO
 import tempfile
 
 import synapseutils
-from synapseutils.sync import _FolderProgress
+from synapseutils.sync import _FolderSync
 from synapseclient import Activity, File, Folder, Project, Schema
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import id_of
@@ -249,7 +249,7 @@ def test_syncFromSynase__manifest():
             )
 
 
-class TestFolderProgress:
+class TestFolderSync:
 
     def test_init(self):
         syn = Mock()
@@ -257,8 +257,8 @@ class TestFolderProgress:
         path = '/tmp/foo/bar'
         child_ids = ['syn456', 'syn789']
 
-        parent = _FolderProgress(syn, 'syn987', '/tmp/foo', [entity_id], None)
-        child = _FolderProgress(syn, entity_id, path, child_ids, parent)
+        parent = _FolderSync(syn, 'syn987', '/tmp/foo', [entity_id], None)
+        child = _FolderSync(syn, entity_id, path, child_ids, parent)
         assert_equals(syn, child._syn)
         assert_equals(entity_id, child._entity_id)
         assert_equals(path, child._path)
@@ -270,15 +270,15 @@ class TestFolderProgress:
         entity_id = 'syn123'
         path = '/tmp/foo/bar'
         child_ids = ['syn456', 'syn789']
-        progress = _FolderProgress(syn, entity_id, path, child_ids, None)
+        folder_sync = _FolderSync(syn, entity_id, path, child_ids, None)
 
         file = Mock()
         provenance = {'syn456': {'foo': 'bar'}}
 
-        progress.update(finished_id='syn456', files=[file], provenance=provenance)
-        assert_equals(set(['syn789']), progress._pending_ids)
-        assert_equals([file], progress._files)
-        assert_equals(provenance, progress._provenance)
+        folder_sync.update(finished_id='syn456', files=[file], provenance=provenance)
+        assert_equals(set(['syn789']), folder_sync._pending_ids)
+        assert_equals([file], folder_sync._files)
+        assert_equals(provenance, folder_sync._provenance)
 
     def _finished_test(self, path):
         syn = Mock()
@@ -286,8 +286,8 @@ class TestFolderProgress:
         child_ids = ['syn456']
         file = Mock()
 
-        parent = _FolderProgress(syn, 'syn987', path, [entity_id], None)
-        child = _FolderProgress(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
+        parent = _FolderSync(syn, 'syn987', path, [entity_id], None)
+        child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
 
         child.update(finished_id='syn456', files=[file])
         assert_true(child._is_finished())
@@ -300,14 +300,16 @@ class TestFolderProgress:
 
     def test_update__finish__generate_manifest(self):
         with patch.object(synapseutils.sync, 'generateManifest') as mock_generateManifest:
-            progress = self._finished_test('/tmp/foo')
+            folder_sync = self._finished_test('/tmp/foo')
 
-            manifest_filename = progress._manifest_filename()
-            parent_manifest_filename = progress._parent._manifest_filename()
+            manifest_filename = folder_sync._manifest_filename()
+            parent_manifest_filename = folder_sync._parent._manifest_filename()
 
             expected_manifest_calls = [
-                call(progress._syn, progress._files, manifest_filename, provenance_cache={}),
-                call(progress._parent._syn, progress._parent._files, parent_manifest_filename, provenance_cache={}),
+                call(folder_sync._syn, folder_sync._files, manifest_filename,
+                     provenance_cache={}),
+                call(folder_sync._parent._syn, folder_sync._parent._files, parent_manifest_filename,
+                     provenance_cache={}),
             ]
             assert_equals(expected_manifest_calls, mock_generateManifest.call_args_list)
 
@@ -317,8 +319,8 @@ class TestFolderProgress:
         entity_id = 'syn123'
         child_ids = ['syn456']
 
-        parent = _FolderProgress(syn, 'syn987', path, [entity_id], None)
-        child = _FolderProgress(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
+        parent = _FolderSync(syn, 'syn987', path, [entity_id], None)
+        child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
 
         exception = ValueError('failed!')
         child.set_exception(exception)
