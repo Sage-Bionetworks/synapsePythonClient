@@ -638,10 +638,6 @@ class Synapse(object):
            print(syn.getProvenance(entity))
 
         """
-        return self._get(entity, **kwargs)
-
-    def _get(self, entity, **kwargs):
-
         # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, str) and os.path.isfile(entity):
             bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
