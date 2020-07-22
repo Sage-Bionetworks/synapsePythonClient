@@ -203,8 +203,10 @@ def download_file(
     :param max_concurrent_parts: The maximum concurrent number parts to download at once when downloading this file
     """
 
-    shutdown_after = False
+    # we obtain an executor from a thread local if we are in the context of a Synapse sync
+    # and wan't to re-use the same threadpool as was created for that
     executor = getattr(thread_local, 'executor', None)
+    shutdown_after = False
     if not executor:
         shutdown_after = True
         executor = get_executor(client.max_threads)

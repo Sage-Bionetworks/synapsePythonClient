@@ -777,12 +777,7 @@ class Synapse(object):
 
             if downloadFile:
                 if file_handle:
-                    self._download_file_entity(
-                        downloadLocation,
-                        entity,
-                        ifcollision,
-                        submission,
-                    )
+                    self._download_file_entity(downloadLocation, entity, ifcollision, submission)
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = "WARNING: You have READ permission on this file entity but not DOWNLOAD " \
                                       "permission. The file has NOT been downloaded."

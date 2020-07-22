@@ -76,6 +76,7 @@ def test_progress(mock_utils_print_transfer_progress, mock_sys, mock_time):
     assert_false(threading.get_ident() in progress._thread_totals)
     assert_false(hasattr(cumulative_transfer_progress._thread_local, 'cumulative_transfer_progress'))
 
+
 @mock.patch.object(cumulative_transfer_progress, 'sys')
 @mock.patch.object(utils, 'printTransferProgress')
 def test_progress__not_tty(mock_utils_print_transfer_progress, mock_sys):

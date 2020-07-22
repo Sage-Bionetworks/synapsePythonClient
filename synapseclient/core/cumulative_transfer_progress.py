@@ -11,7 +11,7 @@ from synapseclient.core import utils
 # This will print a running total of transferred bytes with each finished file printed as it is completed.
 
 # we use a thread local to configure this because we are potentially running file transfers in multiple threads,
-# and we don't want individual download implementations to have to know about the details or track the track
+# and we don't want individual download implementations to have to know about the details or track
 # any other concurrent downloads. instead it is up to a master coordinator that is launching the threads (e.g.
 # a Synapse sync) to configure the thread state. individual download implementations don't have to do anything
 # but import and use this instead of the underlying utils function.

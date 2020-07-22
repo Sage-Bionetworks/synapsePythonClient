@@ -317,7 +317,7 @@ class Test__downloadFileHandle(unittest.TestCase):
         download if the file is not large enough to make it worthwhile"""
         file_handle = {
             'id': '123',
-            'concreteType': "someFakeConcreteType",
+            'concreteType': concrete_types.S3_FILE_HANDLE,
             'contentMd5': 'someMD5',
             'contentSize': multithread_download.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE - 1
         }
