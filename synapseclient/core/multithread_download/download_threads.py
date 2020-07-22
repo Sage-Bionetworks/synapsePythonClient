@@ -193,7 +193,6 @@ def download_file(
     download_request: DownloadRequest,
     *,
     max_concurrent_parts: int = None,
-    executor=None
 ):
     """
     Main driver for the multi-threaded download. Uses the producer-consumer with Queue design pattern as described
@@ -202,11 +201,10 @@ def download_file(
     :param client: A synapseclient
     :param download_request: A batch of DownloadRequest objects specifying what Synapse files to download
     :param max_concurrent_parts: The maximum concurrent number parts to download at once when downloading this file
-    :param executor: An ExecutorService instance to use to process this download, if None a ThreadPoolExcecutor
-                        will be created
     """
 
     shutdown_after = False
+    executor = getattr(thread_local, 'executor', None)
     if not executor:
         shutdown_after = True
         executor = get_executor(client.max_threads)
@@ -222,7 +220,7 @@ def download_file(
             executor.shutdown()
 
 
-_thread_local = _threading.local()
+thread_local = _threading.local()
 
 
 def _get_thread_session():
@@ -232,9 +230,9 @@ def _get_thread_session():
     # thread local since Sessions are not thread safe so we need one per
     # active thread and since we're allowing the use of an externally provided
     # ExecutorService we don't can't really allocate a pool of Sessions ourselves
-    session = getattr(_thread_local, 'session', None)
+    session = getattr(thread_local, 'session', None)
     if not session:
-        session = _thread_local.session = _get_new_session()
+        session = thread_local.session = _get_new_session()
     return session
 
 

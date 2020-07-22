@@ -9,6 +9,7 @@ from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core import utils
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
 from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseProvenanceError
+from synapseclient.core.multithread_download.download_threads import thread_local as downloads_thread_local
 import os
 import io
 import sys
@@ -231,6 +232,10 @@ class _SyncDownloader:
 
     def _sync_file(self, entity_id, parent_folder_sync, path, ifcollision, followLink, progress):
         try:
+            # pass the executor through so that multi threaded downloads
+            # will make use of the the shared existing thread pool
+            downloads_thread_local.executor = self._executor
+
             with progress.accumulate_progress():
 
                 entity = self._syn.get(
@@ -238,26 +243,25 @@ class _SyncDownloader:
                     downloadLocation=path,
                     ifcollision=ifcollision,
                     followLink=followLink,
-                    executor=self._executor,
                 )
 
-                files = []
-                provenance = None
-                if isinstance(entity, File):
-                    if path:
-                        entity_provenance = _get_file_entity_provenance_dict(self._syn, entity)
-                        provenance = {entity_id: entity_provenance}
+            files = []
+            provenance = None
+            if isinstance(entity, File):
+                if path:
+                    entity_provenance = _get_file_entity_provenance_dict(self._syn, entity)
+                    provenance = {entity_id: entity_provenance}
 
-                    files.append(entity)
+                files.append(entity)
 
-                # else if the entity is not a File (and wasn't a container)
-                # then we ignore it for the purposes of this sync
+            # else if the entity is not a File (and wasn't a container)
+            # then we ignore it for the purposes of this sync
 
-                parent_folder_sync.update(
-                    finished_id=entity_id,
-                    files=files,
-                    provenance=provenance,
-                )
+            parent_folder_sync.update(
+                finished_id=entity_id,
+                files=files,
+                provenance=provenance,
+            )
 
         except Exception as ex:
             # this could be anything raised by any type of download, and so by nature is a broad catch.
@@ -269,6 +273,7 @@ class _SyncDownloader:
 
         finally:
             self._file_semaphore.release()
+            del downloads_thread_local.executor
 
     def _sync_root(self, root, root_path, ifcollision, followLink, progress):
         # stack elements are a 3-tuple of:

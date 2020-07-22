@@ -275,19 +275,16 @@ class Test__downloadFileHandle(unittest.TestCase):
                 }
             }
 
-            executor = MagicMock()
             syn.multi_threaded = True
             syn._downloadFileHandle(
                 fileHandleId=123,
                 objectId=456,
                 objectType="FileEntity",
                 destination="/myfakepath",
-                executor=executor,
             )
 
             mock_multi_thread_download.assert_called_once_with(123, 456, "FileEntity", "/myfakepath",
-                                                               expected_md5="someMD5",
-                                                               executor=executor)
+                                                               expected_md5="someMD5")
 
     def _multithread_not_applicable(self, file_handle):
         with patch.object(os, "makedirs"), \

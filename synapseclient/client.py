@@ -750,8 +750,6 @@ class Synapse(object):
         submission = kwargs.pop('submission', None)
         followLink = kwargs.pop('followLink', False)
         path = kwargs.pop('path', None)
-        executor = kwargs.pop('executor', None)
-        maxThreads = kwargs.pop('maxThreads', None)
 
         # make sure user didn't accidentlaly pass a kwarg that we don't handle
         if kwargs:  # if there are remaining items in the kwargs
@@ -788,8 +786,6 @@ class Synapse(object):
                         entity,
                         ifcollision,
                         submission,
-                        executor=executor,
-                        maxThreads=maxThreads,
                     )
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = "WARNING: You have READ permission on this file entity but not DOWNLOAD " \
@@ -798,8 +794,7 @@ class Synapse(object):
                                         + '!'*len(warning_message)+'\n')
         return entity
 
-    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission, *,
-                              executor=None, maxThreads=None):
+    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
         # set the initial local state
         entity.path = None
         entity.files = []
@@ -849,8 +844,7 @@ class Synapse(object):
             # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
             # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
             # _downloadFileHandle may also return None to indicate that the download failed
-            downloadPath = self._downloadFileHandle(entity.dataFileHandleId, objectId, objectType, downloadPath,
-                                                    executor=executor, maxThreads=maxThreads)
+            downloadPath = self._downloadFileHandle(entity.dataFileHandleId, objectId, objectType, downloadPath)
 
             if downloadPath is None or not os.path.exists(downloadPath):
                 return
@@ -1730,8 +1724,7 @@ class Synapse(object):
             )
         return result
 
-    def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, *,
-                            retries=5, executor=None, maxThreads=None):
+    def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
         """
         Download a file from the given URL to the local file system.
 
@@ -1740,7 +1733,6 @@ class Synapse(object):
         :param objectType:   type of the Synapse object that uses the FileHandle e.g. "FileEntity"
         :param destination:  destination on local file system
         :param retries:      (default=5) Number of download retries attempted before throwing an exception.
-        :param executor:    an ExecutorService that download implementations may use to run multithreaded downloads
 
         :returns: path to downloaded file
         """
@@ -1771,7 +1763,7 @@ class Synapse(object):
                             destination,
                             credentials=credentials,
                             # pass through our synapse threading config to boto s3
-                            transfer_config_kwargs={'max_concurrency': maxThreads or self.max_threads},
+                            transfer_config_kwargs={'max_concurrency': self.max_threads},
                         )
 
                     downloaded_path = sts_transfer.with_boto_sts_credentials(
@@ -1792,8 +1784,7 @@ class Synapse(object):
                                                                              objectId,
                                                                              objectType,
                                                                              destination,
-                                                                             expected_md5=fileHandle.get('contentMd5'),
-                                                                             executor=executor)
+                                                                             expected_md5=fileHandle.get('contentMd5'))
 
                 else:
                     downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
@@ -1821,9 +1812,7 @@ class Synapse(object):
                                           object_type,
                                           destination,
                                           *,
-                                          expected_md5=None,
-                                          executor=None,
-                                          maxThreads=None):
+                                          expected_md5=None):
         destination = os.path.abspath(destination)
         temp_destination = utils.temp_download_filename(destination, file_handle_id)
 
@@ -1832,7 +1821,7 @@ class Synapse(object):
                                                        object_type=object_type,
                                                        path=temp_destination)
 
-        multithread_download.download_file(self, request, max_concurrent_parts=maxThreads, executor=executor)
+        multithread_download.download_file(self, request)
 
         if expected_md5:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(temp_destination).hexdigest()

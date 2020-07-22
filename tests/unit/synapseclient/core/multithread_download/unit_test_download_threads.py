@@ -142,7 +142,11 @@ def test_download_file(mock_multithreaded_downloader_init):
     mock_multithreaded_downloader_init.return_value = mock_downloader
 
     max_concurrent_parts = 5
-    download_file(syn, request, executor=mock_executor, max_concurrent_parts=max_concurrent_parts)
+
+    download_threads.thread_local.executor = mock_executor
+    download_file(syn, request, max_concurrent_parts=max_concurrent_parts)
+    del download_threads.thread_local.executor
+
     mock_multithreaded_downloader_init.assert_called_once_with(syn, mock_executor, max_concurrent_parts)
     mock_downloader.download_file.assert_called_once_with(request)
 

@@ -62,10 +62,6 @@ class CumulativeTransferProgress:
         if not sys.stdout.isatty():
             return
 
-        cumulative_dt = time.time() - self._start
-        rate = (transferred - previouslyTransferred) / float(cumulative_dt)
-        rate = '(%s/s)' % utils.humanizeBytes(rate) if isBytes else rate
-
         with self._lock:
             if toBeTransferred == 0 or float(transferred) / toBeTransferred >= 1:
                 # if the individual transfer is complete then we pass through the print

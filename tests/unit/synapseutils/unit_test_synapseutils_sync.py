@@ -1,6 +1,6 @@
 import os
 import csv
-from unittest.mock import patch, create_autospec, Mock, call, ANY
+from unittest.mock import patch, create_autospec, Mock, call
 from nose.tools import assert_dict_equal, assert_raises, assert_true, assert_equals, assert_list_equal
 import pandas as pd
 import pandas.util.testing as pdt
@@ -154,7 +154,6 @@ def test_syncFromSynapse__project_contains_empty_folder():
             downloadLocation=None,
             ifcollision='overwrite.local',
             followLink=False,
-            executor=ANY,
         )
 
 
