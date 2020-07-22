@@ -43,7 +43,7 @@ def test_progress(mock_utils_print_transfer_progress, mock_sys, mock_time):
         args1 = [100, 100]
         kwargs1 = {
             'prefix': 'prefix1',
-            'postfix':  'postfix1',
+            'postfix': 'postfix1',
             'isBytes': True,
             'dt': 300,
             'previouslyTransferred': 0
