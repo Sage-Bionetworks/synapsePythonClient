@@ -407,9 +407,8 @@ class MultithreadedDownloaderTests(TestCase):
             expected_writes.append(mock.call(chunk))
 
             byte_start += len(chunk)
-            expected_print_transfer_progresses.append(mock.call(
-                byte_start, file_size, 'Downloading ', os.path.basename(request.path), dt=mock.ANY
-               )
+            expected_print_transfer_progresses.append(
+                mock.call(byte_start, file_size, 'Downloading ', os.path.basename(request.path), dt=mock.ANY)
             )
 
         downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)

@@ -1688,7 +1688,7 @@ class Synapse(object):
     #                File handle service calls                 #
     ############################################################
 
-    def _getFileHandleDownload(self, fileHandleId,  objectId, objectType=None):
+    def _getFileHandleDownload(self, fileHandleId, objectId, objectType=None):
         """
         Gets the URL and the metadata as filehandle object for a filehandle or fileHandleId
 
@@ -1942,7 +1942,7 @@ class Synapse(object):
                                     toBeTransferred,
                                     'Downloading ',
                                     os.path.basename(destination),
-                                    dt=time.time()-t0
+                                    dt=time.time() - t0
                                 )
                     except Exception as ex:  # We will add a progress parameter then push it back to retry.
                         ex.progress = transferred-previouslyTransferred
