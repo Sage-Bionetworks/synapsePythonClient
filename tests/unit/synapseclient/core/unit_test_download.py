@@ -114,7 +114,7 @@ def create_mock_response(url, response_type, **kwargs):
     return response
 
 
-def mock_generateSignedHeaders(self, url, headers=None):
+def mock_generateHeaders(self, url, headers=None):
     return {}
 
 
@@ -143,7 +143,7 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
+         patch.object(Synapse, '_generateHeaders', side_effect=mock_generateHeaders):
         syn._download_from_URL(url, destination=temp_dir, fileHandleId=12345, expected_md5=contents_md5)
 
     # 2. Multiple redirects
@@ -156,7 +156,7 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
+         patch.object(Synapse, '_generateHeaders', side_effect=mock_generateHeaders):
         syn._download_from_URL(url, destination=temp_dir, fileHandleId=12345, expected_md5=contents_md5)
 
     # 3. recover from partial download
@@ -176,7 +176,7 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-            patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+            patch.object(Synapse, '_generateHeaders', side_effect=mock_generateHeaders), \
             patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
             patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
         syn._downloadFileHandle(fileHandleId, objectId, objectType, destination=temp_dir)
@@ -197,7 +197,7 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-            patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+            patch.object(Synapse, '_generateHeaders', side_effect=mock_generateHeaders), \
             patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
             patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
 
@@ -219,7 +219,7 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-            patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+            patch.object(Synapse, '_generateHeaders', side_effect=mock_generateHeaders), \
             patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value):
 
         assert_raises(Exception,
@@ -236,7 +236,7 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-            patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+            patch.object(Synapse, '_generateHeaders', side_effect=mock_generateHeaders), \
             patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
             patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
         syn._downloadFileHandle(fileHandleId, objectId, objectType, destination=temp_dir)
@@ -248,7 +248,7 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-            patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+            patch.object(Synapse, '_generateHeaders', side_effect=mock_generateHeaders), \
             patch.object(Synapse, '_getFileHandleDownload', return_value=_getFileHandleDownload_return_value), \
             patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
         assert_raises(SynapseHTTPError, syn._downloadFileHandle, fileHandleId, objectId, objectType,
@@ -382,7 +382,7 @@ def test_download_end_early_retry():
     mock_requests_get.responses[1].headers['content-length'] = len(contents[partial_content_break:])
 
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+         patch.object(Synapse, '_generateHeaders', side_effect=mock_generateHeaders), \
          patch.object(utils, 'temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
             patch.object(client, 'open', new_callable=mock_open(), create=True) as mocked_open, \
             patch.object(os.path, 'exists', side_effect=[False, True]) as mocked_exists, \
@@ -424,7 +424,7 @@ def test_download_md5_mismatch__not_local_file():
     ])
 
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+         patch.object(Synapse, '_generateHeaders', side_effect=mock_generateHeaders), \
          patch.object(utils, 'temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
             patch.object(client, 'open', new_callable=mock_open(), create=True) as mocked_open, \
             patch.object(os.path, 'exists', side_effect=[False, True]) as mocked_exists, \
@@ -457,7 +457,7 @@ def test_download_md5_mismatch_local_file():
     url = "file:///some/file/path.txt"
     destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
 
-    with patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+    with patch.object(Synapse, '_generateHeaders', side_effect=mock_generateHeaders), \
          patch.object(utils, 'file_url_to_path', return_value=destination) as mocked_file_url_to_path, \
             patch.object(utils, 'md5_for_file', return_value=hashlib.md5()) as mocked_md5_for_file, \
             patch('os.remove') as mocked_remove:
