@@ -2013,3 +2013,57 @@ def test__get_annotation_view_columns():
         )
         wait_for_async.assert_has_calls(call_list)
         assert_equal(columns, [synapseclient.Column(id=5)])
+
+
+class TestGenerateHeaders:
+
+    def test_generate_headers__credentials(self):
+        """Verify signed credentials are added to the headers when logged in"""
+        url = 'http://foo.com/bar'
+        signed_headers = {'foo': 'bar'}
+
+        syn = Synapse()
+        syn.credentials = Mock(
+            get_signed_headers=Mock(return_value=signed_headers)
+        )
+
+        headers = syn._generateHeaders(url)
+        expected = {}
+        expected.update(signed_headers)
+        expected.update(syn.default_headers)
+        expected.update(synapseclient.USER_AGENT)
+
+        assert_equal(expected, headers)
+        syn.credentials.get_signed_headers.assert_called_once_with(url)
+
+    def test_generate_headers__no_credentials(self):
+        """Verify expected headers without signing when not logged in"""
+        url = 'http://foo.com/bar'
+
+        syn = Synapse()
+        syn.credentials = None
+
+        headers = syn._generateHeaders(url)
+        expected = {}
+        expected.update(syn.default_headers)
+        expected.update(synapseclient.USER_AGENT)
+
+        assert_equal(expected, headers)
+
+    def test_generate_headers__custom_headers(self):
+        """Verify that custom headers override default headers"""
+
+        url = 'http://foo.com/bar'
+        custom_headers = {
+            'foo': 'bar'
+        }
+
+        syn = Synapse()
+        syn.credentials = None
+
+        headers = syn._generateHeaders(url, headers=custom_headers)
+        expected = {}
+        expected.update(custom_headers)
+        expected.update(synapseclient.USER_AGENT)
+
+        assert_equal(expected, headers)
