@@ -2027,7 +2027,7 @@ class TestGenerateHeaders:
             get_signed_headers=Mock(return_value=signed_headers)
         )
 
-        headers = syn._generateHeaders(url)
+        headers = syn._generate_headers(url)
         expected = {}
         expected.update(signed_headers)
         expected.update(syn.default_headers)
@@ -2043,7 +2043,7 @@ class TestGenerateHeaders:
         syn = Synapse()
         syn.credentials = None
 
-        headers = syn._generateHeaders(url)
+        headers = syn._generate_headers(url)
         expected = {}
         expected.update(syn.default_headers)
         expected.update(synapseclient.USER_AGENT)
@@ -2061,7 +2061,7 @@ class TestGenerateHeaders:
         syn = Synapse()
         syn.credentials = None
 
-        headers = syn._generateHeaders(url, headers=custom_headers)
+        headers = syn._generate_headers(url, headers=custom_headers)
         expected = {}
         expected.update(custom_headers)
         expected.update(synapseclient.USER_AGENT)

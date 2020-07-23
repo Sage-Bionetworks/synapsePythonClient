@@ -1870,7 +1870,7 @@ class Synapse(object):
                     if os.path.exists(temp_destination) else {}
                 response = with_retry(
                     lambda: self._requests_session.get(url,
-                                                       headers=self._generateHeaders(url, range_header),
+                                                       headers=self._generate_headers(url, range_header),
                                                        stream=True, allow_redirects=False),
                     verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
@@ -3591,7 +3591,7 @@ class Synapse(object):
     #                   Low level Rest calls                   #
     ############################################################
 
-    def _generateHeaders(self, url, headers=None):
+    def _generate_headers(self, url, headers=None):
         """Generate headers signed with the API key."""
 
         if headers is None:
@@ -3706,7 +3706,7 @@ class Synapse(object):
             uri = endpoint + uri
 
         if headers is None:
-            headers = self._generateHeaders(uri)
+            headers = self._generate_headers(uri)
         return uri, headers
 
     def _build_retry_policy(self, retryPolicy={}):
