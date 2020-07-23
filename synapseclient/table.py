@@ -304,7 +304,7 @@ from builtins import zip
 from synapseclient.core.utils import id_of, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
-from .entity import Entity, Versionable, entity_type_to_class
+from .entity import Entity, entity_type_to_class
 from synapseclient.core.constants import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
@@ -602,13 +602,13 @@ def _delete_rows(syn, schema, row_id_vers_list):
         os.remove(delete_row_csv_filepath)
 
 
-class SchemaBase(Entity, Versionable, metaclass=abc.ABCMeta):
+class SchemaBase(Entity, metaclass=abc.ABCMeta):
     """
     This is the an Abstract Class for EntityViewSchema and Schema containing the common methods for both.
     You can not create an object of this type.
     """
 
-    _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
+    _property_keys = Entity._property_keys + ['columnIds']
     _local_keys = Entity._local_keys + ['columns_to_store']
 
     @property
