@@ -6,7 +6,7 @@ import random
 from nose.tools import assert_raises, assert_is_not_none, assert_true, assert_equals, assert_in
 
 
-from synapseclient import Evaluation, File, Team, SubmissionViewSchema
+from synapseclient import Evaluation, File, Synapse, SubmissionViewSchema, Team
 from synapseclient.core.exceptions import SynapseHTTPError
 from tests import integration
 from tests.integration import schedule_for_cleanup
@@ -188,12 +188,15 @@ def test_teams():
     team = syn.store(Team(name=name, description="A fake team for testing..."))
     schedule_for_cleanup(team)
 
-    found_team = syn.getTeam(team.id)
+    # not logged in, teams are public
+    anonymous_syn = Synapse()
+
+    found_team = anonymous_syn.getTeam(team.id)
     assert_equals(team, found_team)
 
     p = syn.getUserProfile()
     found = None
-    for m in syn.getTeamMembers(team):
+    for m in anonymous_syn.getTeamMembers(team):
         if m.member.ownerId == p.ownerId:
             found = m
             break
@@ -205,7 +208,7 @@ def test_teams():
     found_team = None
     while tries > 0:
         try:
-            found_team = syn.getTeam(name)
+            found_team = anonymous_syn.getTeam(name)
             break
         except ValueError:
             tries -= 1
