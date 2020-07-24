@@ -9,7 +9,7 @@ from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core import utils
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
 from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseProvenanceError
-from synapseclient.core.multithread_download.download_threads import thread_local as downloads_thread_local
+from synapseclient.core.multithread_download.download_threads import shared_executor as download_shared_executor
 import os
 import io
 import sys
@@ -232,11 +232,12 @@ class _SyncDownloader:
 
     def _sync_file(self, entity_id, parent_folder_sync, path, ifcollision, followLink, progress):
         try:
-            # pass the executor through so that multi threaded downloads
-            # will make use of the the shared existing thread pool
-            downloads_thread_local.executor = self._executor
-
-            with progress.accumulate_progress():
+            # we use syn.get to download the File.
+            # these context managers ensure that we are using some shared state
+            # when conducting that download (shared progress bar, ExecutorService shared
+            # by all multi threaded downloads in this sync)
+            with progress.accumulate_progress(), \
+                    download_shared_executor(self._executor):
 
                 entity = self._syn.get(
                     entity_id,

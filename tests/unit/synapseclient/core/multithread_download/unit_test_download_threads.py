@@ -123,7 +123,8 @@ def test_pre_signed_url_expiration_time():
 
 @mock.patch.object(download_threads, '_MultithreadedDownloader')
 def test_download_file(mock_multithreaded_downloader_init):
-    """Verify that initiating a download instantiates a downloader and passes it the correct args"""
+    """Verify that initiating a download instantiates a downloader and passes it the correct args.
+    This test simulates a shared executor being set externally via the sharedexecutor context manager"""
 
     syn = mock.Mock()
     file_handle_id = 1234
@@ -143,9 +144,8 @@ def test_download_file(mock_multithreaded_downloader_init):
 
     max_concurrent_parts = 5
 
-    download_threads.thread_local.executor = mock_executor
-    download_file(syn, request, max_concurrent_parts=max_concurrent_parts)
-    del download_threads.thread_local.executor
+    with download_threads.shared_executor(mock_executor):
+        download_file(syn, request, max_concurrent_parts=max_concurrent_parts)
 
     mock_multithreaded_downloader_init.assert_called_once_with(syn, mock_executor, max_concurrent_parts)
     mock_downloader.download_file.assert_called_once_with(request)
@@ -212,8 +212,13 @@ class MultithreadedDownloaderTests(TestCase):
                 mock.patch('concurrent.futures.wait') as mock_futures_wait, \
                 mock.patch.object(_MultithreadedDownloader, '_check_for_errors') as mock_check_for_errors:
 
-            url_info = mock.Mock(url=url)
-            mock_url_provider = mock.Mock(get_info=mock.Mock(return_value=url_info))
+            mock_url_info = mock.create_autospec(PresignedUrlInfo, url=url)
+            mock_url_provider = mock.create_autospec(
+                PresignedUrlProvider,
+                get_info=mock.Mock(
+                    return_value=mock_url_info
+                )
+            )
             mock_url_provider_init.return_value = mock_url_provider
             mock_get_file_size.return_value = file_size
             chunk_generator = mock.Mock()
@@ -513,3 +518,14 @@ class MultithreadedDownloaderTests(TestCase):
             headers={"Range": "bytes=5-42"},
             stream=True
         )
+
+
+def test_shared_executor():
+    """Test the shared_executor contextmanager which should set up thread_local Executor"""
+    assert_false(hasattr(download_threads._thread_local, 'executor'))
+
+    executor = mock.Mock()
+    with download_threads.shared_executor(executor):
+        assert_equals(executor, download_threads._thread_local.executor)
+
+    assert_false(hasattr(download_threads._thread_local, 'executor'))

@@ -5,6 +5,7 @@ except ImportError:
 import datetime
 
 import concurrent.futures
+from contextlib import contextmanager
 from http import HTTPStatus
 import os
 from requests import Session, Response
@@ -28,6 +29,19 @@ CONNECT_FACTOR: int = 3
 BACK_OFF_FACTOR: float = 0.5
 
 
+_thread_local = _threading.local()
+
+@contextmanager
+def shared_executor(executor):
+    """An outside process that will eventually trigger a download through the this module
+    can configure a shared Executor by running its code within this context manager."""
+    _thread_local.executor = executor
+    try:
+        yield
+    finally:
+        del _thread_local.executor
+
+
 class DownloadRequest(NamedTuple):
     """
     A request to download a file from Synapse
@@ -40,7 +54,7 @@ class DownloadRequest(NamedTuple):
         The file handle ID to download.
     object_id : str
         The Synapse object this file associated to.
-    object_type : str/
+    object_type : str
         the type of the associated Synapse object.
     path : str
         The local path to download the file to.
@@ -195,8 +209,8 @@ def download_file(
     max_concurrent_parts: int = None,
 ):
     """
-    Main driver for the multi-threaded download. Uses the producer-consumer with Queue design pattern as described
-    in Effective Python Item 39.
+    Main driver for the multi-threaded download. Users an ExecutorService, either set externally onto a thread
+    local by an outside process, or creating one as needed otherwise.
 
     :param client: A synapseclient
     :param download_request: A batch of DownloadRequest objects specifying what Synapse files to download
@@ -205,7 +219,7 @@ def download_file(
 
     # we obtain an executor from a thread local if we are in the context of a Synapse sync
     # and wan't to re-use the same threadpool as was created for that
-    executor = getattr(thread_local, 'executor', None)
+    executor = getattr(_thread_local, 'executor', None)
     shutdown_after = False
     if not executor:
         shutdown_after = True
@@ -222,7 +236,6 @@ def download_file(
             executor.shutdown()
 
 
-thread_local = _threading.local()
 
 
 def _get_thread_session():
