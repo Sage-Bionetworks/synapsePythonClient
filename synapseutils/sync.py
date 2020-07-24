@@ -330,18 +330,17 @@ class _SyncDownloader:
                 folder_sync.update()
 
             else:
-                if child_file_ids:
-                    for child_file_id in child_file_ids:
-                        self._file_semaphore.acquire()
-                        self._executor.submit(
-                            self._sync_file,
-                            child_file_id,
-                            folder_sync,
-                            folder_path,
-                            ifcollision,
-                            followLink,
-                            progress,
-                        )
+                for child_file_id in child_file_ids:
+                    self._file_semaphore.acquire()
+                    self._executor.submit(
+                        self._sync_file,
+                        child_file_id,
+                        folder_sync,
+                        folder_path,
+                        ifcollision,
+                        followLink,
+                        progress,
+                    )
 
                 for child_folder in child_folders:
                     folder_stack.append((child_folder, folder_path, folder_sync))
