@@ -3620,6 +3620,17 @@ class Synapse(object):
 
             raise
 
+    def _rest_call(self, method, uri, data, endpoint, headers, retryPolicy, requests_session, **kwargs):
+        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
+        retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
+
+        requests_method_fn = getattr(requests_session, method)
+        response = with_retry(lambda: requests_method_fn(uri, data=data, headers=headers, **kwargs),
+                              verbose=self.debug, **retryPolicy)
+        self._handle_synapse_http_error(response)
+        return response
+
     def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP GET request to the Synapse server.
@@ -3633,14 +3644,7 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
-
-        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
-        retryPolicy = self._build_retry_policy(retryPolicy)
-        requests_session = requests_session or self._requests_session
-
-        response = with_retry(lambda: requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
-                              **retryPolicy)
-        self._handle_synapse_http_error(response)
+        response = self._rest_call('get', uri, None, endpoint, headers, retryPolicy, requests_session, **kwargs)
         return self._return_rest_body(response)
 
     def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
@@ -3657,13 +3661,7 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
-        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
-        retryPolicy = self._build_retry_policy(retryPolicy)
-        requests_session = requests_session or self._requests_session
-
-        response = with_retry(lambda: requests_session.post(uri, data=body, headers=headers, **kwargs),
-                              verbose=self.debug, **retryPolicy)
-        self._handle_synapse_http_error(response)
+        response = self._rest_call('post', uri, body, endpoint, headers, retryPolicy, requests_session, **kwargs)
         return self._return_rest_body(response)
 
     def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
@@ -3680,14 +3678,7 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
-
-        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
-        retryPolicy = self._build_retry_policy(retryPolicy)
-        requests_session = requests_session or self._requests_session
-
-        response = with_retry(lambda: requests_session.put(uri, data=body, headers=headers, **kwargs),
-                              verbose=self.debug, **retryPolicy)
-        self._handle_synapse_http_error(response)
+        response = self._rest_call('put', uri, body, endpoint, headers, retryPolicy, requests_session, **kwargs)
         return self._return_rest_body(response)
 
     def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
@@ -3701,14 +3692,7 @@ class Synapse(object):
         :param kwargs:              Any other arguments taken by a
                                     `requests <http://docs.python-requests.org/en/latest/>`_ method
         """
-
-        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
-        retryPolicy = self._build_retry_policy(retryPolicy)
-        requests_session = requests_session or self._requests_session
-
-        response = with_retry(lambda: requests_session.delete(uri, headers=headers, **kwargs),
-                              verbose=self.debug, **retryPolicy)
-        self._handle_synapse_http_error(response)
+        self._rest_call('delete', uri, None, endpoint, headers, retryPolicy, requests_session, **kwargs)
 
     def _build_uri_and_headers(self, uri, endpoint=None, headers=None):
         """Returns a tuple of the URI and headers to request with."""
