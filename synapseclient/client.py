@@ -3603,6 +3603,23 @@ class Synapse(object):
             headers.update(self.credentials.get_signed_headers(url))
         return headers
 
+    def _handle_synapse_http_error(self, response):
+        """Raise errors as appropriate for returned Synapse http status codes"""
+
+        try:
+            exceptions._raise_for_status(response, verbose=self.debug)
+        except exceptions.SynapseHTTPError as ex:
+            # if we get a unauthenticated or forbidden error and the user is not logged in
+            # then we raise it as an authentication error.
+            # we can't know for certain that logging in to their particular account will grant them
+            # access to this resource but more than likely it's the cause of this error.
+            if response.status_code in (401, 403) and not self.credentials:
+                raise SynapseAuthenticationError(
+                    "You are not logged in and do not have access to a requested resource."
+                ) from ex
+
+            raise
+
     def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP GET request to the Synapse server.
@@ -3623,7 +3640,7 @@ class Synapse(object):
 
         response = with_retry(lambda: requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
                               **retryPolicy)
-        exceptions._raise_for_status(response, verbose=self.debug)
+        self._handle_synapse_http_error(response)
         return self._return_rest_body(response)
 
     def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
@@ -3646,7 +3663,7 @@ class Synapse(object):
 
         response = with_retry(lambda: requests_session.post(uri, data=body, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
-        exceptions._raise_for_status(response, verbose=self.debug)
+        self._handle_synapse_http_error(response)
         return self._return_rest_body(response)
 
     def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
@@ -3670,7 +3687,7 @@ class Synapse(object):
 
         response = with_retry(lambda: requests_session.put(uri, data=body, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
-        exceptions._raise_for_status(response, verbose=self.debug)
+        self._handle_synapse_http_error(response)
         return self._return_rest_body(response)
 
     def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
@@ -3691,7 +3708,7 @@ class Synapse(object):
 
         response = with_retry(lambda: requests_session.delete(uri, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
-        exceptions._raise_for_status(response, verbose=self.debug)
+        self._handle_synapse_http_error(response)
 
     def _build_uri_and_headers(self, uri, endpoint=None, headers=None):
         """Returns a tuple of the URI and headers to request with."""

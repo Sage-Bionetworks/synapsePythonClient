@@ -2022,7 +2022,7 @@ class TestGenerateHeaders:
         url = 'http://foo.com/bar'
         signed_headers = {'foo': 'bar'}
 
-        syn = Synapse()
+        syn = Synapse(skip_checks=True)
         syn.credentials = Mock(
             get_signed_headers=Mock(return_value=signed_headers)
         )
@@ -2040,7 +2040,7 @@ class TestGenerateHeaders:
         """Verify expected headers without signing when not logged in"""
         url = 'http://foo.com/bar'
 
-        syn = Synapse()
+        syn = Synapse(skip_checks=True)
         syn.credentials = None
 
         headers = syn._generate_headers(url)
@@ -2058,7 +2058,7 @@ class TestGenerateHeaders:
             'foo': 'bar'
         }
 
-        syn = Synapse()
+        syn = Synapse(skip_checks=True)
         syn.credentials = None
 
         headers = syn._generate_headers(url, headers=custom_headers)
@@ -2067,3 +2067,35 @@ class TestGenerateHeaders:
         expected.update(synapseclient.USER_AGENT)
 
         assert_equal(expected, headers)
+
+
+class TestHandleSynapseHTTPError:
+
+    def test_handle_synapse_http_error__not_logged_in(self):
+        """If you are not LOGGED in a http error with an unauthenticated/forbidden
+        status code should raise an SynapseAuthenticationError chained from the
+        underlying SynapseHTTPError"""
+        syn = Synapse(skip_checks=True)
+        syn.credentials = None
+
+        for status_code in (401, 403):
+            response = Mock(status_code=status_code, headers={})
+
+            with assert_raises(SynapseAuthenticationError) as cm_ex:
+                syn._handle_synapse_http_error(response)
+
+            assert_true(isinstance(cm_ex.exception.__cause__, SynapseHTTPError))
+            assert_equal(status_code, cm_ex.exception.__cause__.response.status_code)
+
+    def test_handle_synapse_http_error__logged_in(self):
+        """If you are logged in a SynapseHTTPError should be raised directly,
+        even if it is an unauthenticated/forbidden error."""
+        syn = Synapse(skip_checks=True)
+        syn.credentials = Mock()
+        for status_code in (401, 403, 404):
+            response = Mock(status_code=status_code, headers={})
+
+            with assert_raises(SynapseHTTPError) as cm_ex:
+                syn._handle_synapse_http_error(response)
+
+            assert_equal(status_code, cm_ex.exception.response.status_code)
