@@ -3,6 +3,7 @@ import configparser
 import datetime
 import json
 import os
+import requests
 import tempfile
 import urllib.request as urllib_request
 import uuid
@@ -1469,65 +1470,106 @@ class TestMembershipInvitation:
             patch_invitation.assert_called_once()
 
 
-class TestRequestsSession:
-    """Verify we can optionally pass in a requests.Session in kwargs
-    to have the client use that session instead of the instance session."""
+class TestRestCalls:
+    """Verifies the behavior of the rest[METHOD] functions on the synapse client."""
 
-    def setup(self):
-        self._path = '/foo'
-        self._headers = {}
+    def _method_test_complete_args(self, method, body_expected):
+        """Verify we pass through to the unified _rest_call helper method with explicit args"""
+        uri = '/bar'
+        body = b'foo' if body_expected else None
+        endpoint = 'https://foo.com'
+        headers = {'foo': 'bar'}
+        retryPolicy = {'retry_status_codes': [500]}
+        requests_session = create_autospec(requests.Session)
+        kwargs = {'stream': True}
 
-    def test_init(self):
-        """Verify that an external requests session supplied at
-        instantiation is used for calls via a Synapse object."""
-        requests_session = Mock()
-        requests_session.get.return_value = Mock(status_code=200)
+        syn_args = [uri]
+        if body_expected:
+            syn_args.append(body)
 
-        syn = Synapse(debug=False, skip_checks=True, requests_session=requests_session)
-        syn.restGET(self._path, headers=self._headers)
-        requests_session.get.assert_called_once()
+        syn_kwargs = {
+            'endpoint': endpoint,
+            'headers': headers,
+            'retryPolicy': retryPolicy,
+            'requests_session': requests_session,
+        }
+        syn_kwargs.update(kwargs)
 
-    def _http_method_test(self, method):
-        status_ok = Mock(status_code=200)
-        with patch.object(syn._requests_session, method) as requests_call:
-            requests_call.return_value = status_ok
-
-            # make call, check that it flowed through to the instance session
-            rest_call = getattr(syn, "rest{}".format(method.upper()))
-            rest_call(
-                self._path,
-                headers=self._headers
+        syn_method = getattr(syn, f"rest{method.upper()}")
+        with patch.object(syn, '_rest_call') as mock_rest_call:
+            response = syn_method(*syn_args, **syn_kwargs)
+            mock_rest_call.assert_called_once_with(
+                method, uri, body, endpoint, headers, retryPolicy, requests_session, **kwargs
             )
-            requests_call.assert_called_once()
-            requests_call.reset_mock()
 
-            # make call, check that it flowed through to the passed session
-            # (and not to the instance session)
-            external_session = Mock()
-            getattr(external_session, method).return_value = status_ok
-            rest_call(
-                self._path,
-                headers=self._headers,
-                requests_session=external_session
-            )
-            getattr(external_session, method).assert_called_once()
-            requests_call.assert_not_called()
+        return response
+
+    def _method_test_default_args(self, method):
+        """Verify we pass through to the unified _rest_call helper method with default args"""
+        uri = '/bar'
+
+        syn_args = [uri]
+        if method == 'post':
+            # restPOST has a required body positional arg
+            syn_args.append(None)
+
+        syn_method = getattr(syn, f"rest{method.upper()}")
+        with patch.object(syn, '_rest_call') as mock_rest_call:
+            response = syn_method(*syn_args)
+            mock_rest_call.assert_called_once_with(method, uri, None, None, None, {}, None)
+
+        return response
 
     def test_get(self):
-        """Test restGET session handling"""
-        self._http_method_test('get')
-
-    def test_put(self):
-        """Test restPUT session handling"""
-        self._http_method_test('put')
+        self._method_test_complete_args('get', False)
+        self._method_test_default_args('get')
 
     def test_post(self):
-        """Test restPOST session handling"""
-        self._http_method_test('put')
+        self._method_test_complete_args('post', True)
+        self._method_test_default_args('post')
+
+    def test_put(self):
+        self._method_test_complete_args('put', True)
+        self._method_test_default_args('put')
 
     def test_delete(self):
-        """Test restDELETE session handling"""
-        self._http_method_test('put')
+        self._method_test_complete_args('delete', False)
+        self._method_test_default_args('delete')
+
+    def _rest_call_test(self, requests_session=None):
+        """Verifies the behavior of the unified _rest_call function"""
+        method = 'post'
+        uri = '/bar'
+        data = b'data'
+        endpoint = 'https://foo.com'
+        headers = {'foo': 'bar'}
+        retryPolicy = {'retry_status_codes': [500]}
+        kwargs = {'stream': True}
+
+        requests_session = requests_session or syn._requests_session
+        with patch.object(syn, '_build_uri_and_headers') as mock_build_uri_and_headers, \
+                patch.object(syn, '_build_retry_policy') as mock_build_retry_policy, \
+                patch.object(syn, '_handle_synapse_http_error') as mock_handle_synapse_http_error, \
+                patch.object(requests_session, method) as mock_requests_call:
+
+            mock_build_uri_and_headers.return_value = (uri, headers)
+            mock_build_retry_policy.return_value = retryPolicy
+
+            response = syn._rest_call(method, uri, data, endpoint, headers, retryPolicy, requests_session, **kwargs)
+
+        mock_build_uri_and_headers.assert_called_once_with(uri, endpoint=endpoint, headers=headers)
+        mock_build_retry_policy.assert_called_once_with(retryPolicy)
+        mock_handle_synapse_http_error.assert_called_once_with(response)
+        mock_requests_call.assert_called_once_with(uri, data=data, headers=headers, **kwargs)
+
+        return response
+
+    def test_rest_call__default_session(self):
+        self._rest_call_test()
+
+    def test_rest_call__custom_session(self):
+        session = create_autospec(requests.Session)
+        self._rest_call_test(session)
 
 
 class TestSetAnnotations:
@@ -2013,3 +2055,89 @@ def test__get_annotation_view_columns():
         )
         wait_for_async.assert_has_calls(call_list)
         assert_equal(columns, [synapseclient.Column(id=5)])
+
+
+class TestGenerateHeaders:
+
+    def test_generate_headers__credentials(self):
+        """Verify signed credentials are added to the headers when logged in"""
+        url = 'http://foo.com/bar'
+        signed_headers = {'foo': 'bar'}
+
+        syn = Synapse(skip_checks=True)
+        syn.credentials = Mock(
+            get_signed_headers=Mock(return_value=signed_headers)
+        )
+
+        headers = syn._generate_headers(url)
+        expected = {}
+        expected.update(signed_headers)
+        expected.update(syn.default_headers)
+        expected.update(synapseclient.USER_AGENT)
+
+        assert_equal(expected, headers)
+        syn.credentials.get_signed_headers.assert_called_once_with(url)
+
+    def test_generate_headers__no_credentials(self):
+        """Verify expected headers without signing when not logged in"""
+        url = 'http://foo.com/bar'
+
+        syn = Synapse(skip_checks=True)
+        syn.credentials = None
+
+        headers = syn._generate_headers(url)
+        expected = {}
+        expected.update(syn.default_headers)
+        expected.update(synapseclient.USER_AGENT)
+
+        assert_equal(expected, headers)
+
+    def test_generate_headers__custom_headers(self):
+        """Verify that custom headers override default headers"""
+
+        url = 'http://foo.com/bar'
+        custom_headers = {
+            'foo': 'bar'
+        }
+
+        syn = Synapse(skip_checks=True)
+        syn.credentials = None
+
+        headers = syn._generate_headers(url, headers=custom_headers)
+        expected = {}
+        expected.update(custom_headers)
+        expected.update(synapseclient.USER_AGENT)
+
+        assert_equal(expected, headers)
+
+
+class TestHandleSynapseHTTPError:
+
+    def test_handle_synapse_http_error__not_logged_in(self):
+        """If you are not LOGGED in a http error with an unauthenticated/forbidden
+        status code should raise an SynapseAuthenticationError chained from the
+        underlying SynapseHTTPError"""
+        syn = Synapse(skip_checks=True)
+        syn.credentials = None
+
+        for status_code in (401, 403):
+            response = Mock(status_code=status_code, headers={})
+
+            with assert_raises(SynapseAuthenticationError) as cm_ex:
+                syn._handle_synapse_http_error(response)
+
+            assert_true(isinstance(cm_ex.exception.__cause__, SynapseHTTPError))
+            assert_equal(status_code, cm_ex.exception.__cause__.response.status_code)
+
+    def test_handle_synapse_http_error__logged_in(self):
+        """If you are logged in a SynapseHTTPError should be raised directly,
+        even if it is an unauthenticated/forbidden error."""
+        syn = Synapse(skip_checks=True)
+        syn.credentials = Mock()
+        for status_code in (401, 403, 404):
+            response = Mock(status_code=status_code, headers={})
+
+            with assert_raises(SynapseHTTPError) as cm_ex:
+                syn._handle_synapse_http_error(response)
+
+            assert_equal(status_code, cm_ex.exception.response.status_code)
