@@ -3621,7 +3621,7 @@ class Synapse(object):
             raise
 
     def _rest_call(self, method, uri, data, endpoint, headers, retryPolicy, requests_session, **kwargs):
-        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
+        uri, headers = self._build_uri_and_headers(uri, endpoint=endpoint, headers=headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
         requests_session = requests_session or self._requests_session
 

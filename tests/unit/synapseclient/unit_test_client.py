@@ -3,6 +3,7 @@ import configparser
 import datetime
 import json
 import os
+import requests
 import tempfile
 import urllib.request as urllib_request
 import uuid
@@ -1467,6 +1468,108 @@ class TestMembershipInvitation:
             patch_delete.assert_called_once_with(open_invitations['id'])
             assert_equal(invite, self.response)
             patch_invitation.assert_called_once()
+
+
+class TestRestCalls:
+    """Verifies the behavior of the rest[METHOD] functions on the synapse client."""
+
+    def _method_test_complete_args(self, method, body_expected):
+        """Verify we pass through to the unified _rest_call helper method with explicit args"""
+        uri = '/bar'
+        body = b'foo' if body_expected else None
+        endpoint = 'https://foo.com'
+        headers = {'foo': 'bar'}
+        retryPolicy = {'retry_status_codes': [500]}
+        requests_session = create_autospec(requests.Session)
+        kwargs = {'stream': True}
+
+        syn_args = [uri]
+        if body_expected:
+            syn_args.append(body)
+
+        syn_kwargs = {
+            'endpoint': endpoint,
+            'headers': headers,
+            'retryPolicy': retryPolicy,
+            'requests_session': requests_session,
+        }
+        syn_kwargs.update(kwargs)
+
+        syn_method = getattr(syn, f"rest{method.upper()}")
+        with patch.object(syn, '_rest_call') as mock_rest_call:
+            response = syn_method(*syn_args, **syn_kwargs)
+            mock_rest_call.assert_called_once_with(
+                method, uri, body, endpoint, headers, retryPolicy, requests_session, **kwargs
+            )
+
+        return response
+
+    def _method_test_default_args(self, method):
+        """Verify we pass through to the unified _rest_call helper method with default args"""
+        uri = '/bar'
+
+        syn_args = [uri]
+        if method == 'post':
+            # restPOST has a required body positional arg
+            syn_args.append(None)
+
+        syn_method = getattr(syn, f"rest{method.upper()}")
+        with patch.object(syn, '_rest_call') as mock_rest_call:
+            response = syn_method(*syn_args)
+            mock_rest_call.assert_called_once_with(method, uri, None, None, None, {}, None)
+
+        return response
+
+    def test_get(self):
+        self._method_test_complete_args('get', False)
+        self._method_test_default_args('get')
+
+    def test_post(self):
+        self._method_test_complete_args('post', True)
+        self._method_test_default_args('post')
+
+    def test_put(self):
+        self._method_test_complete_args('put', True)
+        self._method_test_default_args('put')
+
+    def test_delete(self):
+        self._method_test_complete_args('delete', False)
+        self._method_test_default_args('delete')
+
+    def _rest_call_test(self, requests_session=None):
+        """Verifies the behavior of the unified _rest_call function"""
+        method = 'post'
+        uri = '/bar'
+        data = b'data'
+        endpoint = 'https://foo.com'
+        headers = {'foo': 'bar'}
+        retryPolicy = {'retry_status_codes': [500]}
+        kwargs = {'stream': True}
+
+        requests_session = requests_session or syn._requests_session
+        with patch.object(syn, '_build_uri_and_headers') as mock_build_uri_and_headers, \
+                patch.object(syn, '_build_retry_policy') as mock_build_retry_policy, \
+                patch.object(syn, '_handle_synapse_http_error') as mock_handle_synapse_http_error, \
+                patch.object(requests_session, method) as mock_requests_call:
+
+            mock_build_uri_and_headers.return_value = (uri, headers)
+            mock_build_retry_policy.return_value = retryPolicy
+
+            response = syn._rest_call(method, uri, data, endpoint, headers, retryPolicy, requests_session, **kwargs)
+
+        mock_build_uri_and_headers.assert_called_once_with(uri, endpoint=endpoint, headers=headers)
+        mock_build_retry_policy.assert_called_once_with(retryPolicy)
+        mock_handle_synapse_http_error.assert_called_once_with(response)
+        mock_requests_call.assert_called_once_with(uri, data=data, headers=headers, **kwargs)
+
+        return response
+
+    def test_rest_call__default_session(self):
+        self._rest_call_test()
+
+    def test_rest_call__custom_session(self):
+        session = create_autospec(requests.Session)
+        self._rest_call_test(session)
 
 
 class TestRequestsSession:
