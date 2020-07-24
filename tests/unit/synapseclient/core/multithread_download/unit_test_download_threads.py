@@ -213,12 +213,9 @@ class MultithreadedDownloaderTests(TestCase):
                 mock.patch.object(_MultithreadedDownloader, '_check_for_errors') as mock_check_for_errors:
 
             mock_url_info = mock.create_autospec(PresignedUrlInfo, url=url)
-            mock_url_provider = mock.create_autospec(
-                PresignedUrlProvider,
-                get_info=mock.Mock(
-                    return_value=mock_url_info
-                )
-            )
+            mock_url_provider = mock.create_autospec(PresignedUrlProvider)
+            mock_url_provider.get_info.return_value = mock_url_info
+
             mock_url_provider_init.return_value = mock_url_provider
             mock_get_file_size.return_value = file_size
             chunk_generator = mock.Mock()
@@ -276,8 +273,8 @@ class MultithreadedDownloaderTests(TestCase):
             assert_equals(expected_futures_wait_calls, mock_futures_wait.call_args_list)
 
             expected_check_for_errors_calls = [
-                mock.call(request, set([first_future]), set([second_future])),
-                mock.call(request, set([second_future, third_future]), set()),
+                mock.call(request, set([first_future])),
+                mock.call(request, set([second_future, third_future])),
             ]
             assert_equals(expected_check_for_errors_calls, mock_check_for_errors.call_args_list)
 
@@ -297,13 +294,16 @@ class MultithreadedDownloaderTests(TestCase):
                 mock.patch.object(download_threads, 'TransferStatus') as mock_transfer_status_init, \
                 mock.patch.object(download_threads, '_get_file_size') as mock_get_file_size, \
                 mock.patch.object(download_threads, '_generate_chunk_ranges') as mock_generate_chunk_ranges, \
+                mock.patch.object(download_threads, 'os') as mock_os, \
                 mock.patch.object(_MultithreadedDownloader, '_prep_file'), \
                 mock.patch.object(_MultithreadedDownloader, '_submit_chunks') as mock_submit_chunks, \
                 mock.patch.object(_MultithreadedDownloader, '_write_chunks'), \
                 mock.patch('concurrent.futures.wait') as mock_futures_wait:
 
-            url_info = mock.Mock(url=url)
-            mock_url_provider = mock.Mock(get_info=mock.Mock(return_value=url_info))
+            mock_url_info = mock.create_autospec(PresignedUrlInfo, url=url)
+            mock_url_provider = mock.create_autospec(PresignedUrlProvider)
+            mock_url_provider.get_info.return_value = mock_url_info
+
             mock_url_provider_init.return_value = mock_url_provider
             mock_get_file_size.return_value = file_size
             chunk_generator = mock.Mock()
@@ -313,14 +313,14 @@ class MultithreadedDownloaderTests(TestCase):
             mock_transfer_status_init.return_value = transfer_status
 
             exception = ValueError('failed!')
-            part_future = mock.Mock(
-                exception=mock.Mock(
-                    return_value=exception
-                )
-            )
+            part_future_1 = mock.create_autospec(concurrent.futures.Future)
+            part_future_1.exception.return_value = exception
+            part_future_2 = mock.create_autospec(concurrent.futures.Future)
 
-            mock_submit_chunks.return_value = set([part_future])
-            mock_futures_wait.return_value = (set([part_future]), set([]))
+            # future 1 completed with an error.
+            # should atempt to cancel future 2 as a result
+            mock_submit_chunks.return_value = set([part_future_1, part_future_2])
+            mock_futures_wait.return_value = (set([part_future_1]), set([part_future_2]))
 
             syn = mock.Mock()
             executor = mock.Mock()
@@ -329,6 +329,12 @@ class MultithreadedDownloaderTests(TestCase):
 
             with assert_raises(exception.__class__):
                 downloader.download_file(request)
+
+            # file should have been removed
+            mock_os.remove.assert_called_once_with(path)
+
+            # should have been an attempt to cancel the Future
+            part_future_2.cancel.assert_called_once_with()
 
     @mock.patch.object(download_threads, 'open')
     def test_prep_file(self, mock_open):
@@ -433,14 +439,9 @@ class MultithreadedDownloaderTests(TestCase):
 
         request = mock.Mock()
         completed_futures = [mock.Mock(exception=mock.Mock(return_value=None))] * 3
-        pending_future = mock.Mock()
-        pending_futures = [pending_future]
 
         # does not raise error
-        downloader._check_for_errors(request, completed_futures, pending_futures)
-
-        # pending not cancalled
-        assert_false(pending_future.cancel.called)
+        downloader._check_for_errors(request, completed_futures)
 
     def test_check_for_errors(self):
         """Verify check_for_errors when there were no errors"""
@@ -453,14 +454,8 @@ class MultithreadedDownloaderTests(TestCase):
         failed_future = mock.Mock(exception=mock.Mock(return_value=exception))
         completed_futures = ([successful_future] * 2) + [failed_future] + [successful_future]
 
-        pending_futures = [mock.Mock(), mock.Mock()]
-
         with assert_raises(exception.__class__):
-            downloader._check_for_errors(request, completed_futures, pending_futures)
-
-        # pendings should have been cancelled
-        for future in pending_futures:
-            future.cancel.assert_called_once_with()
+            downloader._check_for_errors(request, completed_futures)
 
     @mock.patch.object(download_threads, "_get_thread_session")
     def test_get_response_with_retry__exceed_max_retries(self, mock_get_thread_session):

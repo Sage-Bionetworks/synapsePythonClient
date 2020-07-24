@@ -274,7 +274,6 @@ class _SyncDownloader:
 
         finally:
             self._file_semaphore.release()
-            del downloads_thread_local.executor
 
     def _sync_root(self, root, root_path, ifcollision, followLink, progress):
         # stack elements are a 3-tuple of:

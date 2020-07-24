@@ -31,6 +31,7 @@ BACK_OFF_FACTOR: float = 0.5
 
 _thread_local = _threading.local()
 
+
 @contextmanager
 def shared_executor(executor):
     """An outside process that will eventually trigger a download through the this module
@@ -236,8 +237,6 @@ def download_file(
             executor.shutdown()
 
 
-
-
 def _get_thread_session():
     # get a lazily initialized requests.Session from the thread.
     # we want to share a requests.Session over the course of a thread
@@ -245,9 +244,9 @@ def _get_thread_session():
     # thread local since Sessions are not thread safe so we need one per
     # active thread and since we're allowing the use of an externally provided
     # ExecutorService we don't can't really allocate a pool of Sessions ourselves
-    session = getattr(thread_local, 'session', None)
+    session = getattr(_thread_local, 'session', None)
     if not session:
-        session = thread_local.session = _get_new_session()
+        session = _thread_local.session = _get_new_session()
     return session
 
 
@@ -287,26 +286,40 @@ class _MultithreadedDownloader:
         # 3. waiting for additional parts to complete
         pending_futures = set()
         completed_futures = set()
-        while True:
-            submitted_futures = self._submit_chunks(
-                url_provider,
-                chunk_range_generator,
-                pending_futures,
-            )
+        try:
+            while True:
+                submitted_futures = self._submit_chunks(
+                    url_provider,
+                    chunk_range_generator,
+                    pending_futures,
+                )
 
-            self._write_chunks(request, completed_futures, transfer_status)
+                self._write_chunks(request, completed_futures, transfer_status)
 
-            # once there is nothing else pending we are done with the file download
-            pending_futures = pending_futures.union(submitted_futures)
-            if not pending_futures:
-                break
+                # once there is nothing else pending we are done with the file download
+                pending_futures = pending_futures.union(submitted_futures)
+                if not pending_futures:
+                    break
 
-            completed_futures, pending_futures = concurrent.futures.wait(
-                pending_futures,
-                return_when=concurrent.futures.FIRST_COMPLETED
-            )
+                completed_futures, pending_futures = concurrent.futures.wait(
+                    pending_futures,
+                    return_when=concurrent.futures.FIRST_COMPLETED
+                )
 
-            self._check_for_errors(request, completed_futures, pending_futures)
+                self._check_for_errors(request, completed_futures)
+
+        except BaseException:
+            # on any exception (e.g. KeyboardInterrupt), attempt to cancel any pending futures.
+            # if they are already running this won't have any effect though
+            for future in pending_futures:
+                future.cancel()
+
+            try:
+                os.remove(request.path)
+            except FileNotFoundError:
+                pass
+
+            raise
 
     @staticmethod
     def _get_response_with_retry(presigned_url_provider, start: int, end: int) -> Response:
@@ -367,7 +380,7 @@ class _MultithreadedDownloader:
                                           dt=transfer_status.elapsed_time())
 
     @staticmethod
-    def _check_for_errors(request, completed_futures, pending_futures):
+    def _check_for_errors(request, completed_futures):
         # if any submitted part download failed we abort the download.
         # any retry/recovery should be attempted within the download method
         # submitted to the Executor, if an Exception was flagged on the Future
@@ -375,6 +388,4 @@ class _MultithreadedDownloader:
         for completed_future in completed_futures:
             exception = completed_future.exception()
             if exception:
-                for pending_future in pending_futures:
-                    pending_future.cancel()
                 raise ValueError(f"Failed downloading {request.object_id} to {request.path}") from exception
