@@ -31,49 +31,75 @@ def test_progress(mock_utils_print_transfer_progress, mock_sys, mock_time):
     """Verify writing progress via a CumulativeProgress"""
 
     # mock time for predictability
-    mock_time.time.return_value = 0
+    # first call is in init constructor below, remaining three calls are in print calls to calculate transfer rate
+    mock_time.time.side_effect = [0, 100, 200, 300]
     progress = cumulative_transfer_progress.CumulativeTransferProgress('Testing')
 
-    mock_time.time.return_value = 100
+    # two prints for file 1 in a separate thread
+    # the first halfway through the second print indicates the file is done
+
+    # one print for a second file in this thread showing a file 3/4 done
+
+    args1a = [100, 200]
+    kwargs1a = {
+        'prefix': 'prefix1',
+        'postfix': 'postfix1',
+        'isBytes': True,
+        'dt': 300,
+        'previouslyTransferred': 0,
+    }
+
+    args1b = [200, 200]
+    kwargs1b = {
+        'prefix': 'prefix1',
+        'postfix': 'postfix1',
+        'isBytes': True,
+        'dt': 400,
+        'previouslyTransferred': 0,
+    }
+
+    args2 = [150, 200]
+    kwargs2 = {
+        'prefix': 'prefix2',
+        'postfix': 'postfix2',
+        'isBytes': True,
+        'dt': 300,
+        'previouslyTransferred': 0,
+    }
+
+    def print_completed():
+        with progress.accumulate_progress():
+            cumulative_transfer_progress.printTransferProgress(*args1a, **kwargs1a)
+            cumulative_transfer_progress.printTransferProgress(*args1b, **kwargs1b)
+    thread = threading.Thread(target=print_completed)
+    thread.start()
+
+    thread.join()
+
+    # the second print for the first file should have passed through to utils
+    # since it indicated the file was complete
+    mock_utils_print_transfer_progress.assert_called_once_with(*args1b, **kwargs1b)
+
     with progress.accumulate_progress():
         assert_is(progress, getattr(cumulative_transfer_progress._thread_local, 'cumulative_transfer_progress'))
+        cumulative_transfer_progress.printTransferProgress(*args2, **kwargs2)
 
-        # a complete transfer (transferred >= toBeTransferred)
-        # should additionally trigger a fall through to utils to print the complete progress bar
-        args1 = [100, 100]
-        kwargs1 = {
-            'prefix': 'prefix1',
-            'postfix': 'postfix1',
-            'isBytes': True,
-            'dt': 300,
-            'previouslyTransferred': 0
-        }
-        cumulative_transfer_progress.printTransferProgress(*args1, **kwargs1)
+        # 150 bytes transferred by this thread
+        assert_equals(150, cumulative_transfer_progress._thread_local.thread_transferred)
 
-        cumulative_transfer_progress.printTransferProgress(
-            150,
-            200,
-            prefix='prefix2',
-            postfix='postfix2',
-            isBytes=True,
-            dt=300,
-            previouslyTransferred=0
-        )
-
-        assert_equals(150, progress._total_transferred)
-        assert_equals(150, progress._thread_totals[threading.get_ident()])
-
-        print(progress)
-
-    mock_utils_print_transfer_progress.assert_called_once_with(*args1, **kwargs1)
+    # total transferred is 350, 200 from the first file in the separate thread,
+    # 150 from the transfer above from this thread
+    assert_equals(350, progress._total_transferred)
 
     expected_stdout_writes = [
         mock.call('\r / Testing 100.0bytes (1.0bytes/s)'),
-        mock.call('\r - Testing 150.0bytes (1.5bytes/s)'),
+        mock.call('\r - Testing 200.0bytes (1.0bytes/s)'),
+        mock.call('\r \\ Testing 350.0bytes (1.2bytes/s)'),
     ]
     assert_equals(expected_stdout_writes, mock_sys.stdout.write.call_args_list)
 
-    assert_false(threading.get_ident() in progress._thread_totals)
+    # test thread local props cleaned up
+    assert_false(hasattr(cumulative_transfer_progress._thread_local, 'thread_transferred'))
     assert_false(hasattr(cumulative_transfer_progress._thread_local, 'cumulative_transfer_progress'))
 
 
