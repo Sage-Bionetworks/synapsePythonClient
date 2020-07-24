@@ -40,18 +40,18 @@ class CumulativeTransferProgress:
         self._start = start if start is not None else time.time()
 
         self._total_transferred = 0
-        self._thread_totals = {}
 
     @contextmanager
     def accumulate_progress(self):
         """Threads should enter this context while they are running their transfers."""
 
         _thread_local.cumulative_transfer_progress = self
+        _thread_local.thread_transferred = 0
         try:
             yield
         finally:
-            self._thread_totals.pop(threading.get_ident(), None)
             del _thread_local.cumulative_transfer_progress
+            del _thread_local.thread_transferred
 
     def printTransferProgress(self, transferred, toBeTransferred, prefix='', postfix='', isBytes=True, dt=None,
                               previouslyTransferred=0):
@@ -81,10 +81,8 @@ class CumulativeTransferProgress:
             # we subtract the previously reported amount. this assumes that the printing
             # of the progress for any particular transfer is always conducted by the same
             # thread, which is true for all current transfer implementations.
-            thread_id = threading.get_ident()
-            already_transferred_by_thread = self._thread_totals.get(thread_id, 0)
-            self._total_transferred += (transferred - already_transferred_by_thread)
-            self._thread_totals[thread_id] = transferred
+            self._total_transferred += (transferred - _thread_local.thread_transferred)
+            _thread_local.thread_transferred = transferred
 
             cumulative_dt = time.time() - self._start
             rate = self._total_transferred / float(cumulative_dt)
