@@ -175,7 +175,7 @@ class TestPrivateGetWithEntityBundle:
         if os.path.exists(cacheMap):
             os.remove(cacheMap)
 
-        def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5, max_threads=None):
+        def _downloadFileHandle(fileHandleId, objectId, objectType, path, retries=5):
             # touch file at path
             with open(path, 'a'):
                 os.utime(path, None)

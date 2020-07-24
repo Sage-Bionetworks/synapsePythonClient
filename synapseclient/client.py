@@ -64,6 +64,7 @@ from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions, utils
 from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
+from synapseclient.core import cumulative_transfer_progress
 from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
 from synapseclient.core.credentials import cached_sessions
 from synapseclient.core.exceptions import (
@@ -220,7 +221,7 @@ class Synapse(object):
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
-        self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
+        self.multi_threaded = True  # if set to True, multi threaded download will be used for http and https URLs
 
         transfer_config = self._get_transfer_config()
         self.max_threads = transfer_config['max_threads']
@@ -617,8 +618,6 @@ class Synapse(object):
         :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is specified as a local
                                  file.  That is, if the file is stored in multiple locations in Synapse only the ones
                                  in the specified folder/project will be returned.
-        :param maxThreads:      The maximum number of threads to use when downloading the file (currently only
-                                 applies to S3 uploads)
 
         :returns: A new Synapse Entity object of the appropriate type
 
@@ -1689,7 +1688,7 @@ class Synapse(object):
     #                File handle service calls                 #
     ############################################################
 
-    def _getFileHandleDownload(self, fileHandleId,  objectId, objectType='FileEntity'):
+    def _getFileHandleDownload(self, fileHandleId, objectId, objectType=None):
         """
         Gets the URL and the metadata as filehandle object for a filehandle or fileHandleId
 
@@ -1702,7 +1701,7 @@ class Synapse(object):
         body = {'includeFileHandles': True, 'includePreSignedURLs': True,
                 'requestedFiles': [{'fileHandleId': fileHandleId,
                                     'associateObjectId': objectId,
-                                    'associateObjectType': objectType}]}
+                                    'associateObjectType': objectType or 'FileEntity'}]}
         response = self.restPOST('/fileHandle/batch', body=json.dumps(body),
                                  endpoint=self.fileHandleEndpoint)
         result = response['requestedFiles'][0]
@@ -1714,7 +1713,6 @@ class Synapse(object):
                 "You are not authorized to access fileHandleId %s associated with the Synapse"
                 " %s: %s" % (fileHandleId, objectType, objectId)
             )
-
         return result
 
     def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
@@ -1766,7 +1764,13 @@ class Synapse(object):
                         'read_only',
                     )
 
-                elif self.multi_threaded and concreteType == concrete_types.S3_FILE_HANDLE:
+                elif self.multi_threaded and \
+                        concreteType == concrete_types.S3_FILE_HANDLE and \
+                        fileHandle.get('contentSize', 0) > multithread_download.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE:
+                    # run the download multi threaded if the file supports it, we're configured to do so,
+                    # and the file is large enough that it would be broken into parts to take advantage of
+                    # multiple downloading threads. otherwise it's more efficient to run the download as a simple
+                    # single threaded URL download.
                     downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
                                                                              objectId,
                                                                              objectType,
@@ -1798,6 +1802,7 @@ class Synapse(object):
                                           object_id,
                                           object_type,
                                           destination,
+                                          *,
                                           expected_md5=None):
         destination = os.path.abspath(destination)
         temp_destination = utils.temp_download_filename(destination, file_handle_id)
@@ -1807,7 +1812,7 @@ class Synapse(object):
                                                        object_type=object_type,
                                                        path=temp_destination)
 
-        multithread_download.download_file(self, request, self.max_threads)
+        multithread_download.download_file(self, request)
 
         if expected_md5:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
@@ -1932,8 +1937,13 @@ class Synapse(object):
                                 # response.raw.tell() is the total number of response body bytes transferred over the
                                 # wire so far
                                 transferred = response.raw.tell() + previouslyTransferred
-                                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
-                                                            os.path.basename(destination), dt=time.time()-t0)
+                                cumulative_transfer_progress.printTransferProgress(
+                                    transferred,
+                                    toBeTransferred,
+                                    'Downloading ',
+                                    os.path.basename(destination),
+                                    dt=time.time() - t0
+                                )
                     except Exception as ex:  # We will add a progress parameter then push it back to retry.
                         ex.progress = transferred-previouslyTransferred
                         raise
