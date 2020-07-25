@@ -6,7 +6,7 @@ import random
 
 import pytest
 
-from synapseclient import Evaluation, File, Team, SubmissionViewSchema
+from synapseclient import Evaluation, File, SubmissionViewSchema, Synapse, Team
 from synapseclient.core.exceptions import SynapseHTTPError
 
 
@@ -173,12 +173,15 @@ def test_teams(syn, project, schedule_for_cleanup):
     team = syn.store(Team(name=name, description="A fake team for testing..."))
     schedule_for_cleanup(team)
 
-    found_team = syn.getTeam(team.id)
+    # not logged in, teams are public
+    anonymous_syn = Synapse()
+
+    found_team = anonymous_syn.getTeam(team.id)
     assert team == found_team
 
     p = syn.getUserProfile()
     found = None
-    for m in syn.getTeamMembers(team):
+    for m in anonymous_syn.getTeamMembers(team):
         if m.member.ownerId == p.ownerId:
             found = m
             break
@@ -190,7 +193,7 @@ def test_teams(syn, project, schedule_for_cleanup):
     found_team = None
     while tries > 0:
         try:
-            found_team = syn.getTeam(name)
+            found_team = anonymous_syn.getTeam(name)
             break
         except ValueError:
             tries -= 1

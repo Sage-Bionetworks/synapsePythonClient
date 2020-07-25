@@ -545,9 +545,9 @@ def build_parser():
     parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
                             help='Directory to download file to [default: %(default)s].')
     parser_get.add_argument('--multiThreaded', action='store_true',
-                            default=False, help='Download file using a multiple threaded implementation. '
-                                                'This flag will be removed in the future when multi-threaded download '
-                                                'is deemed fully stable and becomes the default implementation.')
+                            default=True, help='Download file using a multiple threaded implementation. '
+                            'This flag will be removed in the future when multi-threaded download '
+                            'is deemed fully stable and becomes the default implementation.')
     parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
     parser_get.set_defaults(func=get)

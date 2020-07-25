@@ -36,21 +36,15 @@ def test_command_sync():
 
 
 def test_get_multi_threaded_flag():
-    """Test the sync function.
-
-    Since this function only passes argparse arguments for the sync subcommand
-    straight to `synapseutils.sync.syncToSynapse`, the only tests here are for
-    the command line arguments provided and that the function is called once.
-
-    """
-
+    """Test the multi threaded command line flag"""
     parser = cmdline.build_parser()
     args = parser.parse_args(['get', '--multiThreaded', 'syn123'])
 
     assert args.multiThreaded
 
+    # defaults to True
     args = parser.parse_args(['get', 'syn123'])
-    assert not args.multiThreaded
+    assert args.multiThreaded
 
 
 @patch('builtins.print')

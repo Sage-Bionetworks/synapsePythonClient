@@ -1,7 +1,7 @@
 import os
 import csv
 import pandas as pd
-import pandas.util.testing as pdt
+import pandas.testing as pdt
 from io import StringIO
 import tempfile
 
@@ -9,9 +9,11 @@ import pytest
 from unittest.mock import patch, create_autospec, Mock, call
 
 import synapseutils
+from synapseutils.sync import _FolderSync
 from synapseclient import Activity, File, Folder, Project, Schema
 from synapseclient.core.exceptions import SynapseHTTPError
 from tests.unit import syn
+from synapseclient.core.utils import id_of
 
 
 def test_readManifest__sync_order_with_home_directory():
@@ -130,15 +132,27 @@ def test_syncFromSynapse__project_contains_empty_folder():
     project = Project(name="the project", parent="whatever", id="syn123")
     file = File(name="a file", parent=project, id="syn456")
     folder = Folder(name="a folder", parent=project, id="syn789")
+
+    entities = {
+        file.id: file,
+        folder.id: folder,
+    }
+
+    def syn_get_side_effect(entity, *args, **kwargs):
+        return entities[id_of(entity)]
+
     with patch.object(syn, "getChildren", side_effect=[[folder, file], []]) as patch_syn_get_children,\
-            patch.object(syn, "get", side_effect=[folder, file]) as patch_syn_get:
+            patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
+
         assert [file] == synapseutils.syncFromSynapse(syn, project)
         expected_get_children_agrs = [call(project['id']), call(folder['id'])]
         assert expected_get_children_agrs == patch_syn_get_children.call_args_list
-        expected_get_args = [
-            call(folder['id'], downloadLocation=None, ifcollision='overwrite.local', followLink=False),
-            call(file['id'], downloadLocation=None, ifcollision='overwrite.local', followLink=False)]
-        assert expected_get_args == patch_syn_get.call_args_list
+        patch_syn_get.assert_called_once_with(
+            file['id'],
+            downloadLocation=None,
+            ifcollision='overwrite.local',
+            followLink=False,
+        )
 
 
 def _compareCsv(expected_csv_string, csv_path):
@@ -154,9 +168,19 @@ def test_syncFromSynase__manifest():
     """Verify that we generate manifest files when syncing to a location outside of the cache."""
 
     project = Project(name="the project", parent="whatever", id="syn123")
-    file1 = File(name="file1", parent=project, id="syn456")
-    file2 = File(name="file2", parent=project, id="syn789", parentId='syn098')
-    folder = Folder(name="a folder", parent=project, id="syn098")
+    path1 = '/tmp/foo'
+    file1 = File(name="file1", parent=project, id="syn456", path=path1)
+    path2 = '/tmp/afolder/bar'
+    file2 = File(name="file2", parent=project, id="syn789", parentId='syn098', path=path2)
+    folder = Folder(name="afolder", parent=project, id="syn098")
+    entities = {
+        file1.id: file1,
+        file2.id: file2,
+        folder.id: folder,
+    }
+
+    def syn_get_side_effect(entity, *args, **kwargs):
+        return entities[id_of(entity)]
 
     file_1_provenance = Activity(data={
         'used': '',
@@ -169,15 +193,23 @@ def test_syncFromSynase__manifest():
         'description': 'bar',
     })
 
+    provenance = {
+        file1.id: file_1_provenance,
+        file2.id: file_2_provenance,
+    }
+
+    def getProvenance_side_effect(entity, *args, **kwargs):
+        return provenance[id_of(entity)]
+
     expected_project_manifest = \
-        """path\tparent\tname\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-\tsyn098\tfile2\tTrue\t\t\t\tfoo\tbar
-\tsyn123\tfile1\tTrue\t\t\t\t\t
+        f"""path\tparent\tname\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+{path1}\tsyn123\tfile1\tTrue\t\t\t\t\t
+{path2}\tsyn098\tfile2\tTrue\t\t\t\tfoo\tbar
 """
 
     expected_folder_manifest = \
-        """path\tparent\tname\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-\tsyn098\tfile2\tTrue\t\t\t\tfoo\tbar
+        f"""path\tparent\tname\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+{path2}\tsyn098\tfile2\tTrue\t\t\t\tfoo\tbar
 """
 
     expected_synced_files = [file2, file1]
@@ -185,14 +217,13 @@ def test_syncFromSynase__manifest():
     with tempfile.TemporaryDirectory() as sync_dir:
 
         with patch.object(syn, "getChildren", side_effect=[[folder, file1], [file2]]),\
-            patch.object(syn, "get", side_effect=[folder, file2, file1]),\
+                patch.object(syn, "get", side_effect=syn_get_side_effect),\
                 patch.object(syn, "getProvenance") as patch_syn_get_provenance:
 
-            patch_syn_get_provenance.side_effect = [file_2_provenance, file_1_provenance]
+            patch_syn_get_provenance.side_effect = getProvenance_side_effect
 
             synced_files = synapseutils.syncFromSynapse(syn, project, path=sync_dir)
-
-            assert expected_synced_files == synced_files
+            assert sorted([id_of(e) for e in expected_synced_files]) == sorted([id_of(e) for e in synced_files])
 
             # we only expect two calls to provenance even though there are three rows of provenance data
             # in the manifests (two in the outer project, one in the folder)
@@ -209,6 +240,87 @@ def test_syncFromSynase__manifest():
                 expected_folder_manifest,
                 os.path.join(sync_dir, folder.name, synapseutils.sync.MANIFEST_FILENAME)
             )
+
+
+class TestFolderSync:
+
+    def test_init(self):
+        syn = Mock()
+        entity_id = 'syn123'
+        path = '/tmp/foo/bar'
+        child_ids = ['syn456', 'syn789']
+
+        parent = _FolderSync(syn, 'syn987', '/tmp/foo', [entity_id], None)
+        child = _FolderSync(syn, entity_id, path, child_ids, parent)
+        assert syn == child._syn
+        assert entity_id == child._entity_id
+        assert path == child._path
+        assert set(child_ids) == child._pending_ids
+        assert parent == child._parent
+
+    def test_update(self):
+        syn = Mock()
+        entity_id = 'syn123'
+        path = '/tmp/foo/bar'
+        child_ids = ['syn456', 'syn789']
+        folder_sync = _FolderSync(syn, entity_id, path, child_ids, None)
+
+        file = Mock()
+        provenance = {'syn456': {'foo': 'bar'}}
+
+        folder_sync.update(finished_id='syn456', files=[file], provenance=provenance)
+        assert set(['syn789']) == folder_sync._pending_ids
+        assert [file] == folder_sync._files
+        assert provenance == folder_sync._provenance
+
+    def _finished_test(self, path):
+        syn = Mock()
+        entity_id = 'syn123'
+        child_ids = ['syn456']
+        file = Mock()
+
+        parent = _FolderSync(syn, 'syn987', path, [entity_id], None)
+        child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
+
+        child.update(finished_id='syn456', files=[file])
+        assert child._is_finished()
+        assert parent._is_finished()
+        parent.wait_until_finished()
+        return child
+
+    def test_update__finished(self):
+        self._finished_test(None)
+
+    def test_update__finish__generate_manifest(self):
+        with patch.object(synapseutils.sync, 'generateManifest') as mock_generateManifest:
+            folder_sync = self._finished_test('/tmp/foo')
+
+            manifest_filename = folder_sync._manifest_filename()
+            parent_manifest_filename = folder_sync._parent._manifest_filename()
+
+            expected_manifest_calls = [
+                call(folder_sync._syn, folder_sync._files, manifest_filename,
+                     provenance_cache={}),
+                call(folder_sync._parent._syn, folder_sync._parent._files, parent_manifest_filename,
+                     provenance_cache={}),
+            ]
+            assert expected_manifest_calls == mock_generateManifest.call_args_list
+
+    def test_set_exception(self):
+        syn = Mock()
+        path = '/tmp/foo'
+        entity_id = 'syn123'
+        child_ids = ['syn456']
+
+        parent = _FolderSync(syn, 'syn987', path, [entity_id], None)
+        child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
+
+        exception = ValueError('failed!')
+        child.set_exception(exception)
+        assert exception is child.get_exception()
+        assert exception is parent.get_exception()
+        assert child._is_finished()
+        assert parent._is_finished()
 
 
 def test_extract_file_entity_metadata__ensure_correct_row_metadata():

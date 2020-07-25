@@ -45,6 +45,7 @@ import tempfile
 import time
 import typing
 import urllib.parse as urllib_urlparse
+import urllib.request as urllib_request
 import warnings
 import webbrowser
 import zipfile
@@ -63,6 +64,7 @@ from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions, utils
 from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
+from synapseclient.core import cumulative_transfer_progress
 from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
 from synapseclient.core.credentials import cached_sessions
 from synapseclient.core.exceptions import (
@@ -219,7 +221,7 @@ class Synapse(object):
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
-        self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
+        self.multi_threaded = True  # if set to True, multi threaded download will be used for http and https URLs
 
         transfer_config = self._get_transfer_config()
         self.max_threads = transfer_config['max_threads']
@@ -616,8 +618,6 @@ class Synapse(object):
         :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is specified as a local
                                  file.  That is, if the file is stored in multiple locations in Synapse only the ones
                                  in the specified folder/project will be returned.
-        :param maxThreads:      The maximum number of threads to use when downloading the file (currently only
-                                 applies to S3 uploads)
 
         :returns: A new Synapse Entity object of the appropriate type
 
@@ -1688,7 +1688,7 @@ class Synapse(object):
     #                File handle service calls                 #
     ############################################################
 
-    def _getFileHandleDownload(self, fileHandleId,  objectId, objectType='FileEntity'):
+    def _getFileHandleDownload(self, fileHandleId, objectId, objectType=None):
         """
         Gets the URL and the metadata as filehandle object for a filehandle or fileHandleId
 
@@ -1701,7 +1701,7 @@ class Synapse(object):
         body = {'includeFileHandles': True, 'includePreSignedURLs': True,
                 'requestedFiles': [{'fileHandleId': fileHandleId,
                                     'associateObjectId': objectId,
-                                    'associateObjectType': objectType}]}
+                                    'associateObjectType': objectType or 'FileEntity'}]}
         response = self.restPOST('/fileHandle/batch', body=json.dumps(body),
                                  endpoint=self.fileHandleEndpoint)
         result = response['requestedFiles'][0]
@@ -1713,7 +1713,6 @@ class Synapse(object):
                 "You are not authorized to access fileHandleId %s associated with the Synapse"
                 " %s: %s" % (fileHandleId, objectType, objectId)
             )
-
         return result
 
     def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
@@ -1765,7 +1764,13 @@ class Synapse(object):
                         'read_only',
                     )
 
-                elif self.multi_threaded and concreteType == concrete_types.S3_FILE_HANDLE:
+                elif self.multi_threaded and \
+                        concreteType == concrete_types.S3_FILE_HANDLE and \
+                        fileHandle.get('contentSize', 0) > multithread_download.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE:
+                    # run the download multi threaded if the file supports it, we're configured to do so,
+                    # and the file is large enough that it would be broken into parts to take advantage of
+                    # multiple downloading threads. otherwise it's more efficient to run the download as a simple
+                    # single threaded URL download.
                     downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
                                                                              objectId,
                                                                              objectType,
@@ -1797,6 +1802,7 @@ class Synapse(object):
                                           object_id,
                                           object_type,
                                           destination,
+                                          *,
                                           expected_md5=None):
         destination = os.path.abspath(destination)
         temp_destination = utils.temp_download_filename(destination, file_handle_id)
@@ -1806,7 +1812,7 @@ class Synapse(object):
                                                        object_type=object_type,
                                                        path=temp_destination)
 
-        multithread_download.download_file(self, request, self.max_threads)
+        multithread_download.download_file(self, request)
 
         if expected_md5:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
@@ -1859,7 +1865,7 @@ class Synapse(object):
                 destination = SFTPWrapper.download_file(url, destination, username, password)
                 break
             elif scheme == 'ftp':
-                urllib_urlparse.urlretrieve(url, destination)
+                urllib_request.urlretrieve(url, destination)
                 break
             elif scheme == 'http' or scheme == 'https':
                 # if a partial download exists with the temporary name,
@@ -1869,7 +1875,7 @@ class Synapse(object):
                     if os.path.exists(temp_destination) else {}
                 response = with_retry(
                     lambda: self._requests_session.get(url,
-                                                       headers=self._generateSignedHeaders(url, range_header),
+                                                       headers=self._generate_headers(url, range_header),
                                                        stream=True, allow_redirects=False),
                     verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
@@ -1931,8 +1937,13 @@ class Synapse(object):
                                 # response.raw.tell() is the total number of response body bytes transferred over the
                                 # wire so far
                                 transferred = response.raw.tell() + previouslyTransferred
-                                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
-                                                            os.path.basename(destination), dt=time.time()-t0)
+                                cumulative_transfer_progress.printTransferProgress(
+                                    transferred,
+                                    toBeTransferred,
+                                    'Downloading ',
+                                    os.path.basename(destination),
+                                    dt=time.time() - t0
+                                )
                     except Exception as ex:  # We will add a progress parameter then push it back to retry.
                         ex.progress = transferred-previouslyTransferred
                         raise
@@ -3590,19 +3601,45 @@ class Synapse(object):
     #                   Low level Rest calls                   #
     ############################################################
 
-    def _generateSignedHeaders(self, url, headers=None):
+    def _generate_headers(self, url, headers=None):
         """Generate headers signed with the API key."""
-
-        if self.credentials is None:
-            raise SynapseAuthenticationError("Please login")
 
         if headers is None:
             headers = dict(self.default_headers)
 
         headers.update(synapseclient.USER_AGENT)
 
-        headers.update(self.credentials.get_signed_headers(url))
+        if self.credentials:
+            headers.update(self.credentials.get_signed_headers(url))
         return headers
+
+    def _handle_synapse_http_error(self, response):
+        """Raise errors as appropriate for returned Synapse http status codes"""
+
+        try:
+            exceptions._raise_for_status(response, verbose=self.debug)
+        except exceptions.SynapseHTTPError as ex:
+            # if we get a unauthenticated or forbidden error and the user is not logged in
+            # then we raise it as an authentication error.
+            # we can't know for certain that logging in to their particular account will grant them
+            # access to this resource but more than likely it's the cause of this error.
+            if response.status_code in (401, 403) and not self.credentials:
+                raise SynapseAuthenticationError(
+                    "You are not logged in and do not have access to a requested resource."
+                ) from ex
+
+            raise
+
+    def _rest_call(self, method, uri, data, endpoint, headers, retryPolicy, requests_session, **kwargs):
+        uri, headers = self._build_uri_and_headers(uri, endpoint=endpoint, headers=headers)
+        retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
+
+        requests_method_fn = getattr(requests_session, method)
+        response = with_retry(lambda: requests_method_fn(uri, data=data, headers=headers, **kwargs),
+                              verbose=self.debug, **retryPolicy)
+        self._handle_synapse_http_error(response)
+        return response
 
     def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
@@ -3617,14 +3654,7 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
-
-        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
-        retryPolicy = self._build_retry_policy(retryPolicy)
-        requests_session = requests_session or self._requests_session
-
-        response = with_retry(lambda: requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
-                              **retryPolicy)
-        exceptions._raise_for_status(response, verbose=self.debug)
+        response = self._rest_call('get', uri, None, endpoint, headers, retryPolicy, requests_session, **kwargs)
         return self._return_rest_body(response)
 
     def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
@@ -3641,13 +3671,7 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
-        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
-        retryPolicy = self._build_retry_policy(retryPolicy)
-        requests_session = requests_session or self._requests_session
-
-        response = with_retry(lambda: requests_session.post(uri, data=body, headers=headers, **kwargs),
-                              verbose=self.debug, **retryPolicy)
-        exceptions._raise_for_status(response, verbose=self.debug)
+        response = self._rest_call('post', uri, body, endpoint, headers, retryPolicy, requests_session, **kwargs)
         return self._return_rest_body(response)
 
     def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
@@ -3664,14 +3688,7 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
-
-        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
-        retryPolicy = self._build_retry_policy(retryPolicy)
-        requests_session = requests_session or self._requests_session
-
-        response = with_retry(lambda: requests_session.put(uri, data=body, headers=headers, **kwargs),
-                              verbose=self.debug, **retryPolicy)
-        exceptions._raise_for_status(response, verbose=self.debug)
+        response = self._rest_call('put', uri, body, endpoint, headers, retryPolicy, requests_session, **kwargs)
         return self._return_rest_body(response)
 
     def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
@@ -3685,14 +3702,7 @@ class Synapse(object):
         :param kwargs:              Any other arguments taken by a
                                     `requests <http://docs.python-requests.org/en/latest/>`_ method
         """
-
-        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
-        retryPolicy = self._build_retry_policy(retryPolicy)
-        requests_session = requests_session or self._requests_session
-
-        response = with_retry(lambda: requests_session.delete(uri, headers=headers, **kwargs),
-                              verbose=self.debug, **retryPolicy)
-        exceptions._raise_for_status(response, verbose=self.debug)
+        self._rest_call('delete', uri, None, endpoint, headers, retryPolicy, requests_session, **kwargs)
 
     def _build_uri_and_headers(self, uri, endpoint=None, headers=None):
         """Returns a tuple of the URI and headers to request with."""
@@ -3707,7 +3717,7 @@ class Synapse(object):
             uri = endpoint + uri
 
         if headers is None:
-            headers = self._generateSignedHeaders(uri)
+            headers = self._generate_headers(uri)
         return uri, headers
 
     def _build_retry_policy(self, retryPolicy={}):

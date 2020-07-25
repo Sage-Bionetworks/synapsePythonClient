@@ -14,15 +14,7 @@ import synapseclient.core.utils as utils
 def test_download_check_md5(syn, project, schedule_for_cleanup):
     tempfile_path = utils.make_bogus_data_file()
     schedule_for_cleanup(tempfile_path)
-    entity = File(parent=project['id'])
-    entity['path'] = tempfile_path
-    entity = syn.store(entity)
-
-    syn._downloadFileHandle(entity['dataFileHandleId'], entity['id'], 'FileEntity', tempfile.gettempdir())
-
-    tempfile_path2 = utils.make_bogus_data_file()
-    schedule_for_cleanup(tempfile_path2)
-    entity_bad_md5 = syn.store(File(path=tempfile_path2, parent=project['id'], synapseStore=False))
+    entity_bad_md5 = syn.store(File(path=tempfile_path, parent=project['id'], synapseStore=False))
 
     pytest.raises(SynapseMd5MismatchError, syn._download_from_URL, entity_bad_md5['externalURL'], tempfile.gettempdir(),
                   entity_bad_md5['dataFileHandleId'], expected_md5="2345a")
