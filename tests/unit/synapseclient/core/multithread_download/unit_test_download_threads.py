@@ -64,7 +64,7 @@ class TestPresignedUrlProvider(object):
                                                           self.download_request)
             assert unexpired_info == presigned_url_provider.get_info()
 
-            # only caled once in init and again in get_info
+            # only called once in init and again in get_info
             assert 2 == mock_get_presigned_info.call_count
             mock_datetime.datetime.utcnow.assert_called_once()
 
@@ -505,7 +505,8 @@ class MultithreadedDownloaderTests(TestCase):
         downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)
         assert (
             (start, mock_requests_response) ==
-            downloader._get_response_with_retry(mock_presigned_url_provider, start, end))
+            downloader._get_response_with_retry(mock_presigned_url_provider, start, end)
+        )
 
         mock_requests_session.get.assert_called_once_with(
             presigned_url_info.url,
