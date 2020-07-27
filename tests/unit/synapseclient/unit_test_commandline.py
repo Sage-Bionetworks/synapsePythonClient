@@ -6,10 +6,9 @@ from unittest.mock import Mock, patch
 
 import synapseutils
 import synapseclient.__main__ as cmdline
-from tests.unit import syn
 
 
-def test_command_sync():
+def test_command_sync(syn):
     """Test the sync function.
 
     Since this function only passes argparse arguments for the sync subcommand

@@ -19,7 +19,7 @@ pytest session level fixtures shared by all integration tests.
 @pytest.fixture(scope="session")
 def syn():
     """
-    Create a synapse logged in Synapse instance that can be shared by all tests in the session.
+    Create a logged in Synapse instance that can be shared by all tests in the session.
     """
     print("Python version:", sys.version)
 

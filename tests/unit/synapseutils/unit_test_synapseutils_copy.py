@@ -8,17 +8,16 @@ import synapseclient
 import synapseutils
 from synapseutils.copy_functions import _copy_file_handles_batch, _create_batch_file_handle_copy_request, \
     _batch_iterator_generator
-from tests.unit import syn
 
 
-def test_copyWiki_empty_Wiki():
+def test_copyWiki_empty_Wiki(syn):
     entity = {"id": "syn123"}
     with patch.object(syn, "getWikiHeaders", return_value=None), \
             patch.object(syn, "get", return_value=entity):
         synapseutils.copyWiki(syn, "syn123", "syn456", updateLinks=False)
 
 
-def test_copyWiki_input_validation():
+def test_copyWiki_input_validation(syn):
     to_copy = [{'id': '8688', 'title': 'A Test Wiki'},
                {'id': '8689', 'title': 'A sub-wiki', 'parentId': '8688'},
                {'id': '8690', 'title': 'A sub-sub-wiki', 'parentId': '8689'}]
@@ -49,6 +48,10 @@ def test_copyWiki_input_validation():
 
 class TestCopyFileHandles:
 
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
     def setup(self):
         self.patch_private_copy = patch.object(synapseutils.copy_functions, "_copy_file_handles_batch")
         self.mock_private_copy = self.patch_private_copy.start()
@@ -60,7 +63,8 @@ class TestCopyFileHandles:
         file_handles = ["test"]
         obj_types = []
         obj_ids = ["123"]
-        pytest.raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids)
+        with pytest.raises(ValueError):
+            synapseutils.copyFileHandles(self.syn, file_handles, obj_types, obj_ids)
         self.mock_private_copy.assert_not_called()
 
     def test_copy_file_handles__invalid_input_params_branch2(self):
@@ -68,7 +72,8 @@ class TestCopyFileHandles:
         obj_types = ["FileEntity"]
         obj_ids = ["123"]
         new_con_type = []
-        pytest.raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids, new_con_type)
+        with pytest.raises(ValueError):
+            synapseutils.copyFileHandles(self.syn, file_handles, obj_types, obj_ids, new_con_type)
         self.mock_private_copy.assert_not_called()
 
     def test_copy_file_handles__invalid_input_params_branch3(self):
@@ -77,8 +82,8 @@ class TestCopyFileHandles:
         obj_ids = ["123"]
         new_con_type = ["text/plain"]
         new_file_name = []
-        pytest.raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids, new_con_type,
-                      new_file_name)
+        with pytest.raises(ValueError):
+            synapseutils.copyFileHandles(self.syn, file_handles, obj_types, obj_ids, new_con_type, new_file_name)
         self.mock_private_copy.assert_not_called()
 
     def test_copy_file_handles__multiple_batch_calls(self):
@@ -89,8 +94,10 @@ class TestCopyFileHandles:
         con_types = [None, "text/plain"]
         file_names = [None, "testName"]
 
-        expected_calls = [((syn, file_handles[0:1], obj_types[0:1], obj_ids[0:1], con_types[0:1], file_names[0:1]),),
-                          ((syn, file_handles[1:2], obj_types[1:2], obj_ids[1:2], con_types[1:2], file_names[1:2]),)]
+        expected_calls = [
+            ((self.syn, file_handles[0:1], obj_types[0:1], obj_ids[0:1], con_types[0:1], file_names[0:1]),),
+            ((self.syn, file_handles[1:2], obj_types[1:2], obj_ids[1:2], con_types[1:2], file_names[1:2]),)
+        ]
 
         return_val_1 = [{
             "newFileHandle": {
@@ -118,7 +125,7 @@ class TestCopyFileHandles:
         expected_return = return_val_1 + return_val_2
 
         self.mock_private_copy.side_effect = [return_val_1, return_val_2]  # define multiple returns
-        result = synapseutils.copyFileHandles(syn, file_handles, obj_types, obj_ids, con_types, file_names)
+        result = synapseutils.copyFileHandles(self.syn, file_handles, obj_types, obj_ids, con_types, file_names)
         assert expected_calls == self.mock_private_copy.call_args_list
 
         assert result == expected_return
@@ -127,8 +134,12 @@ class TestCopyFileHandles:
 
 class TestProtectedCopyFileHandlesBatch:
 
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
     def setup(self):
-        self.patch_restPOST = patch.object(syn, 'restPOST')
+        self.patch_restPOST = patch.object(self.syn, 'restPOST')
         self.mock_restPOST = self.patch_restPOST.start()
 
     def teardown(self):
@@ -200,10 +211,10 @@ class TestProtectedCopyFileHandlesBatch:
         ]
         post_return_val = {"copyResults": return_val}
         self.mock_restPOST.return_value = post_return_val
-        result = _copy_file_handles_batch(syn, file_handles, obj_types, obj_ids, con_types, file_names)
+        result = _copy_file_handles_batch(self.syn, file_handles, obj_types, obj_ids, con_types, file_names)
         assert result == return_val
         self.mock_restPOST.assert_called_once_with('/filehandles/copy', body=json.dumps(expected_input),
-                                                   endpoint=syn.fileHandleEndpoint)
+                                                   endpoint=self.syn.fileHandleEndpoint)
 
 
 class TestProtectedCreateBatchFileHandleCopyRequest:
@@ -290,6 +301,10 @@ class TestProtectedBatchIteratorGenerator:
 class TestCopyPermissions:
     """Test copy entities with different permissions"""
 
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
     def setup(self):
         self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
                                                     id="syn1234")
@@ -302,11 +317,11 @@ class TestCopyPermissions:
     def test_dont_copy_read_permissions(self):
         """Entities with READ permissions not copied"""
         permissions = {'canDownload': False}
-        with patch.object(syn, "get",
+        with patch.object(self.syn, "get",
                           return_value=self.file_ent) as patch_syn_get,\
-            patch.object(syn, "restGET",
+            patch.object(self.syn, "restGET",
                          return_value=permissions) as patch_rest_get:
-            copied_file = synapseutils.copy(syn, self.file_ent,
+            copied_file = synapseutils.copy(self.syn, self.file_ent,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
             assert copied_file == dict()
@@ -318,6 +333,10 @@ class TestCopyPermissions:
 
 class TestCopyAccessRestriction:
     """Test that entities with access restrictions aren't copied"""
+
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
 
     def setup(self):
         self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
@@ -332,12 +351,12 @@ class TestCopyAccessRestriction:
         # TEST: Entity with access requirement not copied
         access_requirements = {'results': ["fee", "fi"]}
         permissions = {'canDownload': True}
-        with patch.object(syn, "get",
+        with patch.object(self.syn, "get",
                           return_value=self.file_ent) as patch_syn_get,\
-            patch.object(syn, "restGET",
+            patch.object(self.syn, "restGET",
                          side_effects=[permissions,
                                        access_requirements]) as patch_rest_get:
-            copied_file = synapseutils.copy(syn, self.file_ent,
+            copied_file = synapseutils.copy(self.syn, self.file_ent,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
             assert copied_file == dict()
@@ -350,6 +369,10 @@ class TestCopyAccessRestriction:
 
 class TestCopy:
     """Test that certain entities aren't copied"""
+
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
 
     def setup(self):
         self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
@@ -364,13 +387,13 @@ class TestCopy:
         """Docker repositories and EntityViews aren't copied"""
         access_requirements = {'results': []}
         permissions = {'canDownload': True}
-        with patch.object(syn, "get",
+        with patch.object(self.syn, "get",
                           return_value=self.project_entity) as patch_syn_get,\
-                patch.object(syn, "restGET",
+                patch.object(self.syn, "restGET",
                              side_effect=[permissions,
                                           access_requirements]) as patch_rest_get,\
-                patch.object(syn, "getChildren") as patch_get_children:
-            copied_file = synapseutils.copy(syn, self.project_entity,
+                patch.object(self.syn, "getChildren") as patch_get_children:
+            copied_file = synapseutils.copy(self.syn, self.project_entity,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
             assert copied_file == {

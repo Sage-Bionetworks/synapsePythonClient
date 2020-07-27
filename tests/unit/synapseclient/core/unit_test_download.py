@@ -18,7 +18,6 @@ from synapseclient import client
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError, SynapseError, \
     SynapseFileNotFoundError
-from tests.unit import syn
 
 
 # a callable that mocks the requests.get function
@@ -115,7 +114,7 @@ def mock_generate_headers(self, url, headers=None):
     return {}
 
 
-def test_mock_download():
+def test_mock_download(syn):
     temp_dir = tempfile.gettempdir()
 
     fileHandleId = "42"
@@ -254,14 +253,18 @@ def test_mock_download():
 
 class Test__downloadFileHandle(unittest.TestCase):
 
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
     def tearDown(self) -> None:
-        syn.multi_threaded = False
+        self.syn.multi_threaded = False
 
     def test_multithread_true__S3_fileHandle(self):
         with patch.object(os, "makedirs"), \
-                patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
-                patch.object(syn, "_download_from_url_multi_threaded") as mock_multi_thread_download, \
-                patch.object(syn, "cache"):
+                patch.object(self.syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
+                patch.object(self.syn, "_download_from_url_multi_threaded") as mock_multi_thread_download, \
+                patch.object(self.syn, "cache"):
 
             mock_getFileHandleDownload.return_value = {
                 'fileHandle': {
@@ -272,8 +275,8 @@ class Test__downloadFileHandle(unittest.TestCase):
                 }
             }
 
-            syn.multi_threaded = True
-            syn._downloadFileHandle(
+            self.syn.multi_threaded = True
+            self.syn._downloadFileHandle(
                 fileHandleId=123,
                 objectId=456,
                 objectType="FileEntity",
@@ -285,9 +288,9 @@ class Test__downloadFileHandle(unittest.TestCase):
 
     def _multithread_not_applicable(self, file_handle):
         with patch.object(os, "makedirs"), \
-                patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
-                patch.object(syn, "_download_from_URL") as mock_download_from_URL, \
-                patch.object(syn, "cache"), \
+                patch.object(self.syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
+                patch.object(self.syn, "_download_from_URL") as mock_download_from_URL, \
+                patch.object(self.syn, "cache"), \
                 patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
             mock_getFileHandleDownload.return_value = {
                 'fileHandle': file_handle,
@@ -295,8 +298,13 @@ class Test__downloadFileHandle(unittest.TestCase):
             }
 
             # multi_threaded/max_threads will have effect
-            syn.multi_threaded = True
-            syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath")
+            self.syn.multi_threaded = True
+            self.syn._downloadFileHandle(
+                fileHandleId=123,
+                objectId=456,
+                objectType="FileEntity",
+                destination="/myfakepath"
+            )
 
             mock_download_from_URL.assert_called_once_with("asdf.com", "/myfakepath", "123", expected_md5="someMD5")
 
@@ -322,9 +330,9 @@ class Test__downloadFileHandle(unittest.TestCase):
 
     def test_multithread_false__S3_fileHandle(self):
         with patch.object(os, "makedirs"), \
-                patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
-                patch.object(syn, "_download_from_URL") as mock_download_from_URL, \
-                patch.object(syn, "cache"), \
+                patch.object(self.syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
+                patch.object(self.syn, "_download_from_URL") as mock_download_from_URL, \
+                patch.object(self.syn, "cache"), \
                 patch.object(sts_transfer, "is_storage_location_sts_enabled", return_value=False):
             mock_getFileHandleDownload.return_value = {
                 'fileHandle': {
@@ -335,13 +343,23 @@ class Test__downloadFileHandle(unittest.TestCase):
                 'preSignedURL': 'asdf.com'
             }
 
-            syn.multi_threaded = False
-            syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath")
+            self.syn.multi_threaded = False
+            self.syn._downloadFileHandle(
+                fileHandleId=123,
+                objectId=456,
+                objectType="FileEntity",
+                destination="/myfakepath"
+            )
 
             mock_download_from_URL.assert_called_once_with("asdf.com", "/myfakepath", "123", expected_md5="someMD5")
 
 
 class Test_download_from_url_multi_threaded:
+
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
     def test_md5_mismatch(self):
         with patch.object(multithread_download, "download_file"), \
              patch.object(utils, "md5_for_file") as mock_md5_for_file, \
@@ -351,7 +369,7 @@ class Test_download_from_url_multi_threaded:
 
             mock_md5_for_file.return_value.hexdigest.return_value = "unexpetedMd5"
 
-            pytest.raises(SynapseMd5MismatchError, syn._download_from_url_multi_threaded, file_handle_id=123,
+            pytest.raises(SynapseMd5MismatchError, self.syn._download_from_url_multi_threaded, file_handle_id=123,
                           object_id=456, object_type="FileEntity",
                           destination=path, expected_md5="myExpectedMd5")
 
@@ -369,15 +387,19 @@ class Test_download_from_url_multi_threaded:
 
             mock_md5_for_file.return_value.hexdigest.return_value = expected_md5
 
-            syn._download_from_url_multi_threaded(file_handle_id=123,
-                                                  object_id=456, object_type="FileEntity",
-                                                  destination=path, expected_md5=expected_md5)
+            self.syn._download_from_url_multi_threaded(
+                file_handle_id=123,
+                object_id=456,
+                object_type="FileEntity",
+                destination=path,
+                expected_md5=expected_md5,
+            )
 
             mock_os_remove.assert_not_called()
             mock_move.assert_called_once_with(utils.temp_download_filename(path, 123), path)
 
 
-def test_download_end_early_retry():
+def test_download_end_early_retry(syn):
     """
     -------Test to ensure download retry even if connection ends early--------
     """
@@ -429,7 +451,7 @@ def test_download_end_early_retry():
         mocked_move.assert_called_once_with(temp_destination, destination)
 
 
-def test_download_md5_mismatch__not_local_file():
+def test_download_md5_mismatch__not_local_file(syn):
     """
     --------Test to ensure file gets removed on md5 mismatch--------
     """
@@ -470,7 +492,7 @@ def test_download_md5_mismatch__not_local_file():
         mocked_remove.assert_called_once_with(destination)
 
 
-def test_download_md5_mismatch_local_file():
+def test_download_md5_mismatch_local_file(syn):
     """
     --------Test to ensure file gets removed on md5 mismatch--------
     """
@@ -491,7 +513,7 @@ def test_download_md5_mismatch_local_file():
         assert not mocked_remove.called
 
 
-def test_download_file_entity__correct_local_state():
+def test_download_file_entity__correct_local_state(syn):
     mock_cache_path = utils.normalize_path("/i/will/show/you/the/path/yi.txt")
     file_entity = File(parentId="syn123")
     file_entity.dataFileHandleId = 123
@@ -504,13 +526,13 @@ def test_download_file_entity__correct_local_state():
         assert os.path.basename(mock_cache_path) == file_entity.files[0]
 
 
-def test_getFileHandleDownload__error_UNAUTHORIZED():
+def test_getFileHandleDownload__error_UNAUTHORIZED(syn):
     ret_val = {'requestedFiles': [{'failureCode': 'UNAUTHORIZED', }]}
     with patch.object(syn, "restPOST", return_value=ret_val):
         pytest.raises(SynapseError, syn._getFileHandleDownload, '123', 'syn456')
 
 
-def test_getFileHandleDownload__error_NOT_FOUND():
+def test_getFileHandleDownload__error_NOT_FOUND(syn):
     ret_val = {'requestedFiles': [{'failureCode': 'NOT_FOUND', }]}
     with patch.object(syn, "restPOST", return_value=ret_val):
         pytest.raises(SynapseFileNotFoundError, syn._getFileHandleDownload, '123', 'syn456')

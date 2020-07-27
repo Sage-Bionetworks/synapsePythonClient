@@ -22,8 +22,6 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
     PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask, \
     MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema
 
-from tests.unit import syn
-
 from synapseclient.core.utils import from_unix_epoch_time
 from unittest.mock import patch
 from collections import OrderedDict
@@ -534,7 +532,7 @@ def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
         CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
 
 
-def test_build_table_download_file_handle_list__repeated_file_handles():
+def test_build_table_download_file_handle_list__repeated_file_handles(syn):
     syn = Synapse(debug=True, skip_checks=True)
 
     # patch the cache so we don't look there in case FileHandle ids actually exist there
@@ -569,7 +567,7 @@ def test_SubmissionViewSchema__default_params():
     assert submission_view.addDefaultViewColumns
 
 
-def test_SubmissionViewSchema__before_synapse_store():
+def test_SubmissionViewSchema__before_synapse_store(syn):
     syn = Synapse(debug=True, skip_checks=True)
 
     with patch.object(syn, '_get_default_view_columns') as mocked_get_default,\
@@ -585,7 +583,7 @@ def test_SubmissionViewSchema__before_synapse_store():
                                                        view_type_mask=None)
 
 
-def test_EntityViewSchema__before_synapse_store():
+def test_EntityViewSchema__before_synapse_store(syn):
     syn = Synapse(debug=True, skip_checks=True)
 
     with patch.object(syn, '_get_default_view_columns') as mocked_get_default,\
@@ -660,7 +658,7 @@ def test_entityViewSchema__add_scope():
     assert [str(x) for x in ["123", "456", "789"]] == entity_view.scopeIds
 
 
-def test_Schema__max_column_check():
+def test_Schema__max_column_check(syn):
     table = Schema(name="someName", parent="idk")
     table.addColumns(Column(name="colNum%s" % i, columnType="STRING")
                      for i in range(MAX_NUM_TABLE_COLUMNS + 1))
@@ -680,7 +678,7 @@ def test_EntityViewSchema__ignore_column_names_set_info_preserved():
     assert ignored_names == entity_view_copy.ignoredAnnotationColumnNames
 
 
-def test_EntityViewSchema__ignore_annotation_column_names():
+def test_EntityViewSchema__ignore_annotation_column_names(syn):
     syn = Synapse(debug=True, skip_checks=True)
 
     scopeIds = ['123']
@@ -704,7 +702,7 @@ def test_EntityViewSchema__ignore_annotation_column_names():
         assert [Column(name='long2', columnType='INTEGER')] == entity_view.columns_to_store
 
 
-def test_EntityViewSchema__repeated_columnName_different_type():
+def test_EntityViewSchema__repeated_columnName_different_type(syn):
     syn = Synapse(debug=True, skip_checks=True)
 
     scopeIds = ['123']
@@ -722,7 +720,7 @@ def test_EntityViewSchema__repeated_columnName_different_type():
         assert columns == filtered_results
 
 
-def test_EntityViewSchema__repeated_columnName_same_type():
+def test_EntityViewSchema__repeated_columnName_same_type(syn):
     syn = Synapse(debug=True, skip_checks=True)
 
     entity_view = EntityViewSchema("someName", parent="syn123")
@@ -738,7 +736,7 @@ def test_EntityViewSchema__repeated_columnName_same_type():
         assert Column(name='annoName', columnType='INTEGER') == filtered_results[0]
 
 
-def test_rowset_asDataFrame__with_ROW_ETAG_column():
+def test_rowset_asDataFrame__with_ROW_ETAG_column(syn):
     query_result = {
         'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
         'maxRowsPerPage': 6990,
@@ -834,6 +832,11 @@ def test_build_table__with_dict():
 
 
 class TestTableQueryResult:
+
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
     def setup(self):
         self.rows = [{'rowId': 1, 'versionNumber': 2, 'values': ['first_row']},
                      {'rowId': 5, 'versionNumber': 1, 'values': ['second_row']}]
@@ -851,15 +854,15 @@ class TestTableQueryResult:
         self.query_string = "SELECT whatever FROM some_table WHERE sky=blue"
 
     def test_len(self):
-        with patch.object(syn, "_queryTable", return_value=self.query_result_dict) as mocked_table_query:
-            query_result_table = TableQueryResult(syn, self.query_string)
+        with patch.object(self.syn, "_queryTable", return_value=self.query_result_dict) as mocked_table_query:
+            query_result_table = TableQueryResult(self.syn, self.query_string)
             args, kwargs = mocked_table_query.call_args
             assert self.query_string == kwargs['query']
             assert 2 == len(query_result_table)
 
     def test_iter_metadata__no_etag(self):
-        with patch.object(syn, "_queryTable", return_value=self.query_result_dict):
-            query_result_table = TableQueryResult(syn, self.query_string)
+        with patch.object(self.syn, "_queryTable", return_value=self.query_result_dict):
+            query_result_table = TableQueryResult(self.syn, self.query_string)
             metadata = [x for x in query_result_table.iter_row_metadata()]
             assert 2 == len(metadata)
             assert (1, 2, None) == metadata[0]
@@ -868,8 +871,8 @@ class TestTableQueryResult:
     def test_iter_metadata__has_etag(self):
         self.rows[0].update({'etag': 'etag1'})
         self.rows[1].update({'etag': 'etag2'})
-        with patch.object(syn, "_queryTable", return_value=self.query_result_dict):
-            query_result_table = TableQueryResult(syn, self.query_string)
+        with patch.object(self.syn, "_queryTable", return_value=self.query_result_dict):
+            query_result_table = TableQueryResult(self.syn, self.query_string)
             metadata = [x for x in query_result_table.iter_row_metadata()]
             assert 2 == len(metadata)
             assert (1, 2, 'etag1') == metadata[0]
@@ -926,6 +929,7 @@ class TestPartialRow:
 
 
 class TestPartialRowSet:
+
     def test_constructor__not_all_rows_of_type_PartialRow(self):
         rows = [PartialRow({}, 123), "some string instead"]
         with pytest.raises(ValueError):
@@ -938,6 +942,7 @@ class TestPartialRowSet:
 
 
 class TestCsvFileTable:
+
     def test_iter_metadata__has_etag(self):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,asdf\n"
                                            "1,2,etag1,\"I like trains\"\n"

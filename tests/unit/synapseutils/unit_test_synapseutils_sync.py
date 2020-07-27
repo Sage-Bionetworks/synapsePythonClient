@@ -10,13 +10,12 @@ from unittest.mock import patch, create_autospec, Mock, call
 
 import synapseutils
 from synapseutils.sync import _FolderSync
-from synapseclient import Activity, File, Folder, Project, Schema
+from synapseclient import Activity, File, Folder, Project, Schema, Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from tests.unit import syn
 from synapseclient.core.utils import id_of
 
 
-def test_readManifest__sync_order_with_home_directory():
+def test_readManifest__sync_order_with_home_directory(syn):
     """SYNPY-508"""
 
     # row1's file depends on row2's file but is listed first
@@ -39,7 +38,7 @@ def test_readManifest__sync_order_with_home_directory():
         pdt.assert_series_equal(expected_order, manifest_dataframe.path, check_names=False)
 
 
-def test_readManifestFile__synapseStore_values_not_set():
+def test_readManifestFile__synapseStore_values_not_set(syn):
 
     project_id = "syn123"
     header = 'path\tparent\n'
@@ -61,7 +60,7 @@ def test_readManifestFile__synapseStore_values_not_set():
         assert expected_synapseStore == actual_synapseStore
 
 
-def test_readManifestFile__synapseStore_values_are_set():
+def test_readManifestFile__synapseStore_values_are_set(syn):
 
     project_id = "syn123"
     header = 'path\tparent\tsynapseStore\n'
@@ -97,21 +96,21 @@ def test_readManifestFile__synapseStore_values_are_set():
         assert expected_synapseStore == actual_synapseStore
 
 
-def test_syncFromSynapse__non_file_entity():
+def test_syncFromSynapse__non_file_entity(syn):
     table_schema = "syn12345"
     with patch.object(syn, "getChildren", return_value=[]),\
             patch.object(syn, "get", return_value=Schema(name="asssdfa", parent="whatever")):
         pytest.raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
 
 
-def test_syncFromSynapse__empty_folder():
+def test_syncFromSynapse__empty_folder(syn):
     folder = Folder(name="the folder", parent="whatever", id="syn123")
     with patch.object(syn, "getChildren", return_value=[]),\
             patch.object(syn, "get", return_value=Folder(name="asssdfa", parent="whatever")):
         assert list() == synapseutils.syncFromSynapse(syn, folder)
 
 
-def test_syncFromSynapse__file_entity():
+def test_syncFromSynapse__file_entity(syn):
     file = File(name="a file", parent="some parent", id="syn456")
     with patch.object(syn, "getChildren", return_value=[file]) as patch_syn_get_children,\
             patch.object(syn, "get", return_value=file):
@@ -119,7 +118,7 @@ def test_syncFromSynapse__file_entity():
         patch_syn_get_children.assert_not_called()
 
 
-def test_syncFromSynapse__folder_contains_one_file():
+def test_syncFromSynapse__folder_contains_one_file(syn):
     folder = Folder(name="the folder", parent="whatever", id="syn123")
     file = File(name="a file", parent=folder, id="syn456")
     with patch.object(syn, "getChildren", return_value=[file]) as patch_syn_get_children,\
@@ -128,7 +127,7 @@ def test_syncFromSynapse__folder_contains_one_file():
         patch_syn_get_children.called_with(folder['id'])
 
 
-def test_syncFromSynapse__project_contains_empty_folder():
+def test_syncFromSynapse__project_contains_empty_folder(syn):
     project = Project(name="the project", parent="whatever", id="syn123")
     file = File(name="a file", parent=project, id="syn456")
     folder = Folder(name="a folder", parent=project, id="syn789")
@@ -164,7 +163,7 @@ def _compareCsv(expected_csv_string, csv_path):
     assert expected == actual
 
 
-def test_syncFromSynase__manifest():
+def test_syncFromSynase__manifest(syn):
     """Verify that we generate manifest files when syncing to a location outside of the cache."""
 
     project = Project(name="the project", parent="whatever", id="syn123")
@@ -323,7 +322,7 @@ class TestFolderSync:
         assert parent._is_finished()
 
 
-def test_extract_file_entity_metadata__ensure_correct_row_metadata():
+def test_extract_file_entity_metadata__ensure_correct_row_metadata(syn):
     # Test for SYNPY-692, where 'contentType' was incorrectly set on all rows except for the very first row.
 
     # create 2 file entities with different metadata
@@ -353,7 +352,7 @@ class TestGetFileEntityProvenanceDict:
     """
 
     def setup(self):
-        self.mock_syn = create_autospec(syn)
+        self.mock_syn = create_autospec(Synapse)
 
     def test_get_file_entity_provenance_dict__error_is_404(self):
         self.mock_syn.getProvenance.side_effect = SynapseHTTPError(response=Mock(status_code=404))

@@ -2,10 +2,9 @@ from unittest.mock import patch, MagicMock, call
 
 import synapseutils
 from synapseutils import notifyMe, with_progress_bar
-from tests.unit import syn
 
 
-def test_notifyMe__successful_call():
+def test_notifyMe__successful_call(syn):
     subject = "some message subject"
     owner_id = '12434'
     user_profile = {'ownerId': owner_id}
@@ -23,7 +22,7 @@ def test_notifyMe__successful_call():
                                                     messageBody='Call to test_function completed successfully!')
 
 
-def test_notifyMe__exception_thrown_and_retry_fail():
+def test_notifyMe__exception_thrown_and_retry_fail(syn):
     subject = "some message subject"
     owner_id = '12434'
     user_profile = {'ownerId': owner_id}
