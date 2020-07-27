@@ -102,7 +102,7 @@ class TestMigrateOldSessionFile(object):
         self.patchers = [read_session_cache_patcher, set_most_recent_user_patcher, set_api_key_patcher, os_patcher,
                          equals_path_patcher]
 
-        self.mock_syn = create_autospec(Synapse())
+        self.mock_syn = create_autospec(Synapse(skip_checks=True))
 
         self.mock_read_session_cache = read_session_cache_patcher.start()
         self.mock_set_most_recent_user = set_most_recent_user_patcher.start()

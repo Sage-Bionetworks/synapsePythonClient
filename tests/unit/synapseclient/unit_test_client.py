@@ -1744,7 +1744,7 @@ def test_get_transfer_config(mock_config_dict):
         ({'max_threads': '100', 'use_boto_sts': 'false'}, {'max_threads': 100, 'use_boto_sts_transfers': False}),
     ]:
         mock_config_dict.return_value = config_dict
-        syn = Synapse()
+        syn = Synapse(skip_checks=True)
         for k, v in expected_values.items():
             assert v == getattr(syn, k)
 
@@ -1752,13 +1752,13 @@ def test_get_transfer_config(mock_config_dict):
     for invalid_max_thread_value in ('not a number', '12.2', 'true'):
         mock_config_dict.return_value = {'max_threads': invalid_max_thread_value}
         with pytest.raises(ValueError):
-            Synapse()
+            Synapse(skip_checks=True)
 
     # invalid value for use_boto_sts should raise an error
     for invalid_max_thread_value in ('not true', '1.2', '0', 'falsey'):
         mock_config_dict.return_value = {'use_boto_sts': invalid_max_thread_value}
         with pytest.raises(ValueError):
-            Synapse()
+            Synapse(skip_checks=True)
 
 
 @patch('synapseclient.Synapse._get_config_section_dict')
@@ -1766,7 +1766,7 @@ def test_transfer_config_values_overridable(mock_config_dict):
     """Verify we can override the default transfer config values by setting them directly on the Synapse object"""
 
     mock_config_dict.return_value = {'max_threads': 24, 'use_boto_sts': False}
-    syn = Synapse()
+    syn = Synapse(skip_checks=True)
 
     assert 24 == syn.max_threads
     assert not syn.use_boto_sts_transfers

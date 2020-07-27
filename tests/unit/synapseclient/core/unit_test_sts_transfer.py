@@ -323,8 +323,8 @@ class TestStsTokenStore:
     @mock.patch('synapseclient.core.sts_transfer.StsTokenStore._fetch_token')
     def test_synapse_client__discrete_sts_token_stores(self, mock_fetch_token):
         """Verify that two Synapse objects will not share the same cached tokens"""
-        syn1 = Synapse()
-        syn2 = Synapse()
+        syn1 = Synapse(skip_checks=True)
+        syn2 = Synapse(skip_checks=True)
 
         expected_token = {
             'awsAccessKeyId': 'ABC',

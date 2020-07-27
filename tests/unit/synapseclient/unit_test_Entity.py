@@ -340,6 +340,6 @@ def test_create_Link_to_entity_with_the_same_parent():
         'id': 'syn456',
         'versionUrl': '/repo/v1/entity/syn456/version/1'}
     link = Link(targetId=file, parent=parent)
-    syn = Synapse()
+    syn = Synapse(skip_checks=True)
     with patch.object(syn, "_getEntity", return_value=file_bundle):
         pytest.raises(ValueError, syn.store, link)
