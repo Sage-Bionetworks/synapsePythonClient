@@ -59,7 +59,7 @@ def project(request, syn):
 
 @pytest.fixture(scope="module")
 def schedule_for_cleanup(request, syn):
-    """Yields a closure that takes an item that should be scheduled for cleanup.
+    """Returns a closure that takes an item that should be scheduled for cleanup.
     The cleanup will occur after the module tests finish to limit the residue left behind
     if a test session should be prematurely aborted for any reason."""
 

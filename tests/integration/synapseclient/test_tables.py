@@ -32,11 +32,13 @@ from tests.integration import QUERY_TIMEOUT_SEC
 
 
 @pytest.fixture(scope='module', autouse=True)
-def _init_query_timeout(syn):
+def _init_query_timeout(request, syn):
     existing_timeout = syn.table_query_timeout
     syn.table_query_timeout = 423
-    yield
-    syn.table_query_timeout = existing_timeout
+
+    def revert_timeout():
+        syn.table_query_timeout = existing_timeout
+    request.addfinalizer(revert_timeout)
 
 
 def test_create_and_update_file_view(syn, project, schedule_for_cleanup):

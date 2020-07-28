@@ -30,13 +30,15 @@ DESTINATIONS = [{"uploadType": "SFTP",
 
 
 @pytest.fixture(scope="module", autouse=True)
-def project_setting_id(syn, project):
+def project_setting_id(request, syn, project):
     # Create the upload destinations
     destinations = [syn.createStorageLocationSetting('ExternalStorage', **x)['storageLocationId'] for x in DESTINATIONS]
 
     sftp_project_setting_id = syn.setStorageLocation(project, destinations)['id']
-    yield
-    syn.restDELETE('/projectSettings/%s' % sftp_project_setting_id)
+
+    def delete_project_setting():
+        syn.restDELETE('/projectSettings/%s' % sftp_project_setting_id)
+    request.addfinalizer(delete_project_setting)
 
 
 def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
