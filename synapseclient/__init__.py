@@ -29,6 +29,8 @@ installations your system, the pip command associated with Python 3 may be named
 Python 2 associated command. Prefixing the pip installation with sudo may be necessary if you are installing Python
 into a shared system installation of Python.
 
+::
+
     (sudo) pip3 install (--upgrade) synapseclient[pandas, pysftp]
 
 The dependencies on pandas and pysftp are optional. The Synapse :py:mod:`synapseclient.table` feature integrates with
