@@ -36,7 +36,7 @@ def syn():
 
 
 @pytest.fixture(scope="session")
-def project(syn):
+def project(request, syn):
     """
     Create a project to be shared by all tests in the session.
     """
@@ -49,14 +49,16 @@ def project(syn):
     working_directory = tempfile.mkdtemp(prefix="someTestFolder")
     os.chdir(working_directory)
 
-    yield proj
+    def project_teardown():
+        _cleanup(syn, [working_directory, proj])
+        os.chdir(_old_working_directory)
+    request.addfinalizer(project_teardown)
 
-    _cleanup(syn, [working_directory, proj])
-    os.chdir(_old_working_directory)
+    return proj
 
 
 @pytest.fixture(scope="module")
-def schedule_for_cleanup(syn):
+def schedule_for_cleanup(request, syn):
     """Yields a closure that takes an item that should be scheduled for cleanup.
     The cleanup will occur after the module tests finish to limit the residue left behind
     if a test session should be prematurely aborted for any reason."""
@@ -66,8 +68,12 @@ def schedule_for_cleanup(syn):
     def _append_cleanup(item):
         items.append(item)
 
-    yield _append_cleanup
-    _cleanup(syn, items)
+    def cleanup_scheduled_items():
+        _cleanup(syn, items)
+
+    request.addfinalizer(cleanup_scheduled_items)
+
+    return _append_cleanup
 
 
 def _cleanup(syn, items):
