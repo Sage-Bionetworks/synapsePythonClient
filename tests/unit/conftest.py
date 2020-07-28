@@ -1,7 +1,7 @@
 import logging
 import urllib.request
 
-import mock
+from unittest import mock
 import pytest
 
 from synapseclient import Synapse
