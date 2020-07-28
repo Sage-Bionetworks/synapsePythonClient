@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 
 import pytest
 from unittest.mock import patch
@@ -40,8 +40,8 @@ def test_Entity():
         # called 'annotations'. Because annotations are open-ended, we
         # might even have an annotations called 'annotations', which gets
         # really confusing.
-        assert isinstance(e.annotations, collections.Mapping)
-        assert isinstance(e['annotations'], collections.Mapping)
+        assert isinstance(e.annotations, collections.abc.Mapping)
+        assert isinstance(e['annotations'], collections.abc.Mapping)
         assert e.properties['annotations'] == '/repo/v1/entity/syn1234/annotations'
         assert e.properties.annotations == '/repo/v1/entity/syn1234/annotations'
         assert e.annotations.annotations == 'How confusing!'
@@ -71,8 +71,8 @@ def test_Entity():
         e.annotations = {'splat': 'a totally new set of annotations', 'foo': 456}
         assert e.foo == 456
         assert e['foo'] == 456
-        assert isinstance(e.annotations, collections.Mapping)
-        assert isinstance(e['annotations'], collections.Mapping)
+        assert isinstance(e.annotations, collections.abc.Mapping)
+        assert isinstance(e['annotations'], collections.abc.Mapping)
         assert e.annotations.foo == 456
         assert e.properties['annotations'] == '/repo/v1/entity/syn1234/annotations'
         assert e.properties.annotations == '/repo/v1/entity/syn1234/annotations'
