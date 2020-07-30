@@ -61,7 +61,7 @@ The status of an issue can be tracked in JIRA. Once an issue has passed a code r
 
 All code added to the client must have tests. These might include unit tests (to test specific functionality of code that was added to support fixing the bug or feature), integration tests (to test that the feature is usable - e.g., it should have complete the expected behavior as reported in the feature request or bug report), or both.
 
-The Python client uses [`nose`](http://nose.readthedocs.io/) to run tests. The test code is located in the [test](./test) subdirectory.
+The Python client uses [`pytest`](https://docs.pytest.org/en/latest/) to run tests. The test code is located in the [test](./test) subdirectory.
 
 Here's how to run the test suite:
 
@@ -69,17 +69,17 @@ Here's how to run the test suite:
 
 ```
 # Unit tests
-nosetests -vs tests/unit
+pytest -vs tests/unit
 
 # Integration tests
-nosetests -vs tests/integration
+pytest -vs tests/integration
 ```
 
 To test a specific feature, specify the full path to the function to run:
 
 ```
 # Test table query functionality from the command line client
-nosetests -vs tests/integration/test_command_line_client.py:test_table_query
+pytest -vs tests/integration/synapseclient/test_command_line_client.py::test_table_query
 ````
 
 ### Code style

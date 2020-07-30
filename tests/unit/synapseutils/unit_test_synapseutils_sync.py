@@ -1,25 +1,21 @@
 import os
 import csv
-from unittest.mock import patch, create_autospec, Mock, call
-from nose.tools import assert_dict_equal, assert_raises, assert_true, assert_equals, assert_list_equal
 import pandas as pd
-import pandas.util.testing as pdt
+import pandas.testing as pdt
 from io import StringIO
 import tempfile
 
+import pytest
+from unittest.mock import patch, create_autospec, Mock, call
+
 import synapseutils
 from synapseutils.sync import _FolderSync
-from synapseclient import Activity, File, Folder, Project, Schema
+from synapseclient import Activity, File, Folder, Project, Schema, Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import id_of
-from tests import unit
 
 
-def setup(module):
-    module.syn = unit.syn
-
-
-def test_readManifest__sync_order_with_home_directory():
+def test_readManifest__sync_order_with_home_directory(syn):
     """SYNPY-508"""
 
     # row1's file depends on row2's file but is listed first
@@ -42,7 +38,7 @@ def test_readManifest__sync_order_with_home_directory():
         pdt.assert_series_equal(expected_order, manifest_dataframe.path, check_names=False)
 
 
-def test_readManifestFile__synapseStore_values_not_set():
+def test_readManifestFile__synapseStore_values_not_set(syn):
 
     project_id = "syn123"
     header = 'path\tparent\n'
@@ -61,10 +57,10 @@ def test_readManifestFile__synapseStore_values_not_set():
             patch.object(os.path, "isfile", return_value=True):  # side effect mocks values for: file1.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
         actual_synapseStore = (manifest_dataframe.set_index('path')['synapseStore'].to_dict())
-        assert_dict_equal(expected_synapseStore, actual_synapseStore)
+        assert expected_synapseStore == actual_synapseStore
 
 
-def test_readManifestFile__synapseStore_values_are_set():
+def test_readManifestFile__synapseStore_values_are_set(syn):
 
     project_id = "syn123"
     header = 'path\tparent\tsynapseStore\n'
@@ -97,41 +93,41 @@ def test_readManifestFile__synapseStore_values_are_set():
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
 
         actual_synapseStore = (manifest_dataframe.set_index('path')['synapseStore'].to_dict())
-        assert_dict_equal(expected_synapseStore, actual_synapseStore)
+        assert expected_synapseStore == actual_synapseStore
 
 
-def test_syncFromSynapse__non_file_entity():
+def test_syncFromSynapse__non_file_entity(syn):
     table_schema = "syn12345"
     with patch.object(syn, "getChildren", return_value=[]),\
             patch.object(syn, "get", return_value=Schema(name="asssdfa", parent="whatever")):
-        assert_raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
+        pytest.raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
 
 
-def test_syncFromSynapse__empty_folder():
+def test_syncFromSynapse__empty_folder(syn):
     folder = Folder(name="the folder", parent="whatever", id="syn123")
     with patch.object(syn, "getChildren", return_value=[]),\
             patch.object(syn, "get", return_value=Folder(name="asssdfa", parent="whatever")):
-        assert_equals(list(), synapseutils.syncFromSynapse(syn, folder))
+        assert list() == synapseutils.syncFromSynapse(syn, folder)
 
 
-def test_syncFromSynapse__file_entity():
+def test_syncFromSynapse__file_entity(syn):
     file = File(name="a file", parent="some parent", id="syn456")
     with patch.object(syn, "getChildren", return_value=[file]) as patch_syn_get_children,\
             patch.object(syn, "get", return_value=file):
-        assert_equals([file], synapseutils.syncFromSynapse(syn, file))
+        assert [file] == synapseutils.syncFromSynapse(syn, file)
         patch_syn_get_children.assert_not_called()
 
 
-def test_syncFromSynapse__folder_contains_one_file():
+def test_syncFromSynapse__folder_contains_one_file(syn):
     folder = Folder(name="the folder", parent="whatever", id="syn123")
     file = File(name="a file", parent=folder, id="syn456")
     with patch.object(syn, "getChildren", return_value=[file]) as patch_syn_get_children,\
             patch.object(syn, "get", return_value=file):
-        assert_equals([file], synapseutils.syncFromSynapse(syn, folder))
+        assert [file] == synapseutils.syncFromSynapse(syn, folder)
         patch_syn_get_children.called_with(folder['id'])
 
 
-def test_syncFromSynapse__project_contains_empty_folder():
+def test_syncFromSynapse__project_contains_empty_folder(syn):
     project = Project(name="the project", parent="whatever", id="syn123")
     file = File(name="a file", parent=project, id="syn456")
     folder = Folder(name="a folder", parent=project, id="syn789")
@@ -146,9 +142,10 @@ def test_syncFromSynapse__project_contains_empty_folder():
 
     with patch.object(syn, "getChildren", side_effect=[[folder, file], []]) as patch_syn_get_children,\
             patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
-        assert_equals([file], synapseutils.syncFromSynapse(syn, project))
+
+        assert [file] == synapseutils.syncFromSynapse(syn, project)
         expected_get_children_agrs = [call(project['id']), call(folder['id'])]
-        assert_list_equal(expected_get_children_agrs, patch_syn_get_children.call_args_list)
+        assert expected_get_children_agrs == patch_syn_get_children.call_args_list
         patch_syn_get.assert_called_once_with(
             file['id'],
             downloadLocation=None,
@@ -163,10 +160,10 @@ def _compareCsv(expected_csv_string, csv_path):
     expected = [r for r in csv.DictReader(StringIO(expected_csv_string), delimiter='\t')]
     with open(csv_path, 'r') as csv_file:
         actual = [r for r in csv.DictReader(csv_file, delimiter='\t')]
-    assert_equals(expected, actual)
+    assert expected == actual
 
 
-def test_syncFromSynase__manifest():
+def test_syncFromSynase__manifest(syn):
     """Verify that we generate manifest files when syncing to a location outside of the cache."""
 
     project = Project(name="the project", parent="whatever", id="syn123")
@@ -225,16 +222,12 @@ def test_syncFromSynase__manifest():
             patch_syn_get_provenance.side_effect = getProvenance_side_effect
 
             synced_files = synapseutils.syncFromSynapse(syn, project, path=sync_dir)
-
-            assert_equals(
-                sorted([id_of(e) for e in expected_synced_files]),
-                sorted([id_of(e) for e in synced_files])
-            )
+            assert sorted([id_of(e) for e in expected_synced_files]) == sorted([id_of(e) for e in synced_files])
 
             # we only expect two calls to provenance even though there are three rows of provenance data
             # in the manifests (two in the outer project, one in the folder)
             # since one of the files is repeated in both manifests we expect only the single get provenance call
-            assert_equals(len(expected_synced_files), patch_syn_get_provenance.call_count)
+            assert len(expected_synced_files) == patch_syn_get_provenance.call_count
 
             # we should have two manifest files, one rooted at the project and one rooted in the sub folder
 
@@ -258,11 +251,11 @@ class TestFolderSync:
 
         parent = _FolderSync(syn, 'syn987', '/tmp/foo', [entity_id], None)
         child = _FolderSync(syn, entity_id, path, child_ids, parent)
-        assert_equals(syn, child._syn)
-        assert_equals(entity_id, child._entity_id)
-        assert_equals(path, child._path)
-        assert_equals(set(child_ids), child._pending_ids)
-        assert_equals(parent, child._parent)
+        assert syn == child._syn
+        assert entity_id == child._entity_id
+        assert path == child._path
+        assert set(child_ids) == child._pending_ids
+        assert parent == child._parent
 
     def test_update(self):
         syn = Mock()
@@ -275,9 +268,9 @@ class TestFolderSync:
         provenance = {'syn456': {'foo': 'bar'}}
 
         folder_sync.update(finished_id='syn456', files=[file], provenance=provenance)
-        assert_equals(set(['syn789']), folder_sync._pending_ids)
-        assert_equals([file], folder_sync._files)
-        assert_equals(provenance, folder_sync._provenance)
+        assert set(['syn789']) == folder_sync._pending_ids
+        assert [file] == folder_sync._files
+        assert provenance == folder_sync._provenance
 
     def _finished_test(self, path):
         syn = Mock()
@@ -289,8 +282,8 @@ class TestFolderSync:
         child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
 
         child.update(finished_id='syn456', files=[file])
-        assert_true(child._is_finished())
-        assert_true(parent._is_finished())
+        assert child._is_finished()
+        assert parent._is_finished()
         parent.wait_until_finished()
         return child
 
@@ -310,7 +303,7 @@ class TestFolderSync:
                 call(folder_sync._parent._syn, folder_sync._parent._files, parent_manifest_filename,
                      provenance_cache={}),
             ]
-            assert_equals(expected_manifest_calls, mock_generateManifest.call_args_list)
+            assert expected_manifest_calls == mock_generateManifest.call_args_list
 
     def test_set_exception(self):
         syn = Mock()
@@ -323,13 +316,13 @@ class TestFolderSync:
 
         exception = ValueError('failed!')
         child.set_exception(exception)
-        assert_equals(exception, child.get_exception())
-        assert_equals(exception, parent.get_exception())
-        assert_true(child._is_finished())
-        assert_true(parent._is_finished())
+        assert exception is child.get_exception()
+        assert exception is parent.get_exception()
+        assert child._is_finished()
+        assert parent._is_finished()
 
 
-def test_extract_file_entity_metadata__ensure_correct_row_metadata():
+def test_extract_file_entity_metadata__ensure_correct_row_metadata(syn):
     # Test for SYNPY-692, where 'contentType' was incorrectly set on all rows except for the very first row.
 
     # create 2 file entities with different metadata
@@ -340,18 +333,17 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata():
     files = [entity1, entity2]
 
     # we don't care about provenance metadata in this case
-    patch.object(synapseutils.sync, "_get_file_entity_provenance_dict", return_value={}).start()
-
-    # method under test
-    keys, data = synapseutils.sync._extract_file_entity_metadata(syn, files)
+    with patch.object(synapseutils.sync, "_get_file_entity_provenance_dict", return_value={}):
+        # method under test
+        keys, data = synapseutils.sync._extract_file_entity_metadata(syn, files)
 
     # compare source entity metadata gainst the extracted metadata
     for file_entity, file_row_data in zip(files, data):
         for key in keys:
             if key == 'parent':  # workaroundd for parent/parentId inconsistency. (SYNPY-697)
-                assert_equals(file_entity.get('parentId'), file_row_data.get(key))
+                assert file_entity.get('parentId') == file_row_data.get(key)
             else:
-                assert_equals(file_entity.get(key), file_row_data.get(key))
+                assert file_entity.get(key) == file_row_data.get(key)
 
 
 class TestGetFileEntityProvenanceDict:
@@ -360,15 +352,15 @@ class TestGetFileEntityProvenanceDict:
     """
 
     def setup(self):
-        self.mock_syn = create_autospec(syn)
+        self.mock_syn = create_autospec(Synapse)
 
     def test_get_file_entity_provenance_dict__error_is_404(self):
         self.mock_syn.getProvenance.side_effect = SynapseHTTPError(response=Mock(status_code=404))
 
         result_dict = synapseutils.sync._get_file_entity_provenance_dict(self.mock_syn, "syn123")
-        assert_dict_equal({}, result_dict)
+        assert {} == result_dict
 
     def test_get_file_entity_provenance_dict__error_not_404(self):
         self.mock_syn.getProvenance.side_effect = SynapseHTTPError(response=Mock(status_code=400))
 
-        assert_raises(SynapseHTTPError, synapseutils.sync._get_file_entity_provenance_dict, self.mock_syn, "syn123")
+        pytest.raises(SynapseHTTPError, synapseutils.sync._get_file_entity_provenance_dict, self.mock_syn, "syn123")

@@ -4,7 +4,6 @@ from synapseclient.core import cumulative_transfer_progress
 from synapseclient.core import utils
 
 from unittest import mock
-from nose.tools import assert_equals, assert_false, assert_is
 
 
 @mock.patch.object(utils, 'printTransferProgress')
@@ -81,26 +80,26 @@ def test_progress(mock_utils_print_transfer_progress, mock_sys, mock_time):
     mock_utils_print_transfer_progress.assert_called_once_with(*args1b, **kwargs1b)
 
     with progress.accumulate_progress():
-        assert_is(progress, getattr(cumulative_transfer_progress._thread_local, 'cumulative_transfer_progress'))
+        assert progress is getattr(cumulative_transfer_progress._thread_local, 'cumulative_transfer_progress')
         cumulative_transfer_progress.printTransferProgress(*args2, **kwargs2)
 
         # 150 bytes transferred by this thread
-        assert_equals(150, cumulative_transfer_progress._thread_local.thread_transferred)
+        assert 150 == cumulative_transfer_progress._thread_local.thread_transferred
 
     # total transferred is 350, 200 from the first file in the separate thread,
     # 150 from the transfer above from this thread
-    assert_equals(350, progress._total_transferred)
+    assert 350 == progress._total_transferred
 
     expected_stdout_writes = [
         mock.call('\r / Testing 100.0bytes (1.0bytes/s)'),
         mock.call('\r - Testing 200.0bytes (1.0bytes/s)'),
         mock.call('\r \\ Testing 350.0bytes (1.2bytes/s)'),
     ]
-    assert_equals(expected_stdout_writes, mock_sys.stdout.write.call_args_list)
+    assert expected_stdout_writes == mock_sys.stdout.write.call_args_list
 
     # test thread local props cleaned up
-    assert_false(hasattr(cumulative_transfer_progress._thread_local, 'thread_transferred'))
-    assert_false(hasattr(cumulative_transfer_progress._thread_local, 'cumulative_transfer_progress'))
+    assert not hasattr(cumulative_transfer_progress._thread_local, 'thread_transferred')
+    assert not hasattr(cumulative_transfer_progress._thread_local, 'cumulative_transfer_progress')
 
 
 @mock.patch.object(cumulative_transfer_progress, 'sys')
@@ -112,5 +111,5 @@ def test_progress__not_tty(mock_utils_print_transfer_progress, mock_sys):
 
     with progress.accumulate_progress():
         cumulative_transfer_progress.printTransferProgress(100, 100)
-        assert_false(mock_sys.stdout.write.called)
-        assert_false(mock_utils_print_transfer_progress.called)
+        assert not mock_sys.stdout.write.called
+        assert not mock_utils_print_transfer_progress.called

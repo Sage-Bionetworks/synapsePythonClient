@@ -1,6 +1,6 @@
 import json
 
-from nose.tools import assert_raises, assert_equals, assert_true
+import pytest
 
 from synapseclient import (Evaluation, Submission, SubmissionStatus,
                            Annotations, evaluation)
@@ -10,20 +10,20 @@ def test_Evaluation():
     """Test the construction and accessors of Evaluation objects."""
 
     # Status can only be one of ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']
-    assert_raises(ValueError, Evaluation, name='foo', description='bar', status='BAH')
-    assert_raises(ValueError, Evaluation, name='foo', description='bar', status='OPEN', contentSource='a')
+    pytest.raises(ValueError, Evaluation, name='foo', description='bar', status='BAH')
+    pytest.raises(ValueError, Evaluation, name='foo', description='bar', status='OPEN', contentSource='a')
 
     # Assert that the values are
     ev = Evaluation(name='foobar2', description='bar', status='OPEN', contentSource='syn1234')
-    assert_equals(ev['name'], ev.name)
-    assert_equals(ev['description'], ev.description)
-    assert_equals(ev['status'], ev.status)
+    assert ev['name'] == ev.name
+    assert ev['description'] == ev.description
+    assert ev['status'] == ev.status
 
 
 def test_Submission():
     """Test the construction and accessors of Evaluation objects."""
 
-    assert_raises(KeyError, Submission, foo='bar')
+    pytest.raises(KeyError, Submission, foo='bar')
 
 
 def test_SubmissionStatus():
@@ -31,10 +31,10 @@ def test_SubmissionStatus():
     status = SubmissionStatus(
         id="foo", etag="bar", submissionAnnotations={"foo": "baz"}
     )
-    assert_equals(status['id'], status.id)
-    assert_equals(status['etag'], status.etag)
-    assert_equals(status['submissionAnnotations'], {"foo": "baz"})
-    assert_true(isinstance(status['submissionAnnotations'], Annotations))
+    assert status['id'] == status.id
+    assert status['etag'] == status.etag
+    assert status['submissionAnnotations'] == {"foo": "baz"}
+    assert isinstance(status['submissionAnnotations'], Annotations)
 
 
 def test_SubmissionStatus_json():
@@ -61,7 +61,7 @@ def test_SubmissionStatus_json():
     expected_str = json.dumps(expected_status, sort_keys=True, indent=2,
                               ensure_ascii=True)
 
-    assert_equals(returned_json_str, expected_str)
+    assert returned_json_str == expected_str
 
 
 def test__convert_to_annotation_cls_dict():
@@ -72,10 +72,10 @@ def test__convert_to_annotation_cls_dict():
         etag='12',
         values={"foo": "test"}
     )
-    assert_true(isinstance(annotation_cls, Annotations))
-    assert_equals(annotation_cls, {"foo": "test"})
-    assert_equals(annotation_cls.id, '5')
-    assert_equals(annotation_cls.etag, '12')
+    assert isinstance(annotation_cls, Annotations)
+    assert annotation_cls == {"foo": "test"}
+    assert annotation_cls.id == '5'
+    assert annotation_cls.etag == '12'
 
 
 def test__convert_to_annotation_cls_synapse_style():
@@ -96,10 +96,10 @@ def test__convert_to_annotation_cls_synapse_style():
         etag='12',
         values=annots
     )
-    assert_true(isinstance(annotation_cls, Annotations))
-    assert_equals(annotation_cls, {"foo": ["doo"]})
-    assert_equals(annotation_cls.id, '6')
-    assert_equals(annotation_cls.etag, '123')
+    assert isinstance(annotation_cls, Annotations)
+    assert annotation_cls == {"foo": ["doo"]}
+    assert annotation_cls.id == '6'
+    assert annotation_cls.etag == '123'
 
 
 def test__convert_to_annotation_cls_annotations():
@@ -111,4 +111,4 @@ def test__convert_to_annotation_cls_annotations():
         etag='12',
         values=expected
     )
-    assert_equals(expected, annotation_cls)
+    assert expected == annotation_cls

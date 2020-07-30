@@ -2,19 +2,13 @@
 
 """
 
-from nose.tools import assert_equal, assert_true
 from unittest.mock import Mock, patch
 
 import synapseutils
 import synapseclient.__main__ as cmdline
-from tests import unit
 
 
-def setup(module):
-    module.syn = unit.syn
-
-
-def test_command_sync():
+def test_command_sync(syn):
     """Test the sync function.
 
     Since this function only passes argparse arguments for the sync subcommand
@@ -26,10 +20,10 @@ def test_command_sync():
     parser = cmdline.build_parser()
     args = parser.parse_args(['sync', '/tmp/foobarbaz.tsv'])
 
-    assert_equal(args.manifestFile, '/tmp/foobarbaz.tsv')
-    assert_equal(args.dryRun, False)
-    assert_equal(args.sendMessages, False)
-    assert_equal(args.retries, 4)
+    assert args.manifestFile == '/tmp/foobarbaz.tsv'
+    assert args.dryRun is False
+    assert args.sendMessages is False
+    assert args.retries == 4
 
     with patch.object(synapseutils, "syncToSynapse") as mockedSyncToSynapse:
         cmdline.sync(args, syn)
@@ -45,11 +39,11 @@ def test_get_multi_threaded_flag():
     parser = cmdline.build_parser()
     args = parser.parse_args(['get', '--multiThreaded', 'syn123'])
 
-    assert_true(args.multiThreaded)
+    assert args.multiThreaded
 
     # defaults to True
     args = parser.parse_args(['get', 'syn123'])
-    assert_true(args.multiThreaded)
+    assert args.multiThreaded
 
 
 @patch('builtins.print')

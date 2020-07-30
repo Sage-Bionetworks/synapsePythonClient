@@ -1,13 +1,8 @@
-from nose.tools import assert_raises, assert_equals, assert_true
+import pytest
 from unittest.mock import MagicMock
 
 from synapseclient.core.retry import with_retry
 from synapseclient.core.exceptions import SynapseError
-from tests import unit
-
-
-def setup(module):
-    module.syn = unit.syn
 
 
 def test_with_retry():
@@ -19,12 +14,12 @@ def test_with_retry():
     # -- No failures --
     response.status_code.__eq__.side_effect = lambda x: x == 250
     with_retry(function, verbose=True, **retryParams)
-    assert_equals(function.call_count, 1)
+    assert function.call_count == 1
 
     # -- Always fail --
     response.status_code.__eq__.side_effect = lambda x: x == 503
     with_retry(function, verbose=True, **retryParams)
-    assert_equals(function.call_count, 1 + 4)
+    assert function.call_count == 1 + 4
 
     # -- Fail then succeed --
     thirdTimes = [3, 2, 1]
@@ -36,7 +31,7 @@ def test_with_retry():
         return x == 503
     response.status_code.__eq__.side_effect = theCharm
     with_retry(function, verbose=True, **retryParams)
-    assert_equals(function.call_count, 1 + 4 + 3)
+    assert function.call_count == 1 + 4 + 3
 
     # -- Retry with an error message --
     retryErrorMessages = ["Foo"]
@@ -47,8 +42,8 @@ def test_with_retry():
     response.headers.get.side_effect = lambda x, default_value: "application/json" if x == 'content-type' else None
     response.json.return_value = {"reason": retryErrorMessages[0]}
     with_retry(function, **retryParams)
-    assert_true(response.headers.get.called)
-    assert_equals(function.call_count, 1 + 4 + 3 + 4)
+    assert response.headers.get.called
+    assert function.call_count == 1 + 4 + 3 + 4
 
     # -- Propagate an error up --
     print("Expect a SynapseError: Bar")
@@ -56,8 +51,8 @@ def test_with_retry():
     def foo():
         raise SynapseError("Bar")
     function.side_effect = foo
-    assert_raises(SynapseError, with_retry, function, **retryParams)
-    assert_equals(function.call_count, 1 + 4 + 3 + 4 + 1)
+    pytest.raises(SynapseError, with_retry, function, **retryParams)
+    assert function.call_count == 1 + 4 + 3 + 4 + 1
 
 
 def test_with_retry__no_status_code():
@@ -76,4 +71,4 @@ def test_with_retry__no_status_code():
         return x
 
     response = with_retry(fn, retry_exceptions=[ValueError])
-    assert_equals(2, response)
+    assert 2 == response

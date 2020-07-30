@@ -3,17 +3,17 @@ import datetime
 import os
 import requests
 
+import pytest
 from unittest import TestCase
 import unittest.mock as mock
-from nose.tools import assert_equals, assert_false, assert_raises, assert_true
 
 import synapseclient.core.multithread_download.download_threads as download_threads
 from synapseclient.core.multithread_download.download_threads import (
     _MultithreadedDownloader,
     download_file,
     DownloadRequest,
-    PresignedUrlProvider,
     PresignedUrlInfo,
+    PresignedUrlProvider,
     TransferStatus,
 )
 
@@ -39,7 +39,7 @@ class TestPresignedUrlProvider(object):
 
             presigned_url_provider = PresignedUrlProvider(self.mock_synapse_client,
                                                           self.download_request)
-            assert_equals(info, presigned_url_provider.get_info())
+            assert info == presigned_url_provider.get_info()
 
             # only caled once in init
             mock_get_presigned_info.assert_called_once()
@@ -62,10 +62,10 @@ class TestPresignedUrlProvider(object):
 
             presigned_url_provider = PresignedUrlProvider(self.mock_synapse_client,
                                                           self.download_request)
-            assert_equals(unexpired_info, presigned_url_provider.get_info())
+            assert unexpired_info == presigned_url_provider.get_info()
 
-            # only caled once in init and again in get_info
-            assert_equals(2, mock_get_presigned_info.call_count)
+            # only called once in init and again in get_info
+            assert 2 == mock_get_presigned_info.call_count
             mock_datetime.datetime.utcnow.assert_called_once()
 
     def test_get_pre_signed_info(self):
@@ -86,7 +86,7 @@ class TestPresignedUrlProvider(object):
                                                           self.download_request)
 
             expected = PresignedUrlInfo(fake_file_name, fake_url, fake_exp_time)
-            assert_equals(expected, presigned_url_provider._get_pre_signed_info())
+            assert expected == presigned_url_provider._get_pre_signed_info()
 
             mock_pre_signed_url_expiration_time.assert_called_with(fake_url)
             self.mock_synapse_client._getFileHandleDownload.assert_called_with(
@@ -104,7 +104,7 @@ def test_generate_chunk_ranges():
 
     expected = [(0, 7), (8, 15), (16, 17)]
 
-    assert_equals(expected, result)
+    assert expected == result
 
 
 def test_pre_signed_url_expiration_time():
@@ -118,7 +118,7 @@ def test_pre_signed_url_expiration_time():
 
     expected = datetime.datetime(year=2013, month=7, day=21, hour=20, minute=12, second=7) + datetime.timedelta(
         seconds=86400)
-    assert_equals(expected, download_threads._pre_signed_url_expiration_time(url))
+    assert expected == download_threads._pre_signed_url_expiration_time(url)
 
 
 @mock.patch.object(download_threads, '_MultithreadedDownloader')
@@ -151,7 +151,7 @@ def test_download_file(mock_multithreaded_downloader_init):
     mock_downloader.download_file.assert_called_once_with(request)
 
     # executor was passed in from the outside, so it should be managed from the outside
-    assert_false(mock_executor.shutdown.called)
+    assert not mock_executor.shutdown.called
 
 
 @mock.patch.object(download_threads, 'get_executor')
@@ -187,7 +187,7 @@ def test_download_file__executor_shutdown(mock_multithreaded_downloader_init, mo
     mock_downloader.download_file.assert_called_once_with(request)
 
     # internally created executor should be shutdown
-    assert_true(mock_executor.shutdown.called)
+    assert mock_executor.shutdown.called
 
 
 class MultithreadedDownloaderTests(TestCase):
@@ -257,26 +257,26 @@ class MultithreadedDownloaderTests(TestCase):
                 mock.call(mock_url_provider, chunk_generator, set([second_future])),
                 mock.call(mock_url_provider, chunk_generator, set()),
             ]
-            assert_equals(expected_submit_chunks_calls, mock_submit_chunks.call_args_list)
+            assert expected_submit_chunks_calls == mock_submit_chunks.call_args_list
 
             expected_write_chunk_calls = [
                 mock.call(request, set(), transfer_status),
                 mock.call(request, set([first_future]), transfer_status),
                 mock.call(request, set([second_future, third_future]), transfer_status),
             ]
-            assert_equals(expected_write_chunk_calls, mock_write_chunks.call_args_list)
+            assert expected_write_chunk_calls == mock_write_chunks.call_args_list
 
             expected_futures_wait_calls = [
                 mock.call(set([first_future, second_future]), return_when=concurrent.futures.FIRST_COMPLETED),
                 mock.call(set([second_future, third_future]), return_when=concurrent.futures.FIRST_COMPLETED),
             ]
-            assert_equals(expected_futures_wait_calls, mock_futures_wait.call_args_list)
+            assert expected_futures_wait_calls == mock_futures_wait.call_args_list
 
             expected_check_for_errors_calls = [
                 mock.call(request, set([first_future])),
                 mock.call(request, set([second_future, third_future])),
             ]
-            assert_equals(expected_check_for_errors_calls, mock_check_for_errors.call_args_list)
+            assert expected_check_for_errors_calls == mock_check_for_errors.call_args_list
 
     def test_download_file__error(self):
         """Test downloading a file when one of the file downloads generates an error.
@@ -327,7 +327,7 @@ class MultithreadedDownloaderTests(TestCase):
             max_concurrent_parts = 5
             downloader = _MultithreadedDownloader(syn, executor, max_concurrent_parts)
 
-            with assert_raises(exception.__class__):
+            with pytest.raises(exception.__class__):
                 downloader.download_file(request)
 
             # file should have been removed
@@ -375,8 +375,8 @@ class MultithreadedDownloaderTests(TestCase):
                 end,
             ) for start, end in ranges
         ]
-        assert_equals(expected_submits, executor_submit.call_args_list)
-        assert_equals(set(executor_submit_side_effect), submitted_futures)
+        assert expected_submits == executor_submit.call_args_list
+        assert set(executor_submit_side_effect) == submitted_futures
 
     @mock.patch.object(download_threads, 'open')
     def test_write_chunks__none_ready(self, mock_open):
@@ -386,7 +386,7 @@ class MultithreadedDownloaderTests(TestCase):
         completed_futures = set()
         downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)
         downloader._write_chunks(request, completed_futures, transfer_status)
-        assert_false(mock_open.called)
+        assert not mock_open.called
 
     @mock.patch.object(download_threads, 'printTransferProgress')
     @mock.patch.object(download_threads, 'open')
@@ -427,11 +427,11 @@ class MultithreadedDownloaderTests(TestCase):
 
         # with open (as a context manager)
         mock_write = mock_open.return_value.__enter__.return_value
-        assert_equals(expected_seeks, mock_write.seek.call_args_list)
-        assert_equals(expected_writes, mock_write.write.call_args_list)
+        assert expected_seeks == mock_write.seek.call_args_list
+        assert expected_writes == mock_write.write.call_args_list
 
-        assert_equals(sum(len(c) for c in chunks), transfer_status.transferred)
-        assert_equals(expected_print_transfer_progresses, mock_print_transfer_progress.call_args_list)
+        assert sum(len(c) for c in chunks) == transfer_status.transferred
+        assert expected_print_transfer_progresses == mock_print_transfer_progress.call_args_list
 
     def test_check_for_errors__no_errors(self):
         """Verify check_for_errors when there were no errors"""
@@ -454,7 +454,7 @@ class MultithreadedDownloaderTests(TestCase):
         failed_future = mock.Mock(exception=mock.Mock(return_value=exception))
         completed_futures = ([successful_future] * 2) + [failed_future] + [successful_future]
 
-        with assert_raises(exception.__class__):
+        with pytest.raises(exception.__class__):
             downloader._check_for_errors(request, completed_futures)
 
     @mock.patch.object(download_threads, "_get_thread_session")
@@ -475,7 +475,7 @@ class MultithreadedDownloaderTests(TestCase):
         end = 42
 
         downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)
-        with assert_raises(SynapseError):
+        with pytest.raises(SynapseError):
             downloader._get_response_with_retry(mock_presigned_url_provider, start, end)
 
         expected_call_list = [
@@ -483,7 +483,7 @@ class MultithreadedDownloaderTests(TestCase):
                 presigned_url_info.url, headers={"Range": "bytes=5-42"}, stream=True
             )
         ] * download_threads.MAX_RETRIES
-        assert_equals(expected_call_list, mock_requests_session.get.call_args_list)
+        assert expected_call_list == mock_requests_session.get.call_args_list
 
     @mock.patch.object(download_threads, "_get_thread_session")
     def test_get_response_with_retry__partial_content_reponse(self, mock_get_thread_session):
@@ -503,8 +503,8 @@ class MultithreadedDownloaderTests(TestCase):
         end = 42
 
         downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)
-        assert_equals(
-            (start, mock_requests_response),
+        assert (
+            (start, mock_requests_response) ==
             downloader._get_response_with_retry(mock_presigned_url_provider, start, end)
         )
 
@@ -517,10 +517,10 @@ class MultithreadedDownloaderTests(TestCase):
 
 def test_shared_executor():
     """Test the shared_executor contextmanager which should set up thread_local Executor"""
-    assert_false(hasattr(download_threads._thread_local, 'executor'))
+    assert not hasattr(download_threads._thread_local, 'executor')
 
     executor = mock.Mock()
     with download_threads.shared_executor(executor):
-        assert_equals(executor, download_threads._thread_local.executor)
+        assert executor == download_threads._thread_local.executor
 
-    assert_false(hasattr(download_threads._thread_local, 'executor'))
+    assert not hasattr(download_threads._thread_local, 'executor')
