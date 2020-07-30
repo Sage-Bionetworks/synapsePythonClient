@@ -20,4 +20,4 @@ test_script:
           openssl aes-256-cbc -K $env:encrypted_d17283647768_key -iv $env:encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
           move -force test.synapseConfig ${env:userprofile}\\.synapseConfig
         }
-    - cmd: "IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( %PYTHON%\\python.exe -m nose --traverse-namespace -s -v tests\\integration ) ELSE ( ECHO Skipping integration tests )"
+    - cmd: "IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( %PYTHON%\\python.exe -m pytest -sv tests\\integration ) ELSE ( ECHO Skipping integration tests )"
