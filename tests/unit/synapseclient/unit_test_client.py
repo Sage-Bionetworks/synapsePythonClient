@@ -2221,3 +2221,107 @@ class TestHandleSynapseHTTPError:
                 syn._handle_synapse_http_error(response)
 
             assert status_code == cm_ex.value.response.status_code
+
+
+def test_ensure_download_location_is_directory(syn):
+    downloadLocation = '/foo/bar/baz'
+    with patch.object(client, 'os') as mock_os:
+        mock_os.path.isfile.return_value = False
+        syn._ensure_download_location_is_directory(downloadLocation)
+
+        mock_os.path.isfile.return_value = True
+        with pytest.raises(ValueError):
+            syn._ensure_download_location_is_directory(downloadLocation)
+
+
+class TestTableQuery:
+
+    @patch.object(client, 'CsvFileTable')
+    def test_table_query__csv(self, mock_csv, syn):
+        query = 'select id from syn123'
+        kwargs = {
+            'quoteCharacter': '|',
+            'downloadLocation': '/foo/bar',
+        }
+
+        expected_return = Mock()
+        mock_csv.from_table_query.return_value = expected_return
+
+        actual_return = syn.tableQuery(query, resultsAs='csv', **kwargs)
+        assert expected_return == actual_return
+        mock_csv.from_table_query.assert_called_once_with(syn, query, **kwargs)
+
+    @patch.object(client, 'TableQueryResult')
+    def test_table_query__rowset(self, mock_result, syn):
+        query = 'select id from syn123'
+        kwargs = {'isConsistent': 'true'}
+
+        expected_return = Mock()
+        mock_result.return_value = expected_return
+
+        actual_return = syn.tableQuery(query, resultsAs='rowset', **kwargs)
+        assert expected_return == actual_return
+        mock_result.assert_called_once_with(syn, query, **kwargs)
+
+    @pytest.mark.parametrize('downloadLocation', [None, '/foo/baz'])
+    def test_query_table_csv(self, downloadLocation, syn):
+        """Verify the behavior of _queryTableCsv, both with a user specified downloadLocation and without"""
+
+        query = 'select id from syn123'
+        quoteCharacter = '|'
+        escapeCharacter = '^'
+        lineEnd = '\n'
+        separator = '$'
+        header = True
+        includeRowIdAndRowVersion = True
+        file_handle_id = 123
+        cache_dir = os.path.join('foo', 'bar')
+
+        expanduser = os.path.expanduser
+        expandvars = os.path.expandvars
+        os_join = os.path.join
+        with patch.object(syn, '_waitForAsync') as mock_waitForAsync, \
+                patch.object(syn, 'cache') as mock_cache, \
+                patch.object(syn, '_downloadFileHandle') as mock_download_file_handle, \
+                patch.object(client, 'os') as mock_os:
+
+            mock_download_result = {'resultsFileHandleId': file_handle_id}
+            mock_waitForAsync.return_value = mock_download_result
+            mock_cache.get.return_value = None
+            mock_cache.get_cache_dir.return_value = cache_dir
+            mock_os.path.isfile.return_value = False
+
+            # keep this fns intact
+            mock_os.path.join = os_join
+            mock_os.path.expanduser = expanduser
+            mock_os.path.expandvars = expandvars
+
+            kwargs = {}
+            expected_dir = cache_dir
+            if downloadLocation:
+                expected_dir = downloadLocation
+                kwargs['downloadLocation'] = downloadLocation
+
+            expected_path = os_join(expected_dir, f"{file_handle_id}.csv")
+            mock_download_file_handle.return_value = expected_path
+
+            actual_result = syn._queryTableCsv(
+                query,
+                quoteCharacter=quoteCharacter,
+                escapeCharacter=escapeCharacter,
+                lineEnd=lineEnd,
+                separator=separator,
+                header=header,
+                includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+                **kwargs
+            )
+
+            mock_os.makedirs.assert_called_once_with(expected_dir, exist_ok=True)
+            mock_download_file_handle.assert_called_once_with(
+                file_handle_id,
+                'syn123',
+                'TableEntity',
+                expected_path,
+            )
+
+            assert (mock_download_result, expected_path) == actual_result
