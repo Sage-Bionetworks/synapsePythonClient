@@ -785,6 +785,10 @@ class Synapse(object):
                                         + '!'*len(warning_message)+'\n')
         return entity
 
+    def _ensure_download_location_is_directory(self, downloadLocation):
+        if os.path.isfile(downloadLocation):
+            raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+
     def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
         # set the initial local state
         entity.path = None
@@ -805,8 +809,7 @@ class Synapse(object):
         if downloadLocation is not None:
             # Make sure the specified download location is a fully resolved directory
             downloadLocation = os.path.expandvars(os.path.expanduser(downloadLocation))
-            if os.path.isfile(downloadLocation):
-                raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+            self._ensure_download_location_is_directory(downloadLocation)
         elif cached_file_path is not None:
             # file already cached so use that as the download location
             downloadLocation = os.path.dirname(cached_file_path)
@@ -3298,15 +3301,13 @@ class Synapse(object):
 
         if downloadLocation:
             download_dir = os.path.expandvars(os.path.expanduser(downloadLocation))
+            self._ensure_download_location_is_directory(download_dir)
         else:
             download_dir = self.cache.get_cache_dir(file_handle_id)
 
-        if os.path.isfile(download_dir):
-            raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
-
         os.makedirs(download_dir, exist_ok=True)
         path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
-                                            'TableEntity', os.path.join(download_dir, str(file_handle_id) + ".csv"))
+                                        'TableEntity', os.path.join(download_dir, str(file_handle_id) + ".csv"))
 
         return download_from_table_result, path
 
