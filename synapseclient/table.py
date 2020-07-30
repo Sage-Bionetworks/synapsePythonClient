@@ -1636,7 +1636,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
     @classmethod
     def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep),
-                         separator=",", header=True, includeRowIdAndRowVersion=True):
+                         separator=",", header=True, includeRowIdAndRowVersion=True, downloadLocation=None):
         """
         Create a Table object wrapping a CSV file resulting from querying a Synapse table.
         Mostly for internal use.
@@ -1649,7 +1649,9 @@ class CsvFileTable(TableAbstractBaseClass):
             lineEnd=lineEnd,
             separator=separator,
             header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+            downloadLocation=downloadLocation,
+        )
 
         # A dirty hack to find out if we got back row ID and Version
         # in particular, we don't get these back from aggregate queries

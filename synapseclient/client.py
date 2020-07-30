@@ -3110,12 +3110,13 @@ class Synapse(object):
 
         For CSV files, there are several parameters to control the format of the resulting file:
 
-        :param quoteCharacter:  default double quote
-        :param escapeCharacter: default backslash
-        :param lineEnd:         defaults to os.linesep
-        :param separator:       defaults to comma
-        :param header:          True by default
+        :param quoteCharacter:   default double quote
+        :param escapeCharacter:  default backslash
+        :param lineEnd:          defaults to os.linesep
+        :param separator:        defaults to comma
+        :param header:           True by default
         :param includeRowIdAndRowVersion: True by default
+        :param downloadLocation: directory path to download the CSV file to
 
         :return: A Table object that serves as a wrapper around a CSV file (or generator over Row objects if
                  resultsAs="rowset").
@@ -3253,7 +3254,7 @@ class Synapse(object):
                               " Please check the result to make sure it is correct. %s" % (result_type, result))
 
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",",
-                       header=True, includeRowIdAndRowVersion=True):
+                       header=True, includeRowIdAndRowVersion=True, downloadLocation=None):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
@@ -3291,15 +3292,22 @@ class Synapse(object):
         uri = "/entity/{id}/table/download/csv/async".format(id=extract_synapse_id_from_query(query))
         download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
         file_handle_id = download_from_table_result['resultsFileHandleId']
-        cached_file_path = self.cache.get(file_handle_id=file_handle_id)
+        cached_file_path = self.cache.get(file_handle_id=file_handle_id, path=downloadLocation)
         if cached_file_path is not None:
             return download_from_table_result, cached_file_path
+
+        if downloadLocation:
+            download_dir = os.path.expandvars(os.path.expanduser(downloadLocation))
         else:
-            cache_dir = self.cache.get_cache_dir(file_handle_id)
-            if not os.path.exists(cache_dir):
-                os.makedirs(cache_dir)
-            path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
-                                            'TableEntity', os.path.join(cache_dir, str(file_handle_id) + ".csv"))
+            download_dir = self.cache.get_cache_dir(file_handle_id)
+
+        if os.path.isfile(download_dir):
+            raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+
+        os.makedirs(download_dir, exist_ok=True)
+        path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
+                                            'TableEntity', os.path.join(download_dir, str(file_handle_id) + ".csv"))
+
         return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
