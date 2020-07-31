@@ -786,8 +786,10 @@ class Synapse(object):
         return entity
 
     def _ensure_download_location_is_directory(self, downloadLocation):
+        download_dir = os.path.expandvars(os.path.expanduser(downloadLocation))
         if os.path.isfile(downloadLocation):
             raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+        return download_dir
 
     def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
         # set the initial local state
@@ -808,8 +810,7 @@ class Synapse(object):
         # Decide the best download location for the file
         if downloadLocation is not None:
             # Make sure the specified download location is a fully resolved directory
-            downloadLocation = os.path.expandvars(os.path.expanduser(downloadLocation))
-            self._ensure_download_location_is_directory(downloadLocation)
+            downloadLocation = self._ensure_download_location_is_directory(downloadLocation)
         elif cached_file_path is not None:
             # file already cached so use that as the download location
             downloadLocation = os.path.dirname(cached_file_path)
@@ -3300,8 +3301,7 @@ class Synapse(object):
             return download_from_table_result, cached_file_path
 
         if downloadLocation:
-            download_dir = os.path.expandvars(os.path.expanduser(downloadLocation))
-            self._ensure_download_location_is_directory(download_dir)
+            download_dir = self._ensure_download_location_is_directory(downloadLocation)
         else:
             download_dir = self.cache.get_cache_dir(file_handle_id)
 
@@ -3339,12 +3339,13 @@ class Synapse(object):
                 return column
         return None
 
-    def downloadTableColumns(self, table, columns, **kwargs):
+    def downloadTableColumns(self, table, columns, downloadLocation=None, **kwargs):
         """
         Bulk download of table-associated files.
 
-        :param table:            table query result
-        :param columns:           a list of column names as strings
+        :param table:               table query result
+        :param columns:             a list of column names as strings
+        :param downloadLocation:    directory into which to download the files
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
@@ -3374,7 +3375,11 @@ class Synapse(object):
         if not isinstance(columns, collections.abc.Iterable):
             raise TypeError('Columns parameter requires a list of column names')
 
-        file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(table, columns)
+        file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(
+            table,
+            columns,
+            downloadLocation,
+        )
 
         self.logger.info("Downloading %d files, %d cached locally" % (len(file_handle_associations),
                                                                       len(file_handle_to_path_map)))
@@ -3416,13 +3421,19 @@ class Synapse(object):
                 # unzip into cache
                 # ------------------------------------------------------------
 
+                if downloadLocation:
+                    download_dir = self._ensure_download_location_is_directory(downloadLocation)
+
                 with zipfile.ZipFile(zipfilepath) as zf:
                     # the directory structure within the zip follows that of the cache:
                     # {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
                     for summary in response['fileSummary']:
                         if summary['status'] == 'SUCCESS':
-                            cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                            filepath = extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
+
+                            if not downloadLocation:
+                                download_dir = self.cache.get_cache_dir(summary['fileHandleId'])
+
+                            filepath = extract_zip_file_to_directory(zf, summary['zipEntryName'], download_dir)
                             self.cache.add(summary['fileHandleId'], filepath)
                             file_handle_to_path_map[summary['fileHandleId']] = filepath
                         elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
@@ -3440,7 +3451,7 @@ class Synapse(object):
 
         return file_handle_to_path_map
 
-    def _build_table_download_file_handle_list(self, table, columns):
+    def _build_table_download_file_handle_list(self, table, columns, downloadLocation):
         # ------------------------------------------------------------
         # build list of file handles to download
         # ------------------------------------------------------------
@@ -3456,7 +3467,7 @@ class Synapse(object):
             for col_index in col_indices:
                 file_handle_id = row[col_index]
                 if is_integer(file_handle_id):
-                    path_to_cached_file = self.cache.get(file_handle_id)
+                    path_to_cached_file = self.cache.get(file_handle_id, path=downloadLocation)
                     if path_to_cached_file:
                         file_handle_to_path_map[file_handle_id] = path_to_cached_file
                     elif file_handle_id not in seen_file_handle_ids:
