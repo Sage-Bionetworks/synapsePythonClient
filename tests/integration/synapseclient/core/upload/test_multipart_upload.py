@@ -1,25 +1,24 @@
 import filecmp
+import os
+import random
+import requests
+import tempfile
 import traceback
 from io import open
 
-from nose.tools import assert_equals, assert_true, assert_is_not_none
+from unittest import mock
 
+from synapseclient import File
 import synapseclient.core.config
-from synapseclient.core.utils import *
-from synapseclient.core.exceptions import *
-from synapseclient import *
-from synapseclient.core.upload import multipart_upload
-from synapseclient.core.upload.multipart_upload import *
-from tests import integration
-from tests.integration import schedule_for_cleanup
+import synapseclient.core.utils as utils
+from synapseclient.core.upload.multipart_upload import (
+    MIN_PART_SIZE,
+    multipart_upload_file,
+    multipart_upload_string
+)
 
 
-def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
-
-
-def test_round_trip():
+def test_round_trip(syn, project, schedule_for_cleanup):
     fhid = None
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE + 777771)
     try:
@@ -32,7 +31,7 @@ def test_round_trip():
         schedule_for_cleanup(tmp_path)
 
         junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-        assert_true(filecmp.cmp(filepath, junk.path))
+        assert filecmp.cmp(filepath, junk.path)
 
     finally:
         try:
@@ -46,64 +45,67 @@ def test_round_trip():
             print(traceback.format_exc())
 
 
-def test_single_thread_upload():
+def test_single_thread_upload(syn):
     synapseclient.core.config.single_threaded = True
     try:
         filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + 1)
-        assert_is_not_none(multipart_upload_file(syn, filepath))
+        assert multipart_upload_file(syn, filepath) is not None
     finally:
         synapseclient.core.config.single_threaded = False
 
 
-def test_randomly_failing_parts():
-    FAILURE_RATE = 1.0/3.0
+def test_randomly_failing_parts(syn, project, schedule_for_cleanup):
+    """Verify that we can recover gracefully with some randomly inserted errors
+    while uploading parts."""
+
+    fail_every = 3  # fail every nth request
+    fail_cycle = random.randint(0, fail_every - 1)  # randomly vary which n of the request cycle we fail
     fhid = None
-    MIN_PART_SIZE = 5 * MB
-    MAX_RETRIES = 20
 
-    filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + 777771)
+    filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + (MIN_PART_SIZE / 2))
 
-    normal_put_chunk = None
+    put_count = 0
+    normal_put = requests.Session.put
 
-    def _put_chunk_or_fail_randomly(url, chunk, verbose=False):
-        if random.random() < FAILURE_RATE:
+    def _put_chunk_or_fail_randomly(self, url, *args, **kwargs):
+        # fail every nth put to aws s3
+        if 's3.amazonaws.com' not in url:
+            return normal_put(self, url, *args, **kwargs)
+
+        nonlocal put_count
+        put_count += 1
+
+        if (put_count + fail_cycle) % fail_every == 0:
             raise IOError("Ooops! Artificial upload failure for testing.")
-        else:
-            return normal_put_chunk(url, chunk, verbose)
 
-    # Mock _put_chunk to fail randomly
-    normal_put_chunk = multipart_upload._put_chunk
-    multipart_upload._put_chunk = _put_chunk_or_fail_randomly
+        return normal_put(self, url, *args, **kwargs)
 
-    try:
-        fhid = multipart_upload_file(syn, filepath)
-
-        # Download the file and compare it with the original
-        junk = File(parent=project, dataFileHandleId=fhid)
-        junk.properties.update(syn._createEntity(junk.properties))
-        (tmp_f, tmp_path) = tempfile.mkstemp()
-        schedule_for_cleanup(tmp_path)
-
-        junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-        assert_true(filecmp.cmp(filepath, junk.path))
-
-    finally:
-        # Un-mock _put_chunk
-        if normal_put_chunk:
-            multipart_upload._put_chunk = normal_put_chunk
-
+    with mock.patch('requests.Session.put', side_effect=_put_chunk_or_fail_randomly, autospec=True):
         try:
-            if 'junk' in locals():
-                syn.delete(junk)
-        except Exception:
-            print(traceback.format_exc())
-        try:
-            os.remove(filepath)
-        except Exception:
-            print(traceback.format_exc())
+            fhid = multipart_upload_file(syn, filepath, part_size=MIN_PART_SIZE)
+
+            # Download the file and compare it with the original
+            junk = File(parent=project, dataFileHandleId=fhid)
+            junk.properties.update(syn._createEntity(junk.properties))
+            (tmp_f, tmp_path) = tempfile.mkstemp()
+            schedule_for_cleanup(tmp_path)
+
+            junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
+            assert filecmp.cmp(filepath, junk.path)
+
+        finally:
+            try:
+                if 'junk' in locals():
+                    syn.delete(junk)
+            except Exception:
+                print(traceback.format_exc())
+            try:
+                os.remove(filepath)
+            except Exception:
+                print(traceback.format_exc())
 
 
-def test_multipart_upload_big_string():
+def test_multipart_upload_big_string(syn, project, schedule_for_cleanup):
     cities = ["Seattle", "Portland", "Vancouver", "Victoria",
               "San Francisco", "Los Angeles", "New York",
               "Oaxaca", "Cancún", "Curaçao", "जोधपुर",
@@ -131,5 +133,4 @@ def test_multipart_upload_big_string():
     with open(junk.path, encoding='utf-8') as f:
         retrieved_text = f.read()
 
-    assert_equals(retrieved_text, text)
-
+    assert retrieved_text == text

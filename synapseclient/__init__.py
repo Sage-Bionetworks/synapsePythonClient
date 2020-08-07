@@ -18,16 +18,20 @@ the `web <https://www.synapse.org/>`_. The Python client can also be used from t
 `command line <CommandLineClient.html>`_.
 
 If you're just getting started with Synapse, have a look at the Getting Started guides for
-`Synapse <https://docs.synapse.org/articles/getting_started.html>`_ and
-`the Python client <https://python-docs.synapse.org/>`_.
+`Synapse <https://docs.synapse.org/articles/getting_started.html>`_.
 
 Installation
 ============
 
 The `synapseclient <https://pypi.python.org/pypi/synapseclient/>`_ package is available from PyPI. It can be installed
-or upgraded with pip::
+or upgraded with pip. Note that synapseclient requires Python 3, and if you have both Python 2 and Python 3
+installations your system, the pip command associated with Python 3 may be named pip3 to distinguish it from a
+Python 2 associated command. Prefixing the pip installation with sudo may be necessary if you are installing Python
+into a shared system installation of Python.
 
-    (sudo) pip install (--upgrade) synapseclient[pandas, pysftp]
+::
+
+    (sudo) pip3 install (--upgrade) synapseclient[pandas, pysftp]
 
 The dependencies on pandas and pysftp are optional. The Synapse :py:mod:`synapseclient.table` feature integrates with
 Pandas. Support for sftp is required for users of SFTP file storage. Both require native libraries to be compiled or
@@ -54,10 +58,7 @@ Next, either install the package in the site-packages directory ``python setup.p
 Python 2 Support
 ----------------
 
-The sun is setting on Python 2. Many major open source Python packages are moving to require Python 3.
-
-The Synapse engineering team will step down Python 2.7 support to only bug fixes, and require Python 3 on new feature releases. **Starting with Synapse Python client version 2.0 (will be released in Q1 2019), Synapse Python client will require Python 3.**
-
+synapseclient versions 2.0 and above require Python 3.6 or greater. Python 2.7 is no longer supported.
 
 Connecting to Synapse
 =====================
@@ -254,8 +255,8 @@ See:
 More Information
 ================
 
-For more information see the `Synapse User Guide <https://docs.synapse.org/articles/>`_. These Python API docs are browsable
-online at `https://python-docs.synapse.org/ <https://python-docs.synapse.org/>`_.
+For more information see the `Synapse User Guide <https://docs.synapse.org/articles/>`_. These Python API
+docs are browsable online at `https://python-docs.synapse.org/ <https://python-docs.synapse.org/>`_.
 
 Getting Updates
 ===============
@@ -266,28 +267,35 @@ To get information about new versions of the client, see:
 
 """
 
-from .__version__ import __version__
+import json
 
-# public APIs
-from .client import Synapse, login
-from .client import PUBLIC, AUTHENTICATED_USERS
+import pkg_resources
 
 from .activity import Activity
+from .annotations import Annotations
+from .client import PUBLIC, AUTHENTICATED_USERS
+# public APIs
+from .client import Synapse, login
+from .core.version_check import check_for_updates, release_notes
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset,\
-    EntityViewType, build_table
+from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, \
+    EntityViewType, build_table, SubmissionViewSchema
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-from .core.version_check import check_for_updates, release_notes
-
+__version__ = json.load(
+    pkg_resources.resource_stream(
+        __name__,
+        'synapsePythonClient'
+    )
+)['latestVersion']
 
 __all__ = [
     # objects
     'Synapse', 'Activity', 'Entity', 'Project', 'Folder', 'File', 'Link', 'DockerRepository', 'Evaluation',
     'Submission', 'SubmissionStatus', 'Schema', 'EntityViewSchema', 'Column', 'Row', 'RowSet', 'Table', 'PartialRowset',
-    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki',
+    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki', 'Annotations', 'SubmissionViewSchema',
     # functions
     'login', 'build_table', 'as_table_columns', 'check_for_updates', 'release_notes',
     # enum
@@ -301,6 +309,6 @@ import requests
 USER_AGENT = {'User-Agent': 'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 
 # patch json
-from .core.models import custom_json
+from .core.models import custom_json  # noqa
 # patch logging
-from .core import logging_setup
+from .core import logging_setup       # noqa

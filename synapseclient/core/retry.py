@@ -12,19 +12,19 @@ def with_retry(function, verbose=False,
                retries=3, wait=1, back_off=2, max_wait=30):
     """
     Retries the given function under certain conditions.
-    
-    :param function:           A function with no arguments.  If arguments are needed, use a lambda (see example).  
+
+    :param function:           A function with no arguments.  If arguments are needed, use a lambda (see example).
     :param retry_status_codes: What status codes to retry upon in the case of a SynapseHTTPError.
     :param retry_errors:       What reasons to retry upon, if function().response.json()['reason'] exists.
     :param retry_exceptions:   What types of exceptions, specified as strings, to retry upon.
     :param retries:            How many times to retry maximum.
-    :param wait:               How many seconds to wait between retries.  
-    :param back_off:           Exponential constant to increase wait for between progressive failures.  
-    
+    :param wait:               How many seconds to wait between retries.
+    :param back_off:           Exponential constant to increase wait for between progressive failures.
+
     :returns: function()
-    
+
     Example::
-        
+
         def foo(a, b, c): return [a, b, c]
         result = self._with_retry(lambda: foo("1", "2", "3"), **STANDARD_RETRY_PARAMS)
     """
@@ -38,6 +38,7 @@ def with_retry(function, verbose=False,
     total_wait = 0
     while True:
         # Start with a clean slate
+        exc = None
         exc_info = None
         retry = False
         response = None
@@ -46,13 +47,14 @@ def with_retry(function, verbose=False,
         try:
             response = function()
         except Exception as ex:
+            exc = ex
             exc_info = sys.exc_info()
             logger.debug("calling %s resulted in an Exception" % function)
             if hasattr(ex, 'response'):
                 response = ex.response
 
         # Check if we got a retry-able error
-        if response is not None:
+        if response is not None and hasattr(response, 'status_code'):
             if response.status_code in retry_status_codes:
                 response_message = _get_message(response)
                 retry = True
@@ -76,11 +78,12 @@ def with_retry(function, verbose=False,
                     logger.debug("retrying " + response_message)
 
         # Check if we got a retry-able exception
-        if exc_info is not None:
-            if (exc_info[1].__class__.__name__ in retry_exceptions
-                    or any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors])):
+        if exc is not None:
+            if (exc.__class__.__name__ in retry_exceptions or
+                    exc.__class__ in retry_exceptions or
+                    any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors])):
                 retry = True
-                logger.debug("retrying exception: " + exc_info[1].__class__.__name__ + str(exc_info[1]))
+                logger.debug("retrying exception: " + str(exc))
 
         # Wait then retry
         retries -= 1
@@ -96,7 +99,7 @@ def with_retry(function, verbose=False,
         # Out of retries, re-raise the exception or return the response
         if exc_info is not None and exc_info[0] is not None:
             logger.debug("retries have run out. re-raising the exception", exc_info=True)
-            raise exc_info[0](exc_info[1]).with_traceback(exc_info[2])
+            raise exc
         return response
 
 

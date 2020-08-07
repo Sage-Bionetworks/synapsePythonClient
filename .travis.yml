@@ -45,9 +45,10 @@ before_install:
     pyenv install $PY_VERSION
     export PYENV_VERSION=$PY_VERSION
     export PATH="/Users/travis/.pyenv/shims:${PATH}"
-    pyenv-virtualenv venv
-    source venv/bin/activate
-    pip install nose mock
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
+    pyenv virtualenv venv
+    pyenv activate venv
   fi
 
 install:
@@ -57,8 +58,7 @@ install:
     sudo apt-get install gnome-keyring
   fi
 - pip install -U setuptools
-- travis_wait pip install pysftp pandas boto3
-- python setup.py install
+- travis_wait pip install ".[pysftp,pandas,boto3,tests]"
 
 before_script:
 - | # decrypt credentials used in tests
@@ -69,13 +69,12 @@ before_script:
 
 
 script:
-- nosetests --traverse-namespace -s tests/unit
+- flake8
+- pytest -sv tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
-    nosetests --traverse-namespace -s -v tests/integration
+    pytest -sv tests/integration
   else
     echo "Skipping integration tests";
   fi
-
-
 

@@ -13,8 +13,8 @@ The ``synapseutils`` package provides both higher level functions as well as uti
 - :py:func:`sync.syncToSynapse`
 - :py:func:`monitor.notifyMe`
 """
-
-from .copy import copyWiki, copyFileHandles, changeFileMetaData
+# flake8: noqa F401 unclear who is using these
+from .copy_functions import copy, copyWiki, copyFileHandles, changeFileMetaData
 from .walk import walk
 from .sync import syncFromSynapse, syncToSynapse
 from .monitor import notifyMe, with_progress_bar

@@ -6,7 +6,7 @@ Utility Functions
 Utility functions useful in the implementation and testing of the Synapse client.
 
 """
-
+import collections.abc
 import os
 import sys
 import hashlib
@@ -17,7 +17,6 @@ import errno
 import inspect
 import random
 import requests
-import collections
 import tempfile
 import platform
 import functools
@@ -26,6 +25,7 @@ import uuid
 import importlib
 import numbers
 import urllib.parse as urllib_parse
+import warnings
 
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0)
@@ -292,7 +292,7 @@ def is_date(dt):
 
 def to_list(value):
     """Convert the value (an iterable or a scalar value) to a list."""
-    if isinstance(value, collections.Iterable) and not isinstance(value, str):
+    if isinstance(value, collections.abc.Iterable) and not isinstance(value, str):
         return list(value)
     else:
         return [value]
@@ -300,7 +300,7 @@ def to_list(value):
 
 def _to_iterable(value):
     """Convert the value (an iterable or a scalar value) to an iterable."""
-    if isinstance(value, collections.Iterable):
+    if isinstance(value, collections.abc.Iterable):
         return value
     return value,
 
@@ -548,7 +548,7 @@ def query_limit_and_offset(query, hard_limit=1000):
     """
     # Regex a lower-case string to simplify matching
     tempQueryStr = query.lower()
-    regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+    regex = r'\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
 
     # Continue to strip off and save the last limit/offset
     match = re.search(regex, tempQueryStr)
@@ -601,7 +601,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix='', postfix='', i
     :param transferred:             a number of items/bytes completed
     :param toBeTransferred:         total number of items/bytes when completed
     :param prefix:                  String printed before progress bar
-    :param prefix:                  String printed after progress bar
+    :param postfix:                 String printed after progress bar
     :param isBytes:                 A boolean indicating whether to convert bytes to kB, MB, GB etc.
     :param dt:                      The time in seconds that has passed since transfer started is used to calculate rate
     :param previouslyTransferred:   the number of bytes that were already transferred before this transfer began
@@ -647,14 +647,17 @@ def printTransferProgress(transferred, toBeTransferred, prefix='', postfix='', i
     sys.stdout.flush()
 
 
-def humanizeBytes(bytes):
-    bytes = float(bytes)
+def humanizeBytes(num_bytes):
+    if num_bytes is None:
+        raise ValueError('bytes must be a number')
+
+    num_bytes = float(num_bytes)
     units = ['bytes', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB']
     for i, unit in enumerate(units):
-        if bytes < 1024:
-            return '%3.1f%s' % (bytes, units[i])
+        if num_bytes < 1024:
+            return '%3.1f%s' % (num_bytes, units[i])
         else:
-            bytes /= 1024
+            num_bytes /= 1024
     return 'Oops larger than Exabytes'
 
 
@@ -796,7 +799,7 @@ def topolgical_sort(graph):
     """Given a graph in the form of a dictionary returns a sorted list
 
     Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
-    
+
     :param graph: a dictionary with values containing lists of keys referencing back into the dictionary
 
     :returns: sorted list of items
@@ -879,4 +882,36 @@ def attempt_import(module_name, fail_message):
 
 def require_param(param, name):
     if param is None:
-        raise ValueError("%s parameter is required." %name)
+        raise ValueError("%s parameter is required." % name)
+
+
+def snake_case(string):
+    """Convert the given string from CamelCase to snake_case"""
+    # https://stackoverflow.com/a/1176023
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
+
+
+class deprecated_keyword_param:
+    """A decorator to use to warn when a keyword parameter from a function has been deprecated
+    and is intended for future removal. Will emit a warning such a keyword is passed."""
+
+    def __init__(self, keywords, version, reason):
+        self.keywords = set(keywords)
+        self.version = version
+        self.reason = reason
+
+    def __call__(self, fn):
+        def wrapper(*args, **kwargs):
+            found = self.keywords.intersection(kwargs)
+            if found:
+                warnings.warn(
+                    "Parameter(s) {} deprecated since version {}; {}".format(
+                        sorted(list(found)), self.version, self.reason
+                    ),
+                    category=DeprecationWarning,
+                    stacklevel=2
+                )
+
+            return fn(*args, **kwargs)
+
+        return wrapper

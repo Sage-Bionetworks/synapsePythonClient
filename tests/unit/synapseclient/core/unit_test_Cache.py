@@ -3,9 +3,7 @@ import os
 import tempfile
 import time
 import random
-from mock import patch
-from nose.tools import assert_equal, assert_is_none, assert_is_not_none, assert_in, assert_false, assert_true,\
-    assert_less
+from unittest.mock import patch
 from collections import OrderedDict
 from multiprocessing import Process
 
@@ -43,18 +41,18 @@ def test_cache_concurrent_access():
         cache_map = my_cache._read_cache_map(my_cache.get_cache_dir(file_handle_id))
         process_ids = set()
         for path, iso_time in cache_map.items():
-            m = re.match("file_handle_%d_process_(\d+).junk" % file_handle_id, os.path.basename(path))
+            m = re.match("file_handle_%d_process_(\\d+).junk" % file_handle_id, os.path.basename(path))
             if m:
                 process_ids.add(int(m.group(1)))
-        assert_equal(process_ids, set(range(20)))
+        assert process_ids == set(range(20))
 
 
 def test_get_cache_dir():
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
     cache_dir = my_cache.get_cache_dir(1234567)
-    assert_true(cache_dir.startswith(tmp_dir))
-    assert_true(cache_dir.endswith("1234567"))
+    assert cache_dir.startswith(tmp_dir)
+    assert cache_dir.endswith("1234567")
 
 
 def test_parse_cache_entry_into_seconds():
@@ -66,28 +64,28 @@ def test_parse_cache_entry_into_seconds():
     timestamps["2286-11-20T17:46:40.375Z"] = 10000000000.375
     timestamps["2286-11-20T17:46:40.999Z"] = 10000000000.999
     for stamp in timestamps.keys():
-        assert_equal(cache.iso_time_to_epoch(stamp), timestamps[stamp])
-        assert_equal(cache.epoch_time_to_iso(cache.iso_time_to_epoch(stamp)), stamp)
+        assert cache.iso_time_to_epoch(stamp) == timestamps[stamp]
+        assert cache.epoch_time_to_iso(cache.iso_time_to_epoch(stamp)) == stamp
 
 
 def test_get_modification_time():
     ALLOWABLE_TIME_ERROR = 0.01  # seconds
 
     # Non existent files return None
-    assert_is_none(cache._get_modified_time("A:/I/h0pe/th1s/k0mput3r/haz/n0/fl0ppy.disk"))
+    assert cache._get_modified_time("A:/I/h0pe/th1s/k0mput3r/haz/n0/fl0ppy.disk") is None
 
     # File creation should result in a correct modification time
     _, path = tempfile.mkstemp()
-    assert_less(cache._get_modified_time(path) - time.time(), ALLOWABLE_TIME_ERROR)
+    assert cache._get_modified_time(path) - time.time() < ALLOWABLE_TIME_ERROR
 
     # Directory creation should result in a correct modification time
     path = tempfile.mkdtemp()
-    assert_less(cache._get_modified_time(path) - time.time(), ALLOWABLE_TIME_ERROR)
+    assert cache._get_modified_time(path) - time.time() < ALLOWABLE_TIME_ERROR
 
 
 def test_cache_timestamps():
     # test conversion to epoch time to ISO with proper rounding to millisecond
-    assert_equal(cache.epoch_time_to_iso(1433544108.080841), '2015-06-05T22:41:48.081Z')
+    assert cache.epoch_time_to_iso(1433544108.080841) == '2015-06-05T22:41:48.081Z'
 
 
 def test_compare_timestamps():
@@ -115,13 +113,13 @@ def test_subsecond_timestamps():
         _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.001Z"}
         _get_modified_time_mock.return_value = 1430861695.001111
 
-        assert_equal(path, my_cache.get(file_handle_id=1234, path=path))
+        assert path == my_cache.get(file_handle_id=1234, path=path)
 
         # The R client always writes .000 for milliseconds, for compatibility,
         # we should match .000 with any number of milliseconds
         _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.000Z"}
 
-        assert_equal(path, my_cache.get(file_handle_id=1234, path=path))
+        assert path == my_cache.get(file_handle_id=1234, path=path)
 
 
 def test_cache_store_get():
@@ -156,12 +154,12 @@ def test_cache_store_get():
     assert utils.equal_paths(b_file, path3)
 
     not_in_cache_file = my_cache.get(file_handle_id=101203, path=tmp_dir)
-    assert_is_none(not_in_cache_file)
+    assert not_in_cache_file is None
 
     removed = my_cache.remove(file_handle_id=101201, path=path1, delete=True)
     assert utils.normalize_path(path1) in removed
     assert len(removed) == 1
-    assert_is_none(my_cache.get(file_handle_id=101201))
+    assert my_cache.get(file_handle_id=101201) is None
 
     removed = my_cache.remove(file_handle_id=101202, path=path3, delete=True)
     b_file = my_cache.get(file_handle_id=101202)
@@ -172,7 +170,7 @@ def test_cache_store_get():
     removed = my_cache.remove(file_handle_id=101202, delete=True)
     assert utils.normalize_path(path2) in removed
     assert len(removed) == 1
-    assert_is_none(my_cache.get(file_handle_id=101202))
+    assert my_cache.get(file_handle_id=101202) is None
 
 
 def test_cache_modified_time():
@@ -186,7 +184,7 @@ def test_cache_modified_time():
     utils.touch(path1, (new_time_stamp, new_time_stamp))
 
     a_file = my_cache.get(file_handle_id=101201, path=path1)
-    assert_is_none(a_file)
+    assert a_file is None
 
 
 def test_cache_remove():
@@ -208,7 +206,7 @@ def test_cache_remove():
     assert utils.equal_paths(my_cache.get(101201), path2)
 
     my_cache.remove(101201)
-    assert_is_none(my_cache.get(101201))
+    assert my_cache.get(101201) is None
 
 
 def test_cache_rules():
@@ -256,25 +254,25 @@ def test_cache_rules():
     utils.touch(path2, (new_time_stamp, new_time_stamp))
 
     # test cache.contains
-    assert_false(my_cache.contains(file_handle_id=101201, path=empty_dir))
-    assert_false(my_cache.contains(file_handle_id=101201, path=path2))
-    assert_false(my_cache.contains(file_handle_id=101999, path=path2))
-    assert_true(my_cache.contains(file_handle_id=101201, path=path1))
-    assert_true(my_cache.contains(file_handle_id=101201, path=path3))
+    assert not my_cache.contains(file_handle_id=101201, path=empty_dir)
+    assert not my_cache.contains(file_handle_id=101201, path=path2)
+    assert not my_cache.contains(file_handle_id=101999, path=path2)
+    assert my_cache.contains(file_handle_id=101201, path=path1)
+    assert my_cache.contains(file_handle_id=101201, path=path3)
 
     # Get file from alternate location. Do we care which file we get?
-    assert_is_none(my_cache.get(file_handle_id=101201, path=path2))
-    assert_in(my_cache.get(file_handle_id=101201), [utils.normalize_path(path1), utils.normalize_path(path3)])
+    assert my_cache.get(file_handle_id=101201, path=path2) is None
+    assert my_cache.get(file_handle_id=101201) in [utils.normalize_path(path1), utils.normalize_path(path3)]
 
     # Download uncached file to a specified download location
-    assert_is_none(my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "not_in_cache")))
+    assert my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "not_in_cache")) is None
 
     # No downloadLocation specified, get file from alternate location. Do we care which file we get?
-    assert_is_not_none(my_cache.get(file_handle_id=101201))
-    assert_in(my_cache.get(file_handle_id=101201), [utils.normalize_path(path1), utils.normalize_path(path3)])
+    assert my_cache.get(file_handle_id=101201) is not None
+    assert my_cache.get(file_handle_id=101201) in [utils.normalize_path(path1), utils.normalize_path(path3)]
 
     # test case 2b.
-    assert_is_none(my_cache.get(file_handle_id=101202))
+    assert my_cache.get(file_handle_id=101202) is None
 
 
 def test_set_cache_root_dir():
@@ -290,8 +288,8 @@ def test_set_cache_root_dir():
 
     # test that the constructor correctly expands the path
     my_cache = cache.Cache(cache_root_dir=non_expanded_path)
-    assert_equal(expanded_path, my_cache.cache_root_dir)
+    assert expanded_path == my_cache.cache_root_dir
 
     # test that manually assigning cache_root_dir expands the path
     my_cache.cache_root_dir = non_expanded_path + "2"
-    assert_equal(expanded_path + "2", my_cache.cache_root_dir)
+    assert expanded_path + "2" == my_cache.cache_root_dir

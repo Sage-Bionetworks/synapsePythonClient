@@ -1,21 +1,12 @@
 import uuid
 import os
 
-from nose.tools import assert_equals, assert_in
-
-from synapseclient.core.exceptions import *
-from synapseclient import *
-from tests import integration
-from tests.integration import schedule_for_cleanup
+from synapseclient import File, Folder, Project
+import synapseclient.core.utils as utils
 import synapseutils
 
 
-def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
-
-
-def test_walk():
+def test_walk(syn, schedule_for_cleanup):
     walked = []
     firstfile = utils.make_bogus_data_file()
     schedule_for_cleanup(firstfile)
@@ -62,8 +53,7 @@ def test_walk():
         for x in i:
             if type(x) == list:
                 x.sort()
-        assert_in(i, walked)
+        assert i in walked
 
     temp = synapseutils.walk(syn, second_file.id)
-    assert_equals(list(temp), [])
-
+    assert list(temp) == []

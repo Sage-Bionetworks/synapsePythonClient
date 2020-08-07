@@ -2,11 +2,207 @@
 Release Notes
 =============
 
+2.1.1 (2020-07-10)
+==================
+
+Highlights:
+----------------
+
+- This version includes a performance improvement for
+  `syncFromSynapse <https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse>`__
+  downloads of deep folder hierarchies to local filesystem locations outside of the
+  `Synapse cache <https://docs.synapse.org/articles/downloading_data.html#downloading-a-file>`__.
+
+- Support is added for **SubmissionViews** that can be used to query and edit
+  a set of submissions through table services.
+
+  .. code-block:: python
+
+   from synapseclient import SubmissionViewSchema
+
+   project = syn.get("syn123")
+   evaluation_id = '9876543'
+   view = syn.store(SubmissionViewSchema(name='My Submission View', parent=project, scopes=[evaluation_id]))
+   view_table = syn.tableQuery(f"select * from {view.id}")
+
+Bug
+---
+
+-  [`SYNPY-1075 <https://sagebionetworks.jira.com/browse/SYNPY-1075>`__] -
+   Error in Python test (submission annotations)
+-  [`SYNPY-1076 <https://sagebionetworks.jira.com/browse/SYNPY-1076>`__] -
+   Upgrade/fix Pandas dependency
+
+Improvement
+-----------
+
+-  [`SYNPY-1070 <https://sagebionetworks.jira.com/browse/SYNPY-1070>`__] -
+   Add support for submission views
+-  [`SYNPY-1078 <https://sagebionetworks.jira.com/browse/SYNPY-1078>`__] -
+   Improve syncFromSynapse performance for large folder structures synced to external paths
+
+
+2.1.0 (2020-06-16)
+==================
+
+Highlights:
+----------------
+
+- A :code:`max_threads` property of the Synapse object has been added to customize the number of concurrent threads
+  that will be used during file transfers.
+
+  .. code-block:: python
+
+    import synapseclient
+    syn = synapseclient.login()
+    syn.max_threads = 20
+
+  If not customized the default value is (CPU count + 4). Adjusting this value
+  higher may speed up file transfers if the local system resources can take advantage of the higher setting.
+  Currently this value applies only to files whose underlying storage is AWS S3.
+
+  Alternately, a value can be stored in the `synapseConfig configuration file <https://docs.synapse.org/articles/client_configuration.html>`__ that will automatically apply
+  as the default if a value is not explicitly set.
+
+  .. code-block::
+
+     [transfer]
+     max_threads=16
+
+- This release includes support for directly accessing S3 storage locations using AWS Security Token Service
+  credentials. This allows use of external AWS clients and libraries with Synapse storage, and can be used to
+  accelerate file transfers under certain conditions. To create an STS enabled folder and set-up direct access to S3
+  storage, see :ref:`here <sts_storage_locations>`.
+
+- The :code:`getAnnotations` and :code:`setAnnotations` methods of the Synapse object have been **deprecated** in
+  favor of newer :code:`get_annotations` and :code:`set_annotations` methods, respectively. The newer versions
+  are parameterized with a typed :code:`Annotations` dictionary rather than a plain Python dictionary to prevent
+  existing annotations from being accidentally overwritten. The expected usage for setting annotations is to first
+  retrieve the existing :code:`Annotations` for an entity before saving changes by passing back a modified value.
+
+  .. code-block::
+
+     annos = syn.get_annotations('syn123')
+
+     # set key 'foo' to have value of 'bar' and 'baz'
+     annos['foo'] = ['bar', 'baz']
+     # single values will automatically be wrapped in a list once stored
+     annos['qwerty'] = 'asdf'
+
+     annos = syn.set_annotations(annos)
+
+  The deprecated annotations methods may be removed in a future release.
+
+A full list of issues addressed in this release are below.
+
+Bug
+---
+
+-  [`SYNPY-913 <https://sagebionetworks.jira.com/browse/SYNPY-913>`__] -
+   Travis Build badge for develop branch is pointing to pull request
+-  [`SYNPY-960 <https://sagebionetworks.jira.com/browse/SYNPY-960>`__] -
+   AppVeyor build badge appears to be failed while the builds are passed
+-  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1036>`__] -
+   different users storing same file to same folder results in 403
+-  [`SYNPY-1056 <https://sagebionetworks.jira.com/browse/SYNPY-1056>`__] -
+   syn.getSubmissions fails due to new Annotation class in v2.1.0-rc
+
+Improvement
+-----------
+
+-  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1029>`__] -
+   Make upload speeds comparable to those of the AWS S3 CLI
+-  [`SYNPY-1049 <https://sagebionetworks.jira.com/browse/SYNPY-1049>`__] -
+   Expose STS-related APIs
+
+Task
+----
+
+-  [`SYNPY-1059 <https://sagebionetworks.jira.com/browse/SYNPY-1059>`__] -
+   Use collections.abc instead of collections
+
+
+2.0.0 (2020-03-23)
+==================
+**Python 2 is no longer supported as of this release.** This release requires Python 3.6+.
+
+Highlights:
+----------------
+
+- Multi-threaded download of files from Synapse can be enabled by setting :code:`syn.multi_threaded` to :code:`True` on a
+  :code:`synapseclient.Synapse` object. This will become the default implementation in the future,
+  but to ensure stability for the first release of this feature, it must be intentionally enabled.
+
+  .. code-block:: python
+
+    import synapseclient
+    syn = synapseclient.login()
+    syn.multi_threaded = True
+    # syn123 now will be downloaded via the multi-threaded implementation
+    syn.get("syn123")
+
+  Currently, multi-threaded download only works with files stored in AWS S3, where most files on Synapse reside.
+  This also includes `custom storage locations <https://docs.synapse.org/articles/custom_storage_location.html>`__
+  that point to an AWS S3 bucket.
+  Files not stored in S3 will fall back to single-threaded download even if :code:`syn.multi_threaded==True`.
+- :code:`synapseutils.copy()` now has limitations on what can be copied:
+   - A user must have download permissions on the entity they want to copy.
+   - Users cannot copy any entities that have `access requirements <https://docs.synapse.org/articles/access_controls.html>`__.
+- :code:`contentTypes` and :code:`fileNames` are optional parameters in :code:`synapseutils.copyFileHandles()`
+
+- Synapse Docker Repository(:code:`synapseclient.DockerRepository`) objects can now be submitted to Synapse evaluation
+  queues using the :code:`entity` argument in :code:`synapseclient.Synapse.submit()`.
+  An optional argument :code:`docker_tag="latest"` has also been added to :code:`synapseclient.Synapse.submit()`"
+  to designate which tagged Docker image to submit.
+
+
+
+A full list of issues addressed in this release are below.
+
+Bug
+---
+
+-  [`SYNPY-271 <https://sagebionetworks.jira.com/browse/SYNPY-271>`__] -
+   cache.remove fails to return the file handles we removed
+-  [`SYNPY-1032 <https://sagebionetworks.jira.com/browse/SYNPY-1032>`__]
+   - Support new columnTypes defined in backend
+
+Task
+----
+
+-  [`SYNPY-999 <https://sagebionetworks.jira.com/browse/SYNPY-999>`__] -
+   Remove unsafe copy functions from client
+-  [`SYNPY-1027 <https://sagebionetworks.jira.com/browse/SYNPY-1027>`__]
+   - Copy function should copy things when users are part of a Team that
+   has DOWNLOAD access
+
+Improvement
+-----------
+
+-  [`SYNPY-389 <https://sagebionetworks.jira.com/browse/SYNPY-389>`__] -
+   submission of Docker repository
+-  [`SYNPY-537 <https://sagebionetworks.jira.com/browse/SYNPY-537>`__] -
+   synapseutils.copyFileHandles requires fields that does not require at
+   rest
+-  [`SYNPY-680 <https://sagebionetworks.jira.com/browse/SYNPY-680>`__] -
+   synapseutils.changeFileMetaData() needs description in documentation
+-  [`SYNPY-682 <https://sagebionetworks.jira.com/browse/SYNPY-682>`__] -
+   improve download speeds to be comparable to AWS
+-  [`SYNPY-807 <https://sagebionetworks.jira.com/browse/SYNPY-807>`__] -
+   Drop support for Python 2
+-  [`SYNPY-907 <https://sagebionetworks.jira.com/browse/SYNPY-907>`__] -
+   Replace \`from <module> import ...\` with \`import <module>\`
+-  [`SYNPY-962 <https://sagebionetworks.jira.com/browse/SYNPY-962>`__] -
+   remove 'password' as an option in default synapse config file
+-  [`SYNPY-972 <https://sagebionetworks.jira.com/browse/SYNPY-972>`__] -
+   Link on Synapse Python Client Documentation points back at itself
+
+
 1.9.4 (2019-06-28)
 ==================
 
 Bug
-===
+---
 
 -  [`SYNPY-881 <https://sagebionetworks.jira.com/browse/SYNPY-881>`__] -
    Synu.copy fails when copying a file with READ permissions
@@ -20,13 +216,13 @@ Bug
    - Synu.copy shouldn't copy any files with access restrictions
 
 New Feature
-===========
+-----------
 
 -  [`SYNPY-851 <https://sagebionetworks.jira.com/browse/SYNPY-851>`__] -
    invite user or list of users to a team
 
 Improvement
-===========
+-----------
 
 -  [`SYNPY-608 <https://sagebionetworks.jira.com/browse/SYNPY-608>`__] -
    Add how to contribute md to github project
@@ -485,7 +681,7 @@ Improvements
 
 Release 1.7 is a large bugfix release with several new features. The main ones include:
 
-* We have expanded the `synapseutils packages <docs.synapse.org/python/synapseutils.html#module-synapseutils>`_ to add the ability to:
+* We have expanded the `synapseutils packages <python-docs.synapse.org/build/html/synapseutils.html#module-synapseutils>`_ to add the ability to:
 
     * Bulk upload files to synapse (synapseutils.syncToSynapse).
     * Notify you via email on the progress of a function (useful for jobs like large file uploads that may take a long time to complete).

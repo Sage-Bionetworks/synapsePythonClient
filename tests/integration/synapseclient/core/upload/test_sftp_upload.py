@@ -3,17 +3,15 @@ from urllib.parse import urlparse
 import filecmp
 import os
 import traceback
-import uuid 
-from nose.tools import assert_is_not_none, assert_equals
+import uuid
 import tempfile
 import shutil
 
-from synapseclient.core.utils import MB
-from synapseclient.core.exceptions import *
-from synapseclient import *
+import pytest
+
+from synapseclient import File
+import synapseclient.core.utils as utils
 from synapseclient.core.remote_file_storage_wrappers import SFTPWrapper
-from tests import integration
-from tests.integration import schedule_for_cleanup
 
 SFTP_SERVER_PREFIX = "sftp://ec2-18-209-45-78.compute-1.amazonaws.com"
 SFTP_USER_HOME_PATH = "/home/sftpuser"
@@ -31,36 +29,35 @@ DESTINATIONS = [{"uploadType": "SFTP",
                 ]
 
 
-def setup(module):
-
-    module.syn = integration.syn
-    module.project = integration.project
+@pytest.fixture(scope="module", autouse=True)
+def project_setting_id(request, syn, project):
     # Create the upload destinations
     destinations = [syn.createStorageLocationSetting('ExternalStorage', **x)['storageLocationId'] for x in DESTINATIONS]
-    module._sftp_project_setting_id = syn.setStorageLocation(project, destinations)['id']
+
+    sftp_project_setting_id = syn.setStorageLocation(project, destinations)['id']
+
+    def delete_project_setting():
+        syn.restDELETE('/projectSettings/%s' % sftp_project_setting_id)
+    request.addfinalizer(delete_project_setting)
 
 
-def teardown(module):
-    syn.restDELETE('/projectSettings/%s' % module._sftp_project_setting_id)
-
-
-def test_synStore_sftpIntegration():
+def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
     """Creates a File Entity on an sftp server and add the external url. """
-    filepath = utils.make_bogus_binary_file(1 * MB - 777771)
+    filepath = utils.make_bogus_binary_file(1 * utils.MB - 777771)
     try:
         file = syn.store(File(filepath, parent=project))
         file2 = syn.get(file)
-        assert_equals(file.externalURL, file2.externalURL)
-        assert_equals(urlparse(file2.externalURL).scheme, 'sftp')
+        assert file.externalURL == file2.externalURL
+        assert urlparse(file2.externalURL).scheme == 'sftp'
 
         tmpdir = tempfile.mkdtemp()
         schedule_for_cleanup(tmpdir)
 
         # test that we got an MD5 à la SYNPY-185
-        assert_is_not_none(file2.md5)
-        fh = syn._getFileHandle(file2.dataFileHandleId)
-        assert_is_not_none(fh['contentMd5'])
-        assert_equals(file2.md5, fh['contentMd5'])
+        assert file2.md5 is not None
+        fh = syn._get_file_handle_as_creator(file2.dataFileHandleId)
+        assert fh['contentMd5'] is not None
+        assert file2.md5 == fh['contentMd5']
     finally:
         try:
             os.remove(filepath)
@@ -68,10 +65,10 @@ def test_synStore_sftpIntegration():
             print(traceback.format_exc())
 
 
-def test_synGet_sftpIntegration():
+def test_synGet_sftpIntegration(syn, project):
     # Create file by uploading directly to sftp and creating entity from URL
     serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/test_synGet_sftpIntegration/' + str(uuid.uuid1())
-    filepath = utils.make_bogus_binary_file(1 * MB - 777771)
+    filepath = utils.make_bogus_binary_file(1 * utils.MB - 777771)
 
     username, password = syn._getUserCredentials(SFTP_SERVER_PREFIX)
 
@@ -82,10 +79,10 @@ def test_synGet_sftpIntegration():
     filecmp.cmp(filepath, junk.path)
 
 
-def test_utils_sftp_upload_and_download():
+def test_utils_sftp_upload_and_download(syn):
     """Tries to upload a file to an sftp file """
     serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/test_utils_sftp_upload_and_download/' + str(uuid.uuid1())
-    filepath = utils.make_bogus_binary_file(1 * MB - 777771)
+    filepath = utils.make_bogus_binary_file(1 * utils.MB - 777771)
 
     tempdir = tempfile.mkdtemp()
 
