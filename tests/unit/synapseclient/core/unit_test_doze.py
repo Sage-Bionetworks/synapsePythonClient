@@ -4,7 +4,6 @@ Created on Sep 21, 2017
 @author: bhoff
 """
 import synapseclient.core.dozer as doze
-from nose.tools import assert_greater
 
 
 def teardown():
@@ -25,4 +24,4 @@ def test_doze():
     # register Listener
     doze.add_listener(counter)
     doze.doze(1)  # should call counter_inc() about 10 times
-    assert_greater(counter.val, 0)
+    assert counter.val > 0

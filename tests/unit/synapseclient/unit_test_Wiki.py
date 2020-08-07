@@ -1,4 +1,4 @@
-from nose.tools import assert_raises, assert_equals, raises
+import pytest
 from unittest.mock import patch, mock_open
 
 from synapseclient import Synapse, Wiki
@@ -8,7 +8,7 @@ def test_Wiki():
     """Test the construction and accessors of Wiki objects."""
 
     # Wiki contstuctor only takes certain values
-    assert_raises(ValueError, Wiki, title='foo')
+    pytest.raises(ValueError, Wiki, title='foo')
 
     # Construct a wiki and test uri's
     Wiki(title='foobar2', markdown='bar', owner={'id': '5'})
@@ -32,12 +32,12 @@ def test_Wiki__with_markdown_file():
 
         mocked_open.assert_called_once_with(markdown_path, 'r')
         mocked_open().read.assert_called_once_with()
-        assert_equals(markdown_data, wiki.markdown)
+        assert markdown_data == wiki.markdown
 
 
-@raises(ValueError)
 def test_Wiki__markdown_and_markdownFile_both_defined():
-    Wiki(owner="doesn't matter", markdown="asdf", markdownFile="~/fakeFile.txt")
+    with pytest.raises(ValueError):
+        Wiki(owner="doesn't matter", markdown="asdf", markdownFile="~/fakeFile.txt")
 
 
 def test_Wiki__markdown_is_None_markdownFile_defined():
@@ -57,17 +57,17 @@ def test_Wiki__markdown_defined_markdownFile_is_None():
     # method under test
     wiki = Wiki(owner="doesn't matter", markdown=markdown)
 
-    assert_equals(markdown, wiki.markdown)
+    assert markdown == wiki.markdown
 
 
-@raises(ValueError)
 def test_Wiki__markdownFile_path_not_exist():
     # method under test
-    Wiki(owner="doesn't matter", markdownFile="/this/is/not/the/file/you/are/looking.for")
+    with pytest.raises(ValueError):
+        Wiki(owner="doesn't matter", markdownFile="/this/is/not/the/file/you/are/looking.for")
 
 
 def test_wiki_with_none_attachments():
-    syn = Synapse()
+    syn = Synapse(skip_checks=True)
     with patch.object(syn, 'restPOST'):
         w = Wiki(owner="syn1", markdown="markdown", attachments=None)
         syn.store(w)

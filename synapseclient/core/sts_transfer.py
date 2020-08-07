@@ -115,17 +115,24 @@ $Env:AWS_SESSION_TOKEN="{sessionToken}"
 
 
 def _format_export_template_string(syn, entity_id, credentials, template_string):
-    upload_destination = syn._getDefaultUploadDestination(entity_id)
-    # we print the bucket location if we have it, but if we don't exclude
-    # that line of the template string (the first). it's useful to have, but it's
-    # not currently available for non-external storage locations and might become
-    # available via the STS endpoint itself in the future per:
-    # https://sagebionetworks.jira.com/browse/PLFM-6226
-    if 'bucket' not in upload_destination or 'baseKey' not in upload_destination:
+    # as of http://sagebionetworks.jira.com/browse/PLFM-6226
+    # the initial call to the back end should return the bucket info as well as the STS token.
+    # in the event that it doesn't we make a separate call to get the info from the upload destination.
+    # at some point we can probably remove this extra check/call, but depending on when the fix
+    # for the above is deployed and when the initial STS python client is released, we include
+    # the fall back to fetch the keys separately, but only if necessary.
+    bucket_keys = {'bucket', 'baseKey'}
+    if all(k in credentials for k in bucket_keys):
+        subs = credentials
+    else:
+        upload_destination = syn._getDefaultUploadDestination(entity_id)
+        subs = {**upload_destination, **credentials}
+
+    # if for some reason we still don't have the bucket info, we just don't include
+    # the path in the output
+    if any(k not in subs for k in bucket_keys):
         template_string = template_string[template_string.find('\n') + 1:]
-    subs = {}
-    subs.update(credentials)
-    subs.update(upload_destination)
+
     return template_string.format(**subs)
 
 

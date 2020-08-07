@@ -1,8 +1,8 @@
 import botocore.exceptions
 import os.path
 
+import pytest
 from unittest import mock
-from nose.tools import assert_equal, assert_false, assert_raises, assert_true
 
 from synapseclient.core import remote_file_storage_wrappers
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper
@@ -20,7 +20,7 @@ class TestS3ClientWrapper:
         download_file_path = '/tmp/download'
         endpoint_url = 'http://foo.s3.amazon.com'
 
-        with assert_raises(ImportError):
+        with pytest.raises(ImportError):
             S3ClientWrapper.download_file(bucket_name, endpoint_url, remote_file_key, download_file_path)
 
     @staticmethod
@@ -66,7 +66,7 @@ class TestS3ClientWrapper:
                 )
                 progress_callback = mock_create_progress_callback.return_value
             else:
-                assert_false(mock_create_progress_callback.called)
+                assert not mock_create_progress_callback.called
 
             s3_object.download_file.assert_called_once_with(
                 download_file_path,
@@ -75,7 +75,7 @@ class TestS3ClientWrapper:
             )
 
             # why do we return something we passed...?
-            assert_equal(download_file_path, returned_download_file_path)
+            assert download_file_path == returned_download_file_path
 
     def test_download__profile(self):
         """Verify downloading using a profile name passes through to to the session."""
@@ -102,7 +102,7 @@ class TestS3ClientWrapper:
             s3 = resource.return_value
             s3.Object.side_effect = exception
 
-            with assert_raises(raised_type):
+            with pytest.raises(raised_type):
                 S3ClientWrapper.download_file(
                     bucket_name,
                     endpoint_url,
@@ -136,14 +136,14 @@ class TestS3ClientWrapper:
         mock_os.path.isfile.return_value = False
 
         upload_path = '/tmp/upload_file'
-        with assert_raises(ValueError) as ex_cm:
+        with pytest.raises(ValueError) as ex_cm:
             S3ClientWrapper.upload_file(
                 'foo_bucket',
                 'http://foo.s3.amazon.com',
                 '/foo/bar/baz',
                 upload_path
             )
-        assert_true('does not exist' in str(ex_cm.exception))
+        assert 'does not exist' in str(ex_cm.value)
         mock_os.path.isfile.assert_called_once_with(upload_path)
 
     @staticmethod
@@ -190,7 +190,7 @@ class TestS3ClientWrapper:
                 progress_callback = S3ClientWrapper._create_progress_callback_func(file_size, filename,
                                                                                    prefix='Uploading')
             else:
-                assert_false(mock_create_progress_callback.called)
+                assert not mock_create_progress_callback.called
 
             s3_bucket.upload_file.assert_called_once_with(
                 upload_file_path,
@@ -200,7 +200,7 @@ class TestS3ClientWrapper:
             )
 
             # why do we return something we passed...?
-            assert_equal(upload_file_path, returned_upload_path)
+            assert upload_file_path == returned_upload_path
 
     def test_upload__profile(self):
         """Verify uploading using a profile name passes through to to the session."""

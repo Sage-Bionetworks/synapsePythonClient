@@ -24,9 +24,14 @@ Installation
 ============
 
 The `synapseclient <https://pypi.python.org/pypi/synapseclient/>`_ package is available from PyPI. It can be installed
-or upgraded with pip::
+or upgraded with pip. Note that synapseclient requires Python 3, and if you have both Python 2 and Python 3
+installations your system, the pip command associated with Python 3 may be named pip3 to distinguish it from a
+Python 2 associated command. Prefixing the pip installation with sudo may be necessary if you are installing Python
+into a shared system installation of Python.
 
-    (sudo) pip install (--upgrade) synapseclient[pandas, pysftp]
+::
+
+    (sudo) pip3 install (--upgrade) synapseclient[pandas, pysftp]
 
 The dependencies on pandas and pysftp are optional. The Synapse :py:mod:`synapseclient.table` feature integrates with
 Pandas. Support for sftp is required for users of SFTP file storage. Both require native libraries to be compiled or
@@ -53,11 +58,7 @@ Next, either install the package in the site-packages directory ``python setup.p
 Python 2 Support
 ----------------
 
-The sun is setting on Python 2. Many major open source Python packages are moving to require Python 3.
-
-The Synapse engineering team will step down Python 2.7 support to only bug fixes, and require Python 3
-on new feature releases. **Starting with Synapse Python client version 2.0 (will be released in Q1 2019),
-Synapse Python client will require Python 3.**
+synapseclient versions 2.0 and above require Python 3.6 or greater. Python 2.7 is no longer supported.
 
 Connecting to Synapse
 =====================
@@ -279,7 +280,7 @@ from .core.version_check import check_for_updates, release_notes
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, \
-    EntityViewType, build_table
+    EntityViewType, build_table, SubmissionViewSchema
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
@@ -294,7 +295,7 @@ __all__ = [
     # objects
     'Synapse', 'Activity', 'Entity', 'Project', 'Folder', 'File', 'Link', 'DockerRepository', 'Evaluation',
     'Submission', 'SubmissionStatus', 'Schema', 'EntityViewSchema', 'Column', 'Row', 'RowSet', 'Table', 'PartialRowset',
-    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki', 'Annotations',
+    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki', 'Annotations', 'SubmissionViewSchema',
     # functions
     'login', 'build_table', 'as_table_columns', 'check_for_updates', 'release_notes',
     # enum

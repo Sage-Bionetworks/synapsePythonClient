@@ -1,7 +1,6 @@
 import json
 
 from unittest.mock import patch, mock_open, create_autospec, call
-from nose.tools import assert_equals
 
 import synapseclient.core.credentials.cached_sessions as cached_sessions
 from synapseclient import Synapse
@@ -20,7 +19,7 @@ class TestCachedSessionsKeyring:
         # function under test
         returned_key = cached_sessions.get_api_key(self.username)
 
-        assert_equals(key, returned_key)
+        assert key == returned_key
         mocked_keyring.get_password.assert_called_once_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME,
                                                             self.username)
 
@@ -31,7 +30,7 @@ class TestCachedSessionsKeyring:
         # function under test
         returned_key = cached_sessions.get_api_key(None)
 
-        assert_equals(None, returned_key)
+        assert returned_key is None
         mocked_keyring.get_password.assert_not_called()
 
     def test_get_remove_api_key(self, mocked_keyring):
@@ -68,7 +67,7 @@ class TestCachedSessionsMostRecentUserFile:
             # read each bad input and makes sure an empty map is returned instead
             for bad_data in bad_cache_file_data:
                 with patch.object(cached_sessions, "open", mock_open(read_data=bad_data), create=True):
-                    assert_equals(expectedDict, cached_sessions._read_session_cache("mock so path doesn't matter"))
+                    assert expectedDict == cached_sessions._read_session_cache("mock so path doesn't matter")
 
     def test_readSessionCache_good_file_data(self):
         with patch("os.path.isfile", return_value=True), \
@@ -77,12 +76,12 @@ class TestCachedSessionsMostRecentUserFile:
                             'ayy': 'lmao'}
             good_data = json.dumps(expectedDict)
             with patch.object(cached_sessions, "open", mock_open(read_data=good_data), create=True):
-                assert_equals(expectedDict, cached_sessions._read_session_cache(cached_sessions.SESSION_CACHE_FILEPATH))
+                assert expectedDict == cached_sessions._read_session_cache(cached_sessions.SESSION_CACHE_FILEPATH)
 
     def test_get_most_recent_user(self):
         with patch.object(cached_sessions, "_read_session_cache", return_value={"<mostRecent>": "asdf"})\
                 as mocked_read_session_cache:
-            assert_equals("asdf", cached_sessions.get_most_recent_user())
+            assert "asdf" == cached_sessions.get_most_recent_user()
             mocked_read_session_cache.assert_called_once_with(cached_sessions.SESSION_CACHE_FILEPATH)
 
     def test_set_most_recent_user(self):
@@ -103,7 +102,7 @@ class TestMigrateOldSessionFile(object):
         self.patchers = [read_session_cache_patcher, set_most_recent_user_patcher, set_api_key_patcher, os_patcher,
                          equals_path_patcher]
 
-        self.mock_syn = create_autospec(Synapse())
+        self.mock_syn = create_autospec(Synapse(skip_checks=True))
 
         self.mock_read_session_cache = read_session_cache_patcher.start()
         self.mock_set_most_recent_user = set_most_recent_user_patcher.start()

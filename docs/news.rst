@@ -2,7 +2,47 @@
 Release Notes
 =============
 
-2.1.0 (2020-05-XX)
+2.1.1 (2020-07-10)
+==================
+
+Highlights:
+----------------
+
+- This version includes a performance improvement for
+  `syncFromSynapse <https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse>`__
+  downloads of deep folder hierarchies to local filesystem locations outside of the
+  `Synapse cache <https://docs.synapse.org/articles/downloading_data.html#downloading-a-file>`__.
+
+- Support is added for **SubmissionViews** that can be used to query and edit
+  a set of submissions through table services.
+
+  .. code-block:: python
+
+   from synapseclient import SubmissionViewSchema
+
+   project = syn.get("syn123")
+   evaluation_id = '9876543'
+   view = syn.store(SubmissionViewSchema(name='My Submission View', parent=project, scopes=[evaluation_id]))
+   view_table = syn.tableQuery(f"select * from {view.id}")
+
+Bug
+---
+
+-  [`SYNPY-1075 <https://sagebionetworks.jira.com/browse/SYNPY-1075>`__] -
+   Error in Python test (submission annotations)
+-  [`SYNPY-1076 <https://sagebionetworks.jira.com/browse/SYNPY-1076>`__] -
+   Upgrade/fix Pandas dependency
+
+Improvement
+-----------
+
+-  [`SYNPY-1070 <https://sagebionetworks.jira.com/browse/SYNPY-1070>`__] -
+   Add support for submission views
+-  [`SYNPY-1078 <https://sagebionetworks.jira.com/browse/SYNPY-1078>`__] -
+   Improve syncFromSynapse performance for large folder structures synced to external paths
+
+
+2.1.0 (2020-06-16)
 ==================
 
 Highlights:
@@ -58,12 +98,14 @@ A full list of issues addressed in this release are below.
 Bug
 ---
 
--  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1036>`__] -
-   different users storing same file to same folder results in 403
 -  [`SYNPY-913 <https://sagebionetworks.jira.com/browse/SYNPY-913>`__] -
    Travis Build badge for develop branch is pointing to pull request
 -  [`SYNPY-960 <https://sagebionetworks.jira.com/browse/SYNPY-960>`__] -
    AppVeyor build badge appears to be failed while the builds are passed
+-  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1036>`__] -
+   different users storing same file to same folder results in 403
+-  [`SYNPY-1056 <https://sagebionetworks.jira.com/browse/SYNPY-1056>`__] -
+   syn.getSubmissions fails due to new Annotation class in v2.1.0-rc
 
 Improvement
 -----------
@@ -72,6 +114,13 @@ Improvement
    Make upload speeds comparable to those of the AWS S3 CLI
 -  [`SYNPY-1049 <https://sagebionetworks.jira.com/browse/SYNPY-1049>`__] -
    Expose STS-related APIs
+
+Task
+----
+
+-  [`SYNPY-1059 <https://sagebionetworks.jira.com/browse/SYNPY-1059>`__] -
+   Use collections.abc instead of collections
+
 
 2.0.0 (2020-03-23)
 ==================
