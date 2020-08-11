@@ -18,6 +18,7 @@ from synapseclient.core import utils
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
 from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseProvenanceError
 from synapseclient.core.multithread_download.download_threads import shared_executor as download_shared_executor
+from synapseclient.core.upload.multipart_upload import shared_executor as upload_shared_executor
 
 REQUIRED_FIELDS = ['path', 'parent']
 FILE_CONSTRUCTOR_FIELDS = ['name', 'synapseStore', 'contentType']
@@ -504,25 +505,29 @@ class _SyncUploader:
         print(finished)
 
     def _upload_item(self, item, used, executed, finished_items, pending_provenance, provenance_condition):
-        print(f'_upload_item {item.path} {item.annotations} {used} {executed}')
-        entity = File(item.path, parent=item.parent, **item.constructor_kwargs)
-        entity.annotations = item.annotations
+        with upload_shared_executor(self._executor):
+            # we configure an upload thread local shared executor so that any multipart
+            # uploads that result from this upload will share the executor of this sync
+            # rather than creating their own threadpool.
 
-        entity = self._syn.store(entity, used=used, executed=executed, **item.store_kwargs)
+            entity = File(item.path, parent=item.parent, **item.constructor_kwargs)
+            entity.annotations = item.annotations
 
-        with provenance_condition:
-            finished_items[item.path] = entity
-            try:
-                pending_provenance.remove(item.path)
+            entity = self._syn.store(entity, used=used, executed=executed, **item.store_kwargs)
 
-                # this item was defined as provenance for another item, now that
-                # it's finished we may be able to upload that depending item, so
-                # wake up he central thread
-                provenance_condition.notifyAll()
+            with provenance_condition:
+                finished_items[item.path] = entity
+                try:
+                    pending_provenance.remove(item.path)
 
-            except KeyError:
-                # this item is not used in provenance of another item, that's fine
-                pass
+                    # this item was defined as provenance for another item, now that
+                    # it's finished we may be able to upload that depending item, so
+                    # wake up he central thread
+                    provenance_condition.notifyAll()
+
+                except KeyError:
+                    # this item is not used in provenance of another item, that's fine
+                    pass
 
 
 def generateManifest(syn, allFiles, filename, provenance_cache=None):

@@ -13,6 +13,7 @@ not need to call any of these functions directly.
 """
 
 import concurrent.futures
+from contextlib import contextmanager
 import hashlib
 import json
 import math
@@ -41,7 +42,18 @@ DEFAULT_PART_SIZE = 8 * MB
 MAX_RETRIES = 7
 
 
-thread_local = threading.local()
+_thread_local = threading.local()
+
+
+@contextmanager
+def shared_executor(executor):
+    """An outside process that will eventually trigger an upload through the this module
+    can configure a shared Executor by running its code within this context manager."""
+    _thread_local.executor = executor
+    try:
+        yield
+    finally:
+        del _thread_local.executor
 
 
 class UploadAttempt:
@@ -99,9 +111,9 @@ class UploadAttempt:
         # thread local rather that in the task closure since a connection can
         # be reused across separate part uploads so no reason to restrict it
         # per worker task.
-        session = getattr(thread_local, 'session', None)
+        session = getattr(_thread_local, 'session', None)
         if not session:
-            session = thread_local.session = requests.Session()
+            session = _thread_local.session = requests.Session()
         return session
 
     def _create_synapse_upload(self):
@@ -277,7 +289,14 @@ class UploadAttempt:
         )
 
         futures = []
-        executor = pool_provider.get_executor(thread_count=self._max_threads)
+        # we obtain an executor from a thread local if we are in the context of a Synapse sync
+        # and wan't to re-use the same threadpool as was created for that
+        executor = getattr(_thread_local, 'executor', None)
+        shutdown_after = False
+        if not executor:
+            shutdown_after = True
+            executor = pool_provider.get_executor(thread_count=self._max_threads)
+
         for part_number in remaining_part_numbers:
             futures.append(
                 executor.submit(
@@ -285,7 +304,9 @@ class UploadAttempt:
                     part_number,
                 )
             )
-        executor.shutdown(wait=False)
+
+        if shutdown_after:
+            executor.shutdown(wait=False)
 
         for result in concurrent.futures.as_completed(futures):
             try:
