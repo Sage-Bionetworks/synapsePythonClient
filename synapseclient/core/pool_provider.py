@@ -12,7 +12,6 @@ To use these wrappers for single thread environment, set the following:
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
 import multiprocessing
 import multiprocessing.dummy
-import threading
 
 from . import config
 
@@ -97,26 +96,3 @@ def get_value(type, value):
         return SingleValue(type, value)
     else:
         return multiprocessing.Value(type, value)
-
-
-class BlockingExecutor(Executor):
-
-    def __init__(self, executor: Executor, max_concurrency: int):
-        self._executor = executor
-        self._semaphore = threading.BoundedSemaphore(max_concurrency)
-
-    def submit(self, fn, *args, **kwargs):
-        # wrap the function with acquisition/release of the semaphore
-        # this ensure that any submit call will block if the max concurrency
-        # is reached
-        def fn_wrapper():
-            self._semaphore.acquire()
-            try:
-                return fn(*args, **kwargs)
-            finally:
-                self._semaphore.release()
-
-        return self._executor.submit(fn_wrapper)
-
-    def shutdown(self, wait=True):
-        return self._executor.shutdown(wait=wait)
