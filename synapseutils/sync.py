@@ -420,26 +420,55 @@ class _SyncUploader:
 
     def _convert_provenance(self, provenance, finished_items):
         converted_provenance = []
-        pending_provenance = []
+        pending_provenance = set()
         for p in provenance:
             if os.path.isfile(p):
                 converted = finished_items.get(p)
                 if converted:
                     converted_provenance.append(converted)
                 else:
-                    pending_provenance.append(p)
+                    pending_provenance.add(p)
             else:
                 converted_provenance.append(p)
 
         return converted_provenance, pending_provenance
+
+    def _check_errors(self, futures):
+        for future in futures:
+            if future.done() and not future.cancelled():
+                # result will raise the error raised in the executed thread if any.
+                future.result()
+
+        # return value used in the Condition wait predicate
+        return True
+
+    def _abort(self, futures):
+        exception = None
+        for future in futures:
+            if future.done():
+                exception = exception or future.exception()
+            else:
+                future.cancel()
+
+        # if we are aborted by definition one of the futures should have an exception.
+        # if somehow not from None fuctions fine
+        raise ValueError("Sync aborted due to upload failure") from exception
 
     def upload(self, items: typing.Iterable[_SyncUpload]):
         # first we need to resolve any interdependencies between the items indicated by their provenance.
         # we cannot upload an item whose provenance includes another until we first upload the dependency.
 
         progress = CumulativeTransferProgress('Uploaded')
+
+        # flag to set in a child in an upload thread if an error occurs to signal to the entrant
+        # thread to stop processing.
+        abort_event = threading.Event()
+
+        # used to lock around shared state and to notify when provenance dependencies are resolved
+        # so that provenance dependent files can be uploaded
         condition = threading.Condition()
 
+        #
         pending_provenance = set()
         pending_provenance_count = 0
 
@@ -451,6 +480,10 @@ class _SyncUploader:
         while ordered_items:
             skipped_items = []
             for item in ordered_items:
+                if abort_event.is_set():
+                    # if this flag is set, one of the upload threads failed and we
+                    self._abort(futures)
+
                 with condition:
                     used, used_pending = self._convert_provenance(item.used, finished_items)
                     executed, executed_pending = self._convert_provenance(item.executed, finished_items)
@@ -459,12 +492,14 @@ class _SyncUploader:
                         # we can't upload this item yet, it has provenance that hasn't yet been uploaded
                         skipped_items.append(item)
 
-                        pending_provenance.update(used_pending)
-                        pending_provenance.update(executed_pending)
+                        if used_pending:
+                            pending_provenance_count += len(used_pending.difference(pending_provenance))
+                            pending_provenance.update(used_pending)
+                        if executed_pending:
+                            pending_provenance_count += len(executed_pending.difference(pending_provenance))
+                            pending_provenance.update(executed_pending)
 
-                        pending_provenance_count += len(used_pending)
-                        pending_provenance_count += len(executed_pending)
-
+                        # skip uploading because dependent provenance hasn't finished uploading
                         continue
 
                 # else not continued above due to pending provenance
@@ -483,22 +518,39 @@ class _SyncUploader:
                     finished_items,
                     pending_provenance,
                     condition,
+                    abort_event,
                     progress,
                 )
                 futures.append(future)
 
             if pending_provenance_count > 0:
-                # at least one item
+                # skipped_items contains all the items that we couldn't upload the previous time through
+                # the loop because they depended on another item for provenance. wait until there
+                # at least one those items finishes before continuing another time through the loop.
                 with condition:
-                    condition.wait_for(lambda: len(pending_provenance) < pending_provenance_count)
+                    if not abort_event.is_set():
+                        condition.wait_for(lambda: (
+                            len(pending_provenance) < pending_provenance_count or abort_event.is_set()
+                        ))
+                    if abort_event.is_set():
+                        self._check_errors(futures)
 
             ordered_items = skipped_items
             pending_provenance = set()
             pending_provenance_count = 0
 
-        finished, pending = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
+        concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
 
-    def _upload_item(self, item, used, executed, finished_items, pending_provenance, provenance_condition, progress):
+    def _upload_item(self,
+                     item,
+                     used,
+                     executed,
+                     finished_items,
+                     pending_provenance,
+                     provenance_condition,
+                     abort_event,
+                     progress
+    ):
         try:
             with upload_shared_executor(self._executor):
                 # we configure an upload thread local shared executor so that any multipart
@@ -524,6 +576,13 @@ class _SyncUploader:
                     except KeyError:
                         # this item is not used in provenance of another item, that's fine
                         pass
+
+        except Exception:
+            with provenance_condition:
+                abort_event.set()
+                provenance_condition.notifyAll()
+            raise
+
         finally:
             self._file_semaphore.release()
 
