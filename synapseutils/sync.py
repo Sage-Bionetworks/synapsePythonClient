@@ -13,7 +13,7 @@ from synapseclient.entity import is_container
 from synapseclient.core import config
 from synapseclient.core.utils import id_of, is_url, is_synapse_id
 from synapseclient import File, table
-from synapseclient.core.pool_provider import SingleThreadExecutor, BlockingExecutor
+from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core import utils
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
 from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseProvenanceError
@@ -380,7 +380,7 @@ class _SyncUploader:
         self._syn = syn
 
         max_concurrent_file_transfers = max(int(max_concurrent_file_transfers or self._syn.max_threads / 2), 1)
-        self._executor = BlockingExecutor(executor, max_concurrent_file_transfers)
+        self._executor = executor
         self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_transfers)
 
     def _order_items(self, items):
@@ -431,20 +431,13 @@ class _SyncUploader:
             else:
                 converted_provenance.append(p)
 
-#            if not converted:
-#                if os.path.isfile(p):
-#                    pending_provenance.append(p)
-#                else:
-#                    converted_provenance.append(self._syn._convertProvenanceList([p])[0])
-#            else:
-#                converted_provenance.append(converted)
-
         return converted_provenance, pending_provenance
 
     def upload(self, items: typing.Iterable[_SyncUpload]):
         # first we need to resolve any interdependencies between the items indicated by their provenance.
         # we cannot upload an item whose provenance includes another until we first upload the dependency.
 
+        progress = CumulativeTransferProgress('Uploaded')
         condition = threading.Condition()
 
         pending_provenance = set()
@@ -481,6 +474,7 @@ class _SyncUploader:
                 # we acquire the semaphore to ensure that we aren't uploading more than
                 # our configured maximum number of files here at once. once we reach the limit
                 # we'll block here until one of the existing file uploads completes
+                self._file_semaphore.acquire()
                 future = self._executor.submit(
                     self._upload_item,
                     item,
@@ -488,7 +482,8 @@ class _SyncUploader:
                     executed,
                     finished_items,
                     pending_provenance,
-                    condition
+                    condition,
+                    progress,
                 )
                 futures.append(future)
 
@@ -502,32 +497,35 @@ class _SyncUploader:
             pending_provenance_count = 0
 
         finished, pending = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
-        print(finished)
 
-    def _upload_item(self, item, used, executed, finished_items, pending_provenance, provenance_condition):
-        with upload_shared_executor(self._executor):
-            # we configure an upload thread local shared executor so that any multipart
-            # uploads that result from this upload will share the executor of this sync
-            # rather than creating their own threadpool.
+    def _upload_item(self, item, used, executed, finished_items, pending_provenance, provenance_condition, progress):
+        try:
+            with upload_shared_executor(self._executor):
+                # we configure an upload thread local shared executor so that any multipart
+                # uploads that result from this upload will share the executor of this sync
+                # rather than creating their own threadpool.
 
-            entity = File(item.path, parent=item.parent, **item.constructor_kwargs)
-            entity.annotations = item.annotations
+                entity = File(item.path, parent=item.parent, **item.constructor_kwargs)
+                entity.annotations = item.annotations
 
-            entity = self._syn.store(entity, used=used, executed=executed, **item.store_kwargs)
+                with progress.accumulate_progress():
+                    entity = self._syn.store(entity, used=used, executed=executed, **item.store_kwargs)
 
-            with provenance_condition:
-                finished_items[item.path] = entity
-                try:
-                    pending_provenance.remove(item.path)
+                with provenance_condition:
+                    finished_items[item.path] = entity
+                    try:
+                        pending_provenance.remove(item.path)
 
-                    # this item was defined as provenance for another item, now that
-                    # it's finished we may be able to upload that depending item, so
-                    # wake up he central thread
-                    provenance_condition.notifyAll()
+                        # this item was defined as provenance for another item, now that
+                        # it's finished we may be able to upload that depending item, so
+                        # wake up he central thread
+                        provenance_condition.notifyAll()
 
-                except KeyError:
-                    # this item is not used in provenance of another item, that's fine
-                    pass
+                    except KeyError:
+                        # this item is not used in provenance of another item, that's fine
+                        pass
+        finally:
+            self._file_semaphore.release()
 
 
 def generateManifest(syn, allFiles, filename, provenance_cache=None):

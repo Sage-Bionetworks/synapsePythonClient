@@ -25,13 +25,14 @@ import time
 from typing import List, Mapping
 
 from synapseclient.core import pool_provider
+from synapseclient.core.cumulative_transfer_progress import printTransferProgress
 from synapseclient.core.exceptions import (
     _raise_for_status,  # why is is this a single underscore
     SynapseHTTPError,
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
 )
-from synapseclient.core.utils import printTransferProgress, md5_for_file, MB
+from synapseclient.core.utils import md5_for_file, MB
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
