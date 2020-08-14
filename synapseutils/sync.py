@@ -360,13 +360,10 @@ class _SyncDownloader:
         return root_folder_sync
 
 
-class _SyncUpload(typing.NamedTuple):
-    path: str
-    parent: str
-    annotations: typing.Mapping[str, str]
+class _SyncUploadItem(typing.NamedTuple):
+    entity: File
     used: typing.Iterable[str]
     executed: typing.Iterable[str]
-    constructor_kwargs: typing.Mapping
     store_kwargs: typing.Mapping
 
 
@@ -385,7 +382,7 @@ class _SyncUploader:
 
     def _order_items(self, items):
 
-        upload_paths = {i.path for i in items}
+        upload_paths = {i.entity.path for i in items}
         ordered_items = OrderedDict()
         remaining_items = []
 
@@ -396,7 +393,7 @@ class _SyncUploader:
                         if provenance_dependency not in upload_paths:
                             # an upload lists provenance of a file that is not itself included in the upload
                             raise ValueError(
-                                f"{item.path} depends on file {provenance_dependency} which is not being uploaded"
+                                f"{item.entity.path} depends on {provenance_dependency} which is not being uploaded"
                             )
                         elif provenance_dependency not in ordered_items:
                             remaining_items.append(item)
@@ -404,7 +401,7 @@ class _SyncUploader:
 
                 else:
                     # all provenance dependencies have already been ordered so we can add order this item after those
-                    ordered_items[item.path] = item
+                    ordered_items[item.entity.path] = item
 
             if len(items) == len(remaining_items):
                 raise ValueError(
@@ -454,7 +451,7 @@ class _SyncUploader:
         # if somehow not from None fuctions fine
         raise ValueError("Sync aborted due to upload failure") from exception
 
-    def upload(self, items: typing.Iterable[_SyncUpload]):
+    def upload(self, items: typing.Iterable[_SyncUploadItem]):
         # first we need to resolve any interdependencies between the items indicated by their provenance.
         # we cannot upload an item whose provenance includes another until we first upload the dependency.
 
@@ -541,15 +538,16 @@ class _SyncUploader:
 
         concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
 
-    def _upload_item(self,
-                     item,
-                     used,
-                     executed,
-                     finished_items,
-                     pending_provenance,
-                     provenance_condition,
-                     abort_event,
-                     progress
+    def _upload_item(
+        self,
+        item,
+        used,
+        executed,
+        finished_items,
+        pending_provenance,
+        provenance_condition,
+        abort_event,
+        progress,
     ):
         try:
             with upload_shared_executor(self._executor):
@@ -557,16 +555,13 @@ class _SyncUploader:
                 # uploads that result from this upload will share the executor of this sync
                 # rather than creating their own threadpool.
 
-                entity = File(item.path, parent=item.parent, **item.constructor_kwargs)
-                entity.annotations = item.annotations
-
                 with progress.accumulate_progress():
-                    entity = self._syn.store(entity, used=used, executed=executed, **item.store_kwargs)
+                    entity = self._syn.store(item.entity, used=used, executed=executed, **item.store_kwargs)
 
                 with provenance_condition:
-                    finished_items[item.path] = entity
+                    finished_items[item.entity.path] = entity
                     try:
-                        pending_provenance.remove(item.path)
+                        pending_provenance.remove(item.entity.path)
 
                         # this item was defined as provenance for another item, now that
                         # it's finished we may be able to upload that depending item, so
@@ -885,14 +880,20 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 def _manifest_upload(syn, df):
     items = []
     for i, row in df.iterrows():
-        item = _SyncUpload(
-            row['path'],
-            row['parent'],
-            dict(row.drop(FILE_CONSTRUCTOR_FIELDS + STORE_FUNCTION_FIELDS + REQUIRED_FIELDS + PROVENANCE_FIELDS,
-                          errors='ignore')),
+        file = File(
+            path=row['path'],
+            parent=row['parent'],
+            **{key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row},
+        )
+        file.annotations = dict(row.drop(
+            FILE_CONSTRUCTOR_FIELDS + STORE_FUNCTION_FIELDS + REQUIRED_FIELDS + PROVENANCE_FIELDS,
+            errors='ignore'
+        ))
+
+        item = _SyncUploadItem(
+            file,
             row['used'] if 'used' in row else [],
             row['executed'] if 'executed' in row else [],
-            {key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row},
             {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row},
         )
         items.append(item)
