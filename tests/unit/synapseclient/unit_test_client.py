@@ -2302,7 +2302,8 @@ class TestTableQuery:
                 expected_dir = downloadLocation
                 kwargs['downloadLocation'] = downloadLocation
 
-            expected_path = os_join(expected_dir, f"{file_handle_id}.csv")
+            expected_file_name = f"SYNAPSE_TABLE_QUERY_{file_handle_id}.csv"
+            expected_path = os_join(expected_dir, expected_file_name)
             mock_download_file_handle.return_value = expected_path
 
             actual_result = syn._queryTableCsv(

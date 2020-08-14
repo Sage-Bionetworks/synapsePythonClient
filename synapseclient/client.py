@@ -3306,8 +3306,9 @@ class Synapse(object):
             download_dir = self.cache.get_cache_dir(file_handle_id)
 
         os.makedirs(download_dir, exist_ok=True)
+        filename = f'SYNAPSE_TABLE_QUERY_{file_handle_id}.csv'
         path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
-                                        'TableEntity', os.path.join(download_dir, str(file_handle_id) + ".csv"))
+                                        'TableEntity', os.path.join(download_dir, filename))
 
         return download_from_table_result, path
 
