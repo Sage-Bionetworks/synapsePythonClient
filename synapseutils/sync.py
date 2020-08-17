@@ -380,7 +380,8 @@ class _SyncUploader:
         self._executor = executor
         self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_transfers)
 
-    def _order_items(self, items):
+    @staticmethod
+    def _order_items(items):
 
         upload_paths = {i.entity.path for i in items}
         ordered_items = OrderedDict()
@@ -407,15 +408,17 @@ class _SyncUploader:
                 raise ValueError(
                     "Cannot upload these items due to a cyclic provenance dependency "
                     "within the following items: {}".format(
-                        [i.path for i in items]
+                        [i.entity.path for i in items]
                     )
                 )
 
             items = remaining_items
+            remaining_items = []
 
         return ordered_items.values()
 
-    def _convert_provenance(self, provenance, finished_items):
+    @staticmethod
+    def _convert_provenance(provenance, finished_items):
         converted_provenance = []
         pending_provenance = set()
         for p in provenance:
@@ -430,7 +433,8 @@ class _SyncUploader:
 
         return converted_provenance, pending_provenance
 
-    def _check_errors(self, futures):
+    @staticmethod
+    def _check_errors(futures):
         for future in futures:
             if future.done() and not future.cancelled():
                 # result will raise the error raised in the executed thread if any.
@@ -439,7 +443,8 @@ class _SyncUploader:
         # return value used in the Condition wait predicate
         return True
 
-    def _abort(self, futures):
+    @staticmethod
+    def _abort(futures):
         exception = None
         for future in futures:
             if future.done():
@@ -465,7 +470,6 @@ class _SyncUploader:
         # so that provenance dependent files can be uploaded
         condition = threading.Condition()
 
-        #
         pending_provenance = set()
         pending_provenance_count = 0
 

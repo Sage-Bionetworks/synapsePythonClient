@@ -1,16 +1,20 @@
-import os
 import csv
+from concurrent.futures import Future
+import os
 import pandas as pd
 import pandas.testing as pdt
 from io import StringIO
+import random
 import tempfile
+import threading
 
 import pytest
 from unittest.mock import patch, create_autospec, Mock, call
 
 import synapseutils
-from synapseutils.sync import _FolderSync
+from synapseutils.sync import _FolderSync, _SyncUploader, _SyncUploadItem
 from synapseclient import Activity, File, Folder, Project, Schema, Synapse
+from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import id_of
 
@@ -344,6 +348,250 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata(syn):
                 assert file_entity.get('parentId') == file_row_data.get(key)
             else:
                 assert file_entity.get(key) == file_row_data.get(key)
+
+
+class TestSyncUploader:
+
+    @patch('os.path.isfile')
+    def test_order_items(self, mock_isfile):
+        """Verfy that items are properly ordered according to their provenance."""
+
+        def isfile(path):
+            return path.startswith('/tmp')
+
+        mock_isfile.side_effect = isfile
+
+        items = [
+            _SyncUploadItem(
+                File(path='/tmp/10', parentId='syn123'),
+                ['/tmp/a/9'],  # used
+                ['https://foo.com/bar', '/tmp/b/9'],  # executed
+                {},  # annotations
+            ),
+            _SyncUploadItem(
+                File(path='/tmp/a/9', parentId='syn123'),
+                [],  # used
+                ['/tmp/7'],  # executed
+                {},  # annotations
+            ),
+            _SyncUploadItem(
+                File(path='/tmp/b/9', parentId='syn123'),
+                [],  # used
+                ['/tmp/7'],  # executed
+                {},  # annotations
+            ),
+            _SyncUploadItem(
+                File(path='/tmp/7', parentId='syn123'),
+                ['/tmp/6'],  # used
+                ['/tmp/5'],  # executed
+                {},  # annotations
+            ),
+            _SyncUploadItem(
+                File(path='/tmp/6', parentId='syn123'),
+                ['/tmp/5'],  # used
+                ['https://123.com/4'],  # executed
+                {},  # annotations
+            ),
+            _SyncUploadItem(
+                File(path='/tmp/5', parentId='syn123'),
+                ['/tmp/2', '/tmp/b/3'],  # used
+                ['/tmp/a/3'],  # executed
+                {},  # annotations
+            ),
+            _SyncUploadItem(
+                File(path='/tmp/a/3', parentId='syn123'),
+                [],  # used
+                ['/tmp/2'],  # executed
+                {},  # annotations
+            ),
+            _SyncUploadItem(
+                File(path='/tmp/b/3', parentId='syn123'),
+                [],  # used
+                ['/tmp/2', '/tmp/1'],  # executed
+                {},  # annotations
+            ),
+            _SyncUploadItem(
+                File(path='/tmp/2', parentId='syn123'),
+                ['/tmp/1'],  # used,
+                [],  # executed,
+                {},  # annotations
+            ),
+            _SyncUploadItem(
+                File(path='/tmp/1', parentId='syn123'),
+                ['https://abc.com/123'],  # used
+                [],  # executed,
+                {},  # annotations
+            ),
+        ]
+
+        random.shuffle(items)
+
+        ordered = _SyncUploader._order_items(items)
+
+        # all items should be accounted for and they should be ordered ascending
+        assert set([i.entity.path for i in ordered]) == set([i.entity.path for i in items])
+        last_item_num = 0
+        for i in ordered:
+            item_num = int(i.entity.path[i.entity.path.rindex('/') + 1:])
+            assert item_num >= last_item_num
+            last_item_num = item_num
+
+    def test_upload_item_success(self, syn):
+        """Test successfully uploading an item"""
+
+        uploader = _SyncUploader(syn, Mock())
+
+        used = ['foo']
+        executed = ['bar']
+        item = _SyncUploadItem(
+            File(path='/tmp/file', parentId='syn123'),
+            used,
+            executed,
+            {'forceVersion': True},
+        )
+
+        finished_items = {}
+        mock_condition = create_autospec(threading.Condition())
+        pending_provenance = set([item.entity.path])
+        abort_event = threading.Event()
+        progress = CumulativeTransferProgress('Test Upload')
+
+        mock_stored_entity = Mock()
+
+        with patch.object(syn, 'store') as mock_store, \
+                patch.object(uploader._file_semaphore, 'release') as mock_release:
+
+            mock_store.return_value = mock_stored_entity
+
+            uploader._upload_item(
+                item,
+                used,
+                executed,
+                finished_items,
+                pending_provenance,
+                mock_condition,
+                abort_event,
+                progress,
+            )
+
+        mock_store.assert_called_once_with(item.entity, used=used, executed=executed, **item.store_kwargs)
+
+        # item should be finished and removed from pending provenance
+        assert mock_stored_entity == finished_items[item.entity.path]
+        assert len(pending_provenance) == 0
+
+        # should have notified the condition to let anything waiting on this provenance to continue
+        mock_condition.notifyAll.assert_called_once_with()
+
+        assert not abort_event.is_set()
+
+        mock_release.assert_called_once_with()
+
+    def test_upload_item__failure(self, syn):
+        """Verify behavior if an item upload fails.
+        Exception should be raised, and appropriate threading controls should be released/notified."""
+
+        uploader = _SyncUploader(syn, Mock())
+
+        item = _SyncUploadItem(
+            File(path='/tmp/file', parentId='syn123'),
+            [],
+            [],
+            {'forceVersion': True},
+        )
+
+        finished_items = {}
+        mock_condition = create_autospec(threading.Condition())
+        pending_provenance = set([item.entity.path])
+        abort_event = threading.Event()
+        progress = CumulativeTransferProgress('Test Upload')
+
+        with pytest.raises(ValueError), \
+                patch.object(syn, 'store') as mock_store, \
+                patch.object(uploader._file_semaphore, 'release') as mock_release:
+
+            mock_store.side_effect = ValueError('Falure during upload')
+
+            uploader._upload_item(
+                item,
+                item.used,
+                item.executed,
+                finished_items,
+                pending_provenance,
+                mock_condition,
+                abort_event,
+                progress,
+            )
+
+        # abort event should have been raised and we shoudl have released threading locks
+        assert abort_event.is_set()
+        mock_release.assert_called_once_with()
+        mock_condition.notifyAll.assert_called_once_with()
+
+    def test_abort(self):
+        """Verify abort behavior.
+        Should raise an exception chained from the first Exception on a Future and cancel any unfinished Futures"""
+
+        future_spec = Future()
+        future_1 = create_autospec(future_spec)
+        future_2 = create_autospec(future_spec)
+        future_3 = create_autospec(future_spec)
+
+        future_1.done.return_value = True
+        future_1.exception.return_value = None
+
+        ex = ValueError('boom')
+        future_2.exception.return_value = ex
+
+        future_3.done.return_value = False
+
+        futures = [future_1, future_2, future_3]
+
+        with pytest.raises(ValueError) as cm_ex:
+            _SyncUploader._abort(futures)
+
+        assert cm_ex.value.__cause__ == ex
+        future_3.cancel.assert_called_once_with()
+
+    def test_check_errors__no_errors(self):
+        """Verify checking the futures for errors when there are None"""
+
+        future_spec = Future()
+        future_1 = create_autospec(future_spec)
+        future_2 = create_autospec(future_spec)
+
+        future_1.done.return_value = True
+        future_1.cancelled.return_value = False
+        future_1.result.return_value = None
+
+        future_2.done.return_value = False
+
+        futures = [future_1, future_2]
+        assert _SyncUploader._check_errors(futures) is True
+
+        future_1.result.assert_called_once_with()
+        assert not future_2.result.called
+
+    def test_check_errors__error(self):
+        """Verify checking the futures for errors when there is one. It should e raised"""
+
+        future_spec = Future()
+        future_1 = create_autospec(future_spec)
+        future_2 = create_autospec(future_spec)
+
+        future_1.done.return_value = False
+
+        future_2.done.return_value = True
+        future_2.cancelled.return_value = False
+
+        ex = ValueError()
+        future_2.result.side_effect = ex
+
+        futures = [future_1, future_2]
+        with pytest.raises(ValueError) as cm_ex:
+            _SyncUploader._check_errors(futures)
+
+        assert ex == cm_ex.value
 
 
 class TestGetFileEntityProvenanceDict:
