@@ -2,10 +2,14 @@
 
 """
 
-from unittest.mock import Mock, patch
+import base64
 
-import synapseutils
+import pytest
+from unittest.mock import call, Mock, patch
+
 import synapseclient.__main__ as cmdline
+from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseNoCredentialsError
+import synapseutils
 
 
 def test_command_sync(syn):
@@ -62,3 +66,98 @@ def test_get_sts_token(mock_print):
     syn.get_sts_storage_token.assert_called_with(folder_id, permission, output_format='shell')
 
     mock_print.assert_called_once_with(expected_output)
+
+
+def test_authenticate_login__success(syn):
+    """Verify happy path for _authenticate_login"""
+
+    with patch.object(syn, 'login'):
+        cmdline._authenticate_login(syn, 'foo', 'bar', rememberMe=True, silent=True)
+        syn.login.assert_called_once_with('foo', 'bar', rememberMe=True, silent=True)
+
+
+def test_authenticate_login__api_key(syn):
+    """Verify attempting to authenticate when supplying an api key as the password.
+    Should attempt to treat the password as an api key after the initial failure as a password."""
+
+    username = 'foo'
+    password = base64.b64encode(b'bar').decode('utf-8')
+    login_kwargs = {'rememberMe': True}
+
+    expected_login_calls = [
+        call(username, password, **login_kwargs),
+        call(username, apiKey=password, **login_kwargs)
+    ]
+
+    with patch.object(syn, 'login') as login:
+        login.side_effect = SynapseAuthenticationError()
+
+        # simulate failure both as password and as api key
+        with pytest.raises(SynapseAuthenticationError):
+            cmdline._authenticate_login(syn, username, password, **login_kwargs)
+
+        assert expected_login_calls == login.call_args_list
+        login.reset_mock()
+
+        # now simulate success when used as an api key
+        def login_side_effect(*args, **kwargs):
+            if login.call_count == 1:
+                raise SynapseAuthenticationError()
+            return
+
+        login.side_effect = login_side_effect
+
+        cmdline._authenticate_login(syn, username, password, **login_kwargs)
+        assert expected_login_calls == login.call_args_list
+
+
+@patch.object(cmdline, '_authenticate_login')
+def test_login_with_prompt(mock_authenticate_login, syn):
+    """Verify logging in when username/pass supplied as args to the command"""
+
+    user = 'foo'
+    password = 'bar'
+    login_kwargs = {
+        'rememberMe': False,
+        'silent': True,
+        'forced': True,
+    }
+
+    cmdline.login_with_prompt(syn, user, password, **login_kwargs)
+    mock_authenticate_login.assert_called_once_with(syn, user, password, **login_kwargs)
+
+
+@patch.object(cmdline, 'getpass')
+@patch.object(cmdline, 'input')
+@patch.object(cmdline, '_authenticate_login')
+def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_getpass, syn):
+    """Verify logging in when entering username/pass from the console."""
+
+    user = 'foo'
+    password = 'bar'
+    login_kwargs = {
+        'rememberMe': False,
+        'silent': True,
+        'forced': True,
+    }
+
+    def authenticate_side_effect(*args, **kwargs):
+        if mock_authenticate_login.call_count == 1:
+            raise SynapseNoCredentialsError()
+        return
+
+    mock_authenticate_login.side_effect = authenticate_side_effect
+    mock_input.return_value = user
+    mock_getpass.getpass.return_value = password
+
+    cmdline.login_with_prompt(syn, None, None, **login_kwargs)
+
+    mock_input.assert_called_once_with("Synapse username: ")
+    mock_getpass.getpass.assert_called_once_with(("Password or api key for " + user + ": ").encode('utf-8'))
+
+    expected_authenticate_calls = [
+        call(syn, None, None, **login_kwargs),
+        call(syn, user, password, **{k: v for k, v in login_kwargs.items() if k != 'silent'})
+    ]
+
+    assert expected_authenticate_calls == mock_authenticate_login.call_args_list

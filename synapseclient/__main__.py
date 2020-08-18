@@ -21,7 +21,12 @@ from synapseclient import Activity
 from synapseclient.wiki import Wiki
 from synapseclient.annotations import Annotations
 from synapseclient.core import utils
-from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseNoCredentialsError
+from synapseclient.core.exceptions import (
+    SynapseAuthenticationError,
+    SynapseHTTPError,
+    SynapseFileNotFoundError,
+    SynapseNoCredentialsError,
+)
 
 
 def query(args, syn):
@@ -854,7 +859,7 @@ def perform_main(args, syn):
 
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
     try:
-        syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
+        _authenticate_login(syn, user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
         while not user:
@@ -864,8 +869,27 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
         while not passwd:
             # must encode password prompt because getpass() has OS-dependent implementation and complains about unicode
             # on Windows python 2.7
-            passwd = getpass.getpass(("Password for " + user + ": ").encode('utf-8'))
-        syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
+            passwd = getpass.getpass(("Password or api key for " + user + ": ").encode('utf-8'))
+
+        _authenticate_login(syn, user, passwd, rememberMe=rememberMe, forced=forced)
+
+
+def _authenticate_login(syn, user, password, **login_kwargs):
+    # login with the given password. If the password is not valid and it appears to be an api key
+    # then we attempt a login using it as an api key instead.
+    try:
+        syn.login(user, password, **login_kwargs)
+    except SynapseNoCredentialsError:
+        # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
+        raise
+    except SynapseAuthenticationError:
+        # if the entered password appears to be a base64 encoded string then we additionally attempt
+        # to login using it as an api key instead.
+        if utils.is_base64_encoded(password):
+            # the password appears to be a base64 encoded string, it might be an apikey
+            syn.login(user, apiKey=password, **login_kwargs)
+        else:
+            raise
 
 
 def main():

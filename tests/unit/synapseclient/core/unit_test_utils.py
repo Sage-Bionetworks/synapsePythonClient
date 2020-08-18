@@ -1,12 +1,13 @@
 # unit tests for utils.py
 
+import base64
 import os
 import re
-from unittest.mock import patch, mock_open
-import tempfile
 from shutil import rmtree
+import tempfile
 
 import pytest
+from unittest.mock import patch, mock_open
 
 from synapseclient.core import utils
 
@@ -315,6 +316,24 @@ def test_snake_case():
         ('camel123Abc', 'camel123_abc'),
     ]:
         assert expected_output == utils.snake_case(input_word)
+
+
+@pytest.mark.parametrize(
+    "string,expected",
+    [
+        (None, False),
+        ('', False),
+
+        ('foo', False),
+        ('foo江', False),
+
+        # should be able to handle both byte strings and unicode strings
+        (base64.b64encode(b'foo'), True),
+        (base64.b64encode(b'foo').decode('utf-8'), True),
+     ]
+)
+def test_is_base_64_encoded(string, expected):
+    assert utils.is_base64_encoded(string) == expected
 
 
 def test_deprecated_keyword_param():
