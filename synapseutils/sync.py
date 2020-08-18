@@ -434,16 +434,6 @@ class _SyncUploader:
         return converted_provenance, pending_provenance
 
     @staticmethod
-    def _check_errors(futures):
-        for future in futures:
-            if future.done() and not future.cancelled():
-                # result will raise the error raised in the executed thread if any.
-                future.result()
-
-        # return value used in the Condition wait predicate
-        return True
-
-    @staticmethod
     def _abort(futures):
         exception = None
         for future in futures:
@@ -482,7 +472,8 @@ class _SyncUploader:
             skipped_items = []
             for item in ordered_items:
                 if abort_event.is_set():
-                    # if this flag is set, one of the upload threads failed and we
+                    # if this flag is set, one of the upload threads failed and we should raise
+                    # it's error and cancel any remaining futures
                     self._abort(futures)
 
                 with condition:
@@ -533,14 +524,17 @@ class _SyncUploader:
                         condition.wait_for(lambda: (
                             len(pending_provenance) < pending_provenance_count or abort_event.is_set()
                         ))
-                    if abort_event.is_set():
-                        self._check_errors(futures)
 
             ordered_items = skipped_items
             pending_provenance = set()
             pending_provenance_count = 0
 
+        # all items have been submitted for upload
+
         concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
+        if abort_event.is_set():
+            # at least one item failed to upload
+            self._abort(futures)
 
     def _upload_item(
         self,
