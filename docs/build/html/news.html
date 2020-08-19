@@ -5,6 +5,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Release Notes &#8212; Synapse Python Client 2.1.1 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -41,136 +42,10 @@
         <li class="right" >
           <a href="sftp.html" title="Using the Synapse Python Client with SFTP data storage"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.1.1 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.1.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Release Notes</a></li> 
       </ul>
-    </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>$('#searchbox').show(0);</script>
-  <h3><a href="index.html">Table of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">Release Notes</a><ul>
-<li><a class="reference internal" href="#id1">2.1.1 (2020-07-10)</a><ul>
-<li><a class="reference internal" href="#highlights">Highlights:</a></li>
-<li><a class="reference internal" href="#bug">Bug</a></li>
-<li><a class="reference internal" href="#improvement">Improvement</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id2">2.1.0 (2020-06-16)</a><ul>
-<li><a class="reference internal" href="#id3">Highlights:</a></li>
-<li><a class="reference internal" href="#id4">Bug</a></li>
-<li><a class="reference internal" href="#id5">Improvement</a></li>
-<li><a class="reference internal" href="#task">Task</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id6">2.0.0 (2020-03-23)</a><ul>
-<li><a class="reference internal" href="#id7">Highlights:</a></li>
-<li><a class="reference internal" href="#id8">Bug</a></li>
-<li><a class="reference internal" href="#id9">Task</a></li>
-<li><a class="reference internal" href="#id10">Improvement</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id11">1.9.4 (2019-06-28)</a><ul>
-<li><a class="reference internal" href="#id12">Bug</a></li>
-<li><a class="reference internal" href="#new-feature">New Feature</a></li>
-<li><a class="reference internal" href="#id13">Improvement</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id14">1.9.3 (2019-06-28)</a><ul>
-<li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id15">1.9.2 (2019-02-15)</a><ul>
-<li><a class="reference internal" href="#features">Features</a></li>
-<li><a class="reference internal" href="#id16">Bug Fixes</a></li>
-<li><a class="reference internal" href="#tasks">Tasks</a></li>
-<li><a class="reference internal" href="#improvements">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id17">1.9.1 (2019-01-20)</a><ul>
-<li><a class="reference internal" href="#id18">Features</a></li>
-<li><a class="reference internal" href="#id19">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id20">Tasks</a></li>
-<li><a class="reference internal" href="#id21">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id22">1.9.0 (2018-09-28)</a><ul>
-<li><a class="reference internal" href="#id23">Features</a></li>
-<li><a class="reference internal" href="#id24">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id25">Tasks</a></li>
-<li><a class="reference internal" href="#id26">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id27">1.8.2 (2018-08-17)</a><ul>
-<li><a class="reference internal" href="#id28">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id29">Features</a></li>
-<li><a class="reference internal" href="#id30">Tasks</a></li>
-<li><a class="reference internal" href="#id31">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id32">1.8.1 (2018-05-17)</a><ul>
-<li><a class="reference internal" href="#id33">Bug Fixes</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id34">1.8.0 (2018-05-07)</a><ul>
-<li><a class="reference internal" href="#id35">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id36">Tasks</a></li>
-<li><a class="reference internal" href="#id37">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id38">1.7.5 (2018-01-31)</a></li>
-<li><a class="reference internal" href="#id39">1.7.4 (2018-01-29)</a><ul>
-<li><a class="reference internal" href="#id40">Features</a></li>
-<li><a class="reference internal" href="#id41">Improvements</a></li>
-<li><a class="reference internal" href="#id42">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id43">Tasks</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id44">1.7.3 (2017-12-08)</a><ul>
-<li><a class="reference internal" href="#id45">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id46">Features</a></li>
-<li><a class="reference internal" href="#id48">Tasks</a></li>
-<li><a class="reference internal" href="#id49">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id52">1.7.1 (2017-11-17)</a><ul>
-<li><a class="reference internal" href="#id53">Features</a></li>
-<li><a class="reference internal" href="#id54">Improvements</a></li>
-<li><a class="reference internal" href="#id55">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id56">Tasks</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id57">1.6.1 (2016-11-02)</a><ul>
-<li><a class="reference internal" href="#what-is-new">What is New</a></li>
-<li><a class="reference internal" href="#id58">Improvements</a></li>
-<li><a class="reference internal" href="#id59">Bug Fixes</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="sftp.html"
-                        title="previous chapter">Using the Synapse Python Client with SFTP data storage</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/news.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-        </div>
-      </div>
+    </div>  
 
     <div class="document">
       <div class="documentwrapper">
@@ -1035,7 +910,135 @@ provide convenience functions for more complicated operations in Synapse such as
 </div>
 
 
+            <div class="clearer"></div>
           </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Release Notes</a><ul>
+<li><a class="reference internal" href="#id1">2.1.1 (2020-07-10)</a><ul>
+<li><a class="reference internal" href="#highlights">Highlights:</a></li>
+<li><a class="reference internal" href="#bug">Bug</a></li>
+<li><a class="reference internal" href="#improvement">Improvement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id2">2.1.0 (2020-06-16)</a><ul>
+<li><a class="reference internal" href="#id3">Highlights:</a></li>
+<li><a class="reference internal" href="#id4">Bug</a></li>
+<li><a class="reference internal" href="#id5">Improvement</a></li>
+<li><a class="reference internal" href="#task">Task</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id6">2.0.0 (2020-03-23)</a><ul>
+<li><a class="reference internal" href="#id7">Highlights:</a></li>
+<li><a class="reference internal" href="#id8">Bug</a></li>
+<li><a class="reference internal" href="#id9">Task</a></li>
+<li><a class="reference internal" href="#id10">Improvement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id11">1.9.4 (2019-06-28)</a><ul>
+<li><a class="reference internal" href="#id12">Bug</a></li>
+<li><a class="reference internal" href="#new-feature">New Feature</a></li>
+<li><a class="reference internal" href="#id13">Improvement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id14">1.9.3 (2019-06-28)</a><ul>
+<li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id15">1.9.2 (2019-02-15)</a><ul>
+<li><a class="reference internal" href="#features">Features</a></li>
+<li><a class="reference internal" href="#id16">Bug Fixes</a></li>
+<li><a class="reference internal" href="#tasks">Tasks</a></li>
+<li><a class="reference internal" href="#improvements">Improvements</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id17">1.9.1 (2019-01-20)</a><ul>
+<li><a class="reference internal" href="#id18">Features</a></li>
+<li><a class="reference internal" href="#id19">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id20">Tasks</a></li>
+<li><a class="reference internal" href="#id21">Improvements</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id22">1.9.0 (2018-09-28)</a><ul>
+<li><a class="reference internal" href="#id23">Features</a></li>
+<li><a class="reference internal" href="#id24">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id25">Tasks</a></li>
+<li><a class="reference internal" href="#id26">Improvements</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id27">1.8.2 (2018-08-17)</a><ul>
+<li><a class="reference internal" href="#id28">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id29">Features</a></li>
+<li><a class="reference internal" href="#id30">Tasks</a></li>
+<li><a class="reference internal" href="#id31">Improvements</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id32">1.8.1 (2018-05-17)</a><ul>
+<li><a class="reference internal" href="#id33">Bug Fixes</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id34">1.8.0 (2018-05-07)</a><ul>
+<li><a class="reference internal" href="#id35">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id36">Tasks</a></li>
+<li><a class="reference internal" href="#id37">Improvements</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id38">1.7.5 (2018-01-31)</a></li>
+<li><a class="reference internal" href="#id39">1.7.4 (2018-01-29)</a><ul>
+<li><a class="reference internal" href="#id40">Features</a></li>
+<li><a class="reference internal" href="#id41">Improvements</a></li>
+<li><a class="reference internal" href="#id42">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id43">Tasks</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id44">1.7.3 (2017-12-08)</a><ul>
+<li><a class="reference internal" href="#id45">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id46">Features</a></li>
+<li><a class="reference internal" href="#id48">Tasks</a></li>
+<li><a class="reference internal" href="#id49">Improvements</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id52">1.7.1 (2017-11-17)</a><ul>
+<li><a class="reference internal" href="#id53">Features</a></li>
+<li><a class="reference internal" href="#id54">Improvements</a></li>
+<li><a class="reference internal" href="#id55">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id56">Tasks</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id57">1.6.1 (2016-11-02)</a><ul>
+<li><a class="reference internal" href="#what-is-new">What is New</a></li>
+<li><a class="reference internal" href="#id58">Improvements</a></li>
+<li><a class="reference internal" href="#id59">Bug Fixes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="sftp.html"
+                        title="previous chapter">Using the Synapse Python Client with SFTP data storage</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/news.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
         </div>
       </div>
       <div class="clearer"></div>
@@ -1052,13 +1055,14 @@ provide convenience functions for more complicated operations in Synapse such as
         <li class="right" >
           <a href="sftp.html" title="Using the Synapse Python Client with SFTP data storage"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.1.1 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.1.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Release Notes</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jul 15, 2020.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
+      Last updated on Aug 03, 2020.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
