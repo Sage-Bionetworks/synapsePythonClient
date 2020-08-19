@@ -787,7 +787,7 @@ class Synapse(object):
 
     def _ensure_download_location_is_directory(self, downloadLocation):
         download_dir = os.path.expandvars(os.path.expanduser(downloadLocation))
-        if os.path.isfile(downloadLocation):
+        if os.path.isfile(download_dir):
             raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
         return download_dir
 
