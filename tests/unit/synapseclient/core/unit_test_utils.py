@@ -330,7 +330,7 @@ def test_snake_case():
         # should be able to handle both byte strings and unicode strings
         (base64.b64encode(b'foo'), True),
         (base64.b64encode(b'foo').decode('utf-8'), True),
-     ]
+    ]
 )
 def test_is_base_64_encoded(string, expected):
     assert utils.is_base64_encoded(string) == expected
