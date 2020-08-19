@@ -48,11 +48,11 @@ def query(args, syn):
                          ' https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html')
 
 
-def _getIdsFromQuery(queryString, syn):
+def _getIdsFromQuery(queryString, syn, downloadLocation):
     """Helper function that extracts the ids out of returned query."""
 
     if re.search('from syn\\d', queryString.lower()):
-        tbl = syn.tableQuery(queryString)
+        tbl = syn.tableQuery(queryString, downloadLocation=downloadLocation)
 
         check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
         assert check_for_id_col, ValueError("Query does not include the id column.")
@@ -73,7 +73,7 @@ def get(args, syn):
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
             raise ValueError('You cannot specify a version or id when you are downloading a query.')
-        ids = _getIdsFromQuery(args.queryString, syn)
+        ids = _getIdsFromQuery(args.queryString, syn, args.downloadLocation)
         for id in ids:
             syn.get(id, downloadLocation=args.downloadLocation)
     else:
