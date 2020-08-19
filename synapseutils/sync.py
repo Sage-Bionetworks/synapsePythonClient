@@ -32,6 +32,8 @@ DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'synapseStore', 'co
 
 @contextmanager
 def _sync_executor(syn):
+    """Use this context manager to run some sync code with an executor that will
+    be created and then shutdown once the context completes."""
     if syn.max_threads < 2 or config.single_threaded:
         executor = SingleThreadExecutor()
     else:
@@ -361,6 +363,7 @@ class _SyncDownloader:
 
 
 class _SyncUploadItem(typing.NamedTuple):
+    """Represents a single file being uploaded"""
     entity: File
     used: typing.Iterable[str]
     executed: typing.Iterable[str]
@@ -368,6 +371,10 @@ class _SyncUploadItem(typing.NamedTuple):
 
 
 class _SyncUploader:
+    """
+    Manages the uploads associated associated with a syncToSynapse call.
+    Files will be uploaded concurrently and in an order that honors any interdependent provenance.
+    """
 
     def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_transfers=None):
         """
@@ -382,6 +389,7 @@ class _SyncUploader:
 
     @staticmethod
     def _order_items(items):
+        # order items by their interdependent provenenace and raise any dependency errors
 
         upload_paths = {i.entity.path for i in items}
         ordered_items = OrderedDict()
@@ -419,6 +427,8 @@ class _SyncUploader:
 
     @staticmethod
     def _convert_provenance(provenance, finished_items):
+        # convert any string file path provenance to the corresponding entity that has been uploaded
+
         converted_provenance = []
         pending_provenance = set()
         for p in provenance:
@@ -435,6 +445,8 @@ class _SyncUploader:
 
     @staticmethod
     def _abort(futures):
+        # abort this sync because of an error
+
         exception = None
         for future in futures:
             if future.done():
@@ -447,9 +459,6 @@ class _SyncUploader:
         raise ValueError("Sync aborted due to upload failure") from exception
 
     def upload(self, items: typing.Iterable[_SyncUploadItem]):
-        # first we need to resolve any interdependencies between the items indicated by their provenance.
-        # we cannot upload an item whose provenance includes another until we first upload the dependency.
-
         progress = CumulativeTransferProgress('Uploaded')
 
         # flag to set in a child in an upload thread if an error occurs to signal to the entrant
@@ -462,7 +471,6 @@ class _SyncUploader:
 
         pending_provenance = set()
         pending_provenance_count = 0
-
         finished_items = {}
 
         ordered_items = self._order_items([i for i in items])

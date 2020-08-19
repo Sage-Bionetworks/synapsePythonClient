@@ -12,9 +12,8 @@ from synapseclient.core.exceptions import SynapseMd5MismatchError
 
 
 def log_upload_message(syn, message):
-    # if this upload is in the context of a larger, mulit threaded sync upload as indicated by a cumulative progress
-    # then we don't print the individual upload messages to the console since they wouldn't be properly
-    # interleaved properly
+    # if this upload is in the context of a larger, multi threaded sync upload as indicated by a cumulative progress
+    # then we don't print the individual upload messages to the console since they wouldn't be properly interleaved.
     if not cumulative_transfer_progress.is_active():
         syn.logger.info(message)
 

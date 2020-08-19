@@ -632,7 +632,6 @@ class TestSyncUploader:
     def test_upload(self, mock_os_isfile, syn):
         """Ensure that an upload including multiple items which depend on each other through
         provenance are all uploaded and in the expected order."""
-
         mock_os_isfile.return_value = True
 
         item_1 = _SyncUploadItem(
@@ -690,7 +689,8 @@ class TestSyncUploader:
         def syn_store_side_effect(entity, *args, **kwargs):
             if entity.path == item_1.entity.path:
                 with convert_provenance_condition:
-                    convert_provenance_condition.wait_for(lambda: convert_provenance_calls == 0)
+                    if convert_provenance_calls > 0:
+                        convert_provenance_condition.wait_for(lambda: convert_provenance_calls == 0, timeout=5)
 
             return mock_stored_entities[entity.path]
 

@@ -31,6 +31,7 @@ def printTransferProgress(*args, **kwargs):
 
 
 def is_active():
+    """Return whether the current thread is accumulating progress data."""
     return hasattr(_thread_local, 'cumulative_transfer_progress')
 
 
