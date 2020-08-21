@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import call, MagicMock, patch
+from unittest.mock import call, MagicMock, patch, PropertyMock
 from multiprocessing.sharedctypes import Synchronized
 from multiprocessing.pool import ThreadPool
 
@@ -69,9 +69,8 @@ class TestPoolProvider:
 
 
 class TestGetValue:
-    def setup(self):
-        pass
 
+    @patch.object(synapseclient.core.config, 'single_threaded', PropertyMock(return_value=False))
     def test_get_value_for_multiple_thread(self):
         synapseclient.core.config.single_threaded = False
         test_value = get_value('d', 500)
@@ -83,6 +82,7 @@ class TestGetValue:
         test_value.value = 900
         assert test_value.value == 900
 
+    @patch.object(synapseclient.core.config, 'single_threaded', PropertyMock(return_value=True))
     def test_get_value_for_single_thread(self):
         synapseclient.core.config.single_threaded = True
         test_value = get_value('d', 500)

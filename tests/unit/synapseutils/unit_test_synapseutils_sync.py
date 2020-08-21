@@ -690,7 +690,7 @@ class TestSyncUploader:
             if entity.path == item_1.entity.path:
                 with convert_provenance_condition:
                     if convert_provenance_calls > 0:
-                        convert_provenance_condition.wait_for(lambda: convert_provenance_calls == 0, timeout=5)
+                        convert_provenance_condition.wait_for(lambda: convert_provenance_calls == 0)
 
             return mock_stored_entities[entity.path]
 
