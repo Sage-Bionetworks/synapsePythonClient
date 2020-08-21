@@ -1,5 +1,4 @@
 import csv
-from collections import OrderedDict
 import concurrent.futures
 from contextlib import contextmanager
 import io
@@ -389,41 +388,27 @@ class _SyncUploader:
 
     @staticmethod
     def _order_items(items):
-        # order items by their interdependent provenenace and raise any dependency errors
+        # order items by their interdependent provenance and raise any dependency errors
 
-        upload_paths = {i.entity.path for i in items}
-        ordered_items = OrderedDict()
-        remaining_items = []
+        items_by_path = {i.entity.path: i for i in items}
+        graph = {}
 
-        while items:
-            for item in items:
-                for provenance_dependency in (item.used + item.executed):
-                    if os.path.isfile(provenance_dependency):
-                        if provenance_dependency not in upload_paths:
-                            # an upload lists provenance of a file that is not itself included in the upload
-                            raise ValueError(
-                                f"{item.entity.path} depends on {provenance_dependency} which is not being uploaded"
-                            )
-                        elif provenance_dependency not in ordered_items:
-                            remaining_items.append(item)
-                            break
+        for item in items:
+            item_file_provenance = []
+            for provenance_dependency in (item.used + item.executed):
+                if os.path.isfile(provenance_dependency):
+                    if provenance_dependency not in items_by_path:
+                        # an upload lists provenance of a file that is not itself included in the upload
+                        raise ValueError(
+                            f"{item.entity.path} depends on {provenance_dependency} which is not being uploaded"
+                        )
 
-                else:
-                    # all provenance dependencies have already been ordered so we can add order this item after those
-                    ordered_items[item.entity.path] = item
+                    item_file_provenance.append(provenance_dependency)
 
-            if len(items) == len(remaining_items):
-                raise ValueError(
-                    "Cannot upload these items due to a cyclic provenance dependency "
-                    "within the following items: {}".format(
-                        [i.entity.path for i in items]
-                    )
-                )
+            graph[item.entity.path] = item_file_provenance
 
-            items = remaining_items
-            remaining_items = []
-
-        return ordered_items.values()
+        graph_sorted = utils.topolgical_sort(graph)
+        return [items_by_path[i[0]] for i in graph_sorted]
 
     @staticmethod
     def _convert_provenance(provenance, finished_items):

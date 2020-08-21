@@ -458,8 +458,9 @@ class TestSyncUploader:
             ),
         ]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError) as cm_ex:
             _SyncUploader._order_items(items)
+        assert 'cyclic' in str(cm_ex.value)
 
     @patch('os.path.isfile')
     def test_order_items__provenance_file_not_uploaded(self, isfile):
