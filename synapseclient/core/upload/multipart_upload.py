@@ -57,6 +57,27 @@ def shared_executor(executor):
         del _thread_local.executor
 
 
+@contextmanager
+def _executor(max_threads, shutdown_wait):
+    """Yields an executor for running some asynchronous code, either obtaining the executor
+    from the shared_executor or otherwise creating one.
+
+    :param max_threads: the maxmimum number of threads a created executor should use
+    :param shutdown_wait: whether a created executor should shutdown after running the yielded to code
+    """
+    executor = getattr(_thread_local, 'executor', None)
+    shutdown_after = False
+    if not executor:
+        shutdown_after = True
+        executor = pool_provider.get_executor(thread_count=max_threads)
+
+    try:
+        yield executor
+    finally:
+        if shutdown_after:
+            executor.shutdown(wait=shutdown_wait)
+
+
 class UploadAttempt:
 
     def __init__(
@@ -290,24 +311,16 @@ class UploadAttempt:
         )
 
         futures = []
-        # we obtain an executor from a thread local if we are in the context of a Synapse sync
-        # and wan't to re-use the same threadpool as was created for that
-        executor = getattr(_thread_local, 'executor', None)
-        shutdown_after = False
-        if not executor:
-            shutdown_after = True
-            executor = pool_provider.get_executor(thread_count=self._max_threads)
+        with _executor(self._max_threads, False) as executor:
+            # we don't wait on the shutdown since we do so ourselves below
 
-        for part_number in remaining_part_numbers:
-            futures.append(
-                executor.submit(
-                    self._handle_part,
-                    part_number,
+            for part_number in remaining_part_numbers:
+                futures.append(
+                    executor.submit(
+                        self._handle_part,
+                        part_number,
+                    )
                 )
-            )
-
-        if shutdown_after:
-            executor.shutdown(wait=False)
 
         for result in concurrent.futures.as_completed(futures):
             try:
