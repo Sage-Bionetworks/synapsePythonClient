@@ -450,9 +450,9 @@ class _SyncUploader:
         # thread to stop processing.
         abort_event = threading.Event()
 
-        # used to lock around shared state and to notify when provenance dependencies are resolved
+        # used to lock around shared state and to notify when dependencies are resolved
         # so that provenance dependent files can be uploaded
-        condition = threading.Condition()
+        dependency_condition = threading.Condition()
 
         pending_provenance = set()
         pending_provenance_count = 0
@@ -469,7 +469,7 @@ class _SyncUploader:
                     # it's error and cancel any remaining futures
                     self._abort(futures)
 
-                with condition:
+                with dependency_condition:
                     used, used_pending = self._convert_provenance(item.used, finished_items)
                     executed, executed_pending = self._convert_provenance(item.executed, finished_items)
 
@@ -502,7 +502,7 @@ class _SyncUploader:
                     executed,
                     finished_items,
                     pending_provenance,
-                    condition,
+                    dependency_condition,
                     abort_event,
                     progress,
                 )
@@ -512,9 +512,9 @@ class _SyncUploader:
                 # skipped_items contains all the items that we couldn't upload the previous time through
                 # the loop because they depended on another item for provenance. wait until there
                 # at least one those items finishes before continuing another time through the loop.
-                with condition:
+                with dependency_condition:
                     if not abort_event.is_set():
-                        condition.wait_for(lambda: (
+                        dependency_condition.wait_for(lambda: (
                             len(pending_provenance) < pending_provenance_count or abort_event.is_set()
                         ))
 
@@ -536,7 +536,7 @@ class _SyncUploader:
         executed,
         finished_items,
         pending_provenance,
-        provenance_condition,
+        dependency_condition,
         abort_event,
         progress,
     ):
@@ -549,7 +549,7 @@ class _SyncUploader:
                 with progress.accumulate_progress():
                     entity = self._syn.store(item.entity, used=used, executed=executed, **item.store_kwargs)
 
-                with provenance_condition:
+                with dependency_condition:
                     finished_items[item.entity.path] = entity
                     try:
                         pending_provenance.remove(item.entity.path)
@@ -557,16 +557,16 @@ class _SyncUploader:
                         # this item was defined as provenance for another item, now that
                         # it's finished we may be able to upload that depending item, so
                         # wake up he central thread
-                        provenance_condition.notifyAll()
+                        dependency_condition.notifyAll()
 
                     except KeyError:
                         # this item is not used in provenance of another item, that's fine
                         pass
 
         except Exception:
-            with provenance_condition:
+            with dependency_condition:
                 abort_event.set()
-                provenance_condition.notifyAll()
+                dependency_condition.notifyAll()
             raise
 
         finally:
