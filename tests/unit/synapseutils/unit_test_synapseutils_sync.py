@@ -362,80 +362,73 @@ class TestSyncUploader:
 
         mock_isfile.side_effect = isfile
 
+        # dependencies flow down
+        #
+        #                       /tmp/6
+        #                         |
+        #                  _______|_______
+        #                  |             |
+        #  /tmp/4        /tmp/5          |
+        #    |_____________|             |
+        #           |                    |
+        #         /tmp/3                 |
+        #           |                    |
+        #         /tmp/1               /tmp/2
+
+        item_1 = _SyncUploadItem(
+            File(path='/tmp/1', parentId='syn123'),
+            [],  # used
+            [],  # executed
+            {},  # annotations
+        )
+        item_2 = _SyncUploadItem(
+            File(path='/tmp/2', parentId='syn123'),
+            [],  # used
+            [],  # executed
+            {},  # annotations
+        )
+        item_3 = _SyncUploadItem(
+            File(path='/tmp/3', parentId='syn123'),
+            ['/tmp/1'],  # used
+            [],  # executed
+            {},  # annotations
+        )
+        item_4 = _SyncUploadItem(
+            File(path='/tmp/4', parentId='syn123'),
+            [],  # used
+            ['/tmp/3'],  # executed
+            {},  # annotations
+        )
+        item_5 = _SyncUploadItem(
+            File(path='/tmp/5', parentId='syn123'),
+            ['/tmp/3'],  # used
+            [],  # executed
+            {},  # annotations
+        )
+        item_6 = _SyncUploadItem(
+            File(path='/tmp/6', parentId='syn123'),
+            ['/tmp/5'],  # used
+            ['/tmp/2'],  # executed
+            {},  # annotations
+        )
+
         items = [
-            _SyncUploadItem(
-                File(path='/tmp/10', parentId='syn123'),
-                ['/tmp/a/9'],  # used
-                ['https://foo.com/bar', '/tmp/b/9'],  # executed
-                {},  # annotations
-            ),
-            _SyncUploadItem(
-                File(path='/tmp/a/9', parentId='syn123'),
-                [],  # used
-                ['/tmp/7'],  # executed
-                {},  # annotations
-            ),
-            _SyncUploadItem(
-                File(path='/tmp/b/9', parentId='syn123'),
-                [],  # used
-                ['/tmp/7'],  # executed
-                {},  # annotations
-            ),
-            _SyncUploadItem(
-                File(path='/tmp/7', parentId='syn123'),
-                ['/tmp/6'],  # used
-                ['/tmp/5'],  # executed
-                {},  # annotations
-            ),
-            _SyncUploadItem(
-                File(path='/tmp/6', parentId='syn123'),
-                ['/tmp/5'],  # used
-                ['https://123.com/4'],  # executed
-                {},  # annotations
-            ),
-            _SyncUploadItem(
-                File(path='/tmp/5', parentId='syn123'),
-                ['/tmp/2', '/tmp/b/3'],  # used
-                ['/tmp/a/3'],  # executed
-                {},  # annotations
-            ),
-            _SyncUploadItem(
-                File(path='/tmp/a/3', parentId='syn123'),
-                [],  # used
-                ['/tmp/2'],  # executed
-                {},  # annotations
-            ),
-            _SyncUploadItem(
-                File(path='/tmp/b/3', parentId='syn123'),
-                [],  # used
-                ['/tmp/2', '/tmp/1'],  # executed
-                {},  # annotations
-            ),
-            _SyncUploadItem(
-                File(path='/tmp/2', parentId='syn123'),
-                ['/tmp/1'],  # used,
-                [],  # executed,
-                {},  # annotations
-            ),
-            _SyncUploadItem(
-                File(path='/tmp/1', parentId='syn123'),
-                ['https://abc.com/123'],  # used
-                [],  # executed,
-                {},  # annotations
-            ),
+            item_5,
+            item_6,
+            item_2,
+            item_3,
+            item_1,
+            item_4,
         ]
 
         random.shuffle(items)
 
         ordered = _SyncUploader._order_items(items)
 
-        # all items should be accounted for and they should be ordered ascending
-        assert set([i.entity.path for i in ordered]) == set([i.entity.path for i in items])
-        last_item_num = 0
+        seen = set()
         for i in ordered:
-            item_num = int(i.entity.path[i.entity.path.rindex('/') + 1:])
-            assert item_num >= last_item_num
-            last_item_num = item_num
+            assert all(p in seen for p in (i.used + i.executed))
+            seen.add(i.entity.path)
 
     @patch('os.path.isfile')
     def test_order_items__provenance_cycle(self, isfile):
