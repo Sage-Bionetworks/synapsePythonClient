@@ -471,8 +471,9 @@ class TestSyncUploader:
             ),
         ]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as cm_ex:
             _SyncUploader._order_items(items)
+        assert 'not being uploaded' in cm_ex.value
 
     def test_upload_item_success(self, syn):
         """Test successfully uploading an item"""
