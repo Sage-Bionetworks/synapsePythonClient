@@ -383,6 +383,10 @@ class _PendingProvenance:
         """Return whether any of the pending provenance has finished"""
         return len(self._pending) < self._pending_count
 
+    def reset_count(self):
+        """Reset the pending count to reflect the current pending state"""
+        self._pending_count = len(self._pending)
+
 
 class _SyncUploadItem(typing.NamedTuple):
     """Represents a single file being uploaded"""
@@ -524,18 +528,19 @@ class _SyncUploader:
                 )
                 futures.append(future)
 
-            if pending_provenance.has_pending():
-                # skipped_items contains all the items that we couldn't upload the previous time through
-                # the loop because they depended on another item for provenance. wait until there
-                # at least one those items finishes before continuing another time through the loop.
-                with dependency_condition:
+            with dependency_condition:
+                if pending_provenance.has_pending():
+                    # skipped_items contains all the items that we couldn't upload the previous time through
+                    # the loop because they depended on another item for provenance. wait until there
+                    # at least one those items finishes before continuing another time through the loop.
                     if not abort_event.is_set():
                         dependency_condition.wait_for(lambda: (
                             pending_provenance.has_finished_provenance() or abort_event.is_set()
                         ))
 
+                pending_provenance.reset_count()
+
             ordered_items = skipped_items
-            pending_provenance = _PendingProvenance()
 
         # all items have been submitted for upload
 
