@@ -368,11 +368,14 @@ class TestSyncUploader:
         #                         |
         #                  _______|_______
         #                  |             |
+        #                  V             | 
         #  /tmp/4        /tmp/5          |
         #    |_____________|             |
         #           |                    |
+        #           V                    |
         #         /tmp/3                 |
         #           |                    |
+        #           V                    V
         #         /tmp/1               /tmp/2
 
         item_1 = _SyncUploadItem(
