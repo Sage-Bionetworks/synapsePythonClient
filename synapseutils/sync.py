@@ -361,6 +361,29 @@ class _SyncDownloader:
         return root_folder_sync
 
 
+class _PendingProvenance:
+    def __init__(self):
+        self._pending = set()
+        self._pending_count = 0
+
+    def update(self, pending: set):
+        """Add pending items"""
+        self._pending_count += len(pending.difference(self._pending))
+        self._pending.update(pending)
+
+    def finished(self, provenance):
+        """Remove the given provenance after it is finished uploading"""
+        self._pending.remove(provenance)
+
+    def has_pending(self):
+        """Return whether any pending provenance was recorded"""
+        return self._pending_count > 0
+
+    def has_finished_provenance(self):
+        """Return whether any of the pending provenance has finished"""
+        return len(self._pending) < self._pending_count
+
+
 class _SyncUploadItem(typing.NamedTuple):
     """Represents a single file being uploaded"""
     entity: File
@@ -454,8 +477,7 @@ class _SyncUploader:
         # so that provenance dependent files can be uploaded
         dependency_condition = threading.Condition()
 
-        pending_provenance = set()
-        pending_provenance_count = 0
+        pending_provenance = _PendingProvenance()
         finished_items = {}
 
         ordered_items = self._order_items([i for i in items])
@@ -476,13 +498,7 @@ class _SyncUploader:
                     if used_pending or executed_pending:
                         # we can't upload this item yet, it has provenance that hasn't yet been uploaded
                         skipped_items.append(item)
-
-                        if used_pending:
-                            pending_provenance_count += len(used_pending.difference(pending_provenance))
-                            pending_provenance.update(used_pending)
-                        if executed_pending:
-                            pending_provenance_count += len(executed_pending.difference(pending_provenance))
-                            pending_provenance.update(executed_pending)
+                        pending_provenance.update(used_pending.union(executed_pending))
 
                         # skip uploading because dependent provenance hasn't finished uploading
                         continue
@@ -508,19 +524,18 @@ class _SyncUploader:
                 )
                 futures.append(future)
 
-            if pending_provenance_count > 0:
+            if pending_provenance.has_pending():
                 # skipped_items contains all the items that we couldn't upload the previous time through
                 # the loop because they depended on another item for provenance. wait until there
                 # at least one those items finishes before continuing another time through the loop.
                 with dependency_condition:
                     if not abort_event.is_set():
                         dependency_condition.wait_for(lambda: (
-                            len(pending_provenance) < pending_provenance_count or abort_event.is_set()
+                            pending_provenance.has_finished_provenance() or abort_event.is_set()
                         ))
 
             ordered_items = skipped_items
-            pending_provenance = set()
-            pending_provenance_count = 0
+            pending_provenance = _PendingProvenance()
 
         # all items have been submitted for upload
 
@@ -552,7 +567,7 @@ class _SyncUploader:
                 with dependency_condition:
                     finished_items[item.entity.path] = entity
                     try:
-                        pending_provenance.remove(item.entity.path)
+                        pending_provenance.finished(item.entity.path)
 
                         # this item was defined as provenance for another item, now that
                         # it's finished we may be able to upload that depending item, so

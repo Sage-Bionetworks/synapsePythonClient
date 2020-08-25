@@ -12,7 +12,7 @@ import pytest
 from unittest.mock import ANY, patch, create_autospec, Mock, call
 
 import synapseutils
-from synapseutils.sync import _FolderSync, _SyncUploader, _SyncUploadItem
+from synapseutils.sync import _FolderSync, _PendingProvenance, _SyncUploader, _SyncUploadItem
 from synapseclient import Activity, File, Folder, Project, Schema, Synapse
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
 from synapseclient.core.exceptions import SynapseHTTPError
@@ -473,7 +473,7 @@ class TestSyncUploader:
 
         with pytest.raises(ValueError) as cm_ex:
             _SyncUploader._order_items(items)
-        assert 'not being uploaded' in cm_ex.value
+        assert 'not being uploaded' in str(cm_ex.value)
 
     def test_upload_item_success(self, syn):
         """Test successfully uploading an item"""
@@ -491,7 +491,8 @@ class TestSyncUploader:
 
         finished_items = {}
         mock_condition = create_autospec(threading.Condition())
-        pending_provenance = set([item.entity.path])
+        pending_provenance = _PendingProvenance()
+        pending_provenance.update(set([item.entity.path]))
         abort_event = threading.Event()
         progress = CumulativeTransferProgress('Test Upload')
 
@@ -517,7 +518,7 @@ class TestSyncUploader:
 
         # item should be finished and removed from pending provenance
         assert mock_stored_entity == finished_items[item.entity.path]
-        assert len(pending_provenance) == 0
+        assert len(pending_provenance._pending) == 0
 
         # should have notified the condition to let anything waiting on this provenance to continue
         mock_condition.notifyAll.assert_called_once_with()
