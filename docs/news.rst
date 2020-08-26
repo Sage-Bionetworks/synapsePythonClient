@@ -2,6 +2,50 @@
 Release Notes
 =============
 
+
+2.2.0 (2020-08-28)
+==================
+
+Highlights
+----------
+
+- Files that are part of
+  `syncFromSynapse <https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse>`__
+  and
+  `syncToSynapse <https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncToSynapse>`__
+  operations (:code:`synapse get -r` and :code:`synapse sync` in the command line client, respectively) are
+  transferred in in parallel threads rather than serially, substantially improving the performance of these operations.
+
+Bug Fixes
+---------
+-  [`SYNPY-1082 <https://sagebionetworks.jira.com/browse/SYNPY-1082>`__] -
+   Downloading entity linked to URL fails: module 'urllib.parse' has no attribute 'urlretrieve'
+
+Improvements
+------------
+
+-  [`SYNPY-1072 <https://sagebionetworks.jira.com/browse/SYNPY-1072>`__] -
+   Improve throughput of multiple small file transfers
+-  [`SYNPY-1073 <https://sagebionetworks.jira.com/browse/SYNPY-1073>`__] -
+   Parellellize upload syncs
+-  [`SYNPY-1074 <https://sagebionetworks.jira.com/browse/SYNPY-1074>`__] -
+   Parallelize download syncs
+-  [`SYNPY-1084 <https://sagebionetworks.jira.com/browse/SYNPY-1084>`__] -
+   allow anonymous usage for public APIs like GET /teamMembers/{id}
+-  [`SYNPY-1088 <https://sagebionetworks.jira.com/browse/SYNPY-1088>`__] -
+   Manifest is in cache with synapse get -q
+-  [`SYNPY-1090 <https://sagebionetworks.jira.com/browse/SYNPY-1090>`__] -
+   Command line client does not support apikey
+
+Tasks
+-----
+-  [`SYNPY-1080 <https://sagebionetworks.jira.com/browse/SYNPY-1080>`__] -
+   Remove Versionable from SchemaBase
+-  [`SYNPY-1085 <https://sagebionetworks.jira.com/browse/SYNPY-1085>`__] -
+   Move to pytest testing framework
+-  [`SYNPY-1087 <https://sagebionetworks.jira.com/browse/SYNPY-1087>`__] -
+   Improve synapseclient installation instructions
+
 2.1.1 (2020-07-10)
 ==================
 
