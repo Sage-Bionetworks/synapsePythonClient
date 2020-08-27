@@ -27,11 +27,11 @@ Improvements
 -  [`SYNPY-1072 <https://sagebionetworks.jira.com/browse/SYNPY-1072>`__] -
    Improve throughput of multiple small file transfers
 -  [`SYNPY-1073 <https://sagebionetworks.jira.com/browse/SYNPY-1073>`__] -
-   Parellellize upload syncs
+   Parellelize upload syncs
 -  [`SYNPY-1074 <https://sagebionetworks.jira.com/browse/SYNPY-1074>`__] -
    Parallelize download syncs
 -  [`SYNPY-1084 <https://sagebionetworks.jira.com/browse/SYNPY-1084>`__] -
-   allow anonymous usage for public APIs like GET /teamMembers/{id}
+   Allow anonymous usage for public APIs like GET /teamMembers/{id}
 -  [`SYNPY-1088 <https://sagebionetworks.jira.com/browse/SYNPY-1088>`__] -
    Manifest is in cache with synapse get -q
 -  [`SYNPY-1090 <https://sagebionetworks.jira.com/browse/SYNPY-1090>`__] -
