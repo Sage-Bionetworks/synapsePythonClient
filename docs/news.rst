@@ -16,7 +16,8 @@ Highlights
   operations (:code:`synapse get -r` and :code:`synapse sync` in the command line client, respectively) are
   transferred in in parallel threads rather than serially, substantially improving the performance of these operations.
 - Table metadata from `synapse get -q` is automatically downloaded to a users working directory instead of to the Synapse cache (a hidden folder).
-- Users can now pass their API key to `synapse login` in place of a password. 
+- Users can now pass their API key to `synapse login` in place of a password.
+
 Bug Fixes
 ---------
 -  [`SYNPY-1082 <https://sagebionetworks.jira.com/browse/SYNPY-1082>`__] -
