@@ -71,7 +71,7 @@ setuptools.setup(
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='https://synapse.org',
+    url='https://www.synapse.org',
     author='The Synapse Engineering Team',
     author_email='platform@sagebase.org',
     license='Apache',
