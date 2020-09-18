@@ -9,11 +9,11 @@ from builtins import zip
 import pandas as pd
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import call, MagicMock
 
 from tests.unit.test_utils.unit_utils import StringIOContextManager
 
-from synapseclient import Entity, Synapse
+from synapseclient import client, Entity, Synapse
 from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
 from synapseclient.entity import split_entity_namespaces
 import synapseclient.table
@@ -532,9 +532,74 @@ def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
         CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
 
 
-def test_build_table_download_file_handle_list__repeated_file_handles(syn):
-    syn = Synapse(debug=True, skip_checks=True)
+@pytest.mark.parametrize('downloadLocation', [None, '/tmp/download'])
+def test_downloadTableColumns(syn, downloadLocation):
+    header = MagicMock()
+    header.name = 'id'
+    table = MagicMock(
+        tableId='abc',
+        headers=[header],
+        __iter__=MagicMock(
+            return_value=iter([[1], [2], [3]])
+        )
+    )
 
+    mock_async_response = {
+        'resultZipFileHandleId': 4,
+        'fileSummary': [
+            {
+                'status': 'SUCCESS',
+                'fileHandleId': 1,
+                'zipEntryName': 'entry1',
+            },
+            {
+                'status': 'SUCCESS',
+                'fileHandleId': 3,
+                'zipEntryName': 'entry2',
+            },
+        ]
+    }
+    zip_file_path = '/tmp/foo/bar.csv'
+    zip_entry_file_paths = [
+        '/tmp/foo/entry1',
+        '/tmp/foo/entry2',
+    ]
+    cached_paths = [
+        None,
+        '/tmp/foo',
+        None
+    ]
+
+    expected_result = {
+        1: zip_entry_file_paths[0],
+        2: cached_paths[1],
+        3: zip_entry_file_paths[1],
+    }
+
+    with patch.object(syn, 'cache') as mock_cache, \
+            patch.object(syn, '_waitForAsync') as mock_async, \
+            patch.object(syn, '_ensure_download_location_is_directory') as mock_ensure_dir, \
+            patch.object(syn, '_downloadFileHandle') as mock_download_file_handle, \
+            patch.object(client, 'zipfile'), \
+            patch.object(client, 'extract_zip_file_to_directory') as mock_extract_zip_file_to_directory:
+
+        mock_cache.get.side_effect = cached_paths
+        mock_async.return_value = mock_async_response
+        mock_ensure_dir.return_value = mock_cache.get_cache_dir.return_value = '/tmp/download'
+        mock_download_file_handle.return_value = zip_file_path
+        mock_extract_zip_file_to_directory.side_effect = zip_entry_file_paths
+
+        result = syn.downloadTableColumns(table, ['id'], downloadLocation=downloadLocation)
+
+        if downloadLocation:
+            mock_ensure_dir.assert_called_once_with(downloadLocation)
+        else:
+            assert [call(1), call(3)] == mock_cache.get_cache_dir.call_args_list
+
+        assert expected_result == result
+
+
+def test_build_table_download_file_handle_list__repeated_file_handles(syn):
     # patch the cache so we don't look there in case FileHandle ids actually exist there
     patch.object(syn.cache, "get", return_value=None)
 
@@ -554,7 +619,8 @@ def test_build_table_download_file_handle_list__repeated_file_handles(syn):
     table = Table(schema, data, headers=[SelectColumn.from_column(col) for col in cols])
 
     file_handle_associations, file_handle_to_path_map = syn._build_table_download_file_handle_list(table,
-                                                                                                   ['filehandle'])
+                                                                                                   ['filehandle'],
+                                                                                                   None)
 
     # verify only 2 file_handles are added (repeats were ignored)
     assert 2 == len(file_handle_associations)

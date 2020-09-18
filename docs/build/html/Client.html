@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synapse Client &#8212; Synapse Python Client 2.1.1 documentation</title>
+    <title>Synapse Client &#8212; Synapse Python Client 2.2.0 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -46,7 +46,7 @@
         <li class="right" >
           <a href="S3Storage.html" title="S3 Storage Features"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.1.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>  
@@ -235,13 +235,14 @@ delete.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.downloadTableColumns">
-<code class="sig-name descname">downloadTableColumns</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span></em>, <em class="sig-param"><span class="n">columns</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.downloadTableColumns" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">downloadTableColumns</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span></em>, <em class="sig-param"><span class="n">columns</span></em>, <em class="sig-param"><span class="n">downloadLocation</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.downloadTableColumns" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bulk download of table-associated files.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>table</strong> – table query result</p></li>
 <li><p><strong>columns</strong> – a list of column names as strings</p></li>
+<li><p><strong>downloadLocation</strong> – directory into which to download the files</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -303,8 +304,6 @@ Defaults to “keep.both”.</p></li>
 <li><p><strong>limitSearch</strong> – a Synanpse ID used to limit the search in Synapse if entity is specified as a local
 file.  That is, if the file is stored in multiple locations in Synapse only the ones
 in the specified folder/project will be returned.</p></li>
-<li><p><strong>maxThreads</strong> – The maximum number of threads to use when downloading the file (currently only
-applies to S3 uploads)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1397,6 +1396,7 @@ Only use this if you know what you’re doing.</p></li>
 <li><p><strong>separator</strong> – defaults to comma</p></li>
 <li><p><strong>header</strong> – True by default</p></li>
 <li><p><strong>includeRowIdAndRowVersion</strong> – True by default</p></li>
+<li><p><strong>downloadLocation</strong> – directory path to download the CSV file to</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1526,13 +1526,13 @@ calculated automatically.</p></li>
         <li class="right" >
           <a href="S3Storage.html" title="S3 Storage Features"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.1.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Aug 03, 2020.
+      Last updated on Aug 31, 2020.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">

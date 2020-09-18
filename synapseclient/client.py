@@ -785,6 +785,12 @@ class Synapse(object):
                                         + '!'*len(warning_message)+'\n')
         return entity
 
+    def _ensure_download_location_is_directory(self, downloadLocation):
+        download_dir = os.path.expandvars(os.path.expanduser(downloadLocation))
+        if os.path.isfile(download_dir):
+            raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+        return download_dir
+
     def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
         # set the initial local state
         entity.path = None
@@ -804,9 +810,7 @@ class Synapse(object):
         # Decide the best download location for the file
         if downloadLocation is not None:
             # Make sure the specified download location is a fully resolved directory
-            downloadLocation = os.path.expandvars(os.path.expanduser(downloadLocation))
-            if os.path.isfile(downloadLocation):
-                raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+            downloadLocation = self._ensure_download_location_is_directory(downloadLocation)
         elif cached_file_path is not None:
             # file already cached so use that as the download location
             downloadLocation = os.path.dirname(cached_file_path)
@@ -3169,12 +3173,13 @@ class Synapse(object):
 
         For CSV files, there are several parameters to control the format of the resulting file:
 
-        :param quoteCharacter:  default double quote
-        :param escapeCharacter: default backslash
-        :param lineEnd:         defaults to os.linesep
-        :param separator:       defaults to comma
-        :param header:          True by default
+        :param quoteCharacter:   default double quote
+        :param escapeCharacter:  default backslash
+        :param lineEnd:          defaults to os.linesep
+        :param separator:        defaults to comma
+        :param header:           True by default
         :param includeRowIdAndRowVersion: True by default
+        :param downloadLocation: directory path to download the CSV file to
 
         :return: A Table object that serves as a wrapper around a CSV file (or generator over Row objects if
                  resultsAs="rowset").
@@ -3312,7 +3317,7 @@ class Synapse(object):
                               " Please check the result to make sure it is correct. %s" % (result_type, result))
 
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",",
-                       header=True, includeRowIdAndRowVersion=True):
+                       header=True, includeRowIdAndRowVersion=True, downloadLocation=None):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
@@ -3350,15 +3355,20 @@ class Synapse(object):
         uri = "/entity/{id}/table/download/csv/async".format(id=extract_synapse_id_from_query(query))
         download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
         file_handle_id = download_from_table_result['resultsFileHandleId']
-        cached_file_path = self.cache.get(file_handle_id=file_handle_id)
+        cached_file_path = self.cache.get(file_handle_id=file_handle_id, path=downloadLocation)
         if cached_file_path is not None:
             return download_from_table_result, cached_file_path
+
+        if downloadLocation:
+            download_dir = self._ensure_download_location_is_directory(downloadLocation)
         else:
-            cache_dir = self.cache.get_cache_dir(file_handle_id)
-            if not os.path.exists(cache_dir):
-                os.makedirs(cache_dir)
-            path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
-                                            'TableEntity', os.path.join(cache_dir, str(file_handle_id) + ".csv"))
+            download_dir = self.cache.get_cache_dir(file_handle_id)
+
+        os.makedirs(download_dir, exist_ok=True)
+        filename = f'SYNAPSE_TABLE_QUERY_{file_handle_id}.csv'
+        path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
+                                        'TableEntity', os.path.join(download_dir, filename))
+
         return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
@@ -3389,12 +3399,13 @@ class Synapse(object):
                 return column
         return None
 
-    def downloadTableColumns(self, table, columns, **kwargs):
+    def downloadTableColumns(self, table, columns, downloadLocation=None, **kwargs):
         """
         Bulk download of table-associated files.
 
-        :param table:            table query result
-        :param columns:           a list of column names as strings
+        :param table:               table query result
+        :param columns:             a list of column names as strings
+        :param downloadLocation:    directory into which to download the files
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
@@ -3424,7 +3435,11 @@ class Synapse(object):
         if not isinstance(columns, collections.abc.Iterable):
             raise TypeError('Columns parameter requires a list of column names')
 
-        file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(table, columns)
+        file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(
+            table,
+            columns,
+            downloadLocation,
+        )
 
         self.logger.info("Downloading %d files, %d cached locally" % (len(file_handle_associations),
                                                                       len(file_handle_to_path_map)))
@@ -3466,13 +3481,19 @@ class Synapse(object):
                 # unzip into cache
                 # ------------------------------------------------------------
 
+                if downloadLocation:
+                    download_dir = self._ensure_download_location_is_directory(downloadLocation)
+
                 with zipfile.ZipFile(zipfilepath) as zf:
                     # the directory structure within the zip follows that of the cache:
                     # {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
                     for summary in response['fileSummary']:
                         if summary['status'] == 'SUCCESS':
-                            cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                            filepath = extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
+
+                            if not downloadLocation:
+                                download_dir = self.cache.get_cache_dir(summary['fileHandleId'])
+
+                            filepath = extract_zip_file_to_directory(zf, summary['zipEntryName'], download_dir)
                             self.cache.add(summary['fileHandleId'], filepath)
                             file_handle_to_path_map[summary['fileHandleId']] = filepath
                         elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
@@ -3490,7 +3511,7 @@ class Synapse(object):
 
         return file_handle_to_path_map
 
-    def _build_table_download_file_handle_list(self, table, columns):
+    def _build_table_download_file_handle_list(self, table, columns, downloadLocation):
         # ------------------------------------------------------------
         # build list of file handles to download
         # ------------------------------------------------------------
@@ -3506,7 +3527,7 @@ class Synapse(object):
             for col_index in col_indices:
                 file_handle_id = row[col_index]
                 if is_integer(file_handle_id):
-                    path_to_cached_file = self.cache.get(file_handle_id)
+                    path_to_cached_file = self.cache.get(file_handle_id, path=downloadLocation)
                     if path_to_cached_file:
                         file_handle_to_path_map[file_handle_id] = path_to_cached_file
                     elif file_handle_id not in seen_file_handle_ids:
