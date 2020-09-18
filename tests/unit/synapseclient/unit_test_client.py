@@ -2165,7 +2165,6 @@ def test_create_snapshot_raiseerror(syn):
         syn.create_snapshot("syn1234")
 
 
-
 def test__get_annotation_view_columns(syn):
     """Test getting a view's columns based on existing annotations"""
     page1 = {'results': [{'id': 5}],
