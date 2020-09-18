@@ -2095,8 +2095,7 @@ def test_get_submission_with_annotations(syn):
             entity=entity_id,
             submission=str(submission_id),
         )
-
-        assert_equal(evaluation_id, response["evaluationId"])
+        assert evaluation_id == response["evaluationId"]
 
 
 def test__create_table_snapshot(syn):
@@ -2159,12 +2158,12 @@ def test_create_snapshot_entityview(syn):
 def test_create_snapshot_raiseerror(syn):
     """Raise error if entity view or table not passed in"""
     wrong_type = Mock()
-    with patch.object(syn, 'get', return_value=wrong_type):
-        assert_raises(
-            ValueError,
-            syn.create_snapshot, "syn1234"
-        )
-        assert evaluation_id == response["evaluationId"]
+    # with patch.object(syn, 'get', return_value=wrong_type):
+    #     syn.create_snapshot("syn1234")
+    with patch.object(syn, 'get', return_value=wrong_type),\
+         pytest.raises(ValueError, match="This function only accepts Synapse ids of Tables or EntityViews"):
+        syn.create_snapshot("syn1234")
+
 
 
 def test__get_annotation_view_columns(syn):
