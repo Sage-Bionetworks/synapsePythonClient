@@ -5,7 +5,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Evaluations &#8212; Synapse Python Client 2.0.0 documentation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluations &#8212; Synapse Python Client 2.2.0 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -45,46 +46,10 @@
         <li class="right" >
           <a href="Entity.html" title="Entity"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.0.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Evaluations</a></li> 
       </ul>
-    </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>$('#searchbox').show(0);</script>
-  <h3><a href="index.html">Table of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">Evaluations</a><ul>
-<li><a class="reference internal" href="#evaluation">Evaluation</a></li>
-<li><a class="reference internal" href="#submission">Submission</a></li>
-<li><a class="reference internal" href="#submission-status">Submission Status</a></li>
-</ul>
-</li>
-</ul>
-
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="Entity.html"
-                        title="previous chapter">Entity</a></p>
-  <h4>Next topic</h4>
-  <p class="topless"><a href="Activity.html"
-                        title="next chapter">Provenance</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/Evaluation.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-        </div>
-      </div>
+    </div>  
 
     <div class="document">
       <div class="documentwrapper">
@@ -225,12 +190,17 @@ from Synapse by ID:</p>
 <dl class="py class">
 <dt id="synapseclient.evaluation.SubmissionStatus">
 <em class="property">class </em><code class="sig-prename descclassname">synapseclient.evaluation.</code><code class="sig-name descname">SubmissionStatus</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.evaluation.SubmissionStatus" title="Permalink to this definition">¶</a></dt>
-<dd><p>Builds an Synapse submission status object.</p>
+<dd><p>Builds an Synapse submission status object.
+<a class="reference external" href="https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatus.html">https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatus.html</a></p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>score</strong> – The score of the submission</p></li>
-<li><p><strong>status</strong> – Status can be one of {‘OPEN’, ‘CLOSED’, ‘SCORED’, ‘INVALID’}.</p></li>
+<li><p><strong>id</strong> – Unique immutable Synapse Id of the Submission</p></li>
+<li><p><strong>status</strong> – Status can be one of
+<a class="reference external" href="https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html">https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html</a>.</p></li>
+<li><p><strong>submissionAnnotations</strong> – synapseclient.Annotations to store annotations of submission</p></li>
+<li><p><strong>canCancel</strong> – Can this submission be cancelled?</p></li>
+<li><p><strong>cancelRequested</strong> – Has user requested to cancel this submission?</p></li>
 </ul>
 </dd>
 </dl>
@@ -246,7 +216,45 @@ from Synapse by ID:</p>
 </div>
 
 
+            <div class="clearer"></div>
           </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Evaluations</a><ul>
+<li><a class="reference internal" href="#evaluation">Evaluation</a></li>
+<li><a class="reference internal" href="#submission">Submission</a></li>
+<li><a class="reference internal" href="#submission-status">Submission Status</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="Entity.html"
+                        title="previous chapter">Entity</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Activity.html"
+                        title="next chapter">Provenance</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/Evaluation.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
         </div>
       </div>
       <div class="clearer"></div>
@@ -266,13 +274,14 @@ from Synapse by ID:</p>
         <li class="right" >
           <a href="Entity.html" title="Entity"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.0.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Evaluations</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on May 27, 2020.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
+      Last updated on Aug 31, 2020.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

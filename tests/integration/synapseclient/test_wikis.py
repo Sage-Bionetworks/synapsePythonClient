@@ -1,21 +1,15 @@
 import os
 import uuid
-from nose.tools import assert_raises, assert_equal, assert_in, assert_equals, assert_true
+
+import pytest
 
 from synapseclient import Project, Wiki
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload.upload_functions import upload_synapse_s3
 import synapseclient.core.utils as utils
-from tests import integration
-from tests.integration import schedule_for_cleanup
 
 
-def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
-
-
-def test_wikiAttachment():
+def test_wikiAttachment(syn, project, schedule_for_cleanup):
     # Upload a file to be attached to a Wiki
     filename = utils.make_bogus_data_file()
     attachname = utils.make_bogus_data_file()
@@ -47,37 +41,37 @@ def test_wikiAttachment():
     # namely markdownFileHandleId and markdown_path, so only compare
     # properties that are in the first object
     for property_name in wiki:
-        assert_equal(wiki[property_name], wiki2[property_name])
+        assert wiki[property_name] == wiki2[property_name]
 
     # Retrieve the sub Wiki from Synapse
     wiki2 = syn.getWiki(project, subpageId=subwiki.id)
     for property_name in wiki:
-        assert_equal(subwiki[property_name], wiki2[property_name])
+        assert subwiki[property_name] == wiki2[property_name]
 
     # Try making an update
     wiki['title'] = 'A New Title'
     wiki['markdown'] = wiki['markdown'] + "\nNew stuff here!!!\n"
     syn.store(wiki)
     wiki = syn.getWiki(project)
-    assert_equals(wiki['title'], 'A New Title')
-    assert_true(wiki['markdown'].endswith("\nNew stuff here!!!\n"))
+    assert wiki['title'] == 'A New Title'
+    assert wiki['markdown'].endswith("\nNew stuff here!!!\n")
 
     # Check the Wiki's metadata
     headers = syn.getWikiHeaders(project)
-    assert_equals(len(headers), 2)
-    assert_in(headers[0]['title'], (wiki['title'], subwiki['title']))
+    assert len(headers) == 2
+    assert headers[0]['title'] in (wiki['title'], subwiki['title'])
 
     file_handles = syn.getWikiAttachments(wiki)
     file_names = [fh['fileName'] for fh in file_handles]
     for fn in [filename, attachname]:
-        assert_in(os.path.basename(fn), file_names)
+        assert os.path.basename(fn) in file_names
 
     syn.delete(subwiki)
     syn.delete(wiki)
-    assert_raises(SynapseHTTPError, syn.getWiki, project)
+    pytest.raises(SynapseHTTPError, syn.getWiki, project)
 
 
-def test_create_or_update_wiki():
+def test_create_or_update_wiki(syn, project):
     # create wiki once
     syn.store(Wiki(title='This is the title', owner=project,
                    markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!"))
@@ -87,10 +81,10 @@ def test_create_or_update_wiki():
     wiki = syn.store(Wiki(title=new_title, owner=project,
                           markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!"),
                      createOrUpdate=True)
-    assert_equal(new_title, syn.getWiki(wiki.ownerId)['title'])
+    assert new_title == syn.getWiki(wiki.ownerId)['title']
 
 
-def test_wiki_version():
+def test_wiki_version(syn, project):
     # create a new project to avoid artifacts from previous tests
     project = syn.store(Project(name=str(uuid.uuid4())))
     wiki = syn.store(Wiki(title='Title version 1', owner=project,
@@ -102,9 +96,9 @@ def test_wiki_version():
     wiki = syn.store(wiki)
 
     w1 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=0)
-    assert_in("version 1", w1.title)
-    assert_in("version 1", w1.markdown)
+    assert "version 1" in w1.title
+    assert "version 1" in w1.markdown
 
     w2 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=1)
-    assert_in("version 2", w2.title)
-    assert_in("version 2", w2.markdown)
+    assert "version 2" in w2.title
+    assert "version 2" in w2.markdown

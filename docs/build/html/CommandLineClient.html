@@ -5,7 +5,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Synapse command line client &#8212; Synapse Python Client 2.0.0 documentation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synapse command line client &#8212; Synapse Python Client 2.2.0 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -45,9 +46,749 @@
         <li class="right" >
           <a href="Versions.html" title="&lt;no title&gt;"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.0.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Synapse command line client</a></li> 
       </ul>
-    </div>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="synapse-command-line-client">
+<h1>Synapse command line client<a class="headerlink" href="#synapse-command-line-client" title="Permalink to this headline">¶</a></h1>
+<p>The Synapse Python Client can be used from the command line via the <strong>synapse</strong> command.</p>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>The command line client is installed along with <a class="reference external" href="http://python-docs.synapse.org/build/html/index.html#installation">installation of the Synapse Python client </a>.</p>
+</div>
+<div class="section" id="help">
+<h2>Help<a class="headerlink" href="#help" title="Permalink to this headline">¶</a></h2>
+<p>For help, type:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="o">-</span><span class="n">h</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>For help on specific commands, type:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="p">[</span><span class="n">command</span><span class="p">]</span> <span class="o">-</span><span class="n">h</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">synapse</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">version</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">u</span> <span class="n">SYNAPSEUSER</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">SYNAPSEPASSWORD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">CONFIGPATH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">debug</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span>
+               <span class="p">{</span><span class="n">get</span><span class="p">,</span><span class="n">sync</span><span class="p">,</span><span class="n">store</span><span class="p">,</span><span class="n">add</span><span class="p">,</span><span class="n">mv</span><span class="p">,</span><span class="n">cp</span><span class="p">,</span><span class="n">associate</span><span class="p">,</span><span class="n">delete</span><span class="p">,</span><span class="n">query</span><span class="p">,</span><span class="n">submit</span><span class="p">,</span><span class="n">show</span><span class="p">,</span><span class="n">cat</span><span class="p">,</span><span class="nb">list</span><span class="p">,</span><span class="nb">set</span><span class="o">-</span><span class="n">provenance</span><span class="p">,</span><span class="n">get</span><span class="o">-</span><span class="n">provenance</span><span class="p">,</span><span class="nb">set</span><span class="o">-</span><span class="n">annotations</span><span class="p">,</span><span class="n">get</span><span class="o">-</span><span class="n">annotations</span><span class="p">,</span><span class="n">create</span><span class="p">,</span><span class="n">store</span><span class="o">-</span><span class="n">table</span><span class="p">,</span><span class="n">onweb</span><span class="p">,</span><span class="n">login</span><span class="p">,</span><span class="n">test</span><span class="o">-</span><span class="n">encoding</span><span class="p">,</span><span class="n">get</span><span class="o">-</span><span class="n">sts</span><span class="o">-</span><span class="n">token</span><span class="p">}</span>
+               <span class="o">...</span>
+</pre></div>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>--version</kbd></dt>
+<dd><p>show program’s version number and exit</p>
+</dd>
+<dt><kbd>-u, --username</kbd></dt>
+<dd><p>Username used to connect to Synapse</p>
+</dd>
+<dt><kbd>-p, --password</kbd></dt>
+<dd><p>Password used to connect to Synapse</p>
+</dd>
+<dt><kbd>-c, --configPath</kbd></dt>
+<dd><p>Path to configuration file used to connect to Synapse [default: “/Users/jkiang/.synapseConfig”]</p>
+<p>Default: “/Users/jkiang/.synapseConfig”</p>
+</dd>
+<dt><kbd>--debug</kbd></dt>
+<dd><p>Default: False</p>
+</dd>
+<dt><kbd>-s, --skip-checks</kbd></dt>
+<dd><p>suppress checking for version upgrade messages and endpoint redirection</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Sub-commands:">
+<h3>Sub-commands:<a class="headerlink" href="#Sub-commands:" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="get">
+<h4>get<a class="headerlink" href="#get" title="Permalink to this headline">¶</a></h4>
+<p>downloads a file from Synapse</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">get</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">queryString</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">VERSION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">followLink</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">downloadLocation</span> <span class="n">path</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">multiThreaded</span><span class="p">]</span> <span class="p">[</span><span class="n">syn123</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>syn123</kbd></dt>
+<dd><p>Synapse ID of form syn123 of desired data object.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat1">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat1" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>-q, --query</kbd></dt>
+<dd><p>Optional query parameter, will fetch all of the entities returned by a query (see query for help).</p>
+</dd>
+<dt><kbd>-v, --version</kbd></dt>
+<dd><p>Synapse version number of entity to retrieve. Defaults to most recent version.</p>
+</dd>
+<dt><kbd>-r, --recursive</kbd></dt>
+<dd><p>Fetches content in Synapse recursively contained in the parentId specified by id.</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--followLink</kbd></dt>
+<dd><p>Determines whether the link returns the target Entity.</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--limitSearch</kbd></dt>
+<dd><p>Synapse ID of a container such as project or folder to limit search for files if using a path.</p>
+</dd>
+<dt><kbd>--downloadLocation</kbd></dt>
+<dd><p>Directory to download file to [default: “./”].</p>
+<p>Default: “./”</p>
+</dd>
+<dt><kbd>--multiThreaded</kbd></dt>
+<dd><p>Download file using a multiple threaded implementation. This flag will be removed in the future when multi-threaded download is deemed fully stable and becomes the default implementation.</p>
+<p>Default: True</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="sync">
+<h4>sync<a class="headerlink" href="#sync" title="Permalink to this headline">¶</a></h4>
+<p>Synchronize files described in a manifest to Synapse</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">sync</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">dryRun</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">sendMessages</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">retries</span> <span class="n">INT</span><span class="p">]</span> <span class="n">FILE</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat1">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat1" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>FILE</kbd></dt>
+<dd><p>A tsv file with file locations and metadata to be pushed to Synapse.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat2">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat2" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--dryRun</kbd></dt>
+<dd><p>Perform validation without uploading.</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--sendMessages</kbd></dt>
+<dd><p>Send notifications via Synapse messaging (email) at specific intervals, on errors and on completion.</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--retries</kbd></dt>
+<dd><p>Default: 4</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="store">
+<h4>store<a class="headerlink" href="#store" title="Permalink to this headline">¶</a></h4>
+<p>uploads and adds a file to Synapse</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">store</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">(</span><span class="o">--</span><span class="n">parentid</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">id</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">type</span> <span class="n">TYPE</span><span class="p">)</span> <span class="p">[</span><span class="o">--</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">description</span> <span class="n">DESCRIPTION</span> <span class="o">|</span> <span class="o">--</span><span class="n">descriptionFile</span> <span class="n">DESCRIPTION_FILE_PATH</span><span class="p">]</span>
+              <span class="p">[</span><span class="o">--</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">noForceVersion</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">annotations</span> <span class="n">ANNOTATIONS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">replace</span><span class="p">]</span>
+              <span class="p">[</span><span class="n">FILE</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat2">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat2" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>FILE</kbd></dt>
+<dd><p>file to be added to synapse.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat3">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat3" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--parentid, --parentId, -parentid, -parentId</kbd></dt>
+<dd><p>Synapse ID of project or folder where to upload data (must be specified if –id is not used.</p>
+</dd>
+<dt><kbd>--id</kbd></dt>
+<dd><p>Optional Id of entity in Synapse to be updated.</p>
+</dd>
+<dt><kbd>--type</kbd></dt>
+<dd><p>Type of object, such as “File”, “Folder”, or “Project”, to create in Synapse. Defaults to “File”</p>
+<p>Default: “File”</p>
+</dd>
+<dt><kbd>--name, -name</kbd></dt>
+<dd><p>Name of data object in Synapse</p>
+</dd>
+<dt><kbd>--description, -description</kbd></dt>
+<dd><p>Description of data object in Synapse.</p>
+</dd>
+<dt><kbd>--descriptionFile, -descriptionFile</kbd></dt>
+<dd><p>Path to a markdown file containing description of project/folder</p>
+</dd>
+<dt><kbd>--used, -used</kbd></dt>
+<dd><p>Synapse ID, a url, or a local file path (of a file previouslyuploaded to Synapse) from which the specified entity is derived</p>
+</dd>
+<dt><kbd>--executed, -executed</kbd></dt>
+<dd><p>Synapse ID, a url, or a local file path (of a file previouslyuploaded to Synapse) that was executed to generate the specified entity</p>
+</dd>
+<dt><kbd>--limitSearch</kbd></dt>
+<dd><p>Synapse ID of a container such as project or folder to limit search for provenance files.</p>
+</dd>
+<dt><kbd>--noForceVersion</kbd></dt>
+<dd><p>Do not force a new version to be created if the contents of the file have not changed. The default is a new version is created.</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--annotations</kbd></dt>
+<dd><p>Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: ‘{“foo”: 1, “bar”:”quux”}’</p>
+</dd>
+<dt><kbd>--replace</kbd></dt>
+<dd><p>Replace all existing annotations with the given annotations</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="add">
+<h4>add<a class="headerlink" href="#add" title="Permalink to this headline">¶</a></h4>
+<p>uploads and adds a file to Synapse</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">add</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">(</span><span class="o">--</span><span class="n">parentid</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">id</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">type</span> <span class="n">TYPE</span><span class="p">)</span> <span class="p">[</span><span class="o">--</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">description</span> <span class="n">DESCRIPTION</span> <span class="o">|</span> <span class="o">--</span><span class="n">descriptionFile</span> <span class="n">DESCRIPTION_FILE_PATH</span><span class="p">]</span>
+            <span class="p">[</span><span class="o">--</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">noForceVersion</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">annotations</span> <span class="n">ANNOTATIONS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">replace</span><span class="p">]</span>
+            <span class="p">[</span><span class="n">FILE</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat3">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat3" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>FILE</kbd></dt>
+<dd><p>file to be added to synapse.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat4">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat4" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--parentid, --parentId, -parentid, -parentId</kbd></dt>
+<dd><p>Synapse ID of project or folder where to upload data (must be specified if –id is not used.</p>
+</dd>
+<dt><kbd>--id</kbd></dt>
+<dd><p>Optional Id of entity in Synapse to be updated.</p>
+</dd>
+<dt><kbd>--type</kbd></dt>
+<dd><p>Type of object, such as “File”, “Folder”, or “Project”, to create in Synapse. Defaults to “File”</p>
+<p>Default: “File”</p>
+</dd>
+<dt><kbd>--name, -name</kbd></dt>
+<dd><p>Name of data object in Synapse</p>
+</dd>
+<dt><kbd>--description, -description</kbd></dt>
+<dd><p>Description of data object in Synapse.</p>
+</dd>
+<dt><kbd>--descriptionFile, -descriptionFile</kbd></dt>
+<dd><p>Path to a markdown file containing description of project/folder</p>
+</dd>
+<dt><kbd>--used, -used</kbd></dt>
+<dd><p>Synapse ID, a url, or a local file path (of a file previouslyuploaded to Synapse) from which the specified entity is derived</p>
+</dd>
+<dt><kbd>--executed, -executed</kbd></dt>
+<dd><p>Synapse ID, a url, or a local file path (of a file previouslyuploaded to Synapse) that was executed to generate the specified entity</p>
+</dd>
+<dt><kbd>--limitSearch</kbd></dt>
+<dd><p>Synapse ID of a container such as project or folder to limit search for provenance files.</p>
+</dd>
+<dt><kbd>--noForceVersion</kbd></dt>
+<dd><p>Do not force a new version to be created if the contents of the file have not changed. The default is a new version is created.</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--annotations</kbd></dt>
+<dd><p>Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: ‘{“foo”: 1, “bar”:”quux”}’</p>
+</dd>
+<dt><kbd>--replace</kbd></dt>
+<dd><p>Replace all existing annotations with the given annotations</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="mv">
+<h4>mv<a class="headerlink" href="#mv" title="Permalink to this headline">¶</a></h4>
+<p>Moves a file/folder in Synapse</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">mv</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">--</span><span class="nb">id</span> <span class="n">syn123</span> <span class="o">--</span><span class="n">parentid</span> <span class="n">syn123</span>
+</pre></div>
+</div>
+<div class="section" id="Named Arguments_repeat5">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat5" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--id</kbd></dt>
+<dd><p>Id of entity in Synapse to be moved.</p>
+</dd>
+<dt><kbd>--parentid, --parentId, -parentid, -parentId</kbd></dt>
+<dd><p>Synapse ID of project or folder where file/folder will be moved</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="cp">
+<h4>cp<a class="headerlink" href="#cp" title="Permalink to this headline">¶</a></h4>
+<p>Copies specific versions of synapse content such as files, folders and projects by recursively copying all sub-content</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">cp</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">--</span><span class="n">destinationId</span> <span class="n">syn123</span> <span class="p">[</span><span class="o">--</span><span class="n">version</span> <span class="mi">1</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">setProvenance</span> <span class="n">traceback</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">updateExisting</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">skipCopyAnnotations</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">excludeTypes</span> <span class="p">[</span><span class="n">file</span> <span class="n">table</span> <span class="p">[</span><span class="n">file</span> <span class="n">table</span> <span class="o">...</span><span class="p">]]]</span>
+           <span class="p">[</span><span class="o">--</span><span class="n">skipCopyWiki</span><span class="p">]</span>
+           <span class="n">syn123</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat4">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat4" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>syn123</kbd></dt>
+<dd><p>Id of entity in Synapse to be copied.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat6">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat6" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--destinationId</kbd></dt>
+<dd><p>Synapse ID of project or folder where file will be copied to.</p>
+</dd>
+<dt><kbd>--version, -v</kbd></dt>
+<dd><p>Synapse version number of File or Link to retrieve. This parameter cannot be used when copying Projects or Folders. Defaults to most recent version.</p>
+</dd>
+<dt><kbd>--setProvenance</kbd></dt>
+<dd><p>Has three values to set the provenance of the copied entity-traceback: Sets to the source entityexisting: Sets to source entity’s original provenance (if it exists)None/none: No provenance is set</p>
+<p>Default: “traceback”</p>
+</dd>
+<dt><kbd>--updateExisting</kbd></dt>
+<dd><p>Will update the file if there is already a file that is named the same in the destination</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--skipCopyAnnotations</kbd></dt>
+<dd><p>Do not copy the annotations</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--excludeTypes</kbd></dt>
+<dd><p>Accepts a list of entity types (file, table, link) which determines which entity types to not copy.</p>
+<p>Default: []</p>
+</dd>
+<dt><kbd>--skipCopyWiki</kbd></dt>
+<dd><p>Do not copy the wiki pages</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="associate">
+<h4>associate<a class="headerlink" href="#associate" title="Permalink to this headline">¶</a></h4>
+<p>Associate local files with the files stored in Synapse so that calls to “synapse get” and “synapse show” don’t re-download the files but use the already existing file.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">associate</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span><span class="p">]</span> <span class="n">path</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat5">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat5" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>path</kbd></dt>
+<dd><p>local file path</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat7">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat7" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--limitSearch</kbd></dt>
+<dd><p>Synapse ID of a container such as project or folder to limit search to.</p>
+</dd>
+<dt><kbd>-r</kbd></dt>
+<dd><p>Perform recursive association with all local files in a folder</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="delete">
+<h4>delete<a class="headerlink" href="#delete" title="Permalink to this headline">¶</a></h4>
+<p>removes a dataset from Synapse</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">delete</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">version</span> <span class="n">VERSION</span><span class="p">]</span> <span class="n">syn123</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat6">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat6" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>syn123</kbd></dt>
+<dd><p>Synapse ID of form syn123 of desired data object</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat8">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat8" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--version</kbd></dt>
+<dd><p>Version number to delete of given entity.</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="query">
+<h4>query<a class="headerlink" href="#query" title="Permalink to this headline">¶</a></h4>
+<p>Performs SQL like queries on Synapse</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">query</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="n">string</span> <span class="p">[</span><span class="n">string</span> <span class="o">...</span><span class="p">]]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat7">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat7" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>string</kbd></dt>
+<dd><p>A query string, see <a class="reference external" href="https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html">https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html</a> for more information</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="submit">
+<h4>submit<a class="headerlink" href="#submit" title="Permalink to this headline">¶</a></h4>
+<p>submit an entity or a file for evaluation</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">submit</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">evaluationID</span> <span class="n">EVALUATIONID</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">evaluationName</span> <span class="n">EVALUATIONNAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">entity</span> <span class="n">ENTITY</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">file</span> <span class="n">FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">parentId</span> <span class="n">PARENTID</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">teamName</span> <span class="n">TEAMNAME</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">submitterAlias</span> <span class="n">ALIAS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Named Arguments_repeat9">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat9" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--evaluationID, --evaluationId, --evalID</kbd></dt>
+<dd><p>Evaluation ID where the entity/file will be submitted</p>
+</dd>
+<dt><kbd>--evaluationName, --evalN</kbd></dt>
+<dd><p>Evaluation Name where the entity/file will be submitted</p>
+</dd>
+<dt><kbd>--entity, --eid, --entityId, --id</kbd></dt>
+<dd><p>Synapse ID of the entity to be submitted</p>
+</dd>
+<dt><kbd>--file, -f</kbd></dt>
+<dd><p>File to be submitted to the challenge</p>
+</dd>
+<dt><kbd>--parentId, --parentid, --parent</kbd></dt>
+<dd><p>Synapse ID of project or folder where to upload data</p>
+</dd>
+<dt><kbd>--name</kbd></dt>
+<dd><p>Name of the submission</p>
+</dd>
+<dt><kbd>--teamName, --team</kbd></dt>
+<dd><p>Submit of behalf of a registered team</p>
+</dd>
+<dt><kbd>--submitterAlias, --alias</kbd></dt>
+<dd><p>A nickname, possibly for display in leaderboards</p>
+</dd>
+<dt><kbd>--used</kbd></dt>
+<dd><p>Synapse ID, a url, or a local file path (of a file previouslyuploaded to Synapse) from which the specified entity is derived</p>
+</dd>
+<dt><kbd>--executed</kbd></dt>
+<dd><p>Synapse ID, a url, or a local file path (of a file previouslyuploaded to Synapse) that was executed to generate the specified entity</p>
+</dd>
+<dt><kbd>--limitSearch</kbd></dt>
+<dd><p>Synapse ID of a container such as project or folder to limit search for provenance files.</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="show">
+<h4>show<a class="headerlink" href="#show" title="Permalink to this headline">¶</a></h4>
+<p>show metadata for an entity</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">show</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span> <span class="n">syn123</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat8">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat8" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>syn123</kbd></dt>
+<dd><p>Synapse ID of form syn123 of desired synapse object</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat10">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat10" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--limitSearch</kbd></dt>
+<dd><p>Synapse ID of a container such as project or folder to limit search for provenance files.</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="cat">
+<h4>cat<a class="headerlink" href="#cat" title="Permalink to this headline">¶</a></h4>
+<p>prints a dataset from Synapse</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">cat</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">VERSION</span><span class="p">]</span> <span class="n">syn123</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat9">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat9" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>syn123</kbd></dt>
+<dd><p>Synapse ID of form syn123 of desired data object</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat11">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat11" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>-v, --version</kbd></dt>
+<dd><p>Synapse version number of entity to display. Defaults to most recent version.</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="list">
+<h4>list<a class="headerlink" href="#list" title="Permalink to this headline">¶</a></h4>
+<p>List Synapse entities contained by the given Project or Folder. Note: May not be supported in future versions of the client.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="nb">list</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span><span class="p">]</span> <span class="n">syn123</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat10">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat10" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>syn123</kbd></dt>
+<dd><p>Synapse ID of a project or folder</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat12">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat12" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>-r, --recursive</kbd></dt>
+<dd><p>recursively list contents of the subtree descending from the given Synapse ID</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>-l, --long</kbd></dt>
+<dd><p>List synapse entities in long format</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>-m, --modified</kbd></dt>
+<dd><p>List modified by and modified date</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="set-provenance">
+<h4>set-provenance<a class="headerlink" href="#set-provenance" title="Permalink to this headline">¶</a></h4>
+<p>create provenance records</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="nb">set</span><span class="o">-</span><span class="n">provenance</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">-</span><span class="nb">id</span> <span class="n">syn123</span> <span class="p">[</span><span class="o">-</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">description</span> <span class="n">DESCRIPTION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="p">[</span><span class="n">OUTPUT_FILE</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">-</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span>
+                       <span class="p">[</span><span class="o">-</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Named Arguments_repeat13">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat13" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>-id, --id</kbd></dt>
+<dd><p>Synapse ID of entity whose provenance we are accessing.</p>
+</dd>
+<dt><kbd>-name, --name</kbd></dt>
+<dd><p>Name of the activity that generated the entity</p>
+</dd>
+<dt><kbd>-description, --description</kbd></dt>
+<dd><p>Description of the activity that generated the entity</p>
+</dd>
+<dt><kbd>-o, -output, --output</kbd></dt>
+<dd><p>Output the provenance record in JSON format</p>
+</dd>
+<dt><kbd>-used, --used</kbd></dt>
+<dd><p>Synapse ID, a url, or a local file path (of a file previouslyuploaded to Synapse) from which the specified entity is derived</p>
+</dd>
+<dt><kbd>-executed, --executed</kbd></dt>
+<dd><p>Synapse ID, a url, or a local file path (of a file previouslyuploaded to Synapse) that was executed to generate the specified entity</p>
+</dd>
+<dt><kbd>-limitSearch, --limitSearch</kbd></dt>
+<dd><p>Synapse ID of a container such as project or folder to limit search for provenance files.</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="get-provenance">
+<h4>get-provenance<a class="headerlink" href="#get-provenance" title="Permalink to this headline">¶</a></h4>
+<p>show provenance records</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">get</span><span class="o">-</span><span class="n">provenance</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">-</span><span class="nb">id</span> <span class="n">syn123</span> <span class="p">[</span><span class="o">--</span><span class="n">version</span> <span class="n">version</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="p">[</span><span class="n">OUTPUT_FILE</span><span class="p">]]</span>
+</pre></div>
+</div>
+<div class="section" id="Named Arguments_repeat14">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat14" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>-id, --id</kbd></dt>
+<dd><p>Synapse ID of entity whose provenance we are accessing.</p>
+</dd>
+<dt><kbd>--version</kbd></dt>
+<dd><p>version of Synapse entity whose provenance we are accessing.</p>
+</dd>
+<dt><kbd>-o, -output, --output</kbd></dt>
+<dd><p>Output the provenance record in JSON format</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="set-annotations">
+<h4>set-annotations<a class="headerlink" href="#set-annotations" title="Permalink to this headline">¶</a></h4>
+<p>create annotations records</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="nb">set</span><span class="o">-</span><span class="n">annotations</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">--</span><span class="nb">id</span> <span class="n">syn123</span> <span class="o">--</span><span class="n">annotations</span> <span class="n">ANNOTATIONS</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Named Arguments_repeat15">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat15" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--id</kbd></dt>
+<dd><p>Synapse ID of entity whose annotations we are accessing.</p>
+</dd>
+<dt><kbd>--annotations</kbd></dt>
+<dd><p>Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: ‘{“foo”: 1, “bar”:”quux”}’</p>
+</dd>
+<dt><kbd>-r, --replace</kbd></dt>
+<dd><p>Replace all existing annotations with the given annotations</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="get-annotations">
+<h4>get-annotations<a class="headerlink" href="#get-annotations" title="Permalink to this headline">¶</a></h4>
+<p>show annotations records</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">get</span><span class="o">-</span><span class="n">annotations</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">--</span><span class="nb">id</span> <span class="n">syn123</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="p">[</span><span class="n">OUTPUT_FILE</span><span class="p">]]</span>
+</pre></div>
+</div>
+<div class="section" id="Named Arguments_repeat16">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat16" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--id</kbd></dt>
+<dd><p>Synapse ID of entity whose annotations we are accessing.</p>
+</dd>
+<dt><kbd>-o, --output</kbd></dt>
+<dd><p>Output the annotations record in JSON format</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="create">
+<h4>create<a class="headerlink" href="#create" title="Permalink to this headline">¶</a></h4>
+<p>Creates folders or projects on Synapse</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">create</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">parentid</span> <span class="n">syn123</span><span class="p">]</span> <span class="o">-</span><span class="n">name</span> <span class="n">NAME</span> <span class="p">[</span><span class="o">-</span><span class="n">description</span> <span class="n">DESCRIPTION</span> <span class="o">|</span> <span class="o">-</span><span class="n">descriptionFile</span> <span class="n">DESCRIPTION_FILE_PATH</span><span class="p">]</span> <span class="nb">type</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat11">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat11" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>type</kbd></dt>
+<dd><p>Type of object to create in synapse one of {Project, Folder}</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat17">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat17" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>-parentid, -parentId, --parentid, --parentId</kbd></dt>
+<dd><p>Synapse ID of project or folder where to place folder [not used with project]</p>
+</dd>
+<dt><kbd>-name, --name</kbd></dt>
+<dd><p>Name of folder/project.</p>
+</dd>
+<dt><kbd>-description, --description</kbd></dt>
+<dd><p>Description of project/folder</p>
+</dd>
+<dt><kbd>-descriptionFile, --descriptionFile</kbd></dt>
+<dd><p>Path to a markdown file containing description of project/folder</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="store-table">
+<h4>store-table<a class="headerlink" href="#store-table" title="Permalink to this headline">¶</a></h4>
+<p>Creates a Synapse Table given a csv</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">store</span><span class="o">-</span><span class="n">table</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">--</span><span class="n">name</span> <span class="n">NAME</span> <span class="p">[</span><span class="o">--</span><span class="n">parentid</span> <span class="n">syn123</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">csv</span> <span class="n">foo</span><span class="o">.</span><span class="n">csv</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Named Arguments_repeat18">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat18" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>--name</kbd></dt>
+<dd><p>Name of Table</p>
+</dd>
+<dt><kbd>--parentid, --parentId</kbd></dt>
+<dd><p>Synapse ID of project</p>
+</dd>
+<dt><kbd>--csv</kbd></dt>
+<dd><p>Path to csv</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="onweb">
+<h4>onweb<a class="headerlink" href="#onweb" title="Permalink to this headline">¶</a></h4>
+<p>opens Synapse website for Entity</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">onweb</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="nb">id</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat12">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat12" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>id</kbd></dt>
+<dd><p>Synapse id</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="login">
+<h4>login<a class="headerlink" href="#login" title="Permalink to this headline">¶</a></h4>
+<p>login to Synapse and (optionally) cache credentials</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">login</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">u</span> <span class="n">SYNAPSEUSER</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">SYNAPSEPASSWORD</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">rememberMe</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Named Arguments_repeat19">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat19" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>-u, --username</kbd></dt>
+<dd><p>Username used to connect to Synapse</p>
+</dd>
+<dt><kbd>-p, --password</kbd></dt>
+<dd><p>Password or api key used to connect to Synapse</p>
+</dd>
+<dt><kbd>--rememberMe, --remember-me</kbd></dt>
+<dd><p>Cache credentials for automatic authentication on future interactions with Synapse</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="test-encoding">
+<h4>test-encoding<a class="headerlink" href="#test-encoding" title="Permalink to this headline">¶</a></h4>
+<p>test character encoding to help diagnose problems</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">test</span><span class="o">-</span><span class="n">encoding</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="get-sts-token">
+<h4>get-sts-token<a class="headerlink" href="#get-sts-token" title="Permalink to this headline">¶</a></h4>
+<p>Get an STS token for access to AWS S3 storage underlying Synapse</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">get</span><span class="o">-</span><span class="n">sts</span><span class="o">-</span><span class="n">token</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="p">{</span><span class="n">json</span><span class="p">,</span><span class="n">boto</span><span class="p">,</span><span class="n">shell</span><span class="p">,</span><span class="n">bash</span><span class="p">,</span><span class="n">cmd</span><span class="p">,</span><span class="n">powershell</span><span class="p">}]</span> <span class="nb">id</span> <span class="p">{</span><span class="n">read_write</span><span class="p">,</span><span class="n">read_only</span><span class="p">}</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments_repeat13">
+<h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat13" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>id</kbd></dt>
+<dd><p>Synapse id</p>
+</dd>
+<dt><kbd>permission</kbd></dt>
+<dd><p>Possible choices: read_write, read_only</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments_repeat20">
+<h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat20" title="Permalink to this headline">¶</a></h5>
+<dl class="option-list">
+<dt><kbd>-o, --output</kbd></dt>
+<dd><p>Possible choices: json, boto, shell, bash, cmd, powershell</p>
+<p>Default: “shell”</p>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
 <div id="searchbox" style="display: none" role="search">
@@ -65,8 +806,114 @@
 <li><a class="reference internal" href="#">Synapse command line client</a><ul>
 <li><a class="reference internal" href="#installation">Installation</a></li>
 <li><a class="reference internal" href="#help">Help</a></li>
-<li><a class="reference internal" href="#optional-arguments">Optional arguments</a></li>
-<li><a class="reference internal" href="#commands">Commands</a></li>
+<li><a class="reference internal" href="#usage">Usage</a><ul>
+<li><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+<li><a class="reference internal" href="#Sub-commands:">Sub-commands:</a><ul>
+<li><a class="reference internal" href="#get">get</a><ul>
+<li><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat1">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#sync">sync</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat1">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat2">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#store">store</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat2">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat3">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#add">add</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat3">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat4">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mv">mv</a><ul>
+<li><a class="reference internal" href="#Named Arguments_repeat5">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cp">cp</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat4">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat6">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#associate">associate</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat5">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat7">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#delete">delete</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat6">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat8">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#query">query</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat7">Positional Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#submit">submit</a><ul>
+<li><a class="reference internal" href="#Named Arguments_repeat9">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#show">show</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat8">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat10">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cat">cat</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat9">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat11">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#list">list</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat10">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat12">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#set-provenance">set-provenance</a><ul>
+<li><a class="reference internal" href="#Named Arguments_repeat13">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#get-provenance">get-provenance</a><ul>
+<li><a class="reference internal" href="#Named Arguments_repeat14">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#set-annotations">set-annotations</a><ul>
+<li><a class="reference internal" href="#Named Arguments_repeat15">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#get-annotations">get-annotations</a><ul>
+<li><a class="reference internal" href="#Named Arguments_repeat16">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create">create</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat11">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat17">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#store-table">store-table</a><ul>
+<li><a class="reference internal" href="#Named Arguments_repeat18">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#onweb">onweb</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat12">Positional Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#login">login</a><ul>
+<li><a class="reference internal" href="#Named Arguments_repeat19">Named Arguments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#test-encoding">test-encoding</a></li>
+<li><a class="reference internal" href="#get-sts-token">get-sts-token</a><ul>
+<li><a class="reference internal" href="#Positional Arguments_repeat13">Positional Arguments</a></li>
+<li><a class="reference internal" href="#Named Arguments_repeat20">Named Arguments</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -86,86 +933,6 @@
    </div>
         </div>
       </div>
-
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
-  <span class="target" id="module-synapseclient.__main__"></span><div class="section" id="synapse-command-line-client">
-<h1>Synapse command line client<a class="headerlink" href="#synapse-command-line-client" title="Permalink to this headline">¶</a></h1>
-<p>The Synapse Python Client can be used from the command line via the <strong>synapse</strong> command.</p>
-<div class="section" id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
-<p>The command line client is installed along with <a class="reference external" href="http://python-docs.synapse.org/build/html/index.html#installation">installation of the Synapse Python client</a>.</p>
-</div>
-<div class="section" id="help">
-<h2>Help<a class="headerlink" href="#help" title="Permalink to this headline">¶</a></h2>
-<p>For help, type:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="o">-</span><span class="n">h</span><span class="o">.</span>
-</pre></div>
-</div>
-<p>For help on specific commands, type:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="p">[</span><span class="n">command</span><span class="p">]</span> <span class="o">-</span><span class="n">h</span>
-</pre></div>
-</div>
-</div>
-<div class="section" id="optional-arguments">
-<h2>Optional arguments<a class="headerlink" href="#optional-arguments" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>-h, --help            show this help message and exit
---version             show program&#39;s version number and exit
--u SYNAPSEUSER, --username SYNAPSEUSER
-                    Username used to connect to Synapse
--p SYNAPSEPASSWORD, --password SYNAPSEPASSWORD
-                    Password used to connect to Synapse
-</pre></div>
-</div>
-</div>
-<div class="section" id="commands">
-<h2>Commands<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
-<blockquote>
-<div><ul class="simple">
-<li><p><strong>get</strong>              - download an entity and associated data</p></li>
-<li><p><strong>sync</strong>             - Synchronize files described in a manifest to Synapse</p></li>
-<li><p><strong>store</strong>            - uploads and adds a file to Synapse</p></li>
-<li><p><strong>store-table</strong>      - uploads a table to Syanpse given a csv</p></li>
-<li><p><strong>add</strong>              - add or modify content to Synapse</p></li>
-<li><p><strong>mv</strong>               - move a dataset in Synapse</p></li>
-<li><p><strong>cp</strong>               - copy an entity/dataset in Synapse</p></li>
-<li><dl class="simple">
-<dt><strong>associate</strong>        - Associate local files with the files stored in Synapse so</dt><dd><p>that calls to ‘syntapse get’ and ‘synapse show’ don’t
-re-download the files, but use the already existing file.</p>
-</dd>
-</dl>
-</li>
-<li><p><strong>delete</strong>           - removes a dataset from Synapse</p></li>
-<li><p><strong>query</strong>            - performs SQL like queries on Synapse</p></li>
-<li><p><strong>submit</strong>           - submit an entity for evaluation</p></li>
-<li><p><strong>show</strong>             - displays information about a Entity</p></li>
-<li><p><strong>cat</strong>              - prints a dataset from Synapse</p></li>
-<li><dl class="simple">
-<dt><strong>list</strong>             - List Synapse entities contained by the given Project or</dt><dd><p>Folder. Note: May not be supported in future versions of
-the client.</p>
-</dd>
-</dl>
-</li>
-<li><p><strong>set-provenance</strong>   - create provenance records</p></li>
-<li><p><strong>get-provenance</strong>   - show provenance records</p></li>
-<li><p><strong>set-annotations</strong>  - create annotations</p></li>
-<li><p><strong>get-annotations</strong>  - show annotations</p></li>
-<li><p><strong>create</strong>           - Creates folders or projects on Synapse</p></li>
-<li><p><strong>onweb</strong>            - opens Synapse website for Entity</p></li>
-<li><p><strong>login</strong>            - login to Synapse and (optionally) cache credentials</p></li>
-<li><p><strong>test-encoding</strong>    - test character encoding to help diagnose problems</p></li>
-</ul>
-</div></blockquote>
-</div>
-</div>
-
-
-          </div>
-        </div>
-      </div>
       <div class="clearer"></div>
     </div>
     <div class="related" role="navigation" aria-label="related navigation">
@@ -183,13 +950,14 @@ the client.</p>
         <li class="right" >
           <a href="Versions.html" title="&lt;no title&gt;"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.0.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Synapse command line client</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on May 27, 2020.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
+      Last updated on Aug 31, 2020.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

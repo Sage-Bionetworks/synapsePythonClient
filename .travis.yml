@@ -70,10 +70,10 @@ before_script:
 
 script:
 - flake8
-- nosetests --traverse-namespace -s tests/unit
+- pytest -sv tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
-    nosetests --traverse-namespace -s -v tests/integration
+    pytest -sv tests/integration
   else
     echo "Skipping integration tests";
   fi

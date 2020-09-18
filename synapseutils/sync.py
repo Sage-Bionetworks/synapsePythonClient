@@ -1,22 +1,47 @@
 import csv
-import errno
+import concurrent.futures
+from contextlib import contextmanager
+import io
+import os
+import sys
+import threading
+import typing
+
 from .monitor import notifyMe
 from synapseclient.entity import is_container
+from synapseclient.core import config
 from synapseclient.core.utils import id_of, is_url, is_synapse_id
 from synapseclient import File, table
+from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core import utils
+from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
 from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseProvenanceError
-import os
-import io
-import sys
+from synapseclient.core.multithread_download.download_threads import shared_executor as download_shared_executor
+from synapseclient.core.upload.multipart_upload import shared_executor as upload_shared_executor
 
 REQUIRED_FIELDS = ['path', 'parent']
 FILE_CONSTRUCTOR_FIELDS = ['name', 'synapseStore', 'contentType']
-STORE_FUNCTION_FIELDS = ['used', 'executed', 'activityName', 'activityDescription', 'forceVersion']
+STORE_FUNCTION_FIELDS = ['activityName', 'activityDescription', 'forceVersion']
+PROVENANCE_FIELDS = ['used', 'executed']
 MAX_RETRIES = 4
 MANIFEST_FILENAME = 'SYNAPSE_METADATA_MANIFEST.tsv'
 DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'synapseStore', 'contentType', 'used', 'executed',
                                    'activityName', 'activityDescription']
+
+
+@contextmanager
+def _sync_executor(syn):
+    """Use this context manager to run some sync code with an executor that will
+    be created and then shutdown once the context completes."""
+    if syn.max_threads < 2 or config.single_threaded:
+        executor = SingleThreadExecutor()
+    else:
+        executor = concurrent.futures.ThreadPoolExecutor(syn.max_threads)
+
+    try:
+        yield executor
+    finally:
+        executor.shutdown()
 
 
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles=None, followLink=False):
@@ -57,70 +82,534 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
             print(f.path)
 
     """
-    # initialize the result list
-    if allFiles is None:
-        allFiles = list()
 
-    # perform validation check on user input
-    if is_synapse_id(entity):
-        entity = syn.get(entity, downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
+    # we'll have the following threads:
+    # 1. the entrant thread to this function walks the folder hierarchy and schedules files for download,
+    #    and then waits for all the file downloads to complete
+    # 2. each file download will run in a separate thread in an Executor
+    # 3. downloads that support S3 multipart concurrent downloads will be scheduled by the thread in #2 and have
+    #    their parts downloaded in additional threads in the same Executor
+    # To support multipart downloads in #3 using the same Executor as the download thread #2, we need at least
+    # 2 threads always, if those aren't available then we'll run single threaded to avoid a deadlock
+    with _sync_executor(syn) as executor:
+        sync_from_synapse = _SyncDownloader(syn, executor)
+        files = sync_from_synapse.sync(entity, path, ifcollision, followLink)
 
-    if isinstance(entity, File):
-        allFiles.append(entity)
-        return allFiles
+    # the allFiles parameter used to be passed in as part of the recursive implementation of this function
+    # with the public signature invoking itself. now that this isn't a recursive any longer we don't need
+    # allFiles as a parameter (especially on the public signature) but it is retained for now for backwards
+    # compatibility with external invokers.
+    if allFiles is not None:
+        allFiles.extend(files)
+        files = allFiles
 
-    entity_id = id_of(entity)
-    if not is_container(entity):
-        raise ValueError("The provided id: %s is neither a container nor a File" % entity_id)
+    return files
 
-    # get the immediate children as iterator
-    children = syn.getChildren(entity_id)
 
-    # process each child
-    for child in children:
-        if is_container(child):
-            # If we are downloading outside cache create directory
-            if path is not None:
-                new_path = os.path.join(path, child['name'])
-                try:
-                    os.makedirs(new_path)
-                except OSError as err:
-                    if err.errno != errno.EEXIST:
-                        raise
-            else:
-                new_path = None
-            # recursively explore this container's children
-            syncFromSynapse(syn, child['id'], new_path, ifcollision, allFiles, followLink=followLink)
+class _FolderSync:
+    """
+    A FolderSync tracks the syncFromSynapse activity associated with a
+    Folder/container. It has a link to its parent and is kept updated as the
+    children of the associated folder are downloaded, and when complete
+    it communicates up its chain to the root that it is completed.
+    When the root FolderSync is complete the sync is complete.
+
+    It serves as a way to track and store the data related to the sync
+    at each folder of the sync so we can generate manifests and notify
+    when finished.
+    """
+
+    def __init__(self, syn, entity_id, path, child_ids, parent):
+        self._syn = syn
+        self._entity_id = entity_id
+        self._path = path
+        self._parent = parent
+
+        self._pending_ids = set(child_ids or [])
+        self._files = []
+        self._provenance = {}
+        self._exception = None
+
+        self._lock = threading.Lock()
+        self._finished = threading.Condition(lock=self._lock)
+
+    def update(self, finished_id=None, files=None, provenance=None):
+        with self._lock:
+            if finished_id:
+                self._pending_ids.remove(finished_id)
+            if files:
+                self._files.extend(files)
+            if provenance:
+                self._provenance.update(provenance)
+
+            if self._is_finished():
+                self._generate_folder_manifest()
+
+                if self._parent:
+                    self._parent.update(
+                        finished_id=self._entity_id,
+                        files=self._files,
+                        provenance=self._provenance
+                    )
+
+                # in practice only the root folder sync will be waited on/need notifying
+                self._finished.notifyAll()
+
+    def _manifest_filename(self):
+        return os.path.expanduser(
+            os.path.normcase(
+                os.path.join(self._path, MANIFEST_FILENAME)
+            )
+        )
+
+    def _generate_folder_manifest(self):
+        # when a folder is complete we write a manifest file iff we are downloading to a path outside
+        # the Synapse cache and there are actually some files in this folder.
+        if self._path and self._files:
+            generateManifest(self._syn, self._files, self._manifest_filename(), provenance_cache=self._provenance)
+
+    def get_exception(self):
+        with self._lock:
+            return self._exception
+
+    def set_exception(self, exception):
+        with self._lock:
+            self._exception = exception
+
+            # an exception that occurred in this container is considered to have also
+            # happened in the parent container and up to the root
+            if self._parent:
+                self._parent.set_exception(exception)
+
+            # an error also results in the folder being finished
+            self._finished.notifyAll()
+
+    def wait_until_finished(self):
+        with self._finished:
+            self._finished.wait_for(self._is_finished)
+            return self._files
+
+    def _is_finished(self):
+        return len(self._pending_ids) == 0 or self._exception
+
+
+class _SyncDownloader:
+    """
+    Manages the downloads associated associated with a syncFromSynapse call concurrently.
+    """
+
+    def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_downloads=None):
+        """
+        :param syn:         A synapse client
+        :param executor:    An ExecutorService in which concurrent file downlaods can be scheduled
+        """
+        self._syn = syn
+        self._executor = executor
+
+        # by default limit the number of concurrent file downloads that can happen at once to some proportion
+        # of the available threads. otherwise we could end up downloading a single part from many files at once
+        # rather than concentrating our download threads on a few files at a time so those files complete faster.
+        max_concurrent_file_downloads = max(int(max_concurrent_file_downloads or self._syn.max_threads / 2), 1)
+        self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_downloads)
+
+    def sync(self, entity, path, ifcollision, followLink):
+        progress = CumulativeTransferProgress('Downloaded')
+
+        if is_synapse_id(entity):
+            # ensure that we seed with an actual entity
+            entity = self._syn.get(
+                entity,
+                downloadLocation=path,
+                ifcollision=ifcollision,
+                followLink=followLink,
+            )
+
+        if is_container(entity):
+            root_folder_sync = self._sync_root(entity, path, ifcollision, followLink, progress)
+
+            # once the whole folder hierarchy has been traversed this entrant thread waits for
+            # all file downloads to complete before returning
+            files = root_folder_sync.wait_until_finished()
+
+        elif isinstance(entity, File):
+            files = [entity]
+
         else:
-            # getting the child
-            ent = syn.get(child['id'], downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
-            if isinstance(ent, File):
-                allFiles.append(ent)
+            raise ValueError("Cannot initiate a sync from an entity that is not a File or Folder")
 
-    if path is not None:  # If path is None files are stored in cache.
-        filename = os.path.join(path, MANIFEST_FILENAME)
-        filename = os.path.expanduser(os.path.normcase(filename))
-        generateManifest(syn, allFiles, filename)
+        # since the sub folders could complete out of order from when they were submitted we
+        # sort the files by their path (which includes their local folder) to get a predictable ordering.
+        # not required but nice for testing etc.
+        files.sort(key=lambda f: f.get('path') or '')
+        return files
 
-    return allFiles
+    def _sync_file(self, entity_id, parent_folder_sync, path, ifcollision, followLink, progress):
+        try:
+            # we use syn.get to download the File.
+            # these context managers ensure that we are using some shared state
+            # when conducting that download (shared progress bar, ExecutorService shared
+            # by all multi threaded downloads in this sync)
+            with progress.accumulate_progress(), \
+                    download_shared_executor(self._executor):
+
+                entity = self._syn.get(
+                    entity_id,
+                    downloadLocation=path,
+                    ifcollision=ifcollision,
+                    followLink=followLink,
+                )
+
+            files = []
+            provenance = None
+            if isinstance(entity, File):
+                if path:
+                    entity_provenance = _get_file_entity_provenance_dict(self._syn, entity)
+                    provenance = {entity_id: entity_provenance}
+
+                files.append(entity)
+
+            # else if the entity is not a File (and wasn't a container)
+            # then we ignore it for the purposes of this sync
+
+            parent_folder_sync.update(
+                finished_id=entity_id,
+                files=files,
+                provenance=provenance,
+            )
+
+        except Exception as ex:
+            # this could be anything raised by any type of download, and so by nature is a broad catch.
+            # the purpose here is not to handle it but just to raise it up the folder sync chain such
+            # that it will abort the sync and raise the error to the entrant thread.
+            # it is not the responsibility here to recover or retry a particular file
+            # download, reasonable recovery should be handled within the file download code.
+            parent_folder_sync.set_exception(ex)
+
+        finally:
+            self._file_semaphore.release()
+
+    def _sync_root(self, root, root_path, ifcollision, followLink, progress):
+        # stack elements are a 3-tuple of:
+        # 1. the folder entity/dict
+        # 2. the local path to the folder to download to
+        # 3. the FolderSync of the parent to the folder (None at the root)
+        folder_stack = [(root, root_path, None)]
+
+        root_folder_sync = None
+        while folder_stack:
+            if root_folder_sync:
+                # if at any point the sync encounters an exception it will
+                # be communicated up to the root at which point we should abort
+                exception = root_folder_sync.get_exception()
+                if exception:
+                    raise ValueError("File download failed during sync") from exception
+
+            folder, parent_path, parent_folder_sync = folder_stack.pop()
+
+            entity_id = id_of(folder)
+            folder_path = None
+            if parent_path is not None:
+                folder_path = parent_path
+                if root_folder_sync:
+                    # syncFromSynapse behavior is that we do NOT create a folder for the root folder of the sync.
+                    # we treat the download local path folder as the root and write the children of the sync
+                    # directly into that local folder
+                    folder_path = os.path.join(folder_path, folder['name'])
+                os.makedirs(folder_path, exist_ok=True)
+
+            child_ids = []
+            child_file_ids = []
+            child_folders = []
+            for child in self._syn.getChildren(entity_id):
+                child_id = id_of(child)
+                child_ids.append(child_id)
+                if is_container(child):
+                    child_folders.append(child)
+                else:
+                    child_file_ids.append(child_id)
+
+            folder_sync = _FolderSync(
+                self._syn,
+                entity_id,
+                folder_path,
+                child_ids,
+                parent_folder_sync,
+            )
+            if not root_folder_sync:
+                root_folder_sync = folder_sync
+
+            if not child_ids:
+                # this folder has no children, so it is immediately finished
+                folder_sync.update()
+
+            else:
+                for child_file_id in child_file_ids:
+                    self._file_semaphore.acquire()
+                    self._executor.submit(
+                        self._sync_file,
+                        child_file_id,
+                        folder_sync,
+                        folder_path,
+                        ifcollision,
+                        followLink,
+                        progress,
+                    )
+
+                for child_folder in child_folders:
+                    folder_stack.append((child_folder, folder_path, folder_sync))
+
+        return root_folder_sync
 
 
-def generateManifest(syn, allFiles, filename):
+class _PendingProvenance:
+    def __init__(self):
+        self._pending = set()
+        self._pending_count = 0
+
+    def update(self, pending: set):
+        """Add pending items"""
+        self._pending_count += len(pending.difference(self._pending))
+        self._pending.update(pending)
+
+    def finished(self, provenance):
+        """Remove the given provenance after it is finished uploading"""
+        self._pending.remove(provenance)
+
+    def has_pending(self):
+        """Return whether any pending provenance was recorded"""
+        return self._pending_count > 0
+
+    def has_finished_provenance(self):
+        """Return whether any of the pending provenance has finished"""
+        return len(self._pending) < self._pending_count
+
+    def reset_count(self):
+        """Reset the pending count to reflect the current pending state"""
+        self._pending_count = len(self._pending)
+
+
+class _SyncUploadItem(typing.NamedTuple):
+    """Represents a single file being uploaded"""
+    entity: File
+    used: typing.Iterable[str]
+    executed: typing.Iterable[str]
+    store_kwargs: typing.Mapping
+
+
+class _SyncUploader:
+    """
+    Manages the uploads associated associated with a syncToSynapse call.
+    Files will be uploaded concurrently and in an order that honors any interdependent provenance.
+    """
+
+    def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_transfers=None):
+        """
+        :param syn:         A synapse client
+        :param executor:    An ExecutorService in which concurrent file downlaods can be scheduled
+        """
+        self._syn = syn
+
+        max_concurrent_file_transfers = max(int(max_concurrent_file_transfers or self._syn.max_threads / 2), 1)
+        self._executor = executor
+        self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_transfers)
+
+    @staticmethod
+    def _order_items(items):
+        # order items by their interdependent provenance and raise any dependency errors
+
+        items_by_path = {i.entity.path: i for i in items}
+        graph = {}
+
+        for item in items:
+            item_file_provenance = []
+            for provenance_dependency in (item.used + item.executed):
+                if os.path.isfile(provenance_dependency):
+                    if provenance_dependency not in items_by_path:
+                        # an upload lists provenance of a file that is not itself included in the upload
+                        raise ValueError(
+                            f"{item.entity.path} depends on {provenance_dependency} which is not being uploaded"
+                        )
+
+                    item_file_provenance.append(provenance_dependency)
+
+            graph[item.entity.path] = item_file_provenance
+
+        graph_sorted = utils.topolgical_sort(graph)
+        return [items_by_path[i[0]] for i in graph_sorted]
+
+    @staticmethod
+    def _convert_provenance(provenance, finished_items):
+        # convert any string file path provenance to the corresponding entity that has been uploaded
+
+        converted_provenance = []
+        pending_provenance = set()
+        for p in provenance:
+            if os.path.isfile(p):
+                converted = finished_items.get(p)
+                if converted:
+                    converted_provenance.append(converted)
+                else:
+                    pending_provenance.add(p)
+            else:
+                converted_provenance.append(p)
+
+        return converted_provenance, pending_provenance
+
+    @staticmethod
+    def _abort(futures):
+        # abort this sync because of an error
+
+        exception = None
+        for future in futures:
+            if future.done():
+                exception = exception or future.exception()
+            else:
+                future.cancel()
+
+        # if we are aborted by definition one of the futures should have an exception.
+        # if somehow not from None fuctions fine
+        raise ValueError("Sync aborted due to upload failure") from exception
+
+    def upload(self, items: typing.Iterable[_SyncUploadItem]):
+        progress = CumulativeTransferProgress('Uploaded')
+
+        # flag to set in a child in an upload thread if an error occurs to signal to the entrant
+        # thread to stop processing.
+        abort_event = threading.Event()
+
+        # used to lock around shared state and to notify when dependencies are resolved
+        # so that provenance dependent files can be uploaded
+        dependency_condition = threading.Condition()
+
+        pending_provenance = _PendingProvenance()
+        finished_items = {}
+
+        ordered_items = self._order_items([i for i in items])
+
+        futures = []
+        while ordered_items:
+            skipped_items = []
+            for item in ordered_items:
+                if abort_event.is_set():
+                    # if this flag is set, one of the upload threads failed and we should raise
+                    # it's error and cancel any remaining futures
+                    self._abort(futures)
+
+                with dependency_condition:
+                    used, used_pending = self._convert_provenance(item.used, finished_items)
+                    executed, executed_pending = self._convert_provenance(item.executed, finished_items)
+
+                    if used_pending or executed_pending:
+                        # we can't upload this item yet, it has provenance that hasn't yet been uploaded
+                        skipped_items.append(item)
+                        pending_provenance.update(used_pending.union(executed_pending))
+
+                        # skip uploading because dependent provenance hasn't finished uploading
+                        continue
+
+                # else not continued above due to pending provenance
+                # all provenance that this item depends on has already been uploaded
+                # so we can go ahead and upload this item
+
+                # we acquire the semaphore to ensure that we aren't uploading more than
+                # our configured maximum number of files here at once. once we reach the limit
+                # we'll block here until one of the existing file uploads completes
+                self._file_semaphore.acquire()
+                future = self._executor.submit(
+                    self._upload_item,
+                    item,
+                    used,
+                    executed,
+                    finished_items,
+                    pending_provenance,
+                    dependency_condition,
+                    abort_event,
+                    progress,
+                )
+                futures.append(future)
+
+            with dependency_condition:
+                if pending_provenance.has_pending():
+                    # skipped_items contains all the items that we couldn't upload the previous time through
+                    # the loop because they depended on another item for provenance. wait until there
+                    # at least one those items finishes before continuing another time through the loop.
+                    if not abort_event.is_set():
+                        dependency_condition.wait_for(lambda: (
+                            pending_provenance.has_finished_provenance() or abort_event.is_set()
+                        ))
+
+                pending_provenance.reset_count()
+
+            ordered_items = skipped_items
+
+        # all items have been submitted for upload
+
+        concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
+        if abort_event.is_set():
+            # at least one item failed to upload
+            self._abort(futures)
+
+    def _upload_item(
+        self,
+        item,
+        used,
+        executed,
+        finished_items,
+        pending_provenance,
+        dependency_condition,
+        abort_event,
+        progress,
+    ):
+        try:
+            with upload_shared_executor(self._executor):
+                # we configure an upload thread local shared executor so that any multipart
+                # uploads that result from this upload will share the executor of this sync
+                # rather than creating their own threadpool.
+
+                with progress.accumulate_progress():
+                    entity = self._syn.store(item.entity, used=used, executed=executed, **item.store_kwargs)
+
+                with dependency_condition:
+                    finished_items[item.entity.path] = entity
+                    try:
+                        pending_provenance.finished(item.entity.path)
+
+                        # this item was defined as provenance for another item, now that
+                        # it's finished we may be able to upload that depending item, so
+                        # wake up he central thread
+                        dependency_condition.notifyAll()
+
+                    except KeyError:
+                        # this item is not used in provenance of another item, that's fine
+                        pass
+
+        except Exception:
+            with dependency_condition:
+                abort_event.set()
+                dependency_condition.notifyAll()
+            raise
+
+        finally:
+            self._file_semaphore.release()
+
+
+def generateManifest(syn, allFiles, filename, provenance_cache=None):
     """Generates a manifest file based on a list of entities objects.
 
     :param allFiles:   A list of File Entities
-
     :param filename: file where manifest will be written
+    :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
     """
-    keys, data = _extract_file_entity_metadata(syn, allFiles)
+    keys, data = _extract_file_entity_metadata(syn, allFiles, provenance_cache=provenance_cache)
     _write_manifest_data(filename, keys, data)
 
 
-def _extract_file_entity_metadata(syn, allFiles):
+def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     """
     Extracts metadata from the list of File Entities and returns them in a form usable by csv.DictWriter
     :param syn:         instance of the Synapse client
     :param allFiles:    an iterable that provides File entities
+    :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
 
     :return: (keys: a list column headers, data: a list of dicts containing data from each row)
     """
@@ -132,7 +621,15 @@ def _extract_file_entity_metadata(syn, allFiles):
                'synapseStore': entity.synapseStore, 'contentType': entity['contentType']}
         row.update({key: (val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
 
-        row.update(_get_file_entity_provenance_dict(syn, entity))
+        entity_id = entity['id']
+        row_provenance = provenance_cache.get(entity_id) if provenance_cache is not None else None
+        if row_provenance is None:
+            row_provenance = _get_file_entity_provenance_dict(syn, entity)
+
+            if provenance_cache is not None:
+                provenance_cache[entity_id] = row_provenance
+
+        row.update(row_provenance)
 
         annotKeys.update(set(entity.annotations.keys()))
 
@@ -392,18 +889,28 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
 
 def _manifest_upload(syn, df):
+    items = []
     for i, row in df.iterrows():
-        # TODO: extract known constructor variables
-        kwargs = {key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row}
-        entity = File(row['path'], parent=row['parent'], **kwargs)
-        entity.annotations = dict(row.drop(FILE_CONSTRUCTOR_FIELDS + STORE_FUNCTION_FIELDS+REQUIRED_FIELDS,
-                                           errors='ignore'))
+        file = File(
+            path=row['path'],
+            parent=row['parent'],
+            **{key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row},
+        )
+        file.annotations = dict(row.drop(
+            FILE_CONSTRUCTOR_FIELDS + STORE_FUNCTION_FIELDS + REQUIRED_FIELDS + PROVENANCE_FIELDS,
+            errors='ignore'
+        ))
 
-        # Update provenance list again to replace all file references that were uploaded
-        if 'used' in row:
-            row['used'] = syn._convertProvenanceList(row['used'])
-        if 'executed' in row:
-            row['executed'] = syn._convertProvenanceList(row['executed'])
-        kwargs = {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row}
-        syn.store(entity, **kwargs)
+        item = _SyncUploadItem(
+            file,
+            row['used'] if 'used' in row else [],
+            row['executed'] if 'executed' in row else [],
+            {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row},
+        )
+        items.append(item)
+
+    with _sync_executor(syn) as executor:
+        uploader = _SyncUploader(syn, executor)
+        uploader.upload(items)
+
     return True

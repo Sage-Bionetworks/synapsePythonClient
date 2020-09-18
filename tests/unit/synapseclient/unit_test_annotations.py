@@ -6,7 +6,7 @@ from math import pi
 import time
 import uuid
 
-from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_greater, assert_is_instance
+import pytest
 
 from synapseclient.annotations import (
     Annotations,
@@ -39,13 +39,13 @@ def test_annotations():
                         'type': 'STRING'}
         }
     }
-    assert_equals(expected, sa)
+    assert expected == sa
 
 
 def test_to_synapse_annotations__require_id_and_etag():
     """Test string annotations"""
     a = {'foo': 'bar', 'zoo': ['zing', 'zaboo'], 'species': 'Platypus'}
-    assert_raises(TypeError, to_synapse_annotations, a)
+    pytest.raises(TypeError, to_synapse_annotations, a)
 
 
 def test_more_annotations():
@@ -77,7 +77,7 @@ def test_more_annotations():
                                  'type': 'STRING'}
         }
     }
-    assert_equals(expected, sa)
+    assert expected == sa
 
 
 def test_annotations_unicode():
@@ -92,7 +92,7 @@ def test_annotations_unicode():
                                           'value': ['文件.txt']},
                                 'foo': {'type': 'LONG',
                                         'value': ['1266']}}}
-    assert_equals(expected, sa)
+    assert expected == sa
 
 
 def test_round_trip_annotations():
@@ -103,9 +103,9 @@ def test_round_trip_annotations():
                                    Datetime(2013, 3, 15)]})
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
-    assert_equals(a, a2)
-    assert_equals(a.id, a2.id)
-    assert_equals(a.etag, a2.etag)
+    assert a == a2
+    assert a.id == a2.id
+    assert a.etag == a2.etag
 
 
 def test_mixed_annotations():
@@ -114,11 +114,11 @@ def test_mixed_annotations():
                     {'foo': [1, 'a', Datetime(1969, 4, 28, 11, 47)]})
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
-    assert_equals(a2['foo'][0], '1')
-    assert_equals(a2['foo'][1], 'a')
-    assert_greater(a2['foo'][2].find('1969'), -1)
-    assert_equals('syn123', a2.id)
-    assert_equals('7bdb83e9-a50a-46e4-987a-4962559f090f', a2.etag)
+    assert a2['foo'][0] == '1'
+    assert a2['foo'][1] == 'a'
+    assert a2['foo'][2].find('1969') > -1
+    assert 'syn123' == a2.id
+    assert '7bdb83e9-a50a-46e4-987a-4962559f090f' == a2.etag
 
 
 def test_idempotent_annotations():
@@ -129,7 +129,7 @@ def test_idempotent_annotations():
     a2 = {}
     a2.update(sa)
     sa2 = to_synapse_annotations(a2)
-    assert_equals(sa, sa2)
+    assert sa == sa2
 
 
 def test_submission_status_annotations_round_trip():
@@ -137,38 +137,38 @@ def test_submission_status_annotations_round_trip():
     a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
                     {'screen_name': 'Bullwinkle', 'species': 'Moose', 'lucky': 13, 'pi': pi, 'birthday': april_28_1969})
     sa = to_submission_status_annotations(a)
-    assert_equals({'screen_name', 'species'}, set([kvp['key'] for kvp in sa['stringAnnos']]))
-    assert_equals({'Bullwinkle', 'Moose'}, set([kvp['value'] for kvp in sa['stringAnnos']]))
+    assert {'screen_name', 'species'} == set([kvp['key'] for kvp in sa['stringAnnos']])
+    assert {'Bullwinkle', 'Moose'} == set([kvp['value'] for kvp in sa['stringAnnos']])
 
     # test idempotence
-    assert_equals(sa, to_submission_status_annotations(sa))
+    assert sa == to_submission_status_annotations(sa)
 
-    assert_equals({'lucky', 'birthday'}, set([kvp['key'] for kvp in sa['longAnnos']]))
+    assert {'lucky', 'birthday'} == set([kvp['key'] for kvp in sa['longAnnos']])
     for kvp in sa['longAnnos']:
         key = kvp['key']
         value = kvp['value']
         if key == 'lucky':
-            assert_equals(value, 13)
+            assert value == 13
         if key == 'birthday':
-            assert_equals(utils.from_unix_epoch_time(value), april_28_1969)
+            assert utils.from_unix_epoch_time(value) == april_28_1969
 
-    assert_equals({'pi'}, set([kvp['key'] for kvp in sa['doubleAnnos']]))
-    assert_equals({pi}, set([kvp['value'] for kvp in sa['doubleAnnos']]))
+    assert {'pi'} == set([kvp['key'] for kvp in sa['doubleAnnos']])
+    assert {pi} == set([kvp['value'] for kvp in sa['doubleAnnos']])
 
     set_privacy(sa, key='screen_name', is_private=False)
-    assert_raises(KeyError, set_privacy, sa, key='this_key_does_not_exist', is_private=False)
+    pytest.raises(KeyError, set_privacy, sa, key='this_key_does_not_exist', is_private=False)
 
     for kvp in sa['stringAnnos']:
         if kvp['key'] == 'screen_name':
-            assert_false(kvp['isPrivate'])
+            assert not kvp['isPrivate']
 
     a2 = from_submission_status_annotations(sa)
     # TODO: is there a way to convert dates back from longs automatically?
     a2['birthday'] = utils.from_unix_epoch_time(a2['birthday'])
-    assert_equals(a, a2)
+    assert a == a2
 
     # test idempotence
-    assert_equals(a, from_submission_status_annotations(a))
+    assert a == from_submission_status_annotations(a)
 
 
 def test_submission_status_double_annos():
@@ -178,10 +178,10 @@ def test_submission_status_double_annos():
     # test that the double annotation 'three':3 is interpreted as a floating
     # point 3.0 rather than an integer 3
     annotations = from_submission_status_annotations(ssa)
-    assert_is_instance(annotations['three'], float)
+    assert isinstance(annotations['three'], float)
     ssa2 = to_submission_status_annotations(annotations)
-    assert_equals({'three', 'pi'}, set([kvp['key'] for kvp in ssa2['doubleAnnos']]))
-    assert_equals({'lucky'}, set([kvp['key'] for kvp in ssa2['longAnnos']]))
+    assert {'three', 'pi'} == set([kvp['key'] for kvp in ssa2['doubleAnnos']])
+    assert {'lucky'} == set([kvp['key'] for kvp in ssa2['longAnnos']])
 
 
 def test_from_synapse_annotations__empty():
@@ -189,52 +189,57 @@ def test_from_synapse_annotations__empty():
            'etag': '7bdb83e9-a50a-46e4-987a-4962559f090f',
            'annotations': {}}
     annos = from_synapse_annotations(ssa)
-    assert_equals({}, annos)
-    assert_equals('syn123', annos.id)
-    assert_equals('7bdb83e9-a50a-46e4-987a-4962559f090f', annos.etag)
+    assert {} == annos
+    assert 'syn123' == annos.id
+    assert '7bdb83e9-a50a-46e4-987a-4962559f090f' == annos.etag
 
 
 def test_to_synapse_annotations__empty():
     python_client_annos = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f', {})
-    assert_equals({'id': 'syn123', 'etag': '7bdb83e9-a50a-46e4-987a-4962559f090f', 'annotations': {}},
-                  to_synapse_annotations(python_client_annos))
+    assert (
+        {
+            'id': 'syn123',
+            'etag': '7bdb83e9-a50a-46e4-987a-4962559f090f',
+            'annotations': {}
+        } == to_synapse_annotations(python_client_annos)
+    )
 
 
 def test_is_synapse_annotation():
-    assert_true(
-        is_synapse_annotations({'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}}))
+    assert is_synapse_annotations({'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}})
     # missing id
-    assert_false(
-        is_synapse_annotations({'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}}))
+    assert not is_synapse_annotations({'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}})
     # missing etag
-    assert_false(
-        is_synapse_annotations({'id': 'syn123', 'annotations': {}}))
+    assert not is_synapse_annotations({'id': 'syn123', 'annotations': {}})
     # missing annotations
-    assert_false(
-        is_synapse_annotations({'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604'}))
+    assert not is_synapse_annotations({'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604'})
     # has additional keys
-    assert_true(is_synapse_annotations(
-        {'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}, 'foo': 'bar'}))
+    assert is_synapse_annotations(
+        {'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}, 'foo': 'bar'})
 
     # annotations only
-    assert_false(is_synapse_annotations({'annotations': {}}))
+    assert not is_synapse_annotations({'annotations': {}})
 
     # annotations + other keys
-    assert_false(is_synapse_annotations({'annotations': {}, 'bar': 'baz'}))
+    assert not is_synapse_annotations({'annotations': {}, 'bar': 'baz'})
 
     # sanity check: Any Entity subclass has id etag and annotations,
     # but its annotations are not in the format Synapse expects
-    assert_false(is_synapse_annotations(File('~/asdf.txt',
-                                             id='syn123',
-                                             etag='0f2977b9-0261-4811-a89e-c13e37ce4604',
-                                             parentId='syn135')))
+    assert not is_synapse_annotations(
+        File(
+            '~/asdf.txt',
+            id='syn123',
+            etag='0f2977b9-0261-4811-a89e-c13e37ce4604',
+            parentId='syn135'
+        )
+    )
 
 
 class TestAnnotations:
     def test__None_id_and_etag(self):
         # in constuctor
-        assert_raises(ValueError, Annotations, 'syn123', None)
-        assert_raises(ValueError, Annotations, None, '0f2977b9-0261-4811-a89e-c13e37ce4604')
+        pytest.raises(ValueError, Annotations, 'syn123', None)
+        pytest.raises(ValueError, Annotations, None, '0f2977b9-0261-4811-a89e-c13e37ce4604')
 
         # after constuction
         annot = Annotations('syn123', '0f2977b9-0261-4811-a89e-c13e37ce4604', {'asdf': 'qwerty'})
@@ -242,18 +247,18 @@ class TestAnnotations:
         def change_id_to_None():
             annot.id = None
 
-        assert_raises(ValueError, change_id_to_None)
+        pytest.raises(ValueError, change_id_to_None)
 
         def change_etag_to_None():
             annot.etag = None
 
-        assert_raises(ValueError, change_etag_to_None)
+        pytest.raises(ValueError, change_etag_to_None)
 
     def test_annotations(self):
         annot = Annotations('syn123', '0f2977b9-0261-4811-a89e-c13e37ce4604', {'asdf': 'qwerty'})
-        assert_equals('syn123', annot.id)
-        assert_equals('0f2977b9-0261-4811-a89e-c13e37ce4604', annot.etag)
-        assert_equals({'asdf': 'qwerty'}, annot)
+        assert 'syn123' == annot.id
+        assert '0f2977b9-0261-4811-a89e-c13e37ce4604' == annot.etag
+        assert {'asdf': 'qwerty'} == annot
 
 
 def test_convert_old_annotation_json():
@@ -271,7 +276,6 @@ def test_convert_old_annotation_json():
         'dateAnnotations': {'now': [now, now + 1]},
 
         'blobAnnotations': {'blobs': ['are ignored']},
-        'anything else': 'is ignored',
     }
 
     converted = convert_old_annotation_json(old_json)
@@ -300,4 +304,31 @@ def test_convert_old_annotation_json():
         'value': old_json['dateAnnotations']['now'],
     }
 
-    assert_equals(converted, expected)
+    assert converted == expected
+
+
+def test_convert_old_annotations_json__already_v2():
+    """Test that the presence of any loose annotations key not consistent
+    with v1 annotations causes annotations conversion to v2 to be short
+    circuited and the dictionary passed through as-is."""
+
+    annos_dict = {
+        'id': 'foo',
+        'etag': str(uuid.uuid4()),
+        'creationDate': '1444559717946',
+        'uri': '/entity/syn123/annotations',
+    }
+
+    # these keys are consistent with old style v1 annos
+    v1_keys = {
+        'stringAnnotations': ['foo'],
+        'longAnnotations': [1, 2, 3],
+    }
+    annos_dict.update(v1_keys)
+
+    # however this key is not so its presence reveals this to be to a v2 dict
+    # (and the above keys just happen to be v1 looking keys in a v2 annotations dict
+    annos_dict['v2_key'] = ['these are actually v2 annotations']
+
+    converted = convert_old_annotation_json(annos_dict)
+    assert annos_dict == converted

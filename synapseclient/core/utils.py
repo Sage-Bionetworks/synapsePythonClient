@@ -6,25 +6,27 @@ Utility Functions
 Utility functions useful in the implementation and testing of the Synapse client.
 
 """
-import collections.abc
-import os
-import sys
-import hashlib
-import re
+import base64
 import cgi
+import collections.abc
 import datetime
 import errno
-import inspect
-import random
-import requests
-import tempfile
-import platform
 import functools
-import threading
-import uuid
+import hashlib
 import importlib
+import inspect
 import numbers
+import os
+import platform
+import random
+import re
+import requests
+import sys
+import tempfile
+import threading
 import urllib.parse as urllib_parse
+import uuid
+import warnings
 
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0)
@@ -646,14 +648,17 @@ def printTransferProgress(transferred, toBeTransferred, prefix='', postfix='', i
     sys.stdout.flush()
 
 
-def humanizeBytes(bytes):
-    bytes = float(bytes)
+def humanizeBytes(num_bytes):
+    if num_bytes is None:
+        raise ValueError('bytes must be a number')
+
+    num_bytes = float(num_bytes)
     units = ['bytes', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB']
     for i, unit in enumerate(units):
-        if bytes < 1024:
-            return '%3.1f%s' % (bytes, units[i])
+        if num_bytes < 1024:
+            return '%3.1f%s' % (num_bytes, units[i])
         else:
-            bytes /= 1024
+            num_bytes /= 1024
     return 'Oops larger than Exabytes'
 
 
@@ -885,3 +890,42 @@ def snake_case(string):
     """Convert the given string from CamelCase to snake_case"""
     # https://stackoverflow.com/a/1176023
     return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
+
+
+def is_base64_encoded(input_string):
+    """Return whether the given input string appears to be base64 encoded"""
+    if not input_string:
+        # None, empty string are not considered encoded
+        return False
+    try:
+        # see if we can decode it and then reencode it back to the input
+        byte_string = input_string if isinstance(input_string, bytes) else str.encode(input_string)
+        return base64.b64encode(base64.b64decode(byte_string)) == byte_string
+    except Exception:
+        return False
+
+
+class deprecated_keyword_param:
+    """A decorator to use to warn when a keyword parameter from a function has been deprecated
+    and is intended for future removal. Will emit a warning such a keyword is passed."""
+
+    def __init__(self, keywords, version, reason):
+        self.keywords = set(keywords)
+        self.version = version
+        self.reason = reason
+
+    def __call__(self, fn):
+        def wrapper(*args, **kwargs):
+            found = self.keywords.intersection(kwargs)
+            if found:
+                warnings.warn(
+                    "Parameter(s) {} deprecated since version {}; {}".format(
+                        sorted(list(found)), self.version, self.reason
+                    ),
+                    category=DeprecationWarning,
+                    stacklevel=2
+                )
+
+            return fn(*args, **kwargs)
+
+        return wrapper

@@ -68,14 +68,19 @@ STS Storage Locations
 =====================
 
 Create an STS enabled folder to use
-`AWS Security Token Service <https://docs.synapse.org/articles/sts_storage_locations.html>`__ credentials
-with S3 storage locations. These credentials can be used with external S3 tools such as the awscli and the boto3
-library separately from Synapse to read and write files to and from Synapse storage.
+`AWS Security Token Service <https://docs.synapse.org/articles/aws_sts_storage_locations.html>`__ credentials
+with S3 storage locations. These credentials can be scoped to access individual Synapse files or folders and can be used
+with external S3 tools such as the awscli and the boto3 library separately from Synapse to read and write files to and
+from Synapse storage. At this time read and write capabilities are supported for external storage locations, while default
+Synapse storage is limited to read only. Please read the linked documentation for a complete understanding of the capabilities
+and restrictions of STS enabled folders.
 
 Creating an STS enabled folder
 ------------------------------
 Creating an STS enabled folder is similar to creating an external storage folder as described above, but this
-time passing an additional **sts_enabled=True** keyword parameter.
+time passing an additional **sts_enabled=True** keyword parameter. The **bucket_name** and **base_key**
+parameters apply to external storage locations and can be omitted to use Synapse internal storage.
+Note also that STS can only be enabled on an empty folder.
 
   .. code-block::
 
@@ -96,7 +101,7 @@ by subsequent aws cli commands.
 
   .. code-block::
 
-    $ synapseclient get-sts-token -o shell syn123 read_write
+    $ synapse get-sts-token -o shell syn123 read_write
 
     export SYNAPSE_STS_S3_LOCATION="s3://my-external-synapse-bucket/path/within/bucket"
     export AWS_ACCESS_KEY_ID="<access_key_id>"

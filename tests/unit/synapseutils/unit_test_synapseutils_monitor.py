@@ -1,16 +1,10 @@
 from unittest.mock import patch, MagicMock, call
-from nose.tools import assert_equal, assert_in, assert_tuple_equal
 
 import synapseutils
 from synapseutils import notifyMe, with_progress_bar
-from tests import unit
 
 
-def setup(module):
-    module.syn = unit.syn
-
-
-def test_notifyMe__successful_call():
+def test_notifyMe__successful_call(syn):
     subject = "some message subject"
     owner_id = '12434'
     user_profile = {'ownerId': owner_id}
@@ -28,7 +22,7 @@ def test_notifyMe__successful_call():
                                                     messageBody='Call to test_function completed successfully!')
 
 
-def test_notifyMe__exception_thrown_and_retry_fail():
+def test_notifyMe__exception_thrown_and_retry_fail(syn):
     subject = "some message subject"
     owner_id = '12434'
     user_profile = {'ownerId': owner_id}
@@ -41,7 +35,7 @@ def test_notifyMe__exception_thrown_and_retry_fail():
             mocked_func()
 
         test_function()
-        assert_equal(2, mocked_send_message.call_count)
+        assert 2 == mocked_send_message.call_count
 
         # call_args_list is a list of tuples, each tuple in the form (args,kwargs)
         first_call_args = mocked_send_message.call_args_list[0][0]
@@ -50,16 +44,16 @@ def test_notifyMe__exception_thrown_and_retry_fail():
         second_call_args = mocked_send_message.call_args_list[1][0]
         second_call_kwargs = mocked_send_message.call_args_list[1][1]
 
-        assert_tuple_equal(([owner_id], subject), first_call_args)
-        assert_in('Encountered a temporary Failure during upload', first_call_kwargs['messageBody'])
+        assert ([owner_id], subject) == first_call_args
+        assert 'Encountered a temporary Failure during upload' in first_call_kwargs['messageBody']
 
-        assert_tuple_equal(([owner_id], subject), first_call_args)
-        assert_equal(1, len(first_call_kwargs))
-        assert_in('Encountered a temporary Failure during upload', first_call_kwargs['messageBody'])
+        assert ([owner_id], subject) == first_call_args
+        assert 1 == len(first_call_kwargs)
+        assert 'Encountered a temporary Failure during upload' in first_call_kwargs['messageBody']
 
-        assert_tuple_equal(([owner_id], subject), second_call_args)
-        assert_equal(1, len(second_call_kwargs))
-        assert_equal("Call to test_function completed successfully!", second_call_kwargs['messageBody'])
+        assert ([owner_id], subject) == second_call_args
+        assert 1 == len(second_call_kwargs)
+        assert "Call to test_function completed successfully!" == second_call_kwargs['messageBody']
 
 
 def test_with_progress_bar():

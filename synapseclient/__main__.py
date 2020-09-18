@@ -1,68 +1,8 @@
 """
-***************************
-Synapse command line client
-***************************
+The Synapse command line client.
 
-The Synapse Python Client can be used from the command line via the **synapse** command.
-
-Installation
-============
-
-The command line client is installed along with `installation of the Synapse Python client \
-<http://python-docs.synapse.org/build/html/index.html#installation>`_.
-
-Help
-====
-
-For help, type::
-
-    synapse -h.
-
-For help on specific commands, type::
-
-    synapse [command] -h
-
-
-Optional arguments
-==================
-
-.. code-block:: shell
-
-    -h, --help            show this help message and exit
-    --version             show program's version number and exit
-    -u SYNAPSEUSER, --username SYNAPSEUSER
-                        Username used to connect to Synapse
-    -p SYNAPSEPASSWORD, --password SYNAPSEPASSWORD
-                        Password used to connect to Synapse
-
-Commands
-========
-  * **get**              - download an entity and associated data
-  * **sync**             - Synchronize files described in a manifest to Synapse
-  * **store**            - uploads and adds a file to Synapse
-  * **store-table**      - uploads a table to Syanpse given a csv
-  * **add**              - add or modify content to Synapse
-  * **mv**               - move a dataset in Synapse
-  * **cp**               - copy an entity/dataset in Synapse
-  * **associate**        - Associate local files with the files stored in Synapse so
-                           that calls to 'syntapse get' and 'synapse show' don't
-                           re-download the files, but use the already existing file.
-  * **delete**           - removes a dataset from Synapse
-  * **query**            - performs SQL like queries on Synapse
-  * **submit**           - submit an entity for evaluation
-  * **show**             - displays information about a Entity
-  * **cat**              - prints a dataset from Synapse
-  * **list**             - List Synapse entities contained by the given Project or
-                           Folder. Note: May not be supported in future versions of
-                           the client.
-  * **set-provenance**   - create provenance records
-  * **get-provenance**   - show provenance records
-  * **set-annotations**  - create annotations
-  * **get-annotations**  - show annotations
-  * **create**           - Creates folders or projects on Synapse
-  * **onweb**            - opens Synapse website for Entity
-  * **login**            - login to Synapse and (optionally) cache credentials
-  * **test-encoding**    - test character encoding to help diagnose problems
+For a description of its usage and parameters, see its documentation:
+https://python-docs.synapse.org/build/html/CommandLineClient.html
 """
 import argparse
 import collections.abc
@@ -81,7 +21,12 @@ from synapseclient import Activity
 from synapseclient.wiki import Wiki
 from synapseclient.annotations import Annotations
 from synapseclient.core import utils
-from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseNoCredentialsError
+from synapseclient.core.exceptions import (
+    SynapseAuthenticationError,
+    SynapseHTTPError,
+    SynapseFileNotFoundError,
+    SynapseNoCredentialsError,
+)
 
 
 def query(args, syn):
@@ -108,11 +53,11 @@ def query(args, syn):
                          ' https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html')
 
 
-def _getIdsFromQuery(queryString, syn):
+def _getIdsFromQuery(queryString, syn, downloadLocation):
     """Helper function that extracts the ids out of returned query."""
 
     if re.search('from syn\\d', queryString.lower()):
-        tbl = syn.tableQuery(queryString)
+        tbl = syn.tableQuery(queryString, downloadLocation=downloadLocation)
 
         check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
         assert check_for_id_col, ValueError("Query does not include the id column.")
@@ -133,7 +78,7 @@ def get(args, syn):
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
             raise ValueError('You cannot specify a version or id when you are downloading a query.')
-        ids = _getIdsFromQuery(args.queryString, syn)
+        ids = _getIdsFromQuery(args.queryString, syn, args.downloadLocation)
         for id in ids:
             syn.get(id, downloadLocation=args.downloadLocation)
     else:
@@ -545,9 +490,9 @@ def build_parser():
     parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
                             help='Directory to download file to [default: %(default)s].')
     parser_get.add_argument('--multiThreaded', action='store_true',
-                            default=False, help='Download file using a multiple threaded implementation. '
-                                                'This flag will be removed in the future when multi-threaded download '
-                                                'is deemed fully stable and becomes the default implementation.')
+                            default=True, help='Download file using a multiple threaded implementation. '
+                            'This flag will be removed in the future when multi-threaded download '
+                            'is deemed fully stable and becomes the default implementation.')
     parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
     parser_get.set_defaults(func=get)
@@ -873,7 +818,7 @@ def build_parser():
     parser_login.add_argument('-u', '--username', dest='synapseUser',
                               help='Username used to connect to Synapse')
     parser_login.add_argument('-p', '--password', dest='synapsePassword',
-                              help='Password used to connect to Synapse')
+                              help='Password or api key used to connect to Synapse')
     parser_login.add_argument('--rememberMe', '--remember-me', dest='rememberMe', action='store_true', default=False,
                               help='Cache credentials for automatic authentication on future interactions with Synapse')
     parser_login.set_defaults(func=login)
@@ -914,7 +859,7 @@ def perform_main(args, syn):
 
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
     try:
-        syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
+        _authenticate_login(syn, user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
         while not user:
@@ -924,8 +869,27 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
         while not passwd:
             # must encode password prompt because getpass() has OS-dependent implementation and complains about unicode
             # on Windows python 2.7
-            passwd = getpass.getpass(("Password for " + user + ": ").encode('utf-8'))
-        syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
+            passwd = getpass.getpass(("Password or api key for " + user + ": ").encode('utf-8'))
+
+        _authenticate_login(syn, user, passwd, rememberMe=rememberMe, forced=forced)
+
+
+def _authenticate_login(syn, user, password, **login_kwargs):
+    # login with the given password. If the password is not valid and it appears to be an api key
+    # then we attempt a login using it as an api key instead.
+    try:
+        syn.login(user, password, **login_kwargs)
+    except SynapseNoCredentialsError:
+        # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
+        raise
+    except SynapseAuthenticationError:
+        # if the entered password appears to be a base64 encoded string then we additionally attempt
+        # to login using it as an api key instead.
+        if utils.is_base64_encoded(password):
+            # the password appears to be a base64 encoded string, it might be an apikey
+            syn.login(user, apiKey=password, **login_kwargs)
+        else:
+            raise
 
 
 def main():

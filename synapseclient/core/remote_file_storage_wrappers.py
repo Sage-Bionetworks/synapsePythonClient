@@ -3,7 +3,8 @@ import time
 import multiprocessing
 import urllib.parse as urllib_parse
 
-from synapseclient.core.utils import printTransferProgress, attempt_import
+from synapseclient.core.cumulative_transfer_progress import printTransferProgress
+from synapseclient.core.utils import attempt_import
 
 
 class S3ClientWrapper:
