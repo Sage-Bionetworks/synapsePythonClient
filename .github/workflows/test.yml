@@ -60,11 +60,6 @@ jobs:
       - name: run-tests
         shell: bash
         run: |
-         source $VENV_ACTIVATE_PATH
-         nosetests --with-coverage --cover-html --cover-package=synapseclient --cover-package=synapseutils --traverse-namespace -s tests/unit
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: coverage-report
-          path: ./cover
+          source $VENV_ACTIVATE_PATH
+          pytest -sv tests/unit
 
