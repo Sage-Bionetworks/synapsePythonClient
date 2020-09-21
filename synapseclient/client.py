@@ -3078,7 +3078,7 @@ class Synapse(object):
     def create_snapshot(self, table, comment=None, label=None, activity=None):
         """Creates Table or EntityView snapshots
 
-        :param table:  The schema of the Table
+        :param table:  The schema of the Table, or its ID.
         :param comment:  Optional snapshot comment.
         :param label:  Optional snapshot label.
         :param activity:  Optional activity ID applied to snapshot version.
@@ -3107,15 +3107,16 @@ class Synapse(object):
         snapshot_body = {"snapshotComment": comment,
                          "snapshotLabel": label,
                          "snapshotActivityId": activity}
+        new_body = {key:value for key, value in snapshot_body.items() if value}
         snapshot = self.restPOST("/entity/{}/table/snapshot".format(id_of(table)),
-                                 body=json.dumps(snapshot_body))
+                                 body=json.dumps(new_body))
         return snapshot
 
     def _async_table_update(self, table, changes=[], create_snapshot=False,
                             comment=None, label=None, activity=None):
         """Creates entityview update, also creates snapshots
 
-        :param table:  The schema of the EntityView
+        :param table:  The schema of the EntityView or its ID.
         :param changes: Array of Table changes
         :param create_snapshot: Create snapshot
         :param comment:  Optional snapshot comment.
@@ -3124,14 +3125,17 @@ class Synapse(object):
 
         :return:  Snapshot Response
         """
-
+        snapshot_options = {'snapshotComment': comment,
+                            'snapshotLabel': label,
+                            'snapshotActivityId': activity}
+        new_snapshot = {key:value for key, value in snapshot_options.items() if value}
         table_update_body = {'changes': changes,
                              'createSnapshot': create_snapshot,
-                             'snapshotOptions': {'snapshotComment': comment,
-                                                 'snapshotLabel': label,
-                                                 'snapshotActivityId': activity}}
+                             'snapshotOptions': new_snapshot}
+        new_table_update_body = {key:value for key, value in table_update_body.items() if value}
+
         snapshot = self.restPOST("/entity/{}/table/transaction/async/start".format(id_of(table)),
-                                 body=json.dumps(table_update_body))
+                                 body=json.dumps(new_table_update_body))
         return snapshot
 
     def getTableColumns(self, table):
