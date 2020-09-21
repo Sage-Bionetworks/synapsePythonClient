@@ -2120,7 +2120,7 @@ def test__async_table_update(syn):
                                 activity=2)
         restpost.assert_called_once_with(
             "/entity/syn1234/table/transaction/async/start",
-            body='{"changes": [], "createSnapshot": true, '
+            body='{"createSnapshot": true, '
                  '"snapshotOptions": {"snapshotComment": "foo", '
                  '"snapshotLabel": "new_label", '
                  '"snapshotActivityId": 2}}'
