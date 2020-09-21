@@ -2111,6 +2111,17 @@ def test__create_table_snapshot(syn):
         )
 
 
+def test__create_table_snapshot__no_params(syn):
+    """Testing creating table snapshots when no optional parameters are specified"""
+    snapshot = {'snapshotVersionNumber': 2}
+    with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
+        syn._create_table_snapshot("syn1234")
+        restpost.assert_called_once_with(
+            "/entity/syn1234/table/snapshot",
+            body='{}'
+        )
+
+
 def test__async_table_update(syn):
     """Async table update"""
     snapshot = {'snapshotVersionNumber': 2}
