@@ -50,17 +50,37 @@ jobs:
           fi
           echo "::set-env name=VENV_ACTIVATE_PATH::$VENV_ACTIVATE_PATH"
 
+      # we create a venv if we weren't able to restore one from the cache
       - name: create-venv
-        if: ${{steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true'}}
+        if: ${{ steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true' }}
         shell: bash
         run: |
           python -m venv venv
           source $VENV_ACTIVATE_PATH
           pip install -e ".[boto3,pandas,tests]"
 
-      - name: run-tests
+      - name: run-unit-tests
         shell: bash
         run: |
           source $VENV_ACTIVATE_PATH
           pytest -sv tests/unit
+
+      # run integration tests iff the decryption keys for the test configuration are available.
+      # they will not be available in pull requests from forks.
+      - name: run-integration-tests
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_key }}" ]; then
+            echo "No test configuration decryption keys available, skipping integration tests"
+
+          else
+            # decrypt the encrypted test synapse configuration
+            openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
+            mv test.synapseConfig ~/.synapseConfig
+
+            source $VENV_ACTIVATE_PATH
+            pytest -sv tests/integration
+          fi
+
+
 
