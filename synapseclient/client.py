@@ -3107,7 +3107,7 @@ class Synapse(object):
         snapshot_body = {"snapshotComment": comment,
                          "snapshotLabel": label,
                          "snapshotActivityId": activity}
-        new_body = {key:value for key, value in snapshot_body.items() if value is not None}
+        new_body = {key: value for key, value in snapshot_body.items() if value is not None}
         snapshot = self.restPOST("/entity/{}/table/snapshot".format(id_of(table)),
                                  body=json.dumps(new_body))
         return snapshot
