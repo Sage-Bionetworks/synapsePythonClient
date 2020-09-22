@@ -3128,7 +3128,7 @@ class Synapse(object):
         snapshot_options = {'snapshotComment': comment,
                             'snapshotLabel': label,
                             'snapshotActivityId': activity}
-        new_snapshot = {key:value for key, value in snapshot_options.items() if value is not None}
+        new_snapshot = {key: value for key, value in snapshot_options.items() if value is not None}
         table_update_body = {'changes': changes,
                              'createSnapshot': create_snapshot,
                              'snapshotOptions': new_snapshot}
