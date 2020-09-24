@@ -194,7 +194,6 @@ jobs:
 
           if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
             # production deploy to prod pypi server
-            echo "prod pypi deploy"
 
             PYPI_NAME="pypi"
             PYPI_URL="https://pypi.org"
@@ -203,7 +202,6 @@ jobs:
             PYPI_PASSWORD="${{ secrets.PYPI_PROD_PASSWORD }}"
           else
             # staging deploy to test pypi server
-            echo "staging pypi deploy"
 
             PYPI_NAME=testpypi
             PYPI_URL="https://test.pypi.org"
