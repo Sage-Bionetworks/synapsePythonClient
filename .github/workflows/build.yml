@@ -73,7 +73,7 @@ jobs:
           source $VENV_ACTIVATE_PATH
           pip install -e ".[boto3,pandas,pysftp,tests]"
 
-          # ensure that c extensions are installed on windows
+          # ensure that numpy c extensions are installed on windows
           # https://stackoverflow.com/a/59346525
           if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
             pip uninstall -y numpy
@@ -262,7 +262,7 @@ jobs:
 
           # it can take some time for the packages to become available in pypi after uploading
           for i in 5 10 20 40; do
-            if pip3 install --index-url $PYPI_INDEX_URL --extra-index-url https://pypi.org/simple "synapseclient>=$VERSION*"; then
+            if pip3 install --index-url $PYPI_INDEX_URL --extra-index-url https://pypi.org/simple "synapseclient==$VERSION"; then
               ACTUAL_VERSION=$(synapse --version)
 
               if [ -n "$(echo "$ACTUAL_VERSION" | grep -oF "$VERSION")" ]; then
