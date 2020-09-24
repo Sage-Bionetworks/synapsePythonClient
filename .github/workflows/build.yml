@@ -32,45 +32,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      # we try to restore a venv from a previous run if available, if not create a new venv.
-      # this saves some build time for compiled dependencies.
-
-      - id: cache-venv-linux
-        uses: actions/cache@v1
-        if: startsWith(runner.os, 'Linux')
-        with:
-          path: venv
-          key: ${{ runner.os }}-venv-v3-${{ hashFiles('setup.py') }}
-
-      - id: cache-venv-macos
-        uses: actions/cache@v1
-        if: startsWith(runner.os, 'macOS')
-        with:
-          path: venv
-          key: ${{ runner.os }}-venv-v3-${{ hashFiles('setup.py') }}
-
-      - id: cache-venv-windows
-        uses: actions/cache@v1
-        if: startsWith(runner.os, 'Windows')
-        with:
-          path: venv
-          key: ${{ runner.os }}-venv-v3-${{ hashFiles('setup.py') }}
-
-      - name: set-venv-path
+      - name: install-py-dependencies
         shell: bash
         run: |
-          VENV_ACTIVATE_PATH="venv/bin/activate"
-          if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
-            VENV_ACTIVATE_PATH="venv/Scripts/activate"
-          fi
-          echo "::set-env name=VENV_ACTIVATE_PATH::$VENV_ACTIVATE_PATH"
-
-      - name: create-venv
-        if: ${{ steps.cache-venv-linux.outputs.cache-hit != 'true' && steps.cache-venv-macos.outputs.cache-hit != 'true' && steps.cache-venv-windows.outputs-cache-hit != 'true' }}
-        shell: bash
-        run: |
-          python -m venv venv
-          source $VENV_ACTIVATE_PATH
           pip install -e ".[boto3,pandas,pysftp,tests]"
 
           # ensure that numpy c extensions are installed on windows
@@ -85,7 +49,6 @@ jobs:
       - name: run-unit-tests
         shell: bash
         run: |
-          source $VENV_ACTIVATE_PATH
           pytest -sv tests/unit
 
       # run integration tests iff the decryption keys for the test configuration are available.
@@ -105,7 +68,6 @@ jobs:
             openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
             mv test.synapseConfig ~/.synapseConfig
 
-            source $VENV_ACTIVATE_PATH
             pytest -sv tests/integration
           fi
 
