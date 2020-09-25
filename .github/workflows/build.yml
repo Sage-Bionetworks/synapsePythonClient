@@ -1,10 +1,11 @@
 # GitHub Action workflow for testing, building, and releasing the Synapse Python Client.
 
-# - all pushes and releases are tested against unit tests, and additionally integration
-#     tests if account configuration secrets are availale.
+# - all pushes, releases, and pull requests  are tested against unit tests, and additionally
+#     integration tests if account configuration secrets are available.
 # - releases are additionally packaged, uploaded as build and release artifacts,
 #     and deployed to pypi servers (test.pypi.org for prereleases, and pypi.org for releases)
-#     Release tags must conform to our semver versioning, e.g. v1.2.3.
+#     Release tags must conform to our semver versioning, e.g. v1.2.3 in order to be packaged
+#     for pypi deployment.
 
 name: build
 
@@ -16,6 +17,8 @@ on:
       - '**'
     tags-ignore:
       - '**'
+
+  pull_request:
 
   release:
     types:
