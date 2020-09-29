@@ -1999,6 +1999,41 @@ def test_store__409_processed_as_update(syn):
         mock_findEntityId.assert_called_once_with(file_name, parent_id)
 
 
+def test_update_entity_version(syn):
+    """Confirm behavior of entity version incrementing/labeling when invoking syn._updateEntity"""
+    entity_id = 'syn123'
+    entity = File(id=entity_id, parent='syn123', properties={'foo': 'bar'})
+    expected_uri = f"/entity/{entity_id}"
+
+    with patch.object(syn, 'restPUT') as mock_rest_put:
+        # defaults to incrementVersion=True
+        syn._updateEntity(entity)
+        mock_rest_put.assert_called_with(
+            expected_uri,
+            body=json.dumps(utils.get_properties(entity)),
+            params={'newVersion': 'true'},
+        )
+
+        # explicitly do not increment
+        syn._updateEntity(entity, incrementVersion=False)
+        mock_rest_put.assert_called_with(
+            expected_uri,
+            body=json.dumps(utils.get_properties(entity)),
+            params={},
+        )
+
+        # custom versionLabel
+        versionLabel = 'foo'
+        expected_body_dict = utils.get_properties(entity).copy()
+        expected_body_dict['versionLabel'] = versionLabel
+        syn._updateEntity(entity, versionLabel=versionLabel)
+        mock_rest_put.assert_called_with(
+            expected_uri,
+            body=json.dumps(expected_body_dict),
+            params={'newVersion': 'true'},
+        )
+
+
 def test_store__existing_no_update(syn):
     """Test that we won't try processing a store as an update if there's an existing
     bundle if createOrUpdate is not specified."""
