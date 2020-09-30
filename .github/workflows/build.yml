@@ -82,10 +82,8 @@ jobs:
             pytest -sv tests/integration
           fi
 
-  # on a GitHub release, build the pip package and upload it to the appropriate pypi server.
-  # we upload prereleases to test.pypi.org and releases to pypi.org.
-  # the package is also uploaded to the GitHub release as an asset.
-  package-deploy:
+  # on a GitHub release, build the pip package and upload it as a GitHub release asset
+  package:
     needs: test
 
     runs-on: ubuntu-18.04
@@ -151,7 +149,7 @@ jobs:
       - name: upload-build-artifact
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ env.PACKAGE_NAME }}
+          name: synapseclient
           path: dist/${{ env.PACKAGE_NAME }}
 
       # upload the artifact as an asset of the GitHub Release
@@ -165,10 +163,28 @@ jobs:
           asset_path: dist/${{ env.PACKAGE_NAME }}
           asset_content_type: application/gzip
 
+  # re-download the built package to the appropriate pypi server.
+  # we upload prereleases to test.pypi.org and releases to pypi.org.
+  deploy:
+    needs: package
+
+    runs-on: ubuntu-18.04
+
+    steps:
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: synapseclient
+          path: dist
+
       - name: deploy-to-pypi
         shell: bash
         run: |
-          python3 -m pip install twine==1.11.0
+          python3 -m pip install twine
 
           if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
             # production deploy to prod pypi server
@@ -202,7 +218,7 @@ jobs:
 
   # on each of our matrix platforms, download the newly uploaded package from pypi and confirm its version
   check-deploy:
-    needs: package-deploy
+    needs: deploy
 
     strategy:
       matrix:
