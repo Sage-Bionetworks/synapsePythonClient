@@ -135,7 +135,7 @@ jobs:
       - id: build-package
         shell: bash
         run: |
-          python3 -m pip install setuptools==38.6.0
+          python3 -m pip install setuptools
 
           # install synapseclient
           python3 setup.py install
