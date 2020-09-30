@@ -258,8 +258,11 @@ jobs:
               ACTUAL_VERSION=$(synapse --version)
 
               if [ -n "$(echo "$ACTUAL_VERSION" | grep -oF "$VERSION")" ]; then
-                # found the expected version
+                echo "Successfully installed version $VERSION"
                 exit 0
+              else
+                echo "Expected version $VERSION, found $ACTUAL_VERSION instead"
+                exit 1
               fi
             fi
 
