@@ -3569,15 +3569,13 @@ class Synapse(object):
         params = {}
         if is_versionable(entity):
             if versionLabel:
-                entity['versionLabel'] = str(versionLabel)
+                # a versionLabel implicitly implies incrementing
                 incrementVersion = True
-
-            elif incrementVersion:
-                if 'versionNumber' in entity:
-                    entity['versionNumber'] += 1
-                    entity['versionLabel'] = str(entity['versionNumber'])
+            elif incrementVersion and 'versionNumber' in entity:
+                versionLabel = str(entity['versionNumber'] + 1)
 
             if incrementVersion:
+                entity['versionLabel'] = versionLabel
                 params['newVersion'] = 'true'
 
         return self.restPUT(uri, body=json.dumps(get_properties(entity)), params=params)
