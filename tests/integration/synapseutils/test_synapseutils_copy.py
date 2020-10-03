@@ -1,5 +1,7 @@
 import uuid
 import time
+import string
+import random
 import re
 import json
 
@@ -312,12 +314,13 @@ class TestCopyWiki:
 class TestCopyFileHandles:
 
     @pytest.fixture(autouse=True)
-    def init(self, syn):
+    def init(self, syn, schedule_for_cleanup):
         self.syn = syn
 
         # create external file handles for https://www.synapse.org/images/logo.svg,
-        project = Project('My uniquely named project 121416')
+        project = Project(f"My uniquely named project {''.join(random.choice(string.digits) for i in range(10))}")
         project = self.syn.store(project)
+        schedule_for_cleanup(project)
 
         # create file entity from externalFileHandle
         external_file_handle_request_1 = {
