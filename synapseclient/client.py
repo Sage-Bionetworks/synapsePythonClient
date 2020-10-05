@@ -31,6 +31,7 @@ import collections
 import collections.abc
 import configparser
 import deprecated
+import errno
 import functools
 import getpass
 import hashlib
@@ -1719,6 +1720,15 @@ class Synapse(object):
             )
         return result
 
+    @staticmethod
+    def _is_retryable_download_error(ex):
+        # some exceptions caught during download indicate non-recoverable situations that
+        # will not be remedied by a repeated download attempt.
+        return not (
+            (isinstance(ex, OSError) and ex.errno == errno.ENOSPC) or   # out of disk space
+            isinstance(ex, SynapseMd5MismatchError)
+        )
+
     def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
         """
         Download a file from the given URL to the local file system.
@@ -1788,7 +1798,11 @@ class Synapse(object):
                                                               expected_md5=fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
+
             except Exception as ex:
+                if not self._is_retryable_download_error(ex):
+                    raise
+
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
                 self.logger.debug("\nRetrying download on error: [%s] after progressing %i bytes" %

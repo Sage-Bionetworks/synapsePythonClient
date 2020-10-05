@@ -1,6 +1,7 @@
 import base64
 import configparser
 import datetime
+import errno
 import json
 import os
 import requests
@@ -30,6 +31,7 @@ from synapseclient.core.exceptions import (
     SynapseError,
     SynapseFileNotFoundError,
     SynapseHTTPError,
+    SynapseMd5MismatchError,
     SynapseUnmetAccessRestrictions,
 )
 from synapseclient.core.upload import upload_functions
@@ -264,6 +266,47 @@ class TestDownloadFileHandle:
     @pytest.fixture(autouse=True, scope='function')
     def init_syn(self, syn):
         self.syn = syn
+
+    @patch.object(client, 'sts_transfer')
+    def test_download_file_handle__retry_error(self, mock_sts_transfer):
+        mock_sts_transfer.is_boto_sts_transfer_enabled.return_value = False
+
+        file_handle_id = 1234
+        syn_id = 'syn123'
+
+        disk_space_error = OSError()
+        disk_space_error.errno = errno.ENOSPC
+
+        retries = 5
+        for (ex, expected_attempts) in [
+            (SynapseMd5MismatchError('error'), 1),
+            (disk_space_error, 1),
+            (ValueError('foo'), retries),
+        ]:
+            with patch.object(self.syn, '_getFileHandleDownload') as mock_get_file_handle_download, \
+                    patch.object(self.syn, '_download_from_URL') as mock_download_from_URL:
+
+                mock_get_file_handle_download.return_value = {
+                    'fileHandle': {
+                        'id': file_handle_id,
+                        'concreteType': concrete_types.S3_FILE_HANDLE,
+                        'contentSize': 1,
+                    },
+                    'preSignedURL': 'http://foo.com',
+                }
+
+                mock_download_from_URL.side_effect = ex
+
+                with pytest.raises(ex.__class__):
+                    self.syn._downloadFileHandle(
+                        file_handle_id,
+                        syn_id,
+                        objectType='FileEntity',
+                        destination='/tmp/foo',
+                        retries=retries,
+                    )
+
+                assert mock_download_from_URL.call_count == expected_attempts
 
     @patch.object(client, 'S3ClientWrapper')
     @patch.object(client, 'sts_transfer')
