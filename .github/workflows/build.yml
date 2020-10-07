@@ -1,0 +1,273 @@
+# GitHub Action workflow for testing, building, and releasing the Synapse Python Client.
+
+# - all pushes, releases, and pull requests  are tested against unit tests, and additionally
+#     integration tests if account configuration secrets are available.
+# - releases are additionally packaged, uploaded as build and release artifacts,
+#     and deployed to pypi servers (test.pypi.org for prereleases, and pypi.org for releases)
+#     Release tags must conform to our semver versioning, e.g. v1.2.3 in order to be packaged
+#     for pypi deployment.
+
+name: build
+
+on:
+  push:
+    # we test all pushed branches, but not tags.
+    # we only push tags with releases, and we handle releases explicitly
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+
+  pull_request:
+
+  release:
+    types:
+      - 'published'
+
+jobs:
+
+  # run unit (and integration tests if account secrets available) on our build matrix
+  test:
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, macos-10.15, windows-2019]
+        python: [3.6, 3.7, 3.8]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: install-py-dependencies
+        shell: bash
+        run: |
+          pip install -e ".[boto3,pandas,pysftp,tests]"
+
+          # ensure that numpy c extensions are installed on windows
+          # https://stackoverflow.com/a/59346525
+          if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
+            pip uninstall -y numpy
+            pip uninstall -y setuptools
+            pip install setuptools
+            pip install numpy
+          fi
+
+      - name: run-unit-tests
+        shell: bash
+        run: |
+          pytest -sv tests/unit
+
+      # run integration tests iff the decryption keys for the test configuration are available.
+      # they will not be available in pull requests from forks.
+      - name: run-integration-tests
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_key }}" ]; then
+            echo "No test configuration decryption keys available, skipping integration tests"
+
+          else
+            # host used in pysftp tests
+            mkdir -p ~/.ssh
+            ssh-keyscan -H ec2-18-209-45-78.compute-1.amazonaws.com >> ~/.ssh/known_hosts
+
+            # decrypt the encrypted test synapse configuration
+            openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
+            mv test.synapseConfig ~/.synapseConfig
+
+            pytest -sv tests/integration
+          fi
+
+  # on a GitHub release, build the pip package and upload it as a GitHub release asset
+  package:
+    needs: test
+
+    runs-on: ubuntu-18.04
+
+    if: github.event_name == 'release'
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      - name: set-release-env
+        shell: bash
+        run: |
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
+              if [[ -z "${BASH_REMATCH[2]}" ]]; then
+                echo "A test release tag should end with \"-rc\""
+                exit 1
+              fi
+
+              # for staging builds we append the build number so we have
+              # distinct version numbers between prod and test pypi.
+              VERSION="$VERSION.$GITHUB_RUN_NUMBER"
+            fi
+
+          else
+            echo "Unable to parse deployment version from $RELEASE_TAG"
+            exit 1
+          fi
+
+          echo ::set-env name=VERSION::$VERSION
+
+      # ensure that the version file in the package will have the correct version
+      # matching the name of the tag
+      - name: update-version
+        shell: bash
+        run: |
+          if [[ -n "$VERSION" ]]; then
+            sed "s|\"latestVersion\":.*$|\"latestVersion\":\"$VERSION\",|g" synapseclient/synapsePythonClient > temp
+            rm synapseclient/synapsePythonClient
+            mv temp synapseclient/synapsePythonClient
+          fi
+
+      - id: build-package
+        shell: bash
+        run: |
+          python3 -m pip install setuptools
+
+          # install synapseclient
+          python3 setup.py install
+
+          # create distribution
+          python3 setup.py sdist
+
+          echo ::set-env name=PACKAGE_NAME::"synapseclient-${{env.VERSION}}.tar.gz"
+
+      # upload the artifact to the GitHub Action
+      - name: upload-build-artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: synapseclient
+          path: dist/${{ env.PACKAGE_NAME }}
+
+      # upload the artifact as an asset of the GitHub Release
+      - name: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: https://uploads.github.com/repos/${{ github.event.repository.full_name }}/releases/${{ github.event.release.id }}/assets?name=${{ env.PACKAGE_NAME }}
+          asset_name: ${{ env.PACKAGE_NAME }}
+          asset_path: dist/${{ env.PACKAGE_NAME }}
+          asset_content_type: application/gzip
+
+  # re-download the built package to the appropriate pypi server.
+  # we upload prereleases to test.pypi.org and releases to pypi.org.
+  deploy:
+    needs: package
+
+    runs-on: ubuntu-18.04
+
+    steps:
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: synapseclient
+          path: dist
+
+      - name: deploy-to-pypi
+        shell: bash
+        run: |
+          python3 -m pip install twine
+
+          if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
+            # production deploy to prod pypi server
+
+            PYPI_NAME="pypi"
+            PYPI_URL="https://pypi.org"
+            PYPI_REPO="https://upload.pypi.org/legacy/"
+            PYPI_USERNAME="${{ secrets.PYPI_PROD_USERNAME }}"
+            PYPI_PASSWORD="${{ secrets.PYPI_PROD_PASSWORD }}"
+          else
+            # staging deploy to test pypi server
+
+            PYPI_NAME=testpypi
+            PYPI_URL="https://test.pypi.org"
+            PYPI_REPO=https://test.pypi.org/legacy/
+            PYPI_USERNAME="${{ secrets.PYPI_TEST_USERNAME }}"
+            PYPI_PASSWORD="${{ secrets.PYPI_TEST_PASSWORD }}"
+            PYPI_INDEX_URL="https://test.pypi.org/simple/"
+          fi
+
+          # create .pypirc file
+          echo "[distutils]" > ~/.pypirc
+          echo "index-servers=$PYPI_NAME" >> ~/.pypirc
+          echo >> ~/.pypirc
+          echo "[$PYPI_NAME]" >> ~/.pypirc
+          echo "repository: $PYPI_REPO" >> ~/.pypirc
+          echo "username:$PYPI_USERNAME" >> ~/.pypirc
+          echo "password:$PYPI_PASSWORD" >> ~/.pypirc
+
+          twine upload --repository $PYPI_NAME dist/*
+
+  # on each of our matrix platforms, download the newly uploaded package from pypi and confirm its version
+  check-deploy:
+    needs: deploy
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, macos-10.15, windows-2019]
+        python: [3.6, 3.7, 3.8]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: check-pypi
+        shell: bash
+        run: |
+          if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
+            PYPI_INDEX_URL="https://pypi.org/simple/"
+          else
+            PYPI_INDEX_URL="https://test.pypi.org/simple/"
+          fi
+
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
+              VERSION="$VERSION.$GITHUB_RUN_NUMBER"
+            fi
+          else
+            echo "Unrecognized release tag"
+            exit 1
+          fi
+
+          # it can take some time for the packages to become available in pypi after uploading
+          for i in 5 10 20 40; do
+            if pip3 install --index-url $PYPI_INDEX_URL --extra-index-url https://pypi.org/simple "synapseclient==$VERSION"; then
+              ACTUAL_VERSION=$(synapse --version)
+
+              if [ -n "$(echo "$ACTUAL_VERSION" | grep -oF "$VERSION")" ]; then
+                echo "Successfully installed version $VERSION"
+                exit 0
+              else
+                echo "Expected version $VERSION, found $ACTUAL_VERSION instead"
+                exit 1
+              fi
+            fi
+
+            sleep $i
+          done
+
+          echo "Failed to install expected version $VERSION"
+          exit 1
