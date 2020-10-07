@@ -3075,24 +3075,41 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
-    def create_snapshot(self, table, comment=None, label=None, activity=None):
+    def create_snapshot(self, table, comment=None, label=None, activity=None, wait=True):
         """Creates Table or EntityView snapshots
 
         :param table:  The schema of the Table, or its ID.
         :param comment:  Optional snapshot comment.
         :param label:  Optional snapshot label.
         :param activity:  Optional activity ID applied to snapshot version.
+        :param wait: True if this method should return the snapshot version after waiting for any necessary
+                        asynchronous table updates to complete. If False this method will return return
+                        as soon as any updates are initiated.
+        :return: the snapshot version number of wait=True, None if wait=False
         """
         ent = self.get(id_of(table), downloadFile=False)
         if isinstance(ent, EntityViewSchema):
-            self._async_table_update(table, create_snapshot=True,
-                                     comment=comment, label=label,
-                                     activity=activity)
+            result = self._async_table_update(
+                table,
+                create_snapshot=True,
+                comment=comment,
+                label=label,
+                activity=activity,
+                wait=wait,
+            )
         elif isinstance(ent, Schema):
-            self._create_table_snapshot(table, comment=comment, label=label,
-                                        activity=activity)
+            result = self._create_table_snapshot(
+                table,
+                comment=comment,
+                label=label,
+                activity=activity,
+            )
         else:
             raise ValueError("This function only accepts Synapse ids of Tables or EntityViews")
+
+        # for consistency we return nothing if wait=False since we can't
+        # supply the snapshot version on an async table update without waiting
+        return result['snapshotVersionNumber'] if wait else None
 
     def _create_table_snapshot(self, table, comment=None, label=None, activity=None):
         """Creates Table snapshot
@@ -3113,7 +3130,7 @@ class Synapse(object):
         return snapshot
 
     def _async_table_update(self, table, changes=[], create_snapshot=False,
-                            comment=None, label=None, activity=None):
+                            comment=None, label=None, activity=None, wait=True):
         """Creates entityview update, also creates snapshots
 
         :param table:  The schema of the EntityView or its ID.
@@ -3122,6 +3139,7 @@ class Synapse(object):
         :param comment:  Optional snapshot comment.
         :param label:  Optional snapshot label.
         :param activity:  Optional activity ID applied to snapshot version.
+        :param wait: True to wait for async table update to complete
 
         :return:  Snapshot Response
         """
@@ -3132,9 +3150,16 @@ class Synapse(object):
         table_update_body = {'changes': changes,
                              'createSnapshot': create_snapshot,
                              'snapshotOptions': new_snapshot}
-        snapshot = self.restPOST("/entity/{}/table/transaction/async/start".format(id_of(table)),
-                                 body=json.dumps(table_update_body))
-        return snapshot
+
+        uri = "/entity/{}/table/transaction/async".format(id_of(table))
+
+        if wait:
+            result = self._waitForAsync(uri, table_update_body)
+
+        else:
+            result = self.restPOST("{}/start".format(uri), body=json.dumps(table_update_body))
+
+        return result
 
     def getTableColumns(self, table):
         """
@@ -3274,15 +3299,7 @@ class Synapse(object):
         if updateEtag:
             uploadRequest["updateEtag"] = updateEtag
 
-        return self._POST_table_transaction(schema, uploadRequest)
-
-    def _POST_table_transaction(self, schema, transactionRequests):
-        request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
-                   'entityId': id_of(schema),
-                   'changes': transactionRequests if isinstance(transactionRequests, list) else [transactionRequests]}
-
-        uri = "/entity/{id}/table/transaction/async".format(id=id_of(schema))
-        response = self._waitForAsync(uri=uri, request=request)
+        response = self._async_table_update(schema, changes=[uploadRequest], wait=True)
         self._check_table_transaction_response(response)
 
         return response
