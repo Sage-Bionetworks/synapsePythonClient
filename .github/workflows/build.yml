@@ -119,7 +119,7 @@ jobs:
             exit 1
           fi
 
-          echo ::set-env name=VERSION::$VERSION
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       # ensure that the version file in the package will have the correct version
       # matching the name of the tag
@@ -143,7 +143,7 @@ jobs:
           # create distribution
           python3 setup.py sdist
 
-          echo ::set-env name=PACKAGE_NAME::"synapseclient-${{env.VERSION}}.tar.gz"
+          echo "PACKAGE_NAME=synapseclient-${{env.VERSION}}.tar.gz" >> $GITHUB_ENV
 
       # upload the artifact to the GitHub Action
       - name: upload-build-artifact
