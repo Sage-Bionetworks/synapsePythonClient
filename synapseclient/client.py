@@ -3080,7 +3080,7 @@ class Synapse(object):
                         wait: bool = True) -> int:
         """Creates Table or EntityView snapshots
 
-        :param table:  The schema of the Table, or its ID.
+        :param table:  The schema of the Table/View, or its ID.
         :param comment:  Optional snapshot comment.
         :param label:  Optional snapshot label.
         :param activity:  Optional activity ID applied to snapshot version.
@@ -3107,7 +3107,7 @@ class Synapse(object):
                 activity=activity,
             )
         else:
-            raise ValueError("This function only accepts Synapse ids of Tables or EntityViews")
+            raise ValueError("This function only accepts Synapse ids of Tables or Views")
 
         # for consistency we return nothing if wait=False since we can't
         # supply the snapshot version on an async table update without waiting
@@ -3136,7 +3136,7 @@ class Synapse(object):
                             changes: typing.List[dict] = [], create_snapshot: bool = False,
                             comment: str = None, label: str = None, activity: str = None,
                             wait: bool = True) -> dict:
-        """Creates entityview update, also creates snapshots
+        """Creates view updates and snapshots
 
         :param table:  The schema of the EntityView or its ID.
         :param changes: Array of Table changes

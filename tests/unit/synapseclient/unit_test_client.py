@@ -2223,7 +2223,7 @@ class TestTableSnapshot:
         # with patch.object(syn, 'get', return_value=wrong_type):
         #     syn.create_snapshot("syn1234")
         with patch.object(syn, 'get', return_value=wrong_type),\
-             pytest.raises(ValueError, match="This function only accepts Synapse ids of Tables or EntityViews"):
+             pytest.raises(ValueError, match="This function only accepts Synapse ids of Tables or Views"):
             syn.create_snapshot("syn1234")
 
 
