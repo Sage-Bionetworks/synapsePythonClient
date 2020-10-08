@@ -377,10 +377,11 @@ def test_synapse_error_msg():
             try:
                 raise ValueError('error 2') from ex1
             except ValueError as ex2:
-                expected = """
+                expected = \
+"""
 ValueError: error 2
   caused by NameError: error 1
     caused by NotImplementedError: root error
 
-"""
+"""  # noqa for outdenting
                 assert expected == utils._synapse_error_msg(ex2)
