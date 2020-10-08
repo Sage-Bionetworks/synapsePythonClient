@@ -1,7 +1,5 @@
 import uuid
 import time
-import string
-import random
 import re
 import json
 
@@ -318,7 +316,7 @@ class TestCopyFileHandles:
         self.syn = syn
 
         # create external file handles for https://www.synapse.org/images/logo.svg,
-        project = Project(f"My uniquely named project {''.join(random.choice(string.digits) for i in range(10))}")
+        project = Project(str(uuid.uuid4()))
         project = self.syn.store(project)
         schedule_for_cleanup(project)
 
