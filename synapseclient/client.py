@@ -3075,7 +3075,9 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
-    def create_snapshot(self, table, comment=None, label=None, activity=None, wait=True):
+    def create_snapshot(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
+                        comment: str = None, label: str = None, activity: str = None,
+                        wait: bool = True) -> int:
         """Creates Table or EntityView snapshots
 
         :param table:  The schema of the Table, or its ID.
@@ -3111,7 +3113,8 @@ class Synapse(object):
         # supply the snapshot version on an async table update without waiting
         return result['snapshotVersionNumber'] if wait else None
 
-    def _create_table_snapshot(self, table, comment=None, label=None, activity=None):
+    def _create_table_snapshot(self, table: typing.Union[Schema, str], comment: str = None,
+                               label: str = None, activity: str = None) -> dict:
         """Creates Table snapshot
 
         :param table:  The schema of the Table
@@ -3129,8 +3132,10 @@ class Synapse(object):
                                  body=json.dumps(new_body))
         return snapshot
 
-    def _async_table_update(self, table, changes=[], create_snapshot=False,
-                            comment=None, label=None, activity=None, wait=True):
+    def _async_table_update(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
+                            changes: typing.List[dict] = [], create_snapshot: bool = False,
+                            comment: str = None, label: str = None, activity: str = None,
+                            wait: bool = True) -> dict:
         """Creates entityview update, also creates snapshots
 
         :param table:  The schema of the EntityView or its ID.
