@@ -24,6 +24,7 @@ from synapseclient import (
     File,
     Folder,
     Team,
+    SubmissionViewSchema,
     Synapse,
 )
 from synapseclient.core.exceptions import (
@@ -2189,32 +2190,32 @@ class TestTableSnapshot:
 
     def test_create_snapshot_entityview(self, syn):
         """Create Entity View snapshot"""
-        entity_view = Mock(EntityViewSchema)
+        views = [Mock(EntityViewSchema), Mock(SubmissionViewSchema)]
+        for view in views:
+            snapshot_version = 3
+            with patch.object(syn, 'get', return_value=view) as get,\
+                    patch.object(syn, '_async_table_update',
+                                 return_value={'snapshotVersionNumber': snapshot_version}) as update:
+                result = syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2, wait=True)
+                get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
+                update.assert_called_once_with(
+                    "syn1234", create_snapshot=True,
+                    comment="foo", label="new_label",
+                    activity=2, wait=True,
+                )
+                assert snapshot_version == result
 
-        snapshot_version = 3
-        with patch.object(syn, 'get', return_value=entity_view) as get,\
-                patch.object(syn, '_async_table_update',
-                             return_value={'snapshotVersionNumber': snapshot_version}) as update:
-            result = syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2, wait=True)
-            get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
-            update.assert_called_once_with(
-                "syn1234", create_snapshot=True,
-                comment="foo", label="new_label",
-                activity=2, wait=True,
-            )
-            assert snapshot_version == result
-
-        with patch.object(syn, 'get', return_value=entity_view) as get, \
-                patch.object(syn, '_async_table_update',
-                             return_value={'token': 5}) as update:
-            result = syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2, wait=False)
-            get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
-            update.assert_called_once_with(
-                "syn1234", create_snapshot=True,
-                comment="foo", label="new_label",
-                activity=2, wait=False,
-            )
-            assert result is None
+            with patch.object(syn, 'get', return_value=view) as get, \
+                    patch.object(syn, '_async_table_update',
+                                 return_value={'token': 5}) as update:
+                result = syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2, wait=False)
+                get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
+                update.assert_called_once_with(
+                    "syn1234", create_snapshot=True,
+                    comment="foo", label="new_label",
+                    activity=2, wait=False,
+                )
+                assert result is None
 
     def test_create_snapshot_raiseerror(self, syn):
         """Raise error if entity view or table not passed in"""

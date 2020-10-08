@@ -58,7 +58,7 @@ from .entity import Entity, File, Folder, Versionable,\
     split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, EntityViewSchema
+from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, EntityViewSchema, SubmissionViewSchema
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions, utils
@@ -3088,7 +3088,7 @@ class Synapse(object):
         :return: the snapshot version number of wait=True, None if wait=False
         """
         ent = self.get(id_of(table), downloadFile=False)
-        if isinstance(ent, EntityViewSchema):
+        if isinstance(ent, (EntityViewSchema, SubmissionViewSchema)):
             result = self._async_table_update(
                 table,
                 create_snapshot=True,
