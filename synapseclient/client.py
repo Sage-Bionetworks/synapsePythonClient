@@ -3557,24 +3557,28 @@ class Synapse(object):
         Update an existing entity in Synapse.
 
         :param entity: A dictionary representing an Entity or a Synapse Entity object
+        :param incrementVersion: whether to increment the entity version (if Versionable)
+        :param versionLabel: a label for the entity version (if Versionable)
+
 
         :returns: A dictionary containing an Entity's properties
         """
 
         uri = '/entity/%s' % id_of(entity)
 
+        params = {}
         if is_versionable(entity):
-            if incrementVersion or versionLabel is not None:
-                uri += '/version'
-                if 'versionNumber' in entity:
-                    entity['versionNumber'] += 1
-                    if 'versionLabel' in entity:
-                        entity['versionLabel'] = str(entity['versionNumber'])
+            if versionLabel:
+                # a versionLabel implicitly implies incrementing
+                incrementVersion = True
+            elif incrementVersion and 'versionNumber' in entity:
+                versionLabel = str(entity['versionNumber'] + 1)
 
-        if versionLabel:
-            entity['versionLabel'] = str(versionLabel)
+            if incrementVersion:
+                entity['versionLabel'] = versionLabel
+                params['newVersion'] = 'true'
 
-        return self.restPUT(uri, body=json.dumps(get_properties(entity)))
+        return self.restPUT(uri, body=json.dumps(get_properties(entity)), params=params)
 
     def findEntityId(self, name, parent=None):
         """
