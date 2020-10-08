@@ -2098,82 +2098,132 @@ def test_get_submission_with_annotations(syn):
         assert evaluation_id == response["evaluationId"]
 
 
-def test__create_table_snapshot(syn):
-    """Testing creating table snapshots"""
-    snapshot = {'snapshotVersionNumber': 2}
-    with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
-        syn._create_table_snapshot("syn1234", comment="foo", label="new_label",
-                                   activity=2)
-        restpost.assert_called_once_with(
-            "/entity/syn1234/table/snapshot",
-            body='{"snapshotComment": "foo", "snapshotLabel": "new_label", '
-                 '"snapshotActivityId": 2}'
-        )
+class TestTableSnapshot:
 
+    def test__create_table_snapshot(self, syn):
+        """Testing creating table snapshots"""
+        snapshot = {'snapshotVersionNumber': 2}
+        with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
+            syn._create_table_snapshot("syn1234", comment="foo", label="new_label",
+                                       activity=2)
+            restpost.assert_called_once_with(
+                "/entity/syn1234/table/snapshot",
+                body='{"snapshotComment": "foo", "snapshotLabel": "new_label", '
+                     '"snapshotActivityId": 2}'
+            )
 
-def test__create_table_snapshot__no_params(syn):
-    """Testing creating table snapshots when no optional parameters are specified"""
-    snapshot = {'snapshotVersionNumber': 2}
-    with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
-        syn._create_table_snapshot("syn1234")
-        restpost.assert_called_once_with(
-            "/entity/syn1234/table/snapshot",
-            body='{}'
-        )
+    def test__create_table_snapshot__no_params(self, syn):
+        """Testing creating table snapshots when no optional parameters are specified"""
+        snapshot = {'snapshotVersionNumber': 2}
+        with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
+            syn._create_table_snapshot("syn1234")
+            restpost.assert_called_once_with(
+                "/entity/syn1234/table/snapshot",
+                body='{}'
+            )
 
+    def test__async_table_update(self, syn):
+        """Async table update"""
 
-def test__async_table_update(syn):
-    """Async table update"""
-    snapshot = {'snapshotVersionNumber': 2}
-    with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
-        syn._async_table_update("syn1234", create_snapshot=True,
-                                comment="foo", label="new_label",
-                                activity=2)
-        restpost.assert_called_once_with(
-            "/entity/syn1234/table/transaction/async/start",
-            body='{"changes": [], "createSnapshot": true, '
-                 '"snapshotOptions": {"snapshotComment": "foo", '
-                 '"snapshotLabel": "new_label", '
-                 '"snapshotActivityId": 2}}'
-        )
+        snapshot = {'snapshotVersionNumber': 2}
+        with patch.object(syn, '_waitForAsync', return_value=snapshot) as waitforasync:
+            result = syn._async_table_update(
+                "syn1234",
+                create_snapshot=True,
+                comment="foo",
+                label="new_label",
+                activity=2,
+                wait=True,
+            )
+            waitforasync.assert_called_once_with(
+                "/entity/syn1234/table/transaction/async",
+                {
+                    'changes': [],
+                    'createSnapshot': True,
+                    'snapshotOptions': {
+                        'snapshotComment': 'foo',
+                        'snapshotLabel': 'new_label',
+                        'snapshotActivityId': 2,
+                    }
+                }
+            )
+            assert snapshot == result
 
+        async_token = {'token': 2}
+        with patch.object(syn, 'restPOST', return_value=async_token) as restpost:
+            result = syn._async_table_update(
+                "syn1234",
+                create_snapshot=True,
+                comment="foo",
+                label="new_label",
+                activity=2,
+                wait=False,
+            )
+            restpost.assert_called_once_with(
+                "/entity/syn1234/table/transaction/async/start",
+                body='{"changes": [], "createSnapshot": true, '
+                     '"snapshotOptions": {"snapshotComment": "foo", '
+                     '"snapshotLabel": "new_label", '
+                     '"snapshotActivityId": 2}}'
+            )
+            assert async_token == result
 
-def test_create_snapshot_table(syn):
-    """Create Table snapshot"""
-    table = Mock(Schema)
-    with patch.object(syn, 'get', return_value=table) as get,\
-            patch.object(syn, '_create_table_snapshot') as create:
-        syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2)
-        get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
-        create.assert_called_once_with(
-            "syn1234",
-            comment="foo", label="new_label",
-            activity=2
-        )
+    def test_create_snapshot_table(self, syn):
+        """Create Table snapshot"""
+        table = Mock(Schema)
+        snapshot_version = 3
+        with patch.object(syn, 'get', return_value=table) as get,\
+                patch.object(syn, '_create_table_snapshot',
+                             return_value={'snapshotVersionNumber': snapshot_version}) as create:
+            result = syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2, wait=True)
+            get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
+            create.assert_called_once_with(
+                "syn1234",
+                comment="foo", label="new_label",
+                activity=2
+            )
+            assert result == snapshot_version
 
+            result = syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2, wait=False)
+            assert result is None
 
-def test_create_snapshot_entityview(syn):
-    """Create Entity View snapshot"""
-    entity_view = Mock(EntityViewSchema)
-    with patch.object(syn, 'get', return_value=entity_view) as get,\
-            patch.object(syn, '_async_table_update') as update:
-        syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2)
-        get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
-        update.assert_called_once_with(
-            "syn1234", create_snapshot=True,
-            comment="foo", label="new_label",
-            activity=2
-        )
+    def test_create_snapshot_entityview(self, syn):
+        """Create Entity View snapshot"""
+        entity_view = Mock(EntityViewSchema)
 
+        snapshot_version = 3
+        with patch.object(syn, 'get', return_value=entity_view) as get,\
+                patch.object(syn, '_async_table_update',
+                             return_value={'snapshotVersionNumber': snapshot_version}) as update:
+            result = syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2, wait=True)
+            get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
+            update.assert_called_once_with(
+                "syn1234", create_snapshot=True,
+                comment="foo", label="new_label",
+                activity=2, wait=True,
+            )
+            assert snapshot_version == result
 
-def test_create_snapshot_raiseerror(syn):
-    """Raise error if entity view or table not passed in"""
-    wrong_type = Mock()
-    # with patch.object(syn, 'get', return_value=wrong_type):
-    #     syn.create_snapshot("syn1234")
-    with patch.object(syn, 'get', return_value=wrong_type),\
-         pytest.raises(ValueError, match="This function only accepts Synapse ids of Tables or EntityViews"):
-        syn.create_snapshot("syn1234")
+        with patch.object(syn, 'get', return_value=entity_view) as get, \
+                patch.object(syn, '_async_table_update',
+                             return_value={'token': 5}) as update:
+            result = syn.create_snapshot("syn1234", comment="foo", label="new_label", activity=2, wait=False)
+            get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
+            update.assert_called_once_with(
+                "syn1234", create_snapshot=True,
+                comment="foo", label="new_label",
+                activity=2, wait=False,
+            )
+            assert result is None
+
+    def test_create_snapshot_raiseerror(self, syn):
+        """Raise error if entity view or table not passed in"""
+        wrong_type = Mock()
+        # with patch.object(syn, 'get', return_value=wrong_type):
+        #     syn.create_snapshot("syn1234")
+        with patch.object(syn, 'get', return_value=wrong_type),\
+             pytest.raises(ValueError, match="This function only accepts Synapse ids of Tables or EntityViews"):
+            syn.create_snapshot("syn1234")
 
 
 def test__get_annotation_view_columns(syn):
