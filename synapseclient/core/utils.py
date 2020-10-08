@@ -511,7 +511,20 @@ def _synapse_error_msg(ex):
     if isinstance(ex, str):
         return ex
 
-    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
+    # one line for the root exception and then an additional line per chained cause
+    error_str = ""
+    depth = 0
+    while ex:
+        error_str += \
+            '\n' + ("  " * depth) + ("caused by " if depth > 0 else "") + ex.__class__.__name__ + ': ' + str(ex)
+
+        ex = ex.__cause__
+        if ex:
+            depth += 1
+        else:
+            break
+
+    return error_str + '\n\n'
 
 
 def _limit_and_offset(uri, limit=None, offset=None):
