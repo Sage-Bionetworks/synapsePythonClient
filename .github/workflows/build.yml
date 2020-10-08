@@ -57,6 +57,11 @@ jobs:
             pip install numpy
           fi
 
+      - name: lint
+        shell: bash
+        run: |
+          flake8
+
       - name: run-unit-tests
         shell: bash
         run: |
