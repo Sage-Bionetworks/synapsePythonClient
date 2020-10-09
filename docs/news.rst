@@ -2,6 +2,36 @@
 Release Notes
 =============
 
+2.2.2 (2020-10-XX)
+==================
+
+Highlights
+----------
+
+- This version addresses an issue with downloads being retried unsuccessfully after encountering certain types of errors.
+- A `create_snapshot <index.html#synapseclient.Synapse.create_snapshot>`__ function is added for making table and view snapshots.
+
+Bug Fixes
+---------
+-  [`SYNPY-1096 <https://sagebionetworks.jira.com/browse/SYNPY-1096>`__] -
+   Fix link to Synapse on PyPI
+-  [`SYNPY-1097 <https://sagebionetworks.jira.com/browse/SYNPY-1097>`__] -
+   downloaded files are erased by CLI
+
+New Features
+------------
+
+-  [`SYNPY-1041 <https://sagebionetworks.jira.com/browse/SYNPY-1041>`__] -
+   Snapshot feature and programmatic clients
+
+Improvements
+------------
+
+-  [`SYNPY-1063 <https://sagebionetworks.jira.com/browse/SYNPY-1063>`__] -
+   Consolidate builds to GitHub Actions
+-  [`SYNPY-1099 <https://sagebionetworks.jira.com/browse/SYNPY-1099>`__] -
+   Replace usage of deprecated PUT /entity/{id}/version endpoint
+
 
 2.2.0 (2020-08-31)
 ==================

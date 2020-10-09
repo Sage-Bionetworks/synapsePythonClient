@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Release Notes &#8212; Synapse Python Client 2.2.0 documentation</title>
+    <title>Release Notes &#8212; Synapse Python Client 2.2.2 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -42,7 +42,7 @@
         <li class="right" >
           <a href="sftp.html" title="Using the Synapse Python Client with SFTP data storage"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.2 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Release Notes</a></li> 
       </ul>
     </div>  
@@ -54,10 +54,45 @@
             
   <div class="section" id="release-notes">
 <h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="id1">
-<h2>2.2.0 (2020-08-31)<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="xx">
+<h2>2.2.2 (2020-10-XX)<a class="headerlink" href="#xx" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="highlights">
 <h3>Highlights<a class="headerlink" href="#highlights" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>This version addresses an issue with downloads being retried unsuccessfully after encountering certain types of errors.</p></li>
+<li><p>A <a class="reference external" href="index.html#synapseclient.Synapse.create_snapshot">create_snapshot</a> function is added for making table and view snapshots.</p></li>
+</ul>
+</div>
+<div class="section" id="bug-fixes">
+<h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1096">SYNPY-1096</a>] -
+Fix link to Synapse on PyPI</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1097">SYNPY-1097</a>] -
+downloaded files are erased by CLI</p></li>
+</ul>
+</div>
+<div class="section" id="new-features">
+<h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1041">SYNPY-1041</a>] -
+Snapshot feature and programmatic clients</p></li>
+</ul>
+</div>
+<div class="section" id="improvements">
+<h3>Improvements<a class="headerlink" href="#improvements" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1063">SYNPY-1063</a>] -
+Consolidate builds to GitHub Actions</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1099">SYNPY-1099</a>] -
+Replace usage of deprecated PUT /entity/{id}/version endpoint</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="id1">
+<h2>2.2.0 (2020-08-31)<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id2">
+<h3>Highlights<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>Files that are part of
 <a class="reference external" href="https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse">syncFromSynapse</a>
@@ -69,15 +104,15 @@ transferred in in parallel threads rather than serially, substantially improving
 <li><p>Users can now pass their API key to <cite>synapse login</cite> in place of a password.</p></li>
 </ul>
 </div>
-<div class="section" id="bug-fixes">
-<h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id3">
+<h3>Bug Fixes<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1082">SYNPY-1082</a>] -
 Downloading entity linked to URL fails: module ‘urllib.parse’ has no attribute ‘urlretrieve’</p></li>
 </ul>
 </div>
-<div class="section" id="improvements">
-<h3>Improvements<a class="headerlink" href="#improvements" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id4">
+<h3>Improvements<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1072">SYNPY-1072</a>] -
 Improve throughput of multiple small file transfers</p></li>
@@ -105,10 +140,10 @@ Improve synapseclient installation instructions</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id2">
-<h2>2.1.1 (2020-07-10)<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="id3">
-<h3>Highlights<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id5">
+<h2>2.1.1 (2020-07-10)<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id6">
+<h3>Highlights<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h3>
 <ul>
 <li><p>This version includes a performance improvement for
 <a class="reference external" href="https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse">syncFromSynapse</a>
@@ -127,8 +162,8 @@ a set of submissions through table services.</p>
 </li>
 </ul>
 </div>
-<div class="section" id="id4">
-<h3>Bug Fixes<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id7">
+<h3>Bug Fixes<a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1075">SYNPY-1075</a>] -
 Error in Python test (submission annotations)</p></li>
@@ -136,8 +171,8 @@ Error in Python test (submission annotations)</p></li>
 Upgrade/fix Pandas dependency</p></li>
 </ul>
 </div>
-<div class="section" id="id5">
-<h3>Improvements<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id8">
+<h3>Improvements<a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1070">SYNPY-1070</a>] -
 Add support for submission views</p></li>
@@ -146,10 +181,10 @@ Improve syncFromSynapse performance for large folder structures synced to extern
 </ul>
 </div>
 </div>
-<div class="section" id="id6">
-<h2>2.1.0 (2020-06-16)<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="id7">
-<h3>Highlights<a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id9">
+<h2>2.1.0 (2020-06-16)<a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id10">
+<h3>Highlights<a class="headerlink" href="#id10" title="Permalink to this headline">¶</a></h3>
 <ul>
 <li><p>A <code class="code docutils literal notranslate"><span class="pre">max_threads</span></code> property of the Synapse object has been added to customize the number of concurrent threads
 that will be used during file transfers.</p>
@@ -192,8 +227,8 @@ retrieve the existing <code class="code docutils literal notranslate"><span clas
 </ul>
 <p>A full list of issues addressed in this release are below.</p>
 </div>
-<div class="section" id="id8">
-<h3>Bug Fixes<a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id11">
+<h3>Bug Fixes<a class="headerlink" href="#id11" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-913">SYNPY-913</a>] -
 Travis Build badge for develop branch is pointing to pull request</p></li>
@@ -205,8 +240,8 @@ different users storing same file to same folder results in 403</p></li>
 syn.getSubmissions fails due to new Annotation class in v2.1.0-rc</p></li>
 </ul>
 </div>
-<div class="section" id="id9">
-<h3>Improvements<a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id12">
+<h3>Improvements<a class="headerlink" href="#id12" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1029">SYNPY-1036</a>] -
 Make upload speeds comparable to those of the AWS S3 CLI</p></li>
@@ -214,19 +249,19 @@ Make upload speeds comparable to those of the AWS S3 CLI</p></li>
 Expose STS-related APIs</p></li>
 </ul>
 </div>
-<div class="section" id="id10">
-<h3>Tasks<a class="headerlink" href="#id10" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id13">
+<h3>Tasks<a class="headerlink" href="#id13" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1059">SYNPY-1059</a>] -
 Use collections.abc instead of collections</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id11">
-<h2>2.0.0 (2020-03-23)<a class="headerlink" href="#id11" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id14">
+<h2>2.0.0 (2020-03-23)<a class="headerlink" href="#id14" title="Permalink to this headline">¶</a></h2>
 <p><strong>Python 2 is no longer supported as of this release.</strong> This release requires Python 3.6+.</p>
-<div class="section" id="id12">
-<h3>Highlights:<a class="headerlink" href="#id12" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id15">
+<h3>Highlights:<a class="headerlink" href="#id15" title="Permalink to this headline">¶</a></h3>
 <ul>
 <li><p>Multi-threaded download of files from Synapse can be enabled by setting <code class="code docutils literal notranslate"><span class="pre">syn.multi_threaded</span></code> to <code class="code docutils literal notranslate"><span class="pre">True</span></code> on a
 <code class="code docutils literal notranslate"><span class="pre">synapseclient.Synapse</span></code> object. This will become the default implementation in the future,
@@ -268,8 +303,8 @@ cache.remove fails to return the file handles we removed</p></li>
 - Support new columnTypes defined in backend</p></li>
 </ul>
 </div>
-<div class="section" id="id13">
-<h3>Tasks<a class="headerlink" href="#id13" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id16">
+<h3>Tasks<a class="headerlink" href="#id16" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-999">SYNPY-999</a>] -
 Remove unsafe copy functions from client</p></li>
@@ -278,8 +313,8 @@ Remove unsafe copy functions from client</p></li>
 has DOWNLOAD access</p></li>
 </ul>
 </div>
-<div class="section" id="id14">
-<h3>Improvements<a class="headerlink" href="#id14" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id17">
+<h3>Improvements<a class="headerlink" href="#id17" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-389">SYNPY-389</a>] -
 submission of Docker repository</p></li>
@@ -301,10 +336,10 @@ Link on Synapse Python Client Documentation points back at itself</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id15">
-<h2>1.9.4 (2019-06-28)<a class="headerlink" href="#id15" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="id16">
-<h3>Bug Fixes<a class="headerlink" href="#id16" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id18">
+<h2>1.9.4 (2019-06-28)<a class="headerlink" href="#id18" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id19">
+<h3>Bug Fixes<a class="headerlink" href="#id19" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-881">SYNPY-881</a>] -
 Synu.copy fails when copying a file with READ permissions</p></li>
@@ -318,15 +353,15 @@ trying to create a project with name that already exists hangs</p></li>
 - Synu.copy shouldn’t copy any files with access restrictions</p></li>
 </ul>
 </div>
-<div class="section" id="new-features">
-<h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id20">
+<h3>New Features<a class="headerlink" href="#id20" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-851">SYNPY-851</a>] -
 invite user or list of users to a team</p></li>
 </ul>
 </div>
-<div class="section" id="id17">
-<h3>Improvements<a class="headerlink" href="#id17" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id21">
+<h3>Improvements<a class="headerlink" href="#id21" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-608">SYNPY-608</a>] -
 Add how to contribute md to github project</p></li>
@@ -344,10 +379,10 @@ allow forceVersion false for command line client</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id18">
-<h2>1.9.3 (2019-06-28)<a class="headerlink" href="#id18" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="id19">
-<h3>Bug Fixes<a class="headerlink" href="#id19" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id22">
+<h2>1.9.3 (2019-06-28)<a class="headerlink" href="#id22" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id23">
+<h3>Bug Fixes<a class="headerlink" href="#id23" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-993">SYNPY-993</a>] -
 Fix <cite>sendMessage</cite> function</p></li>
@@ -356,8 +391,8 @@ Fix unstable test</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id20">
-<h2>1.9.2 (2019-02-15)<a class="headerlink" href="#id20" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id24">
+<h2>1.9.2 (2019-02-15)<a class="headerlink" href="#id24" title="Permalink to this headline">¶</a></h2>
 <p>In version 1.9.2, we improved Views’ usability by exposing <cite>set_entity_types()</cite> function to change the entity types that will show up in a View:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
 <span class="kn">from</span> <span class="nn">synapseclient.table</span> <span class="kn">import</span> <span class="n">EntityViewType</span>
@@ -375,8 +410,8 @@ Fix unstable test</p></li>
 Expose a way to update entity types in a view using EntityViewType</p></li>
 </ul>
 </div>
-<div class="section" id="id21">
-<h3>Bug Fixes<a class="headerlink" href="#id21" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id25">
+<h3>Bug Fixes<a class="headerlink" href="#id25" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-855">SYNPY-855</a>] -
 Single thread uploading fails in Lambda python3.6 environment</p></li>
@@ -386,8 +421,8 @@ Store Wiki shows deprecation warning</p></li>
 Project View turned into File View after using syndccutils template</p></li>
 </ul>
 </div>
-<div class="section" id="id22">
-<h3>Tasks<a class="headerlink" href="#id22" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id26">
+<h3>Tasks<a class="headerlink" href="#id26" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-790">SYNPY-790</a>] -
 Pin to a fixed version of the request package</p></li>
@@ -395,8 +430,8 @@ Pin to a fixed version of the request package</p></li>
 Update Synapse logo in Python docs :)</p></li>
 </ul>
 </div>
-<div class="section" id="id23">
-<h3>Improvements<a class="headerlink" href="#id23" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id27">
+<h3>Improvements<a class="headerlink" href="#id27" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-783">SYNPY-783</a>] -
 typos in comments and in stdout</p></li>
@@ -409,15 +444,15 @@ Missing columnTypes in Column docstring</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id24">
-<h2>1.9.1 (2019-01-20)<a class="headerlink" href="#id24" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id28">
+<h2>1.9.1 (2019-01-20)<a class="headerlink" href="#id28" title="Permalink to this headline">¶</a></h2>
 <p>In version 1.9.1, we fix various bugs and added two new features:</p>
 <ul class="simple">
 <li><p>Python 3.7 is supported.</p></li>
 <li><p>Deprecation warnings are visible by default.</p></li>
 </ul>
-<div class="section" id="id25">
-<h3>Features<a class="headerlink" href="#id25" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id29">
+<h3>Features<a class="headerlink" href="#id29" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-802">SYNPY-802</a>] -
 Support Python 3.7</p></li>
@@ -425,8 +460,8 @@ Support Python 3.7</p></li>
 Add deprecation warning that isn’t filtered by Python</p></li>
 </ul>
 </div>
-<div class="section" id="id26">
-<h3>Bug Fixes<a class="headerlink" href="#id26" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id30">
+<h3>Bug Fixes<a class="headerlink" href="#id30" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-454">SYNPY-454</a>] -
 Some integration tests do not clean up after themselves</p></li>
@@ -449,8 +484,8 @@ queries</p></li>
 error if password stored in config file contains a ‘%’</p></li>
 </ul>
 </div>
-<div class="section" id="id27">
-<h3>Tasks<a class="headerlink" href="#id27" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id31">
+<h3>Tasks<a class="headerlink" href="#id31" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-491">SYNPY-491</a>] -
 Figure out custom release note fitlers</p></li>
@@ -472,8 +507,8 @@ Update Synapse logo in Python docs :)</p></li>
 consolidate integration testing to platform dev account</p></li>
 </ul>
 </div>
-<div class="section" id="id28">
-<h3>Improvements<a class="headerlink" href="#id28" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id32">
+<h3>Improvements<a class="headerlink" href="#id32" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-473">SYNPY-473</a>] -
 Change syn.list to no longer use deprecated function chunkedQuery</p></li>
@@ -504,8 +539,8 @@ Submitting to an evaluation queue can’t accept team as int</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id29">
-<h2>1.9.0 (2018-09-28)<a class="headerlink" href="#id29" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id33">
+<h2>1.9.0 (2018-09-28)<a class="headerlink" href="#id33" title="Permalink to this headline">¶</a></h2>
 <p>In version 1.9.0, we deprecated and removed <cite>query()</cite> and <cite>chunkedQuery()</cite>. These functions used the old query services which does not perform well. To query for entities filter by annotations, please use <cite>EntityViewSchema</cite>.</p>
 <p>We also deprecated the following functions and will remove them in Synapse Python client version 2.0.
 In the <cite>Activity</cite> object:</p>
@@ -527,14 +562,14 @@ In the <cite>Activity</cite> object:</p>
 <li><p><cite>downloadTableFile()</cite></p></li>
 </ul>
 <p>Please see our documentation for more details on how to migrate your code away from these functions.</p>
-<div class="section" id="id30">
-<h3>Features<a class="headerlink" href="#id30" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id34">
+<h3>Features<a class="headerlink" href="#id34" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-806">SYNPY-806</a> - Support Folders and Tables in View</p></li>
 </ul>
 </div>
-<div class="section" id="id31">
-<h3>Bug Fixes<a class="headerlink" href="#id31" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id35">
+<h3>Bug Fixes<a class="headerlink" href="#id35" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-195">SYNPY-195</a> - Dangerous exception handling</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-261">SYNPY-261</a> - error downloading data from synapse (python client)</p></li>
@@ -543,16 +578,16 @@ In the <cite>Activity</cite> object:</p>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-819">SYNPY-819</a> - command-line clients need to be updated to replace the EntityView ‘viewType’ with ‘viewTypeMask’</p></li>
 </ul>
 </div>
-<div class="section" id="id32">
-<h3>Tasks<a class="headerlink" href="#id32" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id36">
+<h3>Tasks<a class="headerlink" href="#id36" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-759">SYNPY-759</a> - Look for all functions that are documented as “Deprecated” and apply the deprecation syntax</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-812">SYNPY-812</a> - Add Github issue template</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-824">SYNPY-824</a> - Remove the deprecated function query() and chunkedQuery()</p></li>
 </ul>
 </div>
-<div class="section" id="id33">
-<h3>Improvements<a class="headerlink" href="#id33" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id37">
+<h3>Improvements<a class="headerlink" href="#id37" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-583">SYNPY-583</a> - Better error message for create Link object</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-810">SYNPY-810</a> - simplify docs for deleting rows</p></li>
@@ -562,8 +597,8 @@ In the <cite>Activity</cite> object:</p>
 </ul>
 </div>
 </div>
-<div class="section" id="id34">
-<h2>1.8.2 (2018-08-17)<a class="headerlink" href="#id34" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id38">
+<h2>1.8.2 (2018-08-17)<a class="headerlink" href="#id38" title="Permalink to this headline">¶</a></h2>
 <p>In this release, we have been performed some house-keeping on the code base. The two major changes are:</p>
 <blockquote>
 <div><ul>
@@ -590,8 +625,8 @@ In the <cite>Activity</cite> object:</p>
 </li>
 </ul>
 </div></blockquote>
-<div class="section" id="id35">
-<h3>Bug Fixes<a class="headerlink" href="#id35" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id39">
+<h3>Bug Fixes<a class="headerlink" href="#id39" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-535">SYNPY-535</a> - Synapse Table update: Connection Reset</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-603">SYNPY-603</a> - Python client and synapser cannot handle table column type LINK</p></li>
@@ -605,42 +640,42 @@ In the <cite>Activity</cite> object:</p>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-795">SYNPY-795</a> - Not recognizable column in query result</p></li>
 </ul>
 </div>
-<div class="section" id="id36">
-<h3>Features<a class="headerlink" href="#id36" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id40">
+<h3>Features<a class="headerlink" href="#id40" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-582">SYNPY-582</a> - move file or folder in the client</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-788">SYNPY-788</a> - Add option to use syn.store() without exercising multithreads</p></li>
 </ul>
 </div>
-<div class="section" id="id37">
-<h3>Tasks<a class="headerlink" href="#id37" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id41">
+<h3>Tasks<a class="headerlink" href="#id41" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-729">SYNPY-729</a> - Deprecate query() and chunkedQuery()</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-797">SYNPY-797</a> - Check Python client code base on using PLFM object model</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-798">SYNPY-798</a> - Using github.io to host documentation</p></li>
 </ul>
 </div>
-<div class="section" id="id38">
-<h3>Improvements<a class="headerlink" href="#id38" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id42">
+<h3>Improvements<a class="headerlink" href="#id42" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-646">SYNPY-646</a> - Error output of synGet is non-informative</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-743">SYNPY-743</a> - lint the entire python client code base</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id39">
-<h2>1.8.1 (2018-05-17)<a class="headerlink" href="#id39" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id43">
+<h2>1.8.1 (2018-05-17)<a class="headerlink" href="#id43" title="Permalink to this headline">¶</a></h2>
 <p>This release is a hotfix for a bug.
 Please refer to 1.8.0 release notes for information about additional changes.</p>
-<div class="section" id="id40">
-<h3>Bug Fixes<a class="headerlink" href="#id40" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id44">
+<h3>Bug Fixes<a class="headerlink" href="#id44" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-706">SYNPY-706</a> - syn.username can cause attribute not found if user not logged in</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id41">
-<h2>1.8.0 (2018-05-07)<a class="headerlink" href="#id41" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id45">
+<h2>1.8.0 (2018-05-07)<a class="headerlink" href="#id45" title="Permalink to this headline">¶</a></h2>
 <p>This release has 2 major changes:</p>
 <ul class="simple">
 <li><p>The client will no longer store your saved credentials in your synapse cache (<cite>~/synapseCache/.session</cite>). The python client now relies on <a class="reference external" href="https://pypi.org/project/keyring/">keyring</a> to handle credential storage of your Synapse credentials.</p></li>
@@ -648,8 +683,8 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 </ul>
 <p>The remaining changes are bug fixes and cleanup of test code.</p>
 <p>Below are the full list of issues addressed by this release:</p>
-<div class="section" id="id42">
-<h3>Bug Fixes<a class="headerlink" href="#id42" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id46">
+<h3>Bug Fixes<a class="headerlink" href="#id46" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-654">SYNPY-654</a> - syn.getColumns does not terminate</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-658">SYNPY-658</a> - Security vunerability on clusters</p></li>
@@ -658,28 +693,28 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-693">SYNPY-693</a> - synapseutils.sync.generateManifest() UnicodeEncodingError in python 2</p></li>
 </ul>
 </div>
-<div class="section" id="id43">
-<h3>Tasks<a class="headerlink" href="#id43" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id47">
+<h3>Tasks<a class="headerlink" href="#id47" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-617">SYNPY-617</a> - Remove use of deprecated service to delete table rows</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-673">SYNPY-673</a> - Fix Integration Tests being run on Appveyor</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-683">SYNPY-683</a> - Clean up print()s used in unit/integration tests</p></li>
 </ul>
 </div>
-<div class="section" id="id44">
-<h3>Improvements<a class="headerlink" href="#id44" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id48">
+<h3>Improvements<a class="headerlink" href="#id48" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-408">SYNPY-408</a> - Add bettter error messages when /filehandle/batch fails.</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-647">SYNPY-647</a> - Use connection pooling for Python client’s requests</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id45">
-<h2>1.7.5 (2018-01-31)<a class="headerlink" href="#id45" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id49">
+<h2>1.7.5 (2018-01-31)<a class="headerlink" href="#id49" title="Permalink to this headline">¶</a></h2>
 <p>v1.7.4 release was broken for new users that installed from pip. v1.7.5 has the same changes as v1.7.4 but fixes the pip installation.</p>
 </div>
-<div class="section" id="id46">
-<h2>1.7.4 (2018-01-29)<a class="headerlink" href="#id46" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id50">
+<h2>1.7.4 (2018-01-29)<a class="headerlink" href="#id50" title="Permalink to this headline">¶</a></h2>
 <dl class="simple">
 <dt>This release mostly includes bugfixes and improvements for various Table classes:</dt><dd><ul class="simple">
 <li><p>Fixed bug where you couldn’t store a table converted to a <cite>pandas.Dataframe</cite> if it had a INTEGER column with some missing values.</p></li>
@@ -694,15 +729,15 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 </dd>
 </dl>
 <p>Below are the full list of issues addressed by this release:</p>
-<div class="section" id="id47">
-<h3>Features<a class="headerlink" href="#id47" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id51">
+<h3>Features<a class="headerlink" href="#id51" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-506">SYNPY-506</a> - need convenience function for /entity/child</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-517">SYNPY-517</a> - sync command line</p></li>
 </ul>
 </div>
-<div class="section" id="id48">
-<h3>Improvements<a class="headerlink" href="#id48" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id52">
+<h3>Improvements<a class="headerlink" href="#id52" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-267">SYNPY-267</a> - Update Synapse tables for integer types</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-304">SYNPY-304</a> - Table objects should implement len()</p></li>
@@ -715,8 +750,8 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-539">SYNPY-539</a> - When creating table Schemas, enforce a limit on the number of columns that can be created.</p></li>
 </ul>
 </div>
-<div class="section" id="id49">
-<h3>Bug Fixes<a class="headerlink" href="#id49" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id53">
+<h3>Bug Fixes<a class="headerlink" href="#id53" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-235">SYNPY-235</a> - can’t print Row objects with dates in them</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-272">SYNPY-272</a> - bug syn.storing rowsets containing Python datetime objects</p></li>
@@ -733,16 +768,16 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-605">SYNPY-605</a> - Update documentation for getUserProfile to include information about refreshing and memoization</p></li>
 </ul>
 </div>
-<div class="section" id="id50">
-<h3>Tasks<a class="headerlink" href="#id50" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id54">
+<h3>Tasks<a class="headerlink" href="#id54" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-451">SYNPY-451</a> - Add limit and offset for accessApproval and accessRequirement API calls and remove 0x400 flag default when calling GET /entity/{id}/bundle</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-546">SYNPY-546</a> - Change warning message when user does not DOWNLOAD permissions.</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="id51">
-<h2>1.7.3 (2017-12-08)<a class="headerlink" href="#id51" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id55">
+<h2>1.7.3 (2017-12-08)<a class="headerlink" href="#id55" title="Permalink to this headline">¶</a></h2>
 <p>Release 1.7.3 introduces fixes and quality of life changes to Tables and synapseutils:</p>
 <ul>
 <li><p>Changes to Tables:</p>
@@ -764,8 +799,8 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 </ul>
 <p>We also added improved debug logging and use Python’s builtin <cite>logging</cite> module instead of printing directly to <cite>sys.stderr</cite></p>
 <p>Below are the full list of issues addressed by this release:</p>
-<div class="section" id="id52">
-<h3>Bug Fixes<a class="headerlink" href="#id52" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id56">
+<h3>Bug Fixes<a class="headerlink" href="#id56" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-419">SYNPY-419</a> - support object store from client</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-499">SYNPY-499</a> - metadata manifest file name spelled wrong</p></li>
@@ -776,8 +811,8 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-572">SYNPY-572</a> - Users should only be prompted for updates if the first or second part of the version number is changed.</p></li>
 </ul>
 </div>
-<div class="section" id="id53">
-<h3>Features<a class="headerlink" href="#id53" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id57">
+<h3>Features<a class="headerlink" href="#id57" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-450">SYNPY-450</a> - Create convenience functions for synapse project settings</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-517">SYNPY-517</a> - sync command line</p></li>
@@ -786,14 +821,14 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-577">SYNPY-577</a> - Expose new view etags in command line clients</p></li>
 </ul>
 </div>
-<div class="section" id="id55">
-<h3>Tasks<a class="headerlink" href="#id55" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id59">
+<h3>Tasks<a class="headerlink" href="#id59" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-569">SYNPY-569</a> - ‘includeEntityEtag’ should be True for Async table csv query downloads</p></li>
 </ul>
 </div>
-<div class="section" id="id56">
-<h3>Improvements<a class="headerlink" href="#id56" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id60">
+<h3>Improvements<a class="headerlink" href="#id60" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-304">SYNPY-304</a> - Table objects should implement len()</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-511">SYNPY-511</a> - improve exception handling</p></li>
@@ -803,8 +838,8 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 </ul>
 </div>
 </div>
-<div class="section" id="id59">
-<h2>1.7.1 (2017-11-17)<a class="headerlink" href="#id59" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id63">
+<h2>1.7.1 (2017-11-17)<a class="headerlink" href="#id63" title="Permalink to this headline">¶</a></h2>
 <p>Release 1.7 is a large bugfix release with several new features. The main ones include:</p>
 <ul>
 <li><p>We have expanded the <a class="reference external" href="python-docs.synapse.org/build/html/synapseutils.html#module-synapseutils">synapseutils packages</a> to add the ability to:</p>
@@ -828,8 +863,8 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 </ul>
 <p>We also added a optional <cite>convert_to_datetime</cite> parameter to <cite>CsvFileTable.asDataFrame()</cite> that will automatically convert Synapse DATE columns into <cite>datetime</cite> objects instead of leaving them as <cite>long</cite> unix timestamps</p>
 <p>Below are the full list of bugs and issues addressed by this release:</p>
-<div class="section" id="id60">
-<h3>Features<a class="headerlink" href="#id60" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id64">
+<h3>Features<a class="headerlink" href="#id64" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-53">SYNPY-53</a> - support syn.get of external FTP links in py client</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-179">SYNPY-179</a> - Upload to user owned S3 bucket</p></li>
@@ -842,8 +877,8 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-442">SYNPY-442</a> - set config file path on command line</p></li>
 </ul>
 </div>
-<div class="section" id="id61">
-<h3>Improvements<a class="headerlink" href="#id61" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id65">
+<h3>Improvements<a class="headerlink" href="#id65" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-407">SYNPY-407</a> - support LARGETEXT in tables</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-360">SYNPY-360</a> - Duplicate file handles are removed from BulkFileDownloadRequest</p></li>
@@ -861,8 +896,8 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-475">SYNPY-475</a> - Store Tables timeout error</p></li>
 </ul>
 </div>
-<div class="section" id="id62">
-<h3>Bug Fixes<a class="headerlink" href="#id62" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id66">
+<h3>Bug Fixes<a class="headerlink" href="#id66" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-190">SYNPY-190</a> - syn.login(‘asdfasdfasdf’) should fail</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-344">SYNPY-344</a> - weird cache directories</p></li>
@@ -892,8 +927,8 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-464">SYNPY-464</a> - synapse get syn4988808 KeyError: u’preSignedURL’</p></li>
 </ul>
 </div>
-<div class="section" id="id63">
-<h3>Tasks<a class="headerlink" href="#id63" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id67">
+<h3>Tasks<a class="headerlink" href="#id67" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-422">SYNPY-422</a> - reduce default page size for GET /evaluation/{evalId}/submission/bundle/all</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-437">SYNPY-437</a> - Remove tests for access restrictions on evaluations</p></li>
@@ -901,8 +936,8 @@ Please refer to 1.8.0 release notes for information about additional changes.</p
 </ul>
 </div>
 </div>
-<div class="section" id="id64">
-<h2>1.6.1 (2016-11-02)<a class="headerlink" href="#id64" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id68">
+<h2>1.6.1 (2016-11-02)<a class="headerlink" href="#id68" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="what-is-new">
 <h3>What is New<a class="headerlink" href="#what-is-new" title="Permalink to this headline">¶</a></h3>
 <p>In version 1.6 we introduce a new sub-module _synapseutils_ that
@@ -916,8 +951,8 @@ provide convenience functions for more complicated operations in Synapse such as
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-371">SYNPY-371</a>  - Support paths in syn.onweb</p></li>
 </ul>
 </div>
-<div class="section" id="id65">
-<h3>Improvements<a class="headerlink" href="#id65" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id69">
+<h3>Improvements<a class="headerlink" href="#id69" title="Permalink to this headline">¶</a></h3>
 <p>We have improved download robustness and error checking, along with extensive recovery on failed operations. This includes the ability for the client to pause operation when Synapse is updated.</p>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-270">SYNPY-270</a>  - Synapse READ ONLY mode should cause pause in execution</p></li>
@@ -931,8 +966,8 @@ provide convenience functions for more complicated operations in Synapse such as
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-390">SYNPY-390</a>  - Move recursive download to Python client utils</p></li>
 </ul>
 </div>
-<div class="section" id="id66">
-<h3>Bug Fixes<a class="headerlink" href="#id66" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id70">
+<h3>Bug Fixes<a class="headerlink" href="#id70" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-154">SYNPY-154</a>  - 500 Server Error when storing new version of file from command line</p></li>
 <li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-168">SYNPY-168</a>  - Failure on login gives an ugly error message</p></li>
@@ -980,107 +1015,114 @@ provide convenience functions for more complicated operations in Synapse such as
   <h3><a href="index.html">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Release Notes</a><ul>
-<li><a class="reference internal" href="#id1">2.2.0 (2020-08-31)</a><ul>
+<li><a class="reference internal" href="#xx">2.2.2 (2020-10-XX)</a><ul>
 <li><a class="reference internal" href="#highlights">Highlights</a></li>
 <li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
+<li><a class="reference internal" href="#new-features">New Features</a></li>
 <li><a class="reference internal" href="#improvements">Improvements</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id1">2.2.0 (2020-08-31)</a><ul>
+<li><a class="reference internal" href="#id2">Highlights</a></li>
+<li><a class="reference internal" href="#id3">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id4">Improvements</a></li>
 <li><a class="reference internal" href="#tasks">Tasks</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id2">2.1.1 (2020-07-10)</a><ul>
-<li><a class="reference internal" href="#id3">Highlights</a></li>
-<li><a class="reference internal" href="#id4">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id5">Improvements</a></li>
+<li><a class="reference internal" href="#id5">2.1.1 (2020-07-10)</a><ul>
+<li><a class="reference internal" href="#id6">Highlights</a></li>
+<li><a class="reference internal" href="#id7">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id8">Improvements</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id6">2.1.0 (2020-06-16)</a><ul>
-<li><a class="reference internal" href="#id7">Highlights</a></li>
-<li><a class="reference internal" href="#id8">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id9">Improvements</a></li>
-<li><a class="reference internal" href="#id10">Tasks</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id11">2.0.0 (2020-03-23)</a><ul>
-<li><a class="reference internal" href="#id12">Highlights:</a></li>
-<li><a class="reference internal" href="#bugs-fixes">Bugs Fixes</a></li>
+<li><a class="reference internal" href="#id9">2.1.0 (2020-06-16)</a><ul>
+<li><a class="reference internal" href="#id10">Highlights</a></li>
+<li><a class="reference internal" href="#id11">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id12">Improvements</a></li>
 <li><a class="reference internal" href="#id13">Tasks</a></li>
-<li><a class="reference internal" href="#id14">Improvements</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id15">1.9.4 (2019-06-28)</a><ul>
-<li><a class="reference internal" href="#id16">Bug Fixes</a></li>
-<li><a class="reference internal" href="#new-features">New Features</a></li>
+<li><a class="reference internal" href="#id14">2.0.0 (2020-03-23)</a><ul>
+<li><a class="reference internal" href="#id15">Highlights:</a></li>
+<li><a class="reference internal" href="#bugs-fixes">Bugs Fixes</a></li>
+<li><a class="reference internal" href="#id16">Tasks</a></li>
 <li><a class="reference internal" href="#id17">Improvements</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id18">1.9.3 (2019-06-28)</a><ul>
+<li><a class="reference internal" href="#id18">1.9.4 (2019-06-28)</a><ul>
 <li><a class="reference internal" href="#id19">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id20">New Features</a></li>
+<li><a class="reference internal" href="#id21">Improvements</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id20">1.9.2 (2019-02-15)</a><ul>
+<li><a class="reference internal" href="#id22">1.9.3 (2019-06-28)</a><ul>
+<li><a class="reference internal" href="#id23">Bug Fixes</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id24">1.9.2 (2019-02-15)</a><ul>
 <li><a class="reference internal" href="#features">Features</a></li>
-<li><a class="reference internal" href="#id21">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id22">Tasks</a></li>
-<li><a class="reference internal" href="#id23">Improvements</a></li>
+<li><a class="reference internal" href="#id25">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id26">Tasks</a></li>
+<li><a class="reference internal" href="#id27">Improvements</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id24">1.9.1 (2019-01-20)</a><ul>
-<li><a class="reference internal" href="#id25">Features</a></li>
-<li><a class="reference internal" href="#id26">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id27">Tasks</a></li>
-<li><a class="reference internal" href="#id28">Improvements</a></li>
+<li><a class="reference internal" href="#id28">1.9.1 (2019-01-20)</a><ul>
+<li><a class="reference internal" href="#id29">Features</a></li>
+<li><a class="reference internal" href="#id30">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id31">Tasks</a></li>
+<li><a class="reference internal" href="#id32">Improvements</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id29">1.9.0 (2018-09-28)</a><ul>
-<li><a class="reference internal" href="#id30">Features</a></li>
-<li><a class="reference internal" href="#id31">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id32">Tasks</a></li>
-<li><a class="reference internal" href="#id33">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id34">1.8.2 (2018-08-17)</a><ul>
+<li><a class="reference internal" href="#id33">1.9.0 (2018-09-28)</a><ul>
+<li><a class="reference internal" href="#id34">Features</a></li>
 <li><a class="reference internal" href="#id35">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id36">Features</a></li>
-<li><a class="reference internal" href="#id37">Tasks</a></li>
-<li><a class="reference internal" href="#id38">Improvements</a></li>
+<li><a class="reference internal" href="#id36">Tasks</a></li>
+<li><a class="reference internal" href="#id37">Improvements</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id39">1.8.1 (2018-05-17)</a><ul>
-<li><a class="reference internal" href="#id40">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id38">1.8.2 (2018-08-17)</a><ul>
+<li><a class="reference internal" href="#id39">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id40">Features</a></li>
+<li><a class="reference internal" href="#id41">Tasks</a></li>
+<li><a class="reference internal" href="#id42">Improvements</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id41">1.8.0 (2018-05-07)</a><ul>
-<li><a class="reference internal" href="#id42">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id43">Tasks</a></li>
-<li><a class="reference internal" href="#id44">Improvements</a></li>
+<li><a class="reference internal" href="#id43">1.8.1 (2018-05-17)</a><ul>
+<li><a class="reference internal" href="#id44">Bug Fixes</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id45">1.7.5 (2018-01-31)</a></li>
-<li><a class="reference internal" href="#id46">1.7.4 (2018-01-29)</a><ul>
-<li><a class="reference internal" href="#id47">Features</a></li>
+<li><a class="reference internal" href="#id45">1.8.0 (2018-05-07)</a><ul>
+<li><a class="reference internal" href="#id46">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id47">Tasks</a></li>
 <li><a class="reference internal" href="#id48">Improvements</a></li>
-<li><a class="reference internal" href="#id49">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id50">Tasks</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id51">1.7.3 (2017-12-08)</a><ul>
-<li><a class="reference internal" href="#id52">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id53">Features</a></li>
-<li><a class="reference internal" href="#id55">Tasks</a></li>
-<li><a class="reference internal" href="#id56">Improvements</a></li>
+<li><a class="reference internal" href="#id49">1.7.5 (2018-01-31)</a></li>
+<li><a class="reference internal" href="#id50">1.7.4 (2018-01-29)</a><ul>
+<li><a class="reference internal" href="#id51">Features</a></li>
+<li><a class="reference internal" href="#id52">Improvements</a></li>
+<li><a class="reference internal" href="#id53">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id54">Tasks</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id59">1.7.1 (2017-11-17)</a><ul>
-<li><a class="reference internal" href="#id60">Features</a></li>
-<li><a class="reference internal" href="#id61">Improvements</a></li>
-<li><a class="reference internal" href="#id62">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id63">Tasks</a></li>
+<li><a class="reference internal" href="#id55">1.7.3 (2017-12-08)</a><ul>
+<li><a class="reference internal" href="#id56">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id57">Features</a></li>
+<li><a class="reference internal" href="#id59">Tasks</a></li>
+<li><a class="reference internal" href="#id60">Improvements</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id64">1.6.1 (2016-11-02)</a><ul>
-<li><a class="reference internal" href="#what-is-new">What is New</a></li>
+<li><a class="reference internal" href="#id63">1.7.1 (2017-11-17)</a><ul>
+<li><a class="reference internal" href="#id64">Features</a></li>
 <li><a class="reference internal" href="#id65">Improvements</a></li>
 <li><a class="reference internal" href="#id66">Bug Fixes</a></li>
+<li><a class="reference internal" href="#id67">Tasks</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id68">1.6.1 (2016-11-02)</a><ul>
+<li><a class="reference internal" href="#what-is-new">What is New</a></li>
+<li><a class="reference internal" href="#id69">Improvements</a></li>
+<li><a class="reference internal" href="#id70">Bug Fixes</a></li>
 </ul>
 </li>
 </ul>
@@ -1113,13 +1155,13 @@ provide convenience functions for more complicated operations in Synapse such as
         <li class="right" >
           <a href="sftp.html" title="Using the Synapse Python Client with SFTP data storage"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.2 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Release Notes</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Aug 31, 2020.
+      Last updated on Oct 09, 2020.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">

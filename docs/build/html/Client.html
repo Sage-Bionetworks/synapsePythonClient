@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synapse Client &#8212; Synapse Python Client 2.2.0 documentation</title>
+    <title>Synapse Client &#8212; Synapse Python Client 2.2.2 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -46,7 +46,7 @@
         <li class="right" >
           <a href="S3Storage.html" title="S3 Storage Features"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.2 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>  
@@ -202,6 +202,28 @@ if None will use Synapse S3 storage</p></li>
 only applicable if bucket_name is passed</p></li>
 <li><p><strong>sts_enabled</strong> – Whether this storage location should be STS enabled</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.Synapse.create_snapshot">
+<code class="sig-name descname">create_snapshot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span><span class="p">:</span> <span class="n">Union<span class="p">[</span><a class="reference internal" href="Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema">synapseclient.table.EntityViewSchema</a><span class="p">, </span><a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema">synapseclient.table.Schema</a><span class="p">, </span>str<span class="p">, </span>synapseclient.table.SubmissionViewSchema<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">comment</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">label</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">activity</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">wait</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#synapseclient.Synapse.create_snapshot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates Table or EntityView snapshots</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>table</strong> – The schema of the Table/View, or its ID.</p></li>
+<li><p><strong>comment</strong> – Optional snapshot comment.</p></li>
+<li><p><strong>label</strong> – Optional snapshot label.</p></li>
+<li><p><strong>activity</strong> – Optional activity ID applied to snapshot version.</p></li>
+<li><p><strong>wait</strong> – True if this method should return the snapshot version after waiting for any necessary
+asynchronous table updates to complete. If False this method will return return
+as soon as any updates are initiated.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the snapshot version number of wait=True, None if wait=False</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1526,13 +1548,13 @@ calculated automatically.</p></li>
         <li class="right" >
           <a href="S3Storage.html" title="S3 Storage Features"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.2 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Aug 31, 2020.
+      Last updated on Oct 09, 2020.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">
