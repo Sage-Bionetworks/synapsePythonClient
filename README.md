@@ -1,13 +1,10 @@
 Python Synapse Client
 =====================
 
- CI | Branch  | Build Status
- ---|---------|-------------
-Travis | develop | [![Build Status develop branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
-Travis | master  | [![Build Status master branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=master)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
-AppVeyor | develop | [![AppVeyor branch](https://ci.appveyor.com/api/projects/status/gdq095nuitwm86il/branch/develop?svg=true)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
-AppVeyor | master  | [![AppVeyor branch](https://ci.appveyor.com/api/projects/status/gdq095nuitwm86il/branch/master?svg=true)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
-
+Branch  | Build Status
+--------|-------------
+develop | [![Build Status develop branch](https://github.com/Sage-Bionetworks/synapsePythonClient/workflows/build/badge.svg?branch=develop)](https://github.com/Sage-Bionetworks/synapsePythonClient/actions?query=branch%3Adevelop)
+master  | [![Build Status master branch](https://github.com/Sage-Bionetworks/synapsePythonClient/workflows/build/badge.svg?branch=master)](https://github.com/Sage-Bionetworks/synapsePythonClient/actions?query=branch%3Amaster)
 
 [![Get the synapseclient from PyPI](https://img.shields.io/pypi/v/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Supported Python Versions](https://img.shields.io/pypi/pyversions/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) 
 
