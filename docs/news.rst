@@ -9,7 +9,7 @@ Highlights
 ----------
 
 - This version addresses an issue with downloads being retried unsuccessfully after encountering certain types of errors.
-- A `create_snapshot <index.html#synapseclient.Synapse.create_snapshot>`__ function is added for making table and view snapshots.
+- A `create_snapshot_version <index.html#synapseclient.Synapse.create_snapshot_version>`__ function is added for making table and view snapshots.
 
 Bug Fixes
 ---------
