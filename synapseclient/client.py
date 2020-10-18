@@ -3089,10 +3089,10 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
-    def create_snapshot(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
-                        comment: str = None, label: str = None, activity: str = None,
-                        wait: bool = True) -> int:
-        """Creates Table or EntityView snapshots
+    def create_snapshot_version(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
+                                comment: str = None, label: str = None, activity: str = None,
+                                wait: bool = True) -> int:
+        """Create a new Table Version or a new View version.
 
         :param table:  The schema of the Table/View, or its ID.
         :param comment:  Optional snapshot comment.
@@ -3101,7 +3101,7 @@ class Synapse(object):
         :param wait: True if this method should return the snapshot version after waiting for any necessary
                         asynchronous table updates to complete. If False this method will return return
                         as soon as any updates are initiated.
-        :return: the snapshot version number of wait=True, None if wait=False
+        :return: the snapshot version number if wait=True, None if wait=False
         """
         ent = self.get(id_of(table), downloadFile=False)
         if isinstance(ent, (EntityViewSchema, SubmissionViewSchema)):
