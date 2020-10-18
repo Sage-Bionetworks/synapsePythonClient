@@ -16,7 +16,7 @@ Bug Fixes
 -  [`SYNPY-1096 <https://sagebionetworks.jira.com/browse/SYNPY-1096>`__] -
    Fix link to Synapse on PyPI
 -  [`SYNPY-1097 <https://sagebionetworks.jira.com/browse/SYNPY-1097>`__] -
-   downloaded files are erased by CLI
+   downloaded files are reset when disk space exhausted
 
 New Features
 ------------
