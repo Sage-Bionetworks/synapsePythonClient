@@ -312,12 +312,13 @@ class TestCopyWiki:
 class TestCopyFileHandles:
 
     @pytest.fixture(autouse=True)
-    def init(self, syn):
+    def init(self, syn, schedule_for_cleanup):
         self.syn = syn
 
         # create external file handles for https://www.synapse.org/images/logo.svg,
-        project = Project('My uniquely named project 121416')
+        project = Project(str(uuid.uuid4()))
         project = self.syn.store(project)
+        schedule_for_cleanup(project)
 
         # create file entity from externalFileHandle
         external_file_handle_request_1 = {

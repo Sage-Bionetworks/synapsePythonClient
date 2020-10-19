@@ -1036,7 +1036,8 @@ class AppendableRowset(DictObject, metaclass=abc.ABCMeta):
                                  'toAppend': self,
                                  'entityId': self.tableId}
 
-        response = syn._POST_table_transaction(self.tableId, append_rowset_request)
+        response = syn._async_table_update(self.tableId, [append_rowset_request], wait=True)
+        syn._check_table_transaction_response(response)
         return response['results'][0]
 
 

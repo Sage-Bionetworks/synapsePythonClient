@@ -1,6 +1,7 @@
 import base64
 import configparser
 import datetime
+import errno
 import json
 import os
 import requests
@@ -20,9 +21,11 @@ from synapseclient import (
     DockerRepository,
     Entity,
     EntityViewSchema,
+    Schema,
     File,
     Folder,
     Team,
+    SubmissionViewSchema,
     Synapse,
 )
 from synapseclient.core.exceptions import (
@@ -30,6 +33,7 @@ from synapseclient.core.exceptions import (
     SynapseError,
     SynapseFileNotFoundError,
     SynapseHTTPError,
+    SynapseMd5MismatchError,
     SynapseUnmetAccessRestrictions,
 )
 from synapseclient.core.upload import upload_functions
@@ -264,6 +268,47 @@ class TestDownloadFileHandle:
     @pytest.fixture(autouse=True, scope='function')
     def init_syn(self, syn):
         self.syn = syn
+
+    @patch.object(client, 'sts_transfer')
+    def test_download_file_handle__retry_error(self, mock_sts_transfer):
+        mock_sts_transfer.is_boto_sts_transfer_enabled.return_value = False
+
+        file_handle_id = 1234
+        syn_id = 'syn123'
+
+        disk_space_error = OSError()
+        disk_space_error.errno = errno.ENOSPC
+
+        retries = 5
+        for (ex, expected_attempts) in [
+            (SynapseMd5MismatchError('error'), 1),
+            (disk_space_error, 1),
+            (ValueError('foo'), retries),
+        ]:
+            with patch.object(self.syn, '_getFileHandleDownload') as mock_get_file_handle_download, \
+                    patch.object(self.syn, '_download_from_URL') as mock_download_from_URL:
+
+                mock_get_file_handle_download.return_value = {
+                    'fileHandle': {
+                        'id': file_handle_id,
+                        'concreteType': concrete_types.S3_FILE_HANDLE,
+                        'contentSize': 1,
+                    },
+                    'preSignedURL': 'http://foo.com',
+                }
+
+                mock_download_from_URL.side_effect = ex
+
+                with pytest.raises(ex.__class__):
+                    self.syn._downloadFileHandle(
+                        file_handle_id,
+                        syn_id,
+                        objectType='FileEntity',
+                        destination='/tmp/foo',
+                        retries=retries,
+                    )
+
+                assert mock_download_from_URL.call_count == expected_attempts
 
     @patch.object(client, 'S3ClientWrapper')
     @patch.object(client, 'sts_transfer')
@@ -1999,6 +2044,41 @@ def test_store__409_processed_as_update(syn):
         mock_findEntityId.assert_called_once_with(file_name, parent_id)
 
 
+def test_update_entity_version(syn):
+    """Confirm behavior of entity version incrementing/labeling when invoking syn._updateEntity"""
+    entity_id = 'syn123'
+    entity = File(id=entity_id, parent='syn123', properties={'foo': 'bar'})
+    expected_uri = f"/entity/{entity_id}"
+
+    with patch.object(syn, 'restPUT') as mock_rest_put:
+        # defaults to incrementVersion=True
+        syn._updateEntity(entity)
+        mock_rest_put.assert_called_with(
+            expected_uri,
+            body=json.dumps(utils.get_properties(entity)),
+            params={'newVersion': 'true'},
+        )
+
+        # explicitly do not increment
+        syn._updateEntity(entity, incrementVersion=False)
+        mock_rest_put.assert_called_with(
+            expected_uri,
+            body=json.dumps(utils.get_properties(entity)),
+            params={},
+        )
+
+        # custom versionLabel
+        versionLabel = 'foo'
+        expected_body_dict = utils.get_properties(entity).copy()
+        expected_body_dict['versionLabel'] = versionLabel
+        syn._updateEntity(entity, versionLabel=versionLabel)
+        mock_rest_put.assert_called_with(
+            expected_uri,
+            body=json.dumps(expected_body_dict),
+            params={'newVersion': 'true'},
+        )
+
+
 def test_store__existing_no_update(syn):
     """Test that we won't try processing a store as an update if there's an existing
     bundle if createOrUpdate is not specified."""
@@ -2094,8 +2174,145 @@ def test_get_submission_with_annotations(syn):
             entity=entity_id,
             submission=str(submission_id),
         )
-
         assert evaluation_id == response["evaluationId"]
+
+
+class TestTableSnapshot:
+
+    def test__create_table_snapshot(self, syn):
+        """Testing creating table snapshots"""
+        snapshot = {'snapshotVersionNumber': 2}
+        with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
+            syn._create_table_snapshot("syn1234", comment="foo", label="new_label",
+                                       activity=2)
+            restpost.assert_called_once_with(
+                "/entity/syn1234/table/snapshot",
+                body='{"snapshotComment": "foo", "snapshotLabel": "new_label", '
+                     '"snapshotActivityId": 2}'
+            )
+
+    def test__create_table_snapshot__no_params(self, syn):
+        """Testing creating table snapshots when no optional parameters are specified"""
+        snapshot = {'snapshotVersionNumber': 2}
+        with patch.object(syn, 'restPOST', return_value=snapshot) as restpost:
+            syn._create_table_snapshot("syn1234")
+            restpost.assert_called_once_with(
+                "/entity/syn1234/table/snapshot",
+                body='{}'
+            )
+
+    def test__async_table_update(self, syn):
+        """Async table update"""
+
+        snapshot = {'snapshotVersionNumber': 2}
+        with patch.object(syn, '_waitForAsync', return_value=snapshot) as waitforasync:
+            result = syn._async_table_update(
+                "syn1234",
+                create_snapshot=True,
+                comment="foo",
+                label="new_label",
+                activity=2,
+                wait=True,
+            )
+            waitforasync.assert_called_once_with(
+                "/entity/syn1234/table/transaction/async",
+                {
+                    'changes': [],
+                    'createSnapshot': True,
+                    'snapshotOptions': {
+                        'snapshotComment': 'foo',
+                        'snapshotLabel': 'new_label',
+                        'snapshotActivityId': 2,
+                    }
+                }
+            )
+            assert snapshot == result
+
+        async_token = {'token': 2}
+        with patch.object(syn, 'restPOST', return_value=async_token) as restpost:
+            result = syn._async_table_update(
+                "syn1234",
+                create_snapshot=True,
+                comment="foo",
+                label="new_label",
+                activity=2,
+                wait=False,
+            )
+            restpost.assert_called_once_with(
+                "/entity/syn1234/table/transaction/async/start",
+                body='{"changes": [], "createSnapshot": true, '
+                     '"snapshotOptions": {"snapshotComment": "foo", '
+                     '"snapshotLabel": "new_label", '
+                     '"snapshotActivityId": 2}}'
+            )
+            assert async_token == result
+
+    def test_create_snapshot_version_table(self, syn):
+        """Create Table snapshot"""
+        table = Mock(Schema)
+        snapshot_version = 3
+        with patch.object(syn, 'get', return_value=table) as get,\
+                patch.object(syn, '_create_table_snapshot',
+                             return_value={'snapshotVersionNumber': snapshot_version}) as create:
+            result = syn.create_snapshot_version("syn1234", comment="foo", label="new_label", activity=2, wait=True)
+            get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
+            create.assert_called_once_with(
+                "syn1234",
+                comment="foo", label="new_label",
+                activity=2
+            )
+            assert result == snapshot_version
+
+            result = syn.create_snapshot_version("syn1234", comment="foo", label="new_label", activity=2, wait=False)
+            assert result is None
+
+    def test_create_snapshot_version_entityview(self, syn):
+        """Create Entity View snapshot"""
+        views = [Mock(EntityViewSchema), Mock(SubmissionViewSchema)]
+        for view in views:
+            snapshot_version = 3
+            with patch.object(syn, 'get', return_value=view) as get,\
+                    patch.object(syn, '_async_table_update',
+                                 return_value={'snapshotVersionNumber': snapshot_version}) as update:
+                result = syn.create_snapshot_version(
+                    "syn1234",
+                    comment="foo",
+                    label="new_label",
+                    activity=2,
+                    wait=True,
+                )
+                get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
+                update.assert_called_once_with(
+                    "syn1234", create_snapshot=True,
+                    comment="foo", label="new_label",
+                    activity=2, wait=True,
+                )
+                assert snapshot_version == result
+
+            with patch.object(syn, 'get', return_value=view) as get, \
+                    patch.object(syn, '_async_table_update',
+                                 return_value={'token': 5}) as update:
+                result = syn.create_snapshot_version(
+                    "syn1234",
+                    comment="foo",
+                    label="new_label",
+                    activity=2,
+                    wait=False
+                )
+                get.assert_called_once_with(utils.id_of("syn1234"), downloadFile=False)
+                update.assert_called_once_with(
+                    "syn1234", create_snapshot=True,
+                    comment="foo", label="new_label",
+                    activity=2, wait=False,
+                )
+                assert result is None
+
+    def test_create_snapshot_version_raiseerror(self, syn):
+        """Raise error if entity view or table not passed in"""
+        wrong_type = Mock()
+        with patch.object(syn, 'get', return_value=wrong_type),\
+             pytest.raises(ValueError, match="This function only accepts Synapse ids of Tables or Views"):
+            syn.create_snapshot_version("syn1234")
 
 
 def test__get_annotation_view_columns(syn):

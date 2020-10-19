@@ -357,3 +357,31 @@ def test_deprecated_keyword_param():
         category=DeprecationWarning,
         stacklevel=2,
     )
+
+
+def test_synapse_error_msg():
+    """Test the output of utils._synapse_error_message"""
+
+    # single unchained exception
+    expected = "\nValueError: test error\n\n"
+    ex = ValueError("test error")
+    assert expected == utils._synapse_error_msg(ex)
+
+    # exception chain with multiple chained causes
+    try:
+        raise NotImplementedError('root error')
+    except NotImplementedError as ex0:
+        try:
+            raise NameError('error 1') from ex0
+        except NameError as ex1:
+            try:
+                raise ValueError('error 2') from ex1
+            except ValueError as ex2:
+                expected = \
+"""
+ValueError: error 2
+  caused by NameError: error 1
+    caused by NotImplementedError: root error
+
+"""  # noqa for outdenting
+                assert expected == utils._synapse_error_msg(ex2)

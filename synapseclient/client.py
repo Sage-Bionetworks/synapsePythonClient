@@ -31,6 +31,7 @@ import collections
 import collections.abc
 import configparser
 import deprecated
+import errno
 import functools
 import getpass
 import hashlib
@@ -58,7 +59,7 @@ from .entity import Entity, File, Folder, Versionable,\
     split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import SchemaBase, Column, TableQueryResult, CsvFileTable
+from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, EntityViewSchema, SubmissionViewSchema
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions, utils
@@ -1719,6 +1720,15 @@ class Synapse(object):
             )
         return result
 
+    @staticmethod
+    def _is_retryable_download_error(ex):
+        # some exceptions caught during download indicate non-recoverable situations that
+        # will not be remedied by a repeated download attempt.
+        return not (
+            (isinstance(ex, OSError) and ex.errno == errno.ENOSPC) or   # out of disk space
+            isinstance(ex, SynapseMd5MismatchError)
+        )
+
     def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
         """
         Download a file from the given URL to the local file system.
@@ -1788,7 +1798,11 @@ class Synapse(object):
                                                               expected_md5=fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
+
             except Exception as ex:
+                if not self._is_retryable_download_error(ex):
+                    raise
+
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
                 self.logger.debug("\nRetrying download on error: [%s] after progressing %i bytes" %
@@ -3075,6 +3089,97 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
+    def create_snapshot_version(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
+                                comment: str = None, label: str = None, activity: str = None,
+                                wait: bool = True) -> int:
+        """Create a new Table Version or a new View version.
+
+        :param table:  The schema of the Table/View, or its ID.
+        :param comment:  Optional snapshot comment.
+        :param label:  Optional snapshot label.
+        :param activity:  Optional activity ID applied to snapshot version.
+        :param wait: True if this method should return the snapshot version after waiting for any necessary
+                        asynchronous table updates to complete. If False this method will return return
+                        as soon as any updates are initiated.
+        :return: the snapshot version number if wait=True, None if wait=False
+        """
+        ent = self.get(id_of(table), downloadFile=False)
+        if isinstance(ent, (EntityViewSchema, SubmissionViewSchema)):
+            result = self._async_table_update(
+                table,
+                create_snapshot=True,
+                comment=comment,
+                label=label,
+                activity=activity,
+                wait=wait,
+            )
+        elif isinstance(ent, Schema):
+            result = self._create_table_snapshot(
+                table,
+                comment=comment,
+                label=label,
+                activity=activity,
+            )
+        else:
+            raise ValueError("This function only accepts Synapse ids of Tables or Views")
+
+        # for consistency we return nothing if wait=False since we can't
+        # supply the snapshot version on an async table update without waiting
+        return result['snapshotVersionNumber'] if wait else None
+
+    def _create_table_snapshot(self, table: typing.Union[Schema, str], comment: str = None,
+                               label: str = None, activity: str = None) -> dict:
+        """Creates Table snapshot
+
+        :param table:  The schema of the Table
+        :param comment:  Optional snapshot comment.
+        :param label:  Optional snapshot label.
+        :param activity:  Optional activity ID applied to snapshot version.
+
+        :return:  Snapshot Response
+        """
+        snapshot_body = {"snapshotComment": comment,
+                         "snapshotLabel": label,
+                         "snapshotActivityId": activity}
+        new_body = {key: value for key, value in snapshot_body.items() if value is not None}
+        snapshot = self.restPOST("/entity/{}/table/snapshot".format(id_of(table)),
+                                 body=json.dumps(new_body))
+        return snapshot
+
+    def _async_table_update(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
+                            changes: typing.List[dict] = [], create_snapshot: bool = False,
+                            comment: str = None, label: str = None, activity: str = None,
+                            wait: bool = True) -> dict:
+        """Creates view updates and snapshots
+
+        :param table:  The schema of the EntityView or its ID.
+        :param changes: Array of Table changes
+        :param create_snapshot: Create snapshot
+        :param comment:  Optional snapshot comment.
+        :param label:  Optional snapshot label.
+        :param activity:  Optional activity ID applied to snapshot version.
+        :param wait: True to wait for async table update to complete
+
+        :return:  Snapshot Response
+        """
+        snapshot_options = {'snapshotComment': comment,
+                            'snapshotLabel': label,
+                            'snapshotActivityId': activity}
+        new_snapshot = {key: value for key, value in snapshot_options.items() if value is not None}
+        table_update_body = {'changes': changes,
+                             'createSnapshot': create_snapshot,
+                             'snapshotOptions': new_snapshot}
+
+        uri = "/entity/{}/table/transaction/async".format(id_of(table))
+
+        if wait:
+            result = self._waitForAsync(uri, table_update_body)
+
+        else:
+            result = self.restPOST("{}/start".format(uri), body=json.dumps(table_update_body))
+
+        return result
+
     def getTableColumns(self, table):
         """
         Retrieve the column models used in the given table schema.
@@ -3213,15 +3318,7 @@ class Synapse(object):
         if updateEtag:
             uploadRequest["updateEtag"] = updateEtag
 
-        return self._POST_table_transaction(schema, uploadRequest)
-
-    def _POST_table_transaction(self, schema, transactionRequests):
-        request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
-                   'entityId': id_of(schema),
-                   'changes': transactionRequests if isinstance(transactionRequests, list) else [transactionRequests]}
-
-        uri = "/entity/{id}/table/transaction/async".format(id=id_of(schema))
-        response = self._waitForAsync(uri=uri, request=request)
+        response = self._async_table_update(schema, changes=[uploadRequest], wait=True)
         self._check_table_transaction_response(response)
 
         return response
@@ -3557,24 +3654,28 @@ class Synapse(object):
         Update an existing entity in Synapse.
 
         :param entity: A dictionary representing an Entity or a Synapse Entity object
+        :param incrementVersion: whether to increment the entity version (if Versionable)
+        :param versionLabel: a label for the entity version (if Versionable)
+
 
         :returns: A dictionary containing an Entity's properties
         """
 
         uri = '/entity/%s' % id_of(entity)
 
+        params = {}
         if is_versionable(entity):
-            if incrementVersion or versionLabel is not None:
-                uri += '/version'
-                if 'versionNumber' in entity:
-                    entity['versionNumber'] += 1
-                    if 'versionLabel' in entity:
-                        entity['versionLabel'] = str(entity['versionNumber'])
+            if versionLabel:
+                # a versionLabel implicitly implies incrementing
+                incrementVersion = True
+            elif incrementVersion and 'versionNumber' in entity:
+                versionLabel = str(entity['versionNumber'] + 1)
 
-        if versionLabel:
-            entity['versionLabel'] = str(versionLabel)
+            if incrementVersion:
+                entity['versionLabel'] = versionLabel
+                params['newVersion'] = 'true'
 
-        return self.restPUT(uri, body=json.dumps(get_properties(entity)))
+        return self.restPUT(uri, body=json.dumps(get_properties(entity)), params=params)
 
     def findEntityId(self, name, parent=None):
         """
