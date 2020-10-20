@@ -64,7 +64,6 @@ setuptools.setup(
     zip_safe=False,
 
     # test
-    test_suite='nose.collector',
     tests_require=test_deps,
 
     # metadata to display on PyPI
