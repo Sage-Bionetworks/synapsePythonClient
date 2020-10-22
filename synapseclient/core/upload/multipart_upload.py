@@ -19,6 +19,7 @@ import json
 import math
 import mimetypes
 import os
+import re
 import requests
 import threading
 import time
@@ -93,6 +94,8 @@ class UploadAttempt:
         storage_location_id: str,
         max_threads: int,
         force_restart: bool,
+        source_file_handle_association: str,
+        part_md5_hexes: list,
     ):
         self._syn = syn
         self._chunk_fn = chunk_fn
@@ -104,6 +107,8 @@ class UploadAttempt:
         self._preview = preview
         self._storage_location_id = storage_location_id
         self._max_threads = max_threads
+        self._source_file_handle_association = source_file_handle_association
+        self._part_md5_hexes = part_md5_hexes
         self._force_restart = force_restart
 
         self._lock = threading.Lock()
@@ -140,14 +145,23 @@ class UploadAttempt:
 
     def _create_synapse_upload(self):
         upload_request = {
-            'contentMD5Hex': self._md5_hex,
             'fileName': self._dest_file_name,
             'generatePreview': self._preview,
-            'contentType': self._content_type,
             'partSizeBytes': self._part_size,
-            'fileSizeBytes': self._file_size,
             'storageLocationId': self._storage_location_id,
         }
+
+        if self._source_file_handle_association:
+            # this is a copy request
+            upload_request['concreteType'] = 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest'
+            upload_request['sourceFileHandleAssociation'] = self._source_file_handle_association
+
+        else:
+            # this is an upload request
+            upload_request['concreteType'] = 'org.sagebionetworks.repo.model.file.MultipartUploadRequest'
+            upload_request['fileSizeBytes'] = self._file_size
+            upload_request['contentType'] = self._content_type
+            upload_request['contentMD5Hex'] = self._md5_hex
 
         return self._syn.restPOST(
             "/file/multipart?forceRestart={}".format(
@@ -172,6 +186,11 @@ class UploadAttempt:
             'partNumbers': part_numbers,
         }
 
+        if self._part_md5_hexes:
+            # TODO the backend behavior for partMD5Hex is not working as expected
+            # body['partMD5Hex'] = self._part_md5_hexes
+            pass
+
         response = self._syn.restPOST(
             uri,
             json.dumps(body),
@@ -181,7 +200,10 @@ class UploadAttempt:
 
         part_urls = {}
         for part in response['partPresignedUrls']:
-            part_urls[part['partNumber']] = part['uploadPresignedUrl']
+            part_urls[part['partNumber']] = (
+                part['uploadPresignedUrl'],
+                part.get('signedHeaders', {}),
+            )
 
         return part_urls
 
@@ -229,22 +251,36 @@ class UploadAttempt:
                     "Upload aborted, skipping part {}".format(part_number)
                 )
 
-            pre_signed_part_url = self._pre_signed_part_urls.get(part_number)
+            part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
 
         session = self._get_thread_session()
-        chunk = self._chunk_fn(part_number, self._part_size)
-        part_size = len(chunk)
 
-        md5 = hashlib.md5()
-        md5.update(chunk)
-        md5_hex = md5.hexdigest()
+        body = None
+        md5_hex = None
+        if self._source_file_handle_association:
+            part_size = None
+        else:
+            body = self._chunk_fn(part_number, self._part_size)
+            part_size = len(body)
+
+            md5 = hashlib.md5()
+            md5.update(body)
+            md5_hex = md5.hexdigest()
 
         for retry in range(2):
             try:
-                response = session.put(
-                    pre_signed_part_url,
-                    chunk,
-                )
+                if body:
+                    response = session.put(
+                        part_url,
+                        body or '',
+                        headers=signed_headers,
+                    )
+                else:
+                    response = session.put(
+                        part_url,
+                        headers=signed_headers,
+                    )
+
                 _raise_for_status(response)
 
                 # completed upload part to s3 successfully
@@ -260,13 +296,17 @@ class UploadAttempt:
 
                     # we refresh all the urls and obtain this part's
                     # specific url for the retry
-                    pre_signed_part_url = self._refresh_pre_signed_part_urls(
+                    part_url, headers = self._refresh_pre_signed_part_urls(
                         part_number,
-                        pre_signed_part_url,
+                        part_url,
                     )
 
                 else:
                     raise
+
+        if self._source_file_handle_association:
+            md5_hex = re.search('(?<=<ETag>).*?(?=<\\/ETag>)', (response.content.decode('utf-8'))).group(0)
+            md5_hex = md5_hex.replace('&quot;', '')
 
         # now tell synapse that we uploaded that part successfully
         self._syn.restPUT(
@@ -293,17 +333,20 @@ class UploadAttempt:
         # note this is an estimate, may not be exact since the final part
         # may be smaller and might be included in the completed parts.
         # it's good enough though.
-        progress = previously_transferred = min(
-            completed_part_count * self._part_size,
-            self._file_size
-        )
-        printTransferProgress(
-            progress,
-            self._file_size,
-            prefix='Uploading',
-            postfix=self._dest_file_name,
-            previouslyTransferred=previously_transferred,
-        )
+        if not self._source_file_handle_association:
+            progress = previously_transferred = min(
+                completed_part_count * self._part_size,
+                self._file_size
+            )
+
+            # TODO how to handle progress on a copy?
+            printTransferProgress(
+                progress,
+                self._file_size,
+                prefix='Uploading',
+                postfix=self._dest_file_name,
+                previouslyTransferred=previously_transferred,
+            )
 
         self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
             self._upload_id,
@@ -325,15 +368,20 @@ class UploadAttempt:
         for result in concurrent.futures.as_completed(futures):
             try:
                 _, part_size = result.result()
-                progress += part_size
-                printTransferProgress(
-                    min(progress, self._file_size),
-                    self._file_size,
-                    prefix='Uploading',
-                    postfix=self._dest_file_name,
-                    dt=time.time() - time_upload_started,
-                    previouslyTransferred=previously_transferred,
-                )
+
+                if part_size:
+                    # won't have part size if a copy.
+                    # TODO how to display progress bar, can we get the size elsewhere?
+
+                    progress += part_size
+                    printTransferProgress(
+                        min(progress, self._file_size),
+                        self._file_size,
+                        prefix='Uploading',
+                        postfix=self._dest_file_name,
+                        dt=time.time() - time_upload_started,
+                        previouslyTransferred=previously_transferred,
+                    )
             except (Exception, KeyboardInterrupt) as cause:
                 with self._lock:
                     self._aborted = True
@@ -388,7 +436,7 @@ class UploadAttempt:
             # uploaded but the upload has not been marked complete.
             if remaining_part_numbers:
                 self._upload_parts(part_count, remaining_part_numbers)
-
+    # create a new folder with a storage location we own that we can copy to
             upload_status_response = self._complete_upload()
 
         return upload_status_response
@@ -469,10 +517,10 @@ def multipart_upload_file(
         dest_file_name,
         md5_hex,
         content_type,
-        storage_location_id,
-        preview,
-        force_restart,
-        max_threads,
+        storage_location_id=storage_location_id,
+        preview=preview,
+        force_restart=force_restart,
+        max_threads=max_threads,
     )
 
 
@@ -531,10 +579,40 @@ def multipart_upload_string(
         dest_file_name,
         md5_hex,
         content_type,
-        storage_location_id,
-        preview,
-        force_restart,
-        max_threads,
+        storage_location_id=storage_location_id,
+        preview=preview,
+        force_restart=force_restart,
+        max_threads=max_threads,
+    )
+
+
+def multipart_copy(
+    syn,
+    source_file_handle_association=None,
+    dest_file_name: str = None,
+    part_size: int = None,
+    storage_location_id: str = None,
+    preview: bool = True,
+    force_restart: bool = False,
+    max_threads: int = None,
+    part_md5_hexes: list = None,
+):
+    return _multipart_upload(
+        syn,
+
+        # TODO rationalize args and kwargs since upload vs copy have different required args
+        None,  # chunk_fn
+        None,  # file_size
+        part_size,
+        dest_file_name,
+        None,  # md5_hex
+        None,  # content_type
+        storage_location_id=storage_location_id,
+        preview=preview,
+        force_restart=force_restart,
+        max_threads=max_threads,
+        source_file_handle_association=source_file_handle_association,
+        part_md5_hexes=part_md5_hexes,
     )
 
 
@@ -550,23 +628,33 @@ def _multipart_upload(
     preview: bool = True,
     force_restart: bool = False,
     max_threads: int = None,
+    source_file_handle_association=None,
+    part_md5_hexes=None,
 ):
 
     part_size = part_size or DEFAULT_PART_SIZE
-    part_size = max(
-        part_size,
-        MIN_PART_SIZE,
-        int(math.ceil(file_size / MAX_NUMBER_OF_PARTS))
-    )
+
+    # TODO pick part size and thread automatically better in case of a copy?
+
+    if file_size is not None:
+        part_size = max(
+            part_size,
+            MIN_PART_SIZE,
+            int(math.ceil(file_size / MAX_NUMBER_OF_PARTS))
+        )
 
     if max_threads is None:
-        # default to a number of threads based on the cpu count,
-        # but no point in exceeding the number of parts
-        part_count = math.ceil(file_size / part_size)
-        max_threads = min(
-            part_count,
-            pool_provider.DEFAULT_NUM_THREADS,
-        )
+        if file_size is None:
+            max_threads = pool_provider.DEFAULT_NUM_THREADS
+
+        else:
+            # default to a number of threads based on the cpu count,
+            # but no point in exceeding the number of parts
+            part_count = math.ceil(file_size / part_size)
+            max_threads = min(
+                part_count,
+                pool_provider.DEFAULT_NUM_THREADS,
+            )
     else:
         max_threads = max(max_threads, 1)
 
@@ -588,7 +676,10 @@ def _multipart_upload(
                 # only force_restart the first time through (if requested).
                 # a retry after a caught exception will not restart the upload
                 # from scratch.
-                force_restart=force_restart and retry == 0,
+                force_restart and retry == 0,
+
+                source_file_handle_association,
+                part_md5_hexes,
             )()
 
             # success
