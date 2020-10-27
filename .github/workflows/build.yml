@@ -46,6 +46,12 @@ jobs:
       - name: install-py-dependencies
         shell: bash
         run: |
+          if [ "${{startsWith(runner.os, 'MacOS')}}" == "true" ] && [ "${{matrix.python}}" == "3.9" ]; then
+            # no wheels yet for numpy on 3.9 and numpy 1.19 has issues with accelerate vs openblas
+            # https://github.com/numpy/numpy/issues/15947
+            pip install numpy==1.18.5
+          fi
+
           pip install -e ".[boto3,pandas,pysftp,tests]"
 
           # ensure that numpy c extensions are installed on windows
@@ -56,6 +62,7 @@ jobs:
             pip install setuptools
             pip install numpy
           fi
+
 
       - name: lint
         shell: bash
