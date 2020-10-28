@@ -232,15 +232,12 @@ class SubmissionStatus(DictObject):
         # If it is synapse annotations, turn into a format
         # that can be worked with otherwise, create
         # synapseclient.Annotations
-        kwargs['id'] = id
-        kwargs['etag'] = etag
         kwargs['submissionAnnotations'] = _convert_to_annotation_cls(
             id=id,
             etag=etag,
             values=annotations
         )
-
-        super(SubmissionStatus, self).__init__(kwargs)
+        super(SubmissionStatus, self).__init__(id=id, etag=etag, **kwargs)
 
     # def postURI(self):
     #     return '/evaluation/submission/%s/status' % self.id
