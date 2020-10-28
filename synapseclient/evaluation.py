@@ -227,7 +227,7 @@ class SubmissionStatus(DictObject):
     def getURI(cls, id):
         return '/evaluation/submission/%s/status' % id
 
-    def __init__(self, id=None, etag=None, **kwargs):
+    def __init__(self, id, etag, **kwargs):
         annotations = kwargs.get('submissionAnnotations', {})
         # If it is synapse annotations, turn into a format
         # that can be worked with otherwise, create
