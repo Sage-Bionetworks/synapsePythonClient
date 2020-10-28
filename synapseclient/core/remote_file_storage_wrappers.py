@@ -1,8 +1,10 @@
+from contextlib import contextmanager
 import os
 import time
 import multiprocessing
 import urllib.parse as urllib_parse
 
+from synapseclient.core.retry import with_retry
 from synapseclient.core.cumulative_transfer_progress import printTransferProgress
 from synapseclient.core.utils import attempt_import
 
@@ -172,11 +174,8 @@ class SFTPWrapper:
 
         :returns: A URL where file is stored
         """
-        pysftp = SFTPWrapper._attempt_import_sftp()
-
         parsedURL = SFTPWrapper._parse_for_sftp(url)
-
-        with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
+        with _retry_pysftp_connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.makedirs(parsedURL.path)
             with sftp.cd(parsedURL.path):
                 sftp.put(filepath, preserve_mtime=True, callback=printTransferProgress)
@@ -198,8 +197,6 @@ class SFTPWrapper:
         :returns: localFilePath
 
         """
-        pysftp = SFTPWrapper._attempt_import_sftp()
-
         parsedURL = SFTPWrapper._parse_for_sftp(url)
 
         # Create the local file path if it doesn't exist
@@ -214,6 +211,22 @@ class SFTPWrapper:
             os.makedirs(dir)
 
         # Download file
-        with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
+        with _retry_pysftp_connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.get(path, localFilepath, preserve_mtime=True, callback=printTransferProgress)
         return localFilepath
+
+
+@contextmanager
+def _retry_pysftp_connection(*conn_args, **conn_kwargs):
+    pysftp = SFTPWrapper._attempt_import_sftp()
+
+    # handle error reading banner which can mean an overloaded SSH server,
+    # especially in the context of our integration tests if there are multiple concurrent
+    # test suites running aginst the test micro instance
+    # https://stackoverflow.com/a/29225295
+    sftp = with_retry(lambda: pysftp.Connection(*conn_args, **conn_kwargs),
+                      retry_errors=['Error reading SSH protocol banner'])
+    try:
+        yield sftp
+    finally:
+        sftp.close()
