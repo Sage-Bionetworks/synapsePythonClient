@@ -227,14 +227,16 @@ class SubmissionStatus(DictObject):
     def getURI(cls, id):
         return '/evaluation/submission/%s/status' % id
 
-    def __init__(self, **kwargs):
+    def __init__(self, id=None, etag=None, **kwargs):
         annotations = kwargs.get('submissionAnnotations', {})
         # If it is synapse annotations, turn into a format
         # that can be worked with otherwise, create
         # synapseclient.Annotations
+        kwargs['id'] = id
+        kwargs['etag'] = etag
         kwargs['submissionAnnotations'] = _convert_to_annotation_cls(
-            id=kwargs['id'],
-            etag=kwargs['etag'],
+            id=id,
+            etag=etag,
             values=annotations
         )
 
