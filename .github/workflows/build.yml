@@ -81,6 +81,11 @@ jobs:
             echo "No test configuration decryption keys available, skipping integration tests"
 
           else
+            # set env vars used in tests from secrets
+            export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
+            export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
+            export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
+
             # host used in pysftp tests
             mkdir -p ~/.ssh
             ssh-keyscan -H ec2-18-209-45-78.compute-1.amazonaws.com >> ~/.ssh/known_hosts
