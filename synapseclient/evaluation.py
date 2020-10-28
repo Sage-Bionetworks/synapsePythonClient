@@ -228,16 +228,18 @@ class SubmissionStatus(DictObject):
         return '/evaluation/submission/%s/status' % id
 
     def __init__(self, id, etag, **kwargs):
-        annotations = kwargs.get('submissionAnnotations', {})
+        annotations = kwargs.pop('submissionAnnotations', {})
         # If it is synapse annotations, turn into a format
         # that can be worked with otherwise, create
         # synapseclient.Annotations
-        kwargs['submissionAnnotations'] = _convert_to_annotation_cls(
+        submission_annotations = _convert_to_annotation_cls(
             id=id,
             etag=etag,
             values=annotations
         )
-        super(SubmissionStatus, self).__init__(id=id, etag=etag, **kwargs)
+        super(SubmissionStatus, self).__init__(
+            id=id, etag=etag, submissionAnnotations=submission_annotations, **kwargs
+        )
 
     # def postURI(self):
     #     return '/evaluation/submission/%s/status' % self.id
