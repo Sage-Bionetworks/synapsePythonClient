@@ -201,10 +201,9 @@ def test_multipart_copy(syn, project, schedule_for_cleanup):
     copied_fhid = multipart_copy(
         syn,
         source_file_handle_assocation,
-        part_size=part_size,
-        dest_file_name=dest_file_name,
-        storage_location_id=dest_storage_location,
-        part_md5_hexes=part_md5_hexes,
+        dest_file_name,
+        part_size,
+        dest_storage_location,
     )
 
     copied_file_handle = syn._get_file_handle_as_creator(copied_fhid)
