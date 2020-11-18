@@ -563,6 +563,8 @@ def _csv_to_pandas_df(filepath,
     # Turn list columns into lists
     if list_columns:
         for col in list_columns:
+            # Fill NA values with empty lists, it must be a string for json.loads to work
+            df[col].fillna('[]', inplace=True)
             df[col] = df[col].apply(json.loads)
 
     if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
