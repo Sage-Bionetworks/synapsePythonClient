@@ -31,6 +31,7 @@ import collections
 import collections.abc
 import configparser
 import deprecated
+import errno
 import functools
 import getpass
 import hashlib
@@ -58,7 +59,7 @@ from .entity import Entity, File, Folder, Versionable,\
     split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import SchemaBase, Column, TableQueryResult, CsvFileTable
+from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, EntityViewSchema, SubmissionViewSchema
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions, utils
@@ -785,6 +786,12 @@ class Synapse(object):
                                         + '!'*len(warning_message)+'\n')
         return entity
 
+    def _ensure_download_location_is_directory(self, downloadLocation):
+        download_dir = os.path.expandvars(os.path.expanduser(downloadLocation))
+        if os.path.isfile(download_dir):
+            raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+        return download_dir
+
     def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
         # set the initial local state
         entity.path = None
@@ -804,9 +811,7 @@ class Synapse(object):
         # Decide the best download location for the file
         if downloadLocation is not None:
             # Make sure the specified download location is a fully resolved directory
-            downloadLocation = os.path.expandvars(os.path.expanduser(downloadLocation))
-            if os.path.isfile(downloadLocation):
-                raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+            downloadLocation = self._ensure_download_location_is_directory(downloadLocation)
         elif cached_file_path is not None:
             # file already cached so use that as the download location
             downloadLocation = os.path.dirname(cached_file_path)
@@ -1715,6 +1720,15 @@ class Synapse(object):
             )
         return result
 
+    @staticmethod
+    def _is_retryable_download_error(ex):
+        # some exceptions caught during download indicate non-recoverable situations that
+        # will not be remedied by a repeated download attempt.
+        return not (
+            (isinstance(ex, OSError) and ex.errno == errno.ENOSPC) or   # out of disk space
+            isinstance(ex, SynapseMd5MismatchError)
+        )
+
     def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
         """
         Download a file from the given URL to the local file system.
@@ -1784,7 +1798,11 @@ class Synapse(object):
                                                               expected_md5=fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
+
             except Exception as ex:
+                if not self._is_retryable_download_error(ex):
+                    raise
+
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
                 self.logger.debug("\nRetrying download on error: [%s] after progressing %i bytes" %
@@ -3071,6 +3089,97 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
+    def create_snapshot_version(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
+                                comment: str = None, label: str = None, activity: str = None,
+                                wait: bool = True) -> int:
+        """Create a new Table Version or a new View version.
+
+        :param table:  The schema of the Table/View, or its ID.
+        :param comment:  Optional snapshot comment.
+        :param label:  Optional snapshot label.
+        :param activity:  Optional activity ID applied to snapshot version.
+        :param wait: True if this method should return the snapshot version after waiting for any necessary
+                        asynchronous table updates to complete. If False this method will return return
+                        as soon as any updates are initiated.
+        :return: the snapshot version number if wait=True, None if wait=False
+        """
+        ent = self.get(id_of(table), downloadFile=False)
+        if isinstance(ent, (EntityViewSchema, SubmissionViewSchema)):
+            result = self._async_table_update(
+                table,
+                create_snapshot=True,
+                comment=comment,
+                label=label,
+                activity=activity,
+                wait=wait,
+            )
+        elif isinstance(ent, Schema):
+            result = self._create_table_snapshot(
+                table,
+                comment=comment,
+                label=label,
+                activity=activity,
+            )
+        else:
+            raise ValueError("This function only accepts Synapse ids of Tables or Views")
+
+        # for consistency we return nothing if wait=False since we can't
+        # supply the snapshot version on an async table update without waiting
+        return result['snapshotVersionNumber'] if wait else None
+
+    def _create_table_snapshot(self, table: typing.Union[Schema, str], comment: str = None,
+                               label: str = None, activity: str = None) -> dict:
+        """Creates Table snapshot
+
+        :param table:  The schema of the Table
+        :param comment:  Optional snapshot comment.
+        :param label:  Optional snapshot label.
+        :param activity:  Optional activity ID applied to snapshot version.
+
+        :return:  Snapshot Response
+        """
+        snapshot_body = {"snapshotComment": comment,
+                         "snapshotLabel": label,
+                         "snapshotActivityId": activity}
+        new_body = {key: value for key, value in snapshot_body.items() if value is not None}
+        snapshot = self.restPOST("/entity/{}/table/snapshot".format(id_of(table)),
+                                 body=json.dumps(new_body))
+        return snapshot
+
+    def _async_table_update(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
+                            changes: typing.List[dict] = [], create_snapshot: bool = False,
+                            comment: str = None, label: str = None, activity: str = None,
+                            wait: bool = True) -> dict:
+        """Creates view updates and snapshots
+
+        :param table:  The schema of the EntityView or its ID.
+        :param changes: Array of Table changes
+        :param create_snapshot: Create snapshot
+        :param comment:  Optional snapshot comment.
+        :param label:  Optional snapshot label.
+        :param activity:  Optional activity ID applied to snapshot version.
+        :param wait: True to wait for async table update to complete
+
+        :return:  Snapshot Response
+        """
+        snapshot_options = {'snapshotComment': comment,
+                            'snapshotLabel': label,
+                            'snapshotActivityId': activity}
+        new_snapshot = {key: value for key, value in snapshot_options.items() if value is not None}
+        table_update_body = {'changes': changes,
+                             'createSnapshot': create_snapshot,
+                             'snapshotOptions': new_snapshot}
+
+        uri = "/entity/{}/table/transaction/async".format(id_of(table))
+
+        if wait:
+            result = self._waitForAsync(uri, table_update_body)
+
+        else:
+            result = self.restPOST("{}/start".format(uri), body=json.dumps(table_update_body))
+
+        return result
+
     def getTableColumns(self, table):
         """
         Retrieve the column models used in the given table schema.
@@ -3110,12 +3219,13 @@ class Synapse(object):
 
         For CSV files, there are several parameters to control the format of the resulting file:
 
-        :param quoteCharacter:  default double quote
-        :param escapeCharacter: default backslash
-        :param lineEnd:         defaults to os.linesep
-        :param separator:       defaults to comma
-        :param header:          True by default
+        :param quoteCharacter:   default double quote
+        :param escapeCharacter:  default backslash
+        :param lineEnd:          defaults to os.linesep
+        :param separator:        defaults to comma
+        :param header:           True by default
         :param includeRowIdAndRowVersion: True by default
+        :param downloadLocation: directory path to download the CSV file to
 
         :return: A Table object that serves as a wrapper around a CSV file (or generator over Row objects if
                  resultsAs="rowset").
@@ -3208,15 +3318,7 @@ class Synapse(object):
         if updateEtag:
             uploadRequest["updateEtag"] = updateEtag
 
-        return self._POST_table_transaction(schema, uploadRequest)
-
-    def _POST_table_transaction(self, schema, transactionRequests):
-        request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
-                   'entityId': id_of(schema),
-                   'changes': transactionRequests if isinstance(transactionRequests, list) else [transactionRequests]}
-
-        uri = "/entity/{id}/table/transaction/async".format(id=id_of(schema))
-        response = self._waitForAsync(uri=uri, request=request)
+        response = self._async_table_update(schema, changes=[uploadRequest], wait=True)
         self._check_table_transaction_response(response)
 
         return response
@@ -3253,7 +3355,7 @@ class Synapse(object):
                               " Please check the result to make sure it is correct. %s" % (result_type, result))
 
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",",
-                       header=True, includeRowIdAndRowVersion=True):
+                       header=True, includeRowIdAndRowVersion=True, downloadLocation=None):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
@@ -3291,15 +3393,20 @@ class Synapse(object):
         uri = "/entity/{id}/table/download/csv/async".format(id=extract_synapse_id_from_query(query))
         download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
         file_handle_id = download_from_table_result['resultsFileHandleId']
-        cached_file_path = self.cache.get(file_handle_id=file_handle_id)
+        cached_file_path = self.cache.get(file_handle_id=file_handle_id, path=downloadLocation)
         if cached_file_path is not None:
             return download_from_table_result, cached_file_path
+
+        if downloadLocation:
+            download_dir = self._ensure_download_location_is_directory(downloadLocation)
         else:
-            cache_dir = self.cache.get_cache_dir(file_handle_id)
-            if not os.path.exists(cache_dir):
-                os.makedirs(cache_dir)
-            path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
-                                            'TableEntity', os.path.join(cache_dir, str(file_handle_id) + ".csv"))
+            download_dir = self.cache.get_cache_dir(file_handle_id)
+
+        os.makedirs(download_dir, exist_ok=True)
+        filename = f'SYNAPSE_TABLE_QUERY_{file_handle_id}.csv'
+        path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
+                                        'TableEntity', os.path.join(download_dir, filename))
+
         return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
@@ -3330,12 +3437,13 @@ class Synapse(object):
                 return column
         return None
 
-    def downloadTableColumns(self, table, columns, **kwargs):
+    def downloadTableColumns(self, table, columns, downloadLocation=None, **kwargs):
         """
         Bulk download of table-associated files.
 
-        :param table:            table query result
-        :param columns:           a list of column names as strings
+        :param table:               table query result
+        :param columns:             a list of column names as strings
+        :param downloadLocation:    directory into which to download the files
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
@@ -3365,7 +3473,11 @@ class Synapse(object):
         if not isinstance(columns, collections.abc.Iterable):
             raise TypeError('Columns parameter requires a list of column names')
 
-        file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(table, columns)
+        file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(
+            table,
+            columns,
+            downloadLocation,
+        )
 
         self.logger.info("Downloading %d files, %d cached locally" % (len(file_handle_associations),
                                                                       len(file_handle_to_path_map)))
@@ -3407,13 +3519,19 @@ class Synapse(object):
                 # unzip into cache
                 # ------------------------------------------------------------
 
+                if downloadLocation:
+                    download_dir = self._ensure_download_location_is_directory(downloadLocation)
+
                 with zipfile.ZipFile(zipfilepath) as zf:
                     # the directory structure within the zip follows that of the cache:
                     # {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
                     for summary in response['fileSummary']:
                         if summary['status'] == 'SUCCESS':
-                            cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                            filepath = extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
+
+                            if not downloadLocation:
+                                download_dir = self.cache.get_cache_dir(summary['fileHandleId'])
+
+                            filepath = extract_zip_file_to_directory(zf, summary['zipEntryName'], download_dir)
                             self.cache.add(summary['fileHandleId'], filepath)
                             file_handle_to_path_map[summary['fileHandleId']] = filepath
                         elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
@@ -3431,7 +3549,7 @@ class Synapse(object):
 
         return file_handle_to_path_map
 
-    def _build_table_download_file_handle_list(self, table, columns):
+    def _build_table_download_file_handle_list(self, table, columns, downloadLocation):
         # ------------------------------------------------------------
         # build list of file handles to download
         # ------------------------------------------------------------
@@ -3447,7 +3565,7 @@ class Synapse(object):
             for col_index in col_indices:
                 file_handle_id = row[col_index]
                 if is_integer(file_handle_id):
-                    path_to_cached_file = self.cache.get(file_handle_id)
+                    path_to_cached_file = self.cache.get(file_handle_id, path=downloadLocation)
                     if path_to_cached_file:
                         file_handle_to_path_map[file_handle_id] = path_to_cached_file
                     elif file_handle_id not in seen_file_handle_ids:
@@ -3536,24 +3654,28 @@ class Synapse(object):
         Update an existing entity in Synapse.
 
         :param entity: A dictionary representing an Entity or a Synapse Entity object
+        :param incrementVersion: whether to increment the entity version (if Versionable)
+        :param versionLabel: a label for the entity version (if Versionable)
+
 
         :returns: A dictionary containing an Entity's properties
         """
 
         uri = '/entity/%s' % id_of(entity)
 
+        params = {}
         if is_versionable(entity):
-            if incrementVersion or versionLabel is not None:
-                uri += '/version'
-                if 'versionNumber' in entity:
-                    entity['versionNumber'] += 1
-                    if 'versionLabel' in entity:
-                        entity['versionLabel'] = str(entity['versionNumber'])
+            if versionLabel:
+                # a versionLabel implicitly implies incrementing
+                incrementVersion = True
+            elif incrementVersion and 'versionNumber' in entity:
+                versionLabel = str(entity['versionNumber'] + 1)
 
-        if versionLabel:
-            entity['versionLabel'] = str(versionLabel)
+            if incrementVersion:
+                entity['versionLabel'] = versionLabel
+                params['newVersion'] = 'true'
 
-        return self.restPUT(uri, body=json.dumps(get_properties(entity)))
+        return self.restPUT(uri, body=json.dumps(get_properties(entity)), params=params)
 
     def findEntityId(self, name, parent=None):
         """

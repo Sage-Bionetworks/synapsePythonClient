@@ -13,6 +13,7 @@ not need to call any of these functions directly.
 """
 
 import concurrent.futures
+from contextlib import contextmanager
 import hashlib
 import json
 import math
@@ -24,13 +25,14 @@ import time
 from typing import List, Mapping
 
 from synapseclient.core import pool_provider
+from synapseclient.core.cumulative_transfer_progress import printTransferProgress
 from synapseclient.core.exceptions import (
     _raise_for_status,  # why is is this a single underscore
     SynapseHTTPError,
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
 )
-from synapseclient.core.utils import printTransferProgress, md5_for_file, MB
+from synapseclient.core.utils import md5_for_file, MB
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
@@ -41,7 +43,39 @@ DEFAULT_PART_SIZE = 8 * MB
 MAX_RETRIES = 7
 
 
-thread_local = threading.local()
+_thread_local = threading.local()
+
+
+@contextmanager
+def shared_executor(executor):
+    """An outside process that will eventually trigger an upload through the this module
+    can configure a shared Executor by running its code within this context manager."""
+    _thread_local.executor = executor
+    try:
+        yield
+    finally:
+        del _thread_local.executor
+
+
+@contextmanager
+def _executor(max_threads, shutdown_wait):
+    """Yields an executor for running some asynchronous code, either obtaining the executor
+    from the shared_executor or otherwise creating one.
+
+    :param max_threads: the maxmimum number of threads a created executor should use
+    :param shutdown_wait: whether a created executor should shutdown after running the yielded to code
+    """
+    executor = getattr(_thread_local, 'executor', None)
+    shutdown_after = False
+    if not executor:
+        shutdown_after = True
+        executor = pool_provider.get_executor(thread_count=max_threads)
+
+    try:
+        yield executor
+    finally:
+        if shutdown_after:
+            executor.shutdown(wait=shutdown_wait)
 
 
 class UploadAttempt:
@@ -99,9 +133,9 @@ class UploadAttempt:
         # thread local rather that in the task closure since a connection can
         # be reused across separate part uploads so no reason to restrict it
         # per worker task.
-        session = getattr(thread_local, 'session', None)
+        session = getattr(_thread_local, 'session', None)
         if not session:
-            session = thread_local.session = requests.Session()
+            session = _thread_local.session = requests.Session()
         return session
 
     def _create_synapse_upload(self):
@@ -277,15 +311,16 @@ class UploadAttempt:
         )
 
         futures = []
-        executor = pool_provider.get_executor(thread_count=self._max_threads)
-        for part_number in remaining_part_numbers:
-            futures.append(
-                executor.submit(
-                    self._handle_part,
-                    part_number,
+        with _executor(self._max_threads, False) as executor:
+            # we don't wait on the shutdown since we do so ourselves below
+
+            for part_number in remaining_part_numbers:
+                futures.append(
+                    executor.submit(
+                        self._handle_part,
+                        part_number,
+                    )
                 )
-            )
-        executor.shutdown(wait=False)
 
         for result in concurrent.futures.as_completed(futures):
             try:

@@ -1,18 +1,23 @@
-import os
 import csv
+from concurrent.futures import Future
+import os
 import pandas as pd
 import pandas.testing as pdt
 from io import StringIO
+import random
 import tempfile
+import threading
 
 import pytest
-from unittest.mock import patch, create_autospec, Mock, call
+from unittest.mock import ANY, patch, create_autospec, Mock, call
 
 import synapseutils
-from synapseutils.sync import _FolderSync
+from synapseutils.sync import _FolderSync, _PendingProvenance, _SyncUploader, _SyncUploadItem
 from synapseclient import Activity, File, Folder, Project, Schema, Synapse
+from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import id_of
+from synapseclient.core.pool_provider import get_executor
 
 
 def test_readManifest__sync_order_with_home_directory(syn):
@@ -344,6 +349,361 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata(syn):
                 assert file_entity.get('parentId') == file_row_data.get(key)
             else:
                 assert file_entity.get(key) == file_row_data.get(key)
+
+
+class TestSyncUploader:
+
+    @patch('os.path.isfile')
+    def test_order_items(self, mock_isfile):
+        """Verfy that items are properly ordered according to their provenance."""
+
+        def isfile(path):
+            return path.startswith('/tmp')
+
+        mock_isfile.side_effect = isfile
+
+        # dependencies flow down
+        #
+        #                       /tmp/6
+        #                         |
+        #                  _______|_______
+        #                  |             |
+        #                  V             |
+        #  /tmp/4        /tmp/5          |
+        #    |_____________|             |
+        #           |                    |
+        #           V                    |
+        #         /tmp/3                 |
+        #           |                    |
+        #           V                    V
+        #         /tmp/1               /tmp/2
+
+        item_1 = _SyncUploadItem(
+            File(path='/tmp/1', parentId='syn123'),
+            [],  # used
+            [],  # executed
+            {},  # annotations
+        )
+        item_2 = _SyncUploadItem(
+            File(path='/tmp/2', parentId='syn123'),
+            [],  # used
+            [],  # executed
+            {},  # annotations
+        )
+        item_3 = _SyncUploadItem(
+            File(path='/tmp/3', parentId='syn123'),
+            ['/tmp/1'],  # used
+            [],  # executed
+            {},  # annotations
+        )
+        item_4 = _SyncUploadItem(
+            File(path='/tmp/4', parentId='syn123'),
+            [],  # used
+            ['/tmp/3'],  # executed
+            {},  # annotations
+        )
+        item_5 = _SyncUploadItem(
+            File(path='/tmp/5', parentId='syn123'),
+            ['/tmp/3'],  # used
+            [],  # executed
+            {},  # annotations
+        )
+        item_6 = _SyncUploadItem(
+            File(path='/tmp/6', parentId='syn123'),
+            ['/tmp/5'],  # used
+            ['/tmp/2'],  # executed
+            {},  # annotations
+        )
+
+        items = [
+            item_5,
+            item_6,
+            item_2,
+            item_3,
+            item_1,
+            item_4,
+        ]
+
+        random.shuffle(items)
+
+        ordered = _SyncUploader._order_items(items)
+
+        seen = set()
+        for i in ordered:
+            assert all(p in seen for p in (i.used + i.executed))
+            seen.add(i.entity.path)
+
+    @patch('os.path.isfile')
+    def test_order_items__provenance_cycle(self, isfile):
+        """Verify that if a provenance cycle is detected we raise an error"""
+
+        isfile.return_value = True
+
+        items = [
+            _SyncUploadItem(
+                File(path='/tmp/1', parentId='syn123'),
+                ['/tmp/2'],  # used
+                [],
+                {},  # annotations
+            ),
+            _SyncUploadItem(
+                File(path='/tmp/2', parentId='syn123'),
+                [],  # used
+                ['/tmp/1'],  # executed
+                {},  # annotations
+            ),
+        ]
+
+        with pytest.raises(RuntimeError) as cm_ex:
+            _SyncUploader._order_items(items)
+        assert 'cyclic' in str(cm_ex.value)
+
+    @patch('os.path.isfile')
+    def test_order_items__provenance_file_not_uploaded(self, isfile):
+        """Verify that if one file depends on another for provenance but that file
+        is not included in the upload we raise an error."""
+
+        isfile.return_value = True
+
+        items = [
+            _SyncUploadItem(
+                File(path='/tmp/1', parentId='syn123'),
+                ['/tmp/2'],  # used
+                [],
+                {},  # annotations
+            ),
+        ]
+
+        with pytest.raises(ValueError) as cm_ex:
+            _SyncUploader._order_items(items)
+        assert 'not being uploaded' in str(cm_ex.value)
+
+    def test_upload_item_success(self, syn):
+        """Test successfully uploading an item"""
+
+        uploader = _SyncUploader(syn, Mock())
+
+        used = ['foo']
+        executed = ['bar']
+        item = _SyncUploadItem(
+            File(path='/tmp/file', parentId='syn123'),
+            used,
+            executed,
+            {'forceVersion': True},
+        )
+
+        finished_items = {}
+        mock_condition = create_autospec(threading.Condition())
+        pending_provenance = _PendingProvenance()
+        pending_provenance.update(set([item.entity.path]))
+        abort_event = threading.Event()
+        progress = CumulativeTransferProgress('Test Upload')
+
+        mock_stored_entity = Mock()
+
+        with patch.object(syn, 'store') as mock_store, \
+                patch.object(uploader._file_semaphore, 'release') as mock_release:
+
+            mock_store.return_value = mock_stored_entity
+
+            uploader._upload_item(
+                item,
+                used,
+                executed,
+                finished_items,
+                pending_provenance,
+                mock_condition,
+                abort_event,
+                progress,
+            )
+
+        mock_store.assert_called_once_with(item.entity, used=used, executed=executed, **item.store_kwargs)
+
+        # item should be finished and removed from pending provenance
+        assert mock_stored_entity == finished_items[item.entity.path]
+        assert len(pending_provenance._pending) == 0
+
+        # should have notified the condition to let anything waiting on this provenance to continue
+        mock_condition.notifyAll.assert_called_once_with()
+
+        assert not abort_event.is_set()
+
+        mock_release.assert_called_once_with()
+
+    def test_upload_item__failure(self, syn):
+        """Verify behavior if an item upload fails.
+        Exception should be raised, and appropriate threading controls should be released/notified."""
+
+        uploader = _SyncUploader(syn, Mock())
+
+        item = _SyncUploadItem(
+            File(path='/tmp/file', parentId='syn123'),
+            [],
+            [],
+            {'forceVersion': True},
+        )
+
+        finished_items = {}
+        mock_condition = create_autospec(threading.Condition())
+        pending_provenance = set([item.entity.path])
+        abort_event = threading.Event()
+        progress = CumulativeTransferProgress('Test Upload')
+
+        with pytest.raises(ValueError), \
+                patch.object(syn, 'store') as mock_store, \
+                patch.object(uploader._file_semaphore, 'release') as mock_release:
+
+            mock_store.side_effect = ValueError('Falure during upload')
+
+            uploader._upload_item(
+                item,
+                item.used,
+                item.executed,
+                finished_items,
+                pending_provenance,
+                mock_condition,
+                abort_event,
+                progress,
+            )
+
+        # abort event should have been raised and we shoudl have released threading locks
+        assert abort_event.is_set()
+        mock_release.assert_called_once_with()
+        mock_condition.notifyAll.assert_called_once_with()
+
+    def test_abort(self):
+        """Verify abort behavior.
+        Should raise an exception chained from the first Exception on a Future and cancel any unfinished Futures"""
+
+        future_spec = Future()
+        future_1 = create_autospec(future_spec)
+        future_2 = create_autospec(future_spec)
+        future_3 = create_autospec(future_spec)
+
+        future_1.done.return_value = True
+        future_1.exception.return_value = None
+
+        ex = ValueError('boom')
+        future_2.exception.return_value = ex
+
+        future_3.done.return_value = False
+
+        futures = [future_1, future_2, future_3]
+
+        with pytest.raises(ValueError) as cm_ex:
+            _SyncUploader._abort(futures)
+
+        assert cm_ex.value.__cause__ == ex
+        future_3.cancel.assert_called_once_with()
+
+    def test_upload__error(self, syn):
+        """Verify that if an item upload fails the error is raised in the main thread
+        and any running Futures are cancelled"""
+
+        item_1 = _SyncUploadItem(File(path='/tmp/foo', parentId='syn123'), [], [], {})
+        item_2 = _SyncUploadItem(File(path='/tmp/bar', parentId='syn123'), [], [], {})
+        items = [item_1, item_2]
+
+        def syn_store_side_effect(entity, *args, **kwargs):
+            if entity.path == entity.path:
+                raise ValueError()
+            return Mock()
+
+        uploader = _SyncUploader(syn, get_executor())
+        original_abort = uploader._abort
+
+        def abort_side_effect(futures):
+            return original_abort(futures)
+
+        with patch.object(syn, 'store') as mock_syn_store, \
+                patch.object(uploader, '_abort') as mock_abort:
+
+            mock_syn_store.side_effect = syn_store_side_effect
+            mock_abort.side_effect = abort_side_effect
+            with pytest.raises(ValueError):
+                uploader.upload(items)
+
+            # it would be aborted with Futures
+            mock_abort.assert_called_once_with([ANY])
+            isinstance(mock_abort.call_args_list[0][0], Future)
+
+    @patch('os.path.isfile')
+    def test_upload(self, mock_os_isfile, syn):
+        """Ensure that an upload including multiple items which depend on each other through
+        provenance are all uploaded and in the expected order."""
+        mock_os_isfile.return_value = True
+
+        item_1 = _SyncUploadItem(
+            File(path='/tmp/foo', parentId='syn123'),
+            [],  # used
+            [],  # executed
+            {},  # annotations
+        )
+        item_2 = _SyncUploadItem(
+            File(path='/tmp/bar', parentId='syn123'),
+            ['/tmp/foo'],  # used
+            [],  # executed
+            {},  # annotations
+        )
+        item_3 = _SyncUploadItem(
+            File(path='/tmp/baz', parentId='syn123'),
+            ['/tmp/bar'],  # used
+            [],  # executed
+            {},  # annotations
+        )
+
+        items = [
+            item_1,
+            item_2,
+            item_3,
+        ]
+
+        convert_provenance_calls = 2 * len(items)
+        convert_provenance_condition = threading.Condition()
+
+        mock_stored_entities = {
+            item_1.entity.path: Mock(),
+            item_2.entity.path: Mock(),
+            item_3.entity.path: Mock(),
+        }
+
+        uploader = _SyncUploader(syn, get_executor())
+
+        convert_provenance_original = uploader._convert_provenance
+
+        def patched_convert_provenance(provenance, finished_items):
+            # we hack the convert_provenance method as a way of ensuring that
+            # the first item doesn't finish storing until the items that depend on it
+            # have finished one trip through the wait loop. that way we ensure that
+            # our locking logic is being exercised.
+            nonlocal convert_provenance_calls
+            with convert_provenance_condition:
+                convert_provenance_calls -= 1
+
+                if convert_provenance_calls == 0:
+                    convert_provenance_condition.notifyAll()
+
+            return convert_provenance_original(provenance, finished_items)
+
+        def syn_store_side_effect(entity, *args, **kwargs):
+            if entity.path == item_1.entity.path:
+                with convert_provenance_condition:
+                    if convert_provenance_calls > 0:
+                        convert_provenance_condition.wait_for(lambda: convert_provenance_calls == 0)
+
+            return mock_stored_entities[entity.path]
+
+        with patch.object(uploader, '_convert_provenance') as mock_convert_provenance, \
+                patch.object(syn, 'store') as mock_syn_store:
+
+            mock_convert_provenance.side_effect = patched_convert_provenance
+            mock_syn_store.side_effect = syn_store_side_effect
+
+            uploader.upload(items)
+
+        # all three of our items should have been stored
+        stored = [args[0][0].path for args in mock_syn_store.call_args_list]
+        assert [i.entity.path for i in items] == stored
 
 
 class TestGetFileEntityProvenanceDict:

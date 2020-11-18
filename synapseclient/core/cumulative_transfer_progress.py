@@ -24,10 +24,15 @@ def printTransferProgress(*args, **kwargs):
     be imported instead of utils.printTransferProgress in locations that may be part of a cumulative
     transfer (i.e. a Synapse sync)."""
 
-    if hasattr(_thread_local, 'cumulative_transfer_progress'):
+    if is_active():
         _thread_local.cumulative_transfer_progress.printTransferProgress(*args, **kwargs)
     else:
         utils.printTransferProgress(*args, **kwargs)
+
+
+def is_active():
+    """Return whether the current thread is accumulating progress data."""
+    return hasattr(_thread_local, 'cumulative_transfer_progress')
 
 
 class CumulativeTransferProgress:

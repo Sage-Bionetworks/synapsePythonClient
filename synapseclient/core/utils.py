@@ -6,25 +6,26 @@ Utility Functions
 Utility functions useful in the implementation and testing of the Synapse client.
 
 """
-import collections.abc
-import os
-import sys
-import hashlib
-import re
+import base64
 import cgi
+import collections.abc
 import datetime
 import errno
-import inspect
-import random
-import requests
-import tempfile
-import platform
 import functools
-import threading
-import uuid
+import hashlib
 import importlib
+import inspect
 import numbers
+import os
+import platform
+import random
+import re
+import requests
+import sys
+import tempfile
+import threading
 import urllib.parse as urllib_parse
+import uuid
 import warnings
 
 
@@ -510,7 +511,20 @@ def _synapse_error_msg(ex):
     if isinstance(ex, str):
         return ex
 
-    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
+    # one line for the root exception and then an additional line per chained cause
+    error_str = ""
+    depth = 0
+    while ex:
+        error_str += \
+            '\n' + ("  " * depth) + ("caused by " if depth > 0 else "") + ex.__class__.__name__ + ': ' + str(ex)
+
+        ex = ex.__cause__
+        if ex:
+            depth += 1
+        else:
+            break
+
+    return error_str + '\n\n'
 
 
 def _limit_and_offset(uri, limit=None, offset=None):
@@ -889,6 +903,19 @@ def snake_case(string):
     """Convert the given string from CamelCase to snake_case"""
     # https://stackoverflow.com/a/1176023
     return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
+
+
+def is_base64_encoded(input_string):
+    """Return whether the given input string appears to be base64 encoded"""
+    if not input_string:
+        # None, empty string are not considered encoded
+        return False
+    try:
+        # see if we can decode it and then reencode it back to the input
+        byte_string = input_string if isinstance(input_string, bytes) else str.encode(input_string)
+        return base64.b64encode(base64.b64decode(byte_string)) == byte_string
+    except Exception:
+        return False
 
 
 class deprecated_keyword_param:

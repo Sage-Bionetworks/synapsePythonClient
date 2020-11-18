@@ -115,7 +115,7 @@ def test_syncToSynapse(test_state):
 
     # Validate that annotations were set
     cols = synapseutils.sync.REQUIRED_FIELDS + synapseutils.sync.FILE_CONSTRUCTOR_FIELDS\
-        + synapseutils.sync.STORE_FUNCTION_FIELDS
+        + synapseutils.sync.STORE_FUNCTION_FIELDS + synapseutils.sync.PROVENANCE_FIELDS
     orig_anots = orig_df.drop(cols, axis=1, errors='ignore')
     new_anots = new_df.drop(cols, axis=1, errors='ignore')
     assert orig_anots.shape[1] == new_anots.shape[1]  # Verify that we have the same number of cols
