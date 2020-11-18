@@ -78,6 +78,8 @@ Submission Status
 import json
 import typing
 
+import urllib.parse as urllib_urlparse
+
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.annotations import (Annotations,
                                        from_synapse_annotations,
@@ -123,7 +125,8 @@ class Evaluation(DictObject):
 
     @classmethod
     def getByNameURI(cls, name):
-        return '/evaluation/name/%s' % name
+        new_name = urllib_urlparse.quote(name)
+        return f'/evaluation/name/{new_name}'
 
     @classmethod
     def getURI(cls, id):

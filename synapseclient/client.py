@@ -2335,7 +2335,7 @@ class Synapse(object):
 
         See: :py:mod:`synapseclient.evaluation`
         """
-        uri = Evaluation.getByNameURI(urllib_urlparse.quote(name))
+        uri = Evaluation.getByNameURI(name)
         return Evaluation(**self.restGET(uri))
 
     def getEvaluationByContentSource(self, entity):
