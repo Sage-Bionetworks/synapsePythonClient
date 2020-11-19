@@ -618,13 +618,13 @@ class TestMultipartUpload:
 
             # bad file
             with pytest.raises(IOError):
-                multipart_upload_file(syn, file_path, storage_location_id)
+                multipart_upload_file(syn, file_path, storage_location_id=storage_location_id)
 
             os_path_exists.return_value = True
             os_path_is_dir.return_value = True
 
             with pytest.raises(IOError):
-                multipart_upload_file(syn, file_path, storage_location_id)
+                multipart_upload_file(syn, file_path, storage_location_id=storage_location_id)
 
             os_path_is_dir.return_value = False
 
@@ -642,7 +642,7 @@ class TestMultipartUpload:
             multipart_upload_file(
                 syn,
                 file_path,
-                storage_location_id,
+                storage_location_id=storage_location_id,
             )
             mock_multipart_upload.assert_called_once_with(
                 syn,
@@ -680,7 +680,7 @@ class TestMultipartUpload:
             multipart_upload_file(
                 syn,
                 file_path,
-                storage_location_id,
+                storage_location_id=storage_location_id,
                 **kwargs
             )
             mock_multipart_upload.assert_called_once_with(
@@ -713,7 +713,7 @@ class TestMultipartUpload:
             md5_hex = hashlib.md5(encoded).hexdigest()
 
             # call w/ default args
-            multipart_upload_string(syn, upload_text, storage_location_id)
+            multipart_upload_string(syn, upload_text, storage_location_id=storage_location_id)
 
             expected_upload_request = {
                 'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadRequest',

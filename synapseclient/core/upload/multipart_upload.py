@@ -427,10 +427,10 @@ def _get_part_size(part_size, file_size):
 def multipart_upload_file(
     syn,
     file_path: str,
-    storage_location_id: str,
     dest_file_name: str = None,
     content_type: str = None,
     part_size: int = None,
+    storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
     max_threads: int = None,
@@ -514,10 +514,10 @@ def multipart_upload_file(
 def multipart_upload_string(
     syn,
     text: str,
-    storage_location_id: str,
     dest_file_name: str = None,
     part_size: int = None,
     content_type: str = None,
+    storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
     max_threads: int = None,
