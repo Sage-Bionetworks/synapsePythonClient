@@ -1908,15 +1908,16 @@ class CsvFileTable(TableAbstractBaseClass):
 
             # determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
             date_columns = []
-            if convert_to_datetime:
-                for select_column in self.headers:
-                    if select_column.columnType == "DATE":
-                        date_columns.append(select_column.name)
             list_columns = []
-            for select_column in self.headers:
-                if select_column.columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST'}:
-                    list_columns.append(select_column.name)
 
+            if self.headers is not None:
+                if convert_to_datetime:
+                    for select_column in self.headers:
+                        if select_column.columnType == "DATE":
+                            date_columns.append(select_column.name)
+                for select_column in self.headers:
+                    if select_column.columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST'}:
+                        list_columns.append(select_column.name)
             return _csv_to_pandas_df(self.filepath,
                                      separator=self.separator,
                                      quote_char=quoteChar,

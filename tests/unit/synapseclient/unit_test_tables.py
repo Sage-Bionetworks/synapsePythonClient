@@ -1122,6 +1122,29 @@ class TestCsvFileTable:
             for expected_row, table_row in zip(expected_rows, table):
                 assert expected_row == table_row
 
+    def test_as_data_frame__no_headers(self):
+        """Verify we don't assume a schema has defined headers when converting to a Pandas data frame"""
+        data = {
+            'ROW_ID': ['1', '5'],
+            'ROW_VERSION': ['2', '1'],
+            'ROW_ETAG': ['etag1', 'etag2'],
+            'col': ['I like trains', 'weeeeeeeeeeee']
+        }
+        pd_df = pd.DataFrame(data)
+
+        expected_df = pd.DataFrame(
+            index=['1_2_etag1', '5_1_etag2'],
+            columns=['col'],
+            data=data['col'],
+        )
+
+        with patch.object(pd, 'read_csv') as mock_read_csv:
+            mock_read_csv.return_value = pd_df
+            table = CsvFileTable('syn123', '/fake/file/path')
+            df = table.asDataFrame()
+
+        pd.testing.assert_frame_equal(expected_df, df)
+
 
 def test_Row_forward_compatibility():
     row = Row("2, 3, 4", rowId=1, versionNumber=1, etag=None, new_field="new")
