@@ -1145,6 +1145,38 @@ class TestCsvFileTable:
 
         pd.testing.assert_frame_equal(expected_df, df)
 
+    def test_as_data_frame__list_columns(self):
+        """Verify list columns are represented as expected when converted to a Pandas dataframe"""
+
+        data = {
+            'string_list': ['["foo", "bar"]', '["wizzle", "wozzle"]'],
+            'integer_list': ['[1, 5]', '[2, 1]'],
+            'boolean_list': ['[true, false]', '[false, true]'],
+            'fill': [None, None],
+        }
+        pd_df = pd.DataFrame(data)
+
+        expected_df = pd.DataFrame({
+           'string_list': [['foo', 'bar'], ['wizzle', 'wozzle']],
+           'integer_list': [[1, 5], [2, 1]],
+           'boolean_list': [[True, False], [False, True]],
+           'fill': [[], []],
+        })
+
+        headers = [
+            SelectColumn(name='string_list', columnType='STRING_LIST'),
+            SelectColumn(name='integer_list', columnType='INTEGER_LIST'),
+            SelectColumn(name='boolean_list', columnType='BOOLEAN_LIST'),
+            SelectColumn(name='fill', columnType='STRING_LIST'),
+        ]
+
+        with patch.object(pd, 'read_csv') as mock_read_csv:
+            mock_read_csv.return_value = pd_df
+            table = CsvFileTable('syn123', '/fake/file/path', headers=headers)
+            df = table.asDataFrame()
+
+        pd.testing.assert_frame_equal(expected_df, df)
+
 
 def test_Row_forward_compatibility():
     row = Row("2, 3, 4", rowId=1, versionNumber=1, etag=None, new_field="new")
