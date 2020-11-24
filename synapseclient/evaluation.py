@@ -125,8 +125,8 @@ class Evaluation(DictObject):
 
     @classmethod
     def getByNameURI(cls, name):
-        new_name = urllib_urlparse.quote(name)
-        return f'/evaluation/name/{new_name}'
+        quoted_name = urllib_urlparse.quote(name)
+        return f'/evaluation/name/{quoted_name}'
 
     @classmethod
     def getURI(cls, id):

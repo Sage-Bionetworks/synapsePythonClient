@@ -20,6 +20,12 @@ def test_Evaluation():
     assert ev['status'] == ev.status
 
 
+def test_Evaluation__getByNameURI():
+    """Verify that Evaluation name URIs are properly quoted"""
+    assert '/evaluation/name/foobar' == Evaluation.getByNameURI('foobar')
+    assert '/evaluation/name/foo%20bar' == Evaluation.getByNameURI('foo bar')
+
+
 def test_Submission():
     """Test the construction and accessors of Evaluation objects."""
 
