@@ -1157,10 +1157,10 @@ class TestCsvFileTable:
         pd_df = pd.DataFrame(data)
 
         expected_df = pd.DataFrame({
-           'string_list': [['foo', 'bar'], ['wizzle', 'wozzle']],
-           'integer_list': [[1, 5], [2, 1]],
-           'boolean_list': [[True, False], [False, True]],
-           'fill': [[], []],
+            'string_list': [['foo', 'bar'], ['wizzle', 'wozzle']],
+            'integer_list': [[1, 5], [2, 1]],
+            'boolean_list': [[True, False], [False, True]],
+            'fill': [[], []],
         })
 
         headers = [
