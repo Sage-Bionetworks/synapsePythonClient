@@ -17,6 +17,7 @@ from synapseclient.core.upload.multipart_upload import (
     MAX_NUMBER_OF_PARTS,
     MIN_PART_SIZE,
     _multipart_upload,
+    multipart_copy,
     multipart_upload_file,
     multipart_upload_string,
     pool_provider,
@@ -760,6 +761,91 @@ class TestMultipartUpload:
                 'generatePreview': kwargs['preview'],
                 'storageLocationId': storage_location_id,
             }
+            mock_multipart_upload.assert_called_once_with(
+                syn,
+                kwargs['dest_file_name'],
+                kwargs['part_size'],
+
+                expected_upload_request,
+                mock.ANY,  # part_fn
+                mock.ANY,  # md5_fn,
+
+                force_restart=kwargs['force_restart'],
+                max_threads=kwargs['max_threads'],
+            )
+
+    def test_multipart_copy(self):
+        """Verify multipart_copy passes through its
+        args, validating and supplying defaults as expected."""
+
+        syn = mock.Mock()
+
+        part_size_bytes = 9876
+        file_handle_id = 1234
+        associate_object_id = 'syn123456'
+        associate_object_type = 'FileEntity'
+
+        source_file_handle_association = {
+            'fileHandleId': file_handle_id,
+            'associateObjectId': associate_object_id,
+            'associateObjectType': associate_object_type,
+        }
+
+        storage_location_id = 5432
+
+        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload:
+            expected_upload_request = {
+                'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest',
+                'fileName': None,
+                'generatePreview': True,
+                'partSizeBytes':  DEFAULT_PART_SIZE,
+                'sourceFileHandleAssociation': source_file_handle_association,
+                'storageLocationId': None
+            }
+
+            # call w/ defaults
+            multipart_copy(
+                syn,
+                source_file_handle_association,
+            )
+            mock_multipart_upload.assert_called_once_with(
+                syn,
+                None,
+                DEFAULT_PART_SIZE,
+
+                expected_upload_request,
+                mock.ANY,  # part_fn
+                mock.ANY,  # md5_fn,
+
+                force_restart=False,
+                max_threads=None,
+            )
+
+            mock_multipart_upload.reset_mock()
+
+            # call specifying all optional kwargs
+            kwargs = {
+                'dest_file_name': 'blort',
+                'part_size': part_size_bytes,
+                'preview': False,
+                'storage_location_id': storage_location_id,
+                'force_restart': True,
+                'max_threads': 8,
+            }
+            expected_upload_request = {
+                'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest',
+                'fileName': kwargs['dest_file_name'],
+                'generatePreview': kwargs['preview'],
+                'partSizeBytes': kwargs['part_size'],
+                'sourceFileHandleAssociation': source_file_handle_association,
+                'storageLocationId': kwargs['storage_location_id'],
+            }
+
+            multipart_copy(
+                syn,
+                source_file_handle_association,
+                **kwargs,
+            )
             mock_multipart_upload.assert_called_once_with(
                 syn,
                 kwargs['dest_file_name'],

@@ -610,6 +610,7 @@ def multipart_copy(
         'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest',
         'fileName': dest_file_name,
         'generatePreview': preview,
+        'partSizeBytes': part_size,
         'sourceFileHandleAssociation': source_file_handle_association,
         'storageLocationId': storage_location_id,
     }
