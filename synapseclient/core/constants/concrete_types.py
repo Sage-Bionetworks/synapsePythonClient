@@ -27,3 +27,9 @@ PARTIAL_ROW_SET = 'org.sagebionetworks.repo.model.table.PartialRowSet'
 APPENDABLE_ROWSET_REQUEST = 'org.sagebionetworks.repo.model.table.AppendableRowSetRequest'
 
 COLUMN_MODEL = 'org.sagebionetworks.repo.model.table.ColumnModel'
+
+# EntityTypes
+FILE_ENTITY = 'org.sagebionetworks.repo.model.FileEntity'
+FOLDER_ENTITY = 'org.sagebionetworks.repo.model.Folder'
+LINK_ENTITY = 'org.sagebionetworks.repo.model.Link'
+TABLE_ENTITY = 'org.sagebionetworks.repo.model.table.TableEntity'
