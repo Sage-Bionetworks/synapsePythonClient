@@ -706,8 +706,8 @@ class TestMultipartUpload:
         storage_location_id = 5432
 
         with mock.patch.object(
-               multipart_upload,
-               '_multipart_upload',
+                multipart_upload,
+                '_multipart_upload',
            ) as mock_multipart_upload:
 
             encoded = upload_text.encode('utf-8')
@@ -798,7 +798,7 @@ class TestMultipartUpload:
                 'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest',
                 'fileName': None,
                 'generatePreview': True,
-                'partSizeBytes':  DEFAULT_PART_SIZE,
+                'partSizeBytes': DEFAULT_PART_SIZE,
                 'sourceFileHandleAssociation': source_file_handle_association,
                 'storageLocationId': None
             }

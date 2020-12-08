@@ -481,7 +481,7 @@ def multipart_upload_file(
 
     upload_request = {
         'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadRequest',
-        'contentType':  content_type,
+        'contentType': content_type,
         'contentMD5Hex': md5_hex,
         'fileName': dest_file_name,
         'fileSizeBytes': file_size,
@@ -562,7 +562,7 @@ def multipart_upload_string(
 
     upload_request = {
         'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadRequest',
-        'contentType':  content_type,
+        'contentType': content_type,
         'contentMD5Hex': md5_hex,
         'fileName': dest_file_name,
         'fileSizeBytes': file_size,
