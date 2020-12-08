@@ -192,8 +192,8 @@ def test_migrate_file__all_versions(request, syn, project, schedule_for_cleanup,
     v2_updated = syn.get(entity_id, version=2, downloadFile=False)
 
     expected_mapping = {
-         1: (v1.dataFileHandleId, v1_updated.dataFileHandleId),
-         2: (v2.dataFileHandleId, v2_updated.dataFileHandleId),
+        1: (v1.dataFileHandleId, v1_updated.dataFileHandleId),
+        2: (v2.dataFileHandleId, v2_updated.dataFileHandleId),
     }
     assert mapping == expected_mapping
 
