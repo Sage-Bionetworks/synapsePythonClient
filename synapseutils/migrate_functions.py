@@ -109,15 +109,17 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
                 'update entities set status = ? where id = ?',
                 (_MigrationStatus.MIGRATED.value, entity_id)
             )
+            conn.commit()
 
         except Exception:
             logging.exception('Encountered error when migrating entity')
 
             tb = traceback.format_exc()
             cursor.execute(
-                'update entities set status = ?, exception = ?',
-                (_MigrationStatus.MIGRATION_ERROR.value, tb)
+                'update entities set status = ?, exception = ? where id = ?',
+                (_MigrationStatus.MIGRATION_ERROR.value, tb, entity_id)
             )
+            conn.commit()
 
             if not continue_on_error:
                 raise
@@ -359,7 +361,6 @@ def migrate_file(
     :returns: a mapping of (old version, new version) -> (old storage location id, new storage location id)
         representing the migrated entity versions
     """
-
     entity = syn.get(entity, downloadFile=False)
     if not isinstance(entity, synapseclient.File):
         raise ValueError('passed value is not a FileEntity')
@@ -405,7 +406,7 @@ def _create_new_file_version(syn, entity, destination_storage_location_id):
     existing_file_name = entity._file_handle['fileName']
     existing_storage_location_id = entity._file_handle['storageLocationId']
 
-    if existing_storage_location_id == destination_storage_location_id:
+    if str(existing_storage_location_id) == str(destination_storage_location_id):
         logging.info(
             'Skipped creating a new version of file %s, it is already in the destination storage location (%s)',
             entity.id,
@@ -465,7 +466,7 @@ def _migrate_file_version(syn, entity, destination_storage_location_id, version)
     existing_file_name = entity._file_handle['fileName']
     existing_storage_location_id = entity._file_handle['storageLocationId']
 
-    if existing_storage_location_id == destination_storage_location_id:
+    if str(existing_storage_location_id) == str(destination_storage_location_id):
         logging.info(
             'Skipped migrating file %s, version %s, it is already in the destination storage location (%s)',
             entity_id,
