@@ -182,8 +182,7 @@ def migrate(
     executor, max_concurrent_file_copies = _get_executor()
 
     sqlite3 = import_sqlite3()
-    with sqlite3.connect(db_path) as conn, \
-            shared_executor(executor):
+    with sqlite3.connect(db_path) as conn:
 
         cursor = conn.cursor()
         _ensure_tables(cursor)
@@ -243,6 +242,7 @@ def migrate(
                 futures.add(
                     executor.submit(
                         _migrate_entity(
+                            executor,
                             entity_id,
                             migrate_fn,
                             record_fn,
@@ -262,18 +262,19 @@ def migrate(
         _wait_futures(conn, cursor, futures, concurrent.futures.ALL_COMPLETED, continue_on_error)
 
 
-def _migrate_entity(entity_id, migrate_fn, record_fn, *args, **kwargs):
+def _migrate_entity(executor, entity_id, migrate_fn, record_fn, *args, **kwargs):
     # a wrapped closure to submit to an Executor so that we can return some
     # state to the consumer of a Future that isn't otherwise returned by
     # the underyling entity migration methods
     def _migrate_fn():
-        try:
-            mapping = migrate_fn(*args, **kwargs)
-            return entity_id, record_fn, mapping
-        except Exception as ex:
-            # we need to be able to pass up the entity id to the Future handler
-            # which does not have the original invoking scope
-            raise _EntityMigrationError(entity_id) from ex
+        with shared_executor(executor):
+            try:
+                mapping = migrate_fn(*args, **kwargs)
+                return entity_id, record_fn, mapping
+            except Exception as ex:
+                # we need to be able to pass up the entity id to the Future handler
+                # which does not have the original invoking scope
+                raise _EntityMigrationError(entity_id) from ex
     return _migrate_fn
 
 
@@ -390,7 +391,7 @@ def migrate_file(
     entity = syn.get(entity, downloadFile=False)
     if not isinstance(entity, synapseclient.File):
         raise ValueError('passed value is not a FileEntity')
-    if not version in ('new', 'all', 'latest') and not isinstance(version, int):
+    if version not in ('new', 'all', 'latest') and not isinstance(version, int):
         raise ValueError("invalid value {} passed for version".format(version))
 
     mapping = {}
