@@ -793,7 +793,8 @@ class TestMultipartUpload:
 
         storage_location_id = 5432
 
-        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload:
+        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload, \
+                mock.patch.object(multipart_upload, 'printTransferProgress') as mock_print_progress:
             expected_upload_request = {
                 'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest',
                 'fileName': None,
@@ -858,6 +859,8 @@ class TestMultipartUpload:
                 force_restart=kwargs['force_restart'],
                 max_threads=kwargs['max_threads'],
             )
+
+            assert not mock_print_progress.called
 
     def _multipart_upload_test(self, upload_side_effect, syn, *args, **kwargs):
         with mock.patch.object(

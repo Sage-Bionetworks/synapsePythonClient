@@ -34,3 +34,7 @@ FOLDER_ENTITY = 'org.sagebionetworks.repo.model.Folder'
 LINK_ENTITY = 'org.sagebionetworks.repo.model.Link'
 PROJECT_ENTITY = 'org.sagebionetworks.repo.model.Project'
 TABLE_ENTITY = 'org.sagebionetworks.repo.model.table.TableEntity'
+
+# upload requests
+MULTIPART_UPLOAD_REQUEST = 'org.sagebionetworks.repo.model.file.MultipartUploadRequest'
+MULTIPART_UPLOAD_COPY_REQUEST = 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest'

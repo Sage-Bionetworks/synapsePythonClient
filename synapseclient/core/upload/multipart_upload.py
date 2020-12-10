@@ -26,6 +26,7 @@ import time
 from typing import List, Mapping
 
 from synapseclient.core import pool_provider
+from synapseclient.core.constants import concrete_types
 from synapseclient.core.cumulative_transfer_progress import printTransferProgress
 from synapseclient.core.exceptions import (
     _raise_for_status,  # why is is this a single underscore
@@ -138,6 +139,10 @@ class UploadAttempt:
         if not session:
             session = _thread_local.session = requests.Session()
         return session
+
+    def _is_copy(self):
+        # is this a copy or upload request
+        return self._upload_request_payload.get('concreteType') == concrete_types.MULTIPART_UPLOAD_COPY_REQUEST
 
     def _create_synapse_upload(self):
         return self._syn.restPOST(
@@ -294,14 +299,15 @@ class UploadAttempt:
             file_size,
         )
 
-        # TODO how to handle progress on a copy?
-        printTransferProgress(
-            progress,
-            file_size,
-            prefix='Uploading',
-            postfix=self._dest_file_name,
-            previouslyTransferred=previously_transferred,
-        )
+        if not self._is_copy():
+            # we won't have bytes to measure during a copy so the byte oriented progress bar is not useful
+            printTransferProgress(
+                progress,
+                file_size,
+                prefix='Uploading',
+                postfix=self._dest_file_name,
+                previouslyTransferred=previously_transferred,
+            )
 
         self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
             self._upload_id,
@@ -324,10 +330,7 @@ class UploadAttempt:
             try:
                 _, part_size = result.result()
 
-                if part_size:
-                    # won't have part size if a copy.
-                    # TODO how to display progress bar, can we get the size elsewhere?
-
+                if part_size and not self._is_copy():
                     progress += part_size
                     printTransferProgress(
                         min(progress, file_size),
@@ -480,7 +483,7 @@ def multipart_upload_file(
     part_size = _get_part_size(part_size, file_size)
 
     upload_request = {
-        'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadRequest',
+        'concreteType': concrete_types.MULTIPART_UPLOAD_REQUEST,
         'contentType': content_type,
         'contentMD5Hex': md5_hex,
         'fileName': dest_file_name,
@@ -561,7 +564,7 @@ def multipart_upload_string(
     part_size = _get_part_size(part_size, file_size)
 
     upload_request = {
-        'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadRequest',
+        'concreteType': concrete_types.MULTIPART_UPLOAD_REQUEST,
         'contentType': content_type,
         'contentMD5Hex': md5_hex,
         'fileName': dest_file_name,
@@ -607,7 +610,7 @@ def multipart_copy(
     part_size = part_size or DEFAULT_PART_SIZE
 
     upload_request = {
-        'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest',
+        'concreteType': concrete_types.MULTIPART_UPLOAD_COPY_REQUEST,
         'fileName': dest_file_name,
         'generatePreview': preview,
         'partSizeBytes': part_size,
