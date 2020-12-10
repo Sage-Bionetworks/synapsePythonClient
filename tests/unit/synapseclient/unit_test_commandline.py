@@ -84,7 +84,7 @@ def test_migrate(syn):
             args.id,
             args.storage_location_id,
             version='all',
-            progress_db_path=args.db_path,
+            db_path=args.db_path,
             continue_on_error=True
         )
 
@@ -103,7 +103,7 @@ def test_migrate(syn):
             args.id,
             args.storage_location_id,
             version=7,
-            progress_db_path=None,
+            db_path=None,
             continue_on_error=False,
         )
 

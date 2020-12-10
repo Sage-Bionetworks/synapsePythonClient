@@ -463,7 +463,7 @@ def migrate(args, syn):
         args.id,
         args.storage_location_id,
         version=version,
-        progress_db_path=args.db_path,
+        db_path=args.db_path,
         continue_on_error=args.continue_on_error,
     )
 
