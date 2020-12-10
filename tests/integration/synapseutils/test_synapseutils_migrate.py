@@ -104,6 +104,7 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
     )
 
     db_path = tempfile.NamedTemporaryFile(delete=False).name
+    schedule_for_cleanup(db_path)
 
     synapseutils.migrate(
         syn,

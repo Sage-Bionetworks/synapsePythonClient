@@ -1,4 +1,5 @@
 import json
+import os
 import pytest
 import sqlite3
 import tempfile
@@ -521,46 +522,51 @@ class TestMigrate:
             mock_syn_table_query.side_effect = mock_syn_table_query_side_effect
             mock_multipart_copy.side_effect = mock_multipart_copy_side_effect
 
-            with tempfile.NamedTemporaryFile() as tempf:
-                synapseutils.migrate(
-                    syn,
-                    project,
-                    new_storage_location_id,
-                    db_path=tempf.name,
-                    continue_on_error=continue_on_error
+            # can't seem to use a normal temp file context manager here on windows.
+            # https://stackoverflow.com/a/55081210
+            db_path = tempfile.NamedTemporaryFile(delete=False).name
+            synapseutils.migrate(
+                syn,
+                project,
+                new_storage_location_id,
+                db_path=db_path,
+                continue_on_error=continue_on_error
+            )
+
+            with sqlite3.connect(db_path) as conn:
+                cursor = conn.cursor()
+
+                results = cursor.execute('select id, status, exception from entities').fetchall()
+                statuses = {r[0]: (r[1], r[2]) for r in results}
+
+                for migrated_entity in (file1, file3, table1):
+                    assert statuses[migrated_entity.id][0] ==\
+                            synapseutils.migrate_functions._MigrationStatus.MIGRATED.value
+
+                assert statuses[file2.id][0] == \
+                    synapseutils.migrate_functions._MigrationStatus.MIGRATION_ERROR.value
+                assert 'boom' in statuses[file2.id][1]
+
+                results = cursor.execute(
+                    'select id, from_file_handle_id, to_file_handle_id from file_entity_versions'
                 )
+                mapping = {r[0]: (r[1], r[2]) for r in results}
 
-                with sqlite3.connect(tempf.name) as conn:
-                    cursor = conn.cursor()
+                expected_mapping = {
+                    'syn3': ('3', '30'),
+                    'syn7': ('7', '70'),
+                }
+                assert mapping == expected_mapping
 
-                    results = cursor.execute('select id, status, exception from entities').fetchall()
-                    statuses = {r[0]: (r[1], r[2]) for r in results}
+                results = cursor.execute(
+                    'select id, column, from_file_handle_id, to_file_handle_id from table_entity_files'
+                )
+                mapping = [(r[0], r[1], r[2], r[3]) for r in results]
+                expected_mapping = [('syn4', 'filecol', '4', '40')]
+                assert mapping == expected_mapping
 
-                    for migrated_entity in (file1, file3, table1):
-                        assert statuses[migrated_entity.id][0] ==\
-                                synapseutils.migrate_functions._MigrationStatus.MIGRATED.value
+            os.remove(db_path)
 
-                    assert statuses[file2.id][0] == \
-                        synapseutils.migrate_functions._MigrationStatus.MIGRATION_ERROR.value
-                    assert 'boom' in statuses[file2.id][1]
-
-                    results = cursor.execute(
-                        'select id, from_file_handle_id, to_file_handle_id from file_entity_versions'
-                    )
-                    mapping = {r[0]: (r[1], r[2]) for r in results}
-
-                    expected_mapping = {
-                        'syn3': ('3', '30'),
-                        'syn7': ('7', '70'),
-                    }
-                    assert mapping == expected_mapping
-
-                    results = cursor.execute(
-                        'select id, column, from_file_handle_id, to_file_handle_id from table_entity_files'
-                    )
-                    mapping = [(r[0], r[1], r[2], r[3]) for r in results]
-                    expected_mapping = [('syn4', 'filecol', '4', '40')]
-                    assert mapping == expected_mapping
 
     def test_continue_on_error__true(self, syn):
         """Test a migration of a project when an error is encountered while continuing on the error."""
