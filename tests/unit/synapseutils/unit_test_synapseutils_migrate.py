@@ -1,9 +1,12 @@
 import json
 import pytest
+import sqlite3
+import tempfile
 from unittest import mock
 
 import synapseclient
 import synapseclient.core.upload
+from synapseclient.core import utils
 import synapseutils
 import synapseutils.migrate_functions
 
@@ -411,9 +414,174 @@ class TestMigrateTable:
 
 
 class TestMigrate:
+    """Test a project migration that involves multiple recursive entity migrations.
+    All synapse calls are mocked but the local sqlite3 care not in these dates."""
 
-    def test_continue_on_error__True(self):
-        pass
+    def _migrate_test(self, syn, continue_on_error):
+        # project structure:
+        # project (syn1)
+        #  folder1 (syn2)
+        #    file1 (syn3)
+        #    table1 (syn4)
+        #  folder2 (syn5)
+        #    file2 (syn6)
+        #  file3 (syn7)
 
-    def test_continue_on_error__False(self):
-        pass
+        old_storage_location = '9876'
+        new_storage_location_id = '1234'
+
+        entities = []
+        project = synapseclient.Project()
+        project.id = 'syn1'
+        entities.append(project)
+
+        folder1 = synapseclient.Folder(id='syn2', parentId=project.id)
+        folder1.id = 'syn2'
+        entities.append(folder1)
+
+        file1 = synapseclient.File(id='syn3', parentId=folder1.id)
+        file1.dataFileHandleId = 3
+        file1.versionNumber = 1
+        file1._file_handle = {'storageLocationId': old_storage_location}
+        entities.append(file1)
+
+        table1 = synapseclient.Schema(id='syn4', parentId=folder1.id)
+        entities.append(table1)
+
+        folder2 = synapseclient.Folder(id='syn5', parentId=project.id)
+        folder2.id = 'syn5'
+        entities.append(folder2)
+
+        file2 = synapseclient.File(id='syn6', parentId=folder2.id)
+        file2.dataFileHandleId = 6
+        file2.versionNumber = 1
+        file2._file_handle = {'storageLocationId': old_storage_location}
+        entities.append(file2)
+
+        file3 = synapseclient.File(id='syn7', parentId=project.id)
+        file3.dataFileHandleId = 7
+        file3.versionNumber = 1
+        file3._file_handle = {'storageLocationId': old_storage_location}
+        entities.append(file3)
+
+        get_entities = {}
+        for entity in entities:
+            get_entities[entity.id] = entity
+
+        def mock_syn_get_side_effect(entity, *args, **kwargs):
+            entity_id = utils.id_of(entity)
+            # we simulate some failure migrating syn6,
+            # in this case just a failure to look it up
+            if entity_id == 'syn6':
+                raise ValueError('boom')
+            return get_entities[utils.id_of(entity)]
+
+        def mock_syn_store_side_effect(entity):
+            return entity
+
+        def mock_syn_get_children_side_effect(entity, includeTypes):
+            if set(includeTypes) != {'folder', 'file', 'table'}:
+                pytest.fail('Unexpected includeTypes')
+
+            if entity is project.id:
+                return [folder1, folder2, file3]
+            elif entity is folder1.id:
+                return [file1, table1]
+            elif entity is folder2.id:
+                return [file2]
+            else:
+                pytest.fail("Shouldn't reach here")
+
+        new_file_handle_mapping = {
+            3: 30,  # file1
+            4: 40,  # table1
+            6: 60,  # file2
+            7: 70,  # file3
+        }
+
+        def mock_syn_table_query_side_effect(query_string):
+            if not query_string == "select filecol from {}".format(table1.id):
+                pytest.fail("Unexpected table query")
+
+            return [['1', '1', 4]]
+
+        def mock_multipart_copy_side_effect(syn, source_file_handle_association, *args, **kwargs):
+            return new_file_handle_mapping[source_file_handle_association['fileHandleId']]
+
+        with mock.patch.object(syn, 'get') as mock_syn_get, \
+                mock.patch.object(syn, 'store') as mock_syn_store, \
+                mock.patch.object(syn, 'getChildren') as mock_syn_get_children, \
+                mock.patch.object(syn, 'restGET') as mock_syn_rest_get, \
+                mock.patch.object(syn, 'create_snapshot_version'), \
+                mock.patch.object(syn, 'tableQuery') as mock_syn_table_query, \
+                mock.patch.object(synapseutils.migrate_functions, 'multipart_copy') as mock_multipart_copy, \
+                mock.patch.object(synapseclient.PartialRowset, 'from_mapping'):
+
+            mock_syn_get.side_effect = mock_syn_get_side_effect
+            mock_syn_store.side_effect = mock_syn_store_side_effect
+            mock_syn_get_children.side_effect = mock_syn_get_children_side_effect
+            mock_syn_rest_get.return_value = {
+                'results': [
+                    {'columnType': 'STRING'},
+                    {
+                        'columnType': 'FILEHANDLEID',
+                        'name': 'filecol',
+                    }
+                ]
+            }
+            mock_syn_table_query.side_effect = mock_syn_table_query_side_effect
+            mock_multipart_copy.side_effect = mock_multipart_copy_side_effect
+
+            with tempfile.NamedTemporaryFile() as tempf:
+                synapseutils.migrate(
+                    syn,
+                    project,
+                    new_storage_location_id,
+                    db_path=tempf.name,
+                    continue_on_error=continue_on_error
+                )
+
+                with sqlite3.connect(tempf.name) as conn:
+                    cursor = conn.cursor()
+
+                    results = cursor.execute('select id, status, exception from entities').fetchall()
+                    statuses = {r[0]: (r[1], r[2]) for r in results}
+
+                    for migrated_entity in (file1, file3, table1):
+                        assert statuses[migrated_entity.id][0] ==\
+                                synapseutils.migrate_functions._MigrationStatus.MIGRATED.value
+
+                    assert statuses[file2.id][0] == \
+                        synapseutils.migrate_functions._MigrationStatus.MIGRATION_ERROR.value
+                    assert 'boom' in statuses[file2.id][1]
+
+                    results = cursor.execute(
+                        'select id, from_file_handle_id, to_file_handle_id from file_entity_versions'
+                    )
+                    mapping = {r[0]: (r[1], r[2]) for r in results}
+
+                    expected_mapping = {
+                        'syn3': ('3', '30'),
+                        'syn7': ('7', '70'),
+                    }
+                    assert mapping == expected_mapping
+
+                    results = cursor.execute(
+                        'select id, column, from_file_handle_id, to_file_handle_id from table_entity_files'
+                    )
+                    mapping = [(r[0], r[1], r[2], r[3]) for r in results]
+                    expected_mapping = [('syn4', 'filecol', '4', '40')]
+                    assert mapping == expected_mapping
+
+    def test_continue_on_error__true(self, syn):
+        """Test a migration of a project when an error is encountered while continuing on the error."""
+        # we expect the migration to run to the finish, but a failed file entity will be marked with
+        # a failed status and have an exception
+        self._migrate_test(syn, True)
+
+    def test_continue_on_error__false(self, syn):
+        """Test a migration for a project when an errir is encountered when aborting on errors"""
+        # we expect the error to be surfaced
+        with pytest.raises(ValueError) as ex:
+            self._migrate_test(syn, False)
+            assert 'boom' in str(ex)
