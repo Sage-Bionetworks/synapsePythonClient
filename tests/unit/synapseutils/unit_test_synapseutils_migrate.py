@@ -1,7 +1,5 @@
 import json
-import os
 import pytest
-import sqlite3
 import tempfile
 from unittest import mock
 
@@ -416,6 +414,7 @@ class TestMigrate:
         #  folder2 (syn5)
         #    file2 (syn6)
         #  file3 (syn7)
+        #  table2 (syn8)
 
         old_storage_location = '9876'
         new_storage_location_id = '1234'
@@ -454,6 +453,9 @@ class TestMigrate:
         file3._file_handle = {'storageLocationId': old_storage_location}
         entities.append(file3)
 
+        table2 = synapseclient.Schema(id='syn8', parentId=project.id)
+        entities.append(table2)
+
         get_entities = {}
         for entity in entities:
             get_entities[entity.id] = entity
@@ -462,7 +464,7 @@ class TestMigrate:
             entity_id = utils.id_of(entity)
             # we simulate some failure migrating syn6,
             # in this case just a failure to look it up
-            if entity_id == 'syn6':
+            if entity_id in ('syn6', 'syn8'):
                 raise ValueError('boom')
             return get_entities[utils.id_of(entity)]
 
@@ -474,7 +476,7 @@ class TestMigrate:
                 pytest.fail('Unexpected includeTypes')
 
             if entity is project.id:
-                return [folder1, folder2, file3]
+                return [folder1, folder2, file3, table2]
             elif entity is folder1.id:
                 return [file1, table1]
             elif entity is folder2.id:
@@ -525,7 +527,7 @@ class TestMigrate:
             # can't seem to use a normal temp file context manager here on windows.
             # https://stackoverflow.com/a/55081210
             db_path = tempfile.NamedTemporaryFile(delete=False).name
-            synapseutils.migrate(
+            result = synapseutils.migrate(
                 syn,
                 project,
                 new_storage_location_id,
@@ -533,40 +535,28 @@ class TestMigrate:
                 continue_on_error=continue_on_error
             )
 
-            with sqlite3.connect(db_path) as conn:
-                cursor = conn.cursor()
+            expected_file_versions_migrated = [
+                ('syn3', 1, '3', '30'),
+                ('syn7', 1, '7', '70'),
+            ]
+            file_versions_migrated = [m for m in result.get_file_versions_migrated()]
+            assert file_versions_migrated == expected_file_versions_migrated
 
-                results = cursor.execute('select id, status, exception from entities').fetchall()
-                statuses = {r[0]: (r[1], r[2]) for r in results}
+            expected_table_files_migrated = [
+                ('syn4', 1, 'filecol', '4', '40')
+            ]
+            table_files_migrated = [m for m in result.get_table_files_migrated()]
+            assert table_files_migrated == expected_table_files_migrated
 
-                for migrated_entity in (file1, file3, table1):
-                    assert statuses[migrated_entity.id][0] ==\
-                            synapseutils.migrate_functions._MigrationStatus.MIGRATED.value
+            file_errors = [e for e in result.get_file_migration_errors()]
+            assert len(file_errors) == 1
+            assert file_errors[0][0] == 'syn6'
+            assert 'boom' in file_errors[0][1]
 
-                assert statuses[file2.id][0] == \
-                    synapseutils.migrate_functions._MigrationStatus.MIGRATION_ERROR.value
-                assert 'boom' in statuses[file2.id][1]
-
-                results = cursor.execute(
-                    'select id, from_file_handle_id, to_file_handle_id from file_entity_versions'
-                )
-                mapping = {r[0]: (r[1], r[2]) for r in results}
-
-                expected_mapping = {
-                    'syn3': ('3', '30'),
-                    'syn7': ('7', '70'),
-                }
-                assert mapping == expected_mapping
-
-                results = cursor.execute(
-                    'select id, column, from_file_handle_id, to_file_handle_id from table_entity_files'
-                )
-                mapping = [(r[0], r[1], r[2], r[3]) for r in results]
-                expected_mapping = [('syn4', 'filecol', '4', '40')]
-                assert mapping == expected_mapping
-
-            os.remove(db_path)
-
+            table_errors = [e for e in result.get_table_migration_errors()]
+            assert len(table_errors) == 1
+            assert table_errors[0][0] == 'syn8'
+            assert 'boom' in table_errors[0][1]
 
     def test_continue_on_error__true(self, syn):
         """Test a migration of a project when an error is encountered while continuing on the error."""
@@ -575,7 +565,7 @@ class TestMigrate:
         self._migrate_test(syn, True)
 
     def test_continue_on_error__false(self, syn):
-        """Test a migration for a project when an errir is encountered when aborting on errors"""
+        """Test a migration for a project when an error is encountered when aborting on errors"""
         # we expect the error to be surfaced
         with pytest.raises(ValueError) as ex:
             self._migrate_test(syn, False)

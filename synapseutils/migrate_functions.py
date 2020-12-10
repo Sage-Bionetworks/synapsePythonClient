@@ -50,6 +50,98 @@ class _MigrationStatus(Enum):
     MIGRATION_ERROR = 3
 
 
+class MigrationResult:
+    """A MigrationResult is a proxy object to the underlying sqlite db.
+    It provides a programmatic interface that allows the caller to iterate over the
+    file handles that were migrated without having to connect to or know the schema
+    of the sqlite db, and also avoids the potential memory liability of putting
+    everything into an in memory data structure that could be a liability when
+    migrating a huge project of hundreds of thousands/millions of entities.
+
+    As this proxy object is not thread safe since it accesses an underlying sqlite db.
+    """
+
+    def __init__(self, db_path):
+        self.db_path = db_path
+
+    def _yield_migrations(self, query, *args):
+        import sqlite3
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            entity_id = ''
+            while True:
+                result = cursor.execute(
+                    query,
+                    (entity_id, *args)
+                )
+
+                batch = [r for r in result]
+                if len(batch) == 0:
+                    break
+
+                for row in batch:
+                    yield row
+
+                entity_id = row[0]
+
+    def get_file_versions_migrated(self):
+        """Returns a generator returning 4-tuples of file entity versions that were migrated
+        where each tuple is (entity id, version, old file handle id, new file handle id)"""
+        for result in self._yield_migrations(
+             """
+                 select id, version, from_file_handle_id, to_file_handle_id
+                 from file_entity_versions
+                 where id > ?
+                 order by id
+                 limit ?
+             """,
+             _get_batch_size(),
+        ):
+            yield result
+
+    def get_table_files_migrated(self):
+        """Returns a generator returning 5-tuples of file entity versions that were migrated
+        where each tuple is (entity id, row, column, old file handle id, new file handle id)"""
+        for result in self._yield_migrations(
+             """
+                 select id, row, column, from_file_handle_id, to_file_handle_id
+                 from table_entity_files
+                 where id > ?
+                 order by id
+                 limit ?
+             """,
+             _get_batch_size(),
+        ):
+            yield result
+
+    def _yield_errors(self, entity_type):
+        for result in self._yield_migrations(
+            """
+                select id, exception
+                from entities
+                where id > ? and type = ? and exception is not null
+                order by id
+                limit ?
+            """,
+            entity_type,
+            _get_batch_size(),
+        ):
+            yield result
+
+    def get_file_migration_errors(self):
+        """Returns a generator returning 2-tuples of entity ids to exception strings for
+        file entity migrations that resulted in an error"""
+        for result in self._yield_errors('file'):
+            yield result
+
+    def get_table_migration_errors(self):
+        """Returns a generator returning 2-tuples of entity ids to exception strings for
+        table entity migrations that resulted in an error"""
+        for result in self._yield_errors('table'):
+            yield result
+
+
 def _get_executor():
     executor = pool_provider.get_executor(thread_count=pool_provider.DEFAULT_NUM_THREADS)
 
@@ -117,7 +209,6 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
     for completed_future in completed:
         try:
             entity_id, record_fn, mapping = completed_future.result()
-
             record_fn(cursor, entity_id, mapping)
 
             cursor.execute(
@@ -172,9 +263,15 @@ def migrate(
                                                 the entire migration, True if the migration should continue to other
                                                 entities
 
-    :returns: a mapping of {row_id: {column: (old_file_handle_id, new_file_handle_id)}} that represents each
-        of the attached file handles that were changed in the table
+    :returns: a 5-tuple consisting detailing the results of the migration;
+        * map of file entity id to (version number, old file handle id, new file handle id)
+        * a list of file entities that were not able to be migrated (exceptions recorded a the sqlite db)
+        * map of tables with attached file handles that were migrated,
+            entity id to (row id, old file handle id, new file handle id)
+        * a list of tables that were not able to be migrated (exceptions recorded in the sqlite db)
+        * path to the sqlite db
     """
+
     if db_path is None:
         db_path = tempfile.NamedTemporaryFile(delete=False).name
 
@@ -260,6 +357,8 @@ def migrate(
 
     if futures:
         _wait_futures(conn, cursor, futures, concurrent.futures.ALL_COMPLETED, continue_on_error)
+
+    return MigrationResult(db_path)
 
 
 def _migrate_entity(executor, entity_id, migrate_fn, record_fn, *args, **kwargs):
