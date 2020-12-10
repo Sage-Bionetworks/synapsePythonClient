@@ -89,14 +89,14 @@ class MigrationResult:
         """Returns a generator returning 4-tuples of file entity versions that were migrated
         where each tuple is (entity id, version, old file handle id, new file handle id)"""
         for result in self._yield_migrations(
-             """
-             select id, version, from_file_handle_id, to_file_handle_id
-             from file_entity_versions
-             where id > ?
-             order by id
-             limit ?
-             """,
-             _get_batch_size(),
+            """
+                select id, version, from_file_handle_id, to_file_handle_id
+                from file_entity_versions
+                where id > ?
+                order by id
+                limit ?
+            """,
+            _get_batch_size(),
         ):
             yield result
 
@@ -104,14 +104,14 @@ class MigrationResult:
         """Returns a generator returning 5-tuples of file entity versions that were migrated
         where each tuple is (entity id, row, column, old file handle id, new file handle id)"""
         for result in self._yield_migrations(
-             """
-             select id, row, column, from_file_handle_id, to_file_handle_id
-             from table_entity_files
-             where id > ?
-             order by id
-             limit ?
-             """,
-             _get_batch_size(),
+            """
+                select id, row, column, from_file_handle_id, to_file_handle_id
+                from table_entity_files
+                where id > ?
+                order by id
+                limit ?
+            """,
+            _get_batch_size(),
         ):
             yield result
 
