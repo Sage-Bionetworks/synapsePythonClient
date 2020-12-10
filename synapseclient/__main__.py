@@ -447,6 +447,27 @@ def get_sts_token(args, syn):
     print(sts_string)
 
 
+def migrate(args, syn):
+    """Migrate Synapse entities to a new storage location"""
+
+    # version should be an integer or one of the allowed choices
+    try:
+        version = int(args.version)
+    except ValueError:
+        version = args.version.lower()
+        if version not in ('new', 'all', 'latest'):
+            raise ValueError('version')
+
+    synapseutils.migrate(
+        syn,
+        args.id,
+        args.storage_location_id,
+        version=version,
+        progress_db_path=args.db_path,
+        continue_on_error=args.continue_on_error,
+    )
+
+
 def build_parser():
     """Builds the argument parser and returns the result."""
 
@@ -842,6 +863,23 @@ def build_parser():
         default='shell',
         choices=['json', 'boto', 'shell', 'bash', 'cmd', 'powershell'])
     parser_get_sts_token.set_defaults(func=get_sts_token)
+
+    parser_migrate = subparsers.add_parser(
+        'migrate',
+        help='Migrate Synapse entities to a different storage location'
+    )
+    parser_migrate.add_argument('id', type=str, help='Synapse id')
+    parser_migrate.add_argument('storage_location_id', type=str, help='Synapse storage location id')
+    parser_migrate.add_argument('--version', type=str, default='new',
+                                help="""one of 'new', 'latest', 'all', or a specific version number:
+                                     new creates a new version of each entity,
+                                     latest migrates the most recent version,
+                                     all migrates all versions""")
+    parser_migrate.add_argument('--db_path', type=str,
+                                help='Local system path where a record keeping file can be stored')
+    parser_migrate.add_argument('--continue_on_error', action='store_true',
+                                help='Whether to continue processing other entities if migration of one fails')
+    parser_migrate.set_defaults(func=migrate)
 
     return parser
 

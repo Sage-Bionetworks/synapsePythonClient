@@ -127,18 +127,22 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
             )
             conn.commit()
 
-        except Exception:
+        except _EntityMigrationError as ex:
             logging.exception('Encountered error when migrating entity')
 
-            tb = traceback.format_exc()
+            # for the purposes of recording and re-raise we're not interested in
+            # the _EntityMigrationError, just the underlying cause
+
+            cause = ex.__cause__
+            tb_str = ''.join(traceback.format_exception(type(cause), cause, cause.__traceback__))
             cursor.execute(
                 'update entities set status = ?, exception = ? where id = ?',
-                (_MigrationStatus.MIGRATION_ERROR.value, tb, entity_id)
+                (_MigrationStatus.MIGRATION_ERROR.value, tb_str, ex.entity_id)
             )
             conn.commit()
 
             if not continue_on_error:
-                raise
+                raise cause from None
 
     conn.commit()
     return futures
@@ -147,9 +151,9 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
 def migrate(
         syn,
         entity,
-        destination_storage_location_id,
+        storage_location_id,
         version='new',
-        progress_db_path=None,
+        db_path=None,
         continue_on_error=False,
 ):
     """
@@ -157,13 +161,13 @@ def migrate(
 
     :param syn:                                 A Synapse client instance
     :param entity:                              The entity to migrate, typically a Folder or Project
-    :param destination_storage_location_id:     The storage location where the file handle(s) will be migrated to
+    :param storage_location_id:                 The storage location where the file handle(s) will be migrated to
     :param version:                             One of the following:
                                                     'new': create a new version for entities that are migrated
                                                     'all': migrate all entities in place by updating their file handles
-                                                    (None): migrate the latest entity version in place by updating
+                                                    'latest: migrate the latest entity version in place by updating
                                                             its file handle
-    :param progress_db_path:                    a path where a SQLite database can be saved to coordinate the progress
+    :param db_path:                             a path where a SQLite database can be saved to coordinate the progress
                                                 of the migration, if None provided a temp file will be used
     :param continue_on_error:                   False if an error when migrating an individual entity should abort
                                                 the entire migration, True if the migration should continue to other
@@ -172,13 +176,13 @@ def migrate(
     :returns: a mapping of {row_id: {column: (old_file_handle_id, new_file_handle_id)}} that represents each
         of the attached file handles that were changed in the table
     """
-    if progress_db_path is None:
-        progress_db_path = tempfile.NamedTemporaryFile(delete=False).name
+    if db_path is None:
+        db_path = tempfile.NamedTemporaryFile(delete=False).name
 
     executor, max_concurrent_file_copies = _get_executor()
 
     sqlite3 = import_sqlite3()
-    with sqlite3.connect(progress_db_path) as conn, \
+    with sqlite3.connect(db_path) as conn, \
             shared_executor(executor):
 
         cursor = conn.cursor()
@@ -218,7 +222,7 @@ def migrate(
             for row in results:
                 entity_id, entity_type = row
                 migrate_args = [syn, entity_id]
-                migrate_kwargs = {'destination_storage_location_id': destination_storage_location_id}
+                migrate_kwargs = {'storage_location_id': storage_location_id}
 
                 if entity_type == 'file':
                     migrate_fn = migrate_file
@@ -263,8 +267,13 @@ def _migrate_entity(entity_id, migrate_fn, record_fn, *args, **kwargs):
     # state to the consumer of a Future that isn't otherwise returned by
     # the underyling entity migration methods
     def _migrate_fn():
-        mapping = migrate_fn(*args, **kwargs)
-        return entity_id, record_fn, mapping
+        try:
+            mapping = migrate_fn(*args, **kwargs)
+            return entity_id, record_fn, mapping
+        except Exception as ex:
+            # we need to be able to pass up the entity id to the Future handler
+            # which does not have the original invoking scope
+            raise _EntityMigrationError(entity_id) from ex
     return _migrate_fn
 
 
@@ -360,7 +369,7 @@ def _index_entity(conn, cursor, syn, entity, parent_id):
 def migrate_file(
         syn,
         entity,
-        destination_storage_location_id: str,
+        storage_location_id: str,
         version: typing.Union[str, int] = 'new'
 ) -> typing.Mapping[typing.Tuple[int], typing.Tuple[str, str]]:
     """
@@ -368,11 +377,11 @@ def migrate_file(
 
     :param syn:                                 A Synapse client instance
     :param entity:                              A FileEntity or the id of a Synapse file
-    :param destination_storage_location_id:     The storage location where the file handle(s) will be migrated to
+    :param storage_location_id:                 The storage location where the file handle(s) will be migrated to
     :param version:                             Describes which version(s) of the file entity to migrate:
                                                 'new':  (default) create a new version of the entity
                                                 'all':  migrate the file handle(s) of all revisions
-                                                (None): migrate the file handle associated with latest revision
+                                                'latest': migrate the file handle associated with latest revision
                                                 (int):  migrate the file handle associated with specified version
 
     :returns: a mapping of (old version, new version) -> (old storage location id, new storage location id)
@@ -381,6 +390,8 @@ def migrate_file(
     entity = syn.get(entity, downloadFile=False)
     if not isinstance(entity, synapseclient.File):
         raise ValueError('passed value is not a FileEntity')
+    if not version in ('new', 'all', 'latest') and not isinstance(version, int):
+        raise ValueError("invalid value {} passed for version".format(version))
 
     mapping = {}
     if version == 'new':
@@ -388,7 +399,7 @@ def migrate_file(
             version, from_file_handle_id, to_file_handle_id = _create_new_file_version(
                 syn,
                 entity,
-                destination_storage_location_id
+                storage_location_id
             )
             mapping[version] = (from_file_handle_id, to_file_handle_id)
 
@@ -397,16 +408,21 @@ def migrate_file(
             pass
 
     elif version == 'all':
-        version_mapping = _migrate_all_file_versions(syn, entity, destination_storage_location_id)
+        version_mapping = _migrate_all_file_versions(syn, entity, storage_location_id)
         mapping.update(version_mapping)
 
     else:
+        if version == 'latest':
+            # internally for the purposes of syn.get latest means we pass no value for version
+            version = None
+        # otherwise we know version is an integer
+
         # we are either migrating the most recent revision (None) or a specific passed revision
         try:
             migrated_version, from_file_handle_id, to_file_handle_id = _migrate_file_version(
                 syn,
                 entity,
-                destination_storage_location_id,
+                storage_location_id,
                 version,
             )
             mapping[migrated_version] = (from_file_handle_id, to_file_handle_id)
@@ -418,16 +434,16 @@ def migrate_file(
     return mapping
 
 
-def _create_new_file_version(syn, entity, destination_storage_location_id):
+def _create_new_file_version(syn, entity, storage_location_id):
     existing_file_handle_id = entity.dataFileHandleId
     existing_file_name = entity._file_handle['fileName']
     existing_storage_location_id = entity._file_handle['storageLocationId']
 
-    if str(existing_storage_location_id) == str(destination_storage_location_id):
+    if str(existing_storage_location_id) == str(storage_location_id):
         logging.info(
             'Skipped creating a new version of file %s, it is already in the destination storage location (%s)',
             entity.id,
-            destination_storage_location_id
+            storage_location_id
         )
         raise _AlreadyMigratedException()
 
@@ -441,7 +457,7 @@ def _create_new_file_version(syn, entity, destination_storage_location_id):
         syn,
         source_file_handle_association,
         dest_file_name=existing_file_name,
-        storage_location_id=destination_storage_location_id,
+        storage_location_id=storage_location_id,
     )
 
     entity.dataFileHandleId = new_file_handle_id
@@ -450,7 +466,7 @@ def _create_new_file_version(syn, entity, destination_storage_location_id):
     return entity.versionNumber, existing_file_handle_id, new_file_handle_id
 
 
-def _migrate_all_file_versions(syn, entity, destination_storage_location_id):
+def _migrate_all_file_versions(syn, entity, storage_location_id):
     mapping = {}
     entity_id = utils.id_of(entity)
 
@@ -460,7 +476,7 @@ def _migrate_all_file_versions(syn, entity, destination_storage_location_id):
             _, from_file_handle_id, to_file_handle_id = _migrate_file_version(
                 syn,
                 entity,
-                destination_storage_location_id,
+                storage_location_id,
                 version_number,
             )
 
@@ -472,7 +488,7 @@ def _migrate_all_file_versions(syn, entity, destination_storage_location_id):
     return mapping
 
 
-def _migrate_file_version(syn, entity, destination_storage_location_id, version):
+def _migrate_file_version(syn, entity, storage_location_id, version):
     # if walking a container the children entities passed will be the light weight
     # dictionary representation of the FileEntity, so we retrieve the full entity
     entity_id = utils.id_of(entity)
@@ -483,12 +499,12 @@ def _migrate_file_version(syn, entity, destination_storage_location_id, version)
     existing_file_name = entity._file_handle['fileName']
     existing_storage_location_id = entity._file_handle['storageLocationId']
 
-    if str(existing_storage_location_id) == str(destination_storage_location_id):
+    if str(existing_storage_location_id) == str(storage_location_id):
         logging.info(
             'Skipped migrating file %s, version %s, it is already in the destination storage location (%s)',
             entity_id,
             entity['versionNumber'],
-            destination_storage_location_id
+            storage_location_id
         )
         raise _AlreadyMigratedException()
 
@@ -502,7 +518,7 @@ def _migrate_file_version(syn, entity, destination_storage_location_id, version)
         syn,
         source_file_handle_assocation,
         dest_file_name=existing_file_name,
-        storage_location_id=destination_storage_location_id,
+        storage_location_id=storage_location_id,
     )
 
     file_handle_update_request = {
@@ -523,7 +539,7 @@ def _migrate_file_version(syn, entity, destination_storage_location_id, version)
         'Migrated file % version % to storage location %s',
         entity_id,
         version,
-        destination_storage_location_id,
+        storage_location_id,
     )
 
     return version, existing_file_handle_id, new_file_handle_id
@@ -532,7 +548,7 @@ def _migrate_file_version(syn, entity, destination_storage_location_id, version)
 def migrate_table(
     syn,
     entity,
-    destination_storage_location_id: str,
+    storage_location_id: str,
     create_snapshot=True
 ):
     """
@@ -540,7 +556,7 @@ def migrate_table(
 
     :param syn:                                 A Synapse client instance
     :param entity:                              A Table entity or the id of a Synapse one
-    :param destination_storage_location_id:     The storage location where the file handle(s) will be migrated to
+    :param storage_location_id:                 The storage location where the file handle(s) will be migrated to
     :param create_snapshot:                     Whether a snapshot should be created prior to the migration.
 
     :returns: a mapping of {row_id: {column: (old_file_handle_id, new_file_handle_id)}} that represents each
@@ -590,7 +606,7 @@ def migrate_table(
                 migrated_file_handle_id = multipart_copy(
                     syn,
                     source_file_handle_association,
-                    storage_location_id=destination_storage_location_id
+                    storage_location_id=storage_location_id
                 )
                 migrated_file_handle_ids.append(migrated_file_handle_id)
                 row_id_changes[col_name] = (file_handle_id, migrated_file_handle_id)
@@ -612,3 +628,8 @@ def migrate_table(
 
 class _AlreadyMigratedException(ValueError):
     pass
+
+
+class _EntityMigrationError(Exception):
+    def __init__(self, entity_id):
+        self.entity_id = entity_id

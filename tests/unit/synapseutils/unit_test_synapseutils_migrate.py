@@ -84,36 +84,58 @@ class TestMigrateFile:
 
         mock_all_versions.assert_called_once_with(syn, entity, destination_storage_location)
 
-    def test_migrate_file__specific_version(self, syn):
-        """Verify that migrate_file invokes the proper internal functionality when a specific version is copied"""
+    def test_migrate_file__latest(self, syn):
+        """Verify that migrate_file invokes the proper internal functionality when the latest version is called"""
 
         entity = mock.MagicMock(spec=synapseclient.File)
         destination_storage_location = '1234'
-
-        returned_version = 5
+        returned_version = 7
         old_file_handle_id = '123'
         new_file_handle_id = '456'
 
         with mock.patch.object(syn, 'get') as syn_get, \
                 mock.patch.object(synapseutils.migrate_functions, '_migrate_file_version') as mock_migrate_version:
 
-            mock_migrate_version.return_value = (returned_version, old_file_handle_id, new_file_handle_id)
+            mock_migrate_version.return_value = (7, old_file_handle_id, new_file_handle_id)
             syn_get.return_value = entity
 
-            for version in (returned_version, None):
-                mapping = synapseutils.migrate_file(syn, entity, destination_storage_location, version=version)
+            expected_mapping = {returned_version: (old_file_handle_id, new_file_handle_id)}
+            mapping = synapseutils.migrate_file(syn, entity, destination_storage_location, version='latest')
 
-                expected_mapping = {returned_version: (old_file_handle_id, new_file_handle_id)}
-                assert mapping == expected_mapping
+        assert mapping == expected_mapping
 
-                mock_migrate_version.assert_called_once_with(
-                    syn,
-                    entity,
-                    destination_storage_location,
-                    version
-                )
+        # latest becomes None when passed to internal handler which uses syn.get style None = latest
+        mock_migrate_version.assert_called_once_with(syn, entity, destination_storage_location, None)
 
-                mock_migrate_version.reset_mock()
+    def test_migrate_file__specific_version(self, syn):
+        """Verify that migrate_file invokes the proper internal functionality when a specific version is copied"""
+
+        entity = mock.MagicMock(spec=synapseclient.File)
+        destination_storage_location = '1234'
+
+        version = 5
+        old_file_handle_id = '123'
+        new_file_handle_id = '456'
+
+        with mock.patch.object(syn, 'get') as syn_get, \
+                mock.patch.object(synapseutils.migrate_functions, '_migrate_file_version') as mock_migrate_version:
+
+            mock_migrate_version.return_value = (version, old_file_handle_id, new_file_handle_id)
+            syn_get.return_value = entity
+
+            mapping = synapseutils.migrate_file(syn, entity, destination_storage_location, version=version)
+
+            expected_mapping = {version: (old_file_handle_id, new_file_handle_id)}
+            assert mapping == expected_mapping
+
+            mock_migrate_version.assert_called_once_with(
+                syn,
+                entity,
+                destination_storage_location,
+                version
+            )
+
+            mock_migrate_version.reset_mock()
 
     def test_create_new_file_version(self, syn):
         """Verify _create_new_file_version copies the file handle and creates a new entity version"""

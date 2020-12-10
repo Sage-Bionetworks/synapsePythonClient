@@ -11,7 +11,7 @@ import synapseutils
 
 
 @pytest.fixture(scope='module')
-def destination_storage_location_id(syn, project):
+def storage_location_id(syn, project):
     storage_location_setting = syn.restPOST('/storageLocation', json.dumps({
         'concreteType': concrete_types.SYNAPSE_S3_STORAGE_LOCATION_SETTING
     }))
@@ -48,7 +48,7 @@ def _assert_storage_location(file_entities, storage_location_id):
         assert entity._file_handle['storageLocationId'] == storage_location_id
 
 
-def test_migrate_project(request, syn, schedule_for_cleanup, destination_storage_location_id):
+def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id):
     test_name = request.node.name
     project_name = "{}-{}".format(test_name, uuid.uuid4())
     project = synapseclient.Project(name=project_name)
@@ -103,15 +103,14 @@ def test_migrate_project(request, syn, schedule_for_cleanup, destination_storage
         )
     )
 
-    progress_db_path = tempfile.NamedTemporaryFile(delete=False).name
+    db_path = tempfile.NamedTemporaryFile(delete=False).name
 
-    # version=None migrates the most recent version of each entity
     synapseutils.migrate(
         syn,
         project_entity,
-        destination_storage_location_id,
-        progress_db_path=progress_db_path,
-        version=None
+        storage_location_id,
+        db_path=db_path,
+        version='latest',
     )
 
     file_0_entity_updated = syn.get(utils.id_of(file_0_entity), downloadFile=False)
@@ -119,11 +118,11 @@ def test_migrate_project(request, syn, schedule_for_cleanup, destination_storage
     file_2_entity_updated = syn.get(utils.id_of(file_2_entity), downloadFile=False)
     _assert_storage_location(
         [file_0_entity_updated, file_1_entity_updated, file_2_entity_updated],
-        destination_storage_location_id
+        storage_location_id
     )
-    assert destination_storage_location_id != default_storage_location
+    assert storage_location_id != default_storage_location
 
-    with sqlite3.connect(progress_db_path) as conn:
+    with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         result = cursor.execute(
             "select status, count(*) from entities where type in ('file', 'table') group by status"
@@ -144,12 +143,12 @@ def test_migrate_project(request, syn, schedule_for_cleanup, destination_storage
         assert migrated_table_file_entity_count == 2
 
 
-def test_migrate_file__specific_version(request, syn, project, schedule_for_cleanup, destination_storage_location_id):
+def test_migrate_file__specific_version(request, syn, project, schedule_for_cleanup, storage_location_id):
     """Verify we copy the file handle for the specified revision at the destination storage location"""
 
     v1, v2 = _migrate_file_version_test_helper(request, syn, project, schedule_for_cleanup)
     entity_id = utils.id_of(v2)
-    mapping = synapseutils.migrate_file(syn, entity_id, destination_storage_location_id, version=1)
+    mapping = synapseutils.migrate_file(syn, entity_id, storage_location_id, version=1)
 
     v1_updated = syn.get(entity_id, version=1, downloadFile=False)
 
@@ -161,14 +160,14 @@ def test_migrate_file__specific_version(request, syn, project, schedule_for_clea
     assert v1._file_handle['storageLocationId'] != v1_updated._file_handle['storageLocationId']
 
 
-def test_migrate_file__latest_version(request, syn, project, schedule_for_cleanup, destination_storage_location_id):
+def test_migrate_file__latest_version(request, syn, project, schedule_for_cleanup, storage_location_id):
     """Verify we copy the file handle for the latest revision at the destination storage lcoation"""
 
     v1, v2 = _migrate_file_version_test_helper(request, syn, project, schedule_for_cleanup)
     entity_id = utils.id_of(v2)
 
     # not passing version, should update the latest
-    mapping = synapseutils.migrate_file(syn, entity_id, destination_storage_location_id, version=None)
+    mapping = synapseutils.migrate_file(syn, entity_id, storage_location_id, version='latest')
 
     v2_updated = syn.get(entity_id, downloadFile=False)
 
@@ -180,13 +179,13 @@ def test_migrate_file__latest_version(request, syn, project, schedule_for_cleanu
     assert v2._file_handle['storageLocationId'] != v2_updated._file_handle['storageLocationId']
 
 
-def test_migrate_file__all_versions(request, syn, project, schedule_for_cleanup, destination_storage_location_id):
+def test_migrate_file__all_versions(request, syn, project, schedule_for_cleanup, storage_location_id):
     """Verify we make migrated versions of all file entity versions"""
 
     v1, v2 = _migrate_file_version_test_helper(request, syn, project, schedule_for_cleanup)
     entity_id = utils.id_of(v1)
 
-    mapping = synapseutils.migrate_file(syn, entity_id, destination_storage_location_id, version='all')
+    mapping = synapseutils.migrate_file(syn, entity_id, storage_location_id, version='all')
 
     v1_updated = syn.get(entity_id, version=1, downloadFile=False)
     v2_updated = syn.get(entity_id, version=2, downloadFile=False)
@@ -205,7 +204,7 @@ def test_migrate_file__all_versions(request, syn, project, schedule_for_cleanup,
         assert original_entity._file_handle['contentMd5'] == updated_entity._file_handle['contentMd5']
 
 
-def test_migrate_file__new_version(request, syn, project, schedule_for_cleanup, destination_storage_location_id):
+def test_migrate_file__new_version(request, syn, project, schedule_for_cleanup, storage_location_id):
     """Verify we create a new revision at the destination storage location copying the data from the most
     recent version"""
 
@@ -215,7 +214,7 @@ def test_migrate_file__new_version(request, syn, project, schedule_for_cleanup, 
     v1 = syn.store(file)
     entity_id = utils.id_of(v1)
 
-    mapping = synapseutils.migrate_file(syn, entity_id, destination_storage_location_id, version='new')
+    mapping = synapseutils.migrate_file(syn, entity_id, storage_location_id, version='new')
 
     v2 = syn.get(entity_id)
     assert v2.versionNumber == 2
@@ -233,7 +232,7 @@ def test_migrate_file__new_version(request, syn, project, schedule_for_cleanup, 
         assert v2_data == source_data
 
 
-def test_migrate_table_file_handles(request, syn, project, destination_storage_location_id):
+def test_migrate_table_file_handles(request, syn, project, storage_location_id):
     """Verify that we migrate all the file handles attached to a TableEntity"""
 
     test_name = '{}-{}'.format(request.node.name, uuid.uuid4())
@@ -280,7 +279,7 @@ def test_migrate_table_file_handles(request, syn, project, destination_storage_l
     )
 
     entity_id = utils.id_of(schema)
-    mapping = synapseutils.migrate_table(syn, schema, destination_storage_location_id)
+    mapping = synapseutils.migrate_table(syn, schema, storage_location_id)
     for row in data:
         row_id = str(row[0])
         old_file_handle_id_a, new_file_handle_id_a = mapping[row_id]['file_a']
@@ -301,5 +300,5 @@ def test_migrate_table_file_handles(request, syn, project, destination_storage_l
                 'TableEntity'
             )['fileHandle']
             assert new_file_handle['storageLocationId'] != old_file_handle['storageLocationId']
-            assert new_file_handle['storageLocationId'] == destination_storage_location_id
+            assert new_file_handle['storageLocationId'] == storage_location_id
             assert new_file_handle['contentMd5'] == old_file_handle['contentMd5']

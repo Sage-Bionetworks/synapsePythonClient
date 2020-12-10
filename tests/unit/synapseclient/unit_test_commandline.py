@@ -38,6 +38,76 @@ def test_command_sync(syn):
                                                     retries=args.retries)
 
 
+def test_migrate(syn):
+    """Test that the command line arguments are successfully passed to the migrate function."""
+
+    entity_id = 'syn12345'
+    storage_location_id = '98766'
+    db_path = '/tmp/foo/bar'
+
+    parser = cmdline.build_parser()
+
+    # test w/ default optional args
+    args = parser.parse_args([
+        'migrate',
+        'syn12345',
+        storage_location_id
+    ])
+
+    assert args.id == entity_id
+    assert args.storage_location_id == storage_location_id
+    assert args.version == 'new'
+    assert args.db_path is None
+    assert args.continue_on_error is False
+
+    # test w/ specified args
+    args = parser.parse_args([
+        'migrate',
+        entity_id,
+        storage_location_id,
+        '--version', 'all',
+        '--db_path', db_path,
+        '--continue_on_error',
+    ])
+
+    assert args.id == entity_id
+    assert args.storage_location_id == storage_location_id
+    assert args.version == 'all'
+    assert args.db_path == db_path
+    assert args.continue_on_error is True
+
+    # verify args are passed through to the fn
+    with patch.object(synapseutils, 'migrate') as mock_migrate:
+        cmdline.migrate(args, syn)
+        mock_migrate.assert_called_once_with(
+            syn,
+            args.id,
+            args.storage_location_id,
+            version='all',
+            progress_db_path=args.db_path,
+            continue_on_error=True
+        )
+
+    # test w/ numeric version
+    args = parser.parse_args([
+        'migrate',
+        'syn12345',
+        storage_location_id,
+        '--version', '7'
+    ])
+    assert args.version == '7'
+    with patch.object(synapseutils, 'migrate') as mock_migrate:
+        cmdline.migrate(args, syn)
+        mock_migrate.assert_called_once_with(
+            syn,
+            args.id,
+            args.storage_location_id,
+            version=7,
+            progress_db_path=None,
+            continue_on_error=False,
+        )
+
+
 def test_get_multi_threaded_flag():
     """Test the multi threaded command line flag"""
     parser = cmdline.build_parser()
