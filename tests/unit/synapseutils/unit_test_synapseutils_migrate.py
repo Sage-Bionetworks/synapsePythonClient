@@ -284,7 +284,8 @@ class TestMigrateTable:
     def test_non_table(self, syn):
         file = mock.MagicMock(spec=synapseclient.File)
 
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(ValueError) as ex, \
+                mock.patch.object(syn, 'get', return_value=file):
             synapseutils.migrate_table(syn, file, '1234')
             assert 'not a Table schema' in str(ex)
 
