@@ -458,7 +458,7 @@ def migrate(args, syn):
         if version not in ('new', 'all', 'latest'):
             raise ValueError('version')
 
-    synapseutils.migrate(
+    result = synapseutils.migrate(
         syn,
         args.id,
         args.storage_location_id,
@@ -466,6 +466,12 @@ def migrate(args, syn):
         db_path=args.db_path,
         continue_on_error=args.continue_on_error,
     )
+
+    print("Completed migration of {}. Full record saved in sqlite db {}".format(args.id, result.db_path))
+    error_count = len([e for e in result.get_file_migration_errors()]) + \
+        len([e for e in result.get_table_migration_errors()])
+    if error_count > 0:
+        print("Encountered {} errors during the migration".format(error_count))
 
 
 def build_parser():

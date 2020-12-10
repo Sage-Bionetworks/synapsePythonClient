@@ -487,6 +487,7 @@ def migrate_file(
     :returns: a mapping of (old version, new version) -> (old storage location id, new storage location id)
         representing the migrated entity versions
     """
+
     entity = syn.get(entity, downloadFile=False)
     if not isinstance(entity, synapseclient.File):
         raise ValueError('passed value is not a FileEntity')
