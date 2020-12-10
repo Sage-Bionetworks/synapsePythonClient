@@ -1,6 +1,5 @@
 import concurrent.futures
 from enum import Enum
-import importlib
 import json
 import logging
 import sys
@@ -26,14 +25,14 @@ reduces the impact of a large migration can have on Synapse by clustering change
 """
 
 
-def import_sqlite3():
+def test_import_sqlite3():
     # sqlite3 is part of the Python standard library and is available on the vast majority
     # of Python installations and doesn't require any additional software on the system.
     # it may be unavailable in some rare cases though (for example Python compiled from source
     # without ay sqlite headers available). we dynamically import it when used to avoid making
     # this dependency hard for all client usage, however.
     try:
-        return importlib.import_module('sqlite3')
+        import sqlite3  # noqa
     except ImportError:
         sys.stderr.write("""\nThis operation requires the sqlite3 module which is not available on this
 installation of python. Using a Python installed from a binary package or compiled from source with sqlite
@@ -181,7 +180,8 @@ def migrate(
 
     executor, max_concurrent_file_copies = _get_executor()
 
-    sqlite3 = import_sqlite3()
+    test_import_sqlite3()
+    import sqlite3
     with sqlite3.connect(db_path) as conn:
 
         cursor = conn.cursor()
