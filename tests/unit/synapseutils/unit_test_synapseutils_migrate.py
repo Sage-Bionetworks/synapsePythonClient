@@ -8,6 +8,17 @@ import synapseutils
 import synapseutils.migrate_functions
 
 
+@mock.patch('importlib.import_module')
+def test_import_failure(mock_import_module, syn):
+    """Verify behavior when sqlite3 module is not available. Should fail when function
+    is called only"""
+    # successful importing is implicitly tested everywhere else
+    mock_import_module.side_effect = ImportError('boom')
+
+    with pytest.raises(ImportError):
+        synapseutils.migrate(syn, mock.Mock(), '1234')
+
+
 class TestMigrateFile:
 
     def test_migrate_file__new(self, syn):

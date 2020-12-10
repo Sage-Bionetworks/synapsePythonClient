@@ -1,8 +1,9 @@
 import concurrent.futures
 from enum import Enum
+import importlib
 import json
 import logging
-import sqlite3
+import sys
 import tempfile
 import traceback
 import typing
@@ -23,6 +24,21 @@ the migrate function orders migrations if entities selected by first indexing th
 internal SQLite database and then ordering their migration by Synapse id. The ordering
 reduces the impact of a large migration can have on Synapse by clustering changes locally
 """
+
+
+def import_sqlite3():
+    # sqlite3 is part of the Python standard library and is available on the vast majority
+    # of Python installations and doesn't require any additional software on the system.
+    # it may be unavailable in some rare cases though (for example Python compiled from source
+    # without ay sqlite headers available). we dynamically import it when used to avoid making
+    # this dependency hard for all client usage, however.
+    try:
+        return importlib.import_module('sqlite3')
+    except ImportError:
+        sys.stderr.write("""\nThis operation requires the sqlite3 module which is not available on this
+installation of python. Using a Python installed from a binary package or compiled from source with sqlite
+development headers available should ensure that the sqlite3 module is available.""")
+        raise
 
 
 class _MigrationStatus(Enum):
@@ -161,6 +177,7 @@ def migrate(
 
     executor, max_concurrent_file_copies = _get_executor()
 
+    sqlite3 = import_sqlite3()
     with sqlite3.connect(progress_db_path) as conn, \
             shared_executor(executor):
 
