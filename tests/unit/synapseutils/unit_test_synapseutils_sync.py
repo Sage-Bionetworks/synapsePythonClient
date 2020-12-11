@@ -364,6 +364,14 @@ def test_manifest_upload(syn):
         'anno_2': ['v3', 'v4', ''],
     }
 
+    # any empty annotations that result from any empty csv column should not
+    # be included in the upload
+    expected_anno_data = [
+        {'anno_2': 'v3'},
+        {'anno_1': 'v1', 'anno_2': 'v4'},
+        {'anno_1': 'v2'}
+    ]
+
     df = pd.DataFrame(data=data)
 
     with patch.object(synapseutils.sync, '_SyncUploadItem') as upload_item_init, \
@@ -377,13 +385,7 @@ def test_manifest_upload(syn):
         expected_name = data['name'][i]
         expected_used = data['used'][i]
         expected_executed = data['executed'][i]
-
-        expected_annos = {}
-        expected_annos.update({'anno_1': data['anno_1'][i]})
-        expected_annos.update({'anno_2': data['anno_2'][i]})
-
-        # empty strings values should not be uploaded as annotations
-        expected_annos = {k: v for k, v in expected_annos.items() if v != ''}
+        expected_annos = expected_anno_data[i]
 
         upload_items.append(upload_item_init.return_value)
         upload_item_init_args = upload_item_init.call_args_list[i]
