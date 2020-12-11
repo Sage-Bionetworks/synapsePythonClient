@@ -896,10 +896,15 @@ def _manifest_upload(syn, df):
             parent=row['parent'],
             **{key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row},
         )
-        file.annotations = dict(row.drop(
+
+        annotations = dict(row.drop(
             FILE_CONSTRUCTOR_FIELDS + STORE_FUNCTION_FIELDS + REQUIRED_FIELDS + PROVENANCE_FIELDS,
             errors='ignore'
         ))
+
+        # if a item in the manifest upload is an empty string we do not want to upload that
+        # as an empty string annotation
+        file.annotations = {k: v for k, v in annotations.items() if v != ''}
 
         item = _SyncUploadItem(
             file,
