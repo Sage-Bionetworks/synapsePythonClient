@@ -108,6 +108,7 @@ class MigrationResult:
                             version,
                             row_id,
                             col_id,
+                            from_storage_location_id,
                             from_file_handle_id,
                             to_file_handle_id,
                             status,
@@ -142,7 +143,13 @@ class MigrationResult:
 
                     row_dict['type'] = 'file' if row_dict['type'] == _MigrationType.FILE.value else 'table'
 
-                    for int_arg in ('version', 'row_id', 'from_file_handle_id', 'to_file_handle_id'):
+                    for int_arg in (
+                            'version',
+                            'row_id',
+                            'from_storage_location_id',
+                            'from_file_handle_id',
+                            'to_file_handle_id'
+                    ):
                         int_val = row_dict.get(int_arg)
                         if int_val is not None:
                             row_dict[int_arg] = int(int_val)
@@ -175,6 +182,7 @@ class MigrationResult:
                 'version',
                 'row_id',
                 'col_name',
+                'from_storage_location_id',
                 'from_file_handle_id',
                 'to_file_handle_id',
                 'status',
@@ -188,6 +196,7 @@ class MigrationResult:
                     row_dict.get('version'),
                     row_dict.get('row_id'),
                     row_dict.get('col_name'),
+                    row_dict.get('from_storage_location_id'),
                     row_dict.get('from_file_handle_id'),
                     row_dict.get('to_file_handle_id'),
                     row_dict['status'],
@@ -236,6 +245,7 @@ def _ensure_schema(cursor):
                 status integer not null,
                 exception text null,
 
+                from_storage_location_id null,
                 from_file_handle_id text null,
                 to_file_handle_id text null,
 
@@ -532,6 +542,7 @@ def _index_file_entity(cursor, syn, entity, parent_id, file_version_strategy):
             _MigrationType.FILE.value,
             None,  # a new version will be created
             parent_id,
+            entity._file_handle['storageLocationId'],
             entity.dataFileHandleId,
             _MigrationStatus.INDEXED.value
         ))
@@ -546,6 +557,7 @@ def _index_file_entity(cursor, syn, entity, parent_id, file_version_strategy):
                 _MigrationType.FILE.value,
                 version,
                 parent_id,
+                entity._file_handle['storageLocationId'],
                 entity.dataFileHandleId,
                 _MigrationStatus.INDEXED.value
             ))
@@ -560,6 +572,7 @@ def _index_file_entity(cursor, syn, entity, parent_id, file_version_strategy):
             entity.versionNumber,
             entity['versionNumber'],
             parent_id,
+            entity._file_handle['storageLocationId'],
             entity.dataFileHandleId,
             _MigrationStatus.INDEXED.value
         ))
@@ -572,9 +585,10 @@ def _index_file_entity(cursor, syn, entity, parent_id, file_version_strategy):
                     type,
                     version,
                     parent_id,
+                    from_storage_location_id,
                     from_file_handle_id,
                     status
-                ) values (?, ?, ?, ?, ?, ?)
+                ) values (?, ?, ?, ?, ?, ?, ?)
             """,
             insert_values
         )
@@ -596,7 +610,8 @@ def _get_file_handle_rows(syn, table_id):
         file_handle_ids = row[2:]
         for i, file_handle_id in enumerate(file_handle_ids):
             col_id = file_handle_columns[i]['id']
-            file_handles[col_id] = file_handle_id
+            file_handle = syn._getFileHandleDownload(file_handle_id, table_id, objectType='TableEntity')['fileHandle']
+            file_handles[col_id] = file_handle
 
         yield row_id, row_version, file_handles
 
@@ -614,9 +629,10 @@ def _index_table_entity(cursor, syn, entity, parent_id, create_table_snapshot):
                     row_id,
                     col_id,
                     version,
+                    from_storage_location_id,
                     from_file_handle_id,
                     status
-                ) values (?, ?, ?, ?, ?, ?, ?, ?)
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             row_batch
         )
@@ -624,7 +640,7 @@ def _index_table_entity(cursor, syn, entity, parent_id, create_table_snapshot):
     total = 0
     entity_id = utils.id_of(entity)
     for row_id, row_version, file_handles in _get_file_handle_rows(syn, entity_id):
-        for col_id, file_handle_id in file_handles.items():
+        for col_id, file_handle in file_handles.items():
             row_batch.append((
                 entity_id,
                 _MigrationType.TABLE_ATTACHED_FILE.value,
@@ -632,7 +648,8 @@ def _index_table_entity(cursor, syn, entity, parent_id, create_table_snapshot):
                 row_id,
                 col_id,
                 row_version,
-                file_handle_id,
+                file_handle['storageLocationId'],
+                file_handle['id'],
                 _MigrationStatus.INDEXED.value
             ))
 

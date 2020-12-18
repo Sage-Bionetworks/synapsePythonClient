@@ -16,11 +16,11 @@ class TestMigrationResult:
     @pytest.fixture(scope="class", autouse=True)
     def db_path(self):
         values = [
-            ('syn1', _MigrationType.PROJECT.value, None, None, None, None, _MigrationStatus.INDEXED.value, None, None, None),  # noqa
-            ('syn2', _MigrationType.FOLDER.value, None, None, None, 'syn1', _MigrationStatus.INDEXED.value, None, None, None),  # noqa
-            ('syn3', _MigrationType.FILE.value, 5, None, None, 'syn2', _MigrationStatus.MIGRATED.value, None, 3, 30),  # noqa
-            ('syn4', _MigrationType.TABLE_ATTACHED_FILE.value, 5, 1, 2, 'syn2', _MigrationStatus.MIGRATED.value, None, 4, 40),  # noqa
-            ('syn5', _MigrationType.TABLE_ATTACHED_FILE.value, 5, 1, 3, 'syn2', _MigrationStatus.ERRORED.value, 'boom', None, None),  # noqa
+            ('syn1', _MigrationType.PROJECT.value, None, None, None, None, _MigrationStatus.INDEXED.value, None, None, None, None),  # noqa
+            ('syn2', _MigrationType.FOLDER.value, None, None, None, 'syn1', _MigrationStatus.INDEXED.value, None, None, None, None),  # noqa
+            ('syn3', _MigrationType.FILE.value, 5, None, None, 'syn2', _MigrationStatus.MIGRATED.value, None, 8, 3, 30),  # noqa
+            ('syn4', _MigrationType.TABLE_ATTACHED_FILE.value, 5, 1, 2, 'syn2', _MigrationStatus.MIGRATED.value, None, 8, 4, 40),  # noqa
+            ('syn5', _MigrationType.TABLE_ATTACHED_FILE.value, 5, 1, 3, 'syn2', _MigrationStatus.ERRORED.value, 'boom', None, None, None),  # noqa
         ]
 
         db_file = tempfile.NamedTemporaryFile(delete=False)
@@ -39,9 +39,10 @@ class TestMigrationResult:
                         parent_id,
                         status,
                         exception,
+                        from_storage_location_id,
                         from_file_handle_id,
                         to_file_handle_id
-                    ) values (?, ? ,? ,?, ?, ?, ?, ?, ?, ?)
+                    ) values (?, ? ,? ,?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values
             )
@@ -71,11 +72,11 @@ class TestMigrationResult:
             with open(csv_path.name, 'r') as csv_read:
                 csv_contents = csv_read.read()
 
-            expected_csv = """id,type,version,row_id,col_name,from_file_handle_id,to_file_handle_id,status,exception
-syn3,file,5,,,3,30,MIGRATED,
-syn4,table,5,1,col_2,4,40,MIGRATED,
-syn5,table,5,1,col_3,,,ERRORED,boom
-"""
+            expected_csv = """id,type,version,row_id,col_name,from_storage_location_id,from_file_handle_id,to_file_handle_id,status,exception
+syn3,file,5,,,8,3,30,MIGRATED,
+syn4,table,5,1,col_2,8,4,40,MIGRATED,
+syn5,table,5,1,col_3,,,,ERRORED,boom
+"""  # noqa
         assert csv_contents == expected_csv
         assert result.indexed_total == 3
         assert result.migrated_total == 2
@@ -98,6 +99,7 @@ syn5,table,5,1,col_3,,,ERRORED,boom
                 'type': 'file',
                 'version': 5,
                 'status': 'MIGRATED',
+                'from_storage_location_id': 8,
                 'from_file_handle_id': 3,
                 'to_file_handle_id': 30,
             },
@@ -108,6 +110,7 @@ syn5,table,5,1,col_3,,,ERRORED,boom
                 'row_id': 1,
                 'col_name': 'col_2',
                 'status': 'MIGRATED',
+                'from_storage_location_id': 8,
                 'from_file_handle_id': 4,
                 'to_file_handle_id': 40,
             },
@@ -165,7 +168,10 @@ class TestMigrate:
         file1 = synapseclient.File(id='syn3', parentId=folder1.id)
         file1.dataFileHandleId = 3
         file1.versionNumber = 1
-        file1._file_handle = {'storageLocationId': old_storage_location}
+        file1._file_handle = {
+            'id': file1.dataFileHandleId,
+            'storageLocationId': old_storage_location
+        }
         entities.append(file1)
 
         table1 = synapseclient.Schema(id='syn4', parentId=folder1.id)
@@ -178,13 +184,19 @@ class TestMigrate:
         file2 = synapseclient.File(id='syn6', parentId=folder2.id)
         file2.dataFileHandleId = 6
         file2.versionNumber = 1
-        file2._file_handle = {'storageLocationId': old_storage_location}
+        file2._file_handle = {
+            'id': file2.dataFileHandleId,
+            'storageLocationId': old_storage_location
+        }
         entities.append(file2)
 
         file3 = synapseclient.File(id='syn7', parentId=project.id)
         file3.dataFileHandleId = 7
         file3.versionNumber = 1
-        file3._file_handle = {'storageLocationId': old_storage_location}
+        file3._file_handle = {
+            'id': file3.dataFileHandleId,
+            'storageLocationId': old_storage_location
+        }
         entities.append(file3)
 
         table2 = synapseclient.Schema(id='syn8', parentId=project.id)
@@ -200,6 +212,17 @@ class TestMigrate:
 
         def mock_syn_store_side_effect(entity):
             return entity
+
+        def mock_get_file_handle_download_side_effect(fileHandleId, objectId, objectType):
+            if fileHandleId == 4:
+                return {
+                    'fileHandle': {
+                        'id': 4,
+                        'storageLocationId': 1
+                    }
+                }
+
+            raise ValueError("Unexpected file handle retrieval {}".format(fileHandleId))
 
         def mock_syn_get_children_side_effect(entity, includeTypes):
             if set(includeTypes) != {'folder', 'file', 'table'}:
@@ -260,6 +283,7 @@ class TestMigrate:
 
         with mock.patch.object(syn, 'get') as mock_syn_get, \
                 mock.patch.object(syn, 'store') as mock_syn_store, \
+                mock.patch.object(syn, '_getFileHandleDownload') as mock_get_file_handle_download, \
                 mock.patch.object(syn, 'getChildren') as mock_syn_get_children, \
                 mock.patch.object(syn, 'restGET') as mock_syn_rest_get, \
                 mock.patch.object(syn, 'create_snapshot_version') as mock_create_snapshot_version, \
@@ -268,6 +292,7 @@ class TestMigrate:
 
             mock_syn_get.side_effect = mock_syn_get_side_effect
             mock_syn_store.side_effect = mock_syn_store_side_effect
+            mock_get_file_handle_download.side_effect = mock_get_file_handle_download_side_effect
             mock_syn_get_children.side_effect = mock_syn_get_children_side_effect
             mock_syn_rest_get.side_effect = mock_rest_get_side_effect
             mock_syn_table_query.side_effect = mock_syn_table_query_side_effect
@@ -354,6 +379,17 @@ class TestMigrate:
         def mock_syn_store_side_effect(entity):
             return entity
 
+        def mock_get_file_handle_download_side_effect(fileHandleId, objectId, objectType):
+            if fileHandleId == 4:
+                return {
+                    'fileHandle': {
+                        'id': 4,
+                        'storageLocationId': 1
+                    }
+                }
+
+            raise ValueError("Unexpected file handle retrieval {}".format(fileHandleId))
+
         def mock_syn_get_children_side_effect(entity, includeTypes):
             if set(includeTypes) != {'folder', 'file', 'table'}:
                 pytest.fail('Unexpected includeTypes')
@@ -393,6 +429,7 @@ class TestMigrate:
 
         with mock.patch.object(syn, 'get') as mock_syn_get, \
                 mock.patch.object(syn, 'getChildren') as mock_syn_get_children, \
+                mock.patch.object(syn, '_getFileHandleDownload') as mock_get_file_handle_download, \
                 mock.patch.object(syn, 'restGET') as mock_syn_rest_get, \
                 mock.patch.object(syn, 'tableQuery') as mock_syn_table_query, \
                 mock.patch.object(syn, 'store') as mock_syn_store, \
@@ -400,6 +437,7 @@ class TestMigrate:
 
             mock_syn_get.side_effect = mock_syn_get_side_effect
             mock_syn_store.side_effect = mock_syn_store_side_effect
+            mock_get_file_handle_download.side_effect = mock_get_file_handle_download_side_effect
             mock_syn_get_children.side_effect = mock_syn_get_children_side_effect
             mock_syn_rest_get.side_effect = mock_rest_get_side_effect
             mock_syn_table_query.side_effect = mock_syn_table_query_side_effect
