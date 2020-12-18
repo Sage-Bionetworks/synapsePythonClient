@@ -51,30 +51,35 @@ def test_migrate(syn):
     args = parser.parse_args([
         'migrate',
         'syn12345',
-        storage_location_id
+        storage_location_id,
+        db_path,
     ])
 
     assert args.id == entity_id
     assert args.storage_location_id == storage_location_id
-    assert args.version == 'new'
-    assert args.db_path is None
+    assert args.file_version_strategy == 'new'
+    assert args.db_path == db_path
     assert args.continue_on_error is False
+    assert args.dryRun is False
 
     # test w/ specified args
     args = parser.parse_args([
         'migrate',
         entity_id,
         storage_location_id,
-        '--version', 'all',
-        '--db_path', db_path,
+        db_path,
+        '--dryRun',
+        '--file_version_strategy', 'all',
+        '--table_strategy', 'snapshot',
         '--continue_on_error',
     ])
 
     assert args.id == entity_id
     assert args.storage_location_id == storage_location_id
-    assert args.version == 'all'
+    assert args.file_version_strategy == 'all'
     assert args.db_path == db_path
     assert args.continue_on_error is True
+    assert args.dryRun is True
 
     # verify args are passed through to the fn
     with patch.object(synapseutils, 'migrate') as mock_migrate:
@@ -83,28 +88,11 @@ def test_migrate(syn):
             syn,
             args.id,
             args.storage_location_id,
-            version='all',
-            db_path=args.db_path,
+            args.db_path,
+            dry_run=True,
+            file_version_strategy='all',
+            table_strategy='snapshot',
             continue_on_error=True
-        )
-
-    # test w/ numeric version
-    args = parser.parse_args([
-        'migrate',
-        'syn12345',
-        storage_location_id,
-        '--version', '7'
-    ])
-    assert args.version == '7'
-    with patch.object(synapseutils, 'migrate') as mock_migrate:
-        cmdline.migrate(args, syn)
-        mock_migrate.assert_called_once_with(
-            syn,
-            args.id,
-            args.storage_location_id,
-            version=7,
-            db_path=None,
-            continue_on_error=False,
         )
 
 

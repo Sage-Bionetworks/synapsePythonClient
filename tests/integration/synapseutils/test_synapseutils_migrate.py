@@ -117,9 +117,14 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
         project_entity,
         storage_location_id,
         db_path,
+        dry_run=False,
         file_version_strategy='new',
-        create_table_snapshot=True,
+        table_strategy='snapshot',
     )
+
+    assert migration_result.indexed_total == 7
+    assert migration_result.migrated_total == 7
+    assert migration_result.error_total == 0
 
     file_0_entity_updated = syn.get(utils.id_of(file_0_entity), downloadFile=False)
     file_1_entity_updated = syn.get(utils.id_of(file_1_entity), downloadFile=False)

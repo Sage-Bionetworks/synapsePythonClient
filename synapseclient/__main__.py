@@ -450,28 +450,26 @@ def get_sts_token(args, syn):
 def migrate(args, syn):
     """Migrate Synapse entities to a new storage location"""
 
-    # version should be an integer or one of the allowed choices
-    try:
-        version = int(args.version)
-    except ValueError:
-        version = args.version.lower()
-        if version not in ('new', 'all', 'latest'):
-            raise ValueError('version')
-
     result = synapseutils.migrate(
         syn,
         args.id,
         args.storage_location_id,
-        version=version,
-        db_path=args.db_path,
+        args.db_path,
+        dry_run=args.dryRun,
+        file_version_strategy=args.file_version_strategy,
+        table_strategy=args.table_strategy,
         continue_on_error=args.continue_on_error,
     )
 
-    print("Completed migration of {}. Full record saved in sqlite db {}".format(args.id, result.db_path))
-    error_count = len([e for e in result.get_file_migration_errors()]) + \
-        len([e for e in result.get_table_migration_errors()])
-    if error_count > 0:
-        print("Encountered {} errors during the migration".format(error_count))
+    print("Completed migration of {}.".format(args.id))
+    print("{} files indexed for migration.".format(result.indexed_total))
+    if not args.dryRun:
+        print("{} files migrated".format(result.migrated_total))
+        print("{} migration errors".format(result.error_total))
+
+    if args.csv_log_path:
+        print("Writing csv log to {}".format(args.csv_log_path))
+        result.as_csv(args.csv_log_path)
 
 
 def build_parser():
@@ -876,15 +874,24 @@ def build_parser():
     )
     parser_migrate.add_argument('id', type=str, help='Synapse id')
     parser_migrate.add_argument('storage_location_id', type=str, help='Synapse storage location id')
-    parser_migrate.add_argument('--version', type=str, default='new',
+    parser_migrate.add_argument('db_path', type=str, help='Local system path where a record keeping file can be stored')
+    parser_migrate.add_argument('--file_version_strategy', type=str, default='new',
                                 help="""one of 'new', 'latest', 'all', or a specific version number:
                                      new creates a new version of each entity,
                                      latest migrates the most recent version,
                                      all migrates all versions""")
-    parser_migrate.add_argument('--db_path', type=str,
-                                help='Local system path where a record keeping file can be stored')
+    parser_migrate.add_argument('--table_strategy', type=str, default=None,
+                                help="""one of 'snapshot' or 'nosnapshot
+                                     If specified indicates whether table attached files should also be migrated
+                                     and if so whether the table should be first snapshotted. If not specified
+                                     tables attached files will NOT be migrated.""")
     parser_migrate.add_argument('--continue_on_error', action='store_true',
                                 help='Whether to continue processing other entities if migration of one fails')
+    parser_migrate.add_argument('--csv_log_path', type=str,
+                                help='Path where to log a csv documenting the changes from the migration')
+    parser_migrate.add_argument('--dryRun', action='store_true', default=False,
+                                help='Dry run, files will be indexed by not migrated')
+
     parser_migrate.set_defaults(func=migrate)
 
     return parser

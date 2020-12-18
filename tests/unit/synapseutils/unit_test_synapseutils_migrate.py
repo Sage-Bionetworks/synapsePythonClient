@@ -1,3 +1,4 @@
+import os
 import pytest
 import sqlite3
 import tempfile
@@ -22,8 +23,8 @@ class TestMigrationResult:
             ('syn5', _MigrationType.TABLE_ATTACHED_FILE.value, 5, 1, 3, 'syn2', _MigrationStatus.ERRORED.value, 'boom', None, None),  # noqa
         ]
 
-        with tempfile.NamedTemporaryFile() as db_file, \
-                sqlite3.connect(db_file.name) as conn:
+        db_file = tempfile.NamedTemporaryFile(delete=False)
+        with sqlite3.connect(db_file.name) as conn:
             cursor = conn.cursor()
             _ensure_schema(cursor)
 
@@ -48,9 +49,14 @@ class TestMigrationResult:
 
             yield db_file.name
 
+        # can't seem to use a normal temp file context manager here on windows
+        # so we manually cleanup in the fixture
+        # https://stackoverflow.com/a/55081210
+        os.remove(db_file.name)
+
     def test_as_csv(self, db_path):
         syn = mock.MagicMock(synapseclient.Synapse)
-        result = synapseutils.migrate_functions.MigrationResult(syn, db_path)
+        result = synapseutils.migrate_functions.MigrationResult(syn, db_path, 3, 2, 1)
 
         with tempfile.NamedTemporaryFile() as csv_path, \
                 mock.patch.object(syn, 'restGET') as mock_rest_get:
@@ -71,10 +77,13 @@ syn4,table,5,1,col_2,4,40,MIGRATED,
 syn5,table,5,1,col_3,,,ERRORED,boom
 """
         assert csv_contents == expected_csv
+        assert result.indexed_total == 3
+        assert result.migrated_total == 2
+        assert result.error_total == 1
 
     def test_get_migrations(self, db_path):
         syn = mock.MagicMock(synapseclient.Synapse)
-        result = synapseutils.migrate_functions.MigrationResult(syn, db_path)
+        result = synapseutils.migrate_functions.MigrationResult(syn, db_path, 3, 3, 0)
 
         with mock.patch.object(syn, 'restGET') as mock_rest_get:
             mock_rest_get.side_effect = [
@@ -114,13 +123,23 @@ syn5,table,5,1,col_3,,,ERRORED,boom
         ]
 
         assert migrations == expected_migrations
+        assert result.indexed_total == 3
+        assert result.migrated_total == 3
+        assert result.error_total == 0
 
 
 class TestMigrate:
     """Test a project migration that involves multiple recursive entity migrations.
     All synapse calls are mocked but the local sqlite3 are not in these"""
 
-    def _migrate_test(self, syn, continue_on_error):
+    @pytest.fixture(scope='function')
+    def db_path(self):
+        # temp file context manager doesn't work on windows so we manually remove in fixture
+        db_file = tempfile.NamedTemporaryFile(delete=False)
+        yield db_file.name
+        os.remove(db_file.name)
+
+    def _migrate_test(self, db_path, syn, continue_on_error):
         # project structure:
         # project (syn1)
         #  folder1 (syn2)
@@ -243,10 +262,9 @@ class TestMigrate:
                 mock.patch.object(syn, 'store') as mock_syn_store, \
                 mock.patch.object(syn, 'getChildren') as mock_syn_get_children, \
                 mock.patch.object(syn, 'restGET') as mock_syn_rest_get, \
-                mock.patch.object(syn, 'create_snapshot_version'), \
+                mock.patch.object(syn, 'create_snapshot_version') as mock_create_snapshot_version, \
                 mock.patch.object(syn, 'tableQuery') as mock_syn_table_query, \
-                mock.patch.object(synapseutils.migrate_functions, 'multipart_copy') as mock_multipart_copy, \
-                mock.patch.object(synapseclient.PartialRowset, 'from_mapping'):
+                mock.patch.object(synapseutils.migrate_functions, 'multipart_copy') as mock_multipart_copy:
 
             mock_syn_get.side_effect = mock_syn_get_side_effect
             mock_syn_store.side_effect = mock_syn_store_side_effect
@@ -255,16 +273,14 @@ class TestMigrate:
             mock_syn_table_query.side_effect = mock_syn_table_query_side_effect
             mock_multipart_copy.side_effect = mock_multipart_copy_side_effect
 
-            # can't seem to use a normal temp file context manager here on windows.
-            # https://stackoverflow.com/a/55081210
-            db_path = tempfile.NamedTemporaryFile(delete=False).name
             result = synapseutils.migrate(
                 syn,
                 project,
                 new_storage_location_id,
                 db_path,
+                dry_run=False,
                 file_version_strategy='new',
-                create_table_snapshot=True,
+                table_strategy='snapshot',
                 continue_on_error=continue_on_error
             )
 
@@ -279,23 +295,134 @@ class TestMigrate:
                     errored[entity_id] = row
 
             assert 'syn3' in migrated
+            assert 'syn4' in migrated
             assert 'syn7' in migrated
             assert migrated['syn3']['from_file_handle_id'] == 3
             assert migrated['syn3']['to_file_handle_id'] == 30
+            assert migrated['syn4']['from_file_handle_id'] == 4
+            assert migrated['syn4']['to_file_handle_id'] == 40
             assert migrated['syn7']['from_file_handle_id'] == 7
             assert migrated['syn7']['to_file_handle_id'] == 70
             assert 'syn6' in errored
             assert 'boom' in errored['syn6']['exception']
 
-    def test_continue_on_error__true(self, syn):
+            mock_create_snapshot_version.assert_called_once_with('syn4')
+
+            assert result.indexed_total == 4
+            assert result.migrated_total == 3
+            assert result.error_total == 1
+
+    def test_continue_on_error__true(self, db_path, syn):
         """Test a migration of a project when an error is encountered while continuing on the error."""
         # we expect the migration to run to the finish, but a failed file entity will be marked with
         # a failed status and have an exception
-        self._migrate_test(syn, True)
+        self._migrate_test(db_path, syn, True)
 
-    def test_continue_on_error__false(self, syn):
+    def test_continue_on_error__false(self, db_path, syn):
         """Test a migration for a project when an error is encountered when aborting on errors"""
         # we expect the error to be surfaced
         with pytest.raises(ValueError) as ex:
-            self._migrate_test(syn, False)
+            self._migrate_test(db_path, syn, False)
             assert 'boom' in str(ex)
+
+    def test_migrate__dry_run(self, db_path, syn):
+        entities = []
+        project = synapseclient.Project()
+        project.id = 'syn1'
+        entities.append(project)
+
+        folder1 = synapseclient.Folder(id='syn2', parentId=project.id)
+        folder1.id = 'syn2'
+        entities.append(folder1)
+
+        file1 = synapseclient.File(id='syn3', parentId=folder1.id)
+        file1.dataFileHandleId = 3
+        file1.versionNumber = 1
+        entities.append(file1)
+
+        table1 = synapseclient.Schema(id='syn4', parentId=folder1.id)
+        entities.append(table1)
+
+        get_entities = {}
+        for entity in entities:
+            get_entities[entity.id] = entity
+
+        def mock_syn_get_side_effect(entity, *args, **kwargs):
+            entity_id = utils.id_of(entity)
+            return get_entities[entity_id]
+
+        def mock_syn_store_side_effect(entity):
+            return entity
+
+        def mock_syn_get_children_side_effect(entity, includeTypes):
+            if set(includeTypes) != {'folder', 'file', 'table'}:
+                pytest.fail('Unexpected includeTypes')
+
+            if entity is project.id:
+                return [folder1]
+            elif entity is folder1.id:
+                return [file1, table1]
+            else:
+                pytest.fail("Shouldn't reach here")
+
+        def mock_rest_get_side_effect(uri):
+            column_def = {
+                'id': 5,
+                'columnType': 'FILEHANDLEID',
+                'name': 'filecol',
+            }
+
+            if uri.startswith('/entity'):
+                return {
+                    'results': [
+                        {'columnType': 'STRING'},
+                        column_def
+                    ]
+                }
+            elif uri.startswith('/column'):
+                return column_def
+
+            else:
+                raise ValueError('Unexpected restGET call {}'.format(uri))
+
+        def mock_syn_table_query_side_effect(query_string):
+            if query_string != "select filecol from {}".format(table1.id):
+                pytest.fail("Unexpected table query")
+
+            return [['1', '1', 4]]
+
+        with mock.patch.object(syn, 'get') as mock_syn_get, \
+                mock.patch.object(syn, 'getChildren') as mock_syn_get_children, \
+                mock.patch.object(syn, 'restGET') as mock_syn_rest_get, \
+                mock.patch.object(syn, 'tableQuery') as mock_syn_table_query, \
+                mock.patch.object(syn, 'store') as mock_syn_store, \
+                mock.patch.object(synapseutils.migrate_functions, 'multipart_copy') as mock_multipart_copy:
+
+            mock_syn_get.side_effect = mock_syn_get_side_effect
+            mock_syn_store.side_effect = mock_syn_store_side_effect
+            mock_syn_get_children.side_effect = mock_syn_get_children_side_effect
+            mock_syn_rest_get.side_effect = mock_rest_get_side_effect
+            mock_syn_table_query.side_effect = mock_syn_table_query_side_effect
+
+            result = synapseutils.migrate(
+                syn,
+                project,
+                '1234',
+                db_path,
+                dry_run=True,
+                file_version_strategy='new',
+                table_strategy='snapshot',
+            )
+
+            assert result.indexed_total == 2
+            assert result.migrated_total == 0
+            assert result.error_total == 0
+
+            migrations = {m['id']: m for m in result.get_migrations()}
+            assert migrations.keys() == {'syn3', 'syn4'}
+            for migration in result.get_migrations():
+                assert migration['status'] == 'INDEXED'
+
+            # should have been no changes
+            assert not mock_syn_store.called
+            assert not mock_multipart_copy.called
