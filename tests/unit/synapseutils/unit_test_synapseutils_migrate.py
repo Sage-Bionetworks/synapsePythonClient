@@ -262,7 +262,7 @@ class TestMigrate:
                 syn,
                 project,
                 new_storage_location_id,
-                db_path=db_path,
+                db_path,
                 file_version_strategy='new',
                 create_table_snapshot=True,
                 continue_on_error=continue_on_error

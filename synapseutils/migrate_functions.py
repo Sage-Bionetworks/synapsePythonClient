@@ -294,7 +294,7 @@ def migrate(
         syn,
         entity,
         storage_location_id,
-        db_path=None,
+        db_path,
         file_version_strategy='new',
         create_table_snapshot=None,
         continue_on_error=False,
@@ -307,7 +307,8 @@ def migrate(
     :param storage_location_id:                 The storage location where the file handle(s) will be migrated to
 
     :param db_path:                             a path where a SQLite database can be saved to coordinate the progress
-                                                of the migration, if None provided a temp file will be used
+                                                    of migration and which can be used to restart a migration
+                                                    previously in progress
     :param file_version_strategy:               One of the following:
                                                     None: do not migrate file entities
                                                     'new': create a new version for entities that are migrated

@@ -116,7 +116,7 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
         syn,
         project_entity,
         storage_location_id,
-        db_path=db_path,
+        db_path,
         file_version_strategy='new',
         create_table_snapshot=True,
     )
