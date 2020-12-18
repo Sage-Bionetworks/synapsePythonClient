@@ -426,3 +426,40 @@ class TestMigrate:
             # should have been no changes
             assert not mock_syn_store.called
             assert not mock_multipart_copy.called
+
+
+class TestArgValidation:
+
+    def test_file_version_strategy_valid(self, syn, ):
+        entity = mock.MagicMock(synapseclient.File)
+        storage_location_id = '1234'
+        db_path = '/tmo/foo'
+        for arg in ('', 0, 'foo'):
+            with pytest.raises(ValueError) as ex:
+                synapseutils.migrate(syn, entity, storage_location_id, db_path, file_version_strategy=arg)
+            assert 'invalid' in str(ex)
+
+    def test_table_strategy_valid(self, syn):
+        entity = mock.MagicMock(synapseclient.File)
+        storage_location_id = '1234'
+        db_path = '/tmo/foo'
+        for arg in ('', 0, 'foo'):
+            with pytest.raises(ValueError) as ex:
+                synapseutils.migrate(syn, entity, storage_location_id, db_path, table_strategy=arg)
+            assert 'invalid' in str(ex)
+
+    def test_file_or_table_strategy_required(self, syn):
+        entity = mock.MagicMock(synapseclient.File)
+        storage_location_id = '1234'
+        db_path = '/tmo/foo'
+
+        with pytest.raises(ValueError) as ex:
+            synapseutils.migrate(
+                syn,
+                entity,
+                storage_location_id,
+                db_path,
+                file_version_strategy=None,
+                table_strategy=None
+            )
+            assert 'either' in str(ex)

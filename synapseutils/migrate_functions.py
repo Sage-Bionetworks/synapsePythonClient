@@ -299,10 +299,10 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
 
 
 def migrate(
-        syn,
+        syn: synapseclient.Synapse,
         entity,
-        storage_location_id,
-        db_path,
+        storage_location_id: str,
+        db_path: str,
         dry_run=True,
         file_version_strategy='new',
         table_strategy=None,  # by default we do not migrate table attached files
@@ -314,7 +314,6 @@ def migrate(
     :param syn:                                 A Synapse client instance
     :param entity:                              The entity to migrate, typically a Folder or Project
     :param storage_location_id:                 The storage location where the file handle(s) will be migrated to
-
     :param db_path:                             a path where a SQLite database can be saved to coordinate the progress
                                                     of migration and which can be used to restart a migration
                                                     previously in progress
@@ -337,10 +336,6 @@ def migrate(
                                                 entities
     :return:                                    A MigrationResult that records the file handles that were migrated
     """
-
-    if db_path is None:
-        raise ValueError("db_path is required")
-
     if file_version_strategy is None and table_strategy is None:
         # this script can migrate files entities and/or table attached files. if neither is selected
         # then there's nothing to do
