@@ -346,6 +346,7 @@ def migrate(
                                                 entities
     :return:                                    A MigrationResult that records the file handles that were migrated
     """
+
     if file_version_strategy is None and table_strategy is None:
         # this script can migrate files entities and/or table attached files. if neither is selected
         # then there's nothing to do
@@ -357,6 +358,8 @@ def migrate(
         raise ValueError("invalid value {} passed for file_version_strategy".format(file_version_strategy))
     if table_strategy not in ('snapshot', 'noshapshot', None):
         raise ValueError("invalid value {} passed for table_strategy".format(table_strategy))
+
+    _verify_storage_location_ownership(syn, storage_location_id)
 
     executor, max_concurrent_file_copies = _get_executor()
 
@@ -503,6 +506,17 @@ def migrate(
                 error_total += error_count
 
     return MigrationResult(syn, db_path, indexed_total, migrated_total, error_total)
+
+
+def _verify_storage_location_ownership(syn, storage_location_id):
+    # if this doesn't raise an error we're okay
+    try:
+        syn.restGET("/storageLocation/{}".format(storage_location_id))
+    except synapseclient.core.exceptions.SynapseHTTPError:
+        raise ValueError(
+            "Error verifying storage location ownership of {}. You must be creator of the destination storage location"
+            .format(storage_location_id)
+        )
 
 
 def _check_indexed(cursor, entity):

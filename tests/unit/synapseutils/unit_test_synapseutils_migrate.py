@@ -1,10 +1,10 @@
-import os
 import pytest
 import sqlite3
 import tempfile
 from unittest import mock
 
 import synapseclient
+from synapseclient.core.exceptions import SynapseHTTPError
 import synapseclient.core.upload
 from synapseclient.core import utils
 import synapseutils
@@ -50,17 +50,12 @@ class TestMigrationResult:
 
             yield db_file.name
 
-        # can't seem to use a normal temp file context manager here on windows
-        # so we manually cleanup in the fixture
-        # https://stackoverflow.com/a/55081210
-        os.remove(db_file.name)
-
     def test_as_csv(self, db_path):
         syn = mock.MagicMock(synapseclient.Synapse)
         result = synapseutils.migrate_functions.MigrationResult(syn, db_path, 3, 2, 1)
 
-        with tempfile.NamedTemporaryFile() as csv_path, \
-                mock.patch.object(syn, 'restGET') as mock_rest_get:
+        csv_path = tempfile.NamedTemporaryFile(delete=False)
+        with mock.patch.object(syn, 'restGET') as mock_rest_get:
 
             mock_rest_get.side_effect = [
                 {'name': 'col_2'},
@@ -77,10 +72,10 @@ syn3,file,5,,,8,3,30,MIGRATED,
 syn4,table,5,1,col_2,8,4,40,MIGRATED,
 syn5,table,5,1,col_3,,,,ERRORED,boom
 """  # noqa
-        assert csv_contents == expected_csv
-        assert result.indexed_total == 3
-        assert result.migrated_total == 2
-        assert result.error_total == 1
+            assert csv_contents == expected_csv
+            assert result.indexed_total == 3
+            assert result.migrated_total == 2
+            assert result.error_total == 1
 
     def test_get_migrations(self, db_path):
         syn = mock.MagicMock(synapseclient.Synapse)
@@ -140,7 +135,6 @@ class TestMigrate:
         # temp file context manager doesn't work on windows so we manually remove in fixture
         db_file = tempfile.NamedTemporaryFile(delete=False)
         yield db_file.name
-        os.remove(db_file.name)
 
     def _migrate_test(self, db_path, syn, continue_on_error):
         # project structure:
@@ -277,6 +271,10 @@ class TestMigrate:
                 }
             elif uri.startswith('/column'):
                 return column_def
+
+            elif uri.startswith('/storageLocation'):
+                # just don't error
+                return {}
 
             else:
                 raise ValueError('Unexpected restGET call {}'.format(uri))
@@ -418,6 +416,10 @@ class TestMigrate:
             elif uri.startswith('/column'):
                 return column_def
 
+            elif uri.startswith('/storageLocation'):
+                # just don't error
+                return {}
+
             else:
                 raise ValueError('Unexpected restGET call {}'.format(uri))
 
@@ -501,3 +503,16 @@ class TestArgValidation:
                 table_strategy=None
             )
             assert 'either' in str(ex)
+
+    def test_storage_location_owner(self, syn):
+        def mock_rest_get_side_effect(uri):
+            if uri.startswith('/storageLocation'):
+                raise SynapseHTTPError(response={'status_code': 403})
+            raise ValueError('Unexpected rest GET')
+
+        with mock.patch.object(syn, 'restGET') as mock_rest_get:
+            mock_rest_get.side_effect = mock_rest_get_side_effect
+
+            with pytest.raises(ValueError) as ex:
+                synapseutils.migrate(syn, mock.MagicMock(synapseclient.File), '123', '/tmp/foo')
+            assert 'creator' in str(ex)

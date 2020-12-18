@@ -60,7 +60,7 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
     file_0_name = "{}-{}".format(test_name, 1)
     file_0 = synapseclient.File(name=file_0_name, path=file_0_path, parent=project_entity)
     file_0_entity = syn.store(file_0)
-    default_storage_location = file_0_entity._file_handle['storageLocationId']
+    default_storage_location_id = file_0_entity._file_handle['storageLocationId']
 
     folder_1_name = "{}-{}-{}".format(test_name, 1, uuid.uuid4())
     folder_1 = synapseclient.Folder(parent=project_entity, name=folder_1_name)
@@ -144,7 +144,7 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
         file_handles,
         storage_location_id
     )
-    assert storage_location_id != default_storage_location
+    assert storage_location_id != default_storage_location_id
 
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
@@ -160,22 +160,37 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
         assert len(counts) == 1
         assert counts[_MigrationStatus.MIGRATED.value] == 7
 
-    with tempfile.NamedTemporaryFile() as csv_file:
-        migration_result.as_csv(csv_file.name)
-        with open(csv_file.name, 'r') as csv_file_in:
-            csv_contents = csv_file_in.read()
+    csv_file = tempfile.NamedTemporaryFile(delete=False)
+    migration_result.as_csv(csv_file.name)
+    with open(csv_file.name, 'r') as csv_file_in:
+        csv_contents = csv_file_in.read()
 
     table_1_id = table_1_entity['tableId']
 
     # assert the content of the csv. we don't assert any particular order of the lines
     # but the presence of the expected lines and the correct # of lines
     csv_lines = csv_contents.split('\n')
-    assert "id,type,version,row_id,col_name,from_file_handle_id,to_file_handle_id,status,exception" in csv_lines
-    assert f"{file_0_entity.id},file,,,,{file_0_entity.dataFileHandleId},{file_0_entity_updated.dataFileHandleId},MIGRATED," in csv_lines  # noqa
-    assert f"{file_1_entity.id},file,,,,{file_1_entity.dataFileHandleId},{file_1_entity_updated.dataFileHandleId},MIGRATED," in csv_lines  # noqa
-    assert f"{file_2_entity.id},file,,,,{file_2_entity.dataFileHandleId},{file_2_entity_updated.dataFileHandleId},MIGRATED," in csv_lines  # noqa
-    assert f"{table_1_id},table,1,1,file_col_1,{table_1_file_handle_1['id']},{table_file_handles[0]['id']},MIGRATED," in csv_lines  # noqa
-    assert f"{table_1_id},table,1,1,file_col_2,{table_1_file_handle_2['id']},{table_file_handles[1]['id']},MIGRATED," in csv_lines  # noqa
-    assert f"{table_1_id},table,1,2,file_col_1,{table_1_file_handle_3['id']},{table_file_handles[2]['id']},MIGRATED," in csv_lines  # noqa
-    assert f"{table_1_id},table,1,2,file_col_2,{table_1_file_handle_4['id']},{table_file_handles[3]['id']},MIGRATED," in csv_lines  # noqa
+    assert "id,type,version,row_id,col_name,from_storage_location_id,from_file_handle_id,to_file_handle_id,status,exception" in csv_lines  # noqa
+    assert f"{file_0_entity.id},file,,,,{default_storage_location_id},{file_0_entity.dataFileHandleId},{file_0_entity_updated.dataFileHandleId},MIGRATED," in csv_lines  # noqa
+    assert f"{file_1_entity.id},file,,,,{default_storage_location_id},{file_1_entity.dataFileHandleId},{file_1_entity_updated.dataFileHandleId},MIGRATED," in csv_lines  # noqa
+    assert f"{file_2_entity.id},file,,,,{default_storage_location_id},{file_2_entity.dataFileHandleId},{file_2_entity_updated.dataFileHandleId},MIGRATED," in csv_lines  # noqa
+    assert f"{table_1_id},table,1,1,file_col_1,{default_storage_location_id},{table_1_file_handle_1['id']},{table_file_handles[0]['id']},MIGRATED," in csv_lines  # noqa
+    assert f"{table_1_id},table,1,1,file_col_2,{default_storage_location_id},{table_1_file_handle_2['id']},{table_file_handles[1]['id']},MIGRATED," in csv_lines  # noqa
+    assert f"{table_1_id},table,1,2,file_col_1,{default_storage_location_id},{table_1_file_handle_3['id']},{table_file_handles[2]['id']},MIGRATED," in csv_lines  # noqa
+    assert f"{table_1_id},table,1,2,file_col_2,{default_storage_location_id},{table_1_file_handle_4['id']},{table_file_handles[3]['id']},MIGRATED," in csv_lines  # noqa
     assert "" in csv_lines  # expect trailing newline in a csv
+
+
+def test_migrate__not_storage_location_owner(request, syn, project, schedule_for_cleanup):
+    """Verify Synapse HTTP error from non ownership of destination storage location
+    is checked up front."""
+    temp_file = _create_temp_file()
+    file = synapseclient.File(path=temp_file, parent=project)
+    schedule_for_cleanup(file)
+    syn.store(file)
+
+    db_file = tempfile.NamedTemporaryFile(delete=False)
+    schedule_for_cleanup(db_file.name)
+    with pytest.raises(ValueError) as ex:
+        synapseutils.migrate(syn, file, 1, db_file.name)
+    assert "creator" in str(ex)
