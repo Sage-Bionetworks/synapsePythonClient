@@ -112,17 +112,15 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
     db_path = tempfile.NamedTemporaryFile(delete=False).name
     schedule_for_cleanup(db_path)
 
-    migration_result = synapseutils.migrate(
+    migration_result, indexed_total = synapseutils.migrate(
         syn,
         project_entity,
         storage_location_id,
         db_path,
-        dry_run=False,
         file_version_strategy='new',
-        table_strategy='snapshot',
     )
 
-    assert migration_result.indexed_total == 7
+    assert indexed_total == 7
     assert migration_result.migrated_total == 7
     assert migration_result.error_total == 0
 
