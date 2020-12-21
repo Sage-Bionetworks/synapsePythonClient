@@ -6,6 +6,7 @@ https://python-docs.synapse.org/build/html/CommandLineClient.html
 """
 import argparse
 import collections.abc
+import logging
 import os
 import sys
 import signal
@@ -27,6 +28,23 @@ from synapseclient.core.exceptions import (
     SynapseFileNotFoundError,
     SynapseNoCredentialsError,
 )
+
+
+def _init_console_Logging():
+    # init a stdout logger for purposes of logging cli activity.
+    # logging is preferred to writing directly to stdout since it can be configured/formatted/suppressed
+    # but this is not yet universal across the client so it is initialized here from cli commands that
+    # don't still have other direct stdout calls
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+
+    # message only for these cli stdout messages, meant for output directly to be viewed by interactive user
+    formatter = logging.Formatter('%(message)s')
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
 
 
 def query(args, syn):
@@ -450,6 +468,9 @@ def get_sts_token(args, syn):
 def migrate(args, syn):
     """Migrate Synapse entities to a new storage location"""
 
+    # output our progress via logging
+    _init_console_Logging()
+
     result = synapseutils.migrate(
         syn,
         args.id,
@@ -461,14 +482,14 @@ def migrate(args, syn):
         continue_on_error=args.continue_on_error,
     )
 
-    print("Completed migration of {}.".format(args.id))
-    print("{} files indexed for migration.".format(result.indexed_total))
+    logging.info("Completed migration of {}.".format(args.id))
+    logging.info("{} files indexed for migration.".format(result.indexed_total))
     if not args.dryRun:
-        print("{} files migrated".format(result.migrated_total))
-        print("{} migration errors".format(result.error_total))
+        logging.info("{} files migrated".format(result.migrated_total))
+        logging.info("{} migration errors".format(result.error_total))
 
     if args.csv_log_path:
-        print("Writing csv log to {}".format(args.csv_log_path))
+        logging.info("Writing csv log to {}".format(args.csv_log_path))
         result.as_csv(args.csv_log_path)
 
 
