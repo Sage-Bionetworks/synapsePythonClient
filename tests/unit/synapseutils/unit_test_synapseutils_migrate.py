@@ -8,7 +8,13 @@ from synapseclient.core.exceptions import SynapseHTTPError
 import synapseclient.core.upload
 from synapseclient.core import utils
 import synapseutils
-from synapseutils.migrate_functions import _ensure_schema, _MigrationStatus, _MigrationType
+from synapseutils.migrate_functions import (
+    _ensure_schema,
+    _MigrationStatus,
+    _MigrationType,
+    _retrieve_index_settings,
+    _verify_index_settings,
+)
 
 
 class TestMigrationResult:
@@ -516,3 +522,149 @@ class TestArgValidation:
             with pytest.raises(ValueError) as ex:
                 synapseutils.migrate(syn, mock.MagicMock(synapseclient.File), '123', '/tmp/foo')
             assert 'creator' in str(ex)
+
+
+def _verify_schema(cursor):
+    results = cursor.execute(
+        """
+            SELECT
+              m.name as table_name,
+              p.name as column_name
+            FROM
+              sqlite_master AS m
+            JOIN
+              pragma_table_info(m.name) AS p
+            ORDER BY
+              m.name,
+              p.cid
+        """
+    )
+
+    expected_table_columns = {
+        'migration_settings': {
+            'root_id',
+            'storage_location_id',
+            'file_version_strategy',
+            'skip_table_files'
+        },
+        'migrations': {
+            'id',
+            'type',
+            'version',
+            'row_id',
+            'col_id',
+            'parent_id',
+            'status',
+            'exception',
+            'from_storage_location_id',
+            'from_file_handle_id',
+            'to_file_handle_id'
+        }
+    }
+
+    table_columns = {}
+    for row in results:
+        table = row[0]
+        column = row[1]
+        table_columns.setdefault(table, set()).add(column)
+
+    assert table_columns == expected_table_columns
+
+
+def test_ensure_schema():
+    """Verify _ensure_schema bootstraps the necessary schema"""
+
+    with tempfile.NamedTemporaryFile() as db_file, \
+            sqlite3.connect(db_file.name) as conn:
+        cursor = conn.cursor()
+        _ensure_schema(cursor)
+        _verify_schema(cursor)
+
+        # invoking a second time should be idempotent
+        _ensure_schema(cursor)
+        _verify_schema(cursor)
+
+
+def test__verify_index_settings__retrieve_index_settings():
+    """Verify the behavior saving index settings and re-retreiving them."""
+
+    with tempfile.NamedTemporaryFile() as db_file, \
+            sqlite3.connect(db_file.name) as conn:
+        db_path = db_file.name
+        cursor = conn.cursor()
+        _ensure_schema(cursor)
+
+        root_id = 'syn123'
+        storage_location_id = '12345'
+        file_version_strategy = 'latest'
+        skip_table_files = True
+
+        _verify_index_settings(
+            cursor,
+            db_path,
+            root_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files
+        )
+
+        settings = _retrieve_index_settings(cursor)
+        assert settings['root_id'] == root_id
+        assert settings['storage_location_id'] == storage_location_id
+        assert settings['file_version_strategy'] == file_version_strategy
+        assert settings['skip_table_files'] == skip_table_files
+
+        # same settings, no error
+        _verify_index_settings(
+            cursor,
+            db_path,
+            root_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files
+        )
+
+        # changed root_id
+        with pytest.raises(ValueError) as ex:
+            _verify_index_settings(
+                cursor,
+                db_path,
+                'changed',
+                storage_location_id,
+                file_version_strategy,
+                skip_table_files
+            )
+        assert 'changed' in str(ex.value)
+
+        with pytest.raises(ValueError) as ex:
+            _verify_index_settings(
+                cursor,
+                db_path,
+                root_id,
+                'changed',
+                file_version_strategy,
+                skip_table_files
+            )
+        assert 'changed' in str(ex.value)
+
+        with pytest.raises(ValueError) as ex:
+            _verify_index_settings(
+                cursor,
+                db_path,
+                root_id,
+                storage_location_id,
+                'changed',
+                skip_table_files
+            )
+        assert 'changed' in str(ex.value)
+
+        with pytest.raises(ValueError) as ex:
+            _verify_index_settings(
+                cursor,
+                db_path,
+                root_id,
+                storage_location_id,
+                file_version_strategy,
+                'changed'
+            )
+        assert 'changed' in str(ex.value)
