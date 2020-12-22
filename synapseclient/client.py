@@ -190,7 +190,6 @@ class Synapse(object):
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                  debug=None, skip_checks=False, configPath=CONFIG_FILE, requests_session=None):
-        self._requests_session = requests_session or requests.Session()
 
         cache_root_dir = cache.CACHE_ROOT_DIR
 
@@ -210,8 +209,6 @@ class Synapse(object):
         self.cache = cache.Cache(cache_root_dir)
         self._sts_token_store = sts_transfer.StsTokenStore()
 
-        self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
-
         self.default_headers = {'content-type': 'application/json; charset=UTF-8',
                                 'Accept': 'application/json; charset=UTF-8'}
         self.credentials = None
@@ -227,6 +224,20 @@ class Synapse(object):
         transfer_config = self._get_transfer_config()
         self.max_threads = transfer_config['max_threads']
         self.use_boto_sts_transfers = transfer_config['use_boto_sts']
+
+        if not requests_session:
+            # align the number of connections in the pool to the number of threads
+            requests_session = requests.Session()
+            requests_adapter = requests.adapters.HTTPAdapter(
+                pool_connections=self.max_threads,
+                pool_maxsize=self.max_threads
+            )
+            requests_session.mount('http://', requests_adapter)
+            requests_session.mount('https://', requests_adapter)
+
+        self._requests_session = requests_session
+
+        self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)

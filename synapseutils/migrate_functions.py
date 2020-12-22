@@ -8,6 +8,7 @@ import traceback
 import typing
 
 import synapseclient
+from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 from synapseclient.core.constants import concrete_types
 from synapseclient.core import pool_provider
 from synapseclient.core import utils
@@ -24,6 +25,9 @@ the migrate function orders migrations if entities selected by first indexing th
 internal SQLite database and then ordering their migration by Synapse id. The ordering
 reduces the impact of a large migration can have on Synapse by clustering changes locally
 """
+
+
+logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 def test_import_sqlite3():
@@ -71,15 +75,6 @@ class _MigrationKey(typing.NamedTuple):
     col_id: int
 
 
-class MigrationIndexResult:
-
-    def __init__(self, db_path, indexed_for_migration_total, already_migrated_total, errored_total):
-        self.db_path = db_path
-        self.indexed_for_migration_total = indexed_for_migration_total
-        self.already_migrated_total = already_migrated_total
-        self.errored_total = errored_total
-
-
 class MigrationResult:
     """A MigrationResult is a proxy object to the underlying sqlite db.
     It provides a programmatic interface that allows the caller to iterate over the
@@ -91,11 +86,29 @@ class MigrationResult:
     As this proxy object is not thread safe since it accesses an underlying sqlite db.
     """
 
-    def __init__(self, syn, db_path, migrated_total, error_total):
+    def __init__(self, syn, db_path):
         self._syn = syn
         self.db_path = db_path
-        self.migrated_total = migrated_total
-        self.error_total = error_total
+
+    def get_counts_by_status(self):
+        import sqlite3
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            # for the purposes of these counts, continers (Projects and Folders) do not count.
+            # we are counting actual files only
+            result = cursor.execute(
+                'select status, count(*) from migrations where type in (?, ?) group by status',
+                (_MigrationType.FILE.value, _MigrationType.TABLE_ATTACHED_FILE.value)
+            )
+
+            counts_by_status = {status.name: 0 for status in _MigrationStatus}
+            for row in result:
+                status = row[0]
+                count = row[1]
+                counts_by_status[_MigrationStatus(status).name] = count
+
+            return counts_by_status
 
     def get_migrations(self):
         import sqlite3
@@ -286,6 +299,9 @@ def _ensure_schema(cursor):
         """
     )
 
+    # we get counts grouping on status
+    cursor.execute("create index if not exists ix_status on migrations(status)")
+
 
 def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
     completed, futures = concurrent.futures.wait(futures, return_when=return_when)
@@ -376,7 +392,10 @@ def index_files_for_migration(
         conn.commit()
 
         entity = syn.get(root_id, downloadFile=False)
-        if not _check_indexed(cursor, root_id):
+        if _check_indexed(cursor, root_id):
+            logger.info("%s previously indexed, no additional files indexed for migration", root_id)
+
+        else:
             try:
                 indexed_for_migration_count, already_migrated_count, errored_count = _index_entity(
                     conn,
@@ -390,15 +409,8 @@ def index_files_for_migration(
                     continue_on_error,
                 )
 
-                return MigrationIndexResult(
-                    db_path,
-                    indexed_for_migration_count,
-                    already_migrated_count,
-                    errored_count
-                )
-
             except _IndexingError as indexing_ex:
-                logging.exception(
+                logger.exception(
                     "Aborted due to failure to index entity %s of type %s. Use the continue_on_error option to skip "
                     "over entities due to individual failures.",
                     indexing_ex.entity_id,
@@ -407,12 +419,44 @@ def index_files_for_migration(
 
                 raise indexing_ex.__cause__
 
+    return MigrationResult(syn, db_path)
+
+
+def _confirm_migration(cursor, force, storage_location_id):
+    # we proceed with migration if either using the force option or if
+    # we can prompt the user with the count if items that are going to
+    # be migrated and receive their confirmation from shell input
+    confirmed = force
+    if not force:
+        count = cursor.execute(
+            "select count(*) from migrations where status = ?",
+            (_MigrationStatus.INDEXED.value,)
+        ).fetchone()[0]
+
+        if sys.stdout.isatty():
+            uinput = input("{} items for migration to {}. Proceed? (y/n)? ".format(
+                count,
+                storage_location_id
+            ))
+            confirmed = uinput.strip().lower() == 'y'
+
+        else:
+            logger.error(
+                "%s items for migration. "
+                "force option not used, and console input not available to confirm migration, aborting. "
+                "Use the force option or run from an interactive shell to proceed with migration.",
+                count
+            )
+
+    return confirmed
+
 
 def migrate_indexed_files(
     syn: synapseclient.Synapse,
     db_path: str,
     create_table_snapshots=True,
     continue_on_error=False,
+    force=False
 ):
     executor, max_concurrent_file_copies = _get_executor()
 
@@ -431,6 +475,10 @@ def migrate_indexed_files(
             )
 
         storage_location_id = settings['storage_location_id']
+        if not _confirm_migration(cursor, force, storage_location_id):
+            logger.info("Migration aborted.")
+            return
+
         key = _MigrationKey(id='', type=None, row_id=-1, col_id=-1, version=-1)
         futures = set()
 
@@ -549,7 +597,7 @@ def migrate_indexed_files(
             migrated_total += migrated_count
             error_total += error_count
 
-    return MigrationResult(syn, db_path, migrated_total, error_total)
+    return MigrationResult(syn, db_path)
 
 
 def migrate(
@@ -652,15 +700,15 @@ def _check_indexed(cursor, entity_id):
     # check if we have indexed the given entity in the sqlite db yet.
     # if so it can skip reindexing it. supports resumption.
     indexed_row = cursor.execute(
-        "select 1 from migrations where id = ? and status >= ?",
-        (entity_id, _MigrationStatus.INDEXED.value)
+        "select 1 from migrations where id = ?",
+        (entity_id,)
     ).fetchone()
 
     if indexed_row:
-        logging.info('%s already indexed, skipping', entity_id)
+        logger.debug('%s already indexed, skipping', entity_id)
         return True
 
-    logging.debug('%s not yet indexed, indexing now', entity_id)
+    logger.debug('%s not yet indexed, indexing now', entity_id)
     return False
 
 
@@ -935,14 +983,34 @@ def _index_entity(
 
     except _IndexingError:
         # this is a recursive function, we don't need to log the error at every level so just
-        # pass up exceptions of this type that wrap the underying exception and indicate
+        # pass up exceptions of this type that wrap the underlying exception and indicate
         # that they were already logged
         raise
 
     except Exception as ex:
 
         if continue_on_error:
-            logging.warning("Error indexing entity %s of type %s", entity_id, concrete_type, exc_info=True)
+            logger.warning("Error indexing entity %s of type %s", entity_id, concrete_type, exc_info=True)
+            tb_str = ''.join(traceback.format_exception(type(ex), ex, ex.__traceback__))
+
+            cursor.execute(
+                """insert into migrations
+                    (
+                        id,
+                        type,
+                        parent_id,
+                        status,
+                        exception,
+                    ) values (?, ?, ?, ?, ?)
+                """,
+                (
+                    entity_id,
+                    concrete_type,
+                    parent_id,
+                    _MigrationStatus.ERRORED.value,
+                    tb_str,
+                )
+            )
 
             # note that the failed entity might represent multiple files (multiple file versions,
             # multiple files in a file attached table column, or a folder of entities) but the error

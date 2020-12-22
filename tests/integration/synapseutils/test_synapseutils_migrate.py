@@ -121,12 +121,14 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
         skip_table_files=False,
     )
 
-    assert index_result.indexed_for_migration_total == 7
-    assert index_result.errored_total == 0
+    counts_by_status = index_result.get_counts_by_status()
+    assert counts_by_status['INDEXED'] == 7
+    assert counts_by_status['ERRORED'] == 0
 
     migration_result = synapseutils.migrate_indexed_files(
         syn,
         db_path,
+        force=True
     )
 
     file_0_entity_updated = syn.get(utils.id_of(file_0_entity), downloadFile=False)
