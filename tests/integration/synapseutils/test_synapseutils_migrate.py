@@ -112,17 +112,22 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
     db_path = tempfile.NamedTemporaryFile(delete=False).name
     schedule_for_cleanup(db_path)
 
-    migration_result, indexed_total = synapseutils.migrate(
+    index_result = synapseutils.index_files_for_migration(
         syn,
         project_entity,
         storage_location_id,
         db_path,
         file_version_strategy='new',
+        skip_table_files=False,
     )
 
-    assert indexed_total == 7
-    assert migration_result.migrated_total == 7
-    assert migration_result.error_total == 0
+    assert index_result.indexed_for_migration_total == 7
+    assert index_result.errored_total == 0
+
+    migration_result = synapseutils.migrate_indexed_files(
+        syn,
+        db_path,
+    )
 
     file_0_entity_updated = syn.get(utils.id_of(file_0_entity), downloadFile=False)
     file_1_entity_updated = syn.get(utils.id_of(file_1_entity), downloadFile=False)
@@ -158,10 +163,10 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
         assert len(counts) == 1
         assert counts[_MigrationStatus.MIGRATED.value] == 7
 
-    csv_file = tempfile.NamedTemporaryFile(delete=False)
-    migration_result.as_csv(csv_file.name)
-    with open(csv_file.name, 'r') as csv_file_in:
-        csv_contents = csv_file_in.read()
+    with tempfile.NamedTemporaryFile() as csv_file:
+        migration_result.as_csv(csv_file.name)
+        with open(csv_file.name, 'r') as csv_file_in:
+            csv_contents = csv_file_in.read()
 
     table_1_id = table_1_entity['tableId']
 

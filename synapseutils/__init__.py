@@ -17,5 +17,5 @@ The ``synapseutils`` package provides both higher level functions as well as uti
 from .copy_functions import copy, copyWiki, copyFileHandles, changeFileMetaData
 from .walk import walk
 from .sync import syncFromSynapse, syncToSynapse
-from .migrate_functions import migrate
+from .migrate_functions import migrate, index_files_for_migration, migrate_indexed_files
 from .monitor import notifyMe, with_progress_bar

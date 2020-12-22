@@ -71,6 +71,15 @@ class _MigrationKey(typing.NamedTuple):
     col_id: int
 
 
+class MigrationIndexResult:
+
+    def __init__(self, db_path, indexed_for_migration_total, already_migrated_total, errored_total):
+        self.db_path = db_path
+        self.indexed_for_migration_total = indexed_for_migration_total
+        self.already_migrated_total = already_migrated_total
+        self.errored_total = errored_total
+
+
 class MigrationResult:
     """A MigrationResult is a proxy object to the underlying sqlite db.
     It provides a programmatic interface that allows the caller to iterate over the
@@ -93,7 +102,8 @@ class MigrationResult:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
-            column_names = {}
+            last_id = None
+            column_names = None
 
             rowid = -1
             while True:
@@ -139,6 +149,11 @@ class MigrationResult:
                         col[0]: row[i] for i, col in enumerate(cursor.description)
                         if row[i] is not None and col[0] != 'rowid'
                     }
+                    entity_id = row_dict['id']
+                    if entity_id != last_id:
+                        # if the next row is dealing with a different entity than the last table
+                        # id then we discard any cached column names we looked up
+                        column_names = {}
 
                     row_dict['type'] = 'file' if row_dict['type'] == _MigrationType.FILE.value else 'table'
 
@@ -156,6 +171,10 @@ class MigrationResult:
                     col_id = row_dict.pop('col_id', None)
                     if col_id is not None:
                         column_name = column_names.get(col_id)
+
+                        # for usability we look up the actual column name from the id,
+                        # but that involves a lookup so we cache them for re-use across
+                        # rows that deal with the same table entity
                         if column_name is None:
                             column = self._syn.restGET("/column/{}".format(col_id))
                             column_name = column_names[col_id] = column['name']
@@ -165,6 +184,8 @@ class MigrationResult:
                     row_dict['status'] = _MigrationStatus(row_dict['status']).name
 
                     yield row_dict
+
+                    last_id = entity_id
 
                 if row_count == 0:
                     # out of rows
@@ -221,7 +242,7 @@ def _get_batch_size():
     # batch operations so they are chunked. a function to make it easily mocked.
     # don't anticipate needing to adjust this for any real activity
     # return 500
-    return 1
+    return 500
 
 
 def _ensure_schema(cursor):
@@ -368,7 +389,13 @@ def index_files_for_migration(
                     skip_table_files,
                     continue_on_error,
                 )
-                return indexed_for_migration_count, already_migrated_count, errored_count
+
+                return MigrationIndexResult(
+                    db_path,
+                    indexed_for_migration_count,
+                    already_migrated_count,
+                    errored_count
+                )
 
             except _IndexingError as indexing_ex:
                 logging.exception(
