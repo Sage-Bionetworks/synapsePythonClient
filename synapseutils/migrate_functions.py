@@ -95,7 +95,7 @@ class MigrationResult:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
-            # for the purposes of these counts, continers (Projects and Folders) do not count.
+            # for the purposes of these counts, containers (Projects and Folders) do not count.
             # we are counting actual files only
             result = cursor.execute(
                 'select status, count(*) from migrations where type in (?, ?) group by status',
@@ -306,9 +306,6 @@ def _ensure_schema(cursor):
 def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
     completed, futures = concurrent.futures.wait(futures, return_when=return_when)
 
-    migrated_count = 0
-    error_count = 0
-
     for completed_future in completed:
 
         to_file_handle_id = None
@@ -316,7 +313,6 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
         try:
             key, to_file_handle_id = completed_future.result()
             status = _MigrationStatus.MIGRATED.value
-            migrated_count += 1
 
         except _MigrationError as migration_ex:
             # for the purposes of recording and re-raise we're not interested in
@@ -325,7 +321,6 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
             ex = migration_ex.__cause__
             key = migration_ex.key
             status = _MigrationStatus.ERRORED.value
-            error_count += 1
 
         tb_str = ''.join(traceback.format_exception(type(ex), ex, ex.__traceback__)) if ex else None
         update_statement = """
@@ -353,7 +348,7 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
         if not continue_on_error and ex:
             raise ex from None
 
-    return futures, migrated_count, error_count
+    return futures
 
 
 def index_files_for_migration(
@@ -397,7 +392,7 @@ def index_files_for_migration(
 
         else:
             try:
-                indexed_for_migration_count, already_migrated_count, errored_count = _index_entity(
+                _index_entity(
                     conn,
                     cursor,
                     syn,
@@ -482,22 +477,17 @@ def migrate_indexed_files(
         key = _MigrationKey(id='', type=None, row_id=-1, col_id=-1, version=-1)
         futures = set()
 
-        migrated_total = 0
-        error_total = 0
-
         # we've completed the index, only proceed with the changes if not in a dry run
 
         while True:
             if len(futures) >= max_concurrent_file_copies:
-                futures, migrated_count, error_count = _wait_futures(
+                futures = _wait_futures(
                     conn,
                     cursor,
                     futures,
                     concurrent.futures.FIRST_COMPLETED,
                     continue_on_error,
                 )
-                migrated_total += migrated_count
-                error_total += error_count
 
             # we query for additional file or table associated file handles to migrate in batches
             # ordering by synapse id. there can be multiple file handles associated with a particular
@@ -586,16 +576,13 @@ def migrate_indexed_files(
                 break
 
         if futures:
-            _, migrated_count, error_count = _wait_futures(
+            _wait_futures(
                 conn,
                 cursor,
                 futures,
                 concurrent.futures.ALL_COMPLETED,
                 continue_on_error
             )
-
-            migrated_total += migrated_count
-            error_total += error_count
 
     return MigrationResult(syn, db_path)
 
@@ -607,7 +594,7 @@ def migrate(
     db_path,
     file_version_strategy='new',
 ):
-    indexed_count, already_migrated_count, errored_count = index_files_for_migration(
+    index_files_for_migration(
         syn,
         entity_id,
         storage_location_id,
@@ -619,7 +606,7 @@ def migrate(
         syn,
         db_path,
     )
-    return result, indexed_count
+    return result
 
 
 def _verify_storage_location_ownership(syn, storage_location_id):
@@ -829,19 +816,14 @@ def _index_table_entity(cursor, syn, entity, parent_id, storage_location_id):
             row_batch
         )
 
-    indexed_for_migration_count = 0
-    already_migrated_count = 0
     entity_id = utils.id_of(entity)
     for row_id, row_version, file_handles in _get_file_handle_rows(syn, entity_id):
         for col_id, file_handle in file_handles.items():
             existing_storage_location_id = file_handle['storageLocationId']
 
-            if str(storage_location_id) != str(existing_storage_location_id):
-                migration_status = _MigrationStatus.INDEXED.value
-                indexed_for_migration_count += 1
-            else:
-                migration_status = _MigrationStatus.ALREADY_MIGRATED.value
-                already_migrated_count += 1
+            migration_status = _MigrationStatus.INDEXED.value \
+                if str(storage_location_id) != str(existing_storage_location_id) \
+                else _MigrationStatus.ALREADY_MIGRATED.value
 
             row_batch.append((
                 entity_id,
@@ -862,8 +844,6 @@ def _index_table_entity(cursor, syn, entity, parent_id, storage_location_id):
     if row_batch:
         _insert_row_batch(row_batch)
 
-    return indexed_for_migration_count, already_migrated_count
-
 
 def _index_container(
         conn,
@@ -883,13 +863,9 @@ def _index_container(
     if table_strategy is not None:
         include_types.append('table')
 
-    indexed_for_migration_total = 0
-    already_migrated_total = 0
-    errored_total = 0
-
     children = syn.getChildren(entity_id, includeTypes=include_types)
     for child in children:
-        indexed_for_migration_count, already_migrated_count, errored_count = _index_entity(
+        _index_entity(
             conn,
             cursor,
             syn,
@@ -900,9 +876,6 @@ def _index_container(
             table_strategy,
             continue_on_error,
         )
-        indexed_for_migration_total += indexed_for_migration_count
-        already_migrated_total += already_migrated_count
-        errored_total += errored_count
 
     # once all the children are recursively indexed we mark this parent itself as indexed
     container_type = (
@@ -914,8 +887,6 @@ def _index_container(
         "insert into migrations (id, type, parent_id, status) values (?, ?, ?, ?)",
         [entity_id, container_type, parent_id, _MigrationStatus.INDEXED.value]
     )
-
-    return indexed_for_migration_total, already_migrated_total, errored_total
 
 
 def _index_entity(
@@ -934,17 +905,12 @@ def _index_entity(
     entity_id = utils.id_of(entity)
     concrete_type = utils.concrete_type_of(entity)
 
-    indexed_for_migration_total = 0
-    already_migrated_total = 0
-    errored_total = 0
-
     try:
         if not _check_indexed(cursor, entity_id):
             # if already indexed we short circuit (previous indexing will be used)
 
-            errored_count = 0
             if concrete_type == concrete_types.FILE_ENTITY:
-                indexed_for_migration_count, already_migrated_count = _index_file_entity(
+                _index_file_entity(
                     cursor,
                     syn,
                     entity_id,
@@ -954,7 +920,7 @@ def _index_entity(
                 )
 
             elif concrete_type == concrete_types.TABLE_ENTITY:
-                indexed_for_migration_count, already_migrated_count = _index_table_entity(
+                _index_table_entity(
                     cursor,
                     syn,
                     entity,
@@ -963,7 +929,7 @@ def _index_entity(
                 )
 
             elif concrete_type in [concrete_types.FOLDER_ENTITY, concrete_types.PROJECT_ENTITY]:
-                indexed_for_migration_count, already_migrated_count, errored_count = _index_container(
+                _index_container(
                     conn,
                     cursor,
                     syn,
@@ -974,10 +940,6 @@ def _index_entity(
                     table_strategy,
                     continue_on_error,
                 )
-
-            indexed_for_migration_total += indexed_for_migration_count
-            already_migrated_total += already_migrated_count
-            errored_total += errored_count
 
         conn.commit()
 
@@ -1012,15 +974,8 @@ def _index_entity(
                 )
             )
 
-            # note that the failed entity might represent multiple files (multiple file versions,
-            # multiple files in a file attached table column, or a folder of entities) but the error
-            # count will be incremented just once for the immediate failed entity
-            errored_total += 1
-
         else:
             raise _IndexingError(entity_id, concrete_type) from ex
-
-    return indexed_for_migration_total, already_migrated_total, errored_total
 
 
 def _create_new_file_version(syn, key, from_file_handle_id, storage_location_id):

@@ -467,29 +467,64 @@ def get_sts_token(args, syn):
 
 def migrate(args, syn):
     """Migrate Synapse entities to a new storage location"""
-
-    # output our progress via logging
     _init_console_Logging()
 
-    result = synapseutils.migrate(
+    result = synapseutils.index_files_for_migration(
         syn,
         args.id,
         args.storage_location_id,
         args.db_path,
-        dry_run=args.dryRun,
         file_version_strategy=args.file_version_strategy,
-        table_strategy=args.table_strategy,
         continue_on_error=args.continue_on_error,
     )
 
-    logging.info("Completed migration of {}.".format(args.id))
-    logging.info("{} files indexed for migration.".format(result.indexed_total))
-    if not args.dryRun:
-        logging.info("{} files migrated".format(result.migrated_total))
-        logging.info("{} migration errors".format(result.error_total))
+    counts = result.get_counts_by_status()
+    indexed_count = counts['INDEXED']
+    already_migrated_count = counts['ALREADY_MIGRATED']
+    errored_count = counts['ERRORED']
+
+    logging.info(
+        "Indexed %s items, %s needing migration, %s already stored in destination storage location (%s). "
+        "Encountered %s errors.",
+        indexed_count + already_migrated_count,
+        indexed_count,
+        already_migrated_count,
+        args.storage_location_id,
+        errored_count
+    )
+
+    if indexed_count == 0:
+        logging.info("No files found needing migration.")
+
+    elif args.dryRun:
+        logging.info(
+            "Dry run, index created at %s but skipping migration. Can proceed with migration by running "
+            "the same command without the dry run option."
+        )
+
+    else:
+        # there are items to migrate and this is not a dry run, proceed with migration
+        result = synapseutils.migrate_indexed_files(
+            syn,
+            args.db_path,
+            create_table_snapshots=True,  # TODO get from args
+            continue_on_error=args.continue_on_error,
+            force=args.force,
+        )
+
+        counts = result.get_counts_by_status()
+        migrated_count = counts['MIGRATED']
+        errored_count = counts['ERRORED']
+
+        logging.info(
+            "Completed migration of %s. %s files migrated. %s errors encountered",
+            args.id,
+            migrated_count,
+            errored_count,
+        )
 
     if args.csv_log_path:
-        logging.info("Writing csv log to {}".format(args.csv_log_path))
+        logging.info("Writing csv log to %s", args.csv_log_path)
         result.as_csv(args.csv_log_path)
 
 
@@ -912,6 +947,8 @@ def build_parser():
                                 help='Path where to log a csv documenting the changes from the migration')
     parser_migrate.add_argument('--dryRun', action='store_true', default=False,
                                 help='Dry run, files will be indexed by not migrated')
+    parser_migrate.add_argument('--force', action='store_true', default=False,
+                                help='Bypass interactive prompt confirming migration')
 
     parser_migrate.set_defaults(func=migrate)
 
