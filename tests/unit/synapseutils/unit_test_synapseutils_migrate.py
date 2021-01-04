@@ -27,6 +27,9 @@ class TestMigrationResult:
             ('syn3', _MigrationType.FILE.value, 5, None, None, 'syn2', _MigrationStatus.MIGRATED.value, None, 8, 3, 30),  # noqa
             ('syn4', _MigrationType.TABLE_ATTACHED_FILE.value, 5, 1, 2, 'syn2', _MigrationStatus.MIGRATED.value, None, 8, 4, 40),  # noqa
             ('syn5', _MigrationType.TABLE_ATTACHED_FILE.value, 5, 1, 3, 'syn2', _MigrationStatus.ERRORED.value, 'boom', None, None, None),  # noqa
+            ('syn6', _MigrationType.FILE.value, 6, None, None, 'syn2', _MigrationStatus.INDEXED.value, None, 3, 6, None),  # noqa
+            ('syn7', _MigrationType.FILE.value, 7, None, None, 'syn2', _MigrationStatus.ALREADY_MIGRATED.value, None, 10, 7, None),  # noqa
+
         ]
 
         db_file = tempfile.NamedTemporaryFile(delete=False)
@@ -58,7 +61,7 @@ class TestMigrationResult:
 
     def test_as_csv(self, db_path):
         syn = mock.MagicMock(synapseclient.Synapse)
-        result = synapseutils.migrate_functions.MigrationResult(syn, db_path, 3, 2, 1)
+        result = synapseutils.migrate_functions.MigrationResult(syn, db_path)
 
         csv_path = tempfile.NamedTemporaryFile(delete=False)
         with mock.patch.object(syn, 'restGET') as mock_rest_get:
@@ -77,15 +80,20 @@ class TestMigrationResult:
 syn3,file,5,,,8,3,30,MIGRATED,
 syn4,table,5,1,col_2,8,4,40,MIGRATED,
 syn5,table,5,1,col_3,,,,ERRORED,boom
+syn6,file,6,,,3,6,,INDEXED,
+syn7,file,7,,,10,7,,ALREADY_MIGRATED,
 """  # noqa
             assert csv_contents == expected_csv
-            assert result.indexed_total == 3
-            assert result.migrated_total == 2
-            assert result.error_total == 1
+
+            counts_by_status = result.get_counts_by_status()
+            assert counts_by_status['INDEXED'] == 1
+            assert counts_by_status['MIGRATED'] == 2
+            assert counts_by_status['ERRORED'] == 1
+            assert counts_by_status['ALREADY_MIGRATED'] == 1
 
     def test_get_migrations(self, db_path):
         syn = mock.MagicMock(synapseclient.Synapse)
-        result = synapseutils.migrate_functions.MigrationResult(syn, db_path, 3, 3, 0)
+        result = synapseutils.migrate_functions.MigrationResult(syn, db_path)
 
         with mock.patch.object(syn, 'restGET') as mock_rest_get:
             mock_rest_get.side_effect = [
@@ -123,13 +131,32 @@ syn5,table,5,1,col_3,,,,ERRORED,boom
                 'col_name': 'col_3',
                 'status': 'ERRORED',
                 'exception': 'boom',
-            }
+            },
+            {
+                'id': 'syn6',
+                'type': 'file',
+                'version': 6,
+                'status': 'INDEXED',
+                'from_storage_location_id': 3,
+                'from_file_handle_id': 6,
+            },
+            {
+                'id': 'syn7',
+                'type': 'file',
+                'version': 7,
+                'status': 'ALREADY_MIGRATED',
+                'from_storage_location_id': 10,
+                'from_file_handle_id': 7,
+            },
         ]
 
         assert migrations == expected_migrations
-        assert result.indexed_total == 3
-        assert result.migrated_total == 3
-        assert result.error_total == 0
+
+        counts_by_status = result.get_counts_by_status()
+        assert counts_by_status['MIGRATED'] == 2
+        assert counts_by_status['ERRORED'] == 1
+        assert counts_by_status['INDEXED'] == 1
+        assert counts_by_status['ALREADY_MIGRATED'] == 1
 
 
 class TestMigrate:
