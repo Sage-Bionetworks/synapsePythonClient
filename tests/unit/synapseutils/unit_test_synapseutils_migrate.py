@@ -6,14 +6,24 @@ from unittest import mock
 import synapseclient
 from synapseclient.core.exceptions import SynapseHTTPError
 import synapseclient.core.upload
+from synapseclient.core.constants.concrete_types import FILE_ENTITY, FOLDER_ENTITY, PROJECT_ENTITY, TABLE_ENTITY
 from synapseclient.core import utils
 import synapseutils
 from synapseutils.migrate_functions import (
+    _check_indexed,
     _ensure_schema,
+    _get_row_dict,
+    _index_container,
+    _index_entity,
+    _index_file_entity,
+    _index_table_entity,
+    _IndexingError,
     _MigrationStatus,
     _MigrationType,
     _retrieve_index_settings,
     _verify_index_settings,
+    _verify_storage_location_ownership,
+    index_files_for_migration,
 )
 
 
@@ -157,6 +167,879 @@ syn7,file,7,,,10,7,,ALREADY_MIGRATED,
         assert counts_by_status['ERRORED'] == 1
         assert counts_by_status['INDEXED'] == 1
         assert counts_by_status['ALREADY_MIGRATED'] == 1
+
+
+class TestIndex:
+
+    @pytest.fixture(scope='function')
+    def conn(self):
+        # temp file context manager doesn't work on windows so we manually remove in fixture
+        with tempfile.NamedTemporaryFile() as tmpfile, \
+                sqlite3.connect(tmpfile.name) as conn:
+            yield conn
+
+    def test_check_indexed(self, conn):
+        entity_id = 'syn57'
+
+        cursor = conn.cursor()
+        _ensure_schema(cursor)
+
+        cursor.execute(
+            "insert into migrations (id, type, status) values (?, ?, ?)",
+            (entity_id, _MigrationType.FILE.value, _MigrationStatus.INDEXED.value)
+        )
+        conn.commit()
+
+        assert _check_indexed(cursor, entity_id)
+        assert not _check_indexed(cursor, 'syn22')
+
+    def _index_file_entity_version_test(self, conn, file_version_strategy):
+        entity_id = 'syn123'
+        parent_id = 'syn321'
+        latest_version_number = 5
+        from_storage_location_id = '1234'
+        to_storage_location_id = '4321'
+        data_file_handle_id = '5678'
+
+        cursor = conn.cursor()
+        _ensure_schema(cursor)
+        conn.commit()
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+
+        mock_file = mock.MagicMock(synapseclient.File)
+        mock_file.versionNumber = latest_version_number
+        mock_file.dataFileHandleId = data_file_handle_id
+        mock_file._file_handle = {'storageLocationId': from_storage_location_id}
+        syn.get.return_value = mock_file
+
+        _index_file_entity(cursor, syn, entity_id, parent_id, to_storage_location_id, file_version_strategy)
+
+        row = cursor.execute(
+            """
+                select
+                    id,
+                    parent_id,
+                    version,
+                    from_storage_location_id,
+                    from_file_handle_id,
+                    status
+                from migrations
+            """
+        ).fetchone()
+
+        row_dict = _get_row_dict(cursor, row, True)
+
+        assert row_dict['id'] == entity_id
+        assert row_dict['parent_id'] == parent_id
+        assert row_dict['from_storage_location_id'] == from_storage_location_id
+        assert row_dict['from_file_handle_id'] == data_file_handle_id
+        assert row_dict['status'] == _MigrationStatus.INDEXED.value
+        return mock_file, row_dict
+
+    def test_index_file_entity__new(self, conn):
+        """Verify indexing creating a record to migrate a new version of a file entity"""
+        # record version should be None representing the need to create a new version
+        _, row_dict = self._index_file_entity_version_test(conn, 'new')
+        assert row_dict['version'] is None
+
+    def test_index_file_entity__latest(self, conn):
+        """Verify indexing creating a record to migrate the latest version of a file entity"""
+        # record version should match the file version representing the need to migrate that version
+        mock_file, row_dict = self._index_file_entity_version_test(conn, 'latest')
+        assert mock_file.versionNumber == row_dict['version']
+
+    def test_index_file_entity__all(self, conn):
+        """Verify indexing all the file version of a FileEntity"""
+
+        entity_id = 'syn123'
+        parent_id = 'syn321'
+        from_storage_location_id = '1234'
+        to_storage_location_id = '4321'
+
+        cursor = conn.cursor()
+        _ensure_schema(cursor)
+        conn.commit()
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+
+        mock_file_2 = mock.MagicMock(synapseclient.File)
+        mock_file_2.dataFileHandleId = 2
+        mock_file_2._file_handle = {'storageLocationId': from_storage_location_id}
+        mock_file_2.versionNumber = 2
+
+        # already in the destination storage location
+        mock_file_3 = mock.MagicMock(synapseclient.File)
+        mock_file_3.dataFileHandleId = 3
+        mock_file_3._file_handle = {'storageLocationId': to_storage_location_id}
+        mock_file_3.versionNumber = 3
+
+        syn.get.side_effect = [
+            mock_file_2,
+            mock_file_3
+        ]
+
+        # simulate multiple versions
+        syn._GET_paginated.return_value = [
+            {'versionNumber': 2},
+            {'versionNumber': 3},
+        ]
+
+        _index_file_entity(cursor, syn, entity_id, parent_id, to_storage_location_id, 'all')
+
+        result = cursor.execute(
+            """
+                select
+                    id,
+                    parent_id,
+                    version,
+                    from_storage_location_id,
+                    from_file_handle_id,
+                    status
+                from migrations
+            """
+        ).fetchall()
+
+        result_iter = iter(result)
+        row_0 = next(result_iter)
+        row_1 = next(result_iter)
+
+        row_dict_0 = _get_row_dict(cursor, row_0, True)
+        row_dict_1 = _get_row_dict(cursor, row_1, True)
+        for version, row_dict in enumerate([row_dict_0, row_dict_1], 2):
+            assert row_dict['id'] == entity_id
+            assert row_dict['parent_id'] == parent_id
+            assert row_dict['version'] == version
+            assert row_dict['from_file_handle_id'] == str(version)
+
+        assert row_dict_0['status'] == _MigrationStatus.INDEXED.value
+        assert row_dict_0['from_storage_location_id'] == from_storage_location_id
+        assert row_dict_1['status'] == _MigrationStatus.ALREADY_MIGRATED.value
+        assert row_dict_1['from_storage_location_id'] == to_storage_location_id
+
+    @mock.patch.object(synapseutils.migrate_functions, '_get_batch_size')
+    def test_index_table_entity(self, mock_get_batch_size, conn):
+        cursor = conn.cursor()
+        _ensure_schema(cursor)
+
+        # small batch size to test multiple batches
+        mock_get_batch_size.return_value = 1
+
+        table_id = 'syn123'
+        parent_id = 'syn321'
+        from_storage_location_id = 1
+        to_storage_location_id = 2
+        syn = mock.MagicMock(synapseclient.Synapse)
+
+        # gets the columns of the table
+        # 4 columns, 2 of the file handles
+        syn.restGET.return_value = {
+            'results': [
+                {'columnType': 'STRING'},
+                {'columnType': 'FILEHANDLEID', 'id': '1', 'name': 'col1'},
+                {'columnType': 'FILEHANDLEID', 'id': '2', 'name': 'col2'},
+                {'columnType': 'INTEGER'},
+            ]
+        }
+
+        file_handle_id_1 = 'fh1'
+        file_handle_id_2 = 'fh2'
+        file_handle_id_3 = 'fh3'
+        file_handle_id_4 = 'fh4'
+
+        file_handle_1 = {
+            'fileHandle': {
+                'id': file_handle_id_1,
+                'storageLocationId': from_storage_location_id,
+            }
+        }
+        file_handle_2 = {
+            'fileHandle': {
+                'id': file_handle_id_2,
+                'storageLocationId': from_storage_location_id,
+            }
+        }
+        file_handle_3 = {
+            'fileHandle': {
+                'id': file_handle_id_3,
+                'storageLocationId': from_storage_location_id,
+            }
+        }
+
+        # this one already in the destination storage location
+        file_handle_4 = {
+            'fileHandle': {
+                'id': file_handle_id_4,
+                'storageLocationId': to_storage_location_id,
+            }
+        }
+
+        syn.tableQuery.return_value = [
+            [1, 1, file_handle_id_1, file_handle_id_2],
+            [2, 1, file_handle_id_3, file_handle_id_4],
+        ]
+
+        syn._getFileHandleDownload.side_effect = [
+            file_handle_1,
+            file_handle_2,
+            file_handle_3,
+            file_handle_4,
+        ]
+
+        _index_table_entity(cursor, syn, table_id, parent_id, to_storage_location_id)
+
+        result = cursor.execute(
+            """
+                select
+                    id,
+                    parent_id,
+                    row_id,
+                    col_id,
+                    from_storage_location_id,
+                    from_file_handle_id,
+                    status
+                from migrations
+            """
+        ).fetchall()
+
+        row_iter = iter(result)
+        row_0_dict = _get_row_dict(cursor, next(row_iter), True)
+        row_1_dict = _get_row_dict(cursor, next(row_iter), True)
+        row_2_dict = _get_row_dict(cursor, next(row_iter), True)
+        row_3_dict = _get_row_dict(cursor, next(row_iter), True)
+        row_dicts = [row_0_dict, row_1_dict, row_2_dict]
+
+        for row_dict in row_dicts:
+            assert row_dict['id'] == table_id
+            assert row_dict['parent_id'] == parent_id
+            assert row_dict['from_storage_location_id'] == from_storage_location_id
+            assert row_dict['status'] == _MigrationStatus.INDEXED.value
+
+        assert row_0_dict['row_id'] == 1
+        assert row_0_dict['col_id'] == 1
+        assert row_0_dict['from_file_handle_id'] == file_handle_id_1
+        assert row_1_dict['row_id'] == 1
+        assert row_1_dict['col_id'] == 2
+        assert row_1_dict['from_file_handle_id'] == file_handle_id_2
+        assert row_2_dict['row_id'] == 2
+        assert row_2_dict['col_id'] == 1
+        assert row_2_dict['from_file_handle_id'] == file_handle_id_3
+
+        # already in destination storage location
+        assert row_3_dict['id'] == table_id
+        assert row_3_dict['parent_id'] == parent_id
+        assert row_3_dict['row_id'] == 2
+        assert row_3_dict['col_id'] == 2
+        assert row_3_dict['from_file_handle_id'] == file_handle_id_4
+        assert row_3_dict['from_storage_location_id'] == to_storage_location_id
+        assert row_3_dict['status'] == _MigrationStatus.ALREADY_MIGRATED.value
+
+    @mock.patch.object(synapseutils.migrate_functions, '_index_entity')
+    def test_index_container__files(self, mock_index_entity, conn):
+        """Test indexing a project container, including files but not tables, and with one sub folder"""
+
+        cursor = conn.cursor()
+
+        project_id = 'syn123'
+        parent_id = 'syn321'
+        file_id = 'syn456'
+        sub_folder_id = 'syn654'
+        storage_location_id = '1234'
+        file_version_strategy = 'new'
+        skip_table_files = True
+        continue_on_error = True
+
+        project = mock.MagicMock(synapseclient.Project)
+        project.id = project_id
+        project.get.return_value = PROJECT_ENTITY
+
+        file_dict = {
+            'id': file_id,
+            'concreteType': FILE_ENTITY
+        }
+
+        sub_folder_dict = {
+            'id': sub_folder_id,
+            'concreteType': FOLDER_ENTITY,
+        }
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+        syn.getChildren.return_value = [
+            file_dict,
+            sub_folder_dict,
+        ]
+
+        _index_container(
+            conn,
+            cursor,
+            syn,
+            project,
+            parent_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error,
+        )
+
+        syn.getChildren.assert_called_once_with(project_id, includeTypes=['folder', 'file'])
+
+        expected_calls = []
+        for child in (file_dict, sub_folder_dict):
+            expected_calls.append(
+                mock.call(
+                    conn,
+                    cursor,
+                    syn,
+                    child,
+                    project_id,
+                    storage_location_id,
+                    file_version_strategy,
+                    skip_table_files,
+                    continue_on_error
+                )
+            )
+
+        assert mock_index_entity.call_args_list == expected_calls
+
+        row = cursor.execute(
+            """
+                select
+                    id,
+                    type,
+                    parent_id,
+                    status
+                from migrations
+            """
+        ).fetchone()
+
+        row_dict = _get_row_dict(cursor, row, True)
+        assert row_dict['id'] == project_id
+        assert row_dict['type'] == _MigrationType.PROJECT.value
+        assert row_dict['parent_id'] == parent_id
+        assert row_dict['status'] == _MigrationStatus.INDEXED.value
+
+    @mock.patch.object(synapseutils.migrate_functions, '_index_entity')
+    def test_index_container__tables(self, mock_index_entity, conn):
+        """Test indexing a folder container, including tables but not files"""
+
+        cursor = conn.cursor()
+
+        folder_id = 'syn123'
+        parent_id = 'syn321'
+        table_id = 'syn456'
+        storage_location_id = '1234'
+        file_version_strategy = 'skip'
+        skip_table_files = False
+        continue_on_error = False
+
+        folder = mock.MagicMock(synapseclient.Folder)
+        folder.id = folder_id
+        folder.get.return_value = FOLDER_ENTITY
+
+        table_dict = {
+            'id': table_id,
+            'concreteType': TABLE_ENTITY
+        }
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+        syn.getChildren.return_value = [
+            table_dict,
+        ]
+
+        _index_container(
+            conn,
+            cursor,
+            syn,
+            folder,
+            parent_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error,
+        )
+
+        syn.getChildren.assert_called_once_with(folder_id, includeTypes=['folder', 'table'])
+
+        expected_calls = [
+            mock.call(
+                conn,
+                cursor,
+                syn,
+                table_dict,
+                folder_id,
+                storage_location_id,
+                file_version_strategy,
+                skip_table_files,
+                continue_on_error
+            )
+        ]
+
+        assert mock_index_entity.call_args_list == expected_calls
+
+        row = cursor.execute(
+            """
+                select
+                    id,
+                    type,
+                    parent_id,
+                    status
+                from migrations
+            """
+        ).fetchone()
+
+        row_dict = _get_row_dict(cursor, row, True)
+        assert row_dict['id'] == folder_id
+        assert row_dict['type'] == _MigrationType.FOLDER.value
+        assert row_dict['parent_id'] == parent_id
+        assert row_dict['status'] == _MigrationStatus.INDEXED.value
+
+    @mock.patch.object(synapseutils.migrate_functions, '_index_file_entity')
+    @mock.patch.object(synapseutils.migrate_functions, '_check_indexed')
+    def test_index_entity__already_indexed(self, mock_check_indexed, mock_index_file_entity, conn):
+        cursor = conn.cursor()
+        syn = mock.MagicMock(synapseclient.Synapse)
+        parent_id = 'syn123'
+        storage_location_id = '1234'
+        file_version_strategy = 'new'
+        skip_table_files = True
+        continue_on_error = True
+
+        mock_check_indexed.return_value = True
+
+        entity_id = 'syn123'
+        entity = {
+            'id': entity_id,
+            'concreteType': FILE_ENTITY
+        }
+
+        _index_entity(
+            conn,
+            cursor,
+            syn,
+            entity,
+            parent_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error
+        )
+
+        mock_check_indexed.assert_called_once_with(cursor, entity_id)
+        assert mock_index_file_entity.called is False
+
+    @mock.patch.object(synapseutils.migrate_functions, '_index_file_entity')
+    @mock.patch.object(synapseutils.migrate_functions, '_check_indexed')
+    def test_index_entity__file(self, mock_check_indexed, mock_index_file_entity):
+        """Verify behavior of _index_file_entity"""
+
+        conn = mock.Mock()
+        cursor = mock.Mock()
+        conn.cursor.return_value = cursor
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+        parent_id = 'syn123'
+        storage_location_id = '1234'
+        file_version_strategy = 'new'
+        skip_table_files = True
+        continue_on_error = True
+
+        mock_check_indexed.return_value = False
+
+        entity_id = 'syn123'
+        entity = {
+            'id': entity_id,
+            'concreteType': FILE_ENTITY
+        }
+
+        _index_entity(
+            conn,
+            cursor,
+            syn,
+            entity,
+            parent_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error
+        )
+
+        mock_check_indexed.assert_called_once_with(cursor, entity_id)
+        mock_index_file_entity.assert_called_once_with(
+            cursor,
+            syn,
+            entity_id,
+            parent_id,
+            storage_location_id,
+            file_version_strategy
+        )
+
+        conn.commit.assert_called_once_with()
+
+    @mock.patch.object(synapseutils.migrate_functions, '_index_table_entity')
+    @mock.patch.object(synapseutils.migrate_functions, '_check_indexed')
+    def test_index_entity__table(self, mock_check_indexed, mock_index_table_entity):
+        """Verify behavior of _index_table_entity"""
+
+        conn = mock.Mock()
+        cursor = mock.Mock()
+        conn.cursor.return_value = cursor
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+        parent_id = 'syn123'
+        storage_location_id = '1234'
+        file_version_strategy = 'skip'
+        skip_table_files = False
+        continue_on_error = True
+
+        mock_check_indexed.return_value = False
+
+        entity_id = 'syn123'
+        entity = {
+            'id': entity_id,
+            'concreteType': TABLE_ENTITY
+        }
+
+        _index_entity(
+            conn,
+            cursor,
+            syn,
+            entity,
+            parent_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error
+        )
+
+        mock_check_indexed.assert_called_once_with(cursor, entity_id)
+        mock_index_table_entity.assert_called_once_with(
+            cursor,
+            syn,
+            entity,
+            parent_id,
+            storage_location_id
+        )
+
+        conn.commit.assert_called_once_with()
+
+    @mock.patch.object(synapseutils.migrate_functions, '_index_container')
+    @mock.patch.object(synapseutils.migrate_functions, '_check_indexed')
+    def test_index_entity__container(self, mock_check_indexed, mock_index_container):
+        """Verify behavior of _index_container"""
+
+        conn = mock.Mock()
+        cursor = mock.Mock()
+        conn.cursor.return_value = cursor
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+        parent_id = 'syn123'
+        storage_location_id = '1234'
+        file_version_strategy = 'latest'
+        skip_table_files = True
+        continue_on_error = True
+
+        mock_check_indexed.return_value = False
+
+        entity_id = 'syn123'
+        entity = {
+            'id': entity_id,
+            'concreteType': FOLDER_ENTITY
+        }
+
+        _index_entity(
+            conn,
+            cursor,
+            syn,
+            entity,
+            parent_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error
+        )
+
+        mock_check_indexed.assert_called_once_with(cursor, entity_id)
+        mock_index_container.assert_called_once_with(
+            conn,
+            cursor,
+            syn,
+            entity,
+            parent_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error,
+        )
+
+        conn.commit.assert_called_once_with()
+
+    @mock.patch.object(synapseutils.migrate_functions, '_index_file_entity')
+    @mock.patch.object(synapseutils.migrate_functions, '_check_indexed')
+    def test_index_entity__error__continue(self, mock_check_indexed, mock_index_file_entity, conn):
+        """Verify that if continue_on_error is True that the no error is raised but it is recorded"""
+
+        cursor = conn.cursor()
+        _ensure_schema(cursor)
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+        parent_id = 'syn123'
+        storage_location_id = '1234'
+        file_version_strategy = 'new'
+        skip_table_files = True
+        continue_on_error = True
+
+        mock_check_indexed.return_value = False
+
+        entity_id = 'syn123'
+        entity = {
+            'id': entity_id,
+            'concreteType': FILE_ENTITY
+        }
+
+        mock_index_file_entity.side_effect = ValueError('boom')
+
+        _index_entity(
+            conn,
+            cursor,
+            syn,
+            entity,
+            parent_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error
+        )
+
+        mock_check_indexed.assert_called_once_with(cursor, entity_id)
+        mock_index_file_entity.assert_called_once_with(
+            cursor,
+            syn,
+            entity_id,
+            parent_id,
+            storage_location_id,
+            file_version_strategy
+        )
+
+        row = cursor.execute(
+            """
+                select
+                    id,
+                    type,
+                    status,
+                    exception
+                from migrations
+            """
+        ).fetchone()
+
+        row_dict = _get_row_dict(cursor, row, True)
+        assert row_dict['id'] == entity_id
+        assert row_dict['type'] == _MigrationType.FILE.value
+        assert row_dict['status'] == _MigrationStatus.ERRORED.value
+        assert 'boom' in row_dict['exception']
+
+    @mock.patch.object(synapseutils.migrate_functions, '_index_file_entity')
+    @mock.patch.object(synapseutils.migrate_functions, '_check_indexed')
+    def test_index_entity__error__no_continue(self, mock_check_indexed, mock_index_file_entity, conn):
+        """Verify that if continue_on_error is False that the error is raised"""
+
+        cursor = conn.cursor()
+        _ensure_schema(cursor)
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+        parent_id = 'syn123'
+        storage_location_id = '1234'
+        file_version_strategy = 'new'
+        skip_table_files = True
+        continue_on_error = False
+
+        mock_check_indexed.return_value = False
+
+        entity_id = 'syn123'
+        entity = {
+            'id': entity_id,
+            'concreteType': FILE_ENTITY
+        }
+
+        mock_index_file_entity.side_effect = ValueError('boom')
+
+        with pytest.raises(_IndexingError) as indexing_ex:
+            _index_entity(
+                conn,
+                cursor,
+                syn,
+                entity,
+                parent_id,
+                storage_location_id,
+                file_version_strategy,
+                skip_table_files,
+                continue_on_error
+            )
+
+        assert entity_id == indexing_ex.value.entity_id
+        assert indexing_ex.value.concrete_type == FILE_ENTITY
+        assert 'boom' in str(indexing_ex.value.__cause__)
+
+    def test_index_files_for_migration__invalid_file_version_strategy(self):
+        """Verify error if invalid file_version_strategy"""
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+        entity_id = 'syn123'
+        storage_location_id = '1234'
+        db_path = '/tmp/foo'
+        file_version_strategy = 'wizzle'  # invalid
+        skip_table_files = True
+        continue_on_error = True
+
+        with pytest.raises(ValueError) as ex:
+            index_files_for_migration(
+                syn,
+                entity_id,
+                storage_location_id,
+                db_path,
+                file_version_strategy,
+                skip_table_files,
+                continue_on_error
+            )
+        assert 'Invalid file_version_strategy' in str(ex.value)
+
+    def test_index_files_for_migration__nothing_selected(self):
+        """Verify error is raised if not migrating either files or table attached files"""
+
+        syn = mock.MagicMock(synapseclient.Synapse)
+        entity_id = 'syn123'
+        storage_location_id = '1234'
+        db_path = '/tmp/foo'
+        file_version_strategy = 'skip'
+        skip_table_files = True
+        continue_on_error = True
+
+        with pytest.raises(ValueError) as ex:
+            index_files_for_migration(
+                syn,
+                entity_id,
+                storage_location_id,
+                db_path,
+                file_version_strategy,
+                skip_table_files,
+                continue_on_error
+            )
+        assert 'Skipping both' in str(ex.value)
+
+    @mock.patch.object(synapseutils.migrate_functions, '_verify_index_settings')
+    @mock.patch.object(synapseutils.migrate_functions, '_index_entity')
+    @mock.patch('sqlite3.connect')
+    def test_index_files_for_migration(self, mock_sqlite_connect, mock_index_entity, mock_verify_index_settings):
+        syn = mock.MagicMock(synapseclient.Synapse)
+        entity_id = 'syn123'
+        storage_location_id = '1234'
+        db_path = '/tmp/foo'
+        file_version_strategy = 'all'
+        skip_table_files = True
+        continue_on_error = True
+
+        entity = mock.MagicMock(synapseclient.File)
+        syn.get.return_value = entity
+
+        mock_conn = mock.Mock()
+        mock_cursor = mock.Mock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_sqlite_connect.return_value. __enter__.return_value = mock_conn
+
+        result = index_files_for_migration(
+            syn,
+            entity_id,
+            storage_location_id,
+            db_path,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error
+        )
+
+        mock_verify_index_settings.assert_called_once_with(
+            mock_cursor,
+            db_path,
+            entity_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files
+        )
+
+        mock_index_entity.assert_called_once_with(
+            mock_conn,
+            mock_cursor,
+            syn,
+            entity,
+            None,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error,
+        )
+
+        assert result._syn == syn
+        assert result.db_path == db_path
+
+    @mock.patch.object(synapseutils.migrate_functions, '_verify_index_settings')
+    @mock.patch.object(synapseutils.migrate_functions, '_index_entity')
+    @mock.patch('sqlite3.connect')
+    def test_index_files_for_migration__indexing_error(
+        self,
+        mock_sqlite_connect,
+        mock_index_entity,
+        mock_verify_index_settings
+    ):
+        syn = mock.MagicMock(synapseclient.Synapse)
+        entity_id = 'syn123'
+        storage_location_id = '1234'
+        db_path = '/tmp/foo'
+        file_version_strategy = 'all'
+        skip_table_files = True
+        continue_on_error = True
+
+        entity = mock.MagicMock(synapseclient.File)
+        syn.get.return_value = entity
+
+        mock_conn = mock.Mock()
+        mock_cursor = mock.Mock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_sqlite_connect.return_value. __enter__.return_value = mock_conn
+
+        indexing_error = _IndexingError(entity_id, FILE_ENTITY)
+        indexing_error.__cause__ = ValueError('boom')
+        mock_index_entity.side_effect = indexing_error
+
+        with pytest.raises(ValueError) as ex:
+            index_files_for_migration(
+                syn,
+                entity_id,
+                storage_location_id,
+                db_path,
+                file_version_strategy,
+                skip_table_files,
+                continue_on_error
+            )
+        assert 'boom' in str(ex.value)
+
+        mock_verify_index_settings.assert_called_once_with(
+            mock_cursor,
+            db_path,
+            entity_id,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files
+        )
+
+        mock_index_entity.assert_called_once_with(
+            mock_conn,
+            mock_cursor,
+            syn,
+            entity,
+            None,
+            storage_location_id,
+            file_version_strategy,
+            skip_table_files,
+            continue_on_error,
+        )
 
 
 class TestMigrate:
@@ -610,6 +1493,20 @@ def test_ensure_schema():
         # invoking a second time should be idempotent
         _ensure_schema(cursor)
         _verify_schema(cursor)
+
+
+def test_verify_storage_location_ownership():
+    storage_location_id = '1234'
+    syn = mock.MagicMock(synapseclient.Synapse)
+
+    # no error raised
+    _verify_storage_location_ownership(syn, storage_location_id)
+
+    syn.restGET.side_effect = SynapseHTTPError('boom')
+    with pytest.raises(ValueError) as ex:
+        _verify_storage_location_ownership(syn, storage_location_id)
+    assert 'Error verifying' in str(ex.value)
+    assert syn.restGET.called_with("/storageLocation/{}".format(storage_location_id))
 
 
 def test__verify_index_settings__retrieve_index_settings():

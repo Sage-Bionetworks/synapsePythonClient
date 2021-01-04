@@ -66,6 +66,19 @@ class _MigrationType(Enum):
     FILE = 3
     TABLE_ATTACHED_FILE = 4
 
+    @classmethod
+    def from_concrete_type(cls, concrete_type):
+        if concrete_type == concrete_types.PROJECT_ENTITY:
+            return cls.PROJECT
+        elif concrete_type == concrete_types.FOLDER_ENTITY:
+            return cls.FOLDER
+        elif concrete_type == concrete_types.FILE_ENTITY:
+            return cls.FILE
+        elif concrete_type == concrete_types.TABLE_ENTITY:
+            return cls.TABLE_ATTACHED_FILE
+
+        raise ValueError("Unhandled type {}".format(concrete_type))
+
 
 class _MigrationKey(typing.NamedTuple):
     id: str
@@ -73,6 +86,13 @@ class _MigrationKey(typing.NamedTuple):
     version: int
     row_id: int
     col_id: int
+
+
+def _get_row_dict(cursor, row, include_empty):
+    return {
+        col[0]: row[i] for i, col in enumerate(cursor.description)
+        if (include_empty or row[i] is not None) and col[0] != 'rowid'
+    }
 
 
 class MigrationResult:
@@ -158,10 +178,7 @@ class MigrationResult:
                     rowid = row[0]
 
                     # exclude the sqlite internal rowid
-                    row_dict = {
-                        col[0]: row[i] for i, col in enumerate(cursor.description)
-                        if row[i] is not None and col[0] != 'rowid'
-                    }
+                    row_dict = _get_row_dict(cursor, row, False)
                     entity_id = row_dict['id']
                     if entity_id != last_id:
                         # if the next row is dealing with a different entity than the last table
@@ -365,7 +382,7 @@ def index_files_for_migration(
     file_version_strategies = {'new', 'all', 'latest', 'skip'}
     if file_version_strategy not in file_version_strategies:
         raise ValueError(
-            "invalid file_version_strategy: {}, must be one of {}".format(
+            "Invalid file_version_strategy: {}, must be one of {}".format(
                 file_version_strategy,
                 file_version_strategies
             )
@@ -387,32 +404,28 @@ def index_files_for_migration(
         conn.commit()
 
         entity = syn.get(root_id, downloadFile=False)
-        if _check_indexed(cursor, root_id):
-            logger.info("%s previously indexed, no additional files indexed for migration", root_id)
+        try:
+            _index_entity(
+                conn,
+                cursor,
+                syn,
+                entity,
+                None,
+                storage_location_id,
+                file_version_strategy,
+                skip_table_files,
+                continue_on_error,
+            )
 
-        else:
-            try:
-                _index_entity(
-                    conn,
-                    cursor,
-                    syn,
-                    entity,
-                    None,
-                    storage_location_id,
-                    file_version_strategy,
-                    skip_table_files,
-                    continue_on_error,
-                )
+        except _IndexingError as indexing_ex:
+            logger.exception(
+                "Aborted due to failure to index entity %s of type %s. Use the continue_on_error option to skip "
+                "over entities due to individual failures.",
+                indexing_ex.entity_id,
+                indexing_ex.concrete_type,
+            )
 
-            except _IndexingError as indexing_ex:
-                logger.exception(
-                    "Aborted due to failure to index entity %s of type %s. Use the continue_on_error option to skip "
-                    "over entities due to individual failures.",
-                    indexing_ex.entity_id,
-                    indexing_ex.concrete_type,
-                )
-
-                raise indexing_ex.__cause__
+            raise indexing_ex.__cause__
 
     return MigrationResult(syn, db_path)
 
@@ -532,7 +545,7 @@ def migrate_indexed_files(
             for row in results:
                 row_count += 1
 
-                row_dict = {col[0]: row[i] for i, col in enumerate(cursor.description)}
+                row_dict = _get_row_dict(cursor, row, True)
                 key_dict = {
                     k: v for k, v in row_dict.items()
                     if k in ('id', 'type', 'version', 'row_id', 'col_id')
@@ -707,8 +720,6 @@ def _get_version_numbers(syn, entity_id):
 def _index_file_entity(cursor, syn, entity_id, parent_id, to_storage_location_id, file_version_strategy):
     # 2-tuples of entity, version # to record
     entity_versions = []
-    indexed_for_migration_count = 0
-    already_migrated_count = 0
 
     if file_version_strategy == 'new':
         # we'll need the etag to be able to do an update on an entity version
@@ -740,12 +751,9 @@ def _index_file_entity(cursor, syn, entity_id, parent_id, to_storage_location_id
         insert_values = []
         for (entity, version) in entity_versions:
             from_storage_location_id = entity._file_handle['storageLocationId']
-            if str(from_storage_location_id) != str(to_storage_location_id):
-                migration_status = _MigrationStatus.INDEXED.value
-                indexed_for_migration_count += 1
-            else:
-                migration_status = _MigrationStatus.ALREADY_MIGRATED.value
-                already_migrated_count += 1
+            migration_status = _MigrationStatus.INDEXED.value \
+                if str(from_storage_location_id) != str(to_storage_location_id) \
+                else _MigrationStatus.ALREADY_MIGRATED.value
 
             insert_values.append((
                 entity_id,
@@ -771,8 +779,6 @@ def _index_file_entity(cursor, syn, entity_id, parent_id, to_storage_location_id
             """,
             insert_values
         )
-
-    return indexed_for_migration_count, already_migrated_count
 
 
 def _get_file_handle_rows(syn, table_id):
@@ -853,14 +859,16 @@ def _index_container(
         parent_id,
         storage_location_id,
         file_version_strategy,
-        table_strategy,
+        skip_table_files,
         continue_on_error
 ):
+    _ensure_schema(cursor)
+
     entity_id = utils.id_of(container_entity)
     include_types = ['folder']
-    if file_version_strategy is not None:
+    if file_version_strategy != 'skip':
         include_types.append('file')
-    if table_strategy is not None:
+    if not skip_table_files:
         include_types.append('table')
 
     children = syn.getChildren(entity_id, includeTypes=include_types)
@@ -873,7 +881,7 @@ def _index_container(
             entity_id,
             storage_location_id,
             file_version_strategy,
-            table_strategy,
+            skip_table_files,
             continue_on_error,
         )
 
@@ -897,7 +905,7 @@ def _index_entity(
         parent_id,
         storage_location_id,
         file_version_strategy,
-        table_strategy,
+        skip_table_files,
         continue_on_error
 ):
     # recursive function to index a given entity into the sqlite db.
@@ -925,7 +933,7 @@ def _index_entity(
                     syn,
                     entity,
                     parent_id,
-                    table_strategy
+                    storage_location_id
                 )
 
             elif concrete_type in [concrete_types.FOLDER_ENTITY, concrete_types.PROJECT_ENTITY]:
@@ -937,7 +945,7 @@ def _index_entity(
                     parent_id,
                     storage_location_id,
                     file_version_strategy,
-                    table_strategy,
+                    skip_table_files,
                     continue_on_error,
                 )
 
@@ -956,18 +964,18 @@ def _index_entity(
             tb_str = ''.join(traceback.format_exception(type(ex), ex, ex.__traceback__))
 
             cursor.execute(
-                """insert into migrations
-                    (
+                """
+                    insert into migrations (
                         id,
                         type,
                         parent_id,
                         status,
-                        exception,
+                        exception
                     ) values (?, ?, ?, ?, ?)
                 """,
                 (
                     entity_id,
-                    concrete_type,
+                    _MigrationType.from_concrete_type(concrete_type).value,
                     parent_id,
                     _MigrationStatus.ERRORED.value,
                     tb_str,
