@@ -184,18 +184,3 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
     assert f"{table_1_id},table,1,2,file_col_1,{default_storage_location_id},{table_1_file_handle_3['id']},{table_file_handles[2]['id']},MIGRATED," in csv_lines  # noqa
     assert f"{table_1_id},table,1,2,file_col_2,{default_storage_location_id},{table_1_file_handle_4['id']},{table_file_handles[3]['id']},MIGRATED," in csv_lines  # noqa
     assert "" in csv_lines  # expect trailing newline in a csv
-
-
-def test_migrate__not_storage_location_owner(request, syn, project, schedule_for_cleanup):
-    """Verify Synapse HTTP error from non ownership of destination storage location
-    is checked up front."""
-    temp_file = _create_temp_file()
-    file = synapseclient.File(path=temp_file, parent=project)
-    schedule_for_cleanup(file)
-    syn.store(file)
-
-    db_file = tempfile.NamedTemporaryFile(delete=False)
-    schedule_for_cleanup(db_file.name)
-    with pytest.raises(ValueError) as ex:
-        synapseutils.migrate(syn, file, 1, db_file.name)
-    assert "creator" in str(ex)

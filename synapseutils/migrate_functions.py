@@ -441,7 +441,10 @@ def _confirm_migration(cursor, force, storage_location_id):
             (_MigrationStatus.INDEXED.value,)
         ).fetchone()[0]
 
-        if sys.stdout.isatty():
+        if count == 0:
+            logger.info("No items for migration.")
+
+        elif sys.stdout.isatty():
             uinput = input("{} items for migration to {}. Proceed? (y/n)? ".format(
                 count,
                 storage_location_id
@@ -449,7 +452,7 @@ def _confirm_migration(cursor, force, storage_location_id):
             confirmed = uinput.strip().lower() == 'y'
 
         else:
-            logger.error(
+            logger.info(
                 "%s items for migration. "
                 "force option not used, and console input not available to confirm migration, aborting. "
                 "Use the force option or run from an interactive shell to proceed with migration.",

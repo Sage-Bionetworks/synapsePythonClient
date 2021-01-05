@@ -11,6 +11,7 @@ from synapseclient.core import utils
 import synapseutils
 from synapseutils.migrate_functions import (
     _check_indexed,
+    _confirm_migration,
     _ensure_schema,
     _get_row_dict,
     _index_container,
@@ -24,6 +25,7 @@ from synapseutils.migrate_functions import (
     _verify_index_settings,
     _verify_storage_location_ownership,
     index_files_for_migration,
+    migrate_indexed_files,
 )
 
 
@@ -1047,12 +1049,20 @@ class TestMigrate:
     All synapse calls are mocked but the local sqlite3 are not in these"""
 
     @pytest.fixture(scope='function')
+    def conn(self):
+        # temp file context manager doesn't work on windows so we manually remove in fixture
+        with tempfile.NamedTemporaryFile() as tmpfile, \
+                sqlite3.connect(tmpfile.name) as conn:
+            yield conn
+
+    @pytest.fixture(scope='function')
     def db_path(self):
         # temp file context manager doesn't work on windows so we manually remove in fixture
-        db_file = tempfile.NamedTemporaryFile(delete=False)
-        yield db_file.name
+        with tempfile.NamedTemporaryFile() as tmpfile:
+            yield tmpfile.name
 
     def _migrate_test(self, db_path, syn, continue_on_error):
+
         # project structure:
         # project (syn1)
         #  folder1 (syn2)
@@ -1061,7 +1071,6 @@ class TestMigrate:
         #  folder2 (syn5)
         #    file2 (syn6)
         #  file3 (syn7)
-        #  table2 (syn8)
 
         old_storage_location = '9876'
         new_storage_location_id = '1234'
@@ -1109,9 +1118,6 @@ class TestMigrate:
         }
         entities.append(file3)
 
-        table2 = synapseclient.Schema(id='syn8', parentId=project.id)
-        entities.append(table2)
-
         get_entities = {}
         for entity in entities:
             get_entities[entity.id] = entity
@@ -1134,19 +1140,6 @@ class TestMigrate:
 
             raise ValueError("Unexpected file handle retrieval {}".format(fileHandleId))
 
-        def mock_syn_get_children_side_effect(entity, includeTypes):
-            if set(includeTypes) != {'folder', 'file', 'table'}:
-                pytest.fail('Unexpected includeTypes')
-
-            if entity is project.id:
-                return [folder1, folder2, file3, table2]
-            elif entity is folder1.id:
-                return [file1, table1]
-            elif entity is folder2.id:
-                return [file2]
-            else:
-                pytest.fail("Shouldn't reach here")
-
         new_file_handle_mapping = {
             '3': 30,  # file1
             '4': 40,  # table1
@@ -1155,10 +1148,6 @@ class TestMigrate:
         }
 
         def mock_syn_table_query_side_effect(query_string):
-            if query_string == "select filecol from {}".format(table2.id):
-                # simulate a failure querying syn8
-                raise ValueError('boom')
-
             if query_string != "select filecol from {}".format(table1.id):
                 pytest.fail("Unexpected table query")
 
@@ -1195,10 +1184,127 @@ class TestMigrate:
             else:
                 raise ValueError('Unexpected restGET call {}'.format(uri))
 
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            _ensure_schema(cursor)
+
+            cursor.execute(
+                """
+                    insert into migration_settings (
+                        root_id,
+                        storage_location_id,
+                        file_version_strategy,
+                        skip_table_files
+                    ) values (?, ?, ?, ?)
+                """,
+                (
+                    project.id,
+                    new_storage_location_id,
+                    'new',
+                    0
+                )
+            )
+
+            migration_values = [
+                (
+                    project.id,
+                    _MigrationType.PROJECT.value,
+                    None,
+                    None,
+                    None,
+                    None,
+                    _MigrationStatus.INDEXED.value,
+                    None,
+                    None,
+                ),
+                (
+                    folder1.id,
+                    _MigrationType.FOLDER.value,
+                    None,
+                    None,
+                    None,
+                    project.id,
+                    _MigrationStatus.INDEXED.value,
+                    None,
+                    None,
+                ),
+                (
+                    file1.id,
+                    _MigrationType.FILE.value,
+                    None,
+                    None,
+                    None,
+                    folder1.id,
+                    _MigrationStatus.INDEXED.value,
+                    old_storage_location,
+                    file1.dataFileHandleId,
+                ),
+                (
+                    table1.id,
+                    _MigrationType.TABLE_ATTACHED_FILE.value,
+                    None,
+                    0,
+                    5,
+                    folder1.id,
+                    _MigrationStatus.INDEXED.value,
+                    old_storage_location,
+                    '4'
+                ),
+                (
+                    folder2.id,
+                    _MigrationType.FOLDER.value,
+                    None,
+                    None,
+                    None,
+                    project.id,
+                    _MigrationStatus.INDEXED.value,
+                    None,
+                    None,
+                ),
+                (
+                    file2.id,
+                    _MigrationType.FILE.value,
+                    None,
+                    None,
+                    None,
+                    folder2.id,
+                    _MigrationStatus.INDEXED.value,
+                    old_storage_location,
+                    file2.dataFileHandleId,
+                ),
+                (
+                    file3.id,
+                    _MigrationType.FILE.value,
+                    None,
+                    None,
+                    None,
+                    project.id,
+                    _MigrationStatus.INDEXED.value,
+                    old_storage_location,
+                    file3.dataFileHandleId,
+                ),
+            ]
+
+            cursor.executemany(
+                """
+                    insert into migrations (
+                        id,
+                        type,
+                        version,
+                        row_id,
+                        col_id,
+                        parent_id,
+                        status,
+                        from_storage_location_id,
+                        from_file_handle_id
+                    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                migration_values
+            )
+
         with mock.patch.object(syn, 'get') as mock_syn_get, \
                 mock.patch.object(syn, 'store') as mock_syn_store, \
                 mock.patch.object(syn, '_getFileHandleDownload') as mock_get_file_handle_download, \
-                mock.patch.object(syn, 'getChildren') as mock_syn_get_children, \
                 mock.patch.object(syn, 'restGET') as mock_syn_rest_get, \
                 mock.patch.object(syn, 'create_snapshot_version') as mock_create_snapshot_version, \
                 mock.patch.object(syn, 'tableQuery') as mock_syn_table_query, \
@@ -1207,20 +1313,16 @@ class TestMigrate:
             mock_syn_get.side_effect = mock_syn_get_side_effect
             mock_syn_store.side_effect = mock_syn_store_side_effect
             mock_get_file_handle_download.side_effect = mock_get_file_handle_download_side_effect
-            mock_syn_get_children.side_effect = mock_syn_get_children_side_effect
             mock_syn_rest_get.side_effect = mock_rest_get_side_effect
             mock_syn_table_query.side_effect = mock_syn_table_query_side_effect
             mock_multipart_copy.side_effect = mock_multipart_copy_side_effect
 
-            result = synapseutils.migrate(
+            result = migrate_indexed_files(
                 syn,
-                project,
-                new_storage_location_id,
                 db_path,
-                dry_run=False,
-                file_version_strategy='new',
-                table_strategy='snapshot',
-                continue_on_error=continue_on_error
+                create_table_snapshots=True,
+                continue_on_error=continue_on_error,
+                force=True
             )
 
             file_versions_migrated = [m for m in result.get_migrations()]
@@ -1247,191 +1349,22 @@ class TestMigrate:
 
             mock_create_snapshot_version.assert_called_once_with('syn4')
 
-            assert result.indexed_total == 4
-            assert result.migrated_total == 3
-            assert result.error_total == 1
+            counts_by_status = result.get_counts_by_status()
+            assert counts_by_status['MIGRATED'] == 3
+            assert counts_by_status['ERRORED'] == 1
 
-    def test_continue_on_error__true(self, db_path, syn):
+    def test_continue_on_error__true(self, syn, db_path):
         """Test a migration of a project when an error is encountered while continuing on the error."""
         # we expect the migration to run to the finish, but a failed file entity will be marked with
         # a failed status and have an exception
         self._migrate_test(db_path, syn, True)
 
-    def test_continue_on_error__false(self, db_path, syn):
+    def test_continue_on_error__false(self, syn, db_path):
         """Test a migration for a project when an error is encountered when aborting on errors"""
         # we expect the error to be surfaced
         with pytest.raises(ValueError) as ex:
             self._migrate_test(db_path, syn, False)
             assert 'boom' in str(ex)
-
-    def test_migrate__dry_run(self, db_path, syn):
-        entities = []
-        project = synapseclient.Project()
-        project.id = 'syn1'
-        entities.append(project)
-
-        folder1 = synapseclient.Folder(id='syn2', parentId=project.id)
-        folder1.id = 'syn2'
-        entities.append(folder1)
-
-        file1 = synapseclient.File(id='syn3', parentId=folder1.id)
-        file1.dataFileHandleId = 3
-        file1.versionNumber = 1
-        entities.append(file1)
-
-        table1 = synapseclient.Schema(id='syn4', parentId=folder1.id)
-        entities.append(table1)
-
-        get_entities = {}
-        for entity in entities:
-            get_entities[entity.id] = entity
-
-        def mock_syn_get_side_effect(entity, *args, **kwargs):
-            entity_id = utils.id_of(entity)
-            return get_entities[entity_id]
-
-        def mock_syn_store_side_effect(entity):
-            return entity
-
-        def mock_get_file_handle_download_side_effect(fileHandleId, objectId, objectType):
-            if fileHandleId == 4:
-                return {
-                    'fileHandle': {
-                        'id': 4,
-                        'storageLocationId': 1
-                    }
-                }
-
-            raise ValueError("Unexpected file handle retrieval {}".format(fileHandleId))
-
-        def mock_syn_get_children_side_effect(entity, includeTypes):
-            if set(includeTypes) != {'folder', 'file', 'table'}:
-                pytest.fail('Unexpected includeTypes')
-
-            if entity is project.id:
-                return [folder1]
-            elif entity is folder1.id:
-                return [file1, table1]
-            else:
-                pytest.fail("Shouldn't reach here")
-
-        def mock_rest_get_side_effect(uri):
-            column_def = {
-                'id': 5,
-                'columnType': 'FILEHANDLEID',
-                'name': 'filecol',
-            }
-
-            if uri.startswith('/entity'):
-                return {
-                    'results': [
-                        {'columnType': 'STRING'},
-                        column_def
-                    ]
-                }
-            elif uri.startswith('/column'):
-                return column_def
-
-            elif uri.startswith('/storageLocation'):
-                # just don't error
-                return {}
-
-            else:
-                raise ValueError('Unexpected restGET call {}'.format(uri))
-
-        def mock_syn_table_query_side_effect(query_string):
-            if query_string != "select filecol from {}".format(table1.id):
-                pytest.fail("Unexpected table query")
-
-            return [['1', '1', 4]]
-
-        with mock.patch.object(syn, 'get') as mock_syn_get, \
-                mock.patch.object(syn, 'getChildren') as mock_syn_get_children, \
-                mock.patch.object(syn, '_getFileHandleDownload') as mock_get_file_handle_download, \
-                mock.patch.object(syn, 'restGET') as mock_syn_rest_get, \
-                mock.patch.object(syn, 'tableQuery') as mock_syn_table_query, \
-                mock.patch.object(syn, 'store') as mock_syn_store, \
-                mock.patch.object(synapseutils.migrate_functions, 'multipart_copy') as mock_multipart_copy:
-
-            mock_syn_get.side_effect = mock_syn_get_side_effect
-            mock_syn_store.side_effect = mock_syn_store_side_effect
-            mock_get_file_handle_download.side_effect = mock_get_file_handle_download_side_effect
-            mock_syn_get_children.side_effect = mock_syn_get_children_side_effect
-            mock_syn_rest_get.side_effect = mock_rest_get_side_effect
-            mock_syn_table_query.side_effect = mock_syn_table_query_side_effect
-
-            result = synapseutils.migrate(
-                syn,
-                project,
-                '1234',
-                db_path,
-                dry_run=True,
-                file_version_strategy='new',
-                table_strategy='snapshot',
-            )
-
-            assert result.indexed_total == 2
-            assert result.migrated_total == 0
-            assert result.error_total == 0
-
-            migrations = {m['id']: m for m in result.get_migrations()}
-            assert migrations.keys() == {'syn3', 'syn4'}
-            for migration in result.get_migrations():
-                assert migration['status'] == 'INDEXED'
-
-            # should have been no changes
-            assert not mock_syn_store.called
-            assert not mock_multipart_copy.called
-
-
-class TestArgValidation:
-
-    def test_file_version_strategy_valid(self, syn, ):
-        entity = mock.MagicMock(synapseclient.File)
-        storage_location_id = '1234'
-        db_path = '/tmo/foo'
-        for arg in ('', 0, 'foo'):
-            with pytest.raises(ValueError) as ex:
-                synapseutils.migrate(syn, entity, storage_location_id, db_path, file_version_strategy=arg)
-            assert 'invalid' in str(ex)
-
-    def test_table_strategy_valid(self, syn):
-        entity = mock.MagicMock(synapseclient.File)
-        storage_location_id = '1234'
-        db_path = '/tmo/foo'
-        for arg in ('', 0, 'foo'):
-            with pytest.raises(ValueError) as ex:
-                synapseutils.migrate(syn, entity, storage_location_id, db_path, table_strategy=arg)
-            assert 'invalid' in str(ex)
-
-    def test_file_or_table_strategy_required(self, syn):
-        entity = mock.MagicMock(synapseclient.File)
-        storage_location_id = '1234'
-        db_path = '/tmo/foo'
-
-        with pytest.raises(ValueError) as ex:
-            synapseutils.migrate(
-                syn,
-                entity,
-                storage_location_id,
-                db_path,
-                file_version_strategy=None,
-                table_strategy=None
-            )
-            assert 'either' in str(ex)
-
-    def test_storage_location_owner(self, syn):
-        def mock_rest_get_side_effect(uri):
-            if uri.startswith('/storageLocation'):
-                raise SynapseHTTPError(response={'status_code': 403})
-            raise ValueError('Unexpected rest GET')
-
-        with mock.patch.object(syn, 'restGET') as mock_rest_get:
-            mock_rest_get.side_effect = mock_rest_get_side_effect
-
-            with pytest.raises(ValueError) as ex:
-                synapseutils.migrate(syn, mock.MagicMock(synapseclient.File), '123', '/tmp/foo')
-            assert 'creator' in str(ex)
 
 
 def _verify_schema(cursor):
@@ -1592,3 +1525,55 @@ def test__verify_index_settings__retrieve_index_settings():
                 'changed'
             )
         assert 'changed' in str(ex.value)
+
+
+class TestConfirmMigration:
+
+    def test_force(self):
+        """Verify forcing always confirms"""
+        cursor = mock.Mock()
+        force = True
+        storage_location_id = '1234'
+        assert _confirm_migration(cursor, force, storage_location_id) is True
+
+    def test_no_items(self):
+        """Verify no migration if no items to migrate."""
+        cursor = mock.Mock()
+        cursor.execute.return_value.fetchone.return_value = [0]
+
+        force = False
+        storage_location_id = '1234'
+
+        assert _confirm_migration(cursor, force, storage_location_id) is False
+
+    @mock.patch('sys.stdout.isatty', mock.Mock(return_value=True))
+    @mock.patch('builtins.input', lambda *args: 'y')
+    def test_interactive_shell__y(self):
+        """Verify confirming via interactive shell"""
+        cursor = mock.Mock()
+        cursor.execute.return_value.fetchone.return_value = [1]
+        force = False
+        storage_location_id = '1234'
+
+        assert _confirm_migration(cursor, force, storage_location_id) is True
+
+    @mock.patch('sys.stdout.isatty', mock.Mock(return_value=True))
+    @mock.patch('builtins.input', lambda *args: 'n')
+    def test_interactive_shell__n(self):
+        """Verify aborting via interactive shell"""
+        cursor = mock.Mock()
+        cursor.execute.return_value.fetchone.return_value = [1]
+        force = False
+        storage_location_id = '1234'
+
+        assert _confirm_migration(cursor, force, storage_location_id) is False
+
+    @mock.patch('sys.stdout.isatty', mock.Mock(return_value=False))
+    def test_non_interactive_shell(self):
+        """Verify no migration if not forcing from a non-interactive shell"""
+        cursor = mock.Mock()
+        cursor.execute.return_value.fetchone.return_value = [1]
+        force = False
+        storage_location_id = '1234'
+
+        assert _confirm_migration(cursor, force, storage_location_id) is False
