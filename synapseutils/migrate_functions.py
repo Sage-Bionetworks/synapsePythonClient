@@ -286,7 +286,7 @@ def _ensure_schema(cursor):
                 root_id text not null,
                 storage_location_id text not null,
                 file_version_strategy text not null,
-                skip_table_files integer not null
+                include_table_files integer not null
             )
         """
     )
@@ -374,7 +374,7 @@ def index_files_for_migration(
     storage_location_id: str,
     db_path: str,
     file_version_strategy='new',
-    skip_table_files=True,
+    include_table_files=False,
     continue_on_error=False,
 ):
     root_id = utils.id_of(entity)
@@ -388,7 +388,7 @@ def index_files_for_migration(
             )
         )
 
-    if file_version_strategy == 'skip' and skip_table_files:
+    if file_version_strategy == 'skip' and not include_table_files:
         raise ValueError('Skipping both files entities and table attached files, nothing to migrate')
 
     _verify_storage_location_ownership(syn, storage_location_id)
@@ -400,7 +400,14 @@ def index_files_for_migration(
         cursor = conn.cursor()
         _ensure_schema(cursor)
 
-        _verify_index_settings(cursor, db_path, root_id, storage_location_id, file_version_strategy, skip_table_files)
+        _verify_index_settings(
+            cursor,
+            db_path,
+            root_id,
+            storage_location_id,
+            file_version_strategy,
+            include_table_files
+        )
         conn.commit()
 
         entity = syn.get(root_id, downloadFile=False)
@@ -413,7 +420,7 @@ def index_files_for_migration(
                 None,
                 storage_location_id,
                 file_version_strategy,
-                skip_table_files,
+                include_table_files,
                 continue_on_error,
             )
 
@@ -603,28 +610,6 @@ def migrate_indexed_files(
     return MigrationResult(syn, db_path)
 
 
-def migrate(
-    syn,
-    entity_id,
-    storage_location_id,
-    db_path,
-    file_version_strategy='new',
-):
-    index_files_for_migration(
-        syn,
-        entity_id,
-        storage_location_id,
-        db_path,
-        file_version_strategy,
-        skip_table_files=False
-    )
-    result = migrate_indexed_files(
-        syn,
-        db_path,
-    )
-    return result
-
-
 def _verify_storage_location_ownership(syn, storage_location_id):
     # if this doesn't raise an error we're okay
     try:
@@ -643,7 +628,7 @@ def _retrieve_index_settings(cursor):
                 root_id,
                 storage_location_id,
                 file_version_strategy,
-                skip_table_files
+                include_table_files
             from migration_settings
         """
     )
@@ -660,12 +645,19 @@ def _retrieve_index_settings(cursor):
     return settings
 
 
-def _verify_index_settings(cursor, db_path, root_id, storage_location_id, file_version_strategy, skip_table_files):
+def _verify_index_settings(
+        cursor,
+        db_path,
+        root_id,
+        storage_location_id,
+        file_version_strategy,
+        include_table_files,
+):
     existing_settings = _retrieve_index_settings(cursor)
 
     if existing_settings is not None:
         settings = locals()
-        for setting in ('root_id', 'storage_location_id', 'file_version_strategy', 'skip_table_files'):
+        for setting in ('root_id', 'storage_location_id', 'file_version_strategy', 'include_table_files'):
             parameter = settings[setting]
             existing_value = existing_settings[setting]
 
@@ -692,10 +684,10 @@ def _verify_index_settings(cursor, db_path, root_id, storage_location_id, file_v
                 root_id,
                 storage_location_id,
                 file_version_strategy,
-                skip_table_files
+                include_table_files
             ) values (?, ?, ?, ?)
             """,
-            (root_id, storage_location_id, file_version_strategy, 1 if skip_table_files else 0)
+            (root_id, storage_location_id, file_version_strategy, 1 if include_table_files else 0)
         )
 
 
@@ -862,7 +854,7 @@ def _index_container(
         parent_id,
         storage_location_id,
         file_version_strategy,
-        skip_table_files,
+        include_table_files,
         continue_on_error
 ):
     _ensure_schema(cursor)
@@ -871,7 +863,7 @@ def _index_container(
     include_types = ['folder']
     if file_version_strategy != 'skip':
         include_types.append('file')
-    if not skip_table_files:
+    if include_table_files:
         include_types.append('table')
 
     children = syn.getChildren(entity_id, includeTypes=include_types)
@@ -884,7 +876,7 @@ def _index_container(
             entity_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error,
         )
 
@@ -908,7 +900,7 @@ def _index_entity(
         parent_id,
         storage_location_id,
         file_version_strategy,
-        skip_table_files,
+        include_table_files,
         continue_on_error
 ):
     # recursive function to index a given entity into the sqlite db.
@@ -948,7 +940,7 @@ def _index_entity(
                     parent_id,
                     storage_location_id,
                     file_version_strategy,
-                    skip_table_files,
+                    include_table_files,
                     continue_on_error,
                 )
 

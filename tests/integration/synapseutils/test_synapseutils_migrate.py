@@ -118,7 +118,7 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
         storage_location_id,
         db_path,
         file_version_strategy='new',
-        skip_table_files=False,
+        include_table_files=True,
     )
 
     counts_by_status = index_result.get_counts_by_status()

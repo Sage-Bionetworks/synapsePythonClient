@@ -475,6 +475,7 @@ def migrate(args, syn):
         args.storage_location_id,
         args.db_path,
         file_version_strategy=args.file_version_strategy,
+        include_table_files=args.include_table_files,
         continue_on_error=args.continue_on_error,
     )
 
@@ -507,7 +508,7 @@ def migrate(args, syn):
         result = synapseutils.migrate_indexed_files(
             syn,
             args.db_path,
-            create_table_snapshots=True,  # TODO get from args
+            create_table_snapshots=True,
             continue_on_error=args.continue_on_error,
             force=args.force,
         )
@@ -932,16 +933,15 @@ def build_parser():
     parser_migrate.add_argument('storage_location_id', type=str, help='Synapse storage location id')
     parser_migrate.add_argument('db_path', type=str, help='Local system path where a record keeping file can be stored')
     parser_migrate.add_argument('--file_version_strategy', type=str, default='new',
-                                help="""one of 'new', 'latest', 'all', or a specific version number:
+                                help="""one of 'new', 'latest', 'all', 'skip'
                                      new creates a new version of each entity,
                                      latest migrates the most recent version,
-                                     all migrates all versions""")
-    parser_migrate.add_argument('--table_strategy', type=str, default=None,
-                                help="""one of 'snapshot' or 'nosnapshot
-                                     If specified indicates whether table attached files should also be migrated
-                                     and if so whether the table should be first snapshotted. If not specified
-                                     tables attached files will NOT be migrated.""")
-    parser_migrate.add_argument('--continue_on_error', action='store_true',
+                                     all migrates all versions,
+                                     skip avoids migrating file entities (use when exclusively
+                                     targeting table attached files""")
+    parser_migrate.add_argument('--include_table_files', action='store_true', default=False,
+                                help='Include table attached files when migrating')
+    parser_migrate.add_argument('--continue_on_error', action='store_true', default=False,
                                 help='Whether to continue processing other entities if migration of one fails')
     parser_migrate.add_argument('--csv_log_path', type=str,
                                 help='Path where to log a csv documenting the changes from the migration')

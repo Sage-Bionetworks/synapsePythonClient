@@ -448,7 +448,7 @@ class TestIndex:
         sub_folder_id = 'syn654'
         storage_location_id = '1234'
         file_version_strategy = 'new'
-        skip_table_files = True
+        include_table_files = False
         continue_on_error = True
 
         project = mock.MagicMock(synapseclient.Project)
@@ -479,7 +479,7 @@ class TestIndex:
             parent_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error,
         )
 
@@ -496,7 +496,7 @@ class TestIndex:
                     project_id,
                     storage_location_id,
                     file_version_strategy,
-                    skip_table_files,
+                    include_table_files,
                     continue_on_error
                 )
             )
@@ -531,7 +531,7 @@ class TestIndex:
         table_id = 'syn456'
         storage_location_id = '1234'
         file_version_strategy = 'skip'
-        skip_table_files = False
+        include_table_files = True
         continue_on_error = False
 
         folder = mock.MagicMock(synapseclient.Folder)
@@ -556,7 +556,7 @@ class TestIndex:
             parent_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error,
         )
 
@@ -571,7 +571,7 @@ class TestIndex:
                 folder_id,
                 storage_location_id,
                 file_version_strategy,
-                skip_table_files,
+                include_table_files,
                 continue_on_error
             )
         ]
@@ -603,7 +603,7 @@ class TestIndex:
         parent_id = 'syn123'
         storage_location_id = '1234'
         file_version_strategy = 'new'
-        skip_table_files = True
+        include_table_files = True
         continue_on_error = True
 
         mock_check_indexed.return_value = True
@@ -622,7 +622,7 @@ class TestIndex:
             parent_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error
         )
 
@@ -642,7 +642,7 @@ class TestIndex:
         parent_id = 'syn123'
         storage_location_id = '1234'
         file_version_strategy = 'new'
-        skip_table_files = True
+        include_table_files = False
         continue_on_error = True
 
         mock_check_indexed.return_value = False
@@ -661,7 +661,7 @@ class TestIndex:
             parent_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error
         )
 
@@ -690,7 +690,7 @@ class TestIndex:
         parent_id = 'syn123'
         storage_location_id = '1234'
         file_version_strategy = 'skip'
-        skip_table_files = False
+        include_table_files = True
         continue_on_error = True
 
         mock_check_indexed.return_value = False
@@ -709,7 +709,7 @@ class TestIndex:
             parent_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error
         )
 
@@ -737,7 +737,7 @@ class TestIndex:
         parent_id = 'syn123'
         storage_location_id = '1234'
         file_version_strategy = 'latest'
-        skip_table_files = True
+        include_table_files = False
         continue_on_error = True
 
         mock_check_indexed.return_value = False
@@ -756,7 +756,7 @@ class TestIndex:
             parent_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error
         )
 
@@ -769,7 +769,7 @@ class TestIndex:
             parent_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error,
         )
 
@@ -787,7 +787,7 @@ class TestIndex:
         parent_id = 'syn123'
         storage_location_id = '1234'
         file_version_strategy = 'new'
-        skip_table_files = True
+        include_table_files = False
         continue_on_error = True
 
         mock_check_indexed.return_value = False
@@ -808,7 +808,7 @@ class TestIndex:
             parent_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error
         )
 
@@ -851,7 +851,7 @@ class TestIndex:
         parent_id = 'syn123'
         storage_location_id = '1234'
         file_version_strategy = 'new'
-        skip_table_files = True
+        include_table_files = False
         continue_on_error = False
 
         mock_check_indexed.return_value = False
@@ -873,7 +873,7 @@ class TestIndex:
                 parent_id,
                 storage_location_id,
                 file_version_strategy,
-                skip_table_files,
+                include_table_files,
                 continue_on_error
             )
 
@@ -889,7 +889,7 @@ class TestIndex:
         storage_location_id = '1234'
         db_path = '/tmp/foo'
         file_version_strategy = 'wizzle'  # invalid
-        skip_table_files = True
+        include_table_files = False
         continue_on_error = True
 
         with pytest.raises(ValueError) as ex:
@@ -899,7 +899,7 @@ class TestIndex:
                 storage_location_id,
                 db_path,
                 file_version_strategy,
-                skip_table_files,
+                include_table_files,
                 continue_on_error
             )
         assert 'Invalid file_version_strategy' in str(ex.value)
@@ -912,7 +912,7 @@ class TestIndex:
         storage_location_id = '1234'
         db_path = '/tmp/foo'
         file_version_strategy = 'skip'
-        skip_table_files = True
+        include_table_files = False
         continue_on_error = True
 
         with pytest.raises(ValueError) as ex:
@@ -922,7 +922,7 @@ class TestIndex:
                 storage_location_id,
                 db_path,
                 file_version_strategy,
-                skip_table_files,
+                include_table_files,
                 continue_on_error
             )
         assert 'Skipping both' in str(ex.value)
@@ -936,7 +936,7 @@ class TestIndex:
         storage_location_id = '1234'
         db_path = '/tmp/foo'
         file_version_strategy = 'all'
-        skip_table_files = True
+        include_table_files = False
         continue_on_error = True
 
         entity = mock.MagicMock(synapseclient.File)
@@ -953,7 +953,7 @@ class TestIndex:
             storage_location_id,
             db_path,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error
         )
 
@@ -963,7 +963,7 @@ class TestIndex:
             entity_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files
+            include_table_files
         )
 
         mock_index_entity.assert_called_once_with(
@@ -974,7 +974,7 @@ class TestIndex:
             None,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error,
         )
 
@@ -995,7 +995,7 @@ class TestIndex:
         storage_location_id = '1234'
         db_path = '/tmp/foo'
         file_version_strategy = 'all'
-        skip_table_files = True
+        include_table_files = False
         continue_on_error = True
 
         entity = mock.MagicMock(synapseclient.File)
@@ -1017,7 +1017,7 @@ class TestIndex:
                 storage_location_id,
                 db_path,
                 file_version_strategy,
-                skip_table_files,
+                include_table_files,
                 continue_on_error
             )
         assert 'boom' in str(ex.value)
@@ -1028,7 +1028,7 @@ class TestIndex:
             entity_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files
+            include_table_files
         )
 
         mock_index_entity.assert_called_once_with(
@@ -1039,7 +1039,7 @@ class TestIndex:
             None,
             storage_location_id,
             file_version_strategy,
-            skip_table_files,
+            include_table_files,
             continue_on_error,
         )
 
@@ -1194,14 +1194,14 @@ class TestMigrate:
                         root_id,
                         storage_location_id,
                         file_version_strategy,
-                        skip_table_files
+                        include_table_files
                     ) values (?, ?, ?, ?)
                 """,
                 (
                     project.id,
                     new_storage_location_id,
                     'new',
-                    0
+                    1
                 )
             )
 
@@ -1388,7 +1388,7 @@ def _verify_schema(cursor):
             'root_id',
             'storage_location_id',
             'file_version_strategy',
-            'skip_table_files'
+            'include_table_files'
         },
         'migrations': {
             'id',
@@ -1454,7 +1454,7 @@ def test__verify_index_settings__retrieve_index_settings():
         root_id = 'syn123'
         storage_location_id = '12345'
         file_version_strategy = 'latest'
-        skip_table_files = True
+        include_table_files = False
 
         _verify_index_settings(
             cursor,
@@ -1462,14 +1462,14 @@ def test__verify_index_settings__retrieve_index_settings():
             root_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files
+            include_table_files
         )
 
         settings = _retrieve_index_settings(cursor)
         assert settings['root_id'] == root_id
         assert settings['storage_location_id'] == storage_location_id
         assert settings['file_version_strategy'] == file_version_strategy
-        assert settings['skip_table_files'] == skip_table_files
+        assert settings['include_table_files'] == include_table_files
 
         # same settings, no error
         _verify_index_settings(
@@ -1478,7 +1478,7 @@ def test__verify_index_settings__retrieve_index_settings():
             root_id,
             storage_location_id,
             file_version_strategy,
-            skip_table_files
+            include_table_files
         )
 
         # changed root_id
@@ -1489,7 +1489,7 @@ def test__verify_index_settings__retrieve_index_settings():
                 'changed',
                 storage_location_id,
                 file_version_strategy,
-                skip_table_files
+                include_table_files
             )
         assert 'changed' in str(ex.value)
 
@@ -1500,7 +1500,7 @@ def test__verify_index_settings__retrieve_index_settings():
                 root_id,
                 'changed',
                 file_version_strategy,
-                skip_table_files
+                include_table_files
             )
         assert 'changed' in str(ex.value)
 
@@ -1511,7 +1511,7 @@ def test__verify_index_settings__retrieve_index_settings():
                 root_id,
                 storage_location_id,
                 'changed',
-                skip_table_files
+                include_table_files
             )
         assert 'changed' in str(ex.value)
 
