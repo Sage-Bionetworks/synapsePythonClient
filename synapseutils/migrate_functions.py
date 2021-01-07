@@ -279,7 +279,7 @@ class MigrationResult:
                     row_dict.get('row_id'),
                     row_dict.get('col_name'),
                     row_dict.get('from_storage_location_id'),
-                    row_dict.get('f/rom_file_handle_id'),
+                    row_dict.get('from_file_handle_id'),
                     row_dict.get('to_file_handle_id'),
                     row_dict['status'],
                     row_dict.get('exception')

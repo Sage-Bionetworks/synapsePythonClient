@@ -17,7 +17,7 @@ The ``synapseutils`` package provides both higher level functions as well as uti
 """
 # flake8: noqa F401 unclear who is using these
 from .copy_functions import copy, copyWiki, copyFileHandles, changeFileMetaData
-from .walk import walk, foo
+from .walk import walk
 from .sync import syncFromSynapse, syncToSynapse
 from .migrate_functions import index_files_for_migration, migrate_indexed_files
 from .monitor import notifyMe, with_progress_bar
