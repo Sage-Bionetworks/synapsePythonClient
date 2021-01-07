@@ -45,7 +45,7 @@ class TestUploadAttempt:
             'partSizeBytes': self.part_size,
         }
 
-        def part_fn(part_number):
+        def part_request_body_provider_fn(part_number):
             return (f"{part_number}" * self.part_size).encode('utf-8')
 
         def md5_fn(part, _):
@@ -60,7 +60,7 @@ class TestUploadAttempt:
             syn,
             self.dest_file_name,
             upload_request_payload,
-            part_fn,
+            part_request_body_provider_fn,
             md5_fn,
             max_threads,
             force_restart=force_restart,
@@ -765,19 +765,18 @@ class TestMultipartUpload:
                 kwargs['dest_file_name'],
 
                 expected_upload_request,
-                mock.ANY,  # part_fn
+                mock.ANY,  # part_request_body_provider_fn
                 mock.ANY,  # md5_fn,
 
                 force_restart=kwargs['force_restart'],
                 max_threads=kwargs['max_threads'],
             )
 
-    def test_multipart_copy(self):
-        """Verify multipart_copy passes through its
-        args, validating and supplying defaults as expected."""
+    def test_multipart_copy__default_args(self):
+        """Test multipart copy using only the required positional args.
+        Default settings should be used for unspecified params."""
 
         syn = mock.Mock()
-
         part_size_bytes = 9876
         file_handle_id = 1234
         associate_object_id = 'syn123456'
@@ -788,8 +787,6 @@ class TestMultipartUpload:
             'associateObjectId': associate_object_id,
             'associateObjectType': associate_object_type,
         }
-
-        storage_location_id = 5432
 
         with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload, \
                 mock.patch.object(multipart_upload, 'printTransferProgress') as mock_print_progress:
@@ -820,7 +817,28 @@ class TestMultipartUpload:
                 max_threads=None,
             )
 
-            mock_multipart_upload.reset_mock()
+            assert not mock_print_progress.called
+
+    def test_multipart_copy__explicit_args(self):
+        """Test multipart copy explicitly defining all args.
+        The parameterization should be passed through as expected."""
+
+        syn = mock.Mock()
+        part_size_bytes = 9876
+        file_handle_id = 1234
+        associate_object_id = 'syn123456'
+        associate_object_type = 'FileEntity'
+
+        source_file_handle_association = {
+            'fileHandleId': file_handle_id,
+            'associateObjectId': associate_object_id,
+            'associateObjectType': associate_object_type,
+        }
+
+        storage_location_id = 5432
+
+        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload, \
+                mock.patch.object(multipart_upload, 'printTransferProgress') as mock_print_progress:
 
             # call specifying all optional kwargs
             kwargs = {

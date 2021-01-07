@@ -88,7 +88,7 @@ class UploadAttempt:
         dest_file_name,
 
         upload_request_payload,
-        part_fn,
+        part_request_body_provider_fn,
         md5_fn,
 
         max_threads: int,
@@ -100,7 +100,7 @@ class UploadAttempt:
 
         self._upload_request_payload = upload_request_payload
 
-        self._part_fn = part_fn
+        self._part_request_body_provider_fn = part_request_body_provider_fn
         self._md5_fn = md5_fn
 
         self._max_threads = max_threads
@@ -230,7 +230,8 @@ class UploadAttempt:
 
         session = self._get_thread_session()
 
-        body = self._part_fn(part_number) if self._part_fn else None
+        # obtain the body (i.e. the upload bytes) for the given part number.
+        body = self._part_request_body_provider_fn(part_number) if self._part_request_body_provider_fn else None
         for retry in range(2):
             try:
                 response = session.put(
@@ -285,20 +286,15 @@ class UploadAttempt:
     def _upload_parts(self, part_count, remaining_part_numbers):
         time_upload_started = time.time()
         completed_part_count = part_count - len(remaining_part_numbers)
-
-        # note this is an estimate, may not be exact since the final part
-        # may be smaller and might be included in the completed parts.
-        # it's good enough though
-
-        file_size = self._upload_request_payload.get('fileSizeBytes') or (self._part_size * part_count)
-
-        progress = previously_transferred = min(
-            completed_part_count * self._part_size,
-            file_size,
-        )
+        file_size = self._upload_request_payload.get('fileSizeBytes')
 
         if not self._is_copy():
             # we won't have bytes to measure during a copy so the byte oriented progress bar is not useful
+            progress = previously_transferred = min(
+                completed_part_count * self._part_size,
+                file_size,
+            )
+
             printTransferProgress(
                 progress,
                 file_size,
@@ -616,18 +612,29 @@ def multipart_copy(
         'storageLocationId': storage_location_id,
     }
 
+    def part_request_body_provider_fn(part_num):
+        # for an upload copy there are no bytes
+        return None
+
     def md5_fn(_, response):
         # for a multipart copy we use the md5 returned by the UploadPartCopy command
         # when we add the part to the Synapse upload
+
+        # we extract the md5 from the <ETag> element in the response.
+        # use lookahead and lookbehind to find the opening and closing ETag elements but
+        # do not include those in the match, thus the entire matched string (group 0) will be
+        # what was between those elements.
         md5_hex = re.search('(?<=<ETag>).*?(?=<\\/ETag>)', (response.content.decode('utf-8'))).group(0)
-        return md5_hex.replace('&quot;', '')
+
+        # remove quotes found in the ETag to get at the normalized ETag
+        return md5_hex.replace('&quot;', '').replace('"', '')
 
     return _multipart_upload(
         syn,
         dest_file_name,
 
         upload_request,
-        None,  # part_fn
+        part_request_body_provider_fn,
         md5_fn,
 
         force_restart=force_restart,
