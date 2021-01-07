@@ -1,7 +1,6 @@
 from concurrent.futures import Future
 import hashlib
 import json
-import math
 
 import pytest
 from unittest import mock
@@ -14,7 +13,6 @@ from synapseclient.core.exceptions import (
 import synapseclient.core.upload.multipart_upload as multipart_upload
 from synapseclient.core.upload.multipart_upload import (
     DEFAULT_PART_SIZE,
-    MAX_NUMBER_OF_PARTS,
     MIN_PART_SIZE,
     _multipart_upload,
     multipart_copy,
@@ -44,6 +42,7 @@ class TestUploadAttempt:
             'fileSizeBytes': self.file_size,
             'generatePreview': self.preview,
             'storageLocationId': self.storage_location_id,
+            'partSizeBytes': self.part_size,
         }
 
         def part_fn(part_number):
@@ -60,7 +59,6 @@ class TestUploadAttempt:
         return UploadAttempt(
             syn,
             self.dest_file_name,
-            self.part_size,
             upload_request_payload,
             part_fn,
             md5_fn,
@@ -637,6 +635,7 @@ class TestMultipartUpload:
                 'fileSizeBytes': file_size,
                 'generatePreview': True,
                 'storageLocationId': storage_location_id,
+                'partSizeBytes': DEFAULT_PART_SIZE,
             }
 
             # call w/ defaults
@@ -648,7 +647,6 @@ class TestMultipartUpload:
             mock_multipart_upload.assert_called_once_with(
                 syn,
                 'baz',
-                DEFAULT_PART_SIZE,
 
                 expected_upload_request,
                 mock.ANY,  # part_fn
@@ -677,6 +675,7 @@ class TestMultipartUpload:
                 'fileSizeBytes': file_size,
                 'generatePreview': kwargs['preview'],
                 'storageLocationId': storage_location_id,
+                'partSizeBytes': kwargs['part_size'],
             }
             multipart_upload_file(
                 syn,
@@ -687,7 +686,6 @@ class TestMultipartUpload:
             mock_multipart_upload.assert_called_once_with(
                 syn,
                 kwargs['dest_file_name'],
-                kwargs['part_size'],
 
                 expected_upload_request,
                 mock.ANY,  # part_fn
@@ -724,11 +722,11 @@ class TestMultipartUpload:
                 'fileSizeBytes': len(upload_text),
                 'generatePreview': True,
                 'storageLocationId': storage_location_id,
+                'partSizeBytes': DEFAULT_PART_SIZE,
             }
             mock_multipart_upload.assert_called_once_with(
                 syn,
                 'message.txt',
-                DEFAULT_PART_SIZE,
 
                 expected_upload_request,
                 mock.ANY,  # part_fn
@@ -760,11 +758,11 @@ class TestMultipartUpload:
                 'fileSizeBytes': len(upload_text),
                 'generatePreview': kwargs['preview'],
                 'storageLocationId': storage_location_id,
+                'partSizeBytes': kwargs['part_size'],
             }
             mock_multipart_upload.assert_called_once_with(
                 syn,
                 kwargs['dest_file_name'],
-                kwargs['part_size'],
 
                 expected_upload_request,
                 mock.ANY,  # part_fn
@@ -799,7 +797,7 @@ class TestMultipartUpload:
                 'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest',
                 'fileName': None,
                 'generatePreview': True,
-                'partSizeBytes': DEFAULT_PART_SIZE,
+                'partSizeBytes': part_size_bytes,
                 'sourceFileHandleAssociation': source_file_handle_association,
                 'storageLocationId': None
             }
@@ -808,11 +806,11 @@ class TestMultipartUpload:
             multipart_copy(
                 syn,
                 source_file_handle_association,
+                part_size=part_size_bytes,
             )
             mock_multipart_upload.assert_called_once_with(
                 syn,
                 None,
-                DEFAULT_PART_SIZE,
 
                 expected_upload_request,
                 mock.ANY,  # part_fn
@@ -827,19 +825,19 @@ class TestMultipartUpload:
             # call specifying all optional kwargs
             kwargs = {
                 'dest_file_name': 'blort',
-                'part_size': part_size_bytes,
                 'preview': False,
                 'storage_location_id': storage_location_id,
                 'force_restart': True,
                 'max_threads': 8,
+                'part_size': part_size_bytes,
             }
             expected_upload_request = {
                 'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest',
                 'fileName': kwargs['dest_file_name'],
                 'generatePreview': kwargs['preview'],
-                'partSizeBytes': kwargs['part_size'],
                 'sourceFileHandleAssociation': source_file_handle_association,
                 'storageLocationId': kwargs['storage_location_id'],
+                'partSizeBytes': kwargs['part_size'],
             }
 
             multipart_copy(
@@ -850,7 +848,6 @@ class TestMultipartUpload:
             mock_multipart_upload.assert_called_once_with(
                 syn,
                 kwargs['dest_file_name'],
-                kwargs['part_size'],
 
                 expected_upload_request,
                 mock.ANY,  # part_fn
@@ -889,46 +886,46 @@ class TestMultipartUpload:
         ]
 
         # (file_size, in_part_size, in_max_threads, in_force_restart)
-        # (out_part_size, out_max_threads, out_force_restart)
+        # (out_max_threads, out_force_restart)
         tests = [
 
             # non-positive max threads corrected
             (
-                (1234, None, 0, False),
-                (DEFAULT_PART_SIZE, 1, False)
+                (1234, DEFAULT_PART_SIZE, 0, False),
+                (1, False)
             ),
 
             # specify force_restart
             (
-               (pow(2, 28), None, 8, True),
-               (DEFAULT_PART_SIZE, 8, True),
+               (pow(2, 28), DEFAULT_PART_SIZE, 8, True),
+               (8, True),
             ),
 
             # no max_threads, specified, should use default
             (
-                (pow(2, 28), None, None, False),
-                (DEFAULT_PART_SIZE, pool_provider.DEFAULT_NUM_THREADS, False),
+                (pow(2, 28), 1000, None, False),
+                (pool_provider.DEFAULT_NUM_THREADS, False),
             ),
 
             # part size specified below min, should be raised
             (
                 (1000, 1, 5, False),
-                (MIN_PART_SIZE, 5, False),
+                (5, False),
             ),
 
             # part size would exceed max number of parts,
             # should be adjusted accordingly
             (
                 (pow(2, 36), MIN_PART_SIZE + 1, 8, True),
-                (int(math.ceil(pow(2, 36) / MAX_NUMBER_OF_PARTS)), 8, True),
+                (8, True),
             )
         ]
 
         for (file_size, in_part_size, in_max_threads, in_force_restart),\
-            (out_part_size, out_max_threads, out_force_restart)\
+            (out_max_threads, out_force_restart)\
                 in tests:
 
-            expected_upload_request = {
+            upload_request = {
                 'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadRequest',
                 'contentType': content_type,
                 'contentMD5Hex': md5_hex,
@@ -936,15 +933,15 @@ class TestMultipartUpload:
                 'fileSizeBytes': file_size,
                 'generatePreview': True,
                 'storageLocationId': storage_location_id,
+                'partSizeBytes': in_part_size,
             }
 
             result, upload_mock = self._multipart_upload_test(
                 upload_side_effect,
                 syn,
                 dest_file_name,
-                in_part_size,
 
-                expected_upload_request,
+                upload_request,
                 mock.ANY,
                 mock.ANY,
 
@@ -952,22 +949,11 @@ class TestMultipartUpload:
                 force_restart=in_force_restart,
             )
 
-            expected_upload_request = {
-                'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadRequest',
-                'contentType': content_type,
-                'contentMD5Hex': md5_hex,
-                'fileName': dest_file_name,
-                'fileSizeBytes': file_size,
-                'generatePreview': True,
-                'storageLocationId': storage_location_id,
-            }
-
             upload_mock.assert_called_once_with(
                 syn,
                 dest_file_name,
-                in_part_size,
 
-                expected_upload_request,
+                upload_request,
 
                 mock.ANY,  # part_fn
                 mock.ANY,  # md5_fn,
@@ -1005,6 +991,7 @@ class TestMultipartUpload:
             'fileSizeBytes': file_size,
             'generatePreview': True,
             'storageLocationId': storage_location_id,
+            'partSizeBytes': part_size,
         }
 
         result, upload_mock = self._multipart_upload_test(
@@ -1012,7 +999,6 @@ class TestMultipartUpload:
 
             syn,
             dest_file_name,
-            part_size,
 
             expected_upload_request,
 
@@ -1050,6 +1036,7 @@ class TestMultipartUpload:
             'fileSizeBytes': file_size,
             'generatePreview': True,
             'storageLocationId': storage_location_id,
+            'partSizeBytes': part_size
         }
 
         with pytest.raises(SynapseUploadFailedException):
@@ -1058,7 +1045,6 @@ class TestMultipartUpload:
 
                 syn,
                 dest_file_name,
-                part_size,
 
                 expected_upload_request,
 

@@ -86,7 +86,6 @@ class UploadAttempt:
         self,
         syn,
         dest_file_name,
-        part_size,
 
         upload_request_payload,
         part_fn,
@@ -97,9 +96,8 @@ class UploadAttempt:
     ):
         self._syn = syn
         self._dest_file_name = dest_file_name
-        self._part_size = part_size
+        self._part_size = upload_request_payload['partSizeBytes']
 
-        upload_request_payload['partSizeBytes'] = part_size
         self._upload_request_payload = upload_request_payload
 
         self._part_fn = part_fn
@@ -489,6 +487,7 @@ def multipart_upload_file(
         'fileName': dest_file_name,
         'fileSizeBytes': file_size,
         'generatePreview': preview,
+        'partSizeBytes': part_size,
         'storageLocationId': storage_location_id,
     }
 
@@ -503,7 +502,6 @@ def multipart_upload_file(
     return _multipart_upload(
         syn,
         dest_file_name,
-        part_size,
 
         upload_request,
         part_fn,
@@ -570,6 +568,7 @@ def multipart_upload_string(
         'fileName': dest_file_name,
         'fileSizeBytes': file_size,
         'generatePreview': preview,
+        'partSizeBytes': part_size,
         'storageLocationId': storage_location_id,
     }
 
@@ -585,7 +584,6 @@ def multipart_upload_string(
     return _multipart_upload(
         syn,
         dest_file_name,
-        part_size,
 
         upload_request,
         part_fn,
@@ -627,7 +625,6 @@ def multipart_copy(
     return _multipart_upload(
         syn,
         dest_file_name,
-        part_size,
 
         upload_request,
         None,  # part_fn
@@ -641,7 +638,6 @@ def multipart_copy(
 def _multipart_upload(
     syn,
     dest_file_name,
-    part_size,
 
     upload_request,
     part_fn,
@@ -662,7 +658,6 @@ def _multipart_upload(
             upload_status_response = UploadAttempt(
                 syn,
                 dest_file_name,
-                part_size,
 
                 upload_request,
                 part_fn,
