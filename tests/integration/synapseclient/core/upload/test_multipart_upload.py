@@ -9,7 +9,7 @@ import traceback
 import uuid
 from io import open
 
-from unittest import mock
+from unittest import mock, skip
 
 from synapseclient import File
 import synapseclient.core.config
@@ -140,7 +140,7 @@ def test_multipart_upload_big_string(syn, project, schedule_for_cleanup):
     assert retrieved_text == text
 
 
-def test_multipart_copy(syn, project, schedule_for_cleanup):
+def _multipart_copy_test(syn, project, schedule_for_cleanup, part_size):
     import logging
     logging.basicConfig()
     logging.getLogger(synapseclient.client.DEFAULT_LOGGER_NAME).setLevel(logging.DEBUG)
@@ -153,8 +153,8 @@ def test_multipart_copy(syn, project, schedule_for_cleanup):
         folder_name=dest_folder_name
     )
 
-    part_size = MIN_PART_SIZE
-    file_size = int(MIN_PART_SIZE * 1.1)
+    part_size = part_size
+    file_size = int(part_size * 1.1)
 
     base_string = ''.join(random.choices(string.ascii_lowercase, k=1024))
 
@@ -187,7 +187,7 @@ def test_multipart_copy(syn, project, schedule_for_cleanup):
 
     fhid = entity['dataFileHandleId']
 
-#    source_file_handle = syn._get_file_handle_as_creator(fhid)
+    #    source_file_handle = syn._get_file_handle_as_creator(fhid)
 
     dest_file_name = "{}_copy".format(entity.name)
     source_file_handle_assocation = {
@@ -221,3 +221,13 @@ def test_multipart_copy(syn, project, schedule_for_cleanup):
         dest_file_content = dest_file_in.read()
 
     assert file_content == dest_file_content
+
+
+def test_multipart_copy(syn, project, schedule_for_cleanup):
+    """Test multi part copy using the minimum part size."""
+    _multipart_copy_test(syn, project, schedule_for_cleanup, MIN_PART_SIZE)
+
+
+@skip("Skip in normal testing because the large size makes it slow")
+def test_multipart_copy__big_parts(syn, project, schedule_for_cleanup):
+    _multipart_copy_test(syn, project, schedule_for_cleanup, 100 * utils.MB)
