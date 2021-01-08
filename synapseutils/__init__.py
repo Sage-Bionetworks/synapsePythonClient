@@ -6,16 +6,18 @@ Overview
 The ``synapseutils`` package provides both higher level functions as well as utilities for interacting with
 `Synapse <http://www.synapse.org>`_.  These functionalities include:
 
-- :py:func:`copy.copy`
-- :py:func:`copy.copyWiki`
+- :py:func:`copy_functions.copy`
+- :py:func:`copy_functions.copyWiki`
 - :py:func:`walk.walk`
 - :py:func:`sync.syncFromSynapse`
 - :py:func:`sync.syncToSynapse`
 - :py:func:`monitor.notifyMe`
+- :py:func:`migrate_functions.index_files_for_migration`
+- :py:func:`migrate_functions.migrate_indexed_files`
 """
 # flake8: noqa F401 unclear who is using these
 from .copy_functions import copy, copyWiki, copyFileHandles, changeFileMetaData
-from .walk import walk
+from .walk import walk, foo
 from .sync import syncFromSynapse, syncToSynapse
 from .migrate_functions import index_files_for_migration, migrate_indexed_files
 from .monitor import notifyMe, with_progress_bar
