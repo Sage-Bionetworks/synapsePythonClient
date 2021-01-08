@@ -176,7 +176,7 @@ class TestIndex:
     @pytest.fixture(scope='function')
     def conn(self):
         # temp file context manager doesn't work on windows so we manually remove in fixture
-        with tempfile.NamedTemporaryFile() as tmpfile, \
+        with tempfile.NamedTemporaryFile(delete=False) as tmpfile, \
                 sqlite3.connect(tmpfile.name) as conn:
             yield conn
 
@@ -1051,14 +1051,14 @@ class TestMigrate:
     @pytest.fixture(scope='function')
     def conn(self):
         # temp file context manager doesn't work on windows so we manually remove in fixture
-        with tempfile.NamedTemporaryFile() as tmpfile, \
+        with tempfile.NamedTemporaryFile(delete=False) as tmpfile, \
                 sqlite3.connect(tmpfile.name) as conn:
             yield conn
 
     @pytest.fixture(scope='function')
     def db_path(self):
         # temp file context manager doesn't work on windows so we manually remove in fixture
-        with tempfile.NamedTemporaryFile() as tmpfile:
+        with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
             yield tmpfile.name
 
     def _migrate_test(self, db_path, syn, continue_on_error):
@@ -1417,7 +1417,7 @@ def _verify_schema(cursor):
 def test_ensure_schema():
     """Verify _ensure_schema bootstraps the necessary schema"""
 
-    with tempfile.NamedTemporaryFile() as db_file, \
+    with tempfile.NamedTemporaryFile(delete=False) as db_file, \
             sqlite3.connect(db_file.name) as conn:
         cursor = conn.cursor()
         _ensure_schema(cursor)
@@ -1445,7 +1445,7 @@ def test_verify_storage_location_ownership():
 def test__verify_index_settings__retrieve_index_settings():
     """Verify the behavior saving index settings and re-retreiving them."""
 
-    with tempfile.NamedTemporaryFile() as db_file, \
+    with tempfile.NamedTemporaryFile(delete=False) as db_file, \
             sqlite3.connect(db_file.name) as conn:
         db_path = db_file.name
         cursor = conn.cursor()
