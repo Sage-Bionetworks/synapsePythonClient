@@ -713,6 +713,8 @@ def _get_version_numbers(syn, entity_id):
 
 
 def _index_file_entity(cursor, syn, entity_id, parent_id, to_storage_location_id, file_version_strategy):
+    logging.info('Indexing file entity %s', entity_id)
+
     # 2-tuples of entity, version # to record
     entity_versions = []
 
@@ -797,6 +799,9 @@ def _get_file_handle_rows(syn, table_id):
 
 
 def _index_table_entity(cursor, syn, entity, parent_id, storage_location_id):
+    entity_id = utils.id_of(entity)
+    logging.info('Indexing table entity %s', entity_id)
+
     row_batch = []
 
     def _insert_row_batch(row_batch):
@@ -817,7 +822,6 @@ def _index_table_entity(cursor, syn, entity, parent_id, storage_location_id):
             row_batch
         )
 
-    entity_id = utils.id_of(entity)
     for row_id, row_version, file_handles in _get_file_handle_rows(syn, entity_id):
         for col_id, file_handle in file_handles.items():
             existing_storage_location_id = file_handle['storageLocationId']
@@ -857,9 +861,10 @@ def _index_container(
         include_table_files,
         continue_on_error
 ):
-    _ensure_schema(cursor)
-
     entity_id = utils.id_of(container_entity)
+    concrete_type = utils.concrete_type_of(container_entity)
+    logger.info('Indexing %s %s', concrete_type[concrete_type.rindex('.') + 1:], entity_id)
+
     include_types = ['folder']
     if file_version_strategy != 'skip':
         include_types.append('file')
@@ -883,7 +888,7 @@ def _index_container(
     # once all the children are recursively indexed we mark this parent itself as indexed
     container_type = (
         _MigrationType.PROJECT.value
-        if concrete_types.PROJECT_ENTITY == utils.concrete_type_of(container_entity)
+        if concrete_types.PROJECT_ENTITY == concrete_type
         else _MigrationType.FOLDER.value
     )
     cursor.execute(
@@ -982,6 +987,8 @@ def _index_entity(
 
 
 def _create_new_file_version(syn, key, from_file_handle_id, storage_location_id):
+    logging.info('Creating new version for file entity %s', key.id)
+
     entity = syn.get(key.id, downloadFile=False)
 
     source_file_handle_association = {
@@ -1003,6 +1010,8 @@ def _create_new_file_version(syn, key, from_file_handle_id, storage_location_id)
 
 
 def _migrate_file_version(syn, key, from_file_handle_id, storage_location_id):
+    logging.info('Migrating file entity %s version %s', key.id, key.version)
+
     source_file_handle_association = {
         'fileHandleId': from_file_handle_id,
         'associateObjectId': key.id,
@@ -1033,6 +1042,8 @@ def _migrate_file_version(syn, key, from_file_handle_id, storage_location_id):
 
 
 def _migrate_table_attached_file(syn, key, from_file_handle_id, storage_location_id):
+    logging.info('Migrating table attached file %s, row %s, col %s', key.id, key.row_id, key.col_id)
+
     source_file_handle_association = {
         'fileHandleId': from_file_handle_id,
         'associateObjectId': key.id,

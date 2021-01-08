@@ -441,6 +441,7 @@ class TestIndex:
         """Test indexing a project container, including files but not tables, and with one sub folder"""
 
         cursor = conn.cursor()
+        _ensure_schema(cursor)
 
         project_id = 'syn123'
         parent_id = 'syn321'
@@ -525,6 +526,7 @@ class TestIndex:
         """Test indexing a folder container, including tables but not files"""
 
         cursor = conn.cursor()
+        _ensure_schema(cursor)
 
         folder_id = 'syn123'
         parent_id = 'syn321'
