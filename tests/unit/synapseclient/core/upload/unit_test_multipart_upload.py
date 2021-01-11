@@ -915,8 +915,8 @@ class TestMultipartUpload:
 
             # specify force_restart
             (
-               (pow(2, 28), DEFAULT_PART_SIZE, 8, True),
-               (8, True),
+                (pow(2, 28), DEFAULT_PART_SIZE, 8, True),
+                (8, True),
             ),
 
             # no max_threads, specified, should use default
