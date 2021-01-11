@@ -165,10 +165,11 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
         assert len(counts) == 1
         assert counts[_MigrationStatus.MIGRATED.value] == 7
 
-    with tempfile.NamedTemporaryFile() as csv_file:
-        migration_result.as_csv(csv_file.name)
-        with open(csv_file.name, 'r') as csv_file_in:
-            csv_contents = csv_file_in.read()
+    csv_file = tempfile.NamedTemporaryFile(delete=False)
+    schedule_for_cleanup(csv_file.name)
+    migration_result.as_csv(csv_file.name)
+    with open(csv_file.name, 'r') as csv_file_in:
+        csv_contents = csv_file_in.read()
 
     table_1_id = table_1_entity['tableId']
 
