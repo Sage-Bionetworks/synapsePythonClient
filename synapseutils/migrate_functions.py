@@ -580,8 +580,6 @@ def migrate_indexed_files(
         key = _MigrationKey(id='', type=None, row_id=-1, col_id=-1, version=-1)
         futures = set()
 
-        # we've completed the index, only proceed with the changes if not in a dry run
-
         while True:
             if len(futures) >= max_concurrent_file_copies:
                 futures = _wait_futures(
@@ -627,7 +625,9 @@ def migrate_indexed_files(
                     key.id, _MigrationType.FILE.value, _MigrationType.TABLE_ATTACHED_FILE.value,
                     key.id, _MigrationType.FILE.value, version,
                     key.id, _MigrationType.TABLE_ATTACHED_FILE.value, row_id, row_id, col_id,
-                    _get_batch_size()
+
+                    # ensure that we aren't ever adding more items to the shared executor than allowed
+                    min(_get_batch_size(), max_concurrent_file_copies - len(futures))
                 )
             )
 
