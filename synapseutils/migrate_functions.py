@@ -288,14 +288,14 @@ class MigrationResult:
                 csv_writer.writerow(row_data)
 
 
-def _get_executor():
-    executor = pool_provider.get_executor(thread_count=pool_provider.DEFAULT_NUM_THREADS)
+def _get_executor(syn):
+    executor = pool_provider.get_executor(thread_count=syn.max_threads)
 
     # default the number of concurrent file copies to half the number of threads in the pool.
     # since we share the same thread pool between managing entity copies and the multipart
     # upload, we have to prevent thread starvation if all threads are consumed by the entity
     # code leaving none for the multipart copies
-    max_concurrent_file_copies = max(int(pool_provider.DEFAULT_NUM_THREADS / 2), 1)
+    max_concurrent_file_copies = max(int(syn.max_threads / 2), 1)
     return executor, max_concurrent_file_copies
 
 
@@ -303,7 +303,6 @@ def _get_batch_size():
     # just a limit on certain operations to put an upper bound on various
     # batch operations so they are chunked. a function to make it easily mocked.
     # don't anticipate needing to adjust this for any real activity
-    # return 500
     return 500
 
 
@@ -556,7 +555,7 @@ def migrate_indexed_files(
 
     :return:                        A MigrationResult object that can be used to inspect the results of the migration.
     """
-    executor, max_concurrent_file_copies = _get_executor()
+    executor, max_concurrent_file_copies = _get_executor(syn)
 
     test_import_sqlite3()
     import sqlite3
