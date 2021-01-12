@@ -6,6 +6,7 @@ https://python-docs.synapse.org/build/html/CommandLineClient.html
 """
 import argparse
 import collections.abc
+import logging
 import os
 import sys
 import signal
@@ -27,6 +28,23 @@ from synapseclient.core.exceptions import (
     SynapseFileNotFoundError,
     SynapseNoCredentialsError,
 )
+
+
+def _init_console_Logging():
+    # init a stdout logger for purposes of logging cli activity.
+    # logging is preferred to writing directly to stdout since it can be configured/formatted/suppressed
+    # but this is not yet universal across the client so it is initialized here from cli commands that
+    # don't still have other direct stdout calls
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+
+    # message only for these cli stdout messages, meant for output directly to be viewed by interactive user
+    formatter = logging.Formatter('%(message)s')
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
 
 
 def query(args, syn):
@@ -447,6 +465,70 @@ def get_sts_token(args, syn):
     print(sts_string)
 
 
+def migrate(args, syn):
+    """Migrate Synapse entities to a new storage location"""
+    _init_console_Logging()
+
+    result = synapseutils.index_files_for_migration(
+        syn,
+        args.id,
+        args.storage_location_id,
+        args.db_path,
+        file_version_strategy=args.file_version_strategy,
+        include_table_files=args.include_table_files,
+        continue_on_error=args.continue_on_error,
+    )
+
+    counts = result.get_counts_by_status()
+    indexed_count = counts['INDEXED']
+    already_migrated_count = counts['ALREADY_MIGRATED']
+    errored_count = counts['ERRORED']
+
+    logging.info(
+        "Indexed %s items, %s needing migration, %s already stored in destination storage location (%s). "
+        "Encountered %s errors.",
+        indexed_count + already_migrated_count,
+        indexed_count,
+        already_migrated_count,
+        args.storage_location_id,
+        errored_count
+    )
+
+    if indexed_count == 0:
+        logging.info("No files found needing migration.")
+
+    elif args.dryRun:
+        logging.info(
+            "Dry run, index created at %s but skipping migration. Can proceed with migration by running "
+            "the same command without the dry run option."
+        )
+
+    else:
+        # there are items to migrate and this is not a dry run, proceed with migration
+        result = synapseutils.migrate_indexed_files(
+            syn,
+            args.db_path,
+            create_table_snapshots=True,
+            continue_on_error=args.continue_on_error,
+            force=args.force,
+        )
+
+        counts = result.get_counts_by_status()
+        migrated_count = counts['MIGRATED']
+        errored_count = counts['ERRORED']
+
+        logging.info(
+            "Completed migration of %s. %s files migrated. %s errors encountered",
+            args.id,
+            migrated_count,
+            errored_count,
+        )
+
+    if args.csv_log_path:
+        logging.info("Writing csv log to %s", args.csv_log_path)
+        result.as_csv(args.csv_log_path)
+
+
 def build_parser():
     """Builds the argument parser and returns the result."""
 
@@ -842,6 +924,33 @@ def build_parser():
         default='shell',
         choices=['json', 'boto', 'shell', 'bash', 'cmd', 'powershell'])
     parser_get_sts_token.set_defaults(func=get_sts_token)
+
+    parser_migrate = subparsers.add_parser(
+        'migrate',
+        help='Migrate Synapse entities to a different storage location'
+    )
+    parser_migrate.add_argument('id', type=str, help='Synapse id')
+    parser_migrate.add_argument('storage_location_id', type=str, help='Synapse storage location id')
+    parser_migrate.add_argument('db_path', type=str, help='Local system path where a record keeping file can be stored')
+    parser_migrate.add_argument('--file_version_strategy', type=str, default='new',
+                                help="""one of 'new', 'latest', 'all', 'skip'
+                                     new creates a new version of each entity,
+                                     latest migrates the most recent version,
+                                     all migrates all versions,
+                                     skip avoids migrating file entities (use when exclusively
+                                     targeting table attached files""")
+    parser_migrate.add_argument('--include_table_files', action='store_true', default=False,
+                                help='Include table attached files when migrating')
+    parser_migrate.add_argument('--continue_on_error', action='store_true', default=False,
+                                help='Whether to continue processing other entities if migration of one fails')
+    parser_migrate.add_argument('--csv_log_path', type=str,
+                                help='Path where to log a csv documenting the changes from the migration')
+    parser_migrate.add_argument('--dryRun', action='store_true', default=False,
+                                help='Dry run, files will be indexed by not migrated')
+    parser_migrate.add_argument('--force', action='store_true', default=False,
+                                help='Bypass interactive prompt confirming migration')
+
+    parser_migrate.set_defaults(func=migrate)
 
     return parser
 
