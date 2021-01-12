@@ -1,6 +1,8 @@
 import base64
+import requests
 import time
-from unittest.mock import patch
+
+from unittest.mock import MagicMock, patch
 
 from synapseclient.core.credentials.cred_data import SynapseCredentials
 
@@ -19,7 +21,7 @@ class TestSynapseCredentials:
         # test actual internal representation
         assert self.api_key == self.credentials._api_key
 
-    def test_get_signed_headers(self):
+    def test_get_auth_headers(self):
         url = "https://www.synapse.org/fake_url"
 
         # mock the 'time' module so the result is always the same instead of dependent upon current time
@@ -33,6 +35,25 @@ class TestSynapseCredentials:
                     'signature': b'018ADVu2o2NUOxgO0gM9bo08Wcw='
                 } == headers
             )
+
+    def test_call(self):
+        """Test the __call__ method used by requests.auth"""
+
+        url = 'https://foobar.com/baz'
+        initial_headers = {'existing': 'header'}
+        signed_headers = {'signed': 'header'}
+
+        with patch.object(self.credentials, 'get_signed_headers') as mock_get_signed_headers:
+            mock_get_signed_headers.return_value = signed_headers
+
+            request = MagicMock(spec=requests.Request)
+            request.url = url
+            request.headers = initial_headers
+
+            self.credentials(request)
+
+            assert request.headers == {**initial_headers, **signed_headers}
+            mock_get_signed_headers.assert_called_once_with(url)
 
     def test_repr(self):
         assert (

@@ -1,15 +1,15 @@
-import time
 import base64
-import hmac
-import hashlib
 import collections
+import hashlib
+import hmac
+import requests.auth
+import time
 import urllib.parse as urllib_parse
 
 import synapseclient.core.utils
 
 
-# TODO: inherit requests.AuthBase so that this object can be simply passed to requests library
-class SynapseCredentials(object):
+class SynapseCredentials(requests.auth.AuthBase):
     """
     Credentials used to make requests to Synapse.
     """
@@ -43,6 +43,11 @@ class SynapseCredentials(object):
         return {'userId': self.username,
                 'signatureTimestamp': sig_timestamp,
                 'signature': signature}
+
+    def __call__(self, r):
+        signed_headers = self.get_signed_headers(r.url)
+        r.headers.update(signed_headers)
+        return r
 
     def __repr__(self):
         return "SynapseCredentials(username='%s', api_key_string='%s')" % (self.username, self.api_key)

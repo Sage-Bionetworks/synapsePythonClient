@@ -1892,9 +1892,13 @@ class Synapse(object):
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
                     if os.path.exists(temp_destination) else {}
                 response = with_retry(
-                    lambda: self._requests_session.get(url,
-                                                       headers=self._generate_headers(url, range_header),
-                                                       stream=True, allow_redirects=False),
+                    lambda: self._requests_session.get(
+                        url,
+                        headers=self._generate_headers(range_header),
+                        stream=True,
+                        allow_redirects=False,
+                        auth=self.credentials,
+                    ),
                     verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
                     exceptions._raise_for_status(response, verbose=self.debug)
@@ -3723,16 +3727,14 @@ class Synapse(object):
     #                   Low level Rest calls                   #
     ############################################################
 
-    def _generate_headers(self, url, headers=None):
-        """Generate headers signed with the API key."""
+    def _generate_headers(self, headers=None):
+        """Generate headers (auth headers produced separately by credentials object)"""
 
         if headers is None:
             headers = dict(self.default_headers)
 
         headers.update(synapseclient.USER_AGENT)
 
-        if self.credentials:
-            headers.update(self.credentials.get_signed_headers(url))
         return headers
 
     def _handle_synapse_http_error(self, response):
@@ -3758,8 +3760,16 @@ class Synapse(object):
         requests_session = requests_session or self._requests_session
 
         requests_method_fn = getattr(requests_session, method)
-        response = with_retry(lambda: requests_method_fn(uri, data=data, headers=headers, **kwargs),
-                              verbose=self.debug, **retryPolicy)
+        response = with_retry(
+            lambda: requests_method_fn(
+                uri,
+                data=data,
+                headers=headers,
+                auth=self.credentials,
+                **kwargs
+            ),
+            verbose=self.debug, **retryPolicy
+        )
         self._handle_synapse_http_error(response)
         return response
 
@@ -3839,7 +3849,7 @@ class Synapse(object):
             uri = endpoint + uri
 
         if headers is None:
-            headers = self._generate_headers(uri)
+            headers = self._generate_headers()
         return uri, headers
 
     def _build_retry_policy(self, retryPolicy={}):

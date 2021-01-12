@@ -1682,7 +1682,7 @@ class TestRestCalls:
         mock_build_uri_and_headers.assert_called_once_with(uri, endpoint=endpoint, headers=headers)
         mock_build_retry_policy.assert_called_once_with(retryPolicy)
         mock_handle_synapse_http_error.assert_called_once_with(response)
-        mock_requests_call.assert_called_once_with(uri, data=data, headers=headers, **kwargs)
+        mock_requests_call.assert_called_once_with(uri, data=data, headers=headers, auth=self.syn.credentials, **kwargs)
 
         return response
 
@@ -2356,33 +2356,12 @@ def test__get_annotation_view_columns(syn):
 
 class TestGenerateHeaders:
 
-    def test_generate_headers__credentials(self):
-        """Verify signed credentials are added to the headers when logged in"""
-        url = 'http://foo.com/bar'
-        signed_headers = {'foo': 'bar'}
+    def test_generate_headers(self):
+        """Verify expected headers"""
 
         syn = Synapse(skip_checks=True)
-        syn.credentials = Mock(
-            get_signed_headers=Mock(return_value=signed_headers)
-        )
 
-        headers = syn._generate_headers(url)
-        expected = {}
-        expected.update(signed_headers)
-        expected.update(syn.default_headers)
-        expected.update(synapseclient.USER_AGENT)
-
-        assert expected == headers
-        syn.credentials.get_signed_headers.assert_called_once_with(url)
-
-    def test_generate_headers__no_credentials(self):
-        """Verify expected headers without signing when not logged in"""
-        url = 'http://foo.com/bar'
-
-        syn = Synapse(skip_checks=True)
-        syn.credentials = None
-
-        headers = syn._generate_headers(url)
+        headers = syn._generate_headers()
         expected = {}
         expected.update(syn.default_headers)
         expected.update(synapseclient.USER_AGENT)
@@ -2392,15 +2371,13 @@ class TestGenerateHeaders:
     def test_generate_headers__custom_headers(self):
         """Verify that custom headers override default headers"""
 
-        url = 'http://foo.com/bar'
         custom_headers = {
             'foo': 'bar'
         }
 
         syn = Synapse(skip_checks=True)
-        syn.credentials = None
 
-        headers = syn._generate_headers(url, headers=custom_headers)
+        headers = syn._generate_headers(headers=custom_headers)
         expected = {}
         expected.update(custom_headers)
         expected.update(synapseclient.USER_AGENT)
