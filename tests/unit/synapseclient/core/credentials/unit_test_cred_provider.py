@@ -12,10 +12,10 @@ from synapseclient.core.credentials.credential_provider import (
     UserArgsCredentialsProvider,
     UserArgsSessionTokenCredentialsProvider,
 )
-from synapseclient.core.credentials.cred_data import UserLoginArgs, SynapseCredentials
+from synapseclient.core.credentials.cred_data import UserLoginArgs, SynapseApiKeyCredentials
 
 
-class TestSynapseCredentialsProviderChain(object):
+class TestSynapseApiKeyCredentialsProviderChain(object):
 
     @pytest.fixture(autouse=True, scope='function')
     def init_syn(self, syn):
@@ -37,11 +37,11 @@ class TestSynapseCredentialsProviderChain(object):
     def test_get_credentials__provider_return_credentials(self):
         username = "synapse_user"
         api_key = base64.b64encode(b"api_key").decode()
-        self.cred_provider.get_synapse_credentials.return_value = SynapseCredentials(username, api_key)
+        self.cred_provider.get_synapse_credentials.return_value = SynapseApiKeyCredentials(username, api_key)
 
         creds = self.credential_provider_chain.get_credentials(self.syn, self.user_login_args)
 
-        assert isinstance(creds, SynapseCredentials)
+        assert isinstance(creds, SynapseApiKeyCredentials)
         assert username == creds.username
         assert api_key == creds.api_key
         self.cred_provider.get_synapse_credentials.assert_called_once_with(self.syn, self.user_login_args)
@@ -51,7 +51,7 @@ class TestSynapseCredentialsProviderChain(object):
         cred_provider3 = create_autospec(SynapseCredentialsProvider)
 
         self.cred_provider.get_synapse_credentials.return_value = None
-        cred_provider2.get_synapse_credentials.return_value = SynapseCredentials("asdf",
+        cred_provider2.get_synapse_credentials.return_value = SynapseApiKeyCredentials("asdf",
                                                                                  base64.b64encode(b"api_key").decode())
         cred_provider3.get_synapse_credentials.return_value = None
 
@@ -59,7 +59,7 @@ class TestSynapseCredentialsProviderChain(object):
         self.credential_provider_chain.cred_providers = [self.cred_provider, cred_provider2, cred_provider3]
 
         creds = self.credential_provider_chain.get_credentials(self.syn, self.user_login_args)
-        assert isinstance(creds, SynapseCredentials)
+        assert isinstance(creds, SynapseApiKeyCredentials)
 
         self.cred_provider.get_synapse_credentials.assert_called_once_with(self.syn, self.user_login_args)
         cred_provider2.get_synapse_credentials.assert_called_once_with(self.syn, self.user_login_args)
@@ -77,7 +77,7 @@ class TestSynapseCredentialProvider(object):
         self.password = "password"
         self.api_key = base64.b64encode(b"api_key").decode()
         self.user_login_args = UserLoginArgs(self.username, self.password, self.api_key, False)
-        # SynapseCredentialsProvider has abstractmethod so we can't instantiate it unless we overwrite it
+        # SynapseApiKeyCredentialsProvider has abstractmethod so we can't instantiate it unless we overwrite it
 
         class SynapseCredProviderTester(SynapseCredentialsProvider):
             def _get_auth_info(self, syn, user_login_args):

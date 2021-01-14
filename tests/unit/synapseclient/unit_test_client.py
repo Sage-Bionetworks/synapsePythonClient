@@ -41,7 +41,7 @@ import synapseclient.core.utils as utils
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs
-from synapseclient.core.credentials.cred_data import SynapseCredentials
+from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials
 from synapseclient.core.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.core.models.dict_object import DictObject
 
@@ -54,21 +54,21 @@ class TestLogout:
 
     def setup(self):
         self.username = "asdf"
-        self.credentials = SynapseCredentials(self.username, base64.b64encode(b"api_key_doesnt_matter").decode())
+        self.credentials = SynapseApiKeyCredentials(self.username, base64.b64encode(b"api_key_doesnt_matter").decode())
 
     def test_logout__forgetMe_is_True(self):
-        with patch.object(client, "cached_sessions") as mock_cached_session:
-            self.syn.credentials = self.credentials
+        self.syn.credentials = self.credentials
+        with patch.object(self.credentials, 'delete_from_keyring') as mock_delete_from_keyring:
             self.syn.logout(True)
             assert self.syn.credentials is None
-            mock_cached_session.remove_api_key.assert_called_with(self.username)
+            mock_delete_from_keyring.assert_called_once()
 
     def test_logout__forgetMe_is_False(self):
-        with patch.object(client, "cached_sessions") as mock_cached_session:
+        with patch.object(self.credentials, 'delete_from_keyring') as mock_delete_from_keyring:
             self.syn.credentials = self.credentials
             self.syn.logout(False)
             assert self.syn.credentials is None
-            mock_cached_session.remove_api_key.assert_not_called()
+            mock_delete_from_keyring.assert_not_called()
 
 
 class TestLogin:
@@ -81,7 +81,7 @@ class TestLogin:
         self.login_args = {'email': "AzureDiamond", "password": "hunter2"}
         self.expected_user_args = UserLoginArgs(username="AzureDiamond", password="hunter2", api_key=None,
                                                 skip_cache=False)
-        self.synapse_creds = SynapseCredentials("AzureDiamond", base64.b64encode(b"*******").decode())
+        self.synapse_creds = SynapseApiKeyCredentials("AzureDiamond", base64.b64encode(b"*******").decode())
 
         self.mocked_credential_chain = create_autospec(SynapseCredentialsProviderChain)
         self.mocked_credential_chain.get_credentials.return_value = self.synapse_creds
@@ -119,11 +119,11 @@ class TestLogin:
             mocked_logger.info.assert_called_once()
 
     def test_login__rememberMeIsTrue(self):
-        with patch.object(client, "cached_sessions") as mocked_cached_sessions:
+        with patch.object(client, 'cached_sessions') as mocked_cached_sessions, \
+                patch.object(self.synapse_creds, 'store_to_keyring') as mock_store_to_keyring:
             self.syn.login(silent=True, rememberMe=True)
 
-            mocked_cached_sessions.set_api_key.assert_called_once_with(self.synapse_creds.username,
-                                                                       self.synapse_creds.api_key)
+            mock_store_to_keyring.assert_called_once()
             mocked_cached_sessions.set_most_recent_user.assert_called_once_with(self.synapse_creds.username)
 
 

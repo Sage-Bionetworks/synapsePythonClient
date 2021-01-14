@@ -1,7 +1,7 @@
 import abc
 import deprecated.sphinx
 
-from .cred_data import SynapseCredentials
+from .cred_data import SynapseApiKeyCredentials
 from . import cached_sessions
 
 
@@ -39,9 +39,9 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
         if username is not None:
             if password is not None:
                 retrieved_session_token = syn._getSessionToken(email=username, password=password)
-                return SynapseCredentials(username, syn._getAPIKey(retrieved_session_token))
+                return SynapseApiKeyCredentials(username, syn._getAPIKey(retrieved_session_token))
             elif api_key is not None:
-                return SynapseCredentials(username, api_key)
+                return SynapseApiKeyCredentials(username, api_key)
         return None
 
 
@@ -88,7 +88,7 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
     def _get_auth_info(self, syn, user_login_args):
         if not user_login_args.skip_cache:
             username = user_login_args.username or cached_sessions.get_most_recent_user()
-            return username, None, cached_sessions.get_api_key(username)
+            return username, None, SynapseApiKeyCredentials.get_from_keyring(username).api_key
         return None, None, None
 
 

@@ -400,7 +400,7 @@ class Synapse(object):
 
         # Save the API key in the cache
         if rememberMe:
-            cached_sessions.set_api_key(self.credentials.username, self.credentials.api_key)
+            self.credentials.store_to_keyring()
             cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
@@ -492,10 +492,9 @@ class Synapse(object):
                          See the flag "rememberMe" in :py:func:`synapseclient.Synapse.login`.
         """
         # Delete the user's API key from the cache
-        if forgetMe:
-            cached_sessions.remove_api_key(self.credentials.username)
+        if forgetMe and self.credentials:
+            self.credentials.delete_from_keyring()
 
-        # Remove the authentication information from memory
         self.credentials = None
 
     def invalidateAPIKey(self):

@@ -1,7 +1,9 @@
+import abc
 import base64
 import collections
 import hashlib
 import hmac
+import keyring
 import requests.auth
 import time
 import urllib.parse as urllib_parse
@@ -9,10 +11,36 @@ import urllib.parse as urllib_parse
 import synapseclient.core.utils
 
 
-class SynapseCredentials(requests.auth.AuthBase):
+class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
+
+    def __init__(self, username):
+        self._username = username
+
+    @property
+    def username(self):
+        return self._username
+
+    @classmethod
+    @abc.abstractmethod
+    def get_from_keyring(cls, username: str) -> 'SynapseCredentials':
+        pass
+
+    @abc.abstractmethod
+    def delete_from_keyring(self):
+        pass
+
+    @abc.abstractmethod
+    def store_to_keyring(self):
+        pass
+
+
+class SynapseApiKeyCredentials(SynapseCredentials):
     """
     Credentials used to make requests to Synapse.
     """
+
+    # cannot change without losing access to existing client's stored api keys
+    API_KEY_KEYRING_SERVICE_NAME = "SYNAPSE.ORG_CLIENT"
 
     # setting and getting api_key it will use the base64 encoded string representation
     @property
@@ -24,7 +52,7 @@ class SynapseCredentials(requests.auth.AuthBase):
         self._api_key = base64.b64decode(value)
 
     def __init__(self, username, api_key_string):
-        self.username = username
+        super().__init__(username)
         self.api_key = api_key_string
 
     def get_signed_headers(self, url):
@@ -44,13 +72,28 @@ class SynapseCredentials(requests.auth.AuthBase):
                 'signatureTimestamp': sig_timestamp,
                 'signature': signature}
 
+    @classmethod
+    def get_from_keyring(cls, username) -> 'SynapseCredentials':
+        api_key = keyring.get_password(cls.API_KEY_KEYRING_SERVICE_NAME, username)
+        return SynapseApiKeyCredentials(username, api_key) if api_key else None
+
+    def delete_from_keyring(self):
+        try:
+            keyring.delete_password(self.API_KEY_KEYRING_SERVICE_NAME, self.username)
+        except keyring.errors.PasswordDeleteError:
+            # The api key does not exist, but that is fine
+            pass
+
+    def store_to_keyring(self):
+        keyring.set_password(self.API_KEY_KEYRING_SERVICE_NAME, self.username, self.api_key)
+
     def __call__(self, r):
         signed_headers = self.get_signed_headers(r.url)
         r.headers.update(signed_headers)
         return r
 
     def __repr__(self):
-        return "SynapseCredentials(username='%s', api_key_string='%s')" % (self.username, self.api_key)
+        return f"SynapseCredentials(username='{self.username}', api_key='{self.api_key}')"
 
 
 # a class that just contains args passed form synapse client login

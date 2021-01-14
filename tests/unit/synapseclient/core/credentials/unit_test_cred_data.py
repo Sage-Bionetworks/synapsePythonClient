@@ -6,6 +6,49 @@ from unittest.mock import MagicMock, patch
 
 from synapseclient.core.credentials.cred_data import SynapseCredentials
 
+#@patch.object(cached_sessions, "keyring", autospec=True)
+#class TestCachedSessionsKeyring:
+#    def setup(self):
+#        self.username = "username"
+#        self.api_key = "ecks dee"
+#
+#    def test_get_api_key__username_not_None(self, mocked_keyring):
+#        key = "asdf"
+#        mocked_keyring.get_password.return_value = key
+#
+#        # function under test
+#        returned_key = cached_sessions.get_api_key(self.username)
+#
+#        assert key == returned_key
+#        mocked_keyring.get_password.assert_called_once_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME,
+#                                                            self.username)
+#
+#    def test_get_api_key_username_is_None(self, mocked_keyring):
+#        key = "asdf"
+#        mocked_keyring.get_password.return_value = key
+#
+#        # function under test
+#        returned_key = cached_sessions.get_api_key(None)
+#
+#        assert returned_key is None
+#        mocked_keyring.get_password.assert_not_called()
+#
+#    def test_get_remove_api_key(self, mocked_keyring):
+#        # function under test
+#        cached_sessions.remove_api_key(self.username)
+#
+#        mocked_keyring.delete_password.assert_called_once_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME,
+#                                                               self.username)
+#
+#    def test_set_api_key(self, mocked_keyring):
+#        # function under test
+#        cached_sessions.set_api_key(self.username, self.api_key)
+#
+#        mocked_keyring.set_password.assert_called_with(
+#            cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME,
+#            self.username, self.api_key,
+#        )
+
 
 class TestSynapseCredentials:
     def setup(self):

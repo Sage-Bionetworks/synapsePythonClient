@@ -1,36 +1,10 @@
-import keyring
 import os
 import json
-import keyring.errors as keyring_errors
+from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials
 from synapseclient.core.cache import CACHE_ROOT_DIR
 from synapseclient.core.utils import equal_paths
 
-SYNAPSE_CACHED_SESSION_APLICATION_NAME = "SYNAPSE.ORG_CLIENT"
 SESSION_CACHE_FILEPATH = os.path.expanduser("~/.synapseSession")
-
-
-def get_api_key(username):
-    """
-    Retrieves the user's API key
-    :param str username:
-    :return: API key for the specified username
-    :rtype: str
-    """
-    if username is not None:
-        return keyring.get_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
-    return None
-
-
-def remove_api_key(username):
-    try:
-        keyring.delete_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
-    except keyring_errors.PasswordDeleteError:
-        # The API key does not exist, but that is fine
-        pass
-
-
-def set_api_key(username, api_key):
-    keyring.set_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username, api_key)
 
 
 def get_most_recent_user():
@@ -75,7 +49,7 @@ def migrate_old_session_file_credentials_if_necessary(syn):
             if key == "<mostRecent>":
                 set_most_recent_user(value)
             else:
-                set_api_key(key, value)
+                SynapseApiKeyCredentials(key, value).store_to_keyring()
     # always attempt to remove the old session file
     try:
         os.remove(old_session_file_path)
