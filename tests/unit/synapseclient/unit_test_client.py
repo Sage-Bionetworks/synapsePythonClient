@@ -45,6 +45,8 @@ from synapseclient.core.credentials.cred_data import SynapseCredentials
 from synapseclient.core.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.core.models.dict_object import DictObject
 
+from pathlib import Path
+import logging
 
 class TestLogout:
 
@@ -2543,3 +2545,29 @@ class TestTableQuery:
             )
 
             assert (mock_download_result, expected_path) == actual_result
+
+
+class TestInitCachePath:
+
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
+    def setup(self):
+        self.cache_root_dir = '.synapseCache'
+        self.fanout = 1000
+        self.mock_changed_path = 'C:\sage\cache_path_test'
+        self.SILENT_LOGGER_NAME = 'synapseclient_silent'
+        self.file_handle_id = ''
+
+    def test_init_change_cache_path(self):
+        file_handle_id = '-1337'
+        expected_cache_path = os.path.join(str(Path.home()), self.cache_root_dir, str(int(file_handle_id) % self.fanout),
+                                           str(file_handle_id))
+        assert self.syn.cache.get_cache_dir(file_handle_id) == expected_cache_path
+
+        syn_changed_cache_path = Synapse(debug=False, skip_checks=True, cache_root_dir=self.mock_changed_path)
+        syn_changed_cache_path.logger = logging.getLogger(self.SILENT_LOGGER_NAME)
+        expected_changed_cache_path = os.path.join(self.mock_changed_path, str(int(file_handle_id) % self.fanout),
+                                                   str(file_handle_id))
+        assert syn_changed_cache_path.cache.get_cache_dir(file_handle_id) == expected_changed_cache_path
