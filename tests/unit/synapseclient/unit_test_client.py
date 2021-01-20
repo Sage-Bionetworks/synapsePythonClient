@@ -46,6 +46,7 @@ from synapseclient.core.credentials.credential_provider import SynapseCredential
 from synapseclient.core.models.dict_object import DictObject
 
 from pathlib import Path
+import tempfile
 import logging
 
 class TestLogout:
@@ -2556,18 +2557,20 @@ class TestInitCachePath:
     def setup(self):
         self.cache_root_dir = '.synapseCache'
         self.fanout = 1000
-        self.mock_changed_path = 'C:\sage\cache_path_test'
+        # self.mock_changed_path = 'C:\\sage\\cache_path_test'
         self.SILENT_LOGGER_NAME = 'synapseclient_silent'
         self.file_handle_id = ''
 
     def test_init_change_cache_path(self):
         file_handle_id = '-1337'
-        expected_cache_path = os.path.join(str(Path.home()), self.cache_root_dir, str(int(file_handle_id) % self.fanout),
-                                           str(file_handle_id))
+        expected_cache_path = os.path.join(str(Path.home()), self.cache_root_dir,
+                                           str(int(file_handle_id) % self.fanout), str(file_handle_id))
         assert self.syn.cache.get_cache_dir(file_handle_id) == expected_cache_path
 
-        syn_changed_cache_path = Synapse(debug=False, skip_checks=True, cache_root_dir=self.mock_changed_path)
+        temp_dir = tempfile.TemporaryDirectory()
+        temp_dir_name = temp_dir.name
+        syn_changed_cache_path = Synapse(debug=False, skip_checks=True, cache_root_dir=temp_dir_name)
         syn_changed_cache_path.logger = logging.getLogger(self.SILENT_LOGGER_NAME)
-        expected_changed_cache_path = os.path.join(self.mock_changed_path, str(int(file_handle_id) % self.fanout),
+        expected_changed_cache_path = os.path.join(temp_dir_name, str(int(file_handle_id) % self.fanout),
                                                    str(file_handle_id))
         assert syn_changed_cache_path.cache.get_cache_dir(file_handle_id) == expected_changed_cache_path
