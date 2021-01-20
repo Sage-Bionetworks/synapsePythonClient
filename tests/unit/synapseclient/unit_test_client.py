@@ -3,7 +3,9 @@ import configparser
 import datetime
 import errno
 import json
+import logging
 import os
+from pathlib import Path
 import requests
 import tempfile
 import urllib.request as urllib_request
@@ -45,9 +47,6 @@ from synapseclient.core.credentials.cred_data import SynapseCredentials
 from synapseclient.core.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.core.models.dict_object import DictObject
 
-from pathlib import Path
-import tempfile
-import logging
 
 class TestLogout:
 
