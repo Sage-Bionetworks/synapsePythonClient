@@ -31,7 +31,7 @@ def test_login(syn):
         # Simple login with ID + PW
         syn.login(username, password, silent=True)
 
-        api_key = syn.credentials.api_key
+        api_key = syn.credentials.secret
 
         # Login with ID + API key
         syn.login(email=username, apiKey=api_key, silent=True)

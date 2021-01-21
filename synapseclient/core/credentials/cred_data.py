@@ -66,6 +66,11 @@ class SynapseApiKeyCredentials(SynapseCredentials):
     def secret(self):
         return base64.b64encode(self._api_key).decode()
 
+    @property
+    def api_key(self):
+        # this is provided for backwards compatibility if any code is using it
+        return self.secret
+
     def get_signed_headers(self, url):
         """
         Generates signed HTTP headers for accessing Synapse urls

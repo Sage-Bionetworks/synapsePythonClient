@@ -29,6 +29,9 @@ class TestSynapseApiKeyCredentials:
         # test actual internal representation
         assert self.api_key == self.credentials._api_key
 
+        # also provided via api_key property for backwards compatibility
+        assert self.api_key == self.credentials._api_key
+
     def test_get_signed_headers(self):
         url = "https://www.synapse.org/fake_url"
 
