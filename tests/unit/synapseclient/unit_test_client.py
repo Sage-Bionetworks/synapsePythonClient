@@ -2547,29 +2547,20 @@ class TestTableQuery:
             assert (mock_download_result, expected_path) == actual_result
 
 
-class TestInitCachePath:
+def test_init_change_cache_path():
+    cache_root_dir = '.synapseCache'
+    silent_logger_name = 'synapseclient_silent'
+    fanout = 1000
+    file_handle_id = '-1337'
 
-    @pytest.fixture(autouse=True, scope='function')
-    def init_syn(self, syn):
-        self.syn = syn
+    syn = Synapse(debug=False, skip_checks=True)
+    expected_cache_path = os.path.join(str(Path.home()), cache_root_dir,
+                                       str(int(file_handle_id) % fanout), str(file_handle_id))
+    assert syn.cache.get_cache_dir(file_handle_id) == expected_cache_path
 
-    def setup(self):
-        self.cache_root_dir = '.synapseCache'
-        self.fanout = 1000
-        # self.mock_changed_path = 'C:\\sage\\cache_path_test'
-        self.SILENT_LOGGER_NAME = 'synapseclient_silent'
-        self.file_handle_id = ''
-
-    def test_init_change_cache_path(self):
-        file_handle_id = '-1337'
-        expected_cache_path = os.path.join(str(Path.home()), self.cache_root_dir,
-                                           str(int(file_handle_id) % self.fanout), str(file_handle_id))
-        assert self.syn.cache.get_cache_dir(file_handle_id) == expected_cache_path
-
-        temp_dir = tempfile.TemporaryDirectory()
-        temp_dir_name = temp_dir.name
-        syn_changed_cache_path = Synapse(debug=False, skip_checks=True, cache_root_dir=temp_dir_name)
-        syn_changed_cache_path.logger = logging.getLogger(self.SILENT_LOGGER_NAME)
-        expected_changed_cache_path = os.path.join(temp_dir_name, str(int(file_handle_id) % self.fanout),
-                                                   str(file_handle_id))
-        assert syn_changed_cache_path.cache.get_cache_dir(file_handle_id) == expected_changed_cache_path
+    temp_dir = tempfile.TemporaryDirectory()
+    temp_dir_name = temp_dir.name
+    syn_changed_cache_path = Synapse(debug=False, skip_checks=True, cache_root_dir=temp_dir_name)
+    expected_changed_cache_path = os.path.join(temp_dir_name, str(int(file_handle_id) % fanout),
+                                               str(file_handle_id))
+    assert syn_changed_cache_path.cache.get_cache_dir(file_handle_id) == expected_changed_cache_path
