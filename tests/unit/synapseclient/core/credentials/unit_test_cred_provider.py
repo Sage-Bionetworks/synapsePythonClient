@@ -15,7 +15,7 @@ from synapseclient.core.credentials.credential_provider import (
 )
 from synapseclient.core.credentials.cred_data import (
     SynapseApiKeyCredentials,
-    SynapseBearerTokenCredentials,
+    SynapseAuthTokenCredentials,
     UserLoginArgs,
 )
 
@@ -84,14 +84,14 @@ class TestSynapseCredentialProvider(object):
         self.password = "password"
         self.api_key = base64.b64encode(b"api_key").decode()
         self.session_token = None
-        self.bearer_token = 'bearer_token'
+        self.auth_token = 'auth_token'
         self.user_login_args = UserLoginArgs(
             self.username,
             self.password,
             self.api_key,
             False,
             self.session_token,
-            self.bearer_token
+            self.auth_token
         )
         # SynapseApiKeyCredentialsProvider has abstractmethod so we can't instantiate it unless we overwrite it
 
@@ -112,23 +112,23 @@ class TestSynapseCredentialProvider(object):
 
     def test_create_synapse_credential__username_is_None(self):
         # shouldn't matter what the other fields are if username is None
-        cred = self.provider._create_synapse_credential(self.syn, None, self.password, self.api_key, self.bearer_token)
+        cred = self.provider._create_synapse_credential(self.syn, None, self.password, self.api_key, self.auth_token)
         assert cred is None
 
     def test_create_synapse_credential__username_not_None_password_not_None(self):
         """Verify that the password is used to generate credentials if provided (and takes precedence
-        over api key and bearer token)"""
+        over api key and auth bearer token)"""
         session_token = "37842837946"
         with patch.object(self.syn, "_getSessionToken", return_value=session_token) as mock_get_session_token, \
              patch.object(self.syn, "_getAPIKey", return_value=self.api_key) as mock_get_api_key:
 
-            # even if api key and/or bearer_token is provided, password applies first
+            # even if api key and/or auth_token is provided, password applies first
             cred = self.provider._create_synapse_credential(
                 self.syn,
                 self.username,
                 self.password,
                 self.api_key,
-                self.bearer_token
+                self.auth_token
             )
 
             assert self.username == cred.username
@@ -138,20 +138,20 @@ class TestSynapseCredentialProvider(object):
             assert isinstance(cred, SynapseApiKeyCredentials)
 
     def test_create_synapse_credential__username_not_None_api_key_not_None(self):
-        """Verify that the api key is used if the password is not provided (and takes precedence over bearer token)"""
+        """Verify that the api key is used if the password is not provided (and takes precedence over auth token)"""
 
-        cred = self.provider._create_synapse_credential(self.syn, self.username, None, self.api_key, self.bearer_token)
+        cred = self.provider._create_synapse_credential(self.syn, self.username, None, self.api_key, self.auth_token)
         assert self.username == cred.username
         assert self.api_key == cred.secret
         assert isinstance(cred, SynapseApiKeyCredentials)
 
-    def test_create_synapse_credential__username_not_None_api_key_is_None_bearer_token_is_not_None(self):
-        """Verify that the bearer token is used if provided (and password and api key are not)"""
+    def test_create_synapse_credential__username_not_None_api_key_is_None_auth_token_is_not_None(self):
+        """Verify that the auth bearer token is used if provided (and password and api key are not)"""
 
-        cred = self.provider._create_synapse_credential(self.syn, self.username, None, None, self.bearer_token)
+        cred = self.provider._create_synapse_credential(self.syn, self.username, None, None, self.auth_token)
         assert self.username == cred.username
-        assert self.bearer_token == cred.secret
-        assert isinstance(cred, SynapseBearerTokenCredentials)
+        assert self.auth_token == cred.secret
+        assert isinstance(cred, SynapseAuthTokenCredentials)
 
 
 class TestUserArgsSessionTokenCredentialsProvider(object):
@@ -209,7 +209,7 @@ class TestUserArgsCredentialsProvider(object):
             base64.b64encode(b"api_key"),
             False,
             None,
-            'bearer_token'
+            'auth_token'
         )
         provider = UserArgsCredentialsProvider()
         returned_tuple = provider._get_auth_info(self.syn, user_login_args)
@@ -218,7 +218,7 @@ class TestUserArgsCredentialsProvider(object):
             user_login_args.username,
             user_login_args.password,
             user_login_args.api_key,
-            user_login_args.bearer_token
+            user_login_args.auth_token
         ) == returned_tuple
 
 
@@ -234,7 +234,7 @@ class TestConfigFileCredentialsProvider(object):
         api_key = "TWFkZSB5b3UgbG9vaw=="
         token = 'token123'
         self.expected_return_tuple = (self.username, password, api_key, token)
-        self.config_dict = {"username": self.username, "password": password, "apikey": api_key, 'token': token}
+        self.config_dict = {"username": self.username, "password": password, "apikey": api_key, 'authToken': token}
         self.get_config_authentication__patcher = patch.object(self.syn, "_get_config_authentication",
                                                                return_value=self.config_dict)
         self.mock_get_config_authentication = self.get_config_authentication__patcher.start()
@@ -279,10 +279,10 @@ class TestCachedCredentialsProvider(object):
         self.username = "username"
         api_key = base64.b64encode(b"my api kye")
         self.api_key_b64 = base64.b64encode(api_key).decode()
-        bearer_token = 'bearer_token'
+        auth_token = 'auth_token'
         self.provider = CachedCredentialsProvider()
 
-        self.expected_return_tuple = (self.username, None, api_key, bearer_token)
+        self.expected_return_tuple = (self.username, None, api_key, auth_token)
 
         self.get_most_recent_user__patcher = patch.object(cached_sessions, "get_most_recent_user",
                                                           return_value=self.username)
@@ -297,15 +297,15 @@ class TestCachedCredentialsProvider(object):
         self.mock_api_key_credentials = self.api_key_credentials_patcher.start()
         self.mock_api_key_credentials.get_from_keyring.return_value = api_key_credentials
 
-        bearer_token_credentials = MagicMock(spec=SynapseBearerTokenCredentials)
-        bearer_token_credentials.secret = bearer_token
-        self.bearer_token_credentials_patcher = patch.object(
+        auth_token_credentials = MagicMock(spec=SynapseAuthTokenCredentials)
+        auth_token_credentials.secret = auth_token
+        self.auth_token_credentials_patcher = patch.object(
             credential_provider,
-            'SynapseBearerTokenCredentials',
-            return_value=bearer_token_credentials
+            'SynapseAuthTokenCredentials',
+            return_value=auth_token_credentials
         )
-        self.mock_bearer_token_credentials = self.bearer_token_credentials_patcher.start()
-        self.mock_bearer_token_credentials.get_from_keyring.return_value = bearer_token_credentials
+        self.mock_auth_token_credentials = self.auth_token_credentials_patcher.start()
+        self.mock_auth_token_credentials.get_from_keyring.return_value = auth_token_credentials
 
         self.mock_get_most_recent_user = self.get_most_recent_user__patcher.start()
 
@@ -315,22 +315,22 @@ class TestCachedCredentialsProvider(object):
 
     def test_get_auth_info__skip_cache_is_True(self):
         user_login_args = UserLoginArgs(
-            username=self.username, password=None, api_key=None, skip_cache=True, session_token=None, bearer_token=None)
+            username=self.username, password=None, api_key=None, skip_cache=True, session_token=None, auth_token=None)
 
         returned_tuple = self.provider._get_auth_info(self.syn, user_login_args)
         assert (None, None, None, None) == returned_tuple
         self.mock_get_most_recent_user.assert_not_called()
         self.mock_api_key_credentials.assert_not_called()
-        self.mock_bearer_token_credentials.assert_not_called()
+        self.mock_auth_token_credentials.assert_not_called()
 
     def test_get_auth_info__user_arg_username_is_None(self):
-        user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, bearer_token=None)
+        user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
 
         returned_tuple = self.provider._get_auth_info(self.syn, user_login_args)
         assert self.expected_return_tuple == returned_tuple
         self.mock_get_most_recent_user.assert_called_once_with()
         self.mock_api_key_credentials.get_from_keyring.assert_called_once_with(self.username)
-        self.mock_bearer_token_credentials.get_from_keyring.assert_called_once_with(self.username)
+        self.mock_auth_token_credentials.get_from_keyring.assert_called_once_with(self.username)
 
     def test_get_auth_info__user_arg_username_is_not_None(self):
         user_login_args = UserLoginArgs(username=self.username, password=None, api_key=None, skip_cache=False)
@@ -340,4 +340,4 @@ class TestCachedCredentialsProvider(object):
         assert self.expected_return_tuple == returned_tuple
         self.mock_get_most_recent_user.assert_not_called()
         self.mock_api_key_credentials.get_from_keyring.assert_called_once_with(self.username)
-        self.mock_bearer_token_credentials.get_from_keyring.assert_called_once_with(self.username)
+        self.mock_auth_token_credentials.get_from_keyring.assert_called_once_with(self.username)

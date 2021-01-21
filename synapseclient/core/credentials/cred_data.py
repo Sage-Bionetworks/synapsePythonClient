@@ -92,11 +92,11 @@ class SynapseApiKeyCredentials(SynapseCredentials):
         return f"SynapseApiKeyCredentials(username='{self.username}', api_key_string='{self.secret}')"
 
 
-class SynapseBearerTokenCredentials(SynapseCredentials):
+class SynapseAuthTokenCredentials(SynapseCredentials):
 
     @classmethod
     def get_keyring_service_name(cls):
-        return 'SYNAPSE.ORG_CLIENT_TOKEN'
+        return 'SYNAPSE.ORG_CLIENT_AUTH_TOKEN'
 
     def __init__(self, username, token):
         self._username = username
@@ -115,7 +115,7 @@ class SynapseBearerTokenCredentials(SynapseCredentials):
         return r
 
     def __repr__(self):
-        return f"SynapseBearerTokenCredentials(username='{self.username}', token='{self.secret}')"
+        return f"SynapseAuthTokenCredentials(username='{self.username}', token='{self.secret}')"
 
 
 # a class that just contains args passed form synapse client login
@@ -128,7 +128,7 @@ UserLoginArgs = collections.namedtuple(
         'api_key',
         'skip_cache',
         'session_token',
-        'bearer_token',
+        'auth_token',
     ]
 )
 

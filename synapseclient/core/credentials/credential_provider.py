@@ -1,7 +1,7 @@
 import abc
 import deprecated.sphinx
 
-from .cred_data import SynapseApiKeyCredentials, SynapseBearerTokenCredentials
+from .cred_data import SynapseApiKeyCredentials, SynapseAuthTokenCredentials
 from . import cached_sessions
 
 
@@ -35,15 +35,15 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
         """
         return self._create_synapse_credential(syn, *self._get_auth_info(syn, user_login_args))
 
-    def _create_synapse_credential(self, syn, username, password, api_key, bearer_token):
+    def _create_synapse_credential(self, syn, username, password, api_key, auth_token):
         if username is not None:
             if password is not None:
                 retrieved_session_token = syn._getSessionToken(email=username, password=password)
                 return SynapseApiKeyCredentials(username, syn._getAPIKey(retrieved_session_token))
             elif api_key is not None:
                 return SynapseApiKeyCredentials(username, api_key)
-            elif bearer_token is not None:
-                return SynapseBearerTokenCredentials(username, bearer_token)
+            elif auth_token is not None:
+                return SynapseAuthTokenCredentials(username, auth_token)
         return None
 
 
@@ -56,7 +56,7 @@ class UserArgsCredentialsProvider(SynapseCredentialsProvider):
             user_login_args.username,
             user_login_args.password,
             user_login_args.api_key,
-            user_login_args.bearer_token,
+            user_login_args.auth_token,
         )
 
 
@@ -72,13 +72,13 @@ class UserArgsSessionTokenCredentialsProvider(SynapseCredentialsProvider):
         username = None
         password = None
         api_key = None
-        bearer_token = None
+        auth_token = None
 
         if user_login_args.session_token:
             username = syn.getUserProfile(sessionToken=user_login_args.session_token)['userName']
             api_key = syn._getAPIKey(user_login_args.session_token)
 
-        return username, password, api_key, bearer_token
+        return username, password, api_key, auth_token
 
 
 class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
@@ -94,15 +94,15 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
         username = None
         password = None
         api_key = None
-        bearer_token = None
+        auth_token = None
 
         if user_login_args.username is None or config_username == user_login_args.username:
             username = config_username
             password = config_dict.get('password')
             api_key = config_dict.get('apikey')
-            bearer_token = config_dict.get('token')
+            auth_token = config_dict.get('authToken')
 
-        return username, password, api_key, bearer_token
+        return username, password, api_key, auth_token
 
 
 class CachedCredentialsProvider(SynapseCredentialsProvider):
@@ -113,18 +113,18 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
         username = None
         password = None
         api_key = None
-        bearer_token = None
+        auth_token = None
 
         if not user_login_args.skip_cache:
             username = user_login_args.username or cached_sessions.get_most_recent_user()
 
             api_creds = SynapseApiKeyCredentials.get_from_keyring(username)
-            bearer_token_creds = SynapseBearerTokenCredentials.get_from_keyring(username)
+            auth_token_creds = SynapseAuthTokenCredentials.get_from_keyring(username)
 
             api_key = api_creds.secret if api_creds else None
-            bearer_token = bearer_token_creds.secret if bearer_token_creds else None
+            auth_token = auth_token_creds.secret if auth_token_creds else None
 
-        return username, password, api_key, bearer_token
+        return username, password, api_key, auth_token
 
 
 class SynapseCredentialsProviderChain(object):

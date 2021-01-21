@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 from synapseclient.core.credentials.cred_data import (
     keyring,
     SynapseApiKeyCredentials,
-    SynapseBearerTokenCredentials,
+    SynapseAuthTokenCredentials,
 )
 
 
@@ -98,24 +98,24 @@ class TestSynapseApiKeyCredentials:
         )
 
 
-class TestSynapseBearerTokenCredentials:
+class TestSynapseAuthTokenCredentials:
 
     def setup(self):
         self.username = "ahhhhhhhhhhhhhh"
-        self.bearer_token = 'opensesame'
-        self.credentials = SynapseBearerTokenCredentials(self.username, self.bearer_token)
+        self.auth_token = 'opensesame'
+        self.credentials = SynapseAuthTokenCredentials(self.username, self.auth_token)
 
     def test_username(self):
         assert self.username == self.credentials.username
 
     def test_secret(self):
-        assert self.credentials.secret == self.bearer_token
+        assert self.credentials.secret == self.auth_token
 
     def test_call(self):
         """Test the __call__ method used by requests.auth"""
 
         initial_headers = {'existing': 'header'}
-        auth_header = {'Authorization': f"Bearer {self.bearer_token}"}
+        auth_header = {'Authorization': f"Bearer {self.auth_token}"}
 
         request = MagicMock(spec=requests.Request)
         request.headers = initial_headers
@@ -126,26 +126,26 @@ class TestSynapseBearerTokenCredentials:
 
     def test_repr(self):
         assert (
-            f"SynapseBearerTokenCredentials(username='{self.username}', token='{self.bearer_token}')" ==
+            f"SynapseAuthTokenCredentials(username='{self.username}', token='{self.auth_token}')" ==
             repr(self.credentials)
         )
 
     @patch.object(keyring, 'get_password')
     def test_get_from_keyring(self, mock_keyring_get_password):
-        mock_keyring_get_password.return_value = self.bearer_token
-        credentials = SynapseBearerTokenCredentials.get_from_keyring(self.username)
+        mock_keyring_get_password.return_value = self.auth_token
+        credentials = SynapseAuthTokenCredentials.get_from_keyring(self.username)
         mock_keyring_get_password.assert_called_once_with(
-            SynapseBearerTokenCredentials.get_keyring_service_name(),
+            SynapseAuthTokenCredentials.get_keyring_service_name(),
             self.username,
         )
         assert credentials.username == self.username
-        assert credentials.secret == self.bearer_token
+        assert credentials.secret == self.auth_token
 
     @patch.object(keyring, 'delete_password')
     def test_delete_from_keyring(self, mock_keyring_delete_password):
         self.credentials.delete_from_keyring()
         mock_keyring_delete_password.assert_called_once_with(
-            SynapseBearerTokenCredentials.get_keyring_service_name(),
+            SynapseAuthTokenCredentials.get_keyring_service_name(),
             self.username,
         )
 
@@ -153,7 +153,7 @@ class TestSynapseBearerTokenCredentials:
     def test_store_to_keyring(self, mock_keyring_set_password):
         self.credentials.store_to_keyring()
         mock_keyring_set_password.assert_called_once_with(
-            SynapseBearerTokenCredentials.get_keyring_service_name(),
+            SynapseAuthTokenCredentials.get_keyring_service_name(),
             self.username,
-            self.bearer_token,
+            self.auth_token,
         )
