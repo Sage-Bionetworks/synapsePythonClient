@@ -1,11 +1,10 @@
 import json
 
-from unittest.mock import patch, mock_open, create_autospec, call
+from unittest.mock import call, create_autospec, MagicMock, mock_open, patch
 
 import synapseclient.core.credentials.cached_sessions as cached_sessions
+from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials
 from synapseclient import Synapse
-
-
 
 
 class TestCachedSessionsMostRecentUserFile:
@@ -54,17 +53,28 @@ class TestMigrateOldSessionFile(object):
     def setup(self):
         read_session_cache_patcher = patch.object(cached_sessions, "_read_session_cache")
         set_most_recent_user_patcher = patch.object(cached_sessions, "set_most_recent_user")
-        set_api_key_patcher = patch.object(cached_sessions, "set_api_key")
+        api_key_credentials = MagicMock(spec=SynapseApiKeyCredentials)
+
+        api_key_credentials_patcher = patch.object(
+            cached_sessions,
+            "SynapseApiKeyCredentials",
+            return_value=api_key_credentials
+        )
         os_patcher = patch.object(cached_sessions, 'os')
         equals_path_patcher = patch.object(cached_sessions, 'equal_paths')
-        self.patchers = [read_session_cache_patcher, set_most_recent_user_patcher, set_api_key_patcher, os_patcher,
-                         equals_path_patcher]
+        self.patchers = [
+            read_session_cache_patcher,
+            set_most_recent_user_patcher,
+            api_key_credentials_patcher,
+            os_patcher,
+            equals_path_patcher
+        ]
 
         self.mock_syn = create_autospec(Synapse(skip_checks=True))
 
         self.mock_read_session_cache = read_session_cache_patcher.start()
         self.mock_set_most_recent_user = set_most_recent_user_patcher.start()
-        self.mock_set_api_key = set_api_key_patcher.start()
+        self.mock_api_key_credentials = api_key_credentials_patcher.start()
         self.mock_os = os_patcher.start()
         self.mock_equals_path = equals_path_patcher.start()
 
@@ -81,7 +91,7 @@ class TestMigrateOldSessionFile(object):
 
         self.mock_read_session_cache.assert_not_called()
         self.mock_set_most_recent_user.assert_not_called()
-        self.mock_set_api_key.assert_not_called()
+        self.mock_api_key_credentials.assert_not_called()
         self.mock_os.remove.assert_called_once_with(self.file_path)
 
     def test_migrate(self):
@@ -92,5 +102,12 @@ class TestMigrateOldSessionFile(object):
 
         self.mock_read_session_cache.assert_called_once_with(self.file_path)
         self.mock_set_most_recent_user.assert_called_with('asdf')
-        self.mock_set_api_key.assert_has_calls([call('user', 'userapi'), call('user2', 'user2api')], any_order=True)
+        self.mock_api_key_credentials.assert_has_calls(
+            [
+                call('user', 'userapi'),
+                call('user2', 'user2api')
+            ],
+            any_order=True
+        )
+        assert self.mock_api_key_credentials.return_value.store_to_keyring.call_count == 2
         self.mock_os.remove.assert_called_once_with(self.file_path)

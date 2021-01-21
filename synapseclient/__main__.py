@@ -543,7 +543,7 @@ def build_parser():
     parser.add_argument('-u', '--username', dest='synapseUser',
                         help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword',
-                        help='Password used to connect to Synapse')
+                        help='Password, api key, or token used to connect to Synapse')
     parser.add_argument('-c', '--configPath', dest='configPath', default=synapseclient.client.CONFIG_FILE,
                         help='Path to configuration file used to connect to Synapse [default: %(default)s]')
 
@@ -986,19 +986,31 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
 def _authenticate_login(syn, user, password, **login_kwargs):
     # login with the given password. If the password is not valid and it appears to be an api key
     # then we attempt a login using it as an api key instead.
-    try:
-        syn.login(user, password, **login_kwargs)
-    except SynapseNoCredentialsError:
-        # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
-        raise
-    except SynapseAuthenticationError:
-        # if the entered password appears to be a base64 encoded string then we additionally attempt
-        # to login using it as an api key instead.
-        if utils.is_base64_encoded(password):
-            # the password appears to be a base64 encoded string, it might be an apikey
-            syn.login(user, apiKey=password, **login_kwargs)
-        else:
-            raise
+
+    def default_password_filter(password):
+        return True
+    login_attempts = (
+        ('password', default_password_filter),
+        ('apiKey', utils.is_base64_encoded),
+        ('authToken', default_password_filter),
+    )
+
+    last_auth_ex = None
+    for (login_key, password_filter) in login_attempts:
+        if password_filter(password):
+            try:
+                login_kwargs_with_password = {login_key: password}
+                login_kwargs_with_password.update(login_kwargs)
+                syn.login(user, **login_kwargs_with_password)
+                break
+            except SynapseNoCredentialsError:
+                # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
+                raise
+            except SynapseAuthenticationError as ex:
+                last_auth_ex = ex
+                continue
+    else:
+        raise last_auth_ex
 
 
 def main():

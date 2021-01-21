@@ -320,13 +320,15 @@ class Synapse(object):
         self.portalEndpoint = endpoints['portalEndpoint']
 
     def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False,
-              forced=False):
+              forced=False, authToken=None):
         """
         Valid combinations of login() arguments:
 
         - email/username and password
 
         - email/username and apiKey (Base64 encoded string)
+
+        - email/username and authToken (e.g. a bearer authorization token, e.g. personal access token)
 
         - sessionToken (**DEPRECATED**)
 
@@ -344,6 +346,11 @@ class Synapse(object):
                              following fields: email, password, apiKey
         :param rememberMe:   Whether the authentication information should be cached in your operating system's
                              credential storage.
+        :param silent:       Suppress login welcome message
+        :param forced:       Skip any cached credential lookup
+        :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
+                                password or apiKey
+
         **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
         **Linux** systems.
         If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for
@@ -391,8 +398,17 @@ class Synapse(object):
 
         credential_provder_chain = get_default_credential_chain()
         # TODO: remove deprecated sessionToken when we move to a different solution
-        self.credentials = credential_provder_chain.get_credentials(self, UserLoginArgs(email, password, apiKey, forced,
-                                                                                        sessionToken))
+        self.credentials = credential_provder_chain.get_credentials(
+            self,
+            UserLoginArgs(
+                email,
+                password,
+                apiKey,
+                forced,
+                sessionToken,
+                authToken,
+            )
+        )
 
         # Final check on login success
         if not self.credentials:

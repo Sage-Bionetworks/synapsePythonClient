@@ -156,7 +156,7 @@ def test_authenticate_login__success(syn):
 
     with patch.object(syn, 'login'):
         cmdline._authenticate_login(syn, 'foo', 'bar', rememberMe=True, silent=True)
-        syn.login.assert_called_once_with('foo', 'bar', rememberMe=True, silent=True)
+        syn.login.assert_called_once_with('foo', password='bar', rememberMe=True, silent=True)
 
 
 def test_authenticate_login__api_key(syn):
@@ -167,10 +167,14 @@ def test_authenticate_login__api_key(syn):
     password = base64.b64encode(b'bar').decode('utf-8')
     login_kwargs = {'rememberMe': True}
 
-    expected_login_calls = [
-        call(username, password, **login_kwargs),
-        call(username, apiKey=password, **login_kwargs)
+    # a successfully logging in via api key should short circuit a login attempt as an auth token
+    expected_success_login_calls = [
+        call(username, password=password, **login_kwargs),
+        call(username, apiKey=password, **login_kwargs),
     ]
+
+    # failing to log in as an api key results in the additional attempt as an auth token
+    expected_failure_login_calls = [*expected_success_login_calls, call(username, authToken=password, **login_kwargs)]
 
     with patch.object(syn, 'login') as login:
         login.side_effect = SynapseAuthenticationError()
@@ -178,6 +182,42 @@ def test_authenticate_login__api_key(syn):
         # simulate failure both as password and as api key
         with pytest.raises(SynapseAuthenticationError):
             cmdline._authenticate_login(syn, username, password, **login_kwargs)
+
+        assert expected_failure_login_calls == login.call_args_list
+        login.reset_mock()
+
+        # now simulate success when used as an api key
+        def login_side_effect(*args, **kwargs):
+            if login.call_count == 1:
+                raise SynapseAuthenticationError()
+            return
+
+        login.side_effect = login_side_effect
+
+        cmdline._authenticate_login(syn, username, password, **login_kwargs)
+        assert expected_success_login_calls == login.call_args_list
+
+
+def test_authenticate_login__auth_token(syn):
+    """Verify attempting to authenticate when supplying an auth bearer token instead of an password (or api key).
+    Should attempt to treat the password as an api key after the initial failure as a password and api key"""
+
+    username = 'foo'
+    auth_token = 'auth_bearer_token'
+    login_kwargs = {'rememberMe': True}
+
+    # since this token does not appear to be base64 encoded it is not tried as an api key
+    expected_login_calls = [
+        call(username, password=auth_token, **login_kwargs),
+        call(username, authToken=auth_token, **login_kwargs),
+    ]
+
+    with patch.object(syn, 'login') as login:
+        login.side_effect = SynapseAuthenticationError()
+
+        # simulate failure both as password and as api key
+        with pytest.raises(SynapseAuthenticationError):
+            cmdline._authenticate_login(syn, username, auth_token, **login_kwargs)
 
         assert expected_login_calls == login.call_args_list
         login.reset_mock()
@@ -190,7 +230,7 @@ def test_authenticate_login__api_key(syn):
 
         login.side_effect = login_side_effect
 
-        cmdline._authenticate_login(syn, username, password, **login_kwargs)
+        cmdline._authenticate_login(syn, username, auth_token, **login_kwargs)
         assert expected_login_calls == login.call_args_list
 
 
