@@ -3,7 +3,6 @@ import configparser
 import datetime
 import errno
 import json
-import logging
 import os
 from pathlib import Path
 import requests
@@ -2549,7 +2548,6 @@ class TestTableQuery:
 
 def test_init_change_cache_path():
     cache_root_dir = '.synapseCache'
-    silent_logger_name = 'synapseclient_silent'
     fanout = 1000
     file_handle_id = '-1337'
 
