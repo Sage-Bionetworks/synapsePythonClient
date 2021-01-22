@@ -2549,7 +2549,7 @@ class TestTableQuery:
 def test_init_change_cache_path():
     """
     Verify that the user can customize the cache path.
-    The cache path would set to be default value if cache_root_dir argument is None.
+    The cache path is set to the default value if cache_root_dir argument is None.
     """
     cache_root_dir = '.synapseCache'
     fanout = 1000
