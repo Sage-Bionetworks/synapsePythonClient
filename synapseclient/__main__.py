@@ -983,25 +983,30 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
         _authenticate_login(syn, user, passwd, rememberMe=rememberMe, forced=forced)
 
 
-def _authenticate_login(syn, user, password, **login_kwargs):
-    # login with the given password. If the password is not valid and it appears to be an api key
-    # then we attempt a login using it as an api key instead.
+def _authenticate_login(syn, user, secret, **login_kwargs):
+    # login using the given secret.
+    # we try logging in using the secret as a password, an api key, and an auth bearer token, in that order.
+    # each attempt results in a call to the services, which can mean extra calls than if we explicitly knew
+    # which type of secret we had, but the alternative of defining separate commands/parameters for the different
+    # types of secrets would pollute the top level argument space and make the stdin input option more complex
+    # for the user (e.g. first ask them to specify which type of secret they have rather than just an input prompt)
 
     def default_password_filter(password):
         return True
     login_attempts = (
         ('password', default_password_filter),
-        ('apiKey', utils.is_base64_encoded),
-        ('authToken', default_password_filter),
+        ('apiKey', utils.is_base64_encoded),  # an api key is base64 encoded so we can exclude strings that aren't
+        ('authToken', default_password_filter),  # although tokens are technically encoded, the client treats
+                                                 # them as opaque so we don't do an encoding check
     )
 
     last_auth_ex = None
-    for (login_key, password_filter) in login_attempts:
-        if password_filter(password):
+    for (login_key, secret_filter) in login_attempts:
+        if secret_filter(secret):
             try:
-                login_kwargs_with_password = {login_key: password}
-                login_kwargs_with_password.update(login_kwargs)
-                syn.login(user, **login_kwargs_with_password)
+                login_kwargs_with_secret = {login_key: secret}
+                login_kwargs_with_secret.update(login_kwargs)
+                syn.login(user, **login_kwargs_with_secret)
                 break
             except SynapseNoCredentialsError:
                 # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
