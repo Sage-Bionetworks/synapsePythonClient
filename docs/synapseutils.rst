@@ -3,7 +3,7 @@
 ****
 copy
 ****
-.. automodule:: synapseutils.copy
+.. automodule:: synapseutils.copy_functions
    :members:
 
 ****
@@ -24,3 +24,8 @@ monitor
 .. automodule:: synapseutils.monitor
    :members:
 
+******
+migrate
+******
+.. automodule:: synapseutils.migrate_functions
+   :members:

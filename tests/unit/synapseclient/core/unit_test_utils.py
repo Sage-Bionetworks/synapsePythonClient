@@ -9,7 +9,7 @@ import tempfile
 import pytest
 from unittest.mock import patch, mock_open
 
-from synapseclient.core import utils
+from synapseclient.core import constants, utils
 
 
 def test_is_url():
@@ -82,6 +82,28 @@ def test_id_of():
     for attr_name in id_attr_names:
         foo = Foo(attr_name, 123)
         assert utils.id_of(foo) == '123'
+
+
+def test_concrete_type_of():
+    """Verify behavior of utils#concrete_type_of"""
+
+    for invalid_obj in [
+        'foo',  # not a Mapping
+        {},  # doesn't have a concreteType or type,
+        {'concreteType': object()},  # isn't a str
+        {'type': object()},  # isn't a str
+        {'concreteType': 'foo'},  # doesn't appear to be of expected format
+        {'type': 'foo'},  # doesn't appear to be of expected format
+    ]:
+        with pytest.raises(ValueError) as ex:
+            utils.concrete_type_of(invalid_obj)
+        assert 'Unable to determine concreteType' in str(ex)
+
+    for value, expected_type in [
+        ({'concreteType': constants.concrete_types.FILE_ENTITY}, constants.concrete_types.FILE_ENTITY),
+        ({'type': constants.concrete_types.FOLDER_ENTITY}, constants.concrete_types.FOLDER_ENTITY),
+    ]:
+        assert expected_type == utils.concrete_type_of(value)
 
 
 def test_guess_file_name():

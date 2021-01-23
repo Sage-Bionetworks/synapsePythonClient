@@ -38,6 +38,89 @@ def test_command_sync(syn):
                                                     retries=args.retries)
 
 
+def test_migrate(syn):
+    """Test that the command line arguments are successfully passed to the migrate function."""
+
+    entity_id = 'syn12345'
+    storage_location_id = '98766'
+    db_path = '/tmp/foo/bar'
+
+    parser = cmdline.build_parser()
+
+    # test w/ default optional args
+    args = parser.parse_args([
+        'migrate',
+        'syn12345',
+        storage_location_id,
+        db_path,
+    ])
+
+    assert args.id == entity_id
+    assert args.storage_location_id == storage_location_id
+    assert args.db_path == db_path
+    assert args.file_version_strategy == 'new'
+    assert args.include_table_files is False
+    assert args.continue_on_error is False
+    assert args.dryRun is False
+    assert args.force is False
+    assert args.csv_log_path is None
+
+    # test w/ fully specified args
+    args = parser.parse_args([
+        'migrate',
+        entity_id,
+        storage_location_id,
+        db_path,
+        '--file_version_strategy', 'all',
+        '--dryRun',
+        '--include_table_files',
+        '--continue_on_error',
+        '--force',
+        '--csv_log_path', '/tmp/foo/bar'
+    ])
+
+    assert args.id == entity_id
+    assert args.storage_location_id == storage_location_id
+    assert args.db_path == db_path
+    assert args.file_version_strategy == 'all'
+    assert args.include_table_files is True
+    assert args.continue_on_error is True
+    assert args.dryRun is True
+    assert args.force is True
+    assert args.csv_log_path == '/tmp/foo/bar'
+
+    # verify args are passed through to the fn
+    with patch.object(synapseutils, 'index_files_for_migration') as mock_index, \
+            patch.object(synapseutils, 'migrate_indexed_files') as mock_migrate:
+
+        cmdline.migrate(args, syn)
+
+        mock_index.assert_called_once_with(
+            syn,
+            args.id,
+            args.storage_location_id,
+            args.db_path,
+            file_version_strategy='all',
+            include_table_files=True,
+            continue_on_error=True,
+        )
+
+        # during a dryRun the actual migration should not occur
+        assert mock_migrate.called is False
+
+        # without dryRun then migrate should also be called
+        args.dryRun = False
+        cmdline.migrate(args, syn)
+
+        mock_migrate.assert_called_once_with(
+            syn,
+            args.db_path,
+            create_table_snapshots=True,
+            continue_on_error=True,
+            force=True
+        )
+
+
 def test_get_multi_threaded_flag():
     """Test the multi threaded command line flag"""
     parser = cmdline.build_parser()
