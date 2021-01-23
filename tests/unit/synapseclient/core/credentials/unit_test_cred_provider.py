@@ -332,6 +332,16 @@ class TestCachedCredentialsProvider(object):
         self.mock_api_key_credentials.get_from_keyring.assert_called_once_with(self.username)
         self.mock_auth_token_credentials.get_from_keyring.assert_called_once_with(self.username)
 
+    @patch.object(credential_provider, 'cached_sessions')
+    def test_get_auth_info__username_is_None(self, mock_cached_sessions):
+        """Verify if there is no username provided and one isn't cached we return nothing
+        (but also don't blow up)"""
+        mock_cached_sessions.get_most_recent_user.return_value = None
+        user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
+
+        returned_tuple = self.provider._get_auth_info(self.syn, user_login_args)
+        assert (None, None, None, None) == returned_tuple
+
     def test_get_auth_info__user_arg_username_is_not_None(self):
         user_login_args = UserLoginArgs(username=self.username, password=None, api_key=None, skip_cache=False)
 

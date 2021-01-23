@@ -117,12 +117,13 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
 
         if not user_login_args.skip_cache:
             username = user_login_args.username or cached_sessions.get_most_recent_user()
+            if username:
 
-            api_creds = SynapseApiKeyCredentials.get_from_keyring(username)
-            auth_token_creds = SynapseAuthTokenCredentials.get_from_keyring(username)
+                api_creds = SynapseApiKeyCredentials.get_from_keyring(username)
+                auth_token_creds = SynapseAuthTokenCredentials.get_from_keyring(username)
 
-            api_key = api_creds.secret if api_creds else None
-            auth_token = auth_token_creds.secret if auth_token_creds else None
+                api_key = api_creds.secret if api_creds else None
+                auth_token = auth_token_creds.secret if auth_token_creds else None
 
         return username, password, api_key, auth_token
 
