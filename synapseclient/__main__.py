@@ -957,6 +957,8 @@ def build_parser():
 
 def perform_main(args, syn):
     if 'func' in args:
+        if args.func != login:
+            login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
         try:
             args.func(args, syn)
         except Exception as ex:
@@ -964,6 +966,13 @@ def perform_main(args, syn):
                 raise
             else:
                 sys.stderr.write(utils._synapse_error_msg(ex))
+    else:
+        # if no command provided print out help and quit
+        # if we require python 3.7 or above, we can use required argument add_subparsers
+        build_parser().print_help()
+
+
+# print help
 
 
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
@@ -976,10 +985,13 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
 
         passwd = None
         while not passwd:
-            # must encode password prompt because getpass() has OS-dependent implementation and complains about unicode
-            # on Windows python 2.7
-            passwd = getpass.getpass(("Password or api key for " + user + ": ").encode('utf-8'))
-
+            # if the terminal is not a tty, we are unable to read from standard input
+            # For git bash using python getpass
+            # https://stackoverflow.com/questions/49858821/python-getpass-doesnt-work-on-windows-git-bash-mingw64
+            if not sys.stdin.isatty():
+                raise SynapseAuthenticationError("No password was provided and unable to read from standard input")
+            else:
+                passwd = getpass.getpass(("Password or api key for " + user + ": "))
         _authenticate_login(syn, user, passwd, rememberMe=rememberMe, forced=forced)
 
 
@@ -1005,9 +1017,6 @@ def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks, configPath=args.configPath)
-    if not ('func' in args and args.func == login):
-        # if we're not executing the "login" operation, automatically authenticate before running operation
-        login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
     perform_main(args, syn)
 
 
