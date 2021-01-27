@@ -254,7 +254,7 @@ def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_ge
 def test_login_with_prompt_no_tty(mock_input, mock_sys, syn):
     """
     Verify login_with_prompt when the terminal is not a tty,
-    we are unable to read from standard input and throwing the SynapseAuthenticationError.
+    we are unable to read from standard input and throw a SynapseAuthenticationError
     """
 
     user = 'test_user'
@@ -274,7 +274,7 @@ def test_login_with_prompt_no_tty(mock_input, mock_sys, syn):
 def test_no_command_print_help(mock_build_parser, syn):
     """
     Verify command without any function,
-    we are automatically print out the help instruction.
+    we are automatically print out help instructions.
     """
 
     args = cmdline.build_parser().parse_args(['-u', 'test_user'])

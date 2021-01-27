@@ -968,11 +968,8 @@ def perform_main(args, syn):
                 sys.stderr.write(utils._synapse_error_msg(ex))
     else:
         # if no command provided print out help and quit
-        # if we require python 3.7 or above, we can use required argument add_subparsers
+        # if we require python 3.7 or above, we can use required argument tp add_subparsers instead
         build_parser().print_help()
-
-
-# print help
 
 
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
