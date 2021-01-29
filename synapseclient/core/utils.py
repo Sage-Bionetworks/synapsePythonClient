@@ -165,6 +165,25 @@ def id_of(obj):
     raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
 
 
+def concrete_type_of(obj: collections.abc.Mapping):
+    """
+    Return the concrete type of an object representing a Synapse entity.
+    This is meant to operate either against an actual Entity object, or the lighter
+    weight dictionary returned by Synapse#getChildren, both of which are Mappings.
+    """
+    concrete_type = None
+    if isinstance(obj, collections.abc.Mapping):
+        for key in ('concreteType', 'type'):
+            concrete_type = obj.get(key)
+            if concrete_type:
+                break
+
+    if not isinstance(concrete_type, str) or not concrete_type.startswith('org.sagebionetworks.repo.model'):
+        raise ValueError('Unable to determine concreteType')
+
+    return concrete_type
+
+
 def is_in_path(id, path):
     """Determines whether id is in the path as returned from /entity/{id}/path
 

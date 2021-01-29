@@ -538,6 +538,7 @@ def _csv_to_pandas_df(filepath,
                       contain_headers=True,
                       lines_to_skip=0,
                       date_columns=None,
+                      list_columns=None,
                       rowIdAndVersionInIndex=True):
     test_import_pandas()
     import pandas as pd
@@ -550,6 +551,11 @@ def _csv_to_pandas_df(filepath,
 
     line_terminator = str(os.linesep)
 
+    # assign line terminator only if for single character
+    # line terminators (e.g. not '\r\n') 'cause pandas doesn't
+    # longer line terminators. See:
+    #    https://github.com/pydata/pandas/issues/3501
+    # "ValueError: Only length-1 line terminators supported"
     df = pd.read_csv(filepath,
                      sep=separator,
                      lineterminator=line_terminator if len(line_terminator) == 1 else None,
@@ -559,6 +565,13 @@ def _csv_to_pandas_df(filepath,
                      skiprows=lines_to_skip,
                      parse_dates=date_columns,
                      date_parser=datetime_millisecond_parser)
+    # Turn list columns into lists
+    if list_columns:
+        for col in list_columns:
+            # Fill NA values with empty lists, it must be a string for json.loads to work
+            df[col].fillna('[]', inplace=True)
+            df[col] = df[col].apply(json.loads)
+
     if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
         # combine row-ids (in index) and row-versions (in column 0) to
         # make new row labels consisting of the row id and version
@@ -1895,16 +1908,16 @@ class CsvFileTable(TableAbstractBaseClass):
 
             # determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
             date_columns = []
-            if convert_to_datetime:
-                for select_column in self.headers:
-                    if select_column.columnType == "DATE":
-                        date_columns.append(select_column.name)
+            list_columns = []
 
-            # assign line terminator only if for single character
-            # line terminators (e.g. not '\r\n') 'cause pandas doesn't
-            # longer line terminators. See:
-            #    https://github.com/pydata/pandas/issues/3501
-            # "ValueError: Only length-1 line terminators supported"
+            if self.headers is not None:
+                if convert_to_datetime:
+                    for select_column in self.headers:
+                        if select_column.columnType == "DATE":
+                            date_columns.append(select_column.name)
+                for select_column in self.headers:
+                    if select_column.columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST'}:
+                        list_columns.append(select_column.name)
             return _csv_to_pandas_df(self.filepath,
                                      separator=self.separator,
                                      quote_char=quoteChar,
@@ -1912,6 +1925,7 @@ class CsvFileTable(TableAbstractBaseClass):
                                      contain_headers=self.header,
                                      lines_to_skip=self.linesToSkip,
                                      date_columns=date_columns,
+                                     list_columns=list_columns,
                                      rowIdAndVersionInIndex=rowIdAndVersionInIndex)
         except pd.parser.CParserError:
             return pd.DataFrame()
