@@ -79,7 +79,7 @@ from synapseclient.core.exceptions import (
     SynapseTimeoutError,
     SynapseUnmetAccessRestrictions,
 )
-from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
+from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME, SILENT_LOGGER_NAME
 from synapseclient.core.version_check import version_check
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
@@ -189,7 +189,7 @@ class Synapse(object):
 
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
-                 debug=None, skip_checks=False, configPath=CONFIG_FILE, requests_session=None):
+                 debug=None, skip_checks=False, configPath=CONFIG_FILE, requests_session=None, silent=None):
         self._requests_session = requests_session or requests.Session()
 
         cache_root_dir = cache.CACHE_ROOT_DIR
@@ -202,7 +202,8 @@ class Synapse(object):
             if config.has_option('cache', 'location'):
                 cache_root_dir = config.get('cache', 'location')
             if config.has_section('debug'):
-                debug = True
+                config_debug = True
+                # debug = True
 
         if debug is None:
             debug = config_debug if config_debug is not None else DEBUG_DEFAULT
@@ -215,7 +216,14 @@ class Synapse(object):
         self.default_headers = {'content-type': 'application/json; charset=UTF-8',
                                 'Accept': 'application/json; charset=UTF-8'}
         self.credentials = None
-        self.debug = debug  # setter for debug initializes self.logger also
+
+        if not isinstance(debug, bool):
+            raise ValueError("debug must be set to a bool (either True or False)")
+        self.debug = debug
+
+        self.silent = silent
+        self._init_logger()  # initializes self.logger
+
         self.skip_checks = skip_checks
 
         self.table_query_sleep = 2
@@ -231,17 +239,11 @@ class Synapse(object):
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
 
-    @property
-    def debug(self):
-        return self._debug
-
-    @debug.setter
-    def debug(self, value):
-        if not isinstance(value, bool):
-            raise ValueError("debug must be set to a bool (either True or False)")
-        logger_name = DEBUG_LOGGER_NAME if value else DEFAULT_LOGGER_NAME
+    # initialize logging
+    def _init_logger(self):
+        # if q elif debug else default
+        logger_name = SILENT_LOGGER_NAME if self.silent else DEBUG_LOGGER_NAME if self.debug else DEFAULT_LOGGER_NAME
         self.logger = logging.getLogger(logger_name)
-        self._debug = value
         logging.getLogger('py.warnings').handlers = self.logger.handlers
 
     @property
@@ -594,6 +596,13 @@ class Synapse(object):
             self.logger.info(json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii))
         except TypeError:
             self.logger.info(str(entity))
+
+    def _print_transfer_progress(self, *args, **kwargs):
+        # Checking synapse if the mode is silent mode.
+        # If self.silent is True, no need to print out transfer progress.
+        if self.silent is not True:
+            cumulative_transfer_progress.printTransferProgress(*args, **kwargs)
+
 
     ############################################################
     #                   Get / Store methods                    #
@@ -1754,7 +1763,8 @@ class Synapse(object):
                     profile = self._get_client_authenticated_s3_profile(fileHandle['endpointUrl'], fileHandle['bucket'])
                     downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'],
                                                                     fileHandle['fileKey'], destination,
-                                                                    profile_name=profile)
+                                                                    profile_name=profile,
+                                                                    show_progress=not self.silent)
 
                 elif sts_transfer.is_boto_sts_transfer_enabled(self) and \
                         sts_transfer.is_storage_location_sts_enabled(self, objectId, storageLocationId) and \
@@ -1767,6 +1777,7 @@ class Synapse(object):
                             fileHandle['key'],
                             destination,
                             credentials=credentials,
+                            show_progress=not self.silent,
                             # pass through our synapse threading config to boto s3
                             transfer_config_kwargs={'max_concurrency': self.max_threads},
                         )
@@ -1880,7 +1891,8 @@ class Synapse(object):
                 break
             elif scheme == 'sftp':
                 username, password = self._getUserCredentials(url)
-                destination = SFTPWrapper.download_file(url, destination, username, password)
+                destination = SFTPWrapper.download_file(url, destination, username, password,
+                                                        show_progress=not self.silent)
                 break
             elif scheme == 'ftp':
                 urllib_request.urlretrieve(url, destination)
@@ -1955,7 +1967,14 @@ class Synapse(object):
                                 # response.raw.tell() is the total number of response body bytes transferred over the
                                 # wire so far
                                 transferred = response.raw.tell() + previouslyTransferred
-                                cumulative_transfer_progress.printTransferProgress(
+                                # cumulative_transfer_progress.printTransferProgress(
+                                #     transferred,
+                                #     toBeTransferred,
+                                #     'Downloading ',
+                                #     os.path.basename(destination),
+                                #     dt=time.time() - t0
+                                # )
+                                self._print_transfer_progress(
                                     transferred,
                                     toBeTransferred,
                                     'Downloading ',
@@ -3019,7 +3038,8 @@ class Synapse(object):
                 progress = result.get('progressCurrent', lastProgress)
                 total = result.get('progressTotal', lastTotal)
                 if message != '':
-                    utils.printTransferProgress(progress, total, message, isBytes=False)
+                    # utils.printTransferProgress(progress, total, message, isBytes=False)
+                    self._print_transfer_progress(progress, total, message, isBytes=False)
                 # Reset the time if we made progress (fix SYNPY-214)
                 if message != lastMessage or lastProgress != progress:
                     start_time = time.time()
@@ -3036,7 +3056,8 @@ class Synapse(object):
                 asynchronousJobStatus=result
             )
         if progressed:
-            utils.printTransferProgress(total, total, message, isBytes=False)
+            # utils.printTransferProgress(total, total, message, isBytes=False)
+            self._print_transfer_progress(total, total, message, isBytes=False)
         return result
 
     def getColumn(self, id):

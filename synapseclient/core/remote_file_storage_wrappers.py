@@ -185,7 +185,7 @@ class SFTPWrapper:
         return urllib_parse.urlunparse(parsedURL)
 
     @staticmethod
-    def download_file(url, localFilepath=None, username=None, password=None):
+    def download_file(url, localFilepath=None, username=None, password=None, show_progress=True):
         """
         Performs download of a file from an sftp server.
 
@@ -193,6 +193,7 @@ class SFTPWrapper:
         :param localFilepath:   location where to store file
         :param username:        username on server
         :param password:        password for authentication on  server
+        :param show_progress:   whether to print progress indicator to console
 
         :returns: localFilePath
 
@@ -212,7 +213,9 @@ class SFTPWrapper:
 
         # Download file
         with _retry_pysftp_connection(parsedURL.hostname, username=username, password=password) as sftp:
-            sftp.get(path, localFilepath, preserve_mtime=True, callback=printTransferProgress)
+            # sftp.get(path, localFilepath, preserve_mtime=True, callback=printTransferProgress)
+            sftp.get(path, localFilepath, preserve_mtime=True,
+                     callback=(printTransferProgress if show_progress else None))
         return localFilepath
 
 

@@ -295,7 +295,14 @@ class UploadAttempt:
                 file_size,
             )
 
-            printTransferProgress(
+            # printTransferProgress(
+            #     progress,
+            #     file_size,
+            #     prefix='Uploading',
+            #     postfix=self._dest_file_name,
+            #     previouslyTransferred=previously_transferred,
+            # )
+            self._syn._print_transfer_progress(
                 progress,
                 file_size,
                 prefix='Uploading',
@@ -326,7 +333,7 @@ class UploadAttempt:
 
                 if part_size and not self._is_copy():
                     progress += part_size
-                    printTransferProgress(
+                    self._syn._print_transfer_progress(
                         min(progress, file_size),
                         file_size,
                         prefix='Uploading',

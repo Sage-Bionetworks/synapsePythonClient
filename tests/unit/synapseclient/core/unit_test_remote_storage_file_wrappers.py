@@ -1,11 +1,12 @@
 import botocore.exceptions
 import os.path
+import urllib.parse as urllib_parse
 
 import pytest
 from unittest import mock
 
 from synapseclient.core import remote_file_storage_wrappers
-from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper
+from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 
 
 class TestS3ClientWrapper:
@@ -214,3 +215,42 @@ class TestS3ClientWrapper:
             'aws_session_token': 'baz',
         }
         self._upload_test(credentials=credentials, show_progress=False)
+
+
+class TestSftpClientWrapper:
+    @mock.patch.object(remote_file_storage_wrappers, '_retry_pysftp_connection')
+    @mock.patch.object(remote_file_storage_wrappers, 'printTransferProgress')
+    @mock.patch.object(remote_file_storage_wrappers, 'os')
+    def test_download_file(self, mock_os, mock_printTransferProgress, mock_retry_pysftp_connection):
+        """
+        Verify the download_file method that pass in the callback function according to the boolean show_progress
+        """
+
+        mock_sftp = mock.Mock()
+        mock_retry_pysftp_connection.return_value.__enter__.return_value = mock_sftp
+        mock_url = "sftp://foo.com:/bar/baz"
+        mock_local_file_path = "test_path"
+        mock_os.path.isdir.return_value = False
+
+        path = urllib_parse.unquote(SFTPWrapper._parse_for_sftp(mock_url).path)
+
+        SFTPWrapper.download_file(mock_url, localFilepath=mock_local_file_path, show_progress=False)
+        mock_sftp.get.assert_called_once_with(path, mock_local_file_path, preserve_mtime=True,
+                                              callback=None)
+
+        SFTPWrapper.download_file(mock_url, localFilepath=mock_local_file_path,)
+        mock_sftp.get.assert_called_with(path, mock_local_file_path, preserve_mtime=True,
+                                         callback=mock_printTransferProgress)
+
+        # test if localFilepath is None
+        mock_os.getcwd.return_value = "/home/foo"
+        SFTPWrapper.download_file(mock_url, show_progress=False)
+        mock_sftp.get.assert_called_with(path, "/home/foo", preserve_mtime=True,
+                                         callback=None)
+
+        # test if mock_os.path.isdir is True
+        mock_os.path.isdir.return_value = True
+        mock_os.path.join.return_value = "/home/foo/bar"
+        SFTPWrapper.download_file(mock_url, localFilepath=mock_local_file_path)
+        mock_sftp.get.assert_called_with(path, "/home/foo/bar", preserve_mtime=True,
+                                         callback=mock_printTransferProgress)

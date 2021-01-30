@@ -363,8 +363,8 @@ class _MultithreadedDownloader:
 
         return submitted_futures
 
-    @staticmethod
-    def _write_chunks(request, completed_futures, transfer_status):
+
+    def _write_chunks(self, request, completed_futures, transfer_status):
         if completed_futures:
             with open(request.path, 'rb+') as file_write:
                 for chunk_future in completed_futures:
@@ -374,10 +374,14 @@ class _MultithreadedDownloader:
                     file_write.write(chunk_response.content)
 
                     transfer_status.transferred += len(chunk_data)
-                    printTransferProgress(transfer_status.transferred,
-                                          transfer_status.total_bytes_to_be_transferred,
-                                          'Downloading ', os.path.basename(request.path),
-                                          dt=transfer_status.elapsed_time())
+                    # printTransferProgress(transfer_status.transferred,
+                    #                       transfer_status.total_bytes_to_be_transferred,
+                    #                       'Downloading ', os.path.basename(request.path),
+                    #                       dt=transfer_status.elapsed_time())
+                    self._syn._print_transfer_progress(transfer_status.transferred,
+                                                       transfer_status.total_bytes_to_be_transferred,
+                                                       'Downloading ', os.path.basename(request.path),
+                                                       dt=transfer_status.elapsed_time())
 
     @staticmethod
     def _check_for_errors(request, completed_futures):
