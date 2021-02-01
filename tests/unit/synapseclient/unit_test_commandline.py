@@ -2,12 +2,11 @@
 
 """
 
-import argparse
 import base64
 import os
 
 import pytest
-from unittest.mock import call, Mock, patch, MagicMock
+from unittest.mock import call, Mock, patch
 
 import synapseclient.__main__ as cmdline
 from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseNoCredentialsError
