@@ -254,3 +254,24 @@ class TestSftpClientWrapper:
         SFTPWrapper.download_file(mock_url, localFilepath=mock_local_file_path)
         mock_sftp.get.assert_called_with(path, "/home/foo/bar", preserve_mtime=True,
                                          callback=mock_printTransferProgress)
+
+    @mock.patch.object(remote_file_storage_wrappers, '_retry_pysftp_connection')
+    @mock.patch.object(remote_file_storage_wrappers, 'printTransferProgress')
+    def test_upload_file(self, mock_printTransferProgress, mock_retry_pysftp_connection):
+        """
+        Verify the upload_file method that working correctly with valid input path and url
+        """
+
+        mock_sftp = mock.Mock()
+        with mock.patch.object(mock_sftp, 'cd') as mock_cd:
+            mock_retry_pysftp_connection.return_value.__enter__.return_value = mock_sftp
+            mock_url = "sftp://foo.com:/bar/baz"
+            mock_local_file_path = "/home/foo/bar"
+            parsed_URL = SFTPWrapper._parse_for_sftp(mock_url)
+            mock_cd.return_value.__enter__.return_value = mock.Mock()
+
+            SFTPWrapper.upload_file(mock_local_file_path, mock_url)
+            mock_sftp.makedirs.call_once_with(parsed_URL.path)
+            mock_cd.call_once_with(parsed_URL.path)
+            mock_sftp.put.assert_called_once_with(mock_local_file_path,
+                                                  preserve_mtime=True, callback=mock_printTransferProgress)
