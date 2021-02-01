@@ -17,7 +17,6 @@ import time
 
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.pool_provider import get_executor
-from synapseclient.core.cumulative_transfer_progress import printTransferProgress
 
 # constants
 MAX_QUEUE_SIZE: int = 20
@@ -362,7 +361,6 @@ class _MultithreadedDownloader:
                 break
 
         return submitted_futures
-
 
     def _write_chunks(self, request, completed_futures, transfer_status):
         if completed_futures:
