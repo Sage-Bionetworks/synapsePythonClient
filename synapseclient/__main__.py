@@ -30,9 +30,6 @@ from synapseclient.core.exceptions import (
 )
 
 
-
-
-
 def _init_console_logging():
     # init a stdout logger for purposes of logging cli activity.
     # logging is preferred to writing directly to stdout since it can be configured/formatted/suppressed

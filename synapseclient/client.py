@@ -604,7 +604,6 @@ class Synapse(object):
         if self.silent is not True:
             cumulative_transfer_progress.printTransferProgress(*args, **kwargs)
 
-
     ############################################################
     #                   Get / Store methods                    #
     ############################################################
