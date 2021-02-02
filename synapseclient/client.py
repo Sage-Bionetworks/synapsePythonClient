@@ -228,9 +228,6 @@ class Synapse(object):
         self.max_threads = transfer_config['max_threads']
         self.use_boto_sts_transfers = transfer_config['use_boto_sts']
 
-        # TODO: remove once most clients are no longer on versions <= 1.7.5
-        cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
-
     @property
     def debug(self):
         return self._debug

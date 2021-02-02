@@ -35,24 +35,3 @@ def _write_session_cache(filepath, data):
     with open(filepath, 'w') as file:
         json.dump(data, file)
         file.write('\n')  # For compatibility with R's JSON parser
-
-
-def migrate_old_session_file_credentials_if_necessary(syn):
-    old_session_file_path = os.path.join(syn.cache.cache_root_dir, '.session')
-
-    # only migrate if the download cache is in the default location (i.e. user did not set its location)
-    # we don't want to migrate credentials if they were a part of a cache shared by multiple people
-    if equal_paths(syn.cache.cache_root_dir, os.path.expanduser(CACHE_ROOT_DIR)):
-        # iterate through the old file and place in new credential storage
-        old_session_dict = _read_session_cache(old_session_file_path)
-        for key, value in old_session_dict.items():
-            if key == "<mostRecent>":
-                set_most_recent_user(value)
-            else:
-                SynapseApiKeyCredentials(key, value).store_to_keyring()
-    # always attempt to remove the old session file
-    try:
-        os.remove(old_session_file_path)
-    except OSError:
-        # file already removed.
-        pass
