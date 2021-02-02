@@ -234,7 +234,7 @@ class TestConfigFileCredentialsProvider(object):
         api_key = "TWFkZSB5b3UgbG9vaw=="
         token = 'token123'
         self.expected_return_tuple = (self.username, password, api_key, token)
-        self.config_dict = {"username": self.username, "password": password, "apikey": api_key, 'authToken': token}
+        self.config_dict = {"username": self.username, "password": password, "apikey": api_key, 'authtoken': token}
         self.get_config_authentication__patcher = patch.object(self.syn, "_get_config_authentication",
                                                                return_value=self.config_dict)
         self.mock_get_config_authentication = self.get_config_authentication__patcher.start()

@@ -102,7 +102,7 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
             username = config_username
             password = config_dict.get('password')
             api_key = config_dict.get('apikey')
-            auth_token = config_dict.get('authToken')
+            auth_token = config_dict.get('authtoken')
 
         return username, password, api_key, auth_token
 
