@@ -4,6 +4,7 @@ import datetime
 import errno
 import json
 import os
+from pathlib import Path
 import requests
 import tempfile
 import urllib.request as urllib_request
@@ -2520,3 +2521,24 @@ class TestTableQuery:
             )
 
             assert (mock_download_result, expected_path) == actual_result
+
+
+def test_init_change_cache_path():
+    """
+    Verify that the user can customize the cache path.
+    The cache path is set to the default value if cache_root_dir argument is None.
+    """
+    cache_root_dir = '.synapseCache'
+    fanout = 1000
+    file_handle_id = '-1337'
+
+    syn = Synapse(debug=False, skip_checks=True)
+    expected_cache_path = os.path.join(str(Path.home()), cache_root_dir,
+                                       str(int(file_handle_id) % fanout), str(file_handle_id))
+    assert syn.cache.get_cache_dir(file_handle_id) == expected_cache_path
+
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+        syn_changed_cache_path = Synapse(debug=False, skip_checks=True, cache_root_dir=temp_dir_name)
+        expected_changed_cache_path = os.path.join(temp_dir_name, str(int(file_handle_id) % fanout),
+                                                   str(file_handle_id))
+        assert syn_changed_cache_path.cache.get_cache_dir(file_handle_id) == expected_changed_cache_path

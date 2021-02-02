@@ -103,7 +103,13 @@ class Cache:
             return {}
 
         with open(cache_map_file, 'r') as f:
-            cache_map = json.load(f)
+            try:
+                cache_map = json.load(f)
+            except json.decoder.JSONDecodeError:
+                # a corrupt cache map file that is not parseable as JSON is treated
+                # as if it does not exist at all (will be overwritten).
+                return {}
+
         return cache_map
 
     def _write_cache_map(self, cache_dir, cache_map):
