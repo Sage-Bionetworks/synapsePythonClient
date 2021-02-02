@@ -995,9 +995,9 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
         return True
     login_attempts = (
         ('password', default_password_filter),
-        ('apiKey', utils.is_base64_encoded),  # an api key is base64 encoded so we can exclude strings that aren't
         ('authToken', default_password_filter),  # although tokens are technically encoded, the client treats
                                                  # them as opaque so we don't do an encoding check
+        ('apiKey', utils.is_base64_encoded),  # an api key is base64 encoded so we can exclude strings that aren't
     )
 
     last_auth_ex = None

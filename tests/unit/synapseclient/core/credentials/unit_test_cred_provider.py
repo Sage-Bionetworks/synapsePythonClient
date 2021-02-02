@@ -138,17 +138,17 @@ class TestSynapseCredentialProvider(object):
             assert isinstance(cred, SynapseApiKeyCredentials)
 
     def test_create_synapse_credential__username_not_None_api_key_not_None(self):
-        """Verify that the api key is used if the password is not provided (and takes precedence over auth token)"""
+        """Verify that the api key is used if the password is and auth tokens are not provided"""
 
-        cred = self.provider._create_synapse_credential(self.syn, self.username, None, self.api_key, self.auth_token)
+        cred = self.provider._create_synapse_credential(self.syn, self.username, None, self.api_key, None)
         assert self.username == cred.username
         assert self.api_key == cred.secret
         assert isinstance(cred, SynapseApiKeyCredentials)
 
     def test_create_synapse_credential__username_not_None_api_key_is_None_auth_token_is_not_None(self):
-        """Verify that the auth bearer token is used if provided (and password and api key are not)"""
+        """Verify that the auth bearer token is used if provided and takes precedence over the api key"""
 
-        cred = self.provider._create_synapse_credential(self.syn, self.username, None, None, self.auth_token)
+        cred = self.provider._create_synapse_credential(self.syn, self.username, None, self.api_key, self.auth_token)
         assert self.username == cred.username
         assert self.auth_token == cred.secret
         assert isinstance(cred, SynapseAuthTokenCredentials)

@@ -18,6 +18,7 @@ class TestSynapseApiKeyCredentials:
         self.api_key_b64 = base64.b64encode(self.api_key).decode()
         self.username = "ahhhhhhhhhhhhhh"
         self.credentials = SynapseApiKeyCredentials(self.username, self.api_key_b64)
+        self.KEYRING_NAME = 'SYNAPSE.ORG_CLIENT'
 
     def test_username(self):
         assert self.username == self.credentials.username
@@ -26,11 +27,8 @@ class TestSynapseApiKeyCredentials:
         # test exposed variable
         assert self.api_key_b64 == self.credentials.secret
 
-        # test actual internal representation
-        assert self.api_key == self.credentials._api_key
-
         # also provided via api_key property for backwards compatibility
-        assert self.api_key == self.credentials._api_key
+        assert self.api_key_b64 == self.credentials.api_key
 
     def test_get_signed_headers(self):
         url = "https://www.synapse.org/fake_url"
@@ -77,7 +75,7 @@ class TestSynapseApiKeyCredentials:
         mock_keyring_get_password.return_value = self.api_key_b64
         credentials = SynapseApiKeyCredentials.get_from_keyring(self.username)
         mock_keyring_get_password.assert_called_once_with(
-            SynapseApiKeyCredentials.get_keyring_service_name(),
+            self.KEYRING_NAME,
             self.username,
         )
         assert credentials.username == self.username
@@ -87,7 +85,7 @@ class TestSynapseApiKeyCredentials:
     def test_delete_from_keyring(self, mock_keyring_delete_password):
         self.credentials.delete_from_keyring()
         mock_keyring_delete_password.assert_called_once_with(
-            SynapseApiKeyCredentials.get_keyring_service_name(),
+            self.KEYRING_NAME,
             self.username,
         )
 
@@ -95,7 +93,7 @@ class TestSynapseApiKeyCredentials:
     def test_store_to_keyring(self, mock_keyring_set_password):
         self.credentials.store_to_keyring()
         mock_keyring_set_password.assert_called_once_with(
-            SynapseApiKeyCredentials.get_keyring_service_name(),
+            self.KEYRING_NAME,
             self.username,
             self.api_key_b64,
         )
@@ -107,6 +105,7 @@ class TestSynapseAuthTokenCredentials:
         self.username = "ahhhhhhhhhhhhhh"
         self.auth_token = 'opensesame'
         self.credentials = SynapseAuthTokenCredentials(self.username, self.auth_token)
+        self.KEYRING_NAME = 'SYNAPSE.ORG_CLIENT_AUTH_TOKEN'
 
     def test_username(self):
         assert self.username == self.credentials.username
@@ -138,7 +137,7 @@ class TestSynapseAuthTokenCredentials:
         mock_keyring_get_password.return_value = self.auth_token
         credentials = SynapseAuthTokenCredentials.get_from_keyring(self.username)
         mock_keyring_get_password.assert_called_once_with(
-            SynapseAuthTokenCredentials.get_keyring_service_name(),
+            self.KEYRING_NAME,
             self.username,
         )
         assert credentials.username == self.username
@@ -148,7 +147,7 @@ class TestSynapseAuthTokenCredentials:
     def test_delete_from_keyring(self, mock_keyring_delete_password):
         self.credentials.delete_from_keyring()
         mock_keyring_delete_password.assert_called_once_with(
-            SynapseAuthTokenCredentials.get_keyring_service_name(),
+            self.KEYRING_NAME,
             self.username,
         )
 
@@ -156,7 +155,7 @@ class TestSynapseAuthTokenCredentials:
     def test_store_to_keyring(self, mock_keyring_set_password):
         self.credentials.store_to_keyring()
         mock_keyring_set_password.assert_called_once_with(
-            SynapseAuthTokenCredentials.get_keyring_service_name(),
+            self.KEYRING_NAME,
             self.username,
             self.auth_token,
         )

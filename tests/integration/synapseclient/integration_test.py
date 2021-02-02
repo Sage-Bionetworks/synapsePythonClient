@@ -64,7 +64,10 @@ def test_login(syn):
 
         # login using cached info
         syn.login(username, silent=True)
+        assert syn.credentials.username == username
+
         syn.login(silent=True)
+        assert syn.credentials.username == username
 
     except configparser.Error:
         raise ValueError("Please supply a username and password in the configuration file.")
