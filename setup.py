@@ -64,7 +64,6 @@ setuptools.setup(
     zip_safe=False,
 
     # test
-    test_suite='nose.collector',
     tests_require=test_deps,
 
     # metadata to display on PyPI
@@ -86,6 +85,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Operating System :: MacOS',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: Unix',
