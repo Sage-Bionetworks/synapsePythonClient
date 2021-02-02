@@ -27,7 +27,10 @@ class TestSynapseApiKeyCredentials:
         # test exposed variable
         assert self.api_key_b64 == self.credentials.secret
 
-        # also provided via api_key property for backwards compatibility
+        # test actual internal representation
+        assert self.api_key == self.credentials._api_key
+
+        # secret also provided via api_key property for backwards compatibility
         assert self.api_key_b64 == self.credentials.api_key
 
     def test_get_signed_headers(self):

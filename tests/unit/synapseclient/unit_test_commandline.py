@@ -212,7 +212,7 @@ def test_authenticate_login__auth_token(syn):
         login.side_effect = SynapseAuthenticationError()
 
         # simulate failure both as password and as auth token.
-        # token does is not a base 64 encoded string so we don't expect it to be
+        # token is not a base 64 encoded string so we don't expect it to be
         # tried as an api key
         with pytest.raises(SynapseAuthenticationError):
             cmdline._authenticate_login(syn, username, auth_token, **login_kwargs)
