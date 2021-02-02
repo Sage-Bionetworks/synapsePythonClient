@@ -1,10 +1,8 @@
 import json
 
-from unittest.mock import call, create_autospec, MagicMock, mock_open, patch
+from unittest.mock import mock_open, patch
 
 import synapseclient.core.credentials.cached_sessions as cached_sessions
-from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials
-from synapseclient import Synapse
 
 
 class TestCachedSessionsMostRecentUserFile:

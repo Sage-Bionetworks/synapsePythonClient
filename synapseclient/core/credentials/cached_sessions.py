@@ -1,8 +1,5 @@
 import os
 import json
-from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials
-from synapseclient.core.cache import CACHE_ROOT_DIR
-from synapseclient.core.utils import equal_paths
 
 SESSION_CACHE_FILEPATH = os.path.expanduser("~/.synapseSession")
 
