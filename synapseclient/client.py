@@ -228,9 +228,6 @@ class Synapse(object):
         self.max_threads = transfer_config['max_threads']
         self.use_boto_sts_transfers = transfer_config['use_boto_sts']
 
-        # TODO: remove once most clients are no longer on versions <= 1.7.5
-        cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
-
     @property
     def debug(self):
         return self._debug
@@ -320,13 +317,15 @@ class Synapse(object):
         self.portalEndpoint = endpoints['portalEndpoint']
 
     def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False,
-              forced=False):
+              forced=False, authToken=None):
         """
         Valid combinations of login() arguments:
 
         - email/username and password
 
         - email/username and apiKey (Base64 encoded string)
+
+        - email/username and authToken (e.g. a bearer authorization token, e.g. personal access token)
 
         - sessionToken (**DEPRECATED**)
 
@@ -344,6 +343,11 @@ class Synapse(object):
                              following fields: email, password, apiKey
         :param rememberMe:   Whether the authentication information should be cached in your operating system's
                              credential storage.
+        :param silent:       Suppress login welcome message
+        :param forced:       Skip any cached credential lookup
+        :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
+                                password or apiKey
+
         **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
         **Linux** systems.
         If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for
@@ -391,8 +395,17 @@ class Synapse(object):
 
         credential_provder_chain = get_default_credential_chain()
         # TODO: remove deprecated sessionToken when we move to a different solution
-        self.credentials = credential_provder_chain.get_credentials(self, UserLoginArgs(email, password, apiKey, forced,
-                                                                                        sessionToken))
+        self.credentials = credential_provder_chain.get_credentials(
+            self,
+            UserLoginArgs(
+                email,
+                password,
+                apiKey,
+                forced,
+                sessionToken,
+                authToken,
+            )
+        )
 
         # Final check on login success
         if not self.credentials:
@@ -400,7 +413,7 @@ class Synapse(object):
 
         # Save the API key in the cache
         if rememberMe:
-            cached_sessions.set_api_key(self.credentials.username, self.credentials.api_key)
+            self.credentials.store_to_keyring()
             cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
@@ -492,10 +505,9 @@ class Synapse(object):
                          See the flag "rememberMe" in :py:func:`synapseclient.Synapse.login`.
         """
         # Delete the user's API key from the cache
-        if forgetMe:
-            cached_sessions.remove_api_key(self.credentials.username)
+        if forgetMe and self.credentials:
+            self.credentials.delete_from_keyring()
 
-        # Remove the authentication information from memory
         self.credentials = None
 
     def invalidateAPIKey(self):
@@ -1892,9 +1904,13 @@ class Synapse(object):
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
                     if os.path.exists(temp_destination) else {}
                 response = with_retry(
-                    lambda: self._requests_session.get(url,
-                                                       headers=self._generate_headers(url, range_header),
-                                                       stream=True, allow_redirects=False),
+                    lambda: self._requests_session.get(
+                        url,
+                        headers=self._generate_headers(range_header),
+                        stream=True,
+                        allow_redirects=False,
+                        auth=self.credentials,
+                    ),
                     verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
                     exceptions._raise_for_status(response, verbose=self.debug)
@@ -3723,16 +3739,14 @@ class Synapse(object):
     #                   Low level Rest calls                   #
     ############################################################
 
-    def _generate_headers(self, url, headers=None):
-        """Generate headers signed with the API key."""
+    def _generate_headers(self, headers=None):
+        """Generate headers (auth headers produced separately by credentials object)"""
 
         if headers is None:
             headers = dict(self.default_headers)
 
         headers.update(synapseclient.USER_AGENT)
 
-        if self.credentials:
-            headers.update(self.credentials.get_signed_headers(url))
         return headers
 
     def _handle_synapse_http_error(self, response):
@@ -3758,8 +3772,16 @@ class Synapse(object):
         requests_session = requests_session or self._requests_session
 
         requests_method_fn = getattr(requests_session, method)
-        response = with_retry(lambda: requests_method_fn(uri, data=data, headers=headers, **kwargs),
-                              verbose=self.debug, **retryPolicy)
+        response = with_retry(
+            lambda: requests_method_fn(
+                uri,
+                data=data,
+                headers=headers,
+                auth=self.credentials,
+                **kwargs
+            ),
+            verbose=self.debug, **retryPolicy
+        )
         self._handle_synapse_http_error(response)
         return response
 
@@ -3839,7 +3861,7 @@ class Synapse(object):
             uri = endpoint + uri
 
         if headers is None:
-            headers = self._generate_headers(uri)
+            headers = self._generate_headers()
         return uri, headers
 
     def _build_retry_policy(self, retryPolicy={}):
