@@ -30,7 +30,7 @@ from synapseclient.core.exceptions import (
 )
 
 
-def _init_console_Logging():
+def _init_console_logging():
     # init a stdout logger for purposes of logging cli activity.
     # logging is preferred to writing directly to stdout since it can be configured/formatted/suppressed
     # but this is not yet universal across the client so it is initialized here from cli commands that
@@ -104,19 +104,19 @@ def get(args, syn):
         if isinstance(args.id, str) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
-                print("Associated file: %s with synapse ID %s" % (entity.path, entity.id))
+                syn.logger.info("Associated file: %s with synapse ID %s", entity.path, entity.id)
         # normal syn.get operation
         else:
             entity = syn.get(args.id, version=args.version,  # limitSearch=args.limitSearch,
                              followLink=args.followLink,
                              downloadLocation=args.downloadLocation)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
-                print("Downloaded file: %s" % os.path.basename(entity.path))
-            else:
-                print('WARNING: No files associated with entity %s\n' % entity.id)
-                print(entity)
 
-        print('Creating %s' % entity.path)
+                syn.logger.info("Downloaded file: %s", os.path.basename(entity.path))
+            else:
+                syn.logger.info('WARNING: No files associated with entity %s\n', entity.id)
+                syn.logger.info(entity)
+        syn.logger.info('Creating %s', entity.path)
 
 
 def sync(args, syn):
@@ -160,8 +160,7 @@ def store(args, syn):
                        forceVersion=force_version)
 
     _create_wiki_description_if_necessary(args, entity, syn)
-
-    print('Created/Updated entity: %s\t%s' % (entity['id'], entity['name']))
+    syn.logger.info('Created/Updated entity: %s\t%s', entity['id'], entity['name'])
 
     # After creating/updating, if there are annotations to add then
     # add them
@@ -191,7 +190,7 @@ def _descriptionFile_arg_check(args):
 def move(args, syn):
     """Moves an entity specified by args.id to args.parentId"""
     entity = syn.move(args.id, args.parentid)
-    print('Moved %s to %s' % (entity.id, entity.parentId))
+    syn.logger.info('Moved %s to %s', entity.id, entity.parentId)
 
 
 def associate(args, syn):
@@ -208,9 +207,9 @@ def associate(args, syn):
         try:
             ent = syn.get(fp, limitSearch=args.limitSearch)
         except SynapseFileNotFoundError:
-            print('WARNING: The file %s is not available in Synapse' % fp)
+            syn.logger.warning('WARNING: The file %s is not available in Synapse', fp)
         else:
-            print('%s.%i\t%s' % (ent.id, ent.versionNumber, fp))
+            syn.logger.info('%s.%i\t%s', ent.id, ent.versionNumber, fp)
 
 
 def copy(args, syn):
@@ -220,7 +219,7 @@ def copy(args, syn):
                                  excludeTypes=args.excludeTypes,
                                  version=args.version, updateExisting=args.updateExisting,
                                  setProvenance=args.setProvenance)
-    print(mappings)
+    syn.logger.info(mappings)
 
 
 def cat(args, syn):
@@ -253,18 +252,18 @@ def show(args, syn):
     sys.stdout.write('Provenance:\n')
     try:
         prov = syn.getProvenance(ent)
-        print(prov)
+        syn.logger.info(prov)
     except SynapseHTTPError:
-        print('  No Activity specified.\n')
+        syn.logger.error('  No Activity specified.\n')
 
 
 def delete(args, syn):
     if args.version:
         syn.delete(args.id, args.version)
-        print('Deleted entity %s, version %s' % (args.id, args.version))
+        syn.logger.info('Deleted entity %s, version %s', args.id, args.version)
     else:
         syn.delete(args.id)
-        print('Deleted entity: %s' % args.id)
+        syn.logger.info('Deleted entity: %s', args.id)
 
 
 def create(args, syn):
@@ -279,8 +278,7 @@ def create(args, syn):
     entity = syn.store(entity)
 
     _create_wiki_description_if_necessary(args, entity, syn)
-
-    print('Created entity: %s\t%s\n' % (entity['id'], entity['name']))
+    syn.logger.info('Created entity: %s\t%s\n', entity['id'], entity['name'])
 
 
 def onweb(args, syn):
@@ -310,14 +308,14 @@ def setProvenance(args, syn):
                 f.write(json.dumps(activity))
                 f.write('\n')
     else:
-        print('Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id)))
+        syn.logger.info('Set provenance record %s on entity %s\n', str(activity['id']), str(args.id))
 
 
 def getProvenance(args, syn):
     activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output == 'STDOUT':
-        print(json.dumps(activity, sort_keys=True, indent=2))
+        syn.logger.info(json.dumps(activity, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
@@ -364,7 +362,7 @@ def getAnnotations(args, syn):
     annotations = syn.get_annotations(args.id)
 
     if args.output is None or args.output == 'STDOUT':
-        print(json.dumps(annotations, sort_keys=True, indent=2))
+        syn.logger.info(json.dumps(annotations, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
@@ -377,7 +375,7 @@ def storeTable(args, syn):
                                             args.parentid,
                                             args.csv)
     table_ent = syn.store(table)
-    print('{"tableId": "%s"}' % table_ent.tableId)
+    syn.logger.info('{"tableId": "%s"}', table_ent.tableId)
 
 
 def submit(args, syn):
@@ -433,7 +431,7 @@ def login(args, syn):
     """Log in to Synapse, optionally caching credentials"""
     login_with_prompt(syn, args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe, forced=True)
     profile = syn.getUserProfile()
-    print("Logged in as: {userName} ({ownerId})".format(**profile))
+    syn.logger.info("Logged in as: {userName} ({ownerId})".format(**profile))
 
 
 def test_encoding(args, syn):
@@ -461,13 +459,12 @@ def get_sts_token(args, syn):
         sts_string = json.dumps(resp)
     else:
         sts_string = str(resp)
-
-    print(sts_string)
+    syn.logger.info(sts_string)
 
 
 def migrate(args, syn):
     """Migrate Synapse entities to a new storage location"""
-    _init_console_Logging()
+    _init_console_logging()
 
     result = synapseutils.index_files_for_migration(
         syn,
@@ -547,7 +544,11 @@ def build_parser():
     parser.add_argument('-c', '--configPath', dest='configPath', default=synapseclient.client.CONFIG_FILE,
                         help='Path to configuration file used to connect to Synapse [default: %(default)s]')
 
-    parser.add_argument('--debug', dest='debug', action='store_true')
+    parser.add_argument('--debug', dest='debug', action='store_true', help='Set mode to debug mode, default is False')
+
+    parser.add_argument('--silent', dest='silent', action='store_true',
+                        help='Set mode to silent mode, default is False')
+
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
                         help='suppress checking for version upgrade messages and endpoint redirection')
 
@@ -1013,7 +1014,8 @@ def _authenticate_login(syn, user, password, **login_kwargs):
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
-    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks, configPath=args.configPath)
+    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks,
+                                configPath=args.configPath, silent=args.silent, )
     perform_main(args, syn)
 
 

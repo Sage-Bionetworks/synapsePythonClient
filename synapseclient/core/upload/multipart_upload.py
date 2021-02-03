@@ -27,7 +27,6 @@ from typing import List, Mapping
 
 from synapseclient.core import pool_provider
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.cumulative_transfer_progress import printTransferProgress
 from synapseclient.core.exceptions import (
     _raise_for_status,  # why is is this a single underscore
     SynapseHTTPError,
@@ -295,7 +294,14 @@ class UploadAttempt:
                 file_size,
             )
 
-            printTransferProgress(
+            # printTransferProgress(
+            #     progress,
+            #     file_size,
+            #     prefix='Uploading',
+            #     postfix=self._dest_file_name,
+            #     previouslyTransferred=previously_transferred,
+            # )
+            self._syn._print_transfer_progress(
                 progress,
                 file_size,
                 prefix='Uploading',
@@ -326,7 +332,7 @@ class UploadAttempt:
 
                 if part_size and not self._is_copy():
                     progress += part_size
-                    printTransferProgress(
+                    self._syn._print_transfer_progress(
                         min(progress, file_size),
                         file_size,
                         prefix='Uploading',

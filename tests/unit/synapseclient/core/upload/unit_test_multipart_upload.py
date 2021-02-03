@@ -803,8 +803,7 @@ class TestMultipartUpload:
             'associateObjectType': associate_object_type,
         }
 
-        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload, \
-                mock.patch.object(multipart_upload, 'printTransferProgress') as mock_print_progress:
+        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload:
             expected_upload_request = {
                 'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest',
                 'fileName': None,
@@ -832,7 +831,7 @@ class TestMultipartUpload:
                 max_threads=None,
             )
 
-            assert not mock_print_progress.called
+            assert not syn._print_transfer_progress.called
 
     def test_multipart_copy__explicit_args(self):
         """Test multipart copy explicitly defining all args.
@@ -852,8 +851,7 @@ class TestMultipartUpload:
 
         storage_location_id = 5432
 
-        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload, \
-                mock.patch.object(multipart_upload, 'printTransferProgress') as mock_print_progress:
+        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload:
 
             # call specifying all optional kwargs
             kwargs = {
@@ -890,7 +888,7 @@ class TestMultipartUpload:
                 max_threads=kwargs['max_threads'],
             )
 
-            assert not mock_print_progress.called
+            assert not syn._print_transfer_progress.called
 
     def _multipart_upload_test(self, upload_side_effect, syn, *args, **kwargs):
         with mock.patch.object(
