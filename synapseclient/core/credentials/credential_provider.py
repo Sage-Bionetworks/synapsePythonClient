@@ -22,7 +22,7 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
 
         :param ``synapseclient.client.Synapse`` syn:        Synapse client instance
         :param ``cred_data.UserLoginArgs`` user_login_args: subset of arguments passed during syn.login()
-        :return: tuple of (username, password, api_key, bearer auth token (e.g. a personal access token),
+        :return: tuple of (username, password, api_key, bearer auth token e.g. a personal access token),
                     any of these values could None if it is not available.
         """
         return None, None, None, None
