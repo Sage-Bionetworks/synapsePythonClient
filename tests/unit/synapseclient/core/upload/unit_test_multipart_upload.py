@@ -613,7 +613,7 @@ class TestMultipartUpload:
                 mock.patch.object(
                     multipart_upload,
                     '_multipart_upload',
-                ) as mock_multipart_upload, \
+                ) as mock_multipart_upload,\
                 mock.patch.object(multipart_upload, 'Spinner') as mock_spinner:
 
             os_path_getsize.return_value = file_size
