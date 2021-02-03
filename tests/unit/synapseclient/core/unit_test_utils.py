@@ -7,7 +7,7 @@ from shutil import rmtree
 import tempfile
 
 import pytest
-from unittest.mock import patch, mock_open
+from unittest.mock import patch, mock_open, Mock, call
 
 from synapseclient.core import constants, utils
 
@@ -407,3 +407,42 @@ ValueError: error 2
 
 """  # noqa for outdenting
                 assert expected == utils._synapse_error_msg(ex2)
+
+
+@patch.object(utils, 'hashlib')
+def test_md5_for_file(mock_hashlib):
+    """
+    Verify the md5 calculation is correct, and call the callback func if it passed in as argument.
+    """
+    file_name = '/home/foo/bar/test.txt'
+    mock_callback = Mock()
+    mock_md5 = Mock()
+    mock_hashlib.md5.return_value = mock_md5
+    with patch.object(utils, 'open', mock_open(), create=True) as mocked_open:
+        mocked_open.return_value.read.side_effect = ['data1', 'data2', None]
+        utils.md5_for_file(file_name, callback=mock_callback)
+
+        mocked_open.assert_called_once_with(file_name, 'rb')
+        assert mock_md5.update.call_args_list == [call('data1'), call('data2')]
+        mock_callback.call_count == 3
+
+
+class TestSpinner:
+    """
+    Verify the Spinner object work correctly
+    """
+    def setup(self):
+        self.msg = "test_msg"
+        self.spinner = utils.Spinner(self.msg)
+
+    @patch.object(utils, 'sys')
+    def test_show_on_terminal(self, mock_sys):
+        assert self.spinner._tick == 0
+        self.spinner.show_on_terminal()
+        mock_sys.stdout.write.assert_called_once_with(f"\r {'|'} {self.msg}")
+
+        assert self.spinner._tick == 1
+        self.spinner.show_on_terminal()
+        mock_sys.stdout.write.assert_called_with(f"\r {'/'} {self.msg}")
+
+        mock_sys.stdout.flush.call_count == 2

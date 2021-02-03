@@ -34,7 +34,7 @@ from synapseclient.core.exceptions import (
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
 )
-from synapseclient.core.utils import md5_for_file, MB
+from synapseclient.core.utils import md5_for_file, MB, Spinner
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
@@ -472,7 +472,9 @@ def multipart_upload_file(
         mime_type, _ = mimetypes.guess_type(file_path, strict=False)
         content_type = mime_type or 'application/octet-stream'
 
-    md5_hex = md5_for_file(file_path).hexdigest()
+    spinner = Spinner()
+    callback_func = spinner.show_on_terminal if not syn.silent else None
+    md5_hex = md5_for_file(file_path, callback=callback_func).hexdigest()
 
     part_size = _get_part_size(part_size, file_size)
 

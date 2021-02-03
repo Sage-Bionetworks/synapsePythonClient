@@ -5,6 +5,7 @@ import json
 import pytest
 from unittest import mock
 
+from synapseclient import client
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseUploadAbortedException,
@@ -608,7 +609,8 @@ class TestMultipartUpload:
                 mock.patch.object(
                     multipart_upload,
                     '_multipart_upload',
-                ) as mock_multipart_upload:
+                ) as mock_multipart_upload, \
+                mock.patch('synapseclient.core.utils.Spinner') as mock_spinner:
 
             os_path_getsize.return_value = file_size
             md5_for_file.return_value.hexdigest.return_value = md5_hex
@@ -644,6 +646,19 @@ class TestMultipartUpload:
                 file_path,
                 storage_location_id=storage_location_id,
             )
+
+            md5_for_file.assert_called_once_with(file_path, callback=None)
+            mock_spinner.show_on_terminal.assert_not_called()
+
+            with mock.patch.object(client, 'Synapse') as mock_syn:
+                mock_syn.silent = False
+                multipart_upload_file(
+                    mock_syn,
+                    file_path,
+                    storage_location_id=storage_location_id,
+                )
+                md5_for_file.assert_called_with(file_path, callback=mock_spinner.show_on_terminal)
+
             mock_multipart_upload.assert_called_once_with(
                 syn,
                 'baz',
