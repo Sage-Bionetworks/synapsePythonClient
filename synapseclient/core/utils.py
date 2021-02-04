@@ -974,6 +974,7 @@ class Spinner:
 
     def show_on_terminal(self):
         spinner = ['|', '/', '-', '\\'][self._tick % 4]
-        sys.stdout.write(f"\r {spinner} {self.msg}")
-        sys.stdout.flush()
+        if sys.stdin.isatty():
+            sys.stdout.write(f"\r {spinner} {self.msg}")
+            sys.stdout.flush()
         self._tick += 1
