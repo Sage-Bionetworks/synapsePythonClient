@@ -1,3 +1,4 @@
+import json
 import pytest
 import sqlite3
 import tempfile
@@ -9,8 +10,10 @@ import synapseclient.core.upload
 from synapseclient.core.constants.concrete_types import FILE_ENTITY, FOLDER_ENTITY, PROJECT_ENTITY, TABLE_ENTITY
 from synapseclient.core import utils
 import synapseutils
+from synapseutils import migrate_functions
 from synapseutils.migrate_functions import (
     _check_indexed,
+    _create_new_file_version,
     _confirm_migration,
     _ensure_schema,
     _get_row_dict,
@@ -19,6 +22,9 @@ from synapseutils.migrate_functions import (
     _index_file_entity,
     _index_table_entity,
     _IndexingError,
+    _migrate_file_version,
+    _migrate_table_attached_file,
+    _MigrationKey,
     _MigrationStatus,
     _MigrationType,
     _retrieve_index_settings,
@@ -1367,6 +1373,182 @@ class TestMigrate:
         with pytest.raises(ValueError) as ex:
             self._migrate_test(db_path, syn, False)
             assert 'boom' in str(ex)
+
+
+def test_create_new_file_version(syn):
+    """Verify the behavior of create_new_file_version"""
+
+    key = _MigrationKey('syn123', _MigrationType.FILE, 1, None, None)
+    from_file_handle_id = 1234
+    to_file_handle_id = 4321
+    storage_location_id = 9876
+
+    mock_file = mock.MagicMock(spec=synapseclient.File)
+
+    with mock.patch.object(syn, 'get') as mock_syn_get, \
+            mock.patch.object(syn, 'store') as mock_syn_store, \
+            mock.patch.object(migrate_functions, 'multipart_copy') as mock_multipart_copy:
+        mock_syn_get.return_value = mock_file
+        mock_multipart_copy.return_value = to_file_handle_id
+
+        # first test without passing an existing destination file handle.
+        # the from file handle should be copied
+        assert to_file_handle_id == _create_new_file_version(syn, key, from_file_handle_id, None, storage_location_id)
+
+        mock_syn_get.assert_called_once_with(key.id, downloadFile=False)
+        mock_syn_store.assert_called_once_with(mock_file)
+        assert mock_file.dataFileHandleId == to_file_handle_id
+
+        mock_multipart_copy.assert_called_once_with(
+            syn,
+            {
+                'fileHandleId': from_file_handle_id,
+                'associateObjectId': key.id,
+                'associateObjectType': 'FileEntity',
+            },
+            storage_location_id=storage_location_id
+        )
+
+        # now test if a destination file handle already exists (it was shared with a another
+        # entity and has already been copied)
+        mock_multipart_copy.reset_mock()
+        mock_syn_get.reset_mock()
+        mock_syn_store.reset_mock()
+        assert to_file_handle_id == _create_new_file_version(
+            syn,
+            key,
+            from_file_handle_id,
+            to_file_handle_id,
+            storage_location_id
+        )
+
+        mock_syn_get.assert_called_once_with(key.id, downloadFile=False)
+        mock_syn_store.assert_called_once_with(mock_file)
+        assert mock_multipart_copy.called is False
+
+
+def test_migrate_file_version(syn):
+    """Verify the behavior of migrate_file_version"""
+
+    key = _MigrationKey('syn123', _MigrationType.FILE, 5, None, None)
+    from_file_handle_id = 1234
+    to_file_handle_id = 4321
+    storage_location_id = 9876
+
+    expected_file_version_update_put_uri = f"/entity/{key.id}/version/{key.version}/filehandle"
+    expected_file_handle_update_request_body = json.dumps({
+        'oldFileHandleId': from_file_handle_id,
+        'newFileHandleId': to_file_handle_id,
+    })
+
+    with mock.patch.object(syn, 'restPUT') as mock_syn_rest_put, \
+            mock.patch.object(migrate_functions, 'multipart_copy') as mock_multipart_copy:
+
+        mock_multipart_copy.return_value = to_file_handle_id
+
+        # first test without passing an existing destination file handle.
+        # the from file handle should be copied
+        assert to_file_handle_id == _migrate_file_version(syn, key, from_file_handle_id, None, storage_location_id)
+
+        mock_multipart_copy.assert_called_once_with(
+            syn,
+            {
+                'fileHandleId': from_file_handle_id,
+                'associateObjectId': key.id,
+                'associateObjectType': 'FileEntity',
+            },
+            storage_location_id=storage_location_id
+        )
+
+        mock_syn_rest_put.assert_called_once_with(
+            expected_file_version_update_put_uri,
+            expected_file_handle_update_request_body
+        )
+
+        mock_syn_rest_put.reset_mock()
+        mock_multipart_copy.reset_mock()
+
+        # test with an existing file handle id
+        assert to_file_handle_id == _migrate_file_version(
+            syn,
+            key,
+            from_file_handle_id,
+            to_file_handle_id,
+            storage_location_id
+        )
+
+        # should NOT have copied the file
+        assert mock_multipart_copy.called is False
+
+        # but we still should have updated the entity version with the new file handle id
+        mock_syn_rest_put.assert_called_once_with(
+            expected_file_version_update_put_uri,
+            expected_file_handle_update_request_body
+        )
+
+
+def test_migrate_table_attached_file(syn):
+    """"Verify the behavior of _migrate_table_attached_file"""
+
+    key = _MigrationKey('syn123', _MigrationType.FILE, None, 5, 6)
+    from_file_handle_id = 1234
+    to_file_handle_id = 4321
+    storage_location_id = 9876
+    expected_row_mapping = {str(key.col_id): to_file_handle_id}
+
+    with mock.patch.object(syn, 'store') as mock_syn_store, \
+            mock.patch('synapseclient.table') as mock_table, \
+            mock.patch('synapseclient.PartialRowset') as mock_row_set, \
+            mock.patch.object(migrate_functions, 'multipart_copy') as mock_multipart_copy:
+
+        mock_multipart_copy.return_value = to_file_handle_id
+
+        # calling without an existing to file handle should result in a copy
+        assert to_file_handle_id == _migrate_table_attached_file(
+            syn,
+            key,
+            from_file_handle_id,
+            None,
+            storage_location_id
+        )
+
+        mock_multipart_copy.assert_called_once_with(
+            syn,
+            {
+                'fileHandleId': from_file_handle_id,
+                'associateObjectId': key.id,
+                'associateObjectType': 'TableEntity',
+            },
+            storage_location_id=storage_location_id
+        )
+
+        mock_syn_store.assert_called_once_with(
+            mock_row_set.return_value
+        )
+        mock_table.PartialRow.assert_called_once_with(expected_row_mapping, key.row_id)
+        mock_row_set.assert_called_once_with(key.id, [mock_table.PartialRow.return_value])
+
+        mock_syn_store.reset_mock()
+        mock_table.reset_mock()
+        mock_row_set.reset_mock()
+        mock_multipart_copy.reset_mock()
+
+        # calling with an existing to file handle should not result in a copy
+        assert to_file_handle_id == _migrate_table_attached_file(
+            syn,
+            key,
+            from_file_handle_id,
+            to_file_handle_id,
+            storage_location_id
+        )
+
+        mock_syn_store.assert_called_once_with(
+            mock_row_set.return_value
+        )
+        mock_table.PartialRow.assert_called_once_with(expected_row_mapping, key.row_id)
+        mock_row_set.assert_called_once_with(key.id, [mock_table.PartialRow.return_value])
+
+        assert mock_multipart_copy.called is False
 
 
 def _verify_schema(cursor):

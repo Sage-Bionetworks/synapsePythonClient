@@ -615,6 +615,8 @@ def migrate_indexed_files(
             # ordering by synapse id. there can be multiple file handles associated with a particular
             # synapse id (i.e. multiple file entity versions or multiple table attached files per table),
             # so the ordering and where clause need to account for that.
+            # we also include in the query any unmigrated files that were skipped previously through
+            # the query loop that share a file handle with a file handle id that is now finished.
             version = key.version if key.version is not None else -1
             row_id = key.row_id if key.row_id is not None else -1
             col_id = key.col_id if key.col_id is not None else -1
@@ -685,7 +687,7 @@ def migrate_indexed_files(
                     # from another record in this batch then we defer it
                     continue
 
-                to_file_handle_id = _check_file_handle_exists(cursor, from_file_handle_id)
+                to_file_handle_id = _check_file_handle_exists(conn.cursor(), from_file_handle_id)
                 if not to_file_handle_id:
                     pending_file_handle_ids.add(from_file_handle_id)
 
