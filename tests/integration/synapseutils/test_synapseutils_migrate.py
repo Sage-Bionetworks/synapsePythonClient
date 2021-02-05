@@ -72,19 +72,17 @@ def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id
     file_1 = synapseclient.File(name=file_1_name, path=file_1_path, parent=folder_1_entity)
     file_1_entity = syn.store(file_1)
 
-    # file 2 shares a file handle with file 1
-    file_2_path = file_1_path
+    file_2_path = _create_temp_file()
     schedule_for_cleanup(file_2_path)
     file_2_name = "{}-{}".format(test_name, 2)
     file_2 = synapseclient.File(name=file_2_name, path=file_2_path, parent=folder_1_entity)
-    file_2.dataFileHandleId = file_1_entity.dataFileHandleId
     file_2_entity = syn.store(file_2)
 
-    # file 3 shares the same file handle id as file 2
-    file_3_path = _create_temp_file()
+    # file 3 shares the same file handle id as file 1
+    file_3_path = file_1_path
     file_3_name = "{}-{}".format(test_name, 3)
     file_3 = synapseclient.File(name=file_3_name, path=file_3_path, parent=folder_1_entity)
-    file_3.dataFileHandleId = file_2_entity.dataFileHandleId
+    file_3.dataFileHandleId = file_1_entity.dataFileHandleId
     file_3_entity = syn.store(file_3)
 
     table_1_cols = [
