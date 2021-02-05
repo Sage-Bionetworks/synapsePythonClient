@@ -621,6 +621,25 @@ def migrate_indexed_files(
             row_id = key.row_id if key.row_id is not None else -1
             col_id = key.col_id if key.col_id is not None else -1
 
+            query_kwargs = {
+                'indexed_status': _MigrationStatus.INDEXED.value,
+                'id': key.id,
+                'file_type': _MigrationType.FILE.value,
+                'table_type': _MigrationType.TABLE_ATTACHED_FILE.value,
+                'version': version,
+                'row_id': row_id,
+                'col_id': col_id,
+
+                # ensure that we aren't ever adding more items to the shared executor than allowed
+                'limit': min(batch_size, max_concurrent_file_copies - len(futures)),
+            }
+
+            # we can't use both named and positional literals in a query, so we use named
+            # literals and then inline a string for the values for our file handle ids
+            # since these are a dynamic list of values
+            pending_file_handle_in = "('" + "','".join(pending_file_handle_ids) + "')"
+            completed_file_handle_in = "('" + "','".join(completed_file_handle_ids) + "')"
+
             results = cursor.execute(
                 f"""
                     select
@@ -632,17 +651,17 @@ def migrate_indexed_files(
                         from_file_handle_id
                     from migrations
                     where
-                        status = ?
+                        status = :indexed_status
                         and (
                                 (
-                                    ((id > ? and type in (?, ?))
-                                    or (id = ? and type = ? and version is not null and version > ?)
-                                    or (id = ? and type = ? and (row_id > ? or (row_id = ? and col_id > ?))))
-                                    and from_file_handle_id not in ({",".join(['?'] * len(pending_file_handle_ids))})
+                                    ((id > :id and type in (:file_type, :table_type))
+                                    or (id = :id and type = :file_type and version is not null and version > :version)
+                                    or (id = :id and type = :table_type and (row_id > :row_id or (row_id = :row_id and col_id > :col_id))))
+                                    and from_file_handle_id not in {pending_file_handle_in}
                                 ) or
                                 (
-                                    id <= ?
-                                    and from_file_handle_id in ({",".join(['?'] * len(completed_file_handle_ids))})
+                                    id <= :id 
+                                    and from_file_handle_id in {completed_file_handle_in} 
                                 )
                         )
                     order by
@@ -651,22 +670,9 @@ def migrate_indexed_files(
                         row_id,
                         col_id,
                         version
-                    limit ?
-                """,
-                (
-                    _MigrationStatus.INDEXED.value,
-
-                    key.id, _MigrationType.FILE.value, _MigrationType.TABLE_ATTACHED_FILE.value,
-                    key.id, _MigrationType.FILE.value, version,
-                    key.id, _MigrationType.TABLE_ATTACHED_FILE.value, row_id, row_id, col_id,
-                    *pending_file_handle_ids,
-
-                    key.id,
-                    *completed_file_handle_ids,
-
-                    # ensure that we aren't ever adding more items to the shared executor than allowed
-                    min(batch_size, max_concurrent_file_copies - len(futures))
-                )
+                    limit :limit
+                """,  # noqa
+                query_kwargs,
             )
 
             row_count = 0
