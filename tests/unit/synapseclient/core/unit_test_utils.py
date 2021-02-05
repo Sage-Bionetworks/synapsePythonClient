@@ -436,7 +436,7 @@ class TestSpinner:
         self.spinner = utils.Spinner(self.msg)
 
     @patch.object(utils, 'sys')
-    def test_show_on_terminal(self, mock_sys):
+    def test_show_on_terminal_is_atty(self, mock_sys):
         assert self.spinner._tick == 0
         self.spinner.show_on_terminal()
         mock_sys.stdout.write.assert_called_once_with(f"\r {'|'} {self.msg}")
@@ -446,3 +446,11 @@ class TestSpinner:
         mock_sys.stdout.write.assert_called_with(f"\r {'/'} {self.msg}")
 
         mock_sys.stdout.flush.call_count == 2
+
+    @patch.object(utils, 'sys')
+    def test_show_on_terminal_is_not_atty(self, mock_sys):
+        mock_sys.stdin.isatty.return_value = False
+        self.spinner.show_on_terminal()
+        mock_sys.stdout.write.assert_not_called()
+        mock_sys.stdout.flush.assert_not_called()
+        assert self.spinner._tick == 1
