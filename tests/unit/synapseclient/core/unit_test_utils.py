@@ -437,6 +437,11 @@ class TestSpinner:
 
     @patch.object(utils, 'sys')
     def test_show_on_terminal_is_atty(self, mock_sys):
+        """
+        assume the sys.stdin.isatty is True, verify the sys.stdout.write will call once if show_on_terminal is called.
+        """
+        mock_sys.stdin.isatty.return_value = True
+
         assert self.spinner._tick == 0
         self.spinner.show_on_terminal()
         mock_sys.stdout.write.assert_called_once_with(f"\r {'|'} {self.msg}")
@@ -449,7 +454,12 @@ class TestSpinner:
 
     @patch.object(utils, 'sys')
     def test_show_on_terminal_is_not_atty(self, mock_sys):
+        """
+        assume the sys.stdin.isatty is False,
+        verify the sys.stdout won't be called.
+        """
         mock_sys.stdin.isatty.return_value = False
+
         self.spinner.show_on_terminal()
         mock_sys.stdout.write.assert_not_called()
         mock_sys.stdout.flush.assert_not_called()
