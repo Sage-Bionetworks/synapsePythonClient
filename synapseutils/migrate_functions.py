@@ -8,7 +8,6 @@ import traceback
 import typing
 
 import synapseclient
-from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 from synapseclient.core.constants import concrete_types
 from synapseclient.core import pool_provider
 from synapseclient.core import utils
@@ -19,8 +18,6 @@ Contains functions for migrating the storage location of Synapse entities.
 Entities can be updated or moved so that their underlying file handles are stored
 in the new location.
 """
-
-logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 def test_import_sqlite3():
@@ -494,7 +491,7 @@ def index_files_for_migration(
             )
 
         except _IndexingError as indexing_ex:
-            logger.exception(
+            logging.exception(
                 "Aborted due to failure to index entity %s of type %s. Use the continue_on_error option to skip "
                 "over entities due to individual failures.",
                 indexing_ex.entity_id,
@@ -518,7 +515,7 @@ def _confirm_migration(cursor, force, storage_location_id):
         ).fetchone()[0]
 
         if count == 0:
-            logger.info("No items for migration.")
+            logging.info("No items for migration.")
 
         elif sys.stdout.isatty():
             uinput = input("{} items for migration to {}. Proceed? (y/n)? ".format(
@@ -528,7 +525,7 @@ def _confirm_migration(cursor, force, storage_location_id):
             confirmed = uinput.strip().lower() == 'y'
 
         else:
-            logger.info(
+            logging.info(
                 "%s items for migration. "
                 "force option not used, and console input not available to confirm migration, aborting. "
                 "Use the force option or run from an interactive shell to proceed with migration.",
@@ -600,7 +597,7 @@ def migrate_indexed_files(
 
         storage_location_id = settings['storage_location_id']
         if not _confirm_migration(cursor, force, storage_location_id):
-            logger.info("Migration aborted.")
+            logging.info("Migration aborted.")
             return
 
         key = _MigrationKey(id='', type=None, row_id=-1, col_id=-1, version=-1)
@@ -866,10 +863,10 @@ def _check_indexed(cursor, entity_id):
     ).fetchone()
 
     if indexed_row:
-        logger.debug('%s already indexed, skipping', entity_id)
+        logging.debug('%s already indexed, skipping', entity_id)
         return True
 
-    logger.debug('%s not yet indexed, indexing now', entity_id)
+    logging.debug('%s not yet indexed, indexing now', entity_id)
     return False
 
 
@@ -1029,7 +1026,7 @@ def _index_container(
 ):
     entity_id = utils.id_of(container_entity)
     concrete_type = utils.concrete_type_of(container_entity)
-    logger.info('Indexing %s %s', concrete_type[concrete_type.rindex('.') + 1:], entity_id)
+    logging.info('Indexing %s %s', concrete_type[concrete_type.rindex('.') + 1:], entity_id)
 
     include_types = ['folder']
     if file_version_strategy != 'skip':
@@ -1126,7 +1123,7 @@ def _index_entity(
     except Exception as ex:
 
         if continue_on_error:
-            logger.warning("Error indexing entity %s of type %s", entity_id, concrete_type, exc_info=True)
+            logging.warning("Error indexing entity %s of type %s", entity_id, concrete_type, exc_info=True)
             tb_str = ''.join(traceback.format_exception(type(ex), ex, ex.__traceback__))
 
             cursor.execute(
