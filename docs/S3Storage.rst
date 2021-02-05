@@ -26,11 +26,15 @@ The following illustrates creating a new folder backed by a user specified S3 bu
 
     # create a new folder to use with external S3 storage
     folder = syn.store(Folder(name=folder_name, parent=parent))
-    syn.create_s3_storage_location(
+    folder, storage_location, project_setting = syn.create_s3_storage_location(
         folder=folder,
         bucket_name='my-external-synapse-bucket',
         base_key='path/within/bucket',
      )
+
+    # if needed the unique storage location identifier can be obtained e.g.
+    storage_location_id = storage_location['storageLocationId']
+
 
 Once an external S3 storage folder exists, you can interact with it as you would any other folder using
 Synapse tools. If you wish to add an object that is stored within the bucket to Synapse you can do that by adding
@@ -86,12 +90,13 @@ Note also that STS can only be enabled on an empty folder.
 
     # create a new folder to use with STS and external S3 storage
     folder = syn.store(Folder(name=folder_name, parent=parent))
-    syn.create_s3_storage_location(
+    folder, storage_location, project_setting = syn.create_s3_storage_location(
         folder=folder,
         bucket_name='my-external-synapse-bucket',
         base_key='path/within/bucket',
         sts_enabled=True,
      )
+
 
 Using credentials with the awscli
 ---------------------------------
@@ -200,6 +205,7 @@ of its contents using the
     # a path on disk where this utility can create a sqlite database to store its index.
     # nothing needs to exist at this path, but it must be a valid path on a volume with sufficient
     # disk space to store a meta data listing of all the contents in the indexed entity.
+    # a rough rule of thumb is 100kB per 1000 entities indexed.
     db_path = '/tmp/foo/bar.db'
 
     result = synapseutils.index_files_for_migration(
@@ -214,8 +220,10 @@ of its contents using the
         continue_on_error=true
     )
 
-Once the entity has been indexed you can optionally programmatically inspect the the contents of the index
-or output its contents to a csv file in order to manually inspect it using the `available methods <synapseutils.html#synapseutils.migrate_functions.MigrationResult>`__
+If called on a container (e.g. a Project or Folder) the *index_files_for_migration* function will recursively
+index all of the children of that container (including its subfolders). Once the entity has been indexed you can
+optionally programmatically inspect the the contents of the index or output its contents to a csv file in order to
+manually inspect it using the `available methods <synapseutils.html#synapseutils.migrate_functions.MigrationResult>`__
 on the returned result object.
 
 The next step to trigger the migration from the indexed files is using the `migrate_indexed_files <synapseutils.html#synapseutils.migrate_functions.migrate_indexed_files>`__ function, e.g.
@@ -235,7 +243,7 @@ The next step to trigger the migration from the indexed files is using the `migr
 The result can be again be inspected as above to see the results of the migration.
 
 Note that above the *force* parameter is necessary if running from a non-interactive shell. Proceeding
-with a migration requires confirmation in the form of user prompt. If running programtically this parameter
+with a migration requires confirmation in the form of user prompt. If running programatically this parameter
 instead confirms your intention to proceed with the migration.
 
 

@@ -2284,6 +2284,8 @@ class Synapse(object):
         :param base_key:            The base key of within the bucket, None to use the bucket root,
                                         only applicable if bucket_name is passed
         :param sts_enabled:         Whether this storage location should be STS enabled
+
+        :return: a 3-tuple of the synapse Folder, a the storage location setting, and the project setting dictionaries
         """
         if folder_name and parent:
             if folder:
