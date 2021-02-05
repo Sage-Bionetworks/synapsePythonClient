@@ -270,7 +270,7 @@ class TestUploadAttempt:
                 mock_session.put.call_args_list ==
                 expected_put_calls)
 
-            assert result == part_number
+            assert result == (part_number, len(chunk))
 
             if refresh_url_response:
                 refresh_urls.assert_called_once_with(
