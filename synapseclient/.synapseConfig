@@ -6,7 +6,7 @@
 ## Alternatively, you can use rememberMe=True in synapseclient.login or login subcommand of the commandline client.
 #[authentication]
 #username = <username>
-#apikey = <apikey>
+#authtoken = <authtoken>
 
 
 ## If you have projects with file stored on SFTP servers, you can specify your credentials here

@@ -48,7 +48,7 @@ setuptools.setup(
         'pandas': ["pandas>=0.25.0,<2.0"],
         'pysftp': ["pysftp>=0.2.8,<0.3"],
         'boto3': ["boto3>=1.7.0,<2.0"],
-        'docs': ["sphinx>=3.0,<4.0", "sphinx-argparse>=0.2,<.3"],
+        'docs': ["sphinx>=3.0,<4.0", "sphinx-argparse>=0.2,<0.3"],
         'tests': test_deps,
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt==3.1'],
     },
@@ -64,7 +64,6 @@ setuptools.setup(
     zip_safe=False,
 
     # test
-    test_suite='nose.collector',
     tests_require=test_deps,
 
     # metadata to display on PyPI
@@ -86,6 +85,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Operating System :: MacOS',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: Unix',

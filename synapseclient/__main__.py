@@ -543,7 +543,7 @@ def build_parser():
     parser.add_argument('-u', '--username', dest='synapseUser',
                         help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword',
-                        help='Password used to connect to Synapse')
+                        help='Password, api key, or token used to connect to Synapse')
     parser.add_argument('-c', '--configPath', dest='configPath', default=synapseclient.client.CONFIG_FILE,
                         help='Path to configuration file used to connect to Synapse [default: %(default)s]')
 
@@ -957,6 +957,8 @@ def build_parser():
 
 def perform_main(args, syn):
     if 'func' in args:
+        if args.func != login:
+            login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
         try:
             args.func(args, syn)
         except Exception as ex:
@@ -964,6 +966,10 @@ def perform_main(args, syn):
                 raise
             else:
                 sys.stderr.write(utils._synapse_error_msg(ex))
+    else:
+        # if no command provided print out help and quit
+        # if we require python 3.7 or above, we can use required argument tp add_subparsers instead
+        build_parser().print_help()
 
 
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
@@ -976,38 +982,55 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
 
         passwd = None
         while not passwd:
-            # must encode password prompt because getpass() has OS-dependent implementation and complains about unicode
-            # on Windows python 2.7
-            passwd = getpass.getpass(("Password or api key for " + user + ": ").encode('utf-8'))
-
+            # if the terminal is not a tty, we are unable to read from standard input
+            # For git bash using python getpass
+            # https://stackoverflow.com/questions/49858821/python-getpass-doesnt-work-on-windows-git-bash-mingw64
+            if not sys.stdin.isatty():
+                raise SynapseAuthenticationError("No password was provided and unable to read from standard input")
+            else:
+                passwd = getpass.getpass(("Password or api key for " + user + ": "))
         _authenticate_login(syn, user, passwd, rememberMe=rememberMe, forced=forced)
 
 
-def _authenticate_login(syn, user, password, **login_kwargs):
-    # login with the given password. If the password is not valid and it appears to be an api key
-    # then we attempt a login using it as an api key instead.
-    try:
-        syn.login(user, password, **login_kwargs)
-    except SynapseNoCredentialsError:
-        # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
-        raise
-    except SynapseAuthenticationError:
-        # if the entered password appears to be a base64 encoded string then we additionally attempt
-        # to login using it as an api key instead.
-        if utils.is_base64_encoded(password):
-            # the password appears to be a base64 encoded string, it might be an apikey
-            syn.login(user, apiKey=password, **login_kwargs)
-        else:
-            raise
+def _authenticate_login(syn, user, secret, **login_kwargs):
+    # login using the given secret.
+    # we try logging in using the secret as a password, an api key, and an auth bearer token, in that order.
+    # each attempt results in a call to the services, which can mean extra calls than if we explicitly knew
+    # which type of secret we had, but the alternative of defining separate commands/parameters for the different
+    # types of secrets would pollute the top level argument space and make the stdin input option more complex
+    # for the user (e.g. first ask them to specify which type of secret they have rather than just an input prompt)
+
+    def default_password_filter(password):
+        return True
+    login_attempts = (
+        ('password', default_password_filter),
+        ('authToken', default_password_filter),  # although tokens are technically encoded, the client treats
+                                                 # them as opaque so we don't do an encoding check
+        ('apiKey', utils.is_base64_encoded),  # an api key is base64 encoded so we can exclude strings that aren't
+    )
+
+    last_auth_ex = None
+    for (login_key, secret_filter) in login_attempts:
+        if secret_filter(secret):
+            try:
+                login_kwargs_with_secret = {login_key: secret}
+                login_kwargs_with_secret.update(login_kwargs)
+                syn.login(user, **login_kwargs_with_secret)
+                break
+            except SynapseNoCredentialsError:
+                # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
+                raise
+            except SynapseAuthenticationError as ex:
+                last_auth_ex = ex
+                continue
+    else:
+        raise last_auth_ex
 
 
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks, configPath=args.configPath)
-    if not ('func' in args and args.func == login):
-        # if we're not executing the "login" operation, automatically authenticate before running operation
-        login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
     perform_main(args, syn)
 
 

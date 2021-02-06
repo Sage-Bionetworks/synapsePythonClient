@@ -21,19 +21,24 @@ When installing the Synapse Python client, the `.synapseConfig` is added to your
     #[authentication]
     #username = <username>
     #password = <password>
-    #apikey = <apikey>
+    #authtoken = <authtoken>
 
-To enable this section, uncomment it. You will only need to specify either `username` and `password` or `username` and `apikey`. For security purposes, we recommend that you use Synapse `apikey` instead of your `password`::
+To enable this section, uncomment it. You will only need to specify either `username` and `password` or `username` and `authtoken`. For security purposes, we recommend that you use `authtoken` instead of your `password`.
+You can generate a personal access token that can be used in the .synapseConfig as an authtoken at synapse.org under your Settings.
+
+::
 
     [authentication]
     username = <username>
-    apikey = <apikey>
+    authtoken = <authtoken>
 
 Now, you can login without specifying your `username` and `password`::
 
     import synapseclient
     syn = synapseclient.login()
 
+The .synapseConfig also supports a legacy `apikey` which can be used instead of the `password` or `authtoken`, however api key support in the synapseConfig is considered deprecated in favor of personal access tokens which
+can be scoped to certain functions and which are revocable. If needed your legacy `apikey` can also be obtained from your synapse.org Settings.
 
 Letting the Operating System Manage Your Synapse Credentials
 ============================================================
