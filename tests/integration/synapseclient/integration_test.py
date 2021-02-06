@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from synapseclient import client
 from synapseclient import Activity, Annotations, File, Folder, login, Project, Synapse, Team
+from synapseclient.core.credentials import credential_provider
 from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseHTTPError, SynapseNoCredentialsError
 import synapseclient.core.utils as utils
 from synapseclient.core.version_check import version_check
@@ -31,7 +32,7 @@ def test_login(syn):
         # Simple login with ID + PW
         syn.login(username, password, silent=True)
 
-        api_key = syn.credentials.api_key
+        api_key = syn.credentials.secret
 
         # Login with ID + API key
         syn.login(email=username, apiKey=api_key, silent=True)
@@ -50,17 +51,23 @@ def test_login(syn):
 
         # login using cache
         # mock to make the config file empty
-        with patch.object(syn, "_get_config_authentication", return_value={}):
+        with patch.object(syn, "_get_config_authentication", return_value={}), \
+                patch.object(credential_provider, 'cached_sessions') as mock_cached_sessions:
+            mock_cached_sessions.get_most_recent_user.return_value = None
 
             # Login with no credentials
-            pytest.raises(SynapseNoCredentialsError, syn.login)
+            with pytest.raises(SynapseNoCredentialsError):
+                syn.login()
 
-            # remember login info in cache
-            syn.login(username, password, rememberMe=True, silent=True)
+        # remember login info in cache
+        syn.login(username, password, rememberMe=True, silent=True)
 
-            # login using cached info
-            syn.login(username, silent=True)
-            syn.login(silent=True)
+        # login using cached info
+        syn.login(username, silent=True)
+        assert syn.credentials.username == username
+
+        syn.login(silent=True)
+        assert syn.credentials.username == username
 
     except configparser.Error:
         raise ValueError("Please supply a username and password in the configuration file.")

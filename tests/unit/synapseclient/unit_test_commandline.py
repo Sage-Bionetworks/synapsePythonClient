@@ -156,7 +156,7 @@ def test_authenticate_login__success(syn):
 
     with patch.object(syn, 'login'):
         cmdline._authenticate_login(syn, 'foo', 'bar', rememberMe=True, silent=True)
-        syn.login.assert_called_once_with('foo', 'bar', rememberMe=True, silent=True)
+        syn.login.assert_called_once_with('foo', password='bar', rememberMe=True, silent=True)
 
 
 def test_authenticate_login__api_key(syn):
@@ -168,8 +168,9 @@ def test_authenticate_login__api_key(syn):
     login_kwargs = {'rememberMe': True}
 
     expected_login_calls = [
-        call(username, password, **login_kwargs),
-        call(username, apiKey=password, **login_kwargs)
+        call(username, password=password, **login_kwargs),
+        call(username, authToken=password, **login_kwargs),
+        call(username, apiKey=password, **login_kwargs),
     ]
 
     with patch.object(syn, 'login') as login:
@@ -184,13 +185,50 @@ def test_authenticate_login__api_key(syn):
 
         # now simulate success when used as an api key
         def login_side_effect(*args, **kwargs):
-            if login.call_count == 1:
+            api_key = kwargs.get('apiKey')
+            if not api_key:
                 raise SynapseAuthenticationError()
-            return
 
         login.side_effect = login_side_effect
 
         cmdline._authenticate_login(syn, username, password, **login_kwargs)
+        assert expected_login_calls == login.call_args_list
+
+
+def test_authenticate_login__auth_token(syn):
+    """Verify attempting to authenticate when supplying an auth bearer token instead of an password (or api key).
+    Should attempt to treat the password as an api key after the initial failure as a password and api key"""
+
+    username = 'foo'
+    auth_token = 'auth_bearer_token'
+    login_kwargs = {'rememberMe': True}
+
+    expected_login_calls = [
+        call(username, password=auth_token, **login_kwargs),
+        call(username, authToken=auth_token, **login_kwargs),
+    ]
+
+    with patch.object(syn, 'login') as login:
+        login.side_effect = SynapseAuthenticationError()
+
+        # simulate failure both as password and as auth token.
+        # token is not a base 64 encoded string so we don't expect it to be
+        # tried as an api key
+        with pytest.raises(SynapseAuthenticationError):
+            cmdline._authenticate_login(syn, username, auth_token, **login_kwargs)
+
+        assert expected_login_calls == login.call_args_list
+        login.reset_mock()
+
+        def login_side_effect(*args, **kwargs):
+            # simulate a failure when called with other than auth token
+            passed_auth_token = kwargs.get('authToken')
+            if not passed_auth_token:
+                raise SynapseAuthenticationError()
+
+        login.side_effect = login_side_effect
+
+        cmdline._authenticate_login(syn, username, auth_token, **login_kwargs)
         assert expected_login_calls == login.call_args_list
 
 
@@ -210,10 +248,11 @@ def test_login_with_prompt(mock_authenticate_login, syn):
     mock_authenticate_login.assert_called_once_with(syn, user, password, **login_kwargs)
 
 
+@patch.object(cmdline, 'sys')
 @patch.object(cmdline, 'getpass')
 @patch.object(cmdline, 'input')
 @patch.object(cmdline, '_authenticate_login')
-def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_getpass, syn):
+def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_getpass, mock_sys, syn):
     """Verify logging in when entering username/pass from the console."""
 
     user = 'foo'
@@ -229,6 +268,8 @@ def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_ge
             raise SynapseNoCredentialsError()
         return
 
+    mock_sys.stdin.isatty.return_value = True
+
     mock_authenticate_login.side_effect = authenticate_side_effect
     mock_input.return_value = user
     mock_getpass.getpass.return_value = password
@@ -236,7 +277,7 @@ def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_ge
     cmdline.login_with_prompt(syn, None, None, **login_kwargs)
 
     mock_input.assert_called_once_with("Synapse username: ")
-    mock_getpass.getpass.assert_called_once_with(("Password or api key for " + user + ": ").encode('utf-8'))
+    mock_getpass.getpass.assert_called_once_with(("Password or api key for " + user + ": "))
 
     expected_authenticate_calls = [
         call(syn, None, None, **login_kwargs),
@@ -244,3 +285,55 @@ def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_ge
     ]
 
     assert expected_authenticate_calls == mock_authenticate_login.call_args_list
+
+
+@patch.object(cmdline, 'sys')
+@patch.object(cmdline, 'input')
+def test_login_with_prompt_no_tty(mock_input, mock_sys, syn):
+    """
+    Verify login_with_prompt when the terminal is not a tty,
+    we are unable to read from standard input and throw a SynapseAuthenticationError
+    """
+
+    user = 'test_user'
+    login_kwargs = {
+        'rememberMe': False,
+        'silent': True,
+        'forced': True,
+    }
+
+    mock_sys.stdin.isatty.return_value = False
+    mock_input.return_value = user
+    with pytest.raises(SynapseAuthenticationError):
+        cmdline.login_with_prompt(syn, None, None, **login_kwargs)
+
+
+@patch.object(cmdline, 'build_parser')
+def test_no_command_print_help(mock_build_parser, syn):
+    """
+    Verify command without any function,
+    we are automatically print out help instructions.
+    """
+
+    args = cmdline.build_parser().parse_args(['-u', 'test_user'])
+    mock_build_parser.assert_called_once_with()
+
+    cmdline.perform_main(args, syn)
+    mock_build_parser.call_count == 2
+
+    mock_build_parser.return_value.print_help.assert_called_once_with()
+
+
+@patch.object(cmdline, 'login_with_prompt')
+def test_command_auto_login(mock_login_with_prompt, syn):
+    """
+    Verify command with the function but without login function,
+    we are calling login_with_prompt automatically.
+    """
+
+    mock_login_with_prompt.assert_not_called()
+
+    args = cmdline.build_parser().parse_args(['-u', 'test_user', 'get'])
+    cmdline.perform_main(args, syn)
+
+    mock_login_with_prompt.assert_called_once_with(syn, 'test_user', None, silent=True)

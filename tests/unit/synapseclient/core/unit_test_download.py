@@ -110,7 +110,7 @@ def create_mock_response(url, response_type, **kwargs):
     return response
 
 
-def mock_generate_headers(self, url, headers=None):
+def mock_generate_headers(self, headers=None):
     return {}
 
 
