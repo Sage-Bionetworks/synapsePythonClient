@@ -589,7 +589,7 @@ class Synapse(object):
         response = self.restGET(f"/user/{userid}/certifiedUserPassingRecord")
         return response
 
-    def get_certification_status(self, user: typing.Union[str, int]) -> bool:
+    def is_certified(self, user: typing.Union[str, int]) -> bool:
         """Determines whether a Synapse user is a certified user.
 
         :params user: Synapse username or Id

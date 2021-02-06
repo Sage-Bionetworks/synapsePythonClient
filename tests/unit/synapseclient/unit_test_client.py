@@ -2536,13 +2536,13 @@ def test__get_certified_passing_record(userid, syn):
 
 
 @pytest.mark.parametrize("response", [True, False])
-def test_get_certification_status(response, syn):
+def test_is_certified(response, syn):
     with patch.object(syn, "getUserProfile",
                       return_value={"ownerId": "foobar"}) as patch_get_user,\
          patch.object(syn,
                       "_get_certified_passing_record",
                       return_value={'passed': response}) as patch_get_cert:
-        is_certified = syn.get_certification_status("test")
+        is_certified = syn.is_certified("test")
         patch_get_user.assert_called_once_with("test")
         patch_get_cert.assert_called_once_with("foobar")
         assert is_certified is response
