@@ -3,6 +3,7 @@ import base64
 import pytest
 from unittest.mock import create_autospec, MagicMock, patch
 
+from synapseclient.core.exceptions import SynapseAuthenticationError
 from synapseclient.core.credentials import credential_provider
 from synapseclient.core.credentials.credential_provider import (
     cached_sessions,
@@ -151,14 +152,14 @@ class TestSynapseCredentialProvider(object):
             assert isinstance(cred, SynapseApiKeyCredentials)
 
     def test_create_synapse_credential__username_not_None_api_key_not_None(self):
-        """Verify that the api key is used if the password is and auth tokens are not provided"""
+        """Verify that the api key is used if the password is None and auth token is not provided"""
 
         cred = self.provider._create_synapse_credential(self.syn, self.username, None, self.api_key, None)
         assert self.username == cred.username
         assert self.api_key == cred.secret
         assert isinstance(cred, SynapseApiKeyCredentials)
 
-    def test_create_synapse_credential__username_not_None_api_key_is_not_None_auth_token_is_not_None(self, mocker):
+    def test_create_synapse_credential__username_not_None__auth_token_is_not_None_api_key_not_None(self, mocker):
         """Verify that the auth bearer token is used if provided and takes precedence over the api key"""
 
         mock_rest_get = mocker.patch.object(self.syn, 'restGET')
@@ -169,6 +170,17 @@ class TestSynapseCredentialProvider(object):
 
         creds = self.provider._create_synapse_credential(self.syn, self.username, None, self.api_key, self.auth_token)
         assert creds is mock_creds
+
+    def test_create_synapse_credential__username_auth_token_mismatch(self, mocker):
+        """Verify that if both a username and a auth token are provided, and error is raised
+        if they do not correspond"""
+
+        mock_rest_get = mocker.patch.object(self.syn, 'restGET')
+        mock_rest_get.return_value = {'userName': "otherUserName"}
+
+        with pytest.raises(SynapseAuthenticationError) as ex:
+            self.provider._create_synapse_credential(self.syn, self.username, None, self.api_key, self.auth_token)
+            assert str(ex.value) == 'username and auth_token both provided but username does not match token profile'
 
 
 class TestUserArgsSessionTokenCredentialsProvider(object):

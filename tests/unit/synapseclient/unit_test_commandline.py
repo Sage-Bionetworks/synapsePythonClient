@@ -248,14 +248,25 @@ def test_login_with_prompt(mock_authenticate_login, syn):
     mock_authenticate_login.assert_called_once_with(syn, user, password, **login_kwargs)
 
 
-@patch.object(cmdline, 'sys')
-@patch.object(cmdline, 'getpass')
-@patch.object(cmdline, 'input')
-@patch.object(cmdline, '_authenticate_login')
-def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_getpass, mock_sys, syn):
-    """Verify logging in when entering username/pass from the console."""
+@pytest.mark.parametrize(
+    'username,expected_pass_prompt',
+    [
+        ('foo', 'Password or api key for user foo:'),
+        ('', 'Auth token:'),
+    ]
+)
+def test_login_with_prompt__getpass(mocker, username, expected_pass_prompt, syn):
+    """
+    Verify logging in when entering username and a secret from the console.
+    The secret prompt should be customized depending on whether a username was entered
+    or not (if not prompt for an auth token since username is not required for an auth token).
+    """
 
-    user = 'foo'
+    mock_sys = mocker.patch.object(cmdline, 'sys')
+    mock_getpass = mocker.patch.object(cmdline, 'getpass')
+    mock_input = mocker.patch.object(cmdline, 'input')
+    mock_authenticate_login = mocker.patch.object(cmdline, '_authenticate_login')
+
     password = 'bar'
     login_kwargs = {
         'rememberMe': False,
@@ -265,23 +276,26 @@ def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_ge
 
     def authenticate_side_effect(*args, **kwargs):
         if mock_authenticate_login.call_count == 1:
+            # the first authenticate call doesn't take any input from console
+            # (i.e. tries to use cache or config), when that returns no credentials
+            # it prompts for username and a secret
             raise SynapseNoCredentialsError()
         return
 
     mock_sys.stdin.isatty.return_value = True
 
     mock_authenticate_login.side_effect = authenticate_side_effect
-    mock_input.return_value = user
+    mock_input.return_value = username
     mock_getpass.getpass.return_value = password
 
     cmdline.login_with_prompt(syn, None, None, **login_kwargs)
 
     mock_input.assert_called_once_with("Synapse username (leave blank if using an auth token): ")
-    mock_getpass.getpass.assert_called_once_with(f"Password or api key for user {user}:")
+    mock_getpass.getpass.assert_called_once_with(expected_pass_prompt)
 
     expected_authenticate_calls = [
         call(syn, None, None, **login_kwargs),
-        call(syn, user, password, **{k: v for k, v in login_kwargs.items() if k != 'silent'})
+        call(syn, username, password, **{k: v for k, v in login_kwargs.items() if k != 'silent'})
     ]
 
     assert expected_authenticate_calls == mock_authenticate_login.call_args_list

@@ -1,6 +1,7 @@
 import abc
 import deprecated.sphinx
 
+from synapseclient.core.exceptions import SynapseAuthenticationError
 from .cred_data import SynapseApiKeyCredentials, SynapseAuthTokenCredentials
 from . import cached_sessions
 
@@ -52,9 +53,11 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
             profile_username = profile.get('userName')
 
             if username and username != profile_username:
-                # an username is not provided when logging in with an auth token however if both are provided
+                # if a username is not required when logging in with an auth token however if both are provided
                 # raise an error if they do not correspond to avoid any ambiguity about what profile was logged in
-                raise ValueError('username and auth_token both provided but username does not match token profile')
+                raise SynapseAuthenticationError(
+                    'username and auth_token both provided but username does not match token profile'
+                )
 
             credentials.username = profile_username
             return credentials

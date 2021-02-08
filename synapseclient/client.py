@@ -325,7 +325,7 @@ class Synapse(object):
 
         - email/username and apiKey (Base64 encoded string)
 
-        - email/username and authToken (e.g. a bearer authorization token, e.g. personal access token)
+        - authToken
 
         - sessionToken (**DEPRECATED**)
 
