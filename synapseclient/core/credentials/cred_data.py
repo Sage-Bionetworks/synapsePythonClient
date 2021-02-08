@@ -31,7 +31,7 @@ class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
     @classmethod
     def get_from_keyring(cls, username: str) -> 'SynapseCredentials':
         secret = keyring.get_password(cls.get_keyring_service_name(), username)
-        return cls(username, secret) if secret else None
+        return cls(secret, username) if secret else None
 
     def delete_from_keyring(self):
         try:
@@ -54,9 +54,9 @@ class SynapseApiKeyCredentials(SynapseCredentials):
         # cannot change without losing access to existing client's stored api keys
         return "SYNAPSE.ORG_CLIENT"
 
-    def __init__(self, username, api_key_string):
-        self._username = username
+    def __init__(self, api_key_string, username):
         self._api_key = base64.b64decode(api_key_string)
+        self._username = username
 
     @property
     def username(self):
@@ -103,13 +103,17 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
     def get_keyring_service_name(cls):
         return 'SYNAPSE.ORG_CLIENT_AUTH_TOKEN'
 
-    def __init__(self, username, token):
-        self._username = username
+    def __init__(self, token, username=None):
         self._token = token
+        self.username = username
 
     @property
     def username(self):
         return self._username
+
+    @username.setter
+    def username(self, username):
+        self._username = username
 
     @property
     def secret(self):

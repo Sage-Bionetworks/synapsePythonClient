@@ -276,8 +276,8 @@ def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_ge
 
     cmdline.login_with_prompt(syn, None, None, **login_kwargs)
 
-    mock_input.assert_called_once_with("Synapse username: ")
-    mock_getpass.getpass.assert_called_once_with(("Password or api key for " + user + ": "))
+    mock_input.assert_called_once_with("Synapse username (leave blank if using an auth token): ")
+    mock_getpass.getpass.assert_called_once_with(f"Password or api key for user {user}:")
 
     expected_authenticate_calls = [
         call(syn, None, None, **login_kwargs),

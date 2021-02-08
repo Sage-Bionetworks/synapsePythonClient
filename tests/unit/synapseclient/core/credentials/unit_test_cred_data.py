@@ -17,7 +17,7 @@ class TestSynapseApiKeyCredentials:
         self.api_key = b"I am api key"
         self.api_key_b64 = base64.b64encode(self.api_key).decode()
         self.username = "ahhhhhhhhhhhhhh"
-        self.credentials = SynapseApiKeyCredentials(self.username, self.api_key_b64)
+        self.credentials = SynapseApiKeyCredentials(self.api_key_b64, self.username)
         self.KEYRING_NAME = 'SYNAPSE.ORG_CLIENT'
 
     def test_username(self):
@@ -107,11 +107,17 @@ class TestSynapseAuthTokenCredentials:
     def setup(self):
         self.username = "ahhhhhhhhhhhhhh"
         self.auth_token = 'opensesame'
-        self.credentials = SynapseAuthTokenCredentials(self.username, self.auth_token)
+        self.credentials = SynapseAuthTokenCredentials(self.auth_token, username=self.username)
         self.KEYRING_NAME = 'SYNAPSE.ORG_CLIENT_AUTH_TOKEN'
 
     def test_username(self):
         assert self.username == self.credentials.username
+
+    def test_username_setter(self):
+        credentials = SynapseAuthTokenCredentials(self.auth_token)
+        assert credentials.username is None
+        credentials.username = self.username
+        assert credentials.username is self.username
 
     def test_secret(self):
         assert self.credentials.secret == self.auth_token

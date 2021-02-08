@@ -40,11 +40,24 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
         if username is not None:
             if password is not None:
                 retrieved_session_token = syn._getSessionToken(email=username, password=password)
-                return SynapseApiKeyCredentials(username, syn._getAPIKey(retrieved_session_token))
-            elif auth_token is not None:
-                return SynapseAuthTokenCredentials(username, auth_token)
-            elif api_key is not None:
-                return SynapseApiKeyCredentials(username, api_key)
+                return SynapseApiKeyCredentials(syn._getAPIKey(retrieved_session_token), username)
+
+            elif auth_token is None and api_key is not None:
+                # auth token takes precedence over api key
+                return SynapseApiKeyCredentials(api_key, username)
+
+        if auth_token is not None:
+            credentials = SynapseAuthTokenCredentials(auth_token)
+            profile = syn.restGET('/userProfile', auth=credentials)
+            profile_username = profile.get('userName')
+
+            if username and username != profile_username:
+                # an username is not provided when logging in with an auth token however if both are provided
+                # raise an error if they do not correspond to avoid any ambiguity about what profile was logged in
+                raise ValueError('username and auth_token both provided but username does not match token profile')
+
+            credentials.username = profile_username
+            return credentials
 
         return None
 
@@ -93,18 +106,19 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
 
         config_username = config_dict.get('username')
 
+        # token can be provided by itself without a username
+        token = config_dict.get('authtoken')
+
         username = None
         password = None
         api_key = None
-        auth_token = None
 
         if user_login_args.username is None or config_username == user_login_args.username:
             username = config_username
             password = config_dict.get('password')
             api_key = config_dict.get('apikey')
-            auth_token = config_dict.get('authtoken')
 
-        return username, password, api_key, auth_token
+        return username, password, api_key, token
 
 
 class CachedCredentialsProvider(SynapseCredentialsProvider):
@@ -120,8 +134,9 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
         if not user_login_args.skip_cache:
             username = user_login_args.username or cached_sessions.get_most_recent_user()
             if username:
-
                 api_creds = SynapseApiKeyCredentials.get_from_keyring(username)
+
+                # tokens are stored in the keyring under the username, so the username
                 auth_token_creds = SynapseAuthTokenCredentials.get_from_keyring(username)
 
                 api_key = api_creds.secret if api_creds else None

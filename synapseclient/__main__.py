@@ -977,8 +977,8 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
         _authenticate_login(syn, user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
-        while not user:
-            user = input("Synapse username: ")
+        user = input("Synapse username (leave blank if using an auth token): ")
+        secret_prompt = f"Password or api key for user {user}:" if user else "Auth token:"
 
         passwd = None
         while not passwd:
@@ -986,9 +986,10 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
             # For git bash using python getpass
             # https://stackoverflow.com/questions/49858821/python-getpass-doesnt-work-on-windows-git-bash-mingw64
             if not sys.stdin.isatty():
-                raise SynapseAuthenticationError("No password was provided and unable to read from standard input")
+                raise SynapseAuthenticationError(
+                    "No password, key, or token was provided and unable to read from standard input")
             else:
-                passwd = getpass.getpass(("Password or api key for " + user + ": "))
+                passwd = getpass.getpass(secret_prompt)
         _authenticate_login(syn, user, passwd, rememberMe=rememberMe, forced=forced)
 
 
@@ -1005,7 +1006,7 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
     login_attempts = (
         ('password', default_password_filter),
         ('authToken', default_password_filter),  # although tokens are technically encoded, the client treats
-                                                 # them as opaque so we don't do an encoding check
+        # them as opaque so we don't do an encoding check
         ('apiKey', utils.is_base64_encoded),  # an api key is base64 encoded so we can exclude strings that aren't
     )
 
