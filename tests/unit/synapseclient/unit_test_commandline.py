@@ -151,7 +151,7 @@ def test_get_sts_token(mock_print):
     mock_print.assert_called_once_with(expected_output)
 
 
-def test_authenticate_login__success(syn):
+def test_authenticate_login__username_password(syn):
     """Verify happy path for _authenticate_login"""
 
     with patch.object(syn, 'login'):
@@ -161,7 +161,7 @@ def test_authenticate_login__success(syn):
 
 def test_authenticate_login__api_key(syn):
     """Verify attempting to authenticate when supplying an api key as the password.
-    Should attempt to treat the password as an api key after the initial failure as a password."""
+    Should attempt to treat the password as an api key after the initial failures as a password and token"""
 
     username = 'foo'
     password = base64.b64encode(b'bar').decode('utf-8')
@@ -197,7 +197,7 @@ def test_authenticate_login__api_key(syn):
 
 def test_authenticate_login__auth_token(syn):
     """Verify attempting to authenticate when supplying an auth bearer token instead of an password (or api key).
-    Should attempt to treat the password as an api key after the initial failure as a password and api key"""
+    Should attempt to treat the password as token after the initial failure as a password."""
 
     username = 'foo'
     auth_token = 'auth_bearer_token'
@@ -230,6 +230,20 @@ def test_authenticate_login__auth_token(syn):
 
         cmdline._authenticate_login(syn, username, auth_token, **login_kwargs)
         assert expected_login_calls == login.call_args_list
+
+
+def test_authenticate_login__no_input(mocker, syn):
+    """Verify attempting to authenticate with a bare login command (i.e. expecting
+    to derive credentials from config for cache)"""
+
+    login_kwargs = {'rememberMe': True}
+
+    call(**login_kwargs),
+
+    mock_login = mocker.patch.object(syn, 'login')
+
+    cmdline._authenticate_login(syn, None, None, **login_kwargs)
+    mock_login.assert_called_once_with(None, **login_kwargs)
 
 
 @patch.object(cmdline, '_authenticate_login')

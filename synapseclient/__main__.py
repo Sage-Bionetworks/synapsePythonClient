@@ -995,26 +995,33 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
 
 def _authenticate_login(syn, user, secret, **login_kwargs):
     # login using the given secret.
-    # we try logging in using the secret as a password, an api key, and an auth bearer token, in that order.
+    # we try logging in using the secret as a password, a auth bearer token, an api key in that order.
     # each attempt results in a call to the services, which can mean extra calls than if we explicitly knew
     # which type of secret we had, but the alternative of defining separate commands/parameters for the different
     # types of secrets would pollute the top level argument space and make the stdin input option more complex
     # for the user (e.g. first ask them to specify which type of secret they have rather than just an input prompt)
 
-    def default_password_filter(password):
-        return True
     login_attempts = (
-        ('password', default_password_filter),
-        ('authToken', default_password_filter),  # although tokens are technically encoded, the client treats
-        # them as opaque so we don't do an encoding check
-        ('apiKey', utils.is_base64_encoded),  # an api key is base64 encoded so we can exclude strings that aren't
+        # a username is required when attempting a password login
+        ('password', lambda user, secret: user is not None and secret is not None),
+
+        # auth token login can be attempted without a username.
+        # although tokens are technically encoded, the client treats them as opaque so we don't do an encoding check
+        # on the secret itself
+        ('authToken', lambda user, secret: secret is not None),
+
+        # username is required for an api key and secret is base 64 encoded
+        ('apiKey', lambda user, secret: user is not None and utils.is_base64_encoded(secret)),
+
+        # an inputless login (i.e. derived from config or cache)
+        (None, lambda user, secret: user is None and secret is None),
     )
 
     last_auth_ex = None
     for (login_key, secret_filter) in login_attempts:
-        if secret_filter(secret):
+        if secret_filter(user, secret):
             try:
-                login_kwargs_with_secret = {login_key: secret}
+                login_kwargs_with_secret = {login_key: secret} if login_key else {}
                 login_kwargs_with_secret.update(login_kwargs)
                 syn.login(user, **login_kwargs_with_secret)
                 break
@@ -1025,7 +1032,10 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
                 last_auth_ex = ex
                 continue
     else:
-        raise last_auth_ex
+        # if one of the login filters applied raise that exception
+        # otherwise if none of them applied then a no credentials error
+        # will result in a login prompt
+        raise last_auth_ex or SynapseNoCredentialsError()
 
 
 def main():
