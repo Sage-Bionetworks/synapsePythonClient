@@ -190,7 +190,7 @@ class Synapse(object):
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                  debug=None, skip_checks=False, configPath=CONFIG_FILE, requests_session=None,
-                 silent=None, cache_root_dir=None):
+                 cache_root_dir=None, silent=None):
         self._requests_session = requests_session or requests.Session()
 
         cache_root_dir = cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir
@@ -204,7 +204,6 @@ class Synapse(object):
                 cache_root_dir = config.get('cache', 'location')
             if config.has_section('debug'):
                 config_debug = True
-                # debug = True
 
         if debug is None:
             debug = config_debug if config_debug is not None else DEBUG_DEFAULT
@@ -239,7 +238,6 @@ class Synapse(object):
 
     # initialize logging
     def _init_logger(self):
-        # if q elif debug else default
         logger_name = SILENT_LOGGER_NAME if self.silent else DEBUG_LOGGER_NAME if self.debug else DEFAULT_LOGGER_NAME
         self.logger = logging.getLogger(logger_name)
         logging.getLogger('py.warnings').handlers = self.logger.handlers
@@ -1983,13 +1981,6 @@ class Synapse(object):
                                 # response.raw.tell() is the total number of response body bytes transferred over the
                                 # wire so far
                                 transferred = response.raw.tell() + previouslyTransferred
-                                # cumulative_transfer_progress.printTransferProgress(
-                                #     transferred,
-                                #     toBeTransferred,
-                                #     'Downloading ',
-                                #     os.path.basename(destination),
-                                #     dt=time.time() - t0
-                                # )
                                 self._print_transfer_progress(
                                     transferred,
                                     toBeTransferred,
@@ -3054,7 +3045,6 @@ class Synapse(object):
                 progress = result.get('progressCurrent', lastProgress)
                 total = result.get('progressTotal', lastTotal)
                 if message != '':
-                    # utils.printTransferProgress(progress, total, message, isBytes=False)
                     self._print_transfer_progress(progress, total, message, isBytes=False)
                 # Reset the time if we made progress (fix SYNPY-214)
                 if message != lastMessage or lastProgress != progress:
@@ -3072,7 +3062,6 @@ class Synapse(object):
                 asynchronousJobStatus=result
             )
         if progressed:
-            # utils.printTransferProgress(total, total, message, isBytes=False)
             self._print_transfer_progress(total, total, message, isBytes=False)
         return result
 

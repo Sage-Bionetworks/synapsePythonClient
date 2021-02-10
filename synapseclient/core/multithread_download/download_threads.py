@@ -372,10 +372,6 @@ class _MultithreadedDownloader:
                     file_write.write(chunk_response.content)
 
                     transfer_status.transferred += len(chunk_data)
-                    # printTransferProgress(transfer_status.transferred,
-                    #                       transfer_status.total_bytes_to_be_transferred,
-                    #                       'Downloading ', os.path.basename(request.path),
-                    #                       dt=transfer_status.elapsed_time())
                     self._syn._print_transfer_progress(transfer_status.transferred,
                                                        transfer_status.total_bytes_to_be_transferred,
                                                        'Downloading ', os.path.basename(request.path),

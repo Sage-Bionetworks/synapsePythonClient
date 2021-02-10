@@ -678,7 +678,7 @@ class TestMultipartUpload:
                 file_path,
                 storage_location_id=storage_location_id,
             )
-            md5_for_file.assert_called_with(file_path, callback=mock_spinner.return_value.show_on_terminal)
+            md5_for_file.assert_called_with(file_path, callback=mock_spinner.return_value.print_tick)
 
             mock_multipart_upload.reset_mock()
 

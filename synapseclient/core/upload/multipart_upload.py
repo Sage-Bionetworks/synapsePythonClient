@@ -294,13 +294,6 @@ class UploadAttempt:
                 file_size,
             )
 
-            # printTransferProgress(
-            #     progress,
-            #     file_size,
-            #     prefix='Uploading',
-            #     postfix=self._dest_file_name,
-            #     previouslyTransferred=previously_transferred,
-            # )
             self._syn._print_transfer_progress(
                 progress,
                 file_size,
@@ -478,8 +471,7 @@ def multipart_upload_file(
         mime_type, _ = mimetypes.guess_type(file_path, strict=False)
         content_type = mime_type or 'application/octet-stream'
 
-    spinner = Spinner()
-    callback_func = spinner.show_on_terminal if not syn.silent else None
+    callback_func = Spinner().print_tick if not syn.silent else None
     md5_hex = md5_for_file(file_path, callback=callback_func).hexdigest()
 
     part_size = _get_part_size(part_size, file_size)

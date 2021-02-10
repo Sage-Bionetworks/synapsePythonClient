@@ -134,8 +134,7 @@ def test_get_multi_threaded_flag():
     assert args.multiThreaded
 
 
-@patch('builtins.print')
-def test_get_sts_token(mock_print):
+def test_get_sts_token():
     """Test getting an STS token."""
     folder_id = 'syn_1'
     permission = 'read_write'
@@ -148,8 +147,7 @@ def test_get_sts_token(mock_print):
     args = parser.parse_args(['get-sts-token', folder_id, permission, '-o', 'shell'])
     cmdline.get_sts_token(args, syn)
     syn.get_sts_storage_token.assert_called_with(folder_id, permission, output_format='shell')
-
-    # mock_print.assert_called_once_with(expected_output)
+    syn.logger.info.assert_called_once_with(expected_output)
 
 
 def test_authenticate_login__success(syn):

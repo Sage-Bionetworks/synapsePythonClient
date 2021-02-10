@@ -38,7 +38,7 @@ KB = 2**10
 BUFFER_SIZE = 8*KB
 
 
-def md5_for_file(filename, callback=None, block_size=2 * MB):
+def md5_for_file(filename, block_size=2 * MB, callback=None):
     """
     Calculates the MD5 of the given file.
     See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
@@ -972,7 +972,7 @@ class Spinner:
         self._tick = 0
         self.msg = msg
 
-    def show_on_terminal(self):
+    def print_tick(self):
         spinner = ['|', '/', '-', '\\'][self._tick % 4]
         if sys.stdin.isatty():
             sys.stdout.write(f"\r {spinner} {self.msg}")

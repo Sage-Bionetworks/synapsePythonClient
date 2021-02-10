@@ -213,7 +213,6 @@ class SFTPWrapper:
 
         # Download file
         with _retry_pysftp_connection(parsedURL.hostname, username=username, password=password) as sftp:
-            # sftp.get(path, localFilepath, preserve_mtime=True, callback=printTransferProgress)
             sftp.get(path, localFilepath, preserve_mtime=True,
                      callback=(printTransferProgress if show_progress else None))
         return localFilepath
