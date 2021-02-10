@@ -295,8 +295,8 @@ class Cache:
         if isinstance(after_date, datetime.datetime):
             after_date = utils.to_unix_epoch_time_secs(after_date)
 
-        if before_date and after_date and before_date > after_date:
-            raise ValueError("Before date can not be larger than after date")
+        if before_date and after_date and before_date < after_date:
+            raise ValueError("Before date should be larger than after date")
 
         count = 0
         for cache_dir in self._cache_dirs():
@@ -305,9 +305,9 @@ class Cache:
             # OK to purge directories in the cache that have no .cacheMap file
 
             last_modified_time = _get_modified_time(os.path.join(cache_dir, self.cache_map_file_name))
-            if last_modified_time is None or \
-                    (before_date and before_date > last_modified_time) or \
-                    (after_date and after_date < last_modified_time):
+            if last_modified_time is None or (
+                    (not before_date or before_date > last_modified_time) and
+                    (not after_date or after_date < last_modified_time)):
                 if dry_run:
                     print(cache_dir)
                 else:
