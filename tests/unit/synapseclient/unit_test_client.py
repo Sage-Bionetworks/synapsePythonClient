@@ -2568,6 +2568,31 @@ class TestSilentCommandAndLogger:
                                                                mock_kwargs)
 
 
+@pytest.mark.parametrize("userid", [999, 1456])
+def test__get_certified_passing_record(userid, syn):
+    """Test correct rest call"""
+    response = {"test": 5}
+    with patch.object(syn, "restGET", return_value=response) as patch_get:
+        record = syn._get_certified_passing_record(userid)
+        patch_get.assert_called_once_with(
+            f"/user/{userid}/certifiedUserPassingRecord"
+        )
+        assert record == response
+
+
+@pytest.mark.parametrize("response", [True, False])
+def test_is_certified(response, syn):
+    with patch.object(syn, "getUserProfile",
+                      return_value={"ownerId": "foobar"}) as patch_get_user,\
+         patch.object(syn,
+                      "_get_certified_passing_record",
+                      return_value={'passed': response}) as patch_get_cert:
+        is_certified = syn.is_certified("test")
+        patch_get_user.assert_called_once_with("test")
+        patch_get_cert.assert_called_once_with("foobar")
+        assert is_certified is response
+
+
 def test_init_change_cache_path():
     """
     Verify that the user can customize the cache path.

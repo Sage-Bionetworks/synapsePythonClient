@@ -579,6 +579,30 @@ class Synapse(object):
         uri = '/userGroupHeaders?prefix=%s' % urllib_urlparse.quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
+    def _get_certified_passing_record(self, userid: int) -> dict:
+        """Retrieve the Passing Record on the User Certification test for the given user.
+
+        :params userid: Synapse user Id
+
+        :returns: Synapse Passing Record
+            https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/quiz/PassingRecord.html
+        """
+        response = self.restGET(f"/user/{userid}/certifiedUserPassingRecord")
+        return response
+
+    def is_certified(self, user: typing.Union[str, int]) -> bool:
+        """Determines whether a Synapse user is a certified user.
+
+        :params user: Synapse username or Id
+
+        :returns: True if the Synapse user is certified
+        """
+        # Check if userid or username exists
+        syn_user = self.getUserProfile(user)
+        # Get passing record
+        certification_status = self._get_certified_passing_record(syn_user['ownerId'])
+        return certification_status['passed']
+
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
 

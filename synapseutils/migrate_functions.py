@@ -350,16 +350,23 @@ def _ensure_schema(cursor):
     # we get counts grouping on status
     cursor.execute("create index if not exists ix_status on migrations(status)")
 
+    # we check to see if there is already a migrated copy of a file handle before doing a copy
+    cursor.execute(
+        "create index if not exists ix_file_handle_ids on migrations(from_file_handle_id, to_file_handle_id)"
+    )
+
 
 def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
     completed, futures = concurrent.futures.wait(futures, return_when=return_when)
+    completed_file_handle_ids = set()
 
     for completed_future in completed:
 
         to_file_handle_id = None
         ex = None
         try:
-            key, to_file_handle_id = completed_future.result()
+            key, from_file_handle_id, to_file_handle_id = completed_future.result()
+            completed_file_handle_ids.add(from_file_handle_id)
             status = _MigrationStatus.MIGRATED.value
 
         except _MigrationError as migration_ex:
@@ -368,6 +375,7 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
 
             ex = migration_ex.__cause__
             key = migration_ex.key
+            completed_file_handle_ids.add(migration_ex.from_file_handle_id)
             status = _MigrationStatus.ERRORED.value
 
         tb_str = ''.join(traceback.format_exception(type(ex), ex, ex.__traceback__)) if ex else None
@@ -396,7 +404,7 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
         if not continue_on_error and ex:
             raise ex from None
 
-    return futures
+    return futures, completed_file_handle_ids
 
 
 def index_files_for_migration(
@@ -530,6 +538,25 @@ def _confirm_migration(cursor, force, storage_location_id):
     return confirmed
 
 
+def _check_file_handle_exists(cursor, from_file_handle_id):
+    # check if there is already a copied file handle for the given.
+    # if so we can re-use it rather than making another copy
+    row = cursor.execute(
+        """
+            select
+                to_file_handle_id
+            from
+                migrations
+            where
+                from_file_handle_id = ?
+                and to_file_handle_id is not null
+        """,
+        (from_file_handle_id,)
+    ).fetchone()
+
+    return row[0] if row else None
+
+
 def migrate_indexed_files(
     syn: synapseclient.Synapse,
     db_path: str,
@@ -577,27 +604,44 @@ def migrate_indexed_files(
             return
 
         key = _MigrationKey(id='', type=None, row_id=-1, col_id=-1, version=-1)
+
         futures = set()
+        pending_file_handle_ids = set()
+        completed_file_handle_ids = set()
 
+        batch_size = _get_batch_size()
         while True:
-            if len(futures) >= max_concurrent_file_copies:
-                futures = _wait_futures(
-                    conn,
-                    cursor,
-                    futures,
-                    concurrent.futures.FIRST_COMPLETED,
-                    continue_on_error,
-                )
-
             # we query for additional file or table associated file handles to migrate in batches
             # ordering by synapse id. there can be multiple file handles associated with a particular
             # synapse id (i.e. multiple file entity versions or multiple table attached files per table),
             # so the ordering and where clause need to account for that.
+            # we also include in the query any unmigrated files that were skipped previously through
+            # the query loop that share a file handle with a file handle id that is now finished.
             version = key.version if key.version is not None else -1
             row_id = key.row_id if key.row_id is not None else -1
             col_id = key.col_id if key.col_id is not None else -1
+
+            query_kwargs = {
+                'indexed_status': _MigrationStatus.INDEXED.value,
+                'id': key.id,
+                'file_type': _MigrationType.FILE.value,
+                'table_type': _MigrationType.TABLE_ATTACHED_FILE.value,
+                'version': version,
+                'row_id': row_id,
+                'col_id': col_id,
+
+                # ensure that we aren't ever adding more items to the shared executor than allowed
+                'limit': min(batch_size, max_concurrent_file_copies - len(futures)),
+            }
+
+            # we can't use both named and positional literals in a query, so we use named
+            # literals and then inline a string for the values for our file handle ids
+            # since these are a dynamic list of values
+            pending_file_handle_in = "('" + "','".join(pending_file_handle_ids) + "')"
+            completed_file_handle_in = "('" + "','".join(completed_file_handle_ids) + "')"
+
             results = cursor.execute(
-                """
+                f"""
                     select
                         id,
                         type,
@@ -607,27 +651,28 @@ def migrate_indexed_files(
                         from_file_handle_id
                     from migrations
                     where
-                        status = ?
-                        and ((id > ? and type in (?, ?))
-                            or (id = ? and type = ? and version is not null and version > ?)
-                            or (id = ? and type = ? and (row_id > ? or (row_id = ? and col_id > ?))))
+                        status = :indexed_status
+                        and (
+                                (
+                                    ((id > :id and type in (:file_type, :table_type))
+                                    or (id = :id and type = :file_type and version is not null and version > :version)
+                                    or (id = :id and type = :table_type and (row_id > :row_id or (row_id = :row_id and col_id > :col_id))))
+                                    and from_file_handle_id not in {pending_file_handle_in}
+                                ) or
+                                (
+                                    id <= :id 
+                                    and from_file_handle_id in {completed_file_handle_in} 
+                                )
+                        )
                     order by
                         id,
                         type,
                         row_id,
                         col_id,
                         version
-                    limit ?
-                """,
-                (
-                    _MigrationStatus.INDEXED.value,
-                    key.id, _MigrationType.FILE.value, _MigrationType.TABLE_ATTACHED_FILE.value,
-                    key.id, _MigrationType.FILE.value, version,
-                    key.id, _MigrationType.TABLE_ATTACHED_FILE.value, row_id, row_id, col_id,
-
-                    # ensure that we aren't ever adding more items to the shared executor than allowed
-                    min(_get_batch_size(), max_concurrent_file_copies - len(futures))
-                )
+                    limit :limit
+                """,  # noqa
+                query_kwargs,
             )
 
             row_count = 0
@@ -643,6 +688,14 @@ def migrate_indexed_files(
                 last_key = key
                 key = _MigrationKey(**key_dict)
                 from_file_handle_id = row_dict['from_file_handle_id']
+                if from_file_handle_id in pending_file_handle_ids:
+                    # if this file handle is already being migrated
+                    # from another record in this batch then we defer it
+                    continue
+
+                to_file_handle_id = _check_file_handle_exists(conn.cursor(), from_file_handle_id)
+                if not to_file_handle_id:
+                    pending_file_handle_ids.add(from_file_handle_id)
 
                 if key.type == _MigrationType.FILE.value:
                     if key.version is None:
@@ -660,24 +713,58 @@ def migrate_indexed_files(
                 else:
                     raise ValueError("Unexpected type {} with id {}".format(key.type, key.id))
 
-                def migration_task(syn, key, from_file_handle_id, storage_location_id):
+                def migration_task(syn, key, from_file_handle_id, to_file_handle_id, storage_location_id):
+                    # a closure to wrap the actual function call so that we an add some local variables
+                    # to the return tuple which will be consumed when the future is processed
                     with shared_executor(executor):
                         try:
                             # instrument the shared executor in this thread so that we won't
                             # create a new executor to perform the multipart copy
-                            to_file_handle_id = migration_fn(syn, key, from_file_handle_id, storage_location_id)
-                            return key, to_file_handle_id
+                            to_file_handle_id = migration_fn(
+                                syn,
+                                key,
+                                from_file_handle_id,
+                                to_file_handle_id,
+                                storage_location_id)
+                            return key, from_file_handle_id, to_file_handle_id
                         except Exception as ex:
-                            raise _MigrationError(key) from ex
+                            raise _MigrationError(key, from_file_handle_id, to_file_handle_id) from ex
 
-                future = executor.submit(migration_task, syn, key, from_file_handle_id, storage_location_id)
+                future = executor.submit(
+                    migration_task,
+                    syn,
+                    key,
+                    from_file_handle_id,
+                    to_file_handle_id,
+                    storage_location_id,
+                )
                 futures.add(future)
 
-            if row_count == 0:
-                # we've run out of migratable sqlite rows, we're done
+            if row_count == 0 and not pending_file_handle_ids:
+                # we've run out of migratable sqlite rows, we have nothing else
+                # to submit, so we break out and wait for all remaining
+                # tasks to conclude.
                 break
 
+            if len(futures) >= max_concurrent_file_copies or row_count < batch_size:
+                # if we have no concurrency left to process any additional entities
+                # or if we're near the end of he migration and have a small
+                # remainder batch then we wait for one of the processing migrations
+                # to finish. a small batch doesn't mean this is the last batch since
+                # a completed file handle here could be associated with another
+                # entity that we deferred before because it shared the same file handle id
+                futures, completed_file_handle_ids = _wait_futures(
+                    conn,
+                    cursor,
+                    futures,
+                    concurrent.futures.FIRST_COMPLETED,
+                    continue_on_error,
+                )
+
+                pending_file_handle_ids -= completed_file_handle_ids
+
         if futures:
+            # wait for all remaining migrations to conclude before returning
             _wait_futures(
                 conn,
                 cursor,
@@ -1065,7 +1152,7 @@ def _index_entity(
             raise _IndexingError(entity_id, concrete_type) from ex
 
 
-def _create_new_file_version(syn, key, from_file_handle_id, storage_location_id):
+def _create_new_file_version(syn, key, from_file_handle_id, to_file_handle_id, storage_location_id):
     logging.info('Creating new version for file entity %s', key.id)
 
     entity = syn.get(key.id, downloadFile=False)
@@ -1076,19 +1163,21 @@ def _create_new_file_version(syn, key, from_file_handle_id, storage_location_id)
         'associateObjectType': 'FileEntity',
     }
 
-    new_file_handle_id = multipart_copy(
-        syn,
-        source_file_handle_association,
-        storage_location_id=storage_location_id,
-    )
+    # copy to a new file handle if we haven't already
+    if not to_file_handle_id:
+        to_file_handle_id = multipart_copy(
+            syn,
+            source_file_handle_association,
+            storage_location_id=storage_location_id,
+        )
 
-    entity.dataFileHandleId = new_file_handle_id
+    entity.dataFileHandleId = to_file_handle_id
     syn.store(entity)
 
-    return new_file_handle_id
+    return to_file_handle_id
 
 
-def _migrate_file_version(syn, key, from_file_handle_id, storage_location_id):
+def _migrate_file_version(syn, key, from_file_handle_id, to_file_handle_id, storage_location_id):
     logging.info('Migrating file entity %s version %s', key.id, key.version)
 
     source_file_handle_association = {
@@ -1097,15 +1186,17 @@ def _migrate_file_version(syn, key, from_file_handle_id, storage_location_id):
         'associateObjectType': 'FileEntity',
     }
 
-    new_file_handle_id = multipart_copy(
-        syn,
-        source_file_handle_association,
-        storage_location_id=storage_location_id,
-    )
+    # copy to a new file handle if we haven't already
+    if not to_file_handle_id:
+        to_file_handle_id = multipart_copy(
+            syn,
+            source_file_handle_association,
+            storage_location_id=storage_location_id,
+        )
 
     file_handle_update_request = {
         'oldFileHandleId': from_file_handle_id,
-        'newFileHandleId': new_file_handle_id,
+        'newFileHandleId': to_file_handle_id,
     }
 
     # no response, we rely on a 200 here
@@ -1117,10 +1208,10 @@ def _migrate_file_version(syn, key, from_file_handle_id, storage_location_id):
         json.dumps(file_handle_update_request),
     )
 
-    return new_file_handle_id
+    return to_file_handle_id
 
 
-def _migrate_table_attached_file(syn, key, from_file_handle_id, storage_location_id):
+def _migrate_table_attached_file(syn, key, from_file_handle_id, to_file_handle_id, storage_location_id):
     logging.info('Migrating table attached file %s, row %s, col %s', key.id, key.row_id, key.col_id)
 
     source_file_handle_association = {
@@ -1129,11 +1220,13 @@ def _migrate_table_attached_file(syn, key, from_file_handle_id, storage_location
         'associateObjectType': 'TableEntity',
     }
 
-    to_file_handle_id = multipart_copy(
-        syn,
-        source_file_handle_association,
-        storage_location_id=storage_location_id
-    )
+    # copy to a new file handle if we haven't already
+    if not to_file_handle_id:
+        to_file_handle_id = multipart_copy(
+            syn,
+            source_file_handle_association,
+            storage_location_id=storage_location_id
+        )
 
     row_mapping = {str(key.col_id): to_file_handle_id}
     partial_rows = [synapseclient.table.PartialRow(row_mapping, key.row_id)]
@@ -1144,8 +1237,10 @@ def _migrate_table_attached_file(syn, key, from_file_handle_id, storage_location
 
 
 class _MigrationError(Exception):
-    def __init__(self, key):
+    def __init__(self, key, from_file_handle_id, to_file_handle_id):
         self.key = key
+        self.from_file_handle_id = from_file_handle_id
+        self.to_file_handle_id = to_file_handle_id
 
 
 class _IndexingError(Exception):
