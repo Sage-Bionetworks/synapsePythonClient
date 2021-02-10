@@ -365,17 +365,17 @@ def test_purge(mock_print, mock_shutil, mock_get_modified_time, mock_cache_dirs)
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
 
     mock_cache_dirs.return_value = ['file1', 'file2']
-    mock_after_date = datetime.datetime(2021, 1, 31)
-    mock_before_date = datetime.datetime(2020, 12, 31)
+    mock_before_date = datetime.datetime(2021, 1, 31)
+    mock_after_date = datetime.datetime(2020, 12, 31)
 
     # test if file won't be deleted
-    mock_get_modified_time.return_value = 1609472800.0
+    mock_get_modified_time.return_value = 1601900000.0
     my_cache.purge(mock_before_date, mock_after_date)
     mock_shutil.rmtree.assert_not_called()
     mock_print.assert_not_called()
 
     # test if files will be deleted and dry_run is True
-    mock_get_modified_time.return_value = 1601900000.0
+    mock_get_modified_time.return_value = 1609472800.0
     my_cache.purge(mock_before_date, mock_after_date, dry_run=True)
     mock_shutil.rmtree.assert_not_called()
     assert mock_print.call_args_list == [call('file1'), call('file2')]
@@ -404,12 +404,12 @@ def test_purge_datetime_transform(mock_cache_dirs, mock_utils):
     mock_utils.to_unix_epoch_time_secs.assert_not_called()
 
     # pass in the argument both are datetime objects.
-    mock_after_date = datetime.datetime(2021, 1, 31)
-    mock_before_date = datetime.datetime(2020, 12, 31)
+    mock_before_date = datetime.datetime(2021, 1, 31)
+    mock_after_date = datetime.datetime(2020, 12, 31)
 
     my_cache.purge(before_date=mock_before_date, after_date=mock_after_date, dry_run=True)
-    assert mock_utils.to_unix_epoch_time_secs.call_args_list == [call(datetime.datetime(2020, 12, 31, 0, 0)),
-                                                                 call(datetime.datetime(2021, 1, 31, 0, 0))]
+    assert mock_utils.to_unix_epoch_time_secs.call_args_list == [call(datetime.datetime(2021, 1, 31, 0, 0)),
+                                                                 call(datetime.datetime(2020, 12, 31, 0, 0))]
 
 
 def test_purge_raise_value_error():
@@ -424,10 +424,10 @@ def test_purge_raise_value_error():
         my_cache.purge()
         assert str(ve.value) == "Either before date or after date should be provided"
 
-    mock_before_date = datetime.datetime(2021, 1, 31)
-    mock_after_date = datetime.datetime(2020, 12, 31)
+    mock_after_date = datetime.datetime(2021, 1, 31)
+    mock_before_date = datetime.datetime(2020, 12, 31)
 
     # raise the valueError when before_date is larger than after_date.
     with pytest.raises(ValueError) as ve:
         my_cache.purge(before_date=mock_before_date, after_date=mock_after_date)
-        assert str(ve.value) == "Before date can not be larger than after date"
+        assert str(ve.value) == "Before date should be larger than after date"
