@@ -781,6 +781,9 @@ class TestGetFileEntityProvenanceDict:
 
 @patch.object(sync, 'os')
 def test_check_size_each_file(mock_os, syn):
+    """
+    Verify the check_size_each_file method works correctly
+    """
 
     project_id = "syn123"
     header = 'path\tparent\n'
@@ -789,10 +792,10 @@ def test_check_size_each_file(mock_os, syn):
     path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
     path4 = 'http://www.github.com'
 
-    row1 = '%s\t%s\n' % (path1, project_id)
-    row2 = '%s\t%s\n' % (path2, project_id)
-    row3 = '%s\t%s\n' % (path3, project_id)
-    row4 = '%s\t%s\n' % (path4, project_id)
+    row1 = f'{path1}\t{project_id}\n'
+    row2 = f'{path2}\t{project_id}\n'
+    row3 = f'{path3}\t{project_id}\n'
+    row4 = f'{path4}\t{project_id}\n'
 
     manifest = StringIO(header + row1 + row2 + row3 + row4)
     mock_os.path.isfile.side_effect = [True, True, True, False]
@@ -808,6 +811,25 @@ def test_check_size_each_file(mock_os, syn):
         sync.readManifestFile(syn, manifest)
         mock_os.stat.call_count == 4
 
+
+@patch.object(sync, 'os')
+def test_check_size_each_file_raise_error(mock_os, syn):
+    """
+    Verify the check_size_each_file method raises the ValueError when the file is empty.
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = 'http://www.synapse.org'
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = 'http://www.github.com'
+
+    row1 = f'{path1}\t{project_id}\n'
+    row2 = f'{path2}\t{project_id}\n'
+    row3 = f'{path3}\t{project_id}\n'
+    row4 = f'{path4}\t{project_id}\n'
+
     mock_os.reset_mock()
     manifest = StringIO(header + row1 + row2 + row3 + row4)
     mock_os.path.isfile.side_effect = [True, True, True, False]
@@ -822,6 +844,9 @@ def test_check_size_each_file(mock_os, syn):
 
 @patch.object(sync, 'os')
 def test_check_file_name(mock_os, syn):
+    """
+    Verify the check_file_name method works correctly
+    """
 
     project_id = "syn123"
     header = 'path\tparent\tname\n'
@@ -829,19 +854,14 @@ def test_check_file_name(mock_os, syn):
     path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
     path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
 
-    # f"{path1}\t{path2} foo"
-    row1 = '%s\t%s\tTest_file_name.txt\n' % (path1, project_id)
-    row2 = '%s\t%s\tTest_file_name(-`).txt\n' % (path2, project_id)
-    row3 = '%s\t%s\t\n' % (path3, project_id)
+    row1 = f"{path1}\t{project_id}\tTest_file_name.txt\n"
+    row2 = f"{path2}\t{project_id}\tTest_file-name`s(1).txt\n"
+    row3 = f"{path3}\t{project_id}\t\n"
 
     manifest = StringIO(header + row1 + row2 + row3)
     mock_os.path.isfile.side_effect = [True, True, True]
     mock_os.path.abspath.side_effect = [path1, path2, path3]
-    mock_stat = MagicMock(spec='st_size')
-    mock_os.stat.return_value = mock_stat
-    mock_stat.st_size = 5
     mock_os.path.basename.return_value = 'file3.txt'
-
 
     # mock syn.get() to return a project because the final check is making sure parent is a container
     # mock isfile() to always return true to avoid having to create files in the home directory
@@ -849,8 +869,25 @@ def test_check_file_name(mock_os, syn):
     with patch.object(syn, "get", return_value=Project()):
         sync.readManifestFile(syn, manifest)
 
+
+@patch.object(sync, 'os')
+def test_check_file_name_with_illegal_char(mock_os, syn):
+    """
+    Verify the check_file_name method raises the ValueError when the file name contains illegal char
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\tname\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
     path4 = os.path.abspath(os.path.expanduser('~/file4.txt'))
-    row4 = '%s\t%s\tTest_file_name_with_#\n' % (path4, project_id)
+
+    row1 = f"{path1}\t{project_id}\tTest_file_name.txt\n"
+    row2 = f"{path2}\t{project_id}\tTest_file-name`s(1).txt\n"
+    row3 = f"{path3}\t{project_id}\t\n"
+    row4 = f"{path4}\t{project_id}\tTest_file_name_with_#.txt\n"
+
     manifest = StringIO(header + row1 + row2 + row3 + row4)
     mock_os.reset_mock()
     mock_os.path.isfile.side_effect = [True, True, True, True]
@@ -863,11 +900,29 @@ def test_check_file_name(mock_os, syn):
                             "letters, numbers, spaces, underscores, hyphens, periods, plus signs, " \
                             "apostrophes,and parentheses"
 
+
+@patch.object(sync, 'os')
+def test_check_file_name_with_too_long_filename(mock_os, syn):
+    """
+    Verify the check_file_name method raises the ValueError when the file name is too long
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\tname\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
     path4 = os.path.abspath(os.path.expanduser('~/file4.txt'))
+
     long_file_name = 'test_filename_too_long_test_filename_too_long_test_filename_too_long_test_filename_too_long_' \
                      'test_filename_too_long_test_filename_too_long_test_filename_too_long_test_filename_too_long_' \
                      'test_filename_too_long_test_filename_too_long_test_filename_too_long_test_filename_too_long_'
-    row4 = '%s\t%s\t%s\n' % (path4, project_id, long_file_name)
+
+    row1 = f"{path1}\t{project_id}\tTest_file_name.txt\n"
+    row2 = f"{path2}\t{project_id}\tTest_file-name`s(1).txt\n"
+    row3 = f"{path3}\t{project_id}\t\n"
+    row4 = f"{path4}\t{project_id}\t{long_file_name}\n"
+
     manifest = StringIO(header + row1 + row2 + row3 + row4)
     mock_os.reset_mock()
     mock_os.path.isfile.side_effect = [True, True, True, True]
