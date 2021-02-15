@@ -3,6 +3,7 @@ import concurrent.futures
 from contextlib import contextmanager
 import io
 import os
+import re
 import sys
 import threading
 import typing
@@ -770,6 +771,18 @@ def readManifestFile(syn, manifestFile):
         raise ValueError("All rows in manifest must contain a unique file to upload")
     sys.stdout.write('OK\n')
 
+    # Check each size of uploaded file
+    sys.stdout.write('Validating that all the files are not empty...')
+    _check_size_each_file(df)
+    sys.stdout.write('OK\n')
+
+    # check the name of each file should be store on Synapse
+    name_column = 'name'
+    if name_column in df.columns:
+        sys.stdout.write('Validating that all name column are filled... \n')
+        _check_file_name(df)
+        sys.stdout.write('OK\n')
+
     sys.stdout.write('Validating provenance...')
     df = _sortAndFixProvenance(syn, df)
     sys.stdout.write('OK\n')
@@ -869,6 +882,7 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     """
     df = readManifestFile(syn, manifestFile)
+    # have to check all size of single file
     sizes = [os.stat(os.path.expandvars(os.path.expanduser(f))).st_size for f in df.path if not is_url(f)]
     # Write output on what is getting pushed and estimated times - send out message.
     sys.stdout.write('='*50+'\n')
@@ -919,3 +933,25 @@ def _manifest_upload(syn, df):
         uploader.upload(items)
 
     return True
+
+
+def _check_file_name(df):
+    for idx, row in df.iterrows():
+        pattern = "^[`\\w \\-\\+\\.\\(\\)]{1,256}$"
+        if not row['name']:
+            directory_name = os.path.basename(row['path'])
+            df.loc[df.path == row['path'], 'name'] = row['name'] = directory_name
+            sys.stdout.write('The file name you assigned at path: %s is empty, so we set the store name as %s.\n'
+                             % (row['path'], directory_name))
+        if not re.match(pattern, row['name']):
+            raise ValueError('The file name on your local side is invalid to store on Synapse. Names may only contain:'
+                             'letters, numbers, spaces, underscores, hyphens, periods, plus signs, apostrophes,'
+                             'and parentheses')
+
+
+def _check_size_each_file(df):
+    for f in df.path:
+        single_file_size = os.stat(os.path.expandvars(os.path.expanduser(f))).st_size
+        if not is_url(f) and single_file_size == 0:
+            print('\nAll the files uploaded cannot be 0 byte.')
+            raise ValueError('All the files uploaded cannot be 0 byte.')
