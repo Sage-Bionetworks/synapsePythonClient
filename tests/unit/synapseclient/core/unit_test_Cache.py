@@ -422,7 +422,7 @@ def test_purge_raise_value_error():
     # raise the valueError when before_date and after_date both are None.
     with pytest.raises(ValueError) as ve:
         my_cache.purge()
-        assert str(ve.value) == "Either before date or after date should be provided"
+    assert str(ve.value) == "Either before date or after date should be provided"
 
     mock_after_date = datetime.datetime(2021, 1, 31)
     mock_before_date = datetime.datetime(2020, 12, 31)
@@ -430,4 +430,4 @@ def test_purge_raise_value_error():
     # raise the valueError when before_date is larger than after_date.
     with pytest.raises(ValueError) as ve:
         my_cache.purge(before_date=mock_before_date, after_date=mock_after_date)
-        assert str(ve.value) == "Before date should be larger than after date"
+    assert str(ve.value) == "Before date should be larger than after date"
