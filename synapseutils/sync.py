@@ -951,7 +951,9 @@ def _check_file_name(df):
 
 def _check_size_each_file(df):
     for f in df.path:
+        if is_url(f):
+            continue
         single_file_size = os.stat(os.path.expandvars(os.path.expanduser(f))).st_size
-        if not is_url(f) and single_file_size == 0:
+        if single_file_size == 0:
             print('\nAll the files uploaded cannot be 0 byte.')
             raise ValueError('All the files uploaded cannot be 0 byte.')
