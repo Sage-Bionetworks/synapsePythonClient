@@ -3,7 +3,7 @@ Release Notes
 =============
 
 2.3 (2021-02-XX)
-==================
+================
 
 Highlights
 ----------
@@ -19,12 +19,12 @@ Highlights
   .. code-block::
 
    # programmatic
-   syn = synapseclient.login(<username>, authToken=<token>)
+   syn = synapseclient.login(authToken=<token>)
 
   .. code-block::
 
    # command line
-   synapse login -u <username> -p <token>
+   synapse login -p <token>
 
 - This version has been tested with Python 3.9.
 
