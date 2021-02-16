@@ -513,16 +513,20 @@ def migrate(args, syn):
             force=args.force,
         )
 
-        counts = result.get_counts_by_status()
-        migrated_count = counts['MIGRATED']
-        errored_count = counts['ERRORED']
+        if result:
+            # result is None if not using the arg and the user declined to
+            # continue with the migration
 
-        logging.info(
-            "Completed migration of %s. %s files migrated. %s errors encountered",
-            args.id,
-            migrated_count,
-            errored_count,
-        )
+            counts = result.get_counts_by_status()
+            migrated_count = counts['MIGRATED']
+            errored_count = counts['ERRORED']
+
+            logging.info(
+                "Completed migration of %s. %s files migrated. %s errors encountered",
+                args.id,
+                migrated_count,
+                errored_count,
+            )
 
     if args.csv_log_path:
         logging.info("Writing csv log to %s", args.csv_log_path)
