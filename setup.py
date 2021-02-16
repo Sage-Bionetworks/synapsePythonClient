@@ -51,7 +51,7 @@ install_requires = [
 # addition of the versioned dependency.
 if platform.system() == 'Linux':
     try:
-        import cryptography
+        import cryptography  # noqa
         # already installed, don't need to install (or downgrade)
     except ImportError:
         install_requires.append('cryptography<3.4')
