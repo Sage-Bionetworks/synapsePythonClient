@@ -91,9 +91,9 @@ def test_progress(mock_utils_print_transfer_progress, mock_sys, mock_time):
     assert 350 == progress._total_transferred
 
     expected_stdout_writes = [
-        mock.call('\r / Testing 100.0bytes (1.0bytes/s)'),
-        mock.call('\r - Testing 200.0bytes (1.0bytes/s)'),
-        mock.call('\r \\ Testing 350.0bytes (1.2bytes/s)'),
+        mock.call('Testing 100.0bytes (1.0bytes/s)'),
+        mock.call('Testing 200.0bytes (1.0bytes/s)'),
+        mock.call('Testing 350.0bytes (1.2bytes/s)'),
     ]
     assert expected_stdout_writes == mock_sys.stdout.write.call_args_list
 

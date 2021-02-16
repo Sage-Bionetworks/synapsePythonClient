@@ -41,7 +41,7 @@ class CumulativeTransferProgress:
         self._lock = threading.Lock()
         self._label = label
 
-        self._tick = 0
+        self._spinner = utils.Spinner()
         self._start = start if start is not None else time.time()
 
         self._total_transferred = 0
@@ -94,8 +94,7 @@ class CumulativeTransferProgress:
             rate = '(%s/s)' % utils.humanizeBytes(rate) if isBytes else rate
 
             # we print a rotating tick with each update
-            self._tick += 1
-            spinner = ['|', '/', '-', '\\'][self._tick % 4]
+            self._spinner.print_tick()
 
-            sys.stdout.write(f"\r {spinner} {self._label} {utils.humanizeBytes(self._total_transferred)} {rate}")
+            sys.stdout.write(f"{self._label} {utils.humanizeBytes(self._total_transferred)} {rate}")
             sys.stdout.flush()
