@@ -11,7 +11,7 @@ import urllib.request as urllib_request
 import uuid
 
 import pytest
-from unittest.mock import ANY, call, create_autospec, Mock, patch
+from unittest.mock import ANY, call, create_autospec, MagicMock, Mock, patch, PropertyMock
 
 import synapseclient
 from synapseclient.annotations import convert_old_annotation_json
@@ -37,6 +37,7 @@ from synapseclient.core.exceptions import (
     SynapseMd5MismatchError,
     SynapseUnmetAccessRestrictions,
 )
+from synapseclient.core.credentials.cred_data import SynapseCredentials
 from synapseclient.core.upload import upload_functions
 import synapseclient.core.utils as utils
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
@@ -427,6 +428,42 @@ class TestDownloadFileHandle:
 
             mock_url_retrieve.assert_called_once_with(url, expected_destination)
             assert download_path == expected_destination
+
+    def test_download_from_url__synapse_auth(self, mocker):
+        """Verify we pass along Synapse auth headers when downloading from a Synapse repo hosted url"""
+
+        uri = f"{self.syn.repoEndpoint}/repo/v1/entity/syn1234567/file"
+        in_destination = '/tmp/foo'
+
+        mock_credentials = mocker.patch.object(self.syn, 'credentials')
+
+        response = MagicMock(spec=requests.Response)
+        response.status_code = 200
+        response.headers = {}
+        mock_get = mocker.patch.object(self.syn._requests_session, 'get')
+        mock_get.return_value = response
+
+        out_destination = self.syn._download_from_URL(uri, in_destination)
+        assert mock_get.call_args[1]['auth'] is mock_credentials
+        assert out_destination == in_destination
+
+    def test_download_from_url__external(self, mocker):
+        """Verify we do not pass along Synapse auth headers to a file download that is a not Synapse repo hosted"""
+
+        uri = "https://not-synapse.org/foo/bar/baz"
+        in_destination = '/tmp/foo'
+
+        mocker.patch.object(self.syn, 'credentials')
+
+        response = MagicMock(spec=requests.Response)
+        response.status_code = 200
+        response.headers = {}
+        mock_get = mocker.patch.object(self.syn._requests_session, 'get')
+        mock_get.return_value = response
+
+        out_destination = self.syn._download_from_URL(uri, in_destination)
+        assert mock_get.call_args[1]['auth'] is None
+        assert out_destination == in_destination
 
 
 class TestPrivateSubmit:

@@ -1888,6 +1888,12 @@ class Synapse(object):
 
         return destination
 
+    def _is_synapse_uri(self, uri):
+        # check whether the given uri is hosted at the configured synapse repo endpoint
+        uri_domain = urllib_urlparse.urlparse(uri).netloc
+        synapse_repo_domain = urllib_urlparse.urlparse(self.repoEndpoint).netloc
+        return uri_domain.lower() == synapse_repo_domain.lower()
+
     def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
         """
         Download a file from the given URL to the local file system.
@@ -1923,17 +1929,19 @@ class Synapse(object):
                 break
             elif scheme == 'http' or scheme == 'https':
                 # if a partial download exists with the temporary name,
-                # find it and restart the download from where it left off
                 temp_destination = utils.temp_download_filename(destination, fileHandleId)
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
                     if os.path.exists(temp_destination) else {}
+
+                # pass along synapse auth credentials only if downloading directly from synapse
+                auth = self.credentials if self._is_synapse_uri(url) else None
                 response = with_retry(
                     lambda: self._requests_session.get(
                         url,
                         headers=self._generate_headers(range_header),
                         stream=True,
                         allow_redirects=False,
-                        auth=self.credentials,
+                        auth=auth,
                     ),
                     verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
