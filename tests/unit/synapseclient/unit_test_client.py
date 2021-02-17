@@ -11,7 +11,7 @@ import urllib.request as urllib_request
 import uuid
 
 import pytest
-from unittest.mock import ANY, call, create_autospec, MagicMock, Mock, patch, PropertyMock
+from unittest.mock import ANY, call, create_autospec, MagicMock, Mock, patch
 
 import synapseclient
 from synapseclient.annotations import convert_old_annotation_json
@@ -37,7 +37,6 @@ from synapseclient.core.exceptions import (
     SynapseMd5MismatchError,
     SynapseUnmetAccessRestrictions,
 )
-from synapseclient.core.credentials.cred_data import SynapseCredentials
 from synapseclient.core.upload import upload_functions
 import synapseclient.core.utils as utils
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
