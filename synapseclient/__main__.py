@@ -1017,7 +1017,7 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
         (None, lambda user, secret: user is None and secret is None),
     )
 
-    last_auth_ex = None
+    first_auth_ex = None
     for (login_key, secret_filter) in login_attempts:
         if secret_filter(user, secret):
             try:
@@ -1029,13 +1029,14 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
                 # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
                 raise
             except SynapseAuthenticationError as ex:
-                last_auth_ex = ex
+                if not first_auth_ex:
+                    first_auth_ex = ex
                 continue
     else:
         # if one of the login filters applied raise that exception
         # otherwise if none of them applied then a no credentials error
         # will result in a login prompt
-        raise last_auth_ex or SynapseNoCredentialsError()
+        raise first_auth_ex or SynapseNoCredentialsError()
 
 
 def main():

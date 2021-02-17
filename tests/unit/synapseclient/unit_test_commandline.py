@@ -246,6 +246,25 @@ def test_authenticate_login__no_input(mocker, syn):
     mock_login.assert_called_once_with(None, **login_kwargs)
 
 
+def test_authenticate_login__failure(mocker, syn):
+    """Verify that a login with invalid credentials raises an error (the
+    first error when multiple login methods were attempted."""
+
+    login_kwargs = {'rememberMe': True}
+
+    call(**login_kwargs),
+
+    mock_login = mocker.patch.object(syn, 'login')
+
+    def login_side_effect(*args, **kwargs):
+        raise SynapseAuthenticationError("call{}".format(mock_login.call_count))
+    mock_login.side_effect = login_side_effect
+
+    with pytest.raises(SynapseAuthenticationError) as ex_cm:
+        cmdline._authenticate_login(syn, None, None, **login_kwargs)
+    assert str(ex_cm.value) == 'call1'
+
+
 @patch.object(cmdline, '_authenticate_login')
 def test_login_with_prompt(mock_authenticate_login, syn):
     """Verify logging in when username/pass supplied as args to the command"""
