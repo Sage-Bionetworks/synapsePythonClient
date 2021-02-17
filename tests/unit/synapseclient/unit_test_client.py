@@ -434,7 +434,7 @@ class TestDownloadFileHandle:
         """Verify we pass along Synapse auth headers when downloading from a Synapse repo hosted url"""
 
         uri = f"{self.syn.repoEndpoint}/repo/v1/entity/syn1234567/file"
-        in_destination = '/tmp/foo'
+        in_destination = tempfile.mktemp()
 
         mock_credentials = mocker.patch.object(self.syn, 'credentials')
 
@@ -452,7 +452,7 @@ class TestDownloadFileHandle:
         """Verify we do not pass along Synapse auth headers to a file download that is a not Synapse repo hosted"""
 
         uri = "https://not-synapse.org/foo/bar/baz"
-        in_destination = '/tmp/foo'
+        in_destination = tempfile.mktemp()
 
         mocker.patch.object(self.syn, 'credentials')
 
