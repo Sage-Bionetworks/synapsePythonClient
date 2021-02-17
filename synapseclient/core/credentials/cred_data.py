@@ -3,11 +3,13 @@ import base64
 import collections
 import hashlib
 import hmac
+import json
 import keyring
 import requests.auth
 import time
 import urllib.parse as urllib_parse
 
+from synapseclient.core.exceptions import SynapseAuthenticationError
 import synapseclient.core.utils
 
 
@@ -103,7 +105,37 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
     def get_keyring_service_name(cls):
         return 'SYNAPSE.ORG_CLIENT_AUTH_TOKEN'
 
+    @classmethod
+    def _validate_token(cls, token):
+        # decode the token to ensure it minimally has view scope.
+        # if it doesn't raise an error, the client will not be useful without it.
+
+        # if for any reason we are not able to decode the token and check its scopes
+        # we do NOT raise an error. this is to accommodate the possibility of a changed
+        # token format some day that this version of the client may still be able to
+        # pass as a bearer token.
+        try:
+            token_body = json.loads(
+                str(
+                    base64.urlsafe_b64decode(
+                        token.split('.')[1] + '=='
+                    ),
+                    'utf-8'
+                )
+            )
+            scopes = token_body.get('access', {}).get('scope')
+            if scopes is not None and 'view' not in scopes:
+                raise SynapseAuthenticationError('A view scoped token is required')
+
+        except (IndexError, ValueError):
+            # possible errors if token is not encoded as expected:
+            # IndexError if the token is not a '.' delimited base64 string with a header and body
+            # ValueError if the split string is not base64 encoded or if the decoded base64 is not json
+            pass
+
     def __init__(self, token, username=None):
+        self._validate_token(token)
+
         self._token = token
         self.username = username
 
