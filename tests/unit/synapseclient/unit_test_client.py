@@ -446,7 +446,7 @@ class TestDownloadFileHandle:
 
         out_destination = self.syn._download_from_URL(uri, in_destination)
         assert mock_get.call_args[1]['auth'] is mock_credentials
-        assert out_destination == in_destination
+        assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
 
     def test_download_from_url__external(self, mocker):
         """Verify we do not pass along Synapse auth headers to a file download that is a not Synapse repo hosted"""
@@ -464,7 +464,7 @@ class TestDownloadFileHandle:
 
         out_destination = self.syn._download_from_URL(uri, in_destination)
         assert mock_get.call_args[1]['auth'] is None
-        assert out_destination == in_destination
+        assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
 
 
 class TestPrivateSubmit:
