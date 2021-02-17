@@ -39,7 +39,7 @@ class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
         try:
             keyring.delete_password(self.get_keyring_service_name(), self.username)
         except keyring.errors.PasswordDeleteError:
-            # The api key does not exist, but that is fine
+            # key does not exist, but that is fine
             pass
 
     def store_to_keyring(self):
@@ -176,3 +176,13 @@ UserLoginArgs = collections.namedtuple(
 # make the namedtuple's arguments optional instead of positional. All values default to None
 # when we require Python 3.6.1 we can use typing.NamedTuple's built-in default support
 UserLoginArgs.__new__.__defaults__ = (None,) * len(UserLoginArgs._fields)
+
+
+def delete_stored_credentials(username):
+    """
+    Delete all credentials stored to the keyring.
+    """
+    for credential_cls in (SynapseApiKeyCredentials, SynapseAuthTokenCredentials):
+        creds = credential_cls.get_from_keyring(username)
+        if creds:
+            creds.delete_from_keyring()

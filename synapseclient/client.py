@@ -66,8 +66,12 @@ from synapseclient.core import cache, exceptions, utils
 from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
 from synapseclient.core import cumulative_transfer_progress
-from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
-from synapseclient.core.credentials import cached_sessions
+from synapseclient.core.credentials import (
+    cached_sessions,
+    delete_stored_credentials,
+    get_default_credential_chain,
+    UserLoginArgs,
+)
 from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
     SynapseError,
@@ -393,9 +397,9 @@ class Synapse(object):
         # Make sure to invalidate the existing session
         self.logout()
 
-        credential_provder_chain = get_default_credential_chain()
+        credential_provider_chain = get_default_credential_chain()
         # TODO: remove deprecated sessionToken when we move to a different solution
-        self.credentials = credential_provder_chain.get_credentials(
+        self.credentials = credential_provider_chain.get_credentials(
             self,
             UserLoginArgs(
                 email,
@@ -413,6 +417,7 @@ class Synapse(object):
 
         # Save the API key in the cache
         if rememberMe:
+            delete_stored_credentials(self.credentials.username)
             self.credentials.store_to_keyring()
             cached_sessions.set_most_recent_user(self.credentials.username)
 

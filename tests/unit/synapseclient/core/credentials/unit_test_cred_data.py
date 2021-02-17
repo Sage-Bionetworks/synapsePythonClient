@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from synapseclient.core.credentials.cred_data import (
+    delete_stored_credentials,
     keyring,
     SynapseApiKeyCredentials,
     SynapseAuthTokenCredentials,
@@ -203,3 +204,44 @@ class TestSynapseAuthTokenCredentials:
             SynapseAuthTokenCredentials._validate_token(token)
         else:
             pytest.raises(SynapseAuthenticationError, SynapseAuthTokenCredentials._validate_token, token)
+
+
+def test_delete_stored_credentials__stored(mocker):
+    """Verify deleting all credentials stored in the keyring."""
+
+    username = 'foo'
+    mock_token_credentials = MagicMock(spec=SynapseAuthTokenCredentials)
+    mock_token_get = mocker.patch.object(SynapseAuthTokenCredentials, 'get_from_keyring')
+    mock_token_get.return_value = mock_token_credentials
+
+    mock_apikey_credentials = MagicMock(spec=SynapseApiKeyCredentials)
+    mock_apikey_get = mocker.patch.object(SynapseApiKeyCredentials, 'get_from_keyring')
+    mock_apikey_get.return_value = mock_apikey_credentials
+
+    delete_stored_credentials(username)
+
+    mock_token_get.assert_called_once_with(username)
+    mock_token_credentials.delete_from_keyring.assert_called_once_with()
+
+    mock_apikey_get.assert_called_once_with(username)
+    mock_apikey_credentials.delete_from_keyring.assert_called_once_with()
+
+
+def test_delete_stored_credentials__empty(mocker):
+    """Verify the behavior of deleting all stored credentials when none are actually stored."""
+
+    username = 'foo'
+    mock_token_get = mocker.patch.object(SynapseAuthTokenCredentials, 'get_from_keyring')
+    mock_token_delete = mocker.patch.object(SynapseAuthTokenCredentials, 'delete_from_keyring')
+    mock_token_get.return_value = None
+
+    mock_apikey_get = mocker.patch.object(SynapseApiKeyCredentials, 'get_from_keyring')
+    mock_apikey_delete = mocker.patch.object(SynapseApiKeyCredentials, 'delete_from_keyring')
+    mock_apikey_get.return_value = None
+
+    delete_stored_credentials(username)
+
+    mock_token_get.assert_called_once_with(username)
+    mock_token_delete.assert_not_called()
+    mock_apikey_get.assert_called_once_with(username)
+    mock_apikey_delete.assert_not_called()

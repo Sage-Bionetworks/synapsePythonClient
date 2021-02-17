@@ -173,6 +173,10 @@ class SynapseCredentialsProviderChain(object):
                 return creds
         return None
 
+    def forget_credentials(self, syn, user_login_args):
+        for provider in self.cred_providers:
+            provider.get_synapse_credentials(syn, user_login_args)
+
 
 # NOTE: If you change the order of this list, please also change the documentation in Synapse.login() that describes the
 # order

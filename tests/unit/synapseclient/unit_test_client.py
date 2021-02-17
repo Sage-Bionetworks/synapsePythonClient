@@ -119,13 +119,15 @@ class TestLogin:
             mocked_get_user_profile.assert_called_once_with(refresh=True)
             mocked_logger.info.assert_called_once()
 
-    def test_login__rememberMeIsTrue(self):
-        with patch.object(client, 'cached_sessions') as mocked_cached_sessions, \
-                patch.object(self.synapse_creds, 'store_to_keyring') as mock_store_to_keyring:
-            self.syn.login(silent=True, rememberMe=True)
+    def test_login__rememberMeIsTrue(self, mocker):
+        mock_cached_sessions = mocker.patch.object(client, 'cached_sessions')
+        mock_delete_stored_credentials = mocker.patch.object(client, 'delete_stored_credentials')
+        mock_store_to_keyring = mocker.patch.object(self.synapse_creds, 'store_to_keyring')
+        self.syn.login(silent=True, rememberMe=True)
 
-            mock_store_to_keyring.assert_called_once()
-            mocked_cached_sessions.set_most_recent_user.assert_called_once_with(self.synapse_creds.username)
+        mock_store_to_keyring.assert_called_once()
+        mock_cached_sessions.set_most_recent_user.assert_called_once_with(self.synapse_creds.username)
+        mock_delete_stored_credentials.assert_called_once_with(self.synapse_creds.username)
 
 
 @patch('synapseclient.Synapse._getFileHandleDownload')
