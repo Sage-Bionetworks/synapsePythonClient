@@ -13,7 +13,7 @@ from synapseclient import File
 import synapseclient.core.utils as utils
 from synapseclient.core.remote_file_storage_wrappers import SFTPWrapper
 
-SFTP_SERVER_PREFIX = "sftp://ec2-18-209-45-78.compute-1.amazonaws.com"
+SFTP_SERVER_PREFIX = "sftp://ec2-54-159-43-147.compute-1.amazonaws.com"
 SFTP_USER_HOME_PATH = "/home/sftpuser"
 
 DESTINATIONS = [{"uploadType": "SFTP",
