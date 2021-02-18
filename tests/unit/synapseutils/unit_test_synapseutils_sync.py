@@ -255,12 +255,14 @@ class TestFolderSync:
         child_ids = ['syn456', 'syn789']
 
         parent = _FolderSync(syn, 'syn987', '/tmp/foo', [entity_id], None)
-        child = _FolderSync(syn, entity_id, path, child_ids, parent)
+        child = _FolderSync(syn, entity_id, path, child_ids, parent, create_manifest=False)
         assert syn == child._syn
         assert entity_id == child._entity_id
         assert path == child._path
         assert set(child_ids) == child._pending_ids
         assert parent == child._parent
+        assert parent._create_manifest
+        assert not child._create_manifest
 
     def test_update(self):
         syn = Mock()
@@ -277,14 +279,15 @@ class TestFolderSync:
         assert [file] == folder_sync._files
         assert provenance == folder_sync._provenance
 
-    def _finished_test(self, path):
+    def _finished_test(self, path, create_manifest=True):
         syn = Mock()
         entity_id = 'syn123'
         child_ids = ['syn456']
         file = Mock()
 
-        parent = _FolderSync(syn, 'syn987', path, [entity_id], None)
-        child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
+        parent = _FolderSync(syn, 'syn987', path, [entity_id], None, create_manifest=create_manifest)
+        child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent,
+                            create_manifest=create_manifest)
 
         child.update(finished_id='syn456', files=[file])
         assert child._is_finished()
@@ -302,6 +305,8 @@ class TestFolderSync:
             manifest_filename = folder_sync._manifest_filename()
             parent_manifest_filename = folder_sync._parent._manifest_filename()
 
+            mock_generateManifest.call_count == 2
+
             expected_manifest_calls = [
                 call(folder_sync._syn, folder_sync._files, manifest_filename,
                      provenance_cache={}),
@@ -309,6 +314,12 @@ class TestFolderSync:
                      provenance_cache={}),
             ]
             assert expected_manifest_calls == mock_generateManifest.call_args_list
+
+    def test_update__finish__without_generating_manifest(self):
+        with patch.object(synapseutils.sync, 'generateManifest') as mock_generateManifest:
+            # create_manifest flag is False then won't call generateManifest
+            self._finished_test('/tmp/foo', False)
+            mock_generateManifest.assert_not_called()
 
     def test_set_exception(self):
         syn = Mock()

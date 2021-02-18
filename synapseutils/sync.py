@@ -44,7 +44,8 @@ def _sync_executor(syn):
         executor.shutdown()
 
 
-def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles=None, followLink=False):
+def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles=None, followLink=False,
+                    manifest=True):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
     metadata.
 
@@ -60,6 +61,8 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     :param followLink:  Determines whether the link returns the target Entity.
                         Defaults to False
+
+    :param manifest:    Determines whether creating manifest file automatically.
 
     :returns: list of entities (files, tables, links)
 
@@ -92,7 +95,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     # To support multipart downloads in #3 using the same Executor as the download thread #2, we need at least
     # 2 threads always, if those aren't available then we'll run single threaded to avoid a deadlock
     with _sync_executor(syn) as executor:
-        sync_from_synapse = _SyncDownloader(syn, executor)
+        sync_from_synapse = _SyncDownloader(syn, executor, create_manifest=manifest)
         files = sync_from_synapse.sync(entity, path, ifcollision, followLink)
 
     # the allFiles parameter used to be passed in as part of the recursive implementation of this function
@@ -119,11 +122,12 @@ class _FolderSync:
     when finished.
     """
 
-    def __init__(self, syn, entity_id, path, child_ids, parent):
+    def __init__(self, syn, entity_id, path, child_ids, parent, create_manifest=True):
         self._syn = syn
         self._entity_id = entity_id
         self._path = path
         self._parent = parent
+        self._create_manifest = create_manifest
 
         self._pending_ids = set(child_ids or [])
         self._files = []
@@ -143,7 +147,8 @@ class _FolderSync:
                 self._provenance.update(provenance)
 
             if self._is_finished():
-                self._generate_folder_manifest()
+                if self._create_manifest:
+                    self._generate_folder_manifest()
 
                 if self._parent:
                     self._parent.update(
@@ -198,13 +203,16 @@ class _SyncDownloader:
     Manages the downloads associated associated with a syncFromSynapse call concurrently.
     """
 
-    def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_downloads=None):
+    def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_downloads=None,
+                 create_manifest=True):
         """
-        :param syn:         A synapse client
-        :param executor:    An ExecutorService in which concurrent file downlaods can be scheduled
+        :param syn:             A synapse client
+        :param executor:        An ExecutorService in which concurrent file downlaods can be scheduled
+        :param create_manifest: Boolean that determine whether creating the manifest file.
         """
         self._syn = syn
         self._executor = executor
+        self.create_manifest = create_manifest
 
         # by default limit the number of concurrent file downloads that can happen at once to some proportion
         # of the available threads. otherwise we could end up downloading a single part from many files at once
@@ -334,6 +342,7 @@ class _SyncDownloader:
                 folder_path,
                 child_ids,
                 parent_folder_sync,
+                self.create_manifest,
             )
             if not root_folder_sync:
                 root_folder_sync = folder_sync

@@ -121,6 +121,24 @@ def test_migrate(syn):
         )
 
 
+@patch.object(cmdline, 'synapseutils')
+def test_get_manifest_option(mock_synapseutils):
+    parser = cmdline.build_parser()
+    syn = Mock()
+
+    # defaults to False
+    args = parser.parse_args(['get', '-r', 'syn123'])
+    assert not args.suppressManifest
+    cmdline.get(args, syn)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest=True)
+
+    # suppress creating the manifest file
+    args = parser.parse_args(['get', '-r', 'syn123', '-supMani'])
+    assert args.suppressManifest
+    cmdline.get(args, syn)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest=False)
+
+
 def test_get_multi_threaded_flag():
     """Test the multi threaded command line flag"""
     parser = cmdline.build_parser()
