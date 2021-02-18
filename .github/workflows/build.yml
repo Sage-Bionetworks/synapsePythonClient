@@ -83,7 +83,7 @@ jobs:
           else
             # host used in pysftp tests
             mkdir -p ~/.ssh
-            ssh-keyscan -H ec2-18-209-45-78.compute-1.amazonaws.com >> ~/.ssh/known_hosts
+            ssh-keyscan -H ec2-54-159-43-147.compute-1.amazonaws.com >> ~/.ssh/known_hosts
 
             # decrypt the encrypted test synapse configuration
             openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
