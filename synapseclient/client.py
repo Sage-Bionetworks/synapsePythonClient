@@ -970,7 +970,15 @@ class Synapse(object):
         # _synapse_store hook
         # for objects that know how to store themselves
         if hasattr(obj, '_synapse_store'):
-            return obj._synapse_store(self)
+            obj = obj._synapse_store(self)
+            return self._apply_provenance(
+                obj,
+                activity=activity,
+                used=used,
+                executed=executed,
+                activityName=activityName,
+                activityDescription=activityDescription,
+            )
 
         # Handle all non-Entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
@@ -1121,6 +1129,30 @@ class Synapse(object):
         annotations = self.set_annotations(Annotations(properties['id'], properties['etag'], annotations))
         properties['etag'] = annotations.etag
 
+        properties = self._apply_provenance(
+            properties,
+            activity=activity,
+            used=used,
+            executed=executed,
+            activityName=activityName,
+            activityDescription=activityDescription,
+        )
+
+        # Return the updated Entity object
+        entity = Entity.create(properties, annotations, local_state)
+        return self.get(entity, downloadFile=False)
+
+    def _apply_provenance(
+        self,
+        entity,
+        activity=None,
+        used=None,
+        executed=None,
+        activityName=None,
+        activityDescription=None
+    ):
+        # apply any provenance passed to via the store method to the entity
+
         # If the parameters 'used' or 'executed' are given, create an Activity object
         if used or executed:
             if activity is not None:
@@ -1132,14 +1164,12 @@ class Synapse(object):
 
         # If we have an Activity, set it as the Entity's provenance record
         if activity:
-            self.setProvenance(properties, activity)
+            self.setProvenance(entity, activity)
 
             # 'etag' has changed, so get the new Entity
-            properties = self._getEntity(properties)
+            entity = self._getEntity(entity)
 
-        # Return the updated Entity object
-        entity = Entity.create(properties, annotations, local_state)
-        return self.get(entity, downloadFile=False)
+        return entity
 
     def _createAccessRequirementIfNone(self, entity):
         """
