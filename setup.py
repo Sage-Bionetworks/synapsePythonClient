@@ -28,7 +28,8 @@ data_files =\
     else []
 
 test_deps = [
-    "pytest>=5.0.0,<6.0",
+    "pytest>=5.0.0,<7.0",
+    "pytest-mock>=3.0,<4.0",
     "flake8>=3.7.0,<4.0"
 ]
 
