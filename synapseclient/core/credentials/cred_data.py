@@ -118,7 +118,11 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
             token_body = json.loads(
                 str(
                     base64.urlsafe_b64decode(
-                        token.split('.')[1] + '=='
+                        # we add padding to ensure that lack of padding won't prevent a decode error.
+                        # the python base64 implementation will truncate extra padding so we can overpad
+                        # rather than compute exactly how much padding we might need.
+                        # https://stackoverflow.com/a/49459036
+                        token.split('.')[1] + '==='
                     ),
                     'utf-8'
                 )
