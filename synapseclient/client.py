@@ -3810,12 +3810,7 @@ class Synapse(object):
         retryPolicy = self._build_retry_policy(retryPolicy)
         requests_session = requests_session or self._requests_session
 
-        auth = self.credentials
-        call_kwargs = kwargs
-        if 'auth' in kwargs:
-            call_kwargs = {**kwargs}
-            auth = call_kwargs.pop('auth')
-
+        auth = kwargs.pop('auth', self.credentials)
         requests_method_fn = getattr(requests_session, method)
         response = with_retry(
             lambda: requests_method_fn(
@@ -3823,7 +3818,7 @@ class Synapse(object):
                 data=data,
                 headers=headers,
                 auth=auth,
-                **call_kwargs
+                **kwargs,
             ),
             verbose=self.debug, **retryPolicy
         )

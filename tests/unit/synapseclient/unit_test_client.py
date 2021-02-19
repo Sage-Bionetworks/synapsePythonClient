@@ -1732,6 +1732,30 @@ class TestRestCalls:
         session = create_autospec(requests.Session)
         self._rest_call_test(session)
 
+    def _rest_call_auth_test(self, **kwargs):
+        method = 'get'
+        uri = '/foo'
+        data = b'data'
+        endpoint = 'https://foo.com'
+        headers = {'foo': 'bar'}
+        retryPolicy = {}
+        requests_session = MagicMock(spec=requests.Session)
+        response = MagicMock(spec=requests.Response)
+        response.status_code = 200
+        requests_session.get.return_value = response
+
+        self.syn._rest_call(method, uri, data, endpoint, headers, retryPolicy, requests_session, **kwargs)
+        return requests_session.get.call_args_list[0][1]['auth']
+
+    def test_rest_call__default_auth(self):
+        """Verify that _rest_call will use the Synapse object's credentials unless overridden"""
+        assert self._rest_call_auth_test() is self.syn.credentials
+
+    def test_rest_call__passed_auth(self, mocker):
+        """Verify that _rest_call will use a custom auth object if passed"""
+        auth = MagicMock(spec=synapseclient.core.credentials.cred_data.SynapseCredentials)
+        assert self._rest_call_auth_test(auth=auth) is auth
+
 
 class TestSetAnnotations:
 
