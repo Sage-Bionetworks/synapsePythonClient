@@ -937,23 +937,25 @@ def _manifest_upload(syn, df):
 
 def _check_file_name(df):
     for idx, row in df.iterrows():
-        pattern = "^[`\\w \\-\\+\\.\\(\\)]{1,256}$"
-        if not row['name']:
+        compiled = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
+        file_name = row['name']
+        if not file_name:
             directory_name = os.path.basename(row['path'])
-            df.loc[df.path == row['path'], 'name'] = row['name'] = directory_name
-            sys.stdout.write('The file name you assigned at path: %s is empty, so we set the store name as %s.\n'
-                             % (row['path'], directory_name))
-        if not re.match(pattern, row['name']):
-            raise ValueError('The file name on your local side is invalid to store on Synapse. Names may only contain:'
-                             'letters, numbers, spaces, underscores, hyphens, periods, plus signs, apostrophes,'
-                             'and parentheses')
+            df.loc[df.path == row['path'], 'name'] = file_name = directory_name
+            sys.stdout.write('No file name assigned to path: %s, defaulting to %s\n' % (row['path'], directory_name))
+        if not compiled.match(file_name):
+            raise ValueError("File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
+                             "underscores, hyphens, periods, plus signs, apostrophes, "
+                             "and parentheses".format(file_name))
 
 
 def _check_size_each_file(df):
-    for f in df.path:
-        if is_url(f):
+    # for f in df.path:
+    for idx, row in df.iterrows():
+        file_path = row['path']
+        file_name = row['name'] if 'name' in row else os.path.basename(row['path'])
+        if is_url(file_path):
             continue
-        single_file_size = os.stat(os.path.expandvars(os.path.expanduser(f))).st_size
+        single_file_size = os.stat(os.path.expandvars(os.path.expanduser(file_path))).st_size
         if single_file_size == 0:
-            print('\nAll the files uploaded cannot be 0 byte.')
-            raise ValueError('All the files uploaded cannot be 0 byte.')
+            raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))

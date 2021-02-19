@@ -830,16 +830,16 @@ def test_check_size_each_file_raise_error(mock_os, syn):
     row3 = f'{path3}\t{project_id}\n'
     row4 = f'{path4}\t{project_id}\n'
 
-    mock_os.reset_mock()
     manifest = StringIO(header + row1 + row2 + row3 + row4)
     mock_os.path.isfile.side_effect = [True, True, True, False]
     mock_os.path.abspath.side_effect = [path1, path3]
+    mock_os.path.basename.return_value = 'file1.txt'
     mock_stat = MagicMock(spec='st_size')
     mock_os.stat.return_value = mock_stat
     mock_stat.st_size = 0
     with pytest.raises(ValueError) as ve:
         sync.readManifestFile(syn, manifest)
-    assert str(ve.value) == "All the files uploaded cannot be 0 byte."
+    assert str(ve.value) == "File {} is empty, empty files cannot be uploaded to Synapse".format("file1.txt")
 
 
 @patch.object(sync, 'os')
@@ -859,7 +859,7 @@ def test_check_file_name(mock_os, syn):
     row3 = f"{path3}\t{project_id}\t\n"
 
     manifest = StringIO(header + row1 + row2 + row3)
-    mock_os.path.isfile.side_effect = [True, True, True]
+    mock_os.path.isfile.return_value = True
     mock_os.path.abspath.side_effect = [path1, path2, path3]
     mock_os.path.basename.return_value = 'file3.txt'
 
@@ -886,19 +886,19 @@ def test_check_file_name_with_illegal_char(mock_os, syn):
     row1 = f"{path1}\t{project_id}\tTest_file_name.txt\n"
     row2 = f"{path2}\t{project_id}\tTest_file-name`s(1).txt\n"
     row3 = f"{path3}\t{project_id}\t\n"
-    row4 = f"{path4}\t{project_id}\tTest_file_name_with_#.txt\n"
+    illegal_name = "Test_file_name_with_#.txt"
+    row4 = f"{path4}\t{project_id}\t{illegal_name}\n"
 
     manifest = StringIO(header + row1 + row2 + row3 + row4)
-    mock_os.reset_mock()
-    mock_os.path.isfile.side_effect = [True, True, True, True]
+    mock_os.path.isfile.return_value = True
     mock_os.path.abspath.side_effect = [path1, path2, path3, path4]
     mock_os.path.basename.return_value = 'file3.txt'
 
     with pytest.raises(ValueError) as ve:
         sync.readManifestFile(syn, manifest)
-    assert str(ve.value) == "The file name on your local side is invalid to store on Synapse. Names may only contain:" \
-                            "letters, numbers, spaces, underscores, hyphens, periods, plus signs, " \
-                            "apostrophes,and parentheses"
+    assert str(ve.value) == "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, " \
+                            "underscores, hyphens, periods, plus signs, apostrophes, " \
+                            "and parentheses".format(illegal_name)
 
 
 @patch.object(sync, 'os')
@@ -924,13 +924,12 @@ def test_check_file_name_with_too_long_filename(mock_os, syn):
     row4 = f"{path4}\t{project_id}\t{long_file_name}\n"
 
     manifest = StringIO(header + row1 + row2 + row3 + row4)
-    mock_os.reset_mock()
-    mock_os.path.isfile.side_effect = [True, True, True, True]
+    mock_os.path.isfile.return_value = True
     mock_os.path.abspath.side_effect = [path1, path2, path3, path4]
     mock_os.path.basename.return_value = 'file3.txt'
 
     with pytest.raises(ValueError) as ve:
         sync.readManifestFile(syn, manifest)
-    assert str(ve.value) == "The file name on your local side is invalid to store on Synapse. Names may only contain:" \
-                            "letters, numbers, spaces, underscores, hyphens, periods, plus signs, " \
-                            "apostrophes,and parentheses"
+    assert str(ve.value) == "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, " \
+                            "underscores, hyphens, periods, plus signs, apostrophes, " \
+                            "and parentheses".format(long_file_name)
