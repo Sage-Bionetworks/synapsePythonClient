@@ -44,10 +44,10 @@ def md5_for_file(filename, block_size=2 * MB, callback=None):
     See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
 
     :param filename:   The file to read in
-    :param callback:   The callback function that help us show loading spinner on terminal.
-                       Defaults to None
     :param block_size: How much of the file to read in at once (bytes).
                        Defaults to 2 MB
+    :param callback:   The callback function that help us show loading spinner on terminal.
+                       Defaults to None
     :returns: The MD5
     """
 

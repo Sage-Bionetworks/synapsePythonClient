@@ -441,16 +441,25 @@ class TestSpinner:
         assume the sys.stdin.isatty is True, verify the sys.stdout.write will call once if print_tick is called.
         """
         mock_sys.stdin.isatty.return_value = True
+        signs = ['|', '/', '-', '\\']
 
         assert self.spinner._tick == 0
         self.spinner.print_tick()
-        mock_sys.stdout.write.assert_called_once_with(f"\r {'|'} {self.msg}")
+        mock_sys.stdout.write.assert_called_once_with(f"\r {signs[0]} {self.msg}")
 
         assert self.spinner._tick == 1
         self.spinner.print_tick()
-        mock_sys.stdout.write.assert_called_with(f"\r {'/'} {self.msg}")
+        mock_sys.stdout.write.assert_called_with(f"\r {signs[1]} {self.msg}")
 
-        mock_sys.stdout.flush.call_count == 2
+        assert self.spinner._tick == 2
+        self.spinner.print_tick()
+        mock_sys.stdout.write.assert_called_with(f"\r {signs[2]} {self.msg}")
+
+        assert self.spinner._tick == 3
+        self.spinner.print_tick()
+        mock_sys.stdout.write.assert_called_with(f"\r {signs[3]} {self.msg}")
+
+        mock_sys.stdout.flush.call_count == 4
 
     @patch.object(utils, 'sys')
     def test_print_tick_is_not_atty(self, mock_sys):

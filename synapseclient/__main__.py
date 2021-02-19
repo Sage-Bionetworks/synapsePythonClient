@@ -544,10 +544,11 @@ def build_parser():
     parser.add_argument('-c', '--configPath', dest='configPath', default=synapseclient.client.CONFIG_FILE,
                         help='Path to configuration file used to connect to Synapse [default: %(default)s]')
 
-    parser.add_argument('--debug', dest='debug', action='store_true', help='Set mode to debug mode, default is False')
+    parser.add_argument('--debug', dest='debug', action='store_true',
+                        help='"Set to debug mode, additional output and error messages are printed to the console"')
 
     parser.add_argument('--silent', dest='silent', action='store_true',
-                        help='Set mode to silent mode, default is False')
+                        help='"Set to silent mode, console output is suppressed"')
 
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
                         help='suppress checking for version upgrade messages and endpoint redirection')

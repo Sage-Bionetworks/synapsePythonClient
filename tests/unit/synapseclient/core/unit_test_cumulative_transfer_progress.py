@@ -25,8 +25,9 @@ def test_not_configured(mock_utils_print_transfer_progress):
 
 @mock.patch.object(cumulative_transfer_progress, 'time')
 @mock.patch.object(cumulative_transfer_progress, 'sys')
+@mock.patch.object(cumulative_transfer_progress.utils, 'Spinner')
 @mock.patch.object(utils, 'printTransferProgress')
-def test_progress(mock_utils_print_transfer_progress, mock_sys, mock_time):
+def test_progress(mock_utils_print_transfer_progress, mock_spinner, mock_sys, mock_time):
     """Verify writing progress via a CumulativeProgress"""
 
     # mock time for predictability
@@ -95,6 +96,8 @@ def test_progress(mock_utils_print_transfer_progress, mock_sys, mock_time):
         mock.call('Testing 200.0bytes (1.0bytes/s)'),
         mock.call('Testing 350.0bytes (1.2bytes/s)'),
     ]
+    mock_spinner.assert_called_once_with()
+    assert mock_spinner.return_value.print_tick.call_count == 3
     assert expected_stdout_writes == mock_sys.stdout.write.call_args_list
 
     # test thread local props cleaned up
