@@ -980,9 +980,13 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
     try:
         _authenticate_login(syn, user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
-        # if there were no credentials in the cache nor provided, prompt the user and try again
-        user = input("Synapse username (leave blank if using an auth token): ")
-        secret_prompt = f"Password or api key for user {user}:" if user else "Auth token:"
+        # there were no complete credentials in the cache nor provided
+        if not user:
+            # if username was passed then we use that username
+            user = input("Synapse username (leave blank if using an auth token): ")
+
+        # if no username was provided then prompt for auth token, since no other secret will suffice without a user
+        secret_prompt = f"Password, api key, or auth token for user {user}:" if user else "Auth token:"
 
         passwd = None
         while not passwd:

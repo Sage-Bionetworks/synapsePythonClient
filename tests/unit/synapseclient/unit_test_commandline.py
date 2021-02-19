@@ -320,7 +320,7 @@ def test_login_with_prompt(mock_authenticate_login, syn):
 @pytest.mark.parametrize(
     'username,expected_pass_prompt',
     [
-        ('foo', 'Password or api key for user foo:'),
+        ('foo', 'Password, api key, or auth token for user foo:'),
         ('', 'Auth token:'),
     ]
 )
@@ -389,6 +389,36 @@ def test_login_with_prompt_no_tty(mock_input, mock_sys, syn):
     mock_input.return_value = user
     with pytest.raises(SynapseAuthenticationError):
         cmdline.login_with_prompt(syn, None, None, **login_kwargs)
+
+
+def test_login_with_prompt__user_supplied(mocker, syn):
+    """
+    Verify that if we login_with_prompt and the username was supplied then we don't prompt the
+    user for a username.
+    """
+
+    username = 'shrek'
+    password = 'testpass'
+
+    mock_sys = mocker.patch.object(cmdline, 'sys')
+    mock_sys.isatty.return_value = True
+
+    mock_getpass = mocker.patch.object(cmdline, 'getpass')
+    mock_getpass.getpass.return_value = password
+
+    mock_input = mocker.patch.object(cmdline, 'input')
+    mock_authenticate_login = mocker.patch.object(cmdline, '_authenticate_login')
+    mock_authenticate_login.side_effect = [SynapseNoCredentialsError(), None]
+
+    cmdline.login_with_prompt(syn, username, None)
+    assert not mock_input.called
+    mock_authenticate_login.assert_called_with(
+        syn,
+        username,
+        password,
+        forced=False,
+        rememberMe=False,
+    )
 
 
 @patch.object(cmdline, 'build_parser')
