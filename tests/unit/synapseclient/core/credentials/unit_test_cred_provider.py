@@ -296,6 +296,8 @@ class TestConfigFileCredentialsProvider(object):
         self.mock_get_config_authentication.assert_called_once_with()
 
     def test_get_auth_info__user_arg_username_does_not_match_config(self):
+        """Verify that if the username is provided via an arg and it doesn't
+        match what's in the config then we don't read any other values from config"""
         user_login_args = UserLoginArgs(
             username="shrek",
             password=None,
@@ -306,8 +308,7 @@ class TestConfigFileCredentialsProvider(object):
 
         returned_tuple = self.provider._get_auth_info(self.syn, user_login_args)
 
-        # the auth token can be provided without a username
-        assert (None, None, None, self.token) == returned_tuple
+        assert (None, None, None, None) == returned_tuple
         self.mock_get_config_authentication.assert_called_once_with()
 
 

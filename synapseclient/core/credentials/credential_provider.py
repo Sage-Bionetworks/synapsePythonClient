@@ -107,19 +107,18 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
         config_dict = syn._get_config_authentication()
         # check to make sure we didn't accidentally provide the wrong user
 
-        config_username = config_dict.get('username')
-
-        # token can be provided by itself without a username
+        username = config_dict.get('username')
+        password = config_dict.get('password')
+        api_key = config_dict.get('apikey')
         token = config_dict.get('authtoken')
 
-        username = None
-        password = None
-        api_key = None
-
-        if user_login_args.username is None or config_username == user_login_args.username:
-            username = config_username
-            password = config_dict.get('password')
-            api_key = config_dict.get('apikey')
+        if user_login_args.username and username != user_login_args.username:
+            # if the username is provided and there is a config file username but they don't match
+            # then we don't use any of the values from the config to prevent ambiguity
+            username = None
+            password = None
+            api_key = None
+            token = None
 
         return username, password, api_key, token
 
