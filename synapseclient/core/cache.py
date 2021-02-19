@@ -286,6 +286,15 @@ class Cache:
 
         Deletes .cacheMap files and files stored in the cache.cache_root_dir, but does not delete files stored outside
         the cache.
+
+        :param before_date: To specify the date that all the files in Synapse caches which creating date before it will
+                            beremoved.
+        :param after_date:  To specify the date that all the files in Synapse caches which creating date after it will
+                            be removed.
+        :param dry_run:     To determine purge method actually remove the files. If dry_run is True then just print out
+                            the files that will be removed.
+
+        :returns: count how many file will be removed
         """
         if before_date is None and after_date is None:
             raise ValueError("Either before date or after date should be provided")
