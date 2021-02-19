@@ -316,6 +316,9 @@ class TestFolderSync:
             assert expected_manifest_calls == mock_generateManifest.call_args_list
 
     def test_update__finish__without_generating_manifest(self):
+        """
+        Verify the update method won't call generate_manifest if the create_manifest is False
+        """
         with patch.object(synapseutils.sync, 'generateManifest') as mock_generateManifest:
             # create_manifest flag is False then won't call generateManifest
             self._finished_test('/tmp/foo', False)

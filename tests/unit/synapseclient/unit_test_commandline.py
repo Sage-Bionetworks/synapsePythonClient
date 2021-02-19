@@ -123,6 +123,9 @@ def test_migrate(syn):
 
 @patch.object(cmdline, 'synapseutils')
 def test_get_manifest_option(mock_synapseutils):
+    """
+    Verify the suppress manifest option works properly
+    """
     parser = cmdline.build_parser()
     syn = Mock()
 
