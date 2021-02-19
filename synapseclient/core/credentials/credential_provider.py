@@ -138,8 +138,6 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
             username = user_login_args.username or cached_sessions.get_most_recent_user()
             if username:
                 api_creds = SynapseApiKeyCredentials.get_from_keyring(username)
-
-                # tokens are stored in the keyring under the username, so the username
                 auth_token_creds = SynapseAuthTokenCredentials.get_from_keyring(username)
 
                 api_key = api_creds.secret if api_creds else None
