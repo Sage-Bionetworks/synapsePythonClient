@@ -2,6 +2,7 @@
 ############################################################
 import sys
 import os
+import platform
 import setuptools
 import json
 
@@ -32,6 +33,30 @@ test_deps = [
     "flake8>=3.7.0,<4.0"
 ]
 
+install_requires = [
+    'requests>=2.22.0,<3.0',
+    'keyring==12.0.2',
+    'deprecated>=1.2.4,<2.0',
+]
+
+# on Linux specify a cryptography dependency that will not
+# require a Rust compiler to compile from source (< 3.4).
+# on Linux cryptography is a transitive dependency
+# (keyring -> SecretStorage -> cryptography)
+# SecretStorage doesn't pin a version so otherwise if cryptography
+# is not already installed the dependency will resolve to the latest
+# and will require Rust if a precompiled wheel cannot be used
+# (e.g. old version of pip or no wheel available for an architecture).
+# if a newer version of cryptography is already installed that is
+# fine we don't want to trigger a downgrade, hence the conditional
+# addition of the versioned dependency.
+if platform.system() == 'Linux':
+    try:
+        import cryptography  # noqa
+        # already installed, don't need to install (or downgrade)
+    except ImportError:
+        install_requires.append('cryptography<3.4')
+
 setuptools.setup(
     # basic
     name='synapseclient',
@@ -40,18 +65,14 @@ setuptools.setup(
 
     # requirements
     python_requires='>=3.6.*',
-    install_requires=[
-        'requests>=2.22.0,<3.0',
-        'keyring==12.0.2',
-        'deprecated>=1.2.4,<2.0',
-    ],
+    install_requires=install_requires,
     extras_require={
         'pandas': ["pandas>=0.25.0,<2.0"],
         'pysftp': ["pysftp>=0.2.8,<0.3"],
         'boto3': ["boto3>=1.7.0,<2.0"],
         'docs': ["sphinx>=3.0,<4.0", "sphinx-argparse>=0.2,<0.3"],
         'tests': test_deps,
-        ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt==3.1'],
+        ':sys_platform=="linux"': ['keyrings.alt==3.1'],
     },
 
     # command line

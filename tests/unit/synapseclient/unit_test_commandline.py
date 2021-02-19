@@ -38,8 +38,9 @@ def test_command_sync(syn):
                                                     retries=args.retries)
 
 
-def test_migrate(syn):
-    """Test that the command line arguments are successfully passed to the migrate function."""
+def test_migrate__default_args(syn):
+    """Test that the command line arguments are successfully passed to the migrate function
+    when using the default options"""
 
     entity_id = 'syn12345'
     storage_location_id = '98766'
@@ -64,6 +65,17 @@ def test_migrate(syn):
     assert args.dryRun is False
     assert args.force is False
     assert args.csv_log_path is None
+
+
+def test_migrate__fully_specified_args(mocker, syn):
+    """Test that the command line arguments are successfully passed to the migrate function
+    when the arguments are fully specified"""
+
+    entity_id = 'syn12345'
+    storage_location_id = '98766'
+    db_path = '/tmp/foo/bar'
+
+    parser = cmdline.build_parser()
 
     # test w/ fully specified args
     args = parser.parse_args([
@@ -90,35 +102,59 @@ def test_migrate(syn):
     assert args.csv_log_path == '/tmp/foo/bar'
 
     # verify args are passed through to the fn
-    with patch.object(synapseutils, 'index_files_for_migration') as mock_index, \
-            patch.object(synapseutils, 'migrate_indexed_files') as mock_migrate:
+    mock_index = mocker.patch.object(synapseutils, 'index_files_for_migration')
+    mock_migrate = mocker.patch.object(synapseutils, 'migrate_indexed_files')
 
-        cmdline.migrate(args, syn)
+    cmdline.migrate(args, syn)
 
-        mock_index.assert_called_once_with(
-            syn,
-            args.id,
-            args.storage_location_id,
-            args.db_path,
-            file_version_strategy='all',
-            include_table_files=True,
-            continue_on_error=True,
-        )
+    mock_index.assert_called_once_with(
+        syn,
+        args.id,
+        args.storage_location_id,
+        args.db_path,
+        file_version_strategy='all',
+        include_table_files=True,
+        continue_on_error=True,
+    )
 
-        # during a dryRun the actual migration should not occur
-        assert mock_migrate.called is False
+    # during a dryRun the actual migration should not occur
+    assert mock_migrate.called is False
 
-        # without dryRun then migrate should also be called
-        args.dryRun = False
-        cmdline.migrate(args, syn)
+    # without dryRun then migrate should also be called
+    args.dryRun = False
+    cmdline.migrate(args, syn)
 
-        mock_migrate.assert_called_once_with(
-            syn,
-            args.db_path,
-            create_table_snapshots=True,
-            continue_on_error=True,
-            force=True
-        )
+    mock_migrate.assert_called_once_with(
+        syn,
+        args.db_path,
+        create_table_snapshots=True,
+        continue_on_error=True,
+        force=True
+    )
+
+
+def test_migrate__dont_continue(mocker, syn):
+    """Verify we exit gracefully if migrate returns no result
+    (e.g. the user declined to continue with the migration after reading the result of the index"""
+    storage_location_id = '98766'
+    db_path = '/tmp/foo/bar'
+
+    parser = cmdline.build_parser()
+
+    mocker.patch.object(synapseutils, 'index_files_for_migration')
+    mock_migrate = mocker.patch.object(synapseutils, 'migrate_indexed_files')
+
+    # a None simulates the user declining to continue
+    mock_migrate.return_value = None
+
+    args = parser.parse_args([
+        'migrate',
+        'syn12345',
+        storage_location_id,
+        db_path,
+    ])
+
+    cmdline.migrate(args, syn)
 
 
 def test_get_multi_threaded_flag():
