@@ -32,6 +32,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04, macos-10.15, windows-2019]
+
+        # if changing the below change the run-integration-tests versions and the check-deploy versions
         python: [3.6, 3.7, 3.8, 3.9]
 
     runs-on: ${{ matrix.os }}
@@ -75,19 +77,34 @@ jobs:
       # the target server where N is the number of supported python versions.
       - name: run-integration-tests
         shell: bash
+
+        # keep versions consistent with the first and last from the strategy matrix
         if: ${{ contains(fromJSON('[3.6, 3.9]'), matrix.python) }}
         run: |
           if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_key }}" ]; then
             echo "No test configuration decryption keys available, skipping integration tests"
 
           else
-            # host used in pysftp tests
-            mkdir -p ~/.ssh
-            ssh-keyscan -H ec2-54-159-43-147.compute-1.amazonaws.com >> ~/.ssh/known_hosts
-
             # decrypt the encrypted test synapse configuration
             openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
             mv test.synapseConfig ~/.synapseConfig
+
+            if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
+              # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
+              # Docker is not available on GH Action runners on Mac and Windows.
+
+              docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
+              docker run -d sftp_tests:latest
+
+              # get the internal IP address of the just launched container
+              export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
+
+              printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
+
+              # add to known_hosts so the ssh connections can be made without any prompting/errors
+              mkdir -p ~/.ssh
+              ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
+            fi
 
             pytest -sv tests/integration
           fi
@@ -233,7 +250,9 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04, macos-10.15, windows-2019]
-        python: [3.6, 3.7, 3.8]
+
+        # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
+        python: [3.6, 3.7, 3.8, 3.9]
 
     runs-on: ${{ matrix.os }}
 
