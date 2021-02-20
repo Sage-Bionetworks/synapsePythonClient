@@ -3,11 +3,13 @@ import base64
 import collections
 import hashlib
 import hmac
+import json
 import keyring
 import requests.auth
 import time
 import urllib.parse as urllib_parse
 
+from synapseclient.core.exceptions import SynapseAuthenticationError
 import synapseclient.core.utils
 
 
@@ -31,13 +33,13 @@ class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
     @classmethod
     def get_from_keyring(cls, username: str) -> 'SynapseCredentials':
         secret = keyring.get_password(cls.get_keyring_service_name(), username)
-        return cls(username, secret) if secret else None
+        return cls(secret, username) if secret else None
 
     def delete_from_keyring(self):
         try:
             keyring.delete_password(self.get_keyring_service_name(), self.username)
         except keyring.errors.PasswordDeleteError:
-            # The api key does not exist, but that is fine
+            # key does not exist, but that is fine
             pass
 
     def store_to_keyring(self):
@@ -54,9 +56,9 @@ class SynapseApiKeyCredentials(SynapseCredentials):
         # cannot change without losing access to existing client's stored api keys
         return "SYNAPSE.ORG_CLIENT"
 
-    def __init__(self, username, api_key_string):
-        self._username = username
+    def __init__(self, api_key_string, username):
         self._api_key = base64.b64decode(api_key_string)
+        self._username = username
 
     @property
     def username(self):
@@ -103,13 +105,51 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
     def get_keyring_service_name(cls):
         return 'SYNAPSE.ORG_CLIENT_AUTH_TOKEN'
 
-    def __init__(self, username, token):
-        self._username = username
+    @classmethod
+    def _validate_token(cls, token):
+        # decode the token to ensure it minimally has view scope.
+        # if it doesn't raise an error, the client will not be useful without it.
+
+        # if for any reason we are not able to decode the token and check its scopes
+        # we do NOT raise an error. this is to accommodate the possibility of a changed
+        # token format some day that this version of the client may still be able to
+        # pass as a bearer token.
+        try:
+            token_body = json.loads(
+                str(
+                    base64.urlsafe_b64decode(
+                        # we add padding to ensure that lack of padding won't prevent a decode error.
+                        # the python base64 implementation will truncate extra padding so we can overpad
+                        # rather than compute exactly how much padding we might need.
+                        # https://stackoverflow.com/a/49459036
+                        token.split('.')[1] + '==='
+                    ),
+                    'utf-8'
+                )
+            )
+            scopes = token_body.get('access', {}).get('scope')
+            if scopes is not None and 'view' not in scopes:
+                raise SynapseAuthenticationError('A view scoped token is required')
+
+        except (IndexError, ValueError):
+            # possible errors if token is not encoded as expected:
+            # IndexError if the token is not a '.' delimited base64 string with a header and body
+            # ValueError if the split string is not base64 encoded or if the decoded base64 is not json
+            pass
+
+    def __init__(self, token, username=None):
+        self._validate_token(token)
+
         self._token = token
+        self.username = username
 
     @property
     def username(self):
         return self._username
+
+    @username.setter
+    def username(self, username):
+        self._username = username
 
     @property
     def secret(self):
@@ -140,3 +180,13 @@ UserLoginArgs = collections.namedtuple(
 # make the namedtuple's arguments optional instead of positional. All values default to None
 # when we require Python 3.6.1 we can use typing.NamedTuple's built-in default support
 UserLoginArgs.__new__.__defaults__ = (None,) * len(UserLoginArgs._fields)
+
+
+def delete_stored_credentials(username):
+    """
+    Delete all credentials stored to the keyring.
+    """
+    for credential_cls in (SynapseApiKeyCredentials, SynapseAuthTokenCredentials):
+        creds = credential_cls.get_from_keyring(username)
+        if creds:
+            creds.delete_from_keyring()
