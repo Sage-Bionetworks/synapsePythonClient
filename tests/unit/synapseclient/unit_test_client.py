@@ -37,6 +37,7 @@ from synapseclient.core.exceptions import (
     SynapseMd5MismatchError,
     SynapseUnmetAccessRestrictions,
 )
+from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME, SILENT_LOGGER_NAME
 from synapseclient.core.upload import upload_functions
 import synapseclient.core.utils as utils
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
@@ -384,6 +385,7 @@ class TestDownloadFileHandle:
             key,
             destination,
             credentials=credentials,
+            show_progress=True,
             transfer_config_kwargs={'max_concurrency': self.syn.max_threads},
         )
 
@@ -2521,6 +2523,49 @@ class TestTableQuery:
             )
 
             assert (mock_download_result, expected_path) == actual_result
+
+
+class TestSilentCommandAndLogger:
+
+    def setup(self):
+        """
+        Set up three different synapse objects
+        """
+        self.syn = Synapse(debug=False, skip_checks=True)
+        self.syn_with_silent = Synapse(silent=True, debug=False, skip_checks=True)
+        self.syn_with_debug = Synapse(silent=False, debug=True, skip_checks=True)
+
+    def test_syn_silent(self):
+        """
+        Verify the silent property is set up correctly
+        """
+        assert self.syn.silent is None
+        assert self.syn_with_silent.silent is True
+        assert self.syn_with_debug.silent is False
+
+    def test_syn_logger_name(self):
+        """
+        According to the properties silent and debug, logger name should be different
+        """
+        assert self.syn.logger.name == DEFAULT_LOGGER_NAME
+        assert self.syn_with_silent.logger.name == SILENT_LOGGER_NAME
+        assert self.syn_with_debug.logger.name == DEBUG_LOGGER_NAME
+
+    @patch.object(client, 'cumulative_transfer_progress')
+    def test_print_transfer_progress(self, mock_ctp):
+        """
+        Verify the private method print_transfer_progress will run with property self.silent accordingly
+        """
+        mock_kwargs = {
+            'isBytes': False,
+            'dt': 10
+        }
+        self.syn_with_silent._print_transfer_progress("transferred", "toBeTransferred", 'Downloading ', mock_kwargs)
+        mock_ctp.printTransferProgress.assert_not_called()
+
+        self.syn._print_transfer_progress("transferred", "toBeTransferred", 'Downloading ', mock_kwargs)
+        mock_ctp.printTransferProgress.assert_called_once_with("transferred", "toBeTransferred", 'Downloading ',
+                                                               mock_kwargs)
 
 
 @pytest.mark.parametrize("userid", [999, 1456])

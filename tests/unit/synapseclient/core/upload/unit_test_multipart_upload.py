@@ -5,6 +5,7 @@ import json
 import pytest
 from unittest import mock
 
+from synapseclient import Synapse
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseUploadAbortedException,
@@ -587,6 +588,10 @@ class TestUploadAttempt:
 
 class TestMultipartUpload:
 
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
     def test_multipart_upload_file(self):
         """Verify multipart_upload_file passes through its
         args, validating and supplying defaults as expected."""
@@ -608,7 +613,8 @@ class TestMultipartUpload:
                 mock.patch.object(
                     multipart_upload,
                     '_multipart_upload',
-                ) as mock_multipart_upload:
+                ) as mock_multipart_upload,\
+                mock.patch.object(multipart_upload, 'Spinner') as mock_spinner:
 
             os_path_getsize.return_value = file_size
             md5_for_file.return_value.hexdigest.return_value = md5_hex
@@ -644,6 +650,7 @@ class TestMultipartUpload:
                 file_path,
                 storage_location_id=storage_location_id,
             )
+
             mock_multipart_upload.assert_called_once_with(
                 syn,
                 'baz',
@@ -655,6 +662,23 @@ class TestMultipartUpload:
                 force_restart=False,
                 max_threads=None,
             )
+
+            # Test when call the multipart_upload_file, md5_for_file pass in the correct callback function
+            syn_with_silent_mode = Synapse(silent=True, skip_checks=True)
+            multipart_upload_file(
+                syn_with_silent_mode,
+                file_path,
+                storage_location_id=storage_location_id,
+            )
+            md5_for_file.assert_called_with(file_path, callback=None)
+
+            syn_with_no_silent_mode = Synapse(debug=False, skip_checks=True)
+            multipart_upload_file(
+                syn_with_no_silent_mode,
+                file_path,
+                storage_location_id=storage_location_id,
+            )
+            md5_for_file.assert_called_with(file_path, callback=mock_spinner.return_value.print_tick)
 
             mock_multipart_upload.reset_mock()
 
@@ -788,8 +812,7 @@ class TestMultipartUpload:
             'associateObjectType': associate_object_type,
         }
 
-        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload, \
-                mock.patch.object(multipart_upload, 'printTransferProgress') as mock_print_progress:
+        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload:
             expected_upload_request = {
                 'concreteType': 'org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest',
                 'fileName': None,
@@ -817,7 +840,7 @@ class TestMultipartUpload:
                 max_threads=None,
             )
 
-            assert not mock_print_progress.called
+            assert not syn._print_transfer_progress.called
 
     def test_multipart_copy__explicit_args(self):
         """Test multipart copy explicitly defining all args.
@@ -837,8 +860,7 @@ class TestMultipartUpload:
 
         storage_location_id = 5432
 
-        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload, \
-                mock.patch.object(multipart_upload, 'printTransferProgress') as mock_print_progress:
+        with mock.patch.object(multipart_upload, '_multipart_upload') as mock_multipart_upload:
 
             # call specifying all optional kwargs
             kwargs = {
@@ -875,7 +897,7 @@ class TestMultipartUpload:
                 max_threads=kwargs['max_threads'],
             )
 
-            assert not mock_print_progress.called
+            assert not syn._print_transfer_progress.called
 
     def _multipart_upload_test(self, upload_side_effect, syn, *args, **kwargs):
         with mock.patch.object(

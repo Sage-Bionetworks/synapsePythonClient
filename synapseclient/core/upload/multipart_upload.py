@@ -27,14 +27,13 @@ from typing import List, Mapping
 
 from synapseclient.core import pool_provider
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.cumulative_transfer_progress import printTransferProgress
 from synapseclient.core.exceptions import (
     _raise_for_status,  # why is is this a single underscore
     SynapseHTTPError,
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
 )
-from synapseclient.core.utils import md5_for_file, MB
+from synapseclient.core.utils import md5_for_file, MB, Spinner
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
@@ -295,7 +294,7 @@ class UploadAttempt:
                 file_size,
             )
 
-            printTransferProgress(
+            self._syn._print_transfer_progress(
                 progress,
                 file_size,
                 prefix='Uploading',
@@ -326,7 +325,7 @@ class UploadAttempt:
 
                 if part_size and not self._is_copy():
                     progress += part_size
-                    printTransferProgress(
+                    self._syn._print_transfer_progress(
                         min(progress, file_size),
                         file_size,
                         prefix='Uploading',
@@ -472,7 +471,8 @@ def multipart_upload_file(
         mime_type, _ = mimetypes.guess_type(file_path, strict=False)
         content_type = mime_type or 'application/octet-stream'
 
-    md5_hex = md5_for_file(file_path).hexdigest()
+    callback_func = Spinner().print_tick if not syn.silent else None
+    md5_hex = md5_for_file(file_path, callback=callback_func).hexdigest()
 
     part_size = _get_part_size(part_size, file_size)
 

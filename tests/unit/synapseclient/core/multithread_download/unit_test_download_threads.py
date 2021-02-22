@@ -388,9 +388,8 @@ class MultithreadedDownloaderTests(TestCase):
         downloader._write_chunks(request, completed_futures, transfer_status)
         assert not mock_open.called
 
-    @mock.patch.object(download_threads, 'printTransferProgress')
     @mock.patch.object(download_threads, 'open')
-    def test_write_chunks(self, mock_open, mock_print_transfer_progress):
+    def test_write_chunks(self, mock_open):
         """Verify expected behavior writing out chunks to disk"""
         request = mock.Mock(path='/tmp/foo')
 
@@ -431,7 +430,7 @@ class MultithreadedDownloaderTests(TestCase):
         assert expected_writes == mock_write.write.call_args_list
 
         assert sum(len(c) for c in chunks) == transfer_status.transferred
-        assert expected_print_transfer_progresses == mock_print_transfer_progress.call_args_list
+        assert expected_print_transfer_progresses == downloader._syn._print_transfer_progress.call_args_list
 
     def test_check_for_errors__no_errors(self):
         """Verify check_for_errors when there were no errors"""

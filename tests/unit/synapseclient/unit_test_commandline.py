@@ -3,6 +3,7 @@
 """
 
 import base64
+import os
 
 import pytest
 from unittest.mock import call, Mock, patch
@@ -133,8 +134,7 @@ def test_get_multi_threaded_flag():
     assert args.multiThreaded
 
 
-@patch('builtins.print')
-def test_get_sts_token(mock_print):
+def test_get_sts_token():
     """Test getting an STS token."""
     folder_id = 'syn_1'
     permission = 'read_write'
@@ -147,8 +147,7 @@ def test_get_sts_token(mock_print):
     args = parser.parse_args(['get-sts-token', folder_id, permission, '-o', 'shell'])
     cmdline.get_sts_token(args, syn)
     syn.get_sts_storage_token.assert_called_with(folder_id, permission, output_format='shell')
-
-    mock_print.assert_called_once_with(expected_output)
+    syn.logger.info.assert_called_once_with(expected_output)
 
 
 def test_authenticate_login__success(syn):
@@ -287,9 +286,40 @@ def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_ge
     assert expected_authenticate_calls == mock_authenticate_login.call_args_list
 
 
+def test_syn_commandline_silent_mode():
+    """
+    Test the silent argument from commandline
+    """
+
+    parser = cmdline.build_parser()
+    args = parser.parse_args([])
+    assert args.silent is False
+
+    parser = cmdline.build_parser()
+    args = parser.parse_args(['--silent'])
+    assert args.silent is True
+
+
+@patch("synapseclient.Synapse")
+def test_commandline_main(mock_syn):
+    """
+    Test the main method
+    """
+
+    configPath = os.path.join(os.path.expanduser('~'), '.synapseConfig')
+    args = cmdline.build_parser().parse_args(['-u', 'testUser', '--silent'])
+
+    with patch.object(cmdline, 'build_parser') as mock_build_parser:
+        mock_build_parser.return_value.parse_args.return_value = args
+        cmdline.main()
+        mock_syn.assert_called_once_with(debug=False, skip_checks=False,
+                                         configPath=configPath, silent=True)
+
+
 @patch.object(cmdline, 'sys')
 @patch.object(cmdline, 'input')
-def test_login_with_prompt_no_tty(mock_input, mock_sys, syn):
+@patch.object(cmdline, '_authenticate_login')
+def test_login_with_prompt_no_tty(mock_authenticate_login, mock_input, mock_sys, syn):
     """
     Verify login_with_prompt when the terminal is not a tty,
     we are unable to read from standard input and throw a SynapseAuthenticationError
@@ -302,6 +332,7 @@ def test_login_with_prompt_no_tty(mock_input, mock_sys, syn):
         'forced': True,
     }
 
+    mock_authenticate_login.side_effect = SynapseNoCredentialsError()
     mock_sys.stdin.isatty.return_value = False
     mock_input.return_value = user
     with pytest.raises(SynapseAuthenticationError):

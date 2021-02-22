@@ -38,7 +38,7 @@ KB = 2**10
 BUFFER_SIZE = 8*KB
 
 
-def md5_for_file(filename, block_size=2*MB):
+def md5_for_file(filename, block_size=2 * MB, callback=None):
     """
     Calculates the MD5 of the given file.
     See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
@@ -46,12 +46,16 @@ def md5_for_file(filename, block_size=2*MB):
     :param filename:   The file to read in
     :param block_size: How much of the file to read in at once (bytes).
                        Defaults to 2 MB
+    :param callback:   The callback function that help us show loading spinner on terminal.
+                       Defaults to None
     :returns: The MD5
     """
 
     md5 = hashlib.md5()
     with open(filename, 'rb') as f:
         while True:
+            if callback:
+                callback()
             data = f.read(block_size)
             if not data:
                 break
@@ -961,3 +965,16 @@ class deprecated_keyword_param:
             return fn(*args, **kwargs)
 
         return wrapper
+
+
+class Spinner:
+    def __init__(self, msg=""):
+        self._tick = 0
+        self.msg = msg
+
+    def print_tick(self):
+        spinner = ['|', '/', '-', '\\'][self._tick % 4]
+        if sys.stdin.isatty():
+            sys.stdout.write(f"\r {spinner} {self.msg}")
+            sys.stdout.flush()
+        self._tick += 1
