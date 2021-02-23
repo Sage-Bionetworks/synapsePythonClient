@@ -45,7 +45,7 @@ def _sync_executor(syn):
 
 
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles=None, followLink=False,
-                    manifest=True):
+                    manifest="all", downloadFile=True):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
     metadata.
 
@@ -96,7 +96,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     # 2 threads always, if those aren't available then we'll run single threaded to avoid a deadlock
     with _sync_executor(syn) as executor:
         sync_from_synapse = _SyncDownloader(syn, executor, create_manifest=manifest)
-        files = sync_from_synapse.sync(entity, path, ifcollision, followLink)
+        files = sync_from_synapse.sync(entity, path, ifcollision, followLink, downloadFile)
 
     # the allFiles parameter used to be passed in as part of the recursive implementation of this function
     # with the public signature invoking itself. now that this isn't a recursive any longer we don't need
@@ -147,6 +147,7 @@ class _FolderSync:
                 self._provenance.update(provenance)
 
             if self._is_finished():
+                # if self._create_manifest == "all" or self._create_manifest == "root":
                 if self._create_manifest:
                     self._generate_folder_manifest()
 
@@ -204,7 +205,7 @@ class _SyncDownloader:
     """
 
     def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_downloads=None,
-                 create_manifest=True):
+                 create_manifest="all"):
         """
         :param syn:             A synapse client
         :param executor:        An ExecutorService in which concurrent file downlaods can be scheduled
@@ -220,7 +221,7 @@ class _SyncDownloader:
         max_concurrent_file_downloads = max(int(max_concurrent_file_downloads or self._syn.max_threads / 2), 1)
         self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_downloads)
 
-    def sync(self, entity, path, ifcollision, followLink):
+    def sync(self, entity, path, ifcollision, followLink, downloadFile=True):
         progress = CumulativeTransferProgress('Downloaded')
 
         if is_synapse_id(entity):
@@ -233,7 +234,7 @@ class _SyncDownloader:
             )
 
         if is_container(entity):
-            root_folder_sync = self._sync_root(entity, path, ifcollision, followLink, progress)
+            root_folder_sync = self._sync_root(entity, path, ifcollision, followLink, progress, downloadFile)
 
             # once the whole folder hierarchy has been traversed this entrant thread waits for
             # all file downloads to complete before returning
@@ -251,7 +252,7 @@ class _SyncDownloader:
         files.sort(key=lambda f: f.get('path') or '')
         return files
 
-    def _sync_file(self, entity_id, parent_folder_sync, path, ifcollision, followLink, progress):
+    def _sync_file(self, entity_id, parent_folder_sync, path, ifcollision, followLink, progress, downloadFile):
         try:
             # we use syn.get to download the File.
             # these context managers ensure that we are using some shared state
@@ -265,6 +266,7 @@ class _SyncDownloader:
                     downloadLocation=path,
                     ifcollision=ifcollision,
                     followLink=followLink,
+                    downloadFile=downloadFile,
                 )
 
             files = []
@@ -296,12 +298,14 @@ class _SyncDownloader:
         finally:
             self._file_semaphore.release()
 
-    def _sync_root(self, root, root_path, ifcollision, followLink, progress):
+    def _sync_root(self, root, root_path, ifcollision, followLink, progress, downloadFile):
         # stack elements are a 3-tuple of:
         # 1. the folder entity/dict
         # 2. the local path to the folder to download to
         # 3. the FolderSync of the parent to the folder (None at the root)
-        folder_stack = [(root, root_path, None)]
+
+        folder_stack = [(root, root_path, None, True)]
+        create_root_manifest_only = True if self.create_manifest == "root" else False
 
         root_folder_sync = None
         while folder_stack:
@@ -312,7 +316,7 @@ class _SyncDownloader:
                 if exception:
                     raise ValueError("File download failed during sync") from exception
 
-            folder, parent_path, parent_folder_sync = folder_stack.pop()
+            folder, parent_path, parent_folder_sync, create_manifest = folder_stack.pop()
 
             entity_id = id_of(folder)
             folder_path = None
@@ -342,7 +346,7 @@ class _SyncDownloader:
                 folder_path,
                 child_ids,
                 parent_folder_sync,
-                self.create_manifest,
+                create_manifest,
             )
             if not root_folder_sync:
                 root_folder_sync = folder_sync
@@ -362,10 +366,11 @@ class _SyncDownloader:
                         ifcollision,
                         followLink,
                         progress,
+                        downloadFile,
                     )
 
                 for child_folder in child_folders:
-                    folder_stack.append((child_folder, folder_path, folder_sync))
+                    folder_stack.append((child_folder, folder_path, folder_sync, not create_root_manifest_only))
 
         return root_folder_sync
 

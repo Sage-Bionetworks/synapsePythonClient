@@ -92,8 +92,9 @@ def get(args, syn):
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
+        create_manifest = "suppress" if args.suppressManifest else "all"
         synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation, followLink=args.followLink,
-                                     manifest=not args.suppressManifest)
+                                     manifest=create_manifest)
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
             raise ValueError('You cannot specify a version or id when you are downloading a query.')
