@@ -287,6 +287,9 @@ class Cache:
         Deletes .cacheMap files and files stored in the cache.cache_root_dir, but does not delete files stored outside
         the cache.
 
+        Either the before_date or after_date must be specified. If both are passed, files between the two dates are
+        selected for removal.
+
         :param before_date: To specify the date that all the files in Synapse caches which creating date before it will
                             be removed.
         :param after_date:  To specify the date that all the files in Synapse caches which creating date after it will
