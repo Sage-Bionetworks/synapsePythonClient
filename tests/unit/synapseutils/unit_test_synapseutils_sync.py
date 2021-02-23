@@ -156,6 +156,7 @@ def test_syncFromSynapse__project_contains_empty_folder(syn):
             downloadLocation=None,
             ifcollision='overwrite.local',
             followLink=False,
+            downloadFile=True,
         )
 
 

@@ -133,13 +133,13 @@ def test_get_manifest_option(mock_synapseutils):
     args = parser.parse_args(['get', '-r', 'syn123'])
     assert not args.suppressManifest
     cmdline.get(args, syn)
-    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest=True)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="all")
 
     # suppress creating the manifest file
     args = parser.parse_args(['get', '-r', 'syn123', '-supMani'])
     assert args.suppressManifest
     cmdline.get(args, syn)
-    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest=False)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="suppress")
 
 
 def test_get_multi_threaded_flag():
