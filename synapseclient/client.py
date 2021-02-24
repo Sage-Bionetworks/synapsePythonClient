@@ -604,8 +604,15 @@ class Synapse(object):
         # Check if userid or username exists
         syn_user = self.getUserProfile(user)
         # Get passing record
-        certification_status = self._get_certified_passing_record(syn_user['ownerId'])
-        return certification_status['passed']
+
+        try:
+            certification_status = self._get_certified_passing_record(syn_user['ownerId'])
+            return certification_status['passed']
+        except SynapseHTTPError as ex:
+            if ex.response.status_code == 404:
+                # user hasn't taken the quiz
+                return False
+            raise
 
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
