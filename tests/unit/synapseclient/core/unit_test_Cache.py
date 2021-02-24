@@ -1,10 +1,12 @@
+import datetime
 import json
 import re
 import os
+import pytest
 import tempfile
 import time
 import random
-from unittest.mock import patch
+from unittest.mock import patch, call
 from collections import OrderedDict
 from multiprocessing import Process
 
@@ -108,8 +110,7 @@ def test_subsecond_timestamps():
     my_cache.add(file_handle_id=1234, path=path)
 
     with patch.object(cache, "_get_modified_time") as _get_modified_time_mock, \
-         patch.object(cache.Cache, "_read_cache_map") as _read_cache_map_mock:
-
+            patch.object(cache.Cache, "_read_cache_map") as _read_cache_map_mock:
         # this should be a match, 'cause we round microseconds to milliseconds
         _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.001Z"}
         _get_modified_time_mock.return_value = 1430861695.001111
@@ -326,3 +327,107 @@ def test_set_cache_root_dir():
     # test that manually assigning cache_root_dir expands the path
     my_cache.cache_root_dir = non_expanded_path + "2"
     assert expanded_path + "2" == my_cache.cache_root_dir
+
+
+@patch.object(cache, 'os')
+@patch.object(cache, 're')
+def test_private_helper_cache_dirs(mock_re, mock_os):
+    """
+    Verify the _cache_dirs method is called correctly.
+    """
+
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+    mock_os.listdir.return_value = ['dir1', 'dir2']
+    mock_os.path.isdir.return_value = True
+    mock_re.match.return_value = True
+
+    def os_join_side_effect(*args):
+        return args[1]
+
+    mock_os.path.join.side_effect = os_join_side_effect
+    expected_path = ['dir1', 'dir2', 'dir1', 'dir2']
+    idx = 0
+    for path in my_cache._cache_dirs():
+        assert path == expected_path[idx]
+        idx += 1
+
+
+@patch.object(cache.Cache, '_cache_dirs')
+@patch.object(cache, '_get_modified_time')
+@patch.object(cache, 'shutil')
+@patch('builtins.print')
+def test_purge(mock_print, mock_shutil, mock_get_modified_time, mock_cache_dirs):
+    """
+    Verify the purge method is called correctly.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+    mock_cache_dirs.return_value = ['file1', 'file2']
+    mock_before_date = datetime.datetime(2021, 1, 31)
+    mock_after_date = datetime.datetime(2020, 12, 31)
+
+    # test if file won't be deleted
+    mock_get_modified_time.return_value = 1601900000.0
+    my_cache.purge(mock_before_date, mock_after_date)
+    mock_shutil.rmtree.assert_not_called()
+    mock_print.assert_not_called()
+
+    # test if files will be deleted and dry_run is True
+    mock_get_modified_time.return_value = 1609472800.0
+    my_cache.purge(mock_before_date, mock_after_date, dry_run=True)
+    mock_shutil.rmtree.assert_not_called()
+    assert mock_print.call_args_list == [call('file1'), call('file2')]
+
+    # test if files will be deleted and dry_run is False
+    my_cache.purge(mock_before_date, mock_after_date)
+    assert mock_shutil.rmtree.call_args_list == [call('file1'), call('file2')]
+
+
+@patch.object(cache, 'utils')
+@patch.object(cache.Cache, '_cache_dirs')
+def test_purge_datetime_transform(mock_cache_dirs, mock_utils):
+    """
+    Verify if pass in the datetime object as either before_date or after date in the purge method,
+    the utils.to_unix_epoch_time_secs method is called properly.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+    test_time = 123
+    mock_cache_dirs.return_value = []
+    mock_utils.to_unix_epoch_time_secs.return_value = test_time
+
+    # pass in argument before_date is not the datetime object.
+    mock_before_date_not_datetime = 1609372800.0
+    my_cache.purge(before_date=mock_before_date_not_datetime, dry_run=True)
+    mock_utils.to_unix_epoch_time_secs.assert_not_called()
+
+    # pass in the argument both are datetime objects.
+    mock_before_date = datetime.datetime(2021, 1, 31)
+    mock_after_date = datetime.datetime(2020, 12, 31)
+
+    my_cache.purge(before_date=mock_before_date, after_date=mock_after_date, dry_run=True)
+    assert mock_utils.to_unix_epoch_time_secs.call_args_list == [call(datetime.datetime(2021, 1, 31, 0, 0)),
+                                                                 call(datetime.datetime(2020, 12, 31, 0, 0))]
+
+
+def test_purge_raise_value_error():
+    """
+    Verify the function takes some corner case properly and raises the value exception.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+    # raise the valueError when before_date and after_date both are None.
+    with pytest.raises(ValueError) as ve:
+        my_cache.purge()
+    assert str(ve.value) == "Either before date or after date should be provided"
+
+    mock_after_date = datetime.datetime(2021, 1, 31)
+    mock_before_date = datetime.datetime(2020, 12, 31)
+
+    # raise the valueError when before_date is larger than after_date.
+    with pytest.raises(ValueError) as ve:
+        my_cache.purge(before_date=mock_before_date, after_date=mock_after_date)
+    assert str(ve.value) == "Before date should be larger than after date"
