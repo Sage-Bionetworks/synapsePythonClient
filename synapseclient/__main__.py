@@ -579,7 +579,7 @@ def build_parser():
     parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
     # add no manifest option
-    parser_get.add_argument('-cm', '--createManifest', type=str, choices=['all', 'root', 'suppress'],
+    parser_get.add_argument('--createManifest', type=str, choices=['all', 'root', 'suppress'],
                             default='all', help='Determines whether creating manifest file automatically.')
     parser_get.set_defaults(func=get)
 
