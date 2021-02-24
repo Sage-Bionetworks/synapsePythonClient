@@ -319,7 +319,7 @@ def test_syncFromSynapse__manifest_is_suppress(mock__get_file_entity_provenance_
 
     mock__get_file_entity_provenance_dict.return_value = {}
 
-    with patch.object(syn, "getChildren", side_effect=[[folder, file1], [file2]]) as patch_syn_get_children,\
+    with patch.object(syn, "getChildren", side_effect=[[folder, file1], [file2]]),\
             patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
 
         synapseutils.syncFromSynapse(syn, project, path="./", downloadFile=False, manifest="suppress")
