@@ -124,20 +124,26 @@ def test_migrate(syn):
 @patch.object(cmdline, 'synapseutils')
 def test_get_manifest_option(mock_synapseutils):
     """
-    Verify the suppress manifest option works properly
+    Verify the create manifest option works properly for three choices which are 'all', 'root', 'suppress'.
     """
     parser = cmdline.build_parser()
     syn = Mock()
 
-    # defaults to False
+    # createManifest defaults to all
     args = parser.parse_args(['get', '-r', 'syn123'])
-    assert not args.suppressManifest
+    assert args.createManifest == 'all'
     cmdline.get(args, syn)
     mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="all")
 
+    # creating the root manifest file only
+    args = parser.parse_args(['get', '-r', 'syn123', '-cm', 'root'])
+    assert args.createManifest == 'root'
+    cmdline.get(args, syn)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="root")
+
     # suppress creating the manifest file
-    args = parser.parse_args(['get', '-r', 'syn123', '-supMani'])
-    assert args.suppressManifest
+    args = parser.parse_args(['get', '-r', 'syn123', '-cm', 'suppress'])
+    assert args.createManifest == 'suppress'
     cmdline.get(args, syn)
     mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="suppress")
 

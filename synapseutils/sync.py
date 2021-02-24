@@ -304,8 +304,9 @@ class _SyncDownloader:
         # 2. the local path to the folder to download to
         # 3. the FolderSync of the parent to the folder (None at the root)
 
-        folder_stack = [(root, root_path, None, True)]
-        create_root_manifest_only = True if self.create_manifest == "root" else False
+        create_root_manifest = True if self.create_manifest != "suppress" else False
+        folder_stack = [(root, root_path, None, create_root_manifest)]
+        create_child_manifest = True if self.create_manifest == "all" else False
 
         root_folder_sync = None
         while folder_stack:
@@ -370,7 +371,7 @@ class _SyncDownloader:
                     )
 
                 for child_folder in child_folders:
-                    folder_stack.append((child_folder, folder_path, folder_sync, not create_root_manifest_only))
+                    folder_stack.append((child_folder, folder_path, folder_sync, create_child_manifest))
 
         return root_folder_sync
 
