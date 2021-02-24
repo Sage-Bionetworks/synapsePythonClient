@@ -136,13 +136,13 @@ def test_get_manifest_option(mock_synapseutils):
     mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="all")
 
     # creating the root manifest file only
-    args = parser.parse_args(['get', '-r', 'syn123', '-cm', 'root'])
+    args = parser.parse_args(['get', '-r', 'syn123', '--createManifest', 'root'])
     assert args.createManifest == 'root'
     cmdline.get(args, syn)
     mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="root")
 
     # suppress creating the manifest file
-    args = parser.parse_args(['get', '-r', 'syn123', '-cm', 'suppress'])
+    args = parser.parse_args(['get', '-r', 'syn123', '--createManifest', 'suppress'])
     assert args.createManifest == 'suppress'
     cmdline.get(args, syn)
     mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="suppress")
