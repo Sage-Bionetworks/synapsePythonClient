@@ -290,14 +290,10 @@ class Cache:
         Either the before_date or after_date must be specified. If both are passed, files between the two dates are
         selected for removal.
 
-        :param before_date: To specify the date that all the files in Synapse caches which creating date before it will
-                            be removed.
-        :param after_date:  To specify the date that all the files in Synapse caches which creating date after it will
-                            be removed.
-        :param dry_run:     To determine purge method actually remove the files. If dry_run is True then just print out
-                            the files that will be removed.
-
-        :returns: count how many file will be removed
+        :param before_date: if specified, all files before this date will be removed
+        :param after_date:  if specified, all files after this date will be removed
+        :param dry_run:     if dry_run is True, then the selected files are printed rather than removed
+        :returns:           the number of files selected for removal
         """
         if before_date is None and after_date is None:
             raise ValueError("Either before date or after date should be provided")
