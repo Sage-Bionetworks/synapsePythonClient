@@ -360,7 +360,7 @@ def _ensure_schema(cursor):
     )
 
 
-def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
+def _wait_futures(conn, cursor, futures, pending_keys, return_when, continue_on_error):
     completed, futures = concurrent.futures.wait(futures, return_when=return_when)
     completed_file_handle_ids = set()
 
@@ -405,6 +405,7 @@ def _wait_futures(conn, cursor, futures, return_when, continue_on_error):
         cursor.execute(update_statement, tuple(update_args))
         conn.commit()
 
+        pending_keys.remove(key)
         if not continue_on_error and ex:
             raise ex from None
 
@@ -610,8 +611,19 @@ def migrate_indexed_files(
         key = _MigrationKey(id='', type=None, row_id=-1, col_id=-1, version=-1)
 
         futures = set()
+
+        # we keep track of the file handles that are currently being migrated
+        # so that if we encounter multiple entities associated with the same
+        # file handle we can copy the file handle once and update all the entities
+        # with the single copied file handle
         pending_file_handle_ids = set()
         completed_file_handle_ids = set()
+
+        # we keep track of the entity keys (e.d. syn id + version) so that we know
+        # if we encounter the same one twice. normally we wouldn't but when we backtrack
+        # to update any entities skipped because of a shared file handle we might
+        # query for the same key as is already being operated on.
+        pending_keys = set()
 
         batch_size = _get_batch_size()
         while True:
@@ -666,7 +678,7 @@ def migrate_indexed_files(
                                 ) or
                                 (
                                     id <= :id 
-                                    and from_file_handle_id in {completed_file_handle_in} 
+                                    and from_file_handle_id in {completed_file_handle_in}
                                 )
                         )
                     order by
@@ -693,12 +705,17 @@ def migrate_indexed_files(
                 last_key = key
                 key = _MigrationKey(**key_dict)
                 from_file_handle_id = row_dict['from_file_handle_id']
-                if from_file_handle_id in pending_file_handle_ids:
-                    # if this file handle is already being migrated
-                    # from another record in this batch then we defer it
+
+                if key in pending_keys or from_file_handle_id in pending_file_handle_ids:
+                    # if this record is already being migrated or it shares a file handle
+                    # with a record that is being migrated then skip this.
+                    # if it the record shares a file handle it will be picked up later
+                    # when its file handle is completed.
                     continue
 
                 file_size = row_dict['file_size']
+
+                pending_keys.add(key)
                 to_file_handle_id = _check_file_handle_exists(conn.cursor(), from_file_handle_id)
                 if not to_file_handle_id:
                     pending_file_handle_ids.add(from_file_handle_id)
@@ -765,6 +782,7 @@ def migrate_indexed_files(
                     conn,
                     cursor,
                     futures,
+                    pending_keys,
                     concurrent.futures.FIRST_COMPLETED,
                     continue_on_error,
                 )
@@ -777,6 +795,7 @@ def migrate_indexed_files(
                 conn,
                 cursor,
                 futures,
+                pending_keys,
                 concurrent.futures.ALL_COMPLETED,
                 continue_on_error
             )
