@@ -2610,6 +2610,22 @@ def test_is_certified(response, syn):
         assert is_certified is response
 
 
+def test_is_certified__no_quiz_results(syn):
+    """Verify handling of a user that hasn't taken the quiz at all.
+    In this case the back end returns a 404 rather than a result."""
+    response = MagicMock(requests.Response)
+    response.status_code = 404
+    with patch.object(syn, "getUserProfile",
+                      return_value={"ownerId": "foobar"}) as patch_get_user,\
+         patch.object(syn,
+                      "_get_certified_passing_record",
+                      side_effect=SynapseHTTPError(response=response)) as patch_get_cert:
+        is_certified = syn.is_certified("test")
+    patch_get_user.assert_called_once_with("test")
+    patch_get_cert.assert_called_once_with("foobar")
+    assert is_certified is False
+
+
 def test_init_change_cache_path():
     """
     Verify that the user can customize the cache path.
