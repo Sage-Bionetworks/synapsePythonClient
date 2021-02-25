@@ -13,7 +13,7 @@ Highlights
   to synapseutils to help migrate files in Synapse projects and folders between AWS S3 buckets in the same region.
   More details on using these utilities can be found `here <S3Storage.html#storage-location-migration>`__.
 
-- This version supports login programatically and from the command line using personal access tokens which can be obtained
+- This version supports login programatically and from the command line using personal access tokens that can be obtained
   from your synapse.org Settings. Additional documentation on login and be found `here <Credentials.html>`__.
 
   .. code-block::
@@ -26,7 +26,7 @@ Highlights
    # command line
    synapse login -p <token>
 
-- The location of the where downloaded entities are cached can be customized to a location other than the user's home directory.
+- The location where downloaded entities are cached can be customized to a location other than the user's home directory.
   This is useful in environments where writing to a home directory is not appropriate (e.g. an AWS lambda).
 
   .. code-block::
@@ -60,7 +60,7 @@ New Features
 ------------
 
 -  [`SYNPY-1058 <https://sagebionetworks.jira.com/browse/SYNPY-1058>`__] -
-   Accept oauth access token for authentication to use synapse rest services
+   Accept oauth access token for authentication to use Synapse REST services
 -  [`SYNPY-1103 <https://sagebionetworks.jira.com/browse/SYNPY-1103>`__] -
    Multipart copy integration
 -  [`SYNPY-1111 <https://sagebionetworks.jira.com/browse/SYNPY-1111>`__] -
