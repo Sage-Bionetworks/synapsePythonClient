@@ -11,12 +11,13 @@ import urllib.request as urllib_request
 import uuid
 
 import pytest
-from unittest.mock import ANY, call, create_autospec, Mock, patch
+from unittest.mock import ANY, call, create_autospec, MagicMock, Mock, patch
 
 import synapseclient
 from synapseclient.annotations import convert_old_annotation_json
 from synapseclient import client
 from synapseclient import (
+    Activity,
     Annotations,
     Column,
     DockerRepository,
@@ -2189,7 +2190,7 @@ class TestTableSnapshot:
             restpost.assert_called_once_with(
                 "/entity/syn1234/table/snapshot",
                 body='{"snapshotComment": "foo", "snapshotLabel": "new_label", '
-                     '"snapshotActivityId": 2}'
+                     '"snapshotActivityId": "2"}'
             )
 
     def test__create_table_snapshot__no_params(self, syn):
@@ -2200,6 +2201,28 @@ class TestTableSnapshot:
             restpost.assert_called_once_with(
                 "/entity/syn1234/table/snapshot",
                 body='{}'
+            )
+
+    def test__create_table_snapshot_with_activity(self, syn):
+        """
+        Testing creating table snapshots pass in the activity without ID property
+        """
+        snapshot = {'snapshotVersionNumber': 2}
+        activity = Activity(name="test_activity", description="test_description")
+        mock_dict = {'name': activity['name'], 'description': activity['description'], 'id': 123}
+        with patch.object(syn, 'restPOST', return_value=snapshot) as restpost, \
+                patch.object(syn, 'saveActivity') as mock_saveActivity:
+
+            saveActivity = MagicMock()
+            saveActivity.__getitem__.side_effect = mock_dict.__getitem__
+            mock_saveActivity.return_value = saveActivity
+
+            syn._create_table_snapshot("syn1234", comment="foo", label="new_label",
+                                       activity=activity)
+            mock_saveActivity.assert_called_with(activity)
+            restpost.assert_called_once_with(
+                '/entity/syn1234/table/snapshot',
+                body='{"snapshotComment": "foo", "snapshotLabel": "new_label", "snapshotActivityId": 123}'
             )
 
     def test__async_table_update(self, syn):
@@ -2567,3 +2590,35 @@ def test_init_change_cache_path():
         expected_changed_cache_path = os.path.join(temp_dir_name, str(int(file_handle_id) % fanout),
                                                    str(file_handle_id))
         assert syn_changed_cache_path.cache.get_cache_dir(file_handle_id) == expected_changed_cache_path
+
+
+def test_save_activity(syn):
+    """
+    Testing saveActivity method works properly
+    """
+
+    with patch.object(syn, 'restPUT') as mock_restPUT, \
+            patch.object(client, 'json') as mock_json:
+        mock_dict = {"name": "test_activity", "description": "test_description", "id": 123}
+        mock_activity = MagicMock()
+        mock_activity.__getitem__.side_effect = mock_dict.__getitem__
+        mock_activity.__contains__.side_effect = mock_dict.__contains__
+        mock_json.dumps.return_value = mock_dict
+
+        syn.saveActivity(mock_activity)
+
+        mock_restPUT.assert_called_once_with(
+            '/activity/123', {'name': 'test_activity', 'description': 'test_description', 'id': 123}
+        )
+
+
+def test_save_activity_without_id(syn):
+    """
+    Testing saveActivity method pass in the argument activity without ID property
+    """
+    with patch.object(syn, 'restPOST') as mock_restpost:
+        activity = Activity(name="test_activity", description="test_description")
+        syn.saveActivity(activity)
+        mock_restpost.assert_called_once_with(
+            '/activity', body='{"used": [], "name": "test_activity", "description": "test_description"}'
+        )
