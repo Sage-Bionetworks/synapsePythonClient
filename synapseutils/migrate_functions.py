@@ -929,8 +929,13 @@ def _index_file_entity(
         for (entity, version) in entity_versions:
             from_storage_location_id = entity._file_handle['storageLocationId']
 
-            if not source_storage_location_ids or str(from_storage_location_id) in source_storage_location_ids:
-                # if source_storage_location_ids specified we only index files that were among those
+            if (
+                    not source_storage_location_ids or
+                    str(from_storage_location_id) in source_storage_location_ids or
+                    str(from_storage_location_id) == str(to_storage_location_id)
+            ):
+                # we only include files that are among the relevant storage locations
+                # in the index. files in storage locations we aren't migrating to or from aren't included.
 
                 migration_status = _MigrationStatus.INDEXED.value \
                     if str(from_storage_location_id) != str(to_storage_location_id) \
@@ -1022,7 +1027,15 @@ def _index_table_entity(
     for row_id, row_version, file_handles in _get_file_handle_rows(syn, entity_id):
         for col_id, file_handle in file_handles.items():
             existing_storage_location_id = file_handle['storageLocationId']
-            if not source_storage_location_ids or existing_storage_location_id in source_storage_location_ids:
+
+            if (
+                    not source_storage_location_ids or
+                    str(existing_storage_location_id) in source_storage_location_ids or
+                    str(existing_storage_location_id) == str(dest_storage_location_id)
+            ):
+                # we only include files that are among the relevant storage locations
+                # in the index. files in storage locations we aren't migrating to or from aren't included.
+
                 migration_status = _MigrationStatus.INDEXED.value \
                     if str(dest_storage_location_id) != str(existing_storage_location_id) \
                     else _MigrationStatus.ALREADY_MIGRATED.value

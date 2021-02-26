@@ -306,15 +306,28 @@ class TestIndex:
         }
         mock_file_3.versionNumber = 3
 
+        # not among the passed source destinations
+        mock_file_4 = mock.MagicMock(synapseclient.File)
+        mock_file_4.dataFileHandleId = 4
+        mock_file_4_size = 9876
+        mock_file_4._file_handle = {
+            'contentSize': mock_file_4_size,
+
+            'storageLocationId': 'not a matching storage location'
+        }
+        mock_file_4.versionNumber = 4
+
         syn.get.side_effect = [
             mock_file_2,
-            mock_file_3
+            mock_file_3,
+            mock_file_4,
         ]
 
         # simulate multiple versions
         syn._GET_paginated.return_value = [
             {'versionNumber': 2},
             {'versionNumber': 3},
+            {'versionNumber': 4},
         ]
 
         _index_file_entity(
@@ -323,7 +336,7 @@ class TestIndex:
             entity_id,
             parent_id,
             to_storage_location_id,
-            None,
+            [from_storage_location_id, 'other storage location id'],
             'all'
         )
 
@@ -371,8 +384,8 @@ class TestIndex:
 
         table_id = 'syn123'
         parent_id = 'syn321'
-        from_storage_location_id = 1
-        to_storage_location_id = 2
+        from_storage_location_id = '1'
+        to_storage_location_id = '2'
         syn = mock.MagicMock(synapseclient.Synapse)
 
         # gets the columns of the table
@@ -410,11 +423,13 @@ class TestIndex:
                 'storageLocationId': from_storage_location_id,
             }
         }
+
+        # this one not in a source storage location
         file_handle_3 = {
             'fileHandle': {
                 'id': file_handle_id_3,
                 'contentSize': file_handle_size_3,
-                'storageLocationId': from_storage_location_id,
+                'storageLocationId': 'not a source storage location',
             }
         }
 
@@ -439,7 +454,7 @@ class TestIndex:
             file_handle_4,
         ]
 
-        _index_table_entity(cursor, syn, table_id, parent_id, to_storage_location_id, None)
+        _index_table_entity(cursor, syn, table_id, parent_id, to_storage_location_id, [from_storage_location_id, '543'])
 
         result = cursor.execute(
             """
@@ -459,10 +474,9 @@ class TestIndex:
         row_0_dict = _get_row_dict(cursor, next(row_iter), True)
         row_1_dict = _get_row_dict(cursor, next(row_iter), True)
         row_2_dict = _get_row_dict(cursor, next(row_iter), True)
-        row_3_dict = _get_row_dict(cursor, next(row_iter), True)
-        row_dicts = [row_0_dict, row_1_dict, row_2_dict]
 
-        for row_dict in row_dicts:
+        migrating_row_dicts = [row_0_dict, row_1_dict]
+        for row_dict in migrating_row_dicts:
             assert row_dict['id'] == table_id
             assert row_dict['parent_id'] == parent_id
             assert row_dict['from_storage_location_id'] == from_storage_location_id
@@ -474,18 +488,17 @@ class TestIndex:
         assert row_1_dict['row_id'] == 1
         assert row_1_dict['col_id'] == 2
         assert row_1_dict['from_file_handle_id'] == file_handle_id_2
-        assert row_2_dict['row_id'] == 2
-        assert row_2_dict['col_id'] == 1
-        assert row_2_dict['from_file_handle_id'] == file_handle_id_3
 
         # already in destination storage location
-        assert row_3_dict['id'] == table_id
-        assert row_3_dict['parent_id'] == parent_id
-        assert row_3_dict['row_id'] == 2
-        assert row_3_dict['col_id'] == 2
-        assert row_3_dict['from_file_handle_id'] == file_handle_id_4
-        assert row_3_dict['from_storage_location_id'] == to_storage_location_id
-        assert row_3_dict['status'] == _MigrationStatus.ALREADY_MIGRATED.value
+        assert row_2_dict['id'] == table_id
+        assert row_2_dict['parent_id'] == parent_id
+        assert row_2_dict['row_id'] == 2
+        assert row_2_dict['col_id'] == 2
+        assert row_2_dict['from_file_handle_id'] == file_handle_id_4
+        assert row_2_dict['from_storage_location_id'] == to_storage_location_id
+        assert row_2_dict['status'] == _MigrationStatus.ALREADY_MIGRATED.value
+
+        # file 3 is excluded entirely because it wasn't in a relevant storage location
 
     @mock.patch.object(synapseutils.migrate_functions, '_index_entity')
     def test_index_container__files(self, mock_index_entity, conn):
