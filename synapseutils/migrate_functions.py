@@ -313,7 +313,7 @@ def _ensure_schema(cursor):
     # ensure we have the sqlite schema we need to be able to record and sort our
     # entity file handle migration.
 
-    # one-row table records the parameters used to create the index
+    # one-row table of a json dictionary records the parameters used to create the index
     cursor.execute("create table if not exists migration_settings (settings text not null)")
 
     # our representation of migratable file handles is flat including both file entities
@@ -797,6 +797,7 @@ def _verify_storage_location_ownership(syn, storage_location_id):
 
 
 def _retrieve_index_settings(cursor):
+    # index settings are stored as a json-string in a one-row table
     import sqlite3
     settings = None
     try:
