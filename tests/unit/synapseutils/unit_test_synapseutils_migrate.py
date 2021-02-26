@@ -1919,6 +1919,38 @@ def test__verify_index_settings__retrieve_index_settings():
         assert 'changed' in str(ex.value)
 
 
+def test__verify_index_settings__invalid_table_schema():
+    """Verify the behavior saving index settings if the settings schema is invalid.
+    This might result from running a migration on an index created with a different
+    version of the function.
+    """
+
+    with tempfile.NamedTemporaryFile(delete=False) as db_file, \
+            sqlite3.connect(db_file.name) as conn:
+        db_path = db_file.name
+        cursor = conn.cursor()
+        cursor.execute('create table migration_settings (foo text)')
+        conn.commit()
+
+        root_id = 'syn123'
+        dest_storage_location_id = '12345'
+        source_storage_location_ids = ['54321', '87654']
+        file_version_strategy = 'latest'
+        include_table_files = False
+
+        with pytest.raises(ValueError) as cm_ex:
+            _verify_index_settings(
+                cursor,
+                db_path,
+                root_id,
+                dest_storage_location_id,
+                source_storage_location_ids,
+                file_version_strategy,
+                include_table_files
+            )
+        assert 'older version' in str(cm_ex.value)
+
+
 class TestConfirmMigration:
 
     def test_force(self):

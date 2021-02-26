@@ -797,18 +797,18 @@ def _verify_storage_location_ownership(syn, storage_location_id):
 
 
 def _retrieve_index_settings(cursor):
-    results = cursor.execute("select settings from migration_settings")
-
-    row = results.fetchone()
+    import sqlite3
     settings = None
-    if row:
-        try:
+    try:
+        results = cursor.execute("select settings from migration_settings")
+        row = results.fetchone()
+        if row:
             settings = json.loads(row[0])
-        except ValueError as ex:
-            raise ValueError(
-                "Unable to parse index settings, the index may be corrupt or created by an older version "
-                "of this function. You will need to re-create the index."
-            ) from ex
+    except (sqlite3.OperationalError, ValueError) as ex:
+        raise ValueError(
+            "Unable to parse index settings, the index may be corrupt or created by an older version "
+            "of this function. You will need to re-create the index."
+        ) from ex
 
     return settings
 
