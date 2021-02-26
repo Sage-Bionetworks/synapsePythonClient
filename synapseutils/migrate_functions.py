@@ -619,7 +619,7 @@ def migrate_indexed_files(
         pending_file_handle_ids = set()
         completed_file_handle_ids = set()
 
-        # we keep track of the entity keys (e.d. syn id + version) so that we know
+        # we keep track of the entity keys (syn id + version) so that we know
         # if we encounter the same one twice. normally we wouldn't but when we backtrack
         # to update any entities skipped because of a shared file handle we might
         # query for the same key as is already being operated on.
