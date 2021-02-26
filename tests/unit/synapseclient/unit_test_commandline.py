@@ -43,7 +43,7 @@ def test_migrate__default_args(syn):
     when using the default options"""
 
     entity_id = 'syn12345'
-    storage_location_id = '98766'
+    dest_storage_location_id = '98766'
     db_path = '/tmp/foo/bar'
 
     parser = cmdline.build_parser()
@@ -52,12 +52,12 @@ def test_migrate__default_args(syn):
     args = parser.parse_args([
         'migrate',
         'syn12345',
-        storage_location_id,
+        dest_storage_location_id,
         db_path,
     ])
 
     assert args.id == entity_id
-    assert args.storage_location_id == storage_location_id
+    assert args.dest_storage_location_id == dest_storage_location_id
     assert args.db_path == db_path
     assert args.file_version_strategy == 'new'
     assert args.include_table_files is False
@@ -72,7 +72,8 @@ def test_migrate__fully_specified_args(mocker, syn):
     when the arguments are fully specified"""
 
     entity_id = 'syn12345'
-    storage_location_id = '98766'
+    dest_storage_location_id = '98766'
+    source_storage_location_ids = ['12345', '23456']
     db_path = '/tmp/foo/bar'
 
     parser = cmdline.build_parser()
@@ -81,8 +82,9 @@ def test_migrate__fully_specified_args(mocker, syn):
     args = parser.parse_args([
         'migrate',
         entity_id,
-        storage_location_id,
+        dest_storage_location_id,
         db_path,
+        '--source_storage_location_ids', *source_storage_location_ids,
         '--file_version_strategy', 'all',
         '--dryRun',
         '--include_table_files',
@@ -92,7 +94,8 @@ def test_migrate__fully_specified_args(mocker, syn):
     ])
 
     assert args.id == entity_id
-    assert args.storage_location_id == storage_location_id
+    assert args.dest_storage_location_id == dest_storage_location_id
+    assert args.source_storage_location_ids == source_storage_location_ids
     assert args.db_path == db_path
     assert args.file_version_strategy == 'all'
     assert args.include_table_files is True
@@ -110,8 +113,9 @@ def test_migrate__fully_specified_args(mocker, syn):
     mock_index.assert_called_once_with(
         syn,
         args.id,
-        args.storage_location_id,
+        args.dest_storage_location_id,
         args.db_path,
+        source_storage_location_ids=args.source_storage_location_ids,
         file_version_strategy='all',
         include_table_files=True,
         continue_on_error=True,
