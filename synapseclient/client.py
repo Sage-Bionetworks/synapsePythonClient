@@ -1705,7 +1705,6 @@ class Synapse(object):
         uri = '/activity/%s' % activity['id']
         self.restDELETE(uri)
 
-
     def saveActivity(self, activity):
         if 'id' in activity:
             # We're updating provenance
@@ -1714,7 +1713,6 @@ class Synapse(object):
         else:
             activity = self.restPOST('/activity', body=json.dumps(activity))
         return activity
-
 
     def updateActivity(self, activity):
         """
