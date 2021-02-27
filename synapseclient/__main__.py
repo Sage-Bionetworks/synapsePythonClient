@@ -472,8 +472,9 @@ def migrate(args, syn):
     result = synapseutils.index_files_for_migration(
         syn,
         args.id,
-        args.storage_location_id,
+        args.dest_storage_location_id,
         args.db_path,
+        source_storage_location_ids=args.source_storage_location_ids,
         file_version_strategy=args.file_version_strategy,
         include_table_files=args.include_table_files,
         continue_on_error=args.continue_on_error,
@@ -490,11 +491,12 @@ def migrate(args, syn):
         indexed_count + already_migrated_count,
         indexed_count,
         already_migrated_count,
-        args.storage_location_id,
+        args.dest_storage_location_id,
         errored_count
     )
 
     if indexed_count == 0:
+
         logging.info("No files found needing migration.")
 
     elif args.dryRun:
@@ -934,8 +936,11 @@ def build_parser():
         help='Migrate Synapse entities to a different storage location'
     )
     parser_migrate.add_argument('id', type=str, help='Synapse id')
-    parser_migrate.add_argument('storage_location_id', type=str, help='Synapse storage location id')
+    parser_migrate.add_argument('dest_storage_location_id', type=str, help='Destination Synapse storage location id')
     parser_migrate.add_argument('db_path', type=str, help='Local system path where a record keeping file can be stored')
+    parser_migrate.add_argument('--source_storage_location_ids', type=str, nargs='*',
+                                help="Source Synapse storage location ids. If specified only files in these storage "
+                                "locations will be migrated.")
     parser_migrate.add_argument('--file_version_strategy', type=str, default='new',
                                 help="""one of 'new', 'latest', 'all', 'skip'
                                      new creates a new version of each entity,

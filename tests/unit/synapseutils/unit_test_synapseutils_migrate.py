@@ -18,6 +18,7 @@ from synapseutils.migrate_functions import (
     _confirm_migration,
     _ensure_schema,
     _get_row_dict,
+    _include_file_storage_location_in_index,
     _index_container,
     _index_entity,
     _index_file_entity,
@@ -226,7 +227,15 @@ class TestIndex:
         }
         syn.get.return_value = mock_file
 
-        _index_file_entity(cursor, syn, entity_id, parent_id, to_storage_location_id, file_version_strategy)
+        _index_file_entity(
+            cursor,
+            syn,
+            entity_id,
+            parent_id,
+            to_storage_location_id,
+            [from_storage_location_id],
+            file_version_strategy,
+        )
 
         row = cursor.execute(
             """
@@ -293,22 +302,45 @@ class TestIndex:
         mock_file_3_size = 1234
         mock_file_3._file_handle = {
             'contentSize': mock_file_3_size,
+
+            # already migrated
             'storageLocationId': to_storage_location_id
         }
         mock_file_3.versionNumber = 3
 
+        # not among the passed source destinations
+        mock_file_4 = mock.MagicMock(synapseclient.File)
+        mock_file_4.dataFileHandleId = 4
+        mock_file_4_size = 9876
+        mock_file_4._file_handle = {
+            'contentSize': mock_file_4_size,
+
+            'storageLocationId': 'not a matching storage location'
+        }
+        mock_file_4.versionNumber = 4
+
         syn.get.side_effect = [
             mock_file_2,
-            mock_file_3
+            mock_file_3,
+            mock_file_4,
         ]
 
         # simulate multiple versions
         syn._GET_paginated.return_value = [
             {'versionNumber': 2},
             {'versionNumber': 3},
+            {'versionNumber': 4},
         ]
 
-        _index_file_entity(cursor, syn, entity_id, parent_id, to_storage_location_id, 'all')
+        _index_file_entity(
+            cursor,
+            syn,
+            entity_id,
+            parent_id,
+            to_storage_location_id,
+            [from_storage_location_id, 'other storage location id'],
+            'all'
+        )
 
         result = cursor.execute(
             """
@@ -354,8 +386,8 @@ class TestIndex:
 
         table_id = 'syn123'
         parent_id = 'syn321'
-        from_storage_location_id = 1
-        to_storage_location_id = 2
+        from_storage_location_id = '1'
+        to_storage_location_id = '2'
         syn = mock.MagicMock(synapseclient.Synapse)
 
         # gets the columns of the table
@@ -393,11 +425,13 @@ class TestIndex:
                 'storageLocationId': from_storage_location_id,
             }
         }
+
+        # this one not in a source storage location
         file_handle_3 = {
             'fileHandle': {
                 'id': file_handle_id_3,
                 'contentSize': file_handle_size_3,
-                'storageLocationId': from_storage_location_id,
+                'storageLocationId': 'not a source storage location',
             }
         }
 
@@ -422,7 +456,7 @@ class TestIndex:
             file_handle_4,
         ]
 
-        _index_table_entity(cursor, syn, table_id, parent_id, to_storage_location_id)
+        _index_table_entity(cursor, syn, table_id, parent_id, to_storage_location_id, [from_storage_location_id, '543'])
 
         result = cursor.execute(
             """
@@ -442,10 +476,9 @@ class TestIndex:
         row_0_dict = _get_row_dict(cursor, next(row_iter), True)
         row_1_dict = _get_row_dict(cursor, next(row_iter), True)
         row_2_dict = _get_row_dict(cursor, next(row_iter), True)
-        row_3_dict = _get_row_dict(cursor, next(row_iter), True)
-        row_dicts = [row_0_dict, row_1_dict, row_2_dict]
 
-        for row_dict in row_dicts:
+        migrating_row_dicts = [row_0_dict, row_1_dict]
+        for row_dict in migrating_row_dicts:
             assert row_dict['id'] == table_id
             assert row_dict['parent_id'] == parent_id
             assert row_dict['from_storage_location_id'] == from_storage_location_id
@@ -457,18 +490,17 @@ class TestIndex:
         assert row_1_dict['row_id'] == 1
         assert row_1_dict['col_id'] == 2
         assert row_1_dict['from_file_handle_id'] == file_handle_id_2
-        assert row_2_dict['row_id'] == 2
-        assert row_2_dict['col_id'] == 1
-        assert row_2_dict['from_file_handle_id'] == file_handle_id_3
 
         # already in destination storage location
-        assert row_3_dict['id'] == table_id
-        assert row_3_dict['parent_id'] == parent_id
-        assert row_3_dict['row_id'] == 2
-        assert row_3_dict['col_id'] == 2
-        assert row_3_dict['from_file_handle_id'] == file_handle_id_4
-        assert row_3_dict['from_storage_location_id'] == to_storage_location_id
-        assert row_3_dict['status'] == _MigrationStatus.ALREADY_MIGRATED.value
+        assert row_2_dict['id'] == table_id
+        assert row_2_dict['parent_id'] == parent_id
+        assert row_2_dict['row_id'] == 2
+        assert row_2_dict['col_id'] == 2
+        assert row_2_dict['from_file_handle_id'] == file_handle_id_4
+        assert row_2_dict['from_storage_location_id'] == to_storage_location_id
+        assert row_2_dict['status'] == _MigrationStatus.ALREADY_MIGRATED.value
+
+        # file 3 is excluded entirely because it wasn't in a relevant storage location
 
     @mock.patch.object(synapseutils.migrate_functions, '_index_entity')
     def test_index_container__files(self, mock_index_entity, conn):
@@ -481,7 +513,8 @@ class TestIndex:
         parent_id = 'syn321'
         file_id = 'syn456'
         sub_folder_id = 'syn654'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['3333', '4444']
         file_version_strategy = 'new'
         include_table_files = False
         continue_on_error = True
@@ -512,7 +545,8 @@ class TestIndex:
             syn,
             project,
             parent_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error,
@@ -529,7 +563,8 @@ class TestIndex:
                     syn,
                     child,
                     project_id,
-                    storage_location_id,
+                    dest_storage_location_id,
+                    source_storage_location_ids,
                     file_version_strategy,
                     include_table_files,
                     continue_on_error
@@ -565,7 +600,8 @@ class TestIndex:
         folder_id = 'syn123'
         parent_id = 'syn321'
         table_id = 'syn456'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         file_version_strategy = 'skip'
         include_table_files = True
         continue_on_error = False
@@ -590,7 +626,8 @@ class TestIndex:
             syn,
             folder,
             parent_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error,
@@ -605,7 +642,8 @@ class TestIndex:
                 syn,
                 table_dict,
                 folder_id,
-                storage_location_id,
+                dest_storage_location_id,
+                source_storage_location_ids,
                 file_version_strategy,
                 include_table_files,
                 continue_on_error
@@ -637,7 +675,8 @@ class TestIndex:
         cursor = conn.cursor()
         syn = mock.MagicMock(synapseclient.Synapse)
         parent_id = 'syn123'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         file_version_strategy = 'new'
         include_table_files = True
         continue_on_error = True
@@ -656,7 +695,8 @@ class TestIndex:
             syn,
             entity,
             parent_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error
@@ -676,7 +716,8 @@ class TestIndex:
 
         syn = mock.MagicMock(synapseclient.Synapse)
         parent_id = 'syn123'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         file_version_strategy = 'new'
         include_table_files = False
         continue_on_error = True
@@ -695,7 +736,8 @@ class TestIndex:
             syn,
             entity,
             parent_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error
@@ -707,7 +749,8 @@ class TestIndex:
             syn,
             entity_id,
             parent_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy
         )
 
@@ -724,7 +767,8 @@ class TestIndex:
 
         syn = mock.MagicMock(synapseclient.Synapse)
         parent_id = 'syn123'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         file_version_strategy = 'skip'
         include_table_files = True
         continue_on_error = True
@@ -743,7 +787,8 @@ class TestIndex:
             syn,
             entity,
             parent_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error
@@ -755,7 +800,8 @@ class TestIndex:
             syn,
             entity,
             parent_id,
-            storage_location_id
+            dest_storage_location_id,
+            source_storage_location_ids,
         )
 
         conn.commit.assert_called_once_with()
@@ -771,7 +817,8 @@ class TestIndex:
 
         syn = mock.MagicMock(synapseclient.Synapse)
         parent_id = 'syn123'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         file_version_strategy = 'latest'
         include_table_files = False
         continue_on_error = True
@@ -790,7 +837,8 @@ class TestIndex:
             syn,
             entity,
             parent_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error
@@ -803,7 +851,8 @@ class TestIndex:
             syn,
             entity,
             parent_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error,
@@ -821,7 +870,8 @@ class TestIndex:
 
         syn = mock.MagicMock(synapseclient.Synapse)
         parent_id = 'syn123'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         file_version_strategy = 'new'
         include_table_files = False
         continue_on_error = True
@@ -842,7 +892,8 @@ class TestIndex:
             syn,
             entity,
             parent_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error
@@ -854,7 +905,8 @@ class TestIndex:
             syn,
             entity_id,
             parent_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy
         )
 
@@ -885,7 +937,8 @@ class TestIndex:
 
         syn = mock.MagicMock(synapseclient.Synapse)
         parent_id = 'syn123'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         file_version_strategy = 'new'
         include_table_files = False
         continue_on_error = False
@@ -907,7 +960,8 @@ class TestIndex:
                 syn,
                 entity,
                 parent_id,
-                storage_location_id,
+                dest_storage_location_id,
+                source_storage_location_ids,
                 file_version_strategy,
                 include_table_files,
                 continue_on_error
@@ -922,7 +976,8 @@ class TestIndex:
 
         syn = mock.MagicMock(synapseclient.Synapse)
         entity_id = 'syn123'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         db_path = '/tmp/foo'
         file_version_strategy = 'wizzle'  # invalid
         include_table_files = False
@@ -932,7 +987,8 @@ class TestIndex:
             index_files_for_migration(
                 syn,
                 entity_id,
-                storage_location_id,
+                dest_storage_location_id,
+                source_storage_location_ids,
                 db_path,
                 file_version_strategy,
                 include_table_files,
@@ -945,7 +1001,8 @@ class TestIndex:
 
         syn = mock.MagicMock(synapseclient.Synapse)
         entity_id = 'syn123'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         db_path = '/tmp/foo'
         file_version_strategy = 'skip'
         include_table_files = False
@@ -955,7 +1012,8 @@ class TestIndex:
             index_files_for_migration(
                 syn,
                 entity_id,
-                storage_location_id,
+                dest_storage_location_id,
+                source_storage_location_ids,
                 db_path,
                 file_version_strategy,
                 include_table_files,
@@ -969,7 +1027,8 @@ class TestIndex:
     def test_index_files_for_migration(self, mock_sqlite_connect, mock_index_entity, mock_verify_index_settings):
         syn = mock.MagicMock(synapseclient.Synapse)
         entity_id = 'syn123'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         db_path = '/tmp/foo'
         file_version_strategy = 'all'
         include_table_files = False
@@ -986,8 +1045,9 @@ class TestIndex:
         result = index_files_for_migration(
             syn,
             entity_id,
-            storage_location_id,
+            dest_storage_location_id,
             db_path,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error
@@ -997,7 +1057,8 @@ class TestIndex:
             mock_cursor,
             db_path,
             entity_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files
         )
@@ -1008,7 +1069,8 @@ class TestIndex:
             syn,
             entity,
             None,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error,
@@ -1028,7 +1090,8 @@ class TestIndex:
     ):
         syn = mock.MagicMock(synapseclient.Synapse)
         entity_id = 'syn123'
-        storage_location_id = '1234'
+        dest_storage_location_id = '1234'
+        source_storage_location_ids = ['1111', '2222']
         db_path = '/tmp/foo'
         file_version_strategy = 'all'
         include_table_files = False
@@ -1050,8 +1113,9 @@ class TestIndex:
             index_files_for_migration(
                 syn,
                 entity_id,
-                storage_location_id,
+                dest_storage_location_id,
                 db_path,
+                source_storage_location_ids,
                 file_version_strategy,
                 include_table_files,
                 continue_on_error
@@ -1062,7 +1126,8 @@ class TestIndex:
             mock_cursor,
             db_path,
             entity_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files
         )
@@ -1073,7 +1138,8 @@ class TestIndex:
             syn,
             entity,
             None,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files,
             continue_on_error,
@@ -1231,22 +1297,14 @@ class TestMigrate:
             cursor = conn.cursor()
             _ensure_schema(cursor)
 
-            cursor.execute(
-                """
-                    insert into migration_settings (
-                        root_id,
-                        storage_location_id,
-                        file_version_strategy,
-                        include_table_files
-                    ) values (?, ?, ?, ?)
-                """,
-                (
-                    project.id,
-                    new_storage_location_id,
-                    'new',
-                    1
-                )
-            )
+            settings_str = json.dumps({
+                'root_id': project.id,
+                'dest_storage_location_id': new_storage_location_id,
+                'source_storage_location_ids': [old_storage_location, '1234'],
+                'file_version_strategy': 'new',
+                'include_table_files': 1,
+            })
+            cursor.execute("insert into migration_settings (settings) values (?)", (settings_str,))
 
             migration_values = [
                 (
@@ -1497,23 +1555,13 @@ def test_migrate__shared_file_handles(mocker, syn):
         cursor = conn.cursor()
         _ensure_schema(cursor)
 
-        cursor.execute(
-            """
-                insert into migration_settings (
-                    root_id,
-                    storage_location_id,
-                    file_version_strategy,
-                    include_table_files
-                ) values (?, ?, ?, ?)
-            """,
-            (
-                project.id,
-                new_storage_location_id,
-                'all',
-                0,
-            )
-        )
-
+        settings_str = json.dumps({
+            'root_id': project.id,
+            'dest_storage_location_id': new_storage_location_id,
+            'file_version_strategy': 'all',
+            'include_table_files': 0,
+        })
+        cursor.execute("insert into migration_settings (settings) values (?)", (settings_str,))
         cursor.executemany(
             """
                 insert into migrations (
@@ -1852,10 +1900,7 @@ def _verify_schema(cursor):
 
     expected_table_columns = {
         'migration_settings': {
-            'root_id',
-            'storage_location_id',
-            'file_version_strategy',
-            'include_table_files'
+            'settings',
         },
         'migrations': {
             'id',
@@ -1920,7 +1965,8 @@ def test__verify_index_settings__retrieve_index_settings():
         _ensure_schema(cursor)
 
         root_id = 'syn123'
-        storage_location_id = '12345'
+        dest_storage_location_id = '12345'
+        source_storage_location_ids = ['54321', '87654']
         file_version_strategy = 'latest'
         include_table_files = False
 
@@ -1928,14 +1974,16 @@ def test__verify_index_settings__retrieve_index_settings():
             cursor,
             db_path,
             root_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files
         )
 
         settings = _retrieve_index_settings(cursor)
         assert settings['root_id'] == root_id
-        assert settings['storage_location_id'] == storage_location_id
+        assert settings['dest_storage_location_id'] == dest_storage_location_id
+        assert settings['source_storage_location_ids'] == source_storage_location_ids
         assert settings['file_version_strategy'] == file_version_strategy
         assert settings['include_table_files'] == include_table_files
 
@@ -1944,7 +1992,8 @@ def test__verify_index_settings__retrieve_index_settings():
             cursor,
             db_path,
             root_id,
-            storage_location_id,
+            dest_storage_location_id,
+            source_storage_location_ids,
             file_version_strategy,
             include_table_files
         )
@@ -1955,11 +2004,17 @@ def test__verify_index_settings__retrieve_index_settings():
                 cursor,
                 db_path,
                 'changed',
-                storage_location_id,
+                dest_storage_location_id,
+                source_storage_location_ids,
                 file_version_strategy,
                 include_table_files
             )
-        assert 'changed' in str(ex.value)
+        assert "Expected {} '{}', found '{}' in index file '{}'".format(
+            'root_id',
+            root_id,
+            'changed',
+            db_path
+        ) in str(ex.value)
 
         with pytest.raises(ValueError) as ex:
             _verify_index_settings(
@@ -1967,32 +2022,99 @@ def test__verify_index_settings__retrieve_index_settings():
                 db_path,
                 root_id,
                 'changed',
+                source_storage_location_ids,
                 file_version_strategy,
                 include_table_files
             )
-        assert 'changed' in str(ex.value)
+        assert "Expected {} '{}', found '{}' in index file '{}'".format(
+            'dest_storage_location_id',
+            dest_storage_location_id,
+            'changed',
+            db_path
+        ) in str(ex.value)
 
         with pytest.raises(ValueError) as ex:
             _verify_index_settings(
                 cursor,
                 db_path,
                 root_id,
-                storage_location_id,
+                dest_storage_location_id,
+                'changed',
+                file_version_strategy,
+                include_table_files
+            )
+        assert "Expected {} '{}', found '{}' in index file '{}'".format(
+            'source_storage_location_ids',
+            source_storage_location_ids,
+            'changed',
+            db_path
+        ) in str(ex.value)
+
+        with pytest.raises(ValueError) as ex:
+            _verify_index_settings(
+                cursor,
+                db_path,
+                root_id,
+                dest_storage_location_id,
+                source_storage_location_ids,
                 'changed',
                 include_table_files
             )
-        assert 'changed' in str(ex.value)
+        assert "Expected {} '{}', found '{}' in index file '{}'".format(
+            'file_version_strategy',
+            file_version_strategy,
+            'changed',
+            db_path
+        ) in str(ex.value)
 
         with pytest.raises(ValueError) as ex:
             _verify_index_settings(
                 cursor,
                 db_path,
                 root_id,
-                storage_location_id,
+                dest_storage_location_id,
+                source_storage_location_ids,
                 file_version_strategy,
                 'changed'
             )
-        assert 'changed' in str(ex.value)
+        assert "Expected {} '{}', found '{}' in index file '{}'".format(
+            'include_table_files',
+            '1' if include_table_files else '0',
+            'changed',
+            db_path
+        ) in str(ex.value)
+
+
+def test__verify_index_settings__invalid_table_schema():
+    """Verify the behavior saving index settings if the settings schema is invalid.
+    This might result from running a migration on an index created with a different
+    version of the function.
+    """
+
+    with tempfile.NamedTemporaryFile(delete=False) as db_file, \
+            sqlite3.connect(db_file.name) as conn:
+        db_path = db_file.name
+        cursor = conn.cursor()
+        cursor.execute('create table migration_settings (foo text)')
+        conn.commit()
+
+        root_id = 'syn123'
+        dest_storage_location_id = '12345'
+        source_storage_location_ids = ['54321', '87654']
+        file_version_strategy = 'latest'
+        include_table_files = False
+
+        with pytest.raises(ValueError) as cm_ex:
+            _verify_index_settings(
+                cursor,
+                db_path,
+                root_id,
+                dest_storage_location_id,
+                source_storage_location_ids,
+                file_version_strategy,
+                include_table_files
+            )
+        assert 'older version' in str(cm_ex.value)
 
 
 class TestConfirmMigration:
@@ -2045,3 +2167,60 @@ class TestConfirmMigration:
         storage_location_id = '1234'
 
         assert _confirm_migration(cursor, force, storage_location_id) is False
+
+
+class TestIncludeFileStorageLocation:
+
+    def test_include_file_storage_location_in_index__source_location_ids_not_specified(self):
+        """Verify that if source_storage_location_ids are not specified then we include
+        the record in the index because no sources means all sources."""
+
+        source_storage_location_ids = None
+        from_storage_location_id = '1234'
+        to_storage_location_id = '4321'
+        assert _include_file_storage_location_in_index(
+            source_storage_location_ids,
+            from_storage_location_id,
+            to_storage_location_id,
+        ) is True
+
+    def test_include_file_storage_location_in_index__source_location_id_matched(self):
+        """Verify that if source_storage_location_ids is specified then we include
+        the record if the file's current storage location matches."""
+
+        source_storage_location_ids = ['0987', '1234', '8765']
+        from_storage_location_id = '1234'
+        to_storage_location_id = '4321'
+        assert _include_file_storage_location_in_index(
+            source_storage_location_ids,
+            from_storage_location_id,
+            to_storage_location_id,
+        ) is True
+
+    def test_include_file_storage_location_in_index__already_in_destination(self):
+        """Verify that if the file is already in the destination storage location
+        then we include it in the index (it will be marked as ALREADY_MIGRATED).
+        This helps show what happened with the file."""
+
+        source_storage_location_ids = ['0987', '8765']
+        from_storage_location_id = '1234'
+        to_storage_location_id = from_storage_location_id
+        assert _include_file_storage_location_in_index(
+            source_storage_location_ids,
+            from_storage_location_id,
+            to_storage_location_id,
+        ) is True
+
+    def test_include_file_storage_location_in_index__exclude(self):
+        """Verify that if the file's current storage location doesn't match
+        one of the source specified locations and it isn't already in the target
+        destination it is excluded from the index altogether. It's not relevant to the migration."""
+
+        source_storage_location_ids = ['0987', '8765']
+        from_storage_location_id = '1234'
+        to_storage_location_id = '4321'
+        assert _include_file_storage_location_in_index(
+            source_storage_location_ids,
+            from_storage_location_id,
+            to_storage_location_id,
+        ) is False
