@@ -17,6 +17,7 @@ from synapseutils.migrate_functions import (
     _confirm_migration,
     _ensure_schema,
     _get_row_dict,
+    _include_file_storage_location_in_index,
     _index_container,
     _index_entity,
     _index_file_entity,
@@ -1868,7 +1869,12 @@ def test__verify_index_settings__retrieve_index_settings():
                 file_version_strategy,
                 include_table_files
             )
-        assert 'changed' in str(ex.value)
+        assert "Expected {} '{}', found '{}' in index file '{}'".format(
+            'root_id',
+            root_id,
+            'changed',
+            db_path
+        ) in str(ex.value)
 
         with pytest.raises(ValueError) as ex:
             _verify_index_settings(
@@ -1880,7 +1886,12 @@ def test__verify_index_settings__retrieve_index_settings():
                 file_version_strategy,
                 include_table_files
             )
-        assert 'changed' in str(ex.value)
+        assert "Expected {} '{}', found '{}' in index file '{}'".format(
+            'dest_storage_location_id',
+            dest_storage_location_id,
+            'changed',
+            db_path
+        ) in str(ex.value)
 
         with pytest.raises(ValueError) as ex:
             _verify_index_settings(
@@ -1892,7 +1903,12 @@ def test__verify_index_settings__retrieve_index_settings():
                 file_version_strategy,
                 include_table_files
             )
-        assert 'changed' in str(ex.value)
+        assert "Expected {} '{}', found '{}' in index file '{}'".format(
+            'source_storage_location_ids',
+            source_storage_location_ids,
+            'changed',
+            db_path
+        ) in str(ex.value)
 
         with pytest.raises(ValueError) as ex:
             _verify_index_settings(
@@ -1904,7 +1920,12 @@ def test__verify_index_settings__retrieve_index_settings():
                 'changed',
                 include_table_files
             )
-        assert 'changed' in str(ex.value)
+        assert "Expected {} '{}', found '{}' in index file '{}'".format(
+            'file_version_strategy',
+            file_version_strategy,
+            'changed',
+            db_path
+        ) in str(ex.value)
 
         with pytest.raises(ValueError) as ex:
             _verify_index_settings(
@@ -1916,7 +1937,12 @@ def test__verify_index_settings__retrieve_index_settings():
                 file_version_strategy,
                 'changed'
             )
-        assert 'changed' in str(ex.value)
+        assert "Expected {} '{}', found '{}' in index file '{}'".format(
+            'include_table_files',
+            '1' if include_table_files else '0',
+            'changed',
+            db_path
+        ) in str(ex.value)
 
 
 def test__verify_index_settings__invalid_table_schema():
@@ -2001,3 +2027,60 @@ class TestConfirmMigration:
         storage_location_id = '1234'
 
         assert _confirm_migration(cursor, force, storage_location_id) is False
+
+
+class TestIncludeFileStorageLocation:
+
+    def test_include_file_storage_location_in_index__source_location_ids_not_specified(self):
+        """Verify that if source_storage_location_ids are not specified then we include
+        the record in the index because no sources means all sources."""
+
+        source_storage_location_ids = None
+        from_storage_location_id = '1234'
+        to_storage_location_id = '4321'
+        assert _include_file_storage_location_in_index(
+            source_storage_location_ids,
+            from_storage_location_id,
+            to_storage_location_id,
+        ) is True
+
+    def test_include_file_storage_location_in_index__source_location_id_matched(self):
+        """Verify that if source_storage_location_ids is specified then we include
+        the record if the file's current storage location matches."""
+
+        source_storage_location_ids = ['0987', '1234', '8765']
+        from_storage_location_id = '1234'
+        to_storage_location_id = '4321'
+        assert _include_file_storage_location_in_index(
+            source_storage_location_ids,
+            from_storage_location_id,
+            to_storage_location_id,
+        ) is True
+
+    def test_include_file_storage_location_in_index__already_in_destination(self):
+        """Verify that if the file is already in the destination storage location
+        then we include it in the index (it will be marked as ALREADY_MIGRATED).
+        This helps show what happened with the file."""
+
+        source_storage_location_ids = ['0987', '8765']
+        from_storage_location_id = '1234'
+        to_storage_location_id = from_storage_location_id
+        assert _include_file_storage_location_in_index(
+            source_storage_location_ids,
+            from_storage_location_id,
+            to_storage_location_id,
+        ) is True
+
+    def test_include_file_storage_location_in_index__exclude(self):
+        """Verify that if the file's current storage location doesn't match
+        one of the source specified locations and it isn't already in the target
+        destination it is excluded from the index altogether. It's not relevant to the migration."""
+
+        source_storage_location_ids = ['0987', '8765']
+        from_storage_location_id = '1234'
+        to_storage_location_id = '4321'
+        assert _include_file_storage_location_in_index(
+            source_storage_location_ids,
+            from_storage_location_id,
+            to_storage_location_id,
+        ) is False

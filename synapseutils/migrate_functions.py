@@ -841,12 +841,12 @@ def _verify_index_settings(
                 # value does not match the existing index settings.
                 # we can't resume indexing with an existing index file using a different setting.
                 raise ValueError(
-                    "Index parameter for '{}' value of '{}' does not match the setting ({}) recorded in the existing "
-                    "index file at path '{}'. To change the index settings start over by deleting the existing "
-                    "index file or using a different db_path.".format(
+                    "Index parameter does not match the setting recorded in the existing index file. "
+                    "To change the index settings start over by deleting the file or using a different path. "
+                    "Expected {} '{}', found '{}' in index file '{}'".format(
                         setting,
-                        parameter,
                         existing_value,
+                        parameter,
                         db_path,
                     )
                 )
@@ -883,6 +883,22 @@ def _check_indexed(cursor, entity_id):
 def _get_version_numbers(syn, entity_id):
     for version_info in syn._GET_paginated("/entity/{id}/version".format(id=entity_id)):
         yield version_info['versionNumber']
+
+
+def _include_file_storage_location_in_index(
+    source_storage_location_ids,
+    from_storage_location_id,
+    to_storage_location_id,
+):
+    # helper determines whether a file is included in the index depending on its storage location.
+    # if source_storage_location_ids are specified the from storage location must be in it.
+    # if the current storage location already matches the destination location then we also
+    # include it in the index, we'll mark it as already migrated.
+    return (
+        not source_storage_location_ids or
+        str(from_storage_location_id) in source_storage_location_ids or
+        str(from_storage_location_id) == str(to_storage_location_id)
+    )
 
 
 def _index_file_entity(
@@ -930,13 +946,11 @@ def _index_file_entity(
         for (entity, version) in entity_versions:
             from_storage_location_id = entity._file_handle['storageLocationId']
 
-            if (
-                    not source_storage_location_ids or
-                    str(from_storage_location_id) in source_storage_location_ids or
-                    str(from_storage_location_id) == str(to_storage_location_id)
+            if _include_file_storage_location_in_index(
+                source_storage_location_ids,
+                from_storage_location_id,
+                to_storage_location_id
             ):
-                # we only include files that are among the relevant storage locations
-                # in the index. files in storage locations we aren't migrating to or from aren't included.
 
                 migration_status = _MigrationStatus.INDEXED.value \
                     if str(from_storage_location_id) != str(to_storage_location_id) \
@@ -1029,13 +1043,11 @@ def _index_table_entity(
         for col_id, file_handle in file_handles.items():
             existing_storage_location_id = file_handle['storageLocationId']
 
-            if (
-                    not source_storage_location_ids or
-                    str(existing_storage_location_id) in source_storage_location_ids or
-                    str(existing_storage_location_id) == str(dest_storage_location_id)
+            if _include_file_storage_location_in_index(
+                source_storage_location_ids,
+                existing_storage_location_id,
+                dest_storage_location_id,
             ):
-                # we only include files that are among the relevant storage locations
-                # in the index. files in storage locations we aren't migrating to or from aren't included.
 
                 migration_status = _MigrationStatus.INDEXED.value \
                     if str(dest_storage_location_id) != str(existing_storage_location_id) \
