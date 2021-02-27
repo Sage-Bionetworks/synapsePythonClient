@@ -2,7 +2,8 @@ import json
 import pytest
 import sqlite3
 import tempfile
-from unittest import mock
+import threading
+from unittest import mock, skipIf
 
 import synapseclient
 from synapseclient.core.exceptions import SynapseHTTPError
@@ -1415,6 +1416,155 @@ class TestMigrate:
         with pytest.raises(ValueError) as ex:
             self._migrate_test(db_path, syn, False)
             assert 'boom' in str(ex)
+
+
+@skipIf(
+    synapseclient.core.config.single_threaded,
+    "This test verifies behavior in a multi threaded environment and cannot run/is not relevant under a single thread"
+)
+def test_migrate__shared_file_handles(mocker, syn):
+    """Verify if we migrate file entities that share the same file handle
+    the file handle migration code is invoked the expected number of times.
+    If two file entities share the same file handle then we have to go through
+    the query cycle multiple times since the first time through the loop
+    the migration for the second file is deferred so that the copied file handle
+    can be reused by both files."""
+
+    # 2 file entities sharing a file handle id
+    project = synapseclient.Project(id='syn1')
+    old_storage_location_id = 1234
+    new_storage_location_id = 5678
+    from_file_handle_id = 4321
+    to_file_handle_id = 9876
+    file_size = 1000000
+    file_handle = {
+        'id': from_file_handle_id,
+        'storageLocationId': old_storage_location_id,
+        'contentSize': file_size,
+    }
+
+    file1 = synapseclient.File(id='syn2', parentId=project.id)
+    file1.dataFileHandleId = from_file_handle_id
+    file1.versionNumber = 1
+    file1._file_handle = file_handle
+
+    file2 = synapseclient.File(id='syn3', parentId=project.id)
+    file2.dataFileHandleId = from_file_handle_id
+    file2.versionNumber = 3
+    file2._file_handle = file_handle
+
+    migration_values = [
+        (
+            project.id,
+            _MigrationType.PROJECT.value,
+            None,
+            None,
+            None,
+            None,
+            _MigrationStatus.INDEXED.value,
+            None,
+            None,
+            None,
+        ),
+        (
+            file1.id,
+            _MigrationType.FILE.value,
+            file1.versionNumber,
+            None,
+            None,
+            project.id,
+            _MigrationStatus.INDEXED.value,
+            old_storage_location_id,
+            from_file_handle_id,
+            file_size,
+        ),
+        (
+            file2.id,
+            _MigrationType.FILE.value,
+            file2.versionNumber,
+            None,
+            None,
+            project.id,
+            _MigrationStatus.INDEXED.value,
+            old_storage_location_id,
+            from_file_handle_id,
+            file_size,
+        ),
+    ]
+
+    with tempfile.NamedTemporaryFile(delete=False) as tmpfile, \
+            sqlite3.connect(tmpfile.name) as conn:
+        cursor = conn.cursor()
+        _ensure_schema(cursor)
+
+        cursor.execute(
+            """
+                insert into migration_settings (
+                    root_id,
+                    storage_location_id,
+                    file_version_strategy,
+                    include_table_files
+                ) values (?, ?, ?, ?)
+            """,
+            (
+                project.id,
+                new_storage_location_id,
+                'all',
+                0,
+            )
+        )
+
+        cursor.executemany(
+            """
+                insert into migrations (
+                    id,
+                    type,
+                    version,
+                    row_id,
+                    col_id,
+                    parent_id,
+                    status,
+                    from_storage_location_id,
+                    from_file_handle_id,
+                    file_size
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            migration_values
+        )
+        conn.commit()
+
+    mock_migrate_file_version = mocker.patch.object(migrate_functions, '_migrate_file_version')
+
+    wait_event = threading.Event()
+    wait_futures = migrate_functions._wait_futures
+    wait_mock = mocker.patch.object(migrate_functions, '_wait_futures')
+
+    # a spy that records that wait_futures was called so we can ensure that
+    # a "migration" won't complete until after the main thread is waiting once
+    def wait_mock_side_effect(*args, **kwargs):
+        wait_event.set()
+        return wait_futures(*args, **kwargs)
+    wait_mock.side_effect = wait_mock_side_effect
+
+    def mock_migrate_file_version_side_effect(*args, **kwargs):
+        # wait until the driving thread is complete before we simulate
+        # the completion of the migration
+        wait_event.wait()
+        return to_file_handle_id
+
+    mock_migrate_file_version.side_effect = mock_migrate_file_version_side_effect
+    result = migrate_indexed_files(
+        syn,
+        tmpfile.name,
+        force=True
+    )
+
+    assert mock_migrate_file_version.call_count == 2
+    # verify that it took to cycles to complete this migration
+    # since one of the migrations was deferred because of the shared file handle
+    assert wait_mock.call_count == 2
+    for migration in result.get_migrations():
+        assert to_file_handle_id == migration['to_file_handle_id']
 
 
 def test_create_new_file_version__copy_file_handle(mocker, syn):
