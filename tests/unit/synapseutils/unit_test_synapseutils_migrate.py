@@ -1555,23 +1555,13 @@ def test_migrate__shared_file_handles(mocker, syn):
         cursor = conn.cursor()
         _ensure_schema(cursor)
 
-        cursor.execute(
-            """
-                insert into migration_settings (
-                    root_id,
-                    storage_location_id,
-                    file_version_strategy,
-                    include_table_files
-                ) values (?, ?, ?, ?)
-            """,
-            (
-                project.id,
-                new_storage_location_id,
-                'all',
-                0,
-            )
-        )
-
+        settings_str = json.dumps({
+            'root_id': project.id,
+            'dest_storage_location_id': new_storage_location_id,
+            'file_version_strategy': 'all',
+            'include_table_files': 0,
+        })
+        cursor.execute("insert into migration_settings (settings) values (?)", (settings_str,))
         cursor.executemany(
             """
                 insert into migrations (
