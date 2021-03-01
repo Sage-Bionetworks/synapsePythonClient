@@ -2203,7 +2203,7 @@ class TestTableSnapshot:
                 body='{}'
             )
 
-    def test__create_table_snapshot_with_activity(self, syn):
+    def test__create_table_snapshot__with_activity(self, syn):
         """
         Testing creating table snapshots pass in the activity without ID property
         """
@@ -2211,15 +2211,12 @@ class TestTableSnapshot:
         activity = Activity(name="test_activity", description="test_description")
         mock_dict = {'name': activity['name'], 'description': activity['description'], 'id': 123}
         with patch.object(syn, 'restPOST', return_value=snapshot) as restpost, \
-                patch.object(syn, 'saveActivity') as mock_saveActivity:
+                patch.object(syn, '_saveActivity') as mock__saveActivity:
 
-            saveActivity = MagicMock()
-            saveActivity.__getitem__.side_effect = mock_dict.__getitem__
-            mock_saveActivity.return_value = saveActivity
-
+            mock__saveActivity.return_value = mock_dict
             syn._create_table_snapshot("syn1234", comment="foo", label="new_label",
                                        activity=activity)
-            mock_saveActivity.assert_called_with(activity)
+            mock__saveActivity.assert_called_with(activity)
             restpost.assert_called_once_with(
                 '/entity/syn1234/table/snapshot',
                 body='{"snapshotComment": "foo", "snapshotLabel": "new_label", "snapshotActivityId": 123}'
@@ -2592,33 +2589,27 @@ def test_init_change_cache_path():
         assert syn_changed_cache_path.cache.get_cache_dir(file_handle_id) == expected_changed_cache_path
 
 
-def test_save_activity(syn):
+def test__saveActivity__has_id(syn):
     """
     Testing saveActivity method works properly
     """
 
-    with patch.object(syn, 'restPUT') as mock_restPUT, \
-            patch.object(client, 'json') as mock_json:
-        mock_dict = {"name": "test_activity", "description": "test_description", "id": 123}
-        mock_activity = MagicMock()
-        mock_activity.__getitem__.side_effect = mock_dict.__getitem__
-        mock_activity.__contains__.side_effect = mock_dict.__contains__
-        mock_json.dumps.return_value = mock_dict
-
-        syn.saveActivity(mock_activity)
+    with patch.object(syn, 'restPUT') as mock_restPUT:
+        mock_dict = {'name': 'test_activity', 'description': 'test_description', 'id': 123}
+        syn._saveActivity(mock_dict)
 
         mock_restPUT.assert_called_once_with(
-            '/activity/123', {'name': 'test_activity', 'description': 'test_description', 'id': 123}
+            '/activity/123', '{"name": "test_activity", "description": "test_description", "id": 123}'
         )
 
 
-def test_save_activity_without_id(syn):
+def test__saveActivity__without_id(syn):
     """
     Testing saveActivity method pass in the argument activity without ID property
     """
     with patch.object(syn, 'restPOST') as mock_restpost:
         activity = Activity(name="test_activity", description="test_description")
-        syn.saveActivity(activity)
+        syn._saveActivity(activity)
         mock_restpost.assert_called_once_with(
             '/activity', body='{"used": [], "name": "test_activity", "description": "test_description"}'
         )
