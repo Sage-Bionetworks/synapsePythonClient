@@ -11,7 +11,7 @@ import urllib.request as urllib_request
 import uuid
 
 import pytest
-from unittest.mock import ANY, call, create_autospec, MagicMock, Mock, patch
+from unittest.mock import ANY, call, create_autospec, Mock, patch
 
 import synapseclient
 from synapseclient.annotations import convert_old_annotation_json
