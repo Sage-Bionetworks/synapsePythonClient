@@ -2595,8 +2595,8 @@ def test__saveActivity__has_id(syn):
     """
 
     with patch.object(syn, 'restPUT') as mock_restPUT:
-        mock_dict = {'name': 'test_activity', 'description': 'test_description', 'id': 123}
-        syn._saveActivity(mock_dict)
+        put_result = {'name': 'test_activity', 'description': 'test_description', 'id': 123}
+        syn._saveActivity(put_result)
 
         mock_restPUT.assert_called_once_with(
             '/activity/123', '{"name": "test_activity", "description": "test_description", "id": 123}'
