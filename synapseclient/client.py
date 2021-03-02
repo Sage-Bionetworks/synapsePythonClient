@@ -1716,10 +1716,9 @@ class Synapse(object):
 
         :returns: An updated Activity object
         """
-        if 'id' in activity:
-            return self._saveActivity(activity)
-        else:
+        if 'id' not in activity:
             raise ValueError("The activity you want to update must exist on Synapse")
+        return self._saveActivity(activity)
 
     def _convertProvenanceList(self, usedList, limitSearch=None):
         """Convert a list of synapse Ids, URLs and local files by replacing local files with Synapse Ids"""

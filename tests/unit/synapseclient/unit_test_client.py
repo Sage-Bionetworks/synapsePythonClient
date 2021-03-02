@@ -2613,3 +2613,19 @@ def test__saveActivity__without_id(syn):
         mock_restpost.assert_called_once_with(
             '/activity', body='{"used": [], "name": "test_activity", "description": "test_description"}'
         )
+
+
+@patch('synapseclient.Synapse._saveActivity')
+def test__updateActivity__with_id(mock_saveActivity, syn):
+    activity = {'id': 'syn123', 'name': 'test_activity', 'description': 'test_description'}
+    syn.updateActivity(activity)
+    mock_saveActivity.assert_called_once_with({'id': 'syn123',
+                                               'name': 'test_activity',
+                                               'description': 'test_description'})
+
+
+def test__updateActivity__without_id(syn):
+    activity = Activity(name="test_activity", description="test_description")
+    with pytest.raises(ValueError) as ve:
+        syn.updateActivity(activity)
+    assert str(ve.value) == "The activity you want to update must exist on Synapse"
