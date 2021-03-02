@@ -17,6 +17,7 @@ import synapseclient
 from synapseclient.annotations import convert_old_annotation_json
 from synapseclient import client
 from synapseclient import (
+    Activity,
     Annotations,
     Column,
     DockerRepository,
@@ -2191,7 +2192,7 @@ class TestTableSnapshot:
             restpost.assert_called_once_with(
                 "/entity/syn1234/table/snapshot",
                 body='{"snapshotComment": "foo", "snapshotLabel": "new_label", '
-                     '"snapshotActivityId": 2}'
+                     '"snapshotActivityId": "2"}'
             )
 
     def test__create_table_snapshot__no_params(self, syn):
@@ -2202,6 +2203,25 @@ class TestTableSnapshot:
             restpost.assert_called_once_with(
                 "/entity/syn1234/table/snapshot",
                 body='{}'
+            )
+
+    def test__create_table_snapshot__with_activity(self, syn):
+        """
+        Testing creating table snapshots pass in the activity without ID property
+        """
+        snapshot = {'snapshotVersionNumber': 2}
+        activity = Activity(name="test_activity", description="test_description")
+        mock_dict = {'name': activity['name'], 'description': activity['description'], 'id': 123}
+        with patch.object(syn, 'restPOST', return_value=snapshot) as restpost, \
+                patch.object(syn, '_saveActivity') as mock__saveActivity:
+
+            mock__saveActivity.return_value = mock_dict
+            syn._create_table_snapshot("syn1234", comment="foo", label="new_label",
+                                       activity=activity)
+            mock__saveActivity.assert_called_with(activity)
+            restpost.assert_called_once_with(
+                '/entity/syn1234/table/snapshot',
+                body='{"snapshotComment": "foo", "snapshotLabel": "new_label", "snapshotActivityId": 123}'
             )
 
     def test__async_table_update(self, syn):
@@ -2612,3 +2632,45 @@ def test_init_change_cache_path():
         expected_changed_cache_path = os.path.join(temp_dir_name, str(int(file_handle_id) % fanout),
                                                    str(file_handle_id))
         assert syn_changed_cache_path.cache.get_cache_dir(file_handle_id) == expected_changed_cache_path
+
+
+def test__saveActivity__has_id(syn):
+    """
+    Testing saveActivity method works properly
+    """
+
+    with patch.object(syn, 'restPUT') as mock_restPUT:
+        put_result = {'name': 'test_activity', 'description': 'test_description', 'id': 123}
+        syn._saveActivity(put_result)
+
+        mock_restPUT.assert_called_once_with(
+            '/activity/123', '{"name": "test_activity", "description": "test_description", "id": 123}'
+        )
+
+
+def test__saveActivity__without_id(syn):
+    """
+    Testing saveActivity method pass in the argument activity without ID property
+    """
+    with patch.object(syn, 'restPOST') as mock_restpost:
+        activity = Activity(name="test_activity", description="test_description")
+        syn._saveActivity(activity)
+        mock_restpost.assert_called_once_with(
+            '/activity', body='{"used": [], "name": "test_activity", "description": "test_description"}'
+        )
+
+
+@patch('synapseclient.Synapse._saveActivity')
+def test__updateActivity__with_id(mock_saveActivity, syn):
+    activity = {'id': 'syn123', 'name': 'test_activity', 'description': 'test_description'}
+    syn.updateActivity(activity)
+    mock_saveActivity.assert_called_once_with({'id': 'syn123',
+                                               'name': 'test_activity',
+                                               'description': 'test_description'})
+
+
+def test__updateActivity__without_id(syn):
+    activity = Activity(name="test_activity", description="test_description")
+    with pytest.raises(ValueError) as ve:
+        syn.updateActivity(activity)
+    assert str(ve.value) == "The activity you want to update must exist on Synapse"
