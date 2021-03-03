@@ -57,8 +57,8 @@ class ExernalStorageTest(unittest.TestCase):
 
     @classmethod
     def _make_temp_file(cls, contents=None, **kwargs):
-        tmp_file = tempfile.NamedTemporaryFile(**kwargs)
-
+        # delete=False for Windows
+        tmp_file = tempfile.NamedTemporaryFile(**kwargs, delete=False)
         if contents:
             with open(tmp_file.name, 'w') as f:
                 f.write(contents)

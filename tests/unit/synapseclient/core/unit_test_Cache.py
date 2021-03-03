@@ -1,3 +1,4 @@
+import json
 import re
 import os
 import tempfile
@@ -120,6 +121,38 @@ def test_subsecond_timestamps():
         _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.000Z"}
 
         assert path == my_cache.get(file_handle_id=1234, path=path)
+
+
+def test_unparseable_cache_map():
+    """
+    Verify that a cache map file with contents that are not parseable as JSON will be treated as if it
+    does not exist (i.e. it will be overwritten with fresh contents on use)
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+    file_handle_id = 101201
+
+    # path normalization for windows
+    path1 = os.path.normcase(
+        os.path.normpath(
+            utils.touch(os.path.join(my_cache.get_cache_dir(file_handle_id), "file1.ext"))
+        )
+    )
+
+    cache_dir = my_cache.get_cache_dir(file_handle_id)
+    cache_map_file = os.path.join(cache_dir, my_cache.cache_map_file_name)
+
+    # empty cache map file will not be parseable as json
+    utils.touch(cache_map_file)
+
+    my_cache.add(file_handle_id=101201, path=path1)
+
+    assert os.path.normcase(os.path.normpath(my_cache.get(file_handle_id=101201, path=path1))) == path1
+
+    with open(cache_map_file, mode='r') as cache_map_in:
+        cache_map = json.loads(cache_map_in.read())
+        assert os.path.normpath(os.path.normcase(next(iter(cache_map.keys())))) == path1
 
 
 def test_cache_store_get():

@@ -6,6 +6,7 @@ https://python-docs.synapse.org/build/html/CommandLineClient.html
 """
 import argparse
 import collections.abc
+import logging
 import os
 import sys
 import signal
@@ -27,6 +28,23 @@ from synapseclient.core.exceptions import (
     SynapseFileNotFoundError,
     SynapseNoCredentialsError,
 )
+
+
+def _init_console_Logging():
+    # init a stdout logger for purposes of logging cli activity.
+    # logging is preferred to writing directly to stdout since it can be configured/formatted/suppressed
+    # but this is not yet universal across the client so it is initialized here from cli commands that
+    # don't still have other direct stdout calls
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+
+    # message only for these cli stdout messages, meant for output directly to be viewed by interactive user
+    formatter = logging.Formatter('%(message)s')
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
 
 
 def query(args, syn):
@@ -447,6 +465,76 @@ def get_sts_token(args, syn):
     print(sts_string)
 
 
+def migrate(args, syn):
+    """Migrate Synapse entities to a new storage location"""
+    _init_console_Logging()
+
+    result = synapseutils.index_files_for_migration(
+        syn,
+        args.id,
+        args.dest_storage_location_id,
+        args.db_path,
+        source_storage_location_ids=args.source_storage_location_ids,
+        file_version_strategy=args.file_version_strategy,
+        include_table_files=args.include_table_files,
+        continue_on_error=args.continue_on_error,
+    )
+
+    counts = result.get_counts_by_status()
+    indexed_count = counts['INDEXED']
+    already_migrated_count = counts['ALREADY_MIGRATED']
+    errored_count = counts['ERRORED']
+
+    logging.info(
+        "Indexed %s items, %s needing migration, %s already stored in destination storage location (%s). "
+        "Encountered %s errors.",
+        indexed_count + already_migrated_count,
+        indexed_count,
+        already_migrated_count,
+        args.dest_storage_location_id,
+        errored_count
+    )
+
+    if indexed_count == 0:
+
+        logging.info("No files found needing migration.")
+
+    elif args.dryRun:
+        logging.info(
+            "Dry run, index created at %s but skipping migration. Can proceed with migration by running "
+            "the same command without the dry run option."
+        )
+
+    else:
+        # there are items to migrate and this is not a dry run, proceed with migration
+        result = synapseutils.migrate_indexed_files(
+            syn,
+            args.db_path,
+            create_table_snapshots=True,
+            continue_on_error=args.continue_on_error,
+            force=args.force,
+        )
+
+        if result:
+            # result is None if not using the arg and the user declined to
+            # continue with the migration
+
+            counts = result.get_counts_by_status()
+            migrated_count = counts['MIGRATED']
+            errored_count = counts['ERRORED']
+
+            logging.info(
+                "Completed migration of %s. %s files migrated. %s errors encountered",
+                args.id,
+                migrated_count,
+                errored_count,
+            )
+
+    if args.csv_log_path:
+        logging.info("Writing csv log to %s", args.csv_log_path)
+        result.as_csv(args.csv_log_path)
+
+
 def build_parser():
     """Builds the argument parser and returns the result."""
 
@@ -461,7 +549,7 @@ def build_parser():
     parser.add_argument('-u', '--username', dest='synapseUser',
                         help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword',
-                        help='Password used to connect to Synapse')
+                        help='Password, api key, or token used to connect to Synapse')
     parser.add_argument('-c', '--configPath', dest='configPath', default=synapseclient.client.CONFIG_FILE,
                         help='Path to configuration file used to connect to Synapse [default: %(default)s]')
 
@@ -843,11 +931,43 @@ def build_parser():
         choices=['json', 'boto', 'shell', 'bash', 'cmd', 'powershell'])
     parser_get_sts_token.set_defaults(func=get_sts_token)
 
+    parser_migrate = subparsers.add_parser(
+        'migrate',
+        help='Migrate Synapse entities to a different storage location'
+    )
+    parser_migrate.add_argument('id', type=str, help='Synapse id')
+    parser_migrate.add_argument('dest_storage_location_id', type=str, help='Destination Synapse storage location id')
+    parser_migrate.add_argument('db_path', type=str, help='Local system path where a record keeping file can be stored')
+    parser_migrate.add_argument('--source_storage_location_ids', type=str, nargs='*',
+                                help="Source Synapse storage location ids. If specified only files in these storage "
+                                "locations will be migrated.")
+    parser_migrate.add_argument('--file_version_strategy', type=str, default='new',
+                                help="""one of 'new', 'latest', 'all', 'skip'
+                                     new creates a new version of each entity,
+                                     latest migrates the most recent version,
+                                     all migrates all versions,
+                                     skip avoids migrating file entities (use when exclusively
+                                     targeting table attached files""")
+    parser_migrate.add_argument('--include_table_files', action='store_true', default=False,
+                                help='Include table attached files when migrating')
+    parser_migrate.add_argument('--continue_on_error', action='store_true', default=False,
+                                help='Whether to continue processing other entities if migration of one fails')
+    parser_migrate.add_argument('--csv_log_path', type=str,
+                                help='Path where to log a csv documenting the changes from the migration')
+    parser_migrate.add_argument('--dryRun', action='store_true', default=False,
+                                help='Dry run, files will be indexed by not migrated')
+    parser_migrate.add_argument('--force', action='store_true', default=False,
+                                help='Bypass interactive prompt confirming migration')
+
+    parser_migrate.set_defaults(func=migrate)
+
     return parser
 
 
 def perform_main(args, syn):
     if 'func' in args:
+        if args.func != login:
+            login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
         try:
             args.func(args, syn)
         except Exception as ex:
@@ -855,50 +975,87 @@ def perform_main(args, syn):
                 raise
             else:
                 sys.stderr.write(utils._synapse_error_msg(ex))
+    else:
+        # if no command provided print out help and quit
+        # if we require python 3.7 or above, we can use required argument tp add_subparsers instead
+        build_parser().print_help()
 
 
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
     try:
         _authenticate_login(syn, user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
-        # if there were no credentials in the cache nor provided, prompt the user and try again
-        while not user:
-            user = input("Synapse username: ")
+        # there were no complete credentials in the cache nor provided
+        if not user:
+            # if username was passed then we use that username
+            user = input("Synapse username (leave blank if using an auth token): ")
+
+        # if no username was provided then prompt for auth token, since no other secret will suffice without a user
+        secret_prompt = f"Password, api key, or auth token for user {user}:" if user else "Auth token:"
 
         passwd = None
         while not passwd:
-            # must encode password prompt because getpass() has OS-dependent implementation and complains about unicode
-            # on Windows python 2.7
-            passwd = getpass.getpass(("Password or api key for " + user + ": ").encode('utf-8'))
-
+            # if the terminal is not a tty, we are unable to read from standard input
+            # For git bash using python getpass
+            # https://stackoverflow.com/questions/49858821/python-getpass-doesnt-work-on-windows-git-bash-mingw64
+            if not sys.stdin.isatty():
+                raise SynapseAuthenticationError(
+                    "No password, key, or token was provided and unable to read from standard input")
+            else:
+                passwd = getpass.getpass(secret_prompt)
         _authenticate_login(syn, user, passwd, rememberMe=rememberMe, forced=forced)
 
 
-def _authenticate_login(syn, user, password, **login_kwargs):
-    # login with the given password. If the password is not valid and it appears to be an api key
-    # then we attempt a login using it as an api key instead.
-    try:
-        syn.login(user, password, **login_kwargs)
-    except SynapseNoCredentialsError:
-        # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
-        raise
-    except SynapseAuthenticationError:
-        # if the entered password appears to be a base64 encoded string then we additionally attempt
-        # to login using it as an api key instead.
-        if utils.is_base64_encoded(password):
-            # the password appears to be a base64 encoded string, it might be an apikey
-            syn.login(user, apiKey=password, **login_kwargs)
-        else:
-            raise
+def _authenticate_login(syn, user, secret, **login_kwargs):
+    # login using the given secret.
+    # we try logging in using the secret as a password, a auth bearer token, an api key in that order.
+    # each attempt results in a call to the services, which can mean extra calls than if we explicitly knew
+    # which type of secret we had, but the alternative of defining separate commands/parameters for the different
+    # types of secrets would pollute the top level argument space and make the stdin input option more complex
+    # for the user (e.g. first ask them to specify which type of secret they have rather than just an input prompt)
+
+    login_attempts = (
+        # a username is required when attempting a password login
+        ('password', lambda user, secret: user is not None and secret is not None),
+
+        # auth token login can be attempted without a username.
+        # although tokens are technically encoded, the client treats them as opaque so we don't do an encoding check
+        # on the secret itself
+        ('authToken', lambda user, secret: secret is not None),
+
+        # username is required for an api key and secret is base 64 encoded
+        ('apiKey', lambda user, secret: user is not None and utils.is_base64_encoded(secret)),
+
+        # an inputless login (i.e. derived from config or cache)
+        (None, lambda user, secret: user is None and secret is None),
+    )
+
+    first_auth_ex = None
+    for (login_key, secret_filter) in login_attempts:
+        if secret_filter(user, secret):
+            try:
+                login_kwargs_with_secret = {login_key: secret} if login_key else {}
+                login_kwargs_with_secret.update(login_kwargs)
+                syn.login(user, **login_kwargs_with_secret)
+                break
+            except SynapseNoCredentialsError:
+                # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
+                raise
+            except SynapseAuthenticationError as ex:
+                if not first_auth_ex:
+                    first_auth_ex = ex
+                continue
+    else:
+        # if one of the login filters applied raise that exception
+        # otherwise if none of them applied then a no credentials error
+        # will result in a login prompt
+        raise first_auth_ex or SynapseNoCredentialsError()
 
 
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks, configPath=args.configPath)
-    if not ('func' in args and args.func == login):
-        # if we're not executing the "login" operation, automatically authenticate before running operation
-        login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
     perform_main(args, syn)
 
 

@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S3 Storage Features &#8212; Synapse Python Client 2.2.2 documentation</title>
+    <title>S3 Storage Features &#8212; Synapse Python Client 2.3.0 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -46,7 +46,7 @@
         <li class="right" >
           <a href="Upload.html" title="File Upload"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">S3 Storage Features</a></li> 
       </ul>
     </div>  
@@ -76,11 +76,14 @@ rather than Synapse’s default internal S3 storage.</p>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># create a new folder to use with external S3 storage</span>
 <span class="n">folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Folder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">))</span>
-<span class="n">syn</span><span class="o">.</span><span class="n">create_s3_storage_location</span><span class="p">(</span>
+<span class="n">folder</span><span class="p">,</span> <span class="n">storage_location</span><span class="p">,</span> <span class="n">project_setting</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">create_s3_storage_location</span><span class="p">(</span>
     <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
     <span class="n">bucket_name</span><span class="o">=</span><span class="s1">&#39;my-external-synapse-bucket&#39;</span><span class="p">,</span>
     <span class="n">base_key</span><span class="o">=</span><span class="s1">&#39;path/within/bucket&#39;</span><span class="p">,</span>
  <span class="p">)</span>
+
+<span class="c1"># if needed the unique storage location identifier can be obtained e.g.</span>
+<span class="n">storage_location_id</span> <span class="o">=</span> <span class="n">storage_location</span><span class="p">[</span><span class="s1">&#39;storageLocationId&#39;</span><span class="p">]</span>
 </pre></div>
 </div>
 </div></blockquote>
@@ -132,7 +135,7 @@ Note also that STS can only be enabled on an empty folder.</p>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># create a new folder to use with STS and external S3 storage</span>
 <span class="n">folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Folder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">))</span>
-<span class="n">syn</span><span class="o">.</span><span class="n">create_s3_storage_location</span><span class="p">(</span>
+<span class="n">folder</span><span class="p">,</span> <span class="n">storage_location</span><span class="p">,</span> <span class="n">project_setting</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">create_s3_storage_location</span><span class="p">(</span>
     <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
     <span class="n">bucket_name</span><span class="o">=</span><span class="s1">&#39;my-external-synapse-bucket&#39;</span><span class="p">,</span>
     <span class="n">base_key</span><span class="o">=</span><span class="s1">&#39;path/within/bucket&#39;</span><span class="p">,</span>
@@ -217,6 +220,105 @@ the <strong>use_boto_sts_transfers</strong> property.</p></li>
 <p>Note that if boto3 is not installed, then these settings will have no effect.</p>
 </div>
 </div>
+<div class="section" id="storage-location-migration">
+<h2>Storage location migration<a class="headerlink" href="#storage-location-migration" title="Permalink to this headline">¶</a></h2>
+<p>There are circumstances where it can be useful to move the files underlying Synapse entities from one storage
+location to another without impacting the structure or identifiers of the Synapse entities themselves. An example
+scenario is needing to use <a class="reference external" href="S3Storage.html#sts-storage-locations">STS</a> features with an existing Synapse Project
+that was not initially configured with an STS enabled
+<a class="reference external" href="S3Storage.html#external-storage-locations">custom storage location</a>.</p>
+<p>The Synapse client has utilities for migrating entities to a new storage location without having to download
+the content locally and re-uploading it which can be slow, and may alter the meta data associated with the entities
+in undesirable ways.</p>
+<div class="section" id="migrating-programmatically">
+<h3>Migrating programmatically<a class="headerlink" href="#migrating-programmatically" title="Permalink to this headline">¶</a></h3>
+<p>Migrating a Synapse project or folder programatically is a two step process.</p>
+<p>First ensure that you know the id of the storage location you want to migrate to. More info on storage
+locations can be found above and <a class="reference external" href="https://docs.synapse.org/articles/custom_storage_location.html">here</a>.</p>
+<p>Once the storage location is known, the first step to migrate an entity is create a migratable index
+of its contents using the
+<a class="reference external" href="synapseutils.html#synapseutils.migrate_functions.index_files_for_migration">index_files_for_migration</a> function, e.g.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseutils</span>
+
+<span class="n">entity_id</span> <span class="o">=</span> <span class="s1">&#39;syn123&#39;</span>  <span class="c1"># a Synapse entity whose contents need to be migrated, e.g. a Project or Folder</span>
+<span class="n">storage_location_id</span> <span class="o">=</span> <span class="s1">&#39;12345&#39;</span>  <span class="c1"># the id of the storage location being migrated to</span>
+
+<span class="c1"># a path on disk where this utility can create a sqlite database to store its index.</span>
+<span class="c1"># nothing needs to exist at this path, but it must be a valid path on a volume with sufficient</span>
+<span class="c1"># disk space to store a meta data listing of all the contents in the indexed entity.</span>
+<span class="c1"># a rough rule of thumb is 100kB per 1000 entities indexed.</span>
+<span class="n">db_path</span> <span class="o">=</span> <span class="s1">&#39;/tmp/foo/bar.db&#39;</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">synapseutils</span><span class="o">.</span><span class="n">index_files_for_migration</span><span class="p">(</span>
+    <span class="n">syn</span><span class="p">,</span>
+    <span class="n">entity_id</span><span class="p">,</span>
+    <span class="n">storage_location_id</span><span class="p">,</span>
+    <span class="n">db_path</span><span class="p">,</span>
+
+    <span class="c1"># optional args, see function documentation linked above for a description of these parameters</span>
+    <span class="n">file_version_strategy</span><span class="o">=</span><span class="s1">&#39;new&#39;</span><span class="p">,</span>
+    <span class="n">include_table_files</span><span class="o">=</span><span class="n">false</span><span class="p">,</span>
+    <span class="n">continue_on_error</span><span class="o">=</span><span class="n">true</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>If called on a container (e.g. a Project or Folder) the <em>index_files_for_migration</em> function will recursively
+index all of the children of that container (including its subfolders). Once the entity has been indexed you can
+optionally programmatically inspect the the contents of the index or output its contents to a csv file in order to
+manually inspect it using the <a class="reference external" href="synapseutils.html#synapseutils.migrate_functions.MigrationResult">available methods</a>
+on the returned result object.</p>
+<p>The next step to trigger the migration from the indexed files is using the <a class="reference external" href="synapseutils.html#synapseutils.migrate_functions.migrate_indexed_files">migrate_indexed_files</a> function, e.g.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">synapseutils</span><span class="o">.</span><span class="n">migrate_indexed_files</span><span class="p">(</span>
+    <span class="n">syn</span><span class="p">,</span>
+    <span class="n">db_path</span><span class="p">,</span>
+
+    <span class="c1"># optional args, see function documentation linked above for a description of these parameters</span>
+    <span class="n">create_table_snapshots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">continue_on_error</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">force</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>The result can be again be inspected as above to see the results of the migration.</p>
+<p>Note that above the <em>force</em> parameter is necessary if running from a non-interactive shell. Proceeding
+with a migration requires confirmation in the form of user prompt. If running programatically this parameter
+instead confirms your intention to proceed with the migration.</p>
+</div>
+<div class="section" id="migrating-from-the-command-line">
+<h3>Migrating from the command line<a class="headerlink" href="#migrating-from-the-command-line" title="Permalink to this headline">¶</a></h3>
+<p>Synapse entities can also be migrated from the command line. The options are similar to above.
+Whereas migrating programatically involves two separate function calls, from the command line
+there is a single <a class="reference external" href="CommandLineClient.html#migrate">migrate</a> command with the <em>dryRun</em> argument providing the option
+to generate the index only without proceeding onto the migration.</p>
+<p>Note that as above, confirmation is required before a migration starts. As above, this must either be
+in the form of confirming via a prompt if running the command from an interactive shell, or using the <em>force</em>
+command.</p>
+<p>The optional <em>csv_log_path</em> argument will output the results to a csv file for record keeping, and is recommended.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">migrate</span> <span class="n">syn123</span> <span class="mi">54321</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">migrate</span><span class="o">.</span><span class="n">db</span> <span class="o">--</span><span class="n">csv_log_path</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">migrate</span><span class="o">.</span><span class="n">csv</span>
+</pre></div>
+</div>
+</div></blockquote>
+<dl>
+<dt>Sample output:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Indexing Project syn123
+Indexing file entity syn888
+Indexing file entity syn999
+Indexed 2 items, 2 needing migration, 0 already stored in destination storage location (54321). Encountered 0 errors.
+21 items for migration to 54321. Proceed? (y/n)? y
+Creating new version for file entity syn888
+Creating new version for file entity syn999
+Completed migration of syn123. 2 files migrated. 0 errors encountered
+Writing csv log to /tmp/migrate.csv
+</pre></div>
+</div>
+</dd>
+</dl>
+</div>
+</div>
 </div>
 
 
@@ -245,6 +347,11 @@ the <strong>use_boto_sts_transfers</strong> property.</p></li>
 <li><a class="reference internal" href="#using-credentials-with-the-awscli">Using credentials with the awscli</a></li>
 <li><a class="reference internal" href="#using-credentials-with-boto3-in-python">Using credentials with boto3 in python</a></li>
 <li><a class="reference internal" href="#automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient">Automatic transfers to/from STS storage locations using boto3 with synapseclient</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#storage-location-migration">Storage location migration</a><ul>
+<li><a class="reference internal" href="#migrating-programmatically">Migrating programmatically</a></li>
+<li><a class="reference internal" href="#migrating-from-the-command-line">Migrating from the command line</a></li>
 </ul>
 </li>
 </ul>
@@ -283,13 +390,13 @@ the <strong>use_boto_sts_transfers</strong> property.</p></li>
         <li class="right" >
           <a href="Upload.html" title="File Upload"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">S3 Storage Features</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 09, 2020.
+      Last updated on Feb 24, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">

@@ -4,13 +4,14 @@ import datetime
 import errno
 import json
 import os
+from pathlib import Path
 import requests
 import tempfile
 import urllib.request as urllib_request
 import uuid
 
 import pytest
-from unittest.mock import ANY, call, create_autospec, Mock, patch
+from unittest.mock import ANY, call, create_autospec, MagicMock, Mock, patch
 
 import synapseclient
 from synapseclient.annotations import convert_old_annotation_json
@@ -41,7 +42,7 @@ import synapseclient.core.utils as utils
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs
-from synapseclient.core.credentials.cred_data import SynapseCredentials
+from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials
 from synapseclient.core.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.core.models.dict_object import DictObject
 
@@ -54,21 +55,21 @@ class TestLogout:
 
     def setup(self):
         self.username = "asdf"
-        self.credentials = SynapseCredentials(self.username, base64.b64encode(b"api_key_doesnt_matter").decode())
+        self.credentials = SynapseApiKeyCredentials(self.username, base64.b64encode(b"api_key_doesnt_matter").decode())
 
     def test_logout__forgetMe_is_True(self):
-        with patch.object(client, "cached_sessions") as mock_cached_session:
-            self.syn.credentials = self.credentials
+        self.syn.credentials = self.credentials
+        with patch.object(self.credentials, 'delete_from_keyring') as mock_delete_from_keyring:
             self.syn.logout(True)
             assert self.syn.credentials is None
-            mock_cached_session.remove_api_key.assert_called_with(self.username)
+            mock_delete_from_keyring.assert_called_once()
 
     def test_logout__forgetMe_is_False(self):
-        with patch.object(client, "cached_sessions") as mock_cached_session:
+        with patch.object(self.credentials, 'delete_from_keyring') as mock_delete_from_keyring:
             self.syn.credentials = self.credentials
             self.syn.logout(False)
             assert self.syn.credentials is None
-            mock_cached_session.remove_api_key.assert_not_called()
+            mock_delete_from_keyring.assert_not_called()
 
 
 class TestLogin:
@@ -81,7 +82,7 @@ class TestLogin:
         self.login_args = {'email': "AzureDiamond", "password": "hunter2"}
         self.expected_user_args = UserLoginArgs(username="AzureDiamond", password="hunter2", api_key=None,
                                                 skip_cache=False)
-        self.synapse_creds = SynapseCredentials("AzureDiamond", base64.b64encode(b"*******").decode())
+        self.synapse_creds = SynapseApiKeyCredentials("AzureDiamond", base64.b64encode(b"*******").decode())
 
         self.mocked_credential_chain = create_autospec(SynapseCredentialsProviderChain)
         self.mocked_credential_chain.get_credentials.return_value = self.synapse_creds
@@ -118,13 +119,15 @@ class TestLogin:
             mocked_get_user_profile.assert_called_once_with(refresh=True)
             mocked_logger.info.assert_called_once()
 
-    def test_login__rememberMeIsTrue(self):
-        with patch.object(client, "cached_sessions") as mocked_cached_sessions:
-            self.syn.login(silent=True, rememberMe=True)
+    def test_login__rememberMeIsTrue(self, mocker):
+        mock_cached_sessions = mocker.patch.object(client, 'cached_sessions')
+        mock_delete_stored_credentials = mocker.patch.object(client, 'delete_stored_credentials')
+        mock_store_to_keyring = mocker.patch.object(self.synapse_creds, 'store_to_keyring')
+        self.syn.login(silent=True, rememberMe=True)
 
-            mocked_cached_sessions.set_api_key.assert_called_once_with(self.synapse_creds.username,
-                                                                       self.synapse_creds.api_key)
-            mocked_cached_sessions.set_most_recent_user.assert_called_once_with(self.synapse_creds.username)
+        mock_store_to_keyring.assert_called_once()
+        mock_cached_sessions.set_most_recent_user.assert_called_once_with(self.synapse_creds.username)
+        mock_delete_stored_credentials.assert_called_once_with(self.synapse_creds.username)
 
 
 @patch('synapseclient.Synapse._getFileHandleDownload')
@@ -426,6 +429,42 @@ class TestDownloadFileHandle:
 
             mock_url_retrieve.assert_called_once_with(url, expected_destination)
             assert download_path == expected_destination
+
+    def test_download_from_url__synapse_auth(self, mocker):
+        """Verify we pass along Synapse auth headers when downloading from a Synapse repo hosted url"""
+
+        uri = f"{self.syn.repoEndpoint}/repo/v1/entity/syn1234567/file"
+        in_destination = tempfile.mktemp()
+
+        mock_credentials = mocker.patch.object(self.syn, 'credentials')
+
+        response = MagicMock(spec=requests.Response)
+        response.status_code = 200
+        response.headers = {}
+        mock_get = mocker.patch.object(self.syn._requests_session, 'get')
+        mock_get.return_value = response
+
+        out_destination = self.syn._download_from_URL(uri, in_destination)
+        assert mock_get.call_args[1]['auth'] is mock_credentials
+        assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
+
+    def test_download_from_url__external(self, mocker):
+        """Verify we do not pass along Synapse auth headers to a file download that is a not Synapse repo hosted"""
+
+        uri = "https://not-synapse.org/foo/bar/baz"
+        in_destination = tempfile.mktemp()
+
+        mocker.patch.object(self.syn, 'credentials')
+
+        response = MagicMock(spec=requests.Response)
+        response.status_code = 200
+        response.headers = {}
+        mock_get = mocker.patch.object(self.syn._requests_session, 'get')
+        mock_get.return_value = response
+
+        out_destination = self.syn._download_from_URL(uri, in_destination)
+        assert mock_get.call_args[1]['auth'] is None
+        assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
 
 
 class TestPrivateSubmit:
@@ -1682,7 +1721,7 @@ class TestRestCalls:
         mock_build_uri_and_headers.assert_called_once_with(uri, endpoint=endpoint, headers=headers)
         mock_build_retry_policy.assert_called_once_with(retryPolicy)
         mock_handle_synapse_http_error.assert_called_once_with(response)
-        mock_requests_call.assert_called_once_with(uri, data=data, headers=headers, **kwargs)
+        mock_requests_call.assert_called_once_with(uri, data=data, headers=headers, auth=self.syn.credentials, **kwargs)
 
         return response
 
@@ -1692,6 +1731,30 @@ class TestRestCalls:
     def test_rest_call__custom_session(self):
         session = create_autospec(requests.Session)
         self._rest_call_test(session)
+
+    def _rest_call_auth_test(self, **kwargs):
+        method = 'get'
+        uri = '/foo'
+        data = b'data'
+        endpoint = 'https://foo.com'
+        headers = {'foo': 'bar'}
+        retryPolicy = {}
+        requests_session = MagicMock(spec=requests.Session)
+        response = MagicMock(spec=requests.Response)
+        response.status_code = 200
+        requests_session.get.return_value = response
+
+        self.syn._rest_call(method, uri, data, endpoint, headers, retryPolicy, requests_session, **kwargs)
+        return requests_session.get.call_args_list[0][1]['auth']
+
+    def test_rest_call__default_auth(self):
+        """Verify that _rest_call will use the Synapse object's credentials unless overridden"""
+        assert self._rest_call_auth_test() is self.syn.credentials
+
+    def test_rest_call__passed_auth(self, mocker):
+        """Verify that _rest_call will use a custom auth object if passed"""
+        auth = MagicMock(spec=synapseclient.core.credentials.cred_data.SynapseCredentials)
+        assert self._rest_call_auth_test(auth=auth) is auth
 
 
 class TestSetAnnotations:
@@ -2356,33 +2419,12 @@ def test__get_annotation_view_columns(syn):
 
 class TestGenerateHeaders:
 
-    def test_generate_headers__credentials(self):
-        """Verify signed credentials are added to the headers when logged in"""
-        url = 'http://foo.com/bar'
-        signed_headers = {'foo': 'bar'}
+    def test_generate_headers(self):
+        """Verify expected headers"""
 
         syn = Synapse(skip_checks=True)
-        syn.credentials = Mock(
-            get_signed_headers=Mock(return_value=signed_headers)
-        )
 
-        headers = syn._generate_headers(url)
-        expected = {}
-        expected.update(signed_headers)
-        expected.update(syn.default_headers)
-        expected.update(synapseclient.USER_AGENT)
-
-        assert expected == headers
-        syn.credentials.get_signed_headers.assert_called_once_with(url)
-
-    def test_generate_headers__no_credentials(self):
-        """Verify expected headers without signing when not logged in"""
-        url = 'http://foo.com/bar'
-
-        syn = Synapse(skip_checks=True)
-        syn.credentials = None
-
-        headers = syn._generate_headers(url)
+        headers = syn._generate_headers()
         expected = {}
         expected.update(syn.default_headers)
         expected.update(synapseclient.USER_AGENT)
@@ -2392,15 +2434,13 @@ class TestGenerateHeaders:
     def test_generate_headers__custom_headers(self):
         """Verify that custom headers override default headers"""
 
-        url = 'http://foo.com/bar'
         custom_headers = {
             'foo': 'bar'
         }
 
         syn = Synapse(skip_checks=True)
-        syn.credentials = None
 
-        headers = syn._generate_headers(url, headers=custom_headers)
+        headers = syn._generate_headers(headers=custom_headers)
         expected = {}
         expected.update(custom_headers)
         expected.update(synapseclient.USER_AGENT)
@@ -2543,3 +2583,65 @@ class TestTableQuery:
             )
 
             assert (mock_download_result, expected_path) == actual_result
+
+
+@pytest.mark.parametrize("userid", [999, 1456])
+def test__get_certified_passing_record(userid, syn):
+    """Test correct rest call"""
+    response = {"test": 5}
+    with patch.object(syn, "restGET", return_value=response) as patch_get:
+        record = syn._get_certified_passing_record(userid)
+        patch_get.assert_called_once_with(
+            f"/user/{userid}/certifiedUserPassingRecord"
+        )
+        assert record == response
+
+
+@pytest.mark.parametrize("response", [True, False])
+def test_is_certified(response, syn):
+    with patch.object(syn, "getUserProfile",
+                      return_value={"ownerId": "foobar"}) as patch_get_user,\
+         patch.object(syn,
+                      "_get_certified_passing_record",
+                      return_value={'passed': response}) as patch_get_cert:
+        is_certified = syn.is_certified("test")
+        patch_get_user.assert_called_once_with("test")
+        patch_get_cert.assert_called_once_with("foobar")
+        assert is_certified is response
+
+
+def test_is_certified__no_quiz_results(syn):
+    """Verify handling of a user that hasn't taken the quiz at all.
+    In this case the back end returns a 404 rather than a result."""
+    response = MagicMock(requests.Response)
+    response.status_code = 404
+    with patch.object(syn, "getUserProfile",
+                      return_value={"ownerId": "foobar"}) as patch_get_user,\
+         patch.object(syn,
+                      "_get_certified_passing_record",
+                      side_effect=SynapseHTTPError(response=response)) as patch_get_cert:
+        is_certified = syn.is_certified("test")
+    patch_get_user.assert_called_once_with("test")
+    patch_get_cert.assert_called_once_with("foobar")
+    assert is_certified is False
+
+
+def test_init_change_cache_path():
+    """
+    Verify that the user can customize the cache path.
+    The cache path is set to the default value if cache_root_dir argument is None.
+    """
+    cache_root_dir = '.synapseCache'
+    fanout = 1000
+    file_handle_id = '-1337'
+
+    syn = Synapse(debug=False, skip_checks=True)
+    expected_cache_path = os.path.join(str(Path.home()), cache_root_dir,
+                                       str(int(file_handle_id) % fanout), str(file_handle_id))
+    assert syn.cache.get_cache_dir(file_handle_id) == expected_cache_path
+
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+        syn_changed_cache_path = Synapse(debug=False, skip_checks=True, cache_root_dir=temp_dir_name)
+        expected_changed_cache_path = os.path.join(temp_dir_name, str(int(file_handle_id) % fanout),
+                                                   str(file_handle_id))
+        assert syn_changed_cache_path.cache.get_cache_dir(file_handle_id) == expected_changed_cache_path

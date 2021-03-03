@@ -2,6 +2,83 @@
 Release Notes
 =============
 
+2.3.0 (2021-03-03)
+================
+
+Highlights
+----------
+
+- The `index_files_for_migration <synapseutils.html#synapseutils.migrate_functions.index_files_for_migration>`__ and
+  `migrate_indexed_files <synapseutils.html#synapseutils.migrate_functions.migrate_indexed_files>`__ functions are added
+  to synapseutils to help migrate files in Synapse projects and folders between AWS S3 buckets in the same region.
+  More details on using these utilities can be found `here <S3Storage.html#storage-location-migration>`__.
+
+- This version supports login programatically and from the command line using personal access tokens that can be obtained
+  from your synapse.org Settings. Additional documentation on login and be found `here <Credentials.html>`__.
+
+  .. code-block::
+
+   # programmatic
+   syn = synapseclient.login(authToken=<token>)
+
+  .. code-block::
+
+   # command line
+   synapse login -p <token>
+
+- The location where downloaded entities are cached can be customized to a location other than the user's home directory.
+  This is useful in environments where writing to a home directory is not appropriate (e.g. an AWS lambda).
+
+  .. code-block::
+
+   syn = synapseclient.Synapse(cache_root_dir=<directory path>)
+
+- A `helper method <index.html#synapseclient.Synapse.is_certified>`__ on the Synapse object has been added to enable obtaining the Synapse certification quiz status of a user.
+
+  .. code-block::
+
+   passed = syn.is_certified(<username or user_id>)
+
+- This version has been tested with Python 3.9.
+
+
+Bug Fixes
+---------
+
+-  [`SYNPY-1039 <https://sagebionetworks.jira.com/browse/SYNPY-1039>`__] -
+   tableQuery asDataFrame() results with TYPE_LIST columns should be lists and not literal strings
+-  [`SYNPY-1109 <https://sagebionetworks.jira.com/browse/SYNPY-1109>`__] -
+   unparseable synapse cacheMap raises JSONDecodeError
+-  [`SYNPY-1110 <https://sagebionetworks.jira.com/browse/SYNPY-1110>`__] -
+   Cleanup on Windows console login
+-  [`SYNPY-1112 <https://sagebionetworks.jira.com/browse/SYNPY-1112>`__] -
+   Concurrent migration of entities sharing the same file handle can result in an error
+-  [`SYNPY-1114 <https://sagebionetworks.jira.com/browse/SYNPY-1114>`__] -
+   Mitigate new Rust compiler dependency on Linux via transitive cryptography dependency
+-  [`SYNPY-1118 <https://sagebionetworks.jira.com/browse/SYNPY-1118>`__] -
+   Migration tool erroring when it shouldn't
+New Features
+------------
+
+-  [`SYNPY-1058 <https://sagebionetworks.jira.com/browse/SYNPY-1058>`__] -
+   Accept oauth access token for authentication to use Synapse REST services
+-  [`SYNPY-1103 <https://sagebionetworks.jira.com/browse/SYNPY-1103>`__] -
+   Multipart copy integration
+-  [`SYNPY-1111 <https://sagebionetworks.jira.com/browse/SYNPY-1111>`__] -
+   Add function to get user certification status
+
+Improvements
+------------
+
+-  [`SYNPY-885 <https://sagebionetworks.jira.com/browse/SYNPY-885>`__] -
+   Public interface to customize CACHE_ROOT_DIR
+-  [`SYNPY-1102 <https://sagebionetworks.jira.com/browse/SYNPY-1102>`__] -
+   syncToSynapse adds empty annotation values
+-  [`SYNPY-1104 <https://sagebionetworks.jira.com/browse/SYNPY-1104>`__] -
+   Python 3.9 support
+-  [`SYNPY-1119 <https://sagebionetworks.jira.com/browse/SYNPY-1119>`__] -
+   Add source storage location option to storage migrate functions
+
 2.2.2 (2020-10-18)
 ==================
 

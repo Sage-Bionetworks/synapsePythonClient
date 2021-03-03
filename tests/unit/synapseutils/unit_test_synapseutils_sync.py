@@ -351,6 +351,55 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata(syn):
                 assert file_entity.get(key) == file_row_data.get(key)
 
 
+def test_manifest_upload(syn):
+    """Verify behavior of synapseutils.sync._manifest_upload"""
+
+    data = {
+        'path': ['/tmp/foo', '/tmp/bar', '/tmp/baz'],
+        'parent': ['syn123', 'syn456', 'syn789'],
+        'name': ['foo', 'bar', 'baz'],
+        'used': [None, '/tmp/foo', '/tmp/bar'],
+        'executed': [None, None, '/tmp/foo'],
+        'anno_1': ['', 'v1', 'v2'],
+        'anno_2': ['v3', 'v4', ''],
+    }
+
+    # any empty annotations that result from any empty csv column should not
+    # be included in the upload
+    expected_anno_data = [
+        {'anno_2': 'v3'},
+        {'anno_1': 'v1', 'anno_2': 'v4'},
+        {'anno_1': 'v2'}
+    ]
+
+    df = pd.DataFrame(data=data)
+
+    with patch.object(synapseutils.sync, '_SyncUploadItem') as upload_item_init, \
+            patch.object(synapseutils.sync, '_SyncUploader') as uploader_init:
+        synapseutils.sync._manifest_upload(syn, df)
+
+    upload_items = []
+    for i in range(3):
+        expected_path = data['path'][i]
+        expected_parent = data['parent'][i]
+        expected_name = data['name'][i]
+        expected_used = data['used'][i]
+        expected_executed = data['executed'][i]
+        expected_annos = expected_anno_data[i]
+
+        upload_items.append(upload_item_init.return_value)
+        upload_item_init_args = upload_item_init.call_args_list[i]
+        file, used, executed, store_fields = upload_item_init_args[0]
+        assert file.path == expected_path
+        assert file.parentId == expected_parent
+        assert file.name == expected_name
+        assert file.annotations == expected_annos
+        assert used == expected_used
+        assert executed == expected_executed
+
+    uploader_init.return_value.upload.assert_called_once_with(upload_items)
+
+
 class TestSyncUploader:
 
     @patch('os.path.isfile')

@@ -821,7 +821,7 @@ def test_login(test_state):
             '-p', password,
             '--rememberMe',
             syn=alt_syn)
-        mock_login.assert_called_once_with(username, password, forced=True, rememberMe=True, silent=False)
+        mock_login.assert_called_once_with(username, password=password, forced=True, rememberMe=True, silent=False)
         mock_get_user_profile.assert_called_once_with()
 
 

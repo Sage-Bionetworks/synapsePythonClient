@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synapse Client &#8212; Synapse Python Client 2.2.2 documentation</title>
+    <title>Synapse Client &#8212; Synapse Python Client 2.3.0 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -46,7 +46,7 @@
         <li class="right" >
           <a href="S3Storage.html" title="S3 Storage Features"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>  
@@ -79,7 +79,7 @@ retrieving data, and recording provenance of data analysis.</p>
 <h2>Synapse<a class="headerlink" href="#synapse" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt id="synapseclient.Synapse">
-<em class="property">class </em><code class="sig-prename descclassname">synapseclient.</code><code class="sig-name descname">Synapse</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">repoEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">authEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fileHandleEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">portalEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">debug</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">skip_checks</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">configPath</span><span class="o">=</span><span class="default_value">'/Users/jkiang/.synapseConfig'</span></em>, <em class="sig-param"><span class="n">requests_session</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">synapseclient.</code><code class="sig-name descname">Synapse</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">repoEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">authEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fileHandleEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">portalEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">debug</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">skip_checks</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">configPath</span><span class="o">=</span><span class="default_value">'/Users/jkiang/.synapseConfig'</span></em>, <em class="sig-param"><span class="n">requests_session</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">cache_root_dir</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse" title="Permalink to this definition">¶</a></dt>
 <dd><p>Constructs a Python client object for the Synapse repository service</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -202,6 +202,9 @@ if None will use Synapse S3 storage</p></li>
 only applicable if bucket_name is passed</p></li>
 <li><p><strong>sts_enabled</strong> – Whether this storage location should be STS enabled</p></li>
 </ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a 3-tuple of the synapse Folder, a the storage location setting, and the project setting dictionaries</p>
 </dd>
 </dl>
 </dd></dl>
@@ -873,12 +876,27 @@ the old invite will be cancelled. Default to False.</p></li>
 </dd></dl>
 
 <dl class="py method">
+<dt id="synapseclient.Synapse.is_certified">
+<code class="sig-name descname">is_certified</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">user</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>int<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#synapseclient.Synapse.is_certified" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines whether a Synapse user is a certified user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Params user</dt>
+<dd class="field-odd"><p>Synapse username or Id</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True if the Synapse user is certified</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt id="synapseclient.Synapse.login">
-<code class="sig-name descname">login</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">email</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">password</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">apiKey</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">sessionToken</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rememberMe</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">silent</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">forced</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.login" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">login</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">email</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">password</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">apiKey</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">sessionToken</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rememberMe</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">silent</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">forced</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">authToken</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.login" title="Permalink to this definition">¶</a></dt>
 <dd><p>Valid combinations of login() arguments:</p>
 <ul class="simple">
 <li><p>email/username and password</p></li>
 <li><p>email/username and apiKey (Base64 encoded string)</p></li>
+<li><p>authToken</p></li>
 <li><p>sessionToken (<strong>DEPRECATED</strong>)</p></li>
 </ul>
 <dl class="simple">
@@ -899,6 +917,10 @@ the old invite will be cancelled. Default to False.</p></li>
 following fields: email, password, apiKey</p></li>
 <li><p><strong>rememberMe</strong> – Whether the authentication information should be cached in your operating system’s
 credential storage.</p></li>
+<li><p><strong>silent</strong> – Suppress login welcome message</p></li>
+<li><p><strong>forced</strong> – Skip any cached credential lookup</p></li>
+<li><p><strong>authToken</strong> – A bearer authorization token, e.g. a personal access token, can be used in lieu of a
+password or apiKey</p></li>
 </ul>
 </dd>
 </dl>
@@ -1548,13 +1570,13 @@ calculated automatically.</p></li>
         <li class="right" >
           <a href="S3Storage.html" title="S3 Storage Features"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.2.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 17, 2020.
+      Last updated on Feb 24, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">

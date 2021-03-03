@@ -1,0 +1,11 @@
+# a Docker image with a running SSH service that can be used with the SFTP integration tests.
+# A username/password test/test user is available to test with.
+
+FROM ubuntu:latest
+RUN apt update && apt install  openssh-server -y
+RUN useradd -m -s /bin/sh test
+RUN echo 'test:test' | chpasswd
+RUN service ssh start
+EXPOSE 22
+CMD ["/usr/sbin/sshd","-D"]
+

@@ -66,8 +66,12 @@ from synapseclient.core import cache, exceptions, utils
 from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
 from synapseclient.core import cumulative_transfer_progress
-from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
-from synapseclient.core.credentials import cached_sessions
+from synapseclient.core.credentials import (
+    cached_sessions,
+    delete_stored_credentials,
+    get_default_credential_chain,
+    UserLoginArgs,
+)
 from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
     SynapseError,
@@ -189,10 +193,10 @@ class Synapse(object):
 
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
-                 debug=None, skip_checks=False, configPath=CONFIG_FILE, requests_session=None):
+                 debug=None, skip_checks=False, configPath=CONFIG_FILE, requests_session=None, cache_root_dir=None):
         self._requests_session = requests_session or requests.Session()
 
-        cache_root_dir = cache.CACHE_ROOT_DIR
+        cache_root_dir = cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir
 
         config_debug = None
         # Check for a config file
@@ -227,9 +231,6 @@ class Synapse(object):
         transfer_config = self._get_transfer_config()
         self.max_threads = transfer_config['max_threads']
         self.use_boto_sts_transfers = transfer_config['use_boto_sts']
-
-        # TODO: remove once most clients are no longer on versions <= 1.7.5
-        cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
 
     @property
     def debug(self):
@@ -320,13 +321,15 @@ class Synapse(object):
         self.portalEndpoint = endpoints['portalEndpoint']
 
     def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False,
-              forced=False):
+              forced=False, authToken=None):
         """
         Valid combinations of login() arguments:
 
         - email/username and password
 
         - email/username and apiKey (Base64 encoded string)
+
+        - authToken
 
         - sessionToken (**DEPRECATED**)
 
@@ -344,6 +347,11 @@ class Synapse(object):
                              following fields: email, password, apiKey
         :param rememberMe:   Whether the authentication information should be cached in your operating system's
                              credential storage.
+        :param silent:       Suppress login welcome message
+        :param forced:       Skip any cached credential lookup
+        :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
+                                password or apiKey
+
         **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
         **Linux** systems.
         If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for
@@ -389,10 +397,19 @@ class Synapse(object):
         # Make sure to invalidate the existing session
         self.logout()
 
-        credential_provder_chain = get_default_credential_chain()
+        credential_provider_chain = get_default_credential_chain()
         # TODO: remove deprecated sessionToken when we move to a different solution
-        self.credentials = credential_provder_chain.get_credentials(self, UserLoginArgs(email, password, apiKey, forced,
-                                                                                        sessionToken))
+        self.credentials = credential_provider_chain.get_credentials(
+            self,
+            UserLoginArgs(
+                email,
+                password,
+                apiKey,
+                forced,
+                sessionToken,
+                authToken,
+            )
+        )
 
         # Final check on login success
         if not self.credentials:
@@ -400,7 +417,8 @@ class Synapse(object):
 
         # Save the API key in the cache
         if rememberMe:
-            cached_sessions.set_api_key(self.credentials.username, self.credentials.api_key)
+            delete_stored_credentials(self.credentials.username)
+            self.credentials.store_to_keyring()
             cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
@@ -492,10 +510,9 @@ class Synapse(object):
                          See the flag "rememberMe" in :py:func:`synapseclient.Synapse.login`.
         """
         # Delete the user's API key from the cache
-        if forgetMe:
-            cached_sessions.remove_api_key(self.credentials.username)
+        if forgetMe and self.credentials:
+            self.credentials.delete_from_keyring()
 
-        # Remove the authentication information from memory
         self.credentials = None
 
     def invalidateAPIKey(self):
@@ -565,6 +582,37 @@ class Synapse(object):
         """
         uri = '/userGroupHeaders?prefix=%s' % urllib_urlparse.quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
+
+    def _get_certified_passing_record(self, userid: int) -> dict:
+        """Retrieve the Passing Record on the User Certification test for the given user.
+
+        :params userid: Synapse user Id
+
+        :returns: Synapse Passing Record
+            https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/quiz/PassingRecord.html
+        """
+        response = self.restGET(f"/user/{userid}/certifiedUserPassingRecord")
+        return response
+
+    def is_certified(self, user: typing.Union[str, int]) -> bool:
+        """Determines whether a Synapse user is a certified user.
+
+        :params user: Synapse username or Id
+
+        :returns: True if the Synapse user is certified
+        """
+        # Check if userid or username exists
+        syn_user = self.getUserProfile(user)
+        # Get passing record
+
+        try:
+            certification_status = self._get_certified_passing_record(syn_user['ownerId'])
+            return certification_status['passed']
+        except SynapseHTTPError as ex:
+            if ex.response.status_code == 404:
+                # user hasn't taken the quiz
+                return False
+            raise
 
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
@@ -1852,6 +1900,12 @@ class Synapse(object):
 
         return destination
 
+    def _is_synapse_uri(self, uri):
+        # check whether the given uri is hosted at the configured synapse repo endpoint
+        uri_domain = urllib_urlparse.urlparse(uri).netloc
+        synapse_repo_domain = urllib_urlparse.urlparse(self.repoEndpoint).netloc
+        return uri_domain.lower() == synapse_repo_domain.lower()
+
     def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
         """
         Download a file from the given URL to the local file system.
@@ -1887,14 +1941,20 @@ class Synapse(object):
                 break
             elif scheme == 'http' or scheme == 'https':
                 # if a partial download exists with the temporary name,
-                # find it and restart the download from where it left off
                 temp_destination = utils.temp_download_filename(destination, fileHandleId)
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
                     if os.path.exists(temp_destination) else {}
+
+                # pass along synapse auth credentials only if downloading directly from synapse
+                auth = self.credentials if self._is_synapse_uri(url) else None
                 response = with_retry(
-                    lambda: self._requests_session.get(url,
-                                                       headers=self._generate_headers(url, range_header),
-                                                       stream=True, allow_redirects=False),
+                    lambda: self._requests_session.get(
+                        url,
+                        headers=self._generate_headers(range_header),
+                        stream=True,
+                        allow_redirects=False,
+                        auth=auth,
+                    ),
                     verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
                     exceptions._raise_for_status(response, verbose=self.debug)
@@ -2268,6 +2328,8 @@ class Synapse(object):
         :param base_key:            The base key of within the bucket, None to use the bucket root,
                                         only applicable if bucket_name is passed
         :param sts_enabled:         Whether this storage location should be STS enabled
+
+        :return: a 3-tuple of the synapse Folder, a the storage location setting, and the project setting dictionaries
         """
         if folder_name and parent:
             if folder:
@@ -3723,16 +3785,14 @@ class Synapse(object):
     #                   Low level Rest calls                   #
     ############################################################
 
-    def _generate_headers(self, url, headers=None):
-        """Generate headers signed with the API key."""
+    def _generate_headers(self, headers=None):
+        """Generate headers (auth headers produced separately by credentials object)"""
 
         if headers is None:
             headers = dict(self.default_headers)
 
         headers.update(synapseclient.USER_AGENT)
 
-        if self.credentials:
-            headers.update(self.credentials.get_signed_headers(url))
         return headers
 
     def _handle_synapse_http_error(self, response):
@@ -3757,9 +3817,18 @@ class Synapse(object):
         retryPolicy = self._build_retry_policy(retryPolicy)
         requests_session = requests_session or self._requests_session
 
+        auth = kwargs.pop('auth', self.credentials)
         requests_method_fn = getattr(requests_session, method)
-        response = with_retry(lambda: requests_method_fn(uri, data=data, headers=headers, **kwargs),
-                              verbose=self.debug, **retryPolicy)
+        response = with_retry(
+            lambda: requests_method_fn(
+                uri,
+                data=data,
+                headers=headers,
+                auth=auth,
+                **kwargs,
+            ),
+            verbose=self.debug, **retryPolicy
+        )
         self._handle_synapse_http_error(response)
         return response
 
@@ -3839,7 +3908,7 @@ class Synapse(object):
             uri = endpoint + uri
 
         if headers is None:
-            headers = self._generate_headers(uri)
+            headers = self._generate_headers()
         return uri, headers
 
     def _build_retry_policy(self, retryPolicy={}):
