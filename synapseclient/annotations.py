@@ -295,7 +295,13 @@ def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.
     synapse_annos['id'] = annotations.id
     synapse_annos['etag'] = annotations.etag
 
-    nested_annos = synapse_annos.setdefault('annotations', {})
+    # nested_annos = synapse_annos.setdefault('annotations', {})
+    synapse_annos['annotations'] = _convert_to_annotations_list(annotations)
+    return synapse_annos
+
+
+def _convert_to_annotations_list(annotations):
+    nested_annos = {}
     for key, value in annotations.items():
         elements = to_list(value)
         element_cls = _annotation_value_list_element_type(elements)
@@ -317,7 +323,7 @@ def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.
         else:
             nested_annos[key] = {'type': 'STRING',
                                  'value': [str(e) for e in elements]}
-    return synapse_annos
+    return nested_annos
 
 
 def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any]) -> Annotations:
@@ -333,6 +339,11 @@ def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any]) -> A
         annos[key] = [conversion_func(v) for v in value_and_type['value']]
 
     return annos
+
+
+def check_annotations_changed(bundle_annotations, new_annotations):
+    transferred_annotations = _convert_to_annotations_list(new_annotations)
+    return bundle_annotations['annotations'] != transferred_annotations
 
 
 def convert_old_annotation_json(annotations):
