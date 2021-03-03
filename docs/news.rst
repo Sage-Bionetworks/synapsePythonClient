@@ -55,7 +55,8 @@ Bug Fixes
    Concurrent migration of entities sharing the same file handle can result in an error
 -  [`SYNPY-1114 <https://sagebionetworks.jira.com/browse/SYNPY-1114>`__] -
    Mitigate new Rust compiler dependency on Linux via transitive cryptography dependency
-
+-  [`SYNPY-1118 <https://sagebionetworks.jira.com/browse/SYNPY-1118>`__] -
+   Migration tool erroring when it shouldn't
 New Features
 ------------
 
@@ -75,7 +76,8 @@ Improvements
    syncToSynapse adds empty annotation values
 -  [`SYNPY-1104 <https://sagebionetworks.jira.com/browse/SYNPY-1104>`__] -
    Python 3.9 support
-
+-  [`SYNPY-1119 <https://sagebionetworks.jira.com/browse/SYNPY-1119>`__] -
+   Add source storage location option to storage migrate functions
 
 2.2.2 (2020-10-18)
 ==================
