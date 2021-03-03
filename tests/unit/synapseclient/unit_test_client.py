@@ -11,7 +11,7 @@ import urllib.request as urllib_request
 import uuid
 
 import pytest
-from unittest.mock import ANY, call, create_autospec, Mock, patch
+from unittest.mock import ANY, call, create_autospec, MagicMock, Mock, patch
 
 import synapseclient
 from synapseclient.annotations import convert_old_annotation_json
@@ -121,13 +121,15 @@ class TestLogin:
             mocked_get_user_profile.assert_called_once_with(refresh=True)
             mocked_logger.info.assert_called_once()
 
-    def test_login__rememberMeIsTrue(self):
-        with patch.object(client, 'cached_sessions') as mocked_cached_sessions, \
-                patch.object(self.synapse_creds, 'store_to_keyring') as mock_store_to_keyring:
-            self.syn.login(silent=True, rememberMe=True)
+    def test_login__rememberMeIsTrue(self, mocker):
+        mock_cached_sessions = mocker.patch.object(client, 'cached_sessions')
+        mock_delete_stored_credentials = mocker.patch.object(client, 'delete_stored_credentials')
+        mock_store_to_keyring = mocker.patch.object(self.synapse_creds, 'store_to_keyring')
+        self.syn.login(silent=True, rememberMe=True)
 
-            mock_store_to_keyring.assert_called_once()
-            mocked_cached_sessions.set_most_recent_user.assert_called_once_with(self.synapse_creds.username)
+        mock_store_to_keyring.assert_called_once()
+        mock_cached_sessions.set_most_recent_user.assert_called_once_with(self.synapse_creds.username)
+        mock_delete_stored_credentials.assert_called_once_with(self.synapse_creds.username)
 
 
 @patch('synapseclient.Synapse._getFileHandleDownload')
@@ -430,6 +432,42 @@ class TestDownloadFileHandle:
 
             mock_url_retrieve.assert_called_once_with(url, expected_destination)
             assert download_path == expected_destination
+
+    def test_download_from_url__synapse_auth(self, mocker):
+        """Verify we pass along Synapse auth headers when downloading from a Synapse repo hosted url"""
+
+        uri = f"{self.syn.repoEndpoint}/repo/v1/entity/syn1234567/file"
+        in_destination = tempfile.mktemp()
+
+        mock_credentials = mocker.patch.object(self.syn, 'credentials')
+
+        response = MagicMock(spec=requests.Response)
+        response.status_code = 200
+        response.headers = {}
+        mock_get = mocker.patch.object(self.syn._requests_session, 'get')
+        mock_get.return_value = response
+
+        out_destination = self.syn._download_from_URL(uri, in_destination)
+        assert mock_get.call_args[1]['auth'] is mock_credentials
+        assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
+
+    def test_download_from_url__external(self, mocker):
+        """Verify we do not pass along Synapse auth headers to a file download that is a not Synapse repo hosted"""
+
+        uri = "https://not-synapse.org/foo/bar/baz"
+        in_destination = tempfile.mktemp()
+
+        mocker.patch.object(self.syn, 'credentials')
+
+        response = MagicMock(spec=requests.Response)
+        response.status_code = 200
+        response.headers = {}
+        mock_get = mocker.patch.object(self.syn._requests_session, 'get')
+        mock_get.return_value = response
+
+        out_destination = self.syn._download_from_URL(uri, in_destination)
+        assert mock_get.call_args[1]['auth'] is None
+        assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
 
 
 class TestPrivateSubmit:
@@ -1697,6 +1735,30 @@ class TestRestCalls:
         session = create_autospec(requests.Session)
         self._rest_call_test(session)
 
+    def _rest_call_auth_test(self, **kwargs):
+        method = 'get'
+        uri = '/foo'
+        data = b'data'
+        endpoint = 'https://foo.com'
+        headers = {'foo': 'bar'}
+        retryPolicy = {}
+        requests_session = MagicMock(spec=requests.Session)
+        response = MagicMock(spec=requests.Response)
+        response.status_code = 200
+        requests_session.get.return_value = response
+
+        self.syn._rest_call(method, uri, data, endpoint, headers, retryPolicy, requests_session, **kwargs)
+        return requests_session.get.call_args_list[0][1]['auth']
+
+    def test_rest_call__default_auth(self):
+        """Verify that _rest_call will use the Synapse object's credentials unless overridden"""
+        assert self._rest_call_auth_test() is self.syn.credentials
+
+    def test_rest_call__passed_auth(self, mocker):
+        """Verify that _rest_call will use a custom auth object if passed"""
+        auth = MagicMock(spec=synapseclient.core.credentials.cred_data.SynapseCredentials)
+        assert self._rest_call_auth_test(auth=auth) is auth
+
 
 class TestSetAnnotations:
 
@@ -2611,6 +2673,22 @@ def test_is_certified(response, syn):
         patch_get_user.assert_called_once_with("test")
         patch_get_cert.assert_called_once_with("foobar")
         assert is_certified is response
+
+
+def test_is_certified__no_quiz_results(syn):
+    """Verify handling of a user that hasn't taken the quiz at all.
+    In this case the back end returns a 404 rather than a result."""
+    response = MagicMock(requests.Response)
+    response.status_code = 404
+    with patch.object(syn, "getUserProfile",
+                      return_value={"ownerId": "foobar"}) as patch_get_user,\
+         patch.object(syn,
+                      "_get_certified_passing_record",
+                      side_effect=SynapseHTTPError(response=response)) as patch_get_cert:
+        is_certified = syn.is_certified("test")
+    patch_get_user.assert_called_once_with("test")
+    patch_get_cert.assert_called_once_with("foobar")
+    assert is_certified is False
 
 
 def test_init_change_cache_path():

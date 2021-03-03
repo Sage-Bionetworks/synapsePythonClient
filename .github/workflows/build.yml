@@ -85,6 +85,7 @@ jobs:
             echo "No test configuration decryption keys available, skipping integration tests"
 
           else
+
             # decrypt the encrypted test synapse configuration
             openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
             mv test.synapseConfig ~/.synapseConfig
@@ -105,6 +106,11 @@ jobs:
               mkdir -p ~/.ssh
               ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
             fi
+
+             # set env vars used in external bucket tests from secrets
+            export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
+            export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
+            export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
             pytest -sv tests/integration
           fi

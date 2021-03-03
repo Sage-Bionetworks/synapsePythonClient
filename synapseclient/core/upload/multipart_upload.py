@@ -231,6 +231,7 @@ class UploadAttempt:
 
         # obtain the body (i.e. the upload bytes) for the given part number.
         body = self._part_request_body_provider_fn(part_number) if self._part_request_body_provider_fn else None
+        part_size = len(body) if body else 0
         for retry in range(2):
             try:
                 response = session.put(
@@ -280,7 +281,7 @@ class UploadAttempt:
         with self._lock:
             del self._pre_signed_part_urls[part_number]
 
-        return part_number
+        return part_number, part_size
 
     def _upload_parts(self, part_count, remaining_part_numbers):
         time_upload_started = time.time()

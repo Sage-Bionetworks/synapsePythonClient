@@ -39,8 +39,9 @@ def test_command_sync(syn):
                                                     retries=args.retries)
 
 
-def test_migrate(syn):
-    """Test that the command line arguments are successfully passed to the migrate function."""
+def test_migrate__default_args(syn):
+    """Test that the command line arguments are successfully passed to the migrate function
+    when using the default options"""
 
     entity_id = 'syn12345'
     storage_location_id = '98766'
@@ -65,6 +66,17 @@ def test_migrate(syn):
     assert args.dryRun is False
     assert args.force is False
     assert args.csv_log_path is None
+
+
+def test_migrate__fully_specified_args(mocker, syn):
+    """Test that the command line arguments are successfully passed to the migrate function
+    when the arguments are fully specified"""
+
+    entity_id = 'syn12345'
+    storage_location_id = '98766'
+    db_path = '/tmp/foo/bar'
+
+    parser = cmdline.build_parser()
 
     # test w/ fully specified args
     args = parser.parse_args([
@@ -91,35 +103,59 @@ def test_migrate(syn):
     assert args.csv_log_path == '/tmp/foo/bar'
 
     # verify args are passed through to the fn
-    with patch.object(synapseutils, 'index_files_for_migration') as mock_index, \
-            patch.object(synapseutils, 'migrate_indexed_files') as mock_migrate:
+    mock_index = mocker.patch.object(synapseutils, 'index_files_for_migration')
+    mock_migrate = mocker.patch.object(synapseutils, 'migrate_indexed_files')
 
-        cmdline.migrate(args, syn)
+    cmdline.migrate(args, syn)
 
-        mock_index.assert_called_once_with(
-            syn,
-            args.id,
-            args.storage_location_id,
-            args.db_path,
-            file_version_strategy='all',
-            include_table_files=True,
-            continue_on_error=True,
-        )
+    mock_index.assert_called_once_with(
+        syn,
+        args.id,
+        args.storage_location_id,
+        args.db_path,
+        file_version_strategy='all',
+        include_table_files=True,
+        continue_on_error=True,
+    )
 
-        # during a dryRun the actual migration should not occur
-        assert mock_migrate.called is False
+    # during a dryRun the actual migration should not occur
+    assert mock_migrate.called is False
 
-        # without dryRun then migrate should also be called
-        args.dryRun = False
-        cmdline.migrate(args, syn)
+    # without dryRun then migrate should also be called
+    args.dryRun = False
+    cmdline.migrate(args, syn)
 
-        mock_migrate.assert_called_once_with(
-            syn,
-            args.db_path,
-            create_table_snapshots=True,
-            continue_on_error=True,
-            force=True
-        )
+    mock_migrate.assert_called_once_with(
+        syn,
+        args.db_path,
+        create_table_snapshots=True,
+        continue_on_error=True,
+        force=True
+    )
+
+
+def test_migrate__dont_continue(mocker, syn):
+    """Verify we exit gracefully if migrate returns no result
+    (e.g. the user declined to continue with the migration after reading the result of the index"""
+    storage_location_id = '98766'
+    db_path = '/tmp/foo/bar'
+
+    parser = cmdline.build_parser()
+
+    mocker.patch.object(synapseutils, 'index_files_for_migration')
+    mock_migrate = mocker.patch.object(synapseutils, 'migrate_indexed_files')
+
+    # a None simulates the user declining to continue
+    mock_migrate.return_value = None
+
+    args = parser.parse_args([
+        'migrate',
+        'syn12345',
+        storage_location_id,
+        db_path,
+    ])
+
+    cmdline.migrate(args, syn)
 
 
 def test_get_multi_threaded_flag():
@@ -150,7 +186,7 @@ def test_get_sts_token():
     syn.logger.info.assert_called_once_with(expected_output)
 
 
-def test_authenticate_login__success(syn):
+def test_authenticate_login__username_password(syn):
     """Verify happy path for _authenticate_login"""
 
     with patch.object(syn, 'login'):
@@ -160,7 +196,7 @@ def test_authenticate_login__success(syn):
 
 def test_authenticate_login__api_key(syn):
     """Verify attempting to authenticate when supplying an api key as the password.
-    Should attempt to treat the password as an api key after the initial failure as a password."""
+    Should attempt to treat the password as an api key after the initial failures as a password and token"""
 
     username = 'foo'
     password = base64.b64encode(b'bar').decode('utf-8')
@@ -196,7 +232,7 @@ def test_authenticate_login__api_key(syn):
 
 def test_authenticate_login__auth_token(syn):
     """Verify attempting to authenticate when supplying an auth bearer token instead of an password (or api key).
-    Should attempt to treat the password as an api key after the initial failure as a password and api key"""
+    Should attempt to treat the password as token after the initial failure as a password."""
 
     username = 'foo'
     auth_token = 'auth_bearer_token'
@@ -231,6 +267,39 @@ def test_authenticate_login__auth_token(syn):
         assert expected_login_calls == login.call_args_list
 
 
+def test_authenticate_login__no_input(mocker, syn):
+    """Verify attempting to authenticate with a bare login command (i.e. expecting
+    to derive credentials from config for cache)"""
+
+    login_kwargs = {'rememberMe': True}
+
+    call(**login_kwargs),
+
+    mock_login = mocker.patch.object(syn, 'login')
+
+    cmdline._authenticate_login(syn, None, None, **login_kwargs)
+    mock_login.assert_called_once_with(None, **login_kwargs)
+
+
+def test_authenticate_login__failure(mocker, syn):
+    """Verify that a login with invalid credentials raises an error (the
+    first error when multiple login methods were attempted."""
+
+    login_kwargs = {'rememberMe': True}
+
+    call(**login_kwargs),
+
+    mock_login = mocker.patch.object(syn, 'login')
+
+    def login_side_effect(*args, **kwargs):
+        raise SynapseAuthenticationError("call{}".format(mock_login.call_count))
+    mock_login.side_effect = login_side_effect
+
+    with pytest.raises(SynapseAuthenticationError) as ex_cm:
+        cmdline._authenticate_login(syn, None, None, **login_kwargs)
+    assert str(ex_cm.value) == 'call1'
+
+
 @patch.object(cmdline, '_authenticate_login')
 def test_login_with_prompt(mock_authenticate_login, syn):
     """Verify logging in when username/pass supplied as args to the command"""
@@ -247,14 +316,25 @@ def test_login_with_prompt(mock_authenticate_login, syn):
     mock_authenticate_login.assert_called_once_with(syn, user, password, **login_kwargs)
 
 
-@patch.object(cmdline, 'sys')
-@patch.object(cmdline, 'getpass')
-@patch.object(cmdline, 'input')
-@patch.object(cmdline, '_authenticate_login')
-def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_getpass, mock_sys, syn):
-    """Verify logging in when entering username/pass from the console."""
+@pytest.mark.parametrize(
+    'username,expected_pass_prompt',
+    [
+        ('foo', 'Password, api key, or auth token for user foo:'),
+        ('', 'Auth token:'),
+    ]
+)
+def test_login_with_prompt__getpass(mocker, username, expected_pass_prompt, syn):
+    """
+    Verify logging in when entering username and a secret from the console.
+    The secret prompt should be customized depending on whether a username was entered
+    or not (if not prompt for an auth token since username is not required for an auth token).
+    """
 
-    user = 'foo'
+    mock_sys = mocker.patch.object(cmdline, 'sys')
+    mock_getpass = mocker.patch.object(cmdline, 'getpass')
+    mock_input = mocker.patch.object(cmdline, 'input')
+    mock_authenticate_login = mocker.patch.object(cmdline, '_authenticate_login')
+
     password = 'bar'
     login_kwargs = {
         'rememberMe': False,
@@ -264,23 +344,26 @@ def test_login_with_prompt__getpass(mock_authenticate_login, mock_input, mock_ge
 
     def authenticate_side_effect(*args, **kwargs):
         if mock_authenticate_login.call_count == 1:
+            # the first authenticate call doesn't take any input from console
+            # (i.e. tries to use cache or config), when that returns no credentials
+            # it prompts for username and a secret
             raise SynapseNoCredentialsError()
         return
 
     mock_sys.stdin.isatty.return_value = True
 
     mock_authenticate_login.side_effect = authenticate_side_effect
-    mock_input.return_value = user
+    mock_input.return_value = username
     mock_getpass.getpass.return_value = password
 
     cmdline.login_with_prompt(syn, None, None, **login_kwargs)
 
-    mock_input.assert_called_once_with("Synapse username: ")
-    mock_getpass.getpass.assert_called_once_with(("Password or api key for " + user + ": "))
+    mock_input.assert_called_once_with("Synapse username (leave blank if using an auth token): ")
+    mock_getpass.getpass.assert_called_once_with(expected_pass_prompt)
 
     expected_authenticate_calls = [
         call(syn, None, None, **login_kwargs),
-        call(syn, user, password, **{k: v for k, v in login_kwargs.items() if k != 'silent'})
+        call(syn, username, password, **{k: v for k, v in login_kwargs.items() if k != 'silent'})
     ]
 
     assert expected_authenticate_calls == mock_authenticate_login.call_args_list
@@ -337,6 +420,36 @@ def test_login_with_prompt_no_tty(mock_authenticate_login, mock_input, mock_sys,
     mock_input.return_value = user
     with pytest.raises(SynapseAuthenticationError):
         cmdline.login_with_prompt(syn, None, None, **login_kwargs)
+
+
+def test_login_with_prompt__user_supplied(mocker, syn):
+    """
+    Verify that if we login_with_prompt and the username was supplied then we don't prompt the
+    user for a username.
+    """
+
+    username = 'shrek'
+    password = 'testpass'
+
+    mock_sys = mocker.patch.object(cmdline, 'sys')
+    mock_sys.isatty.return_value = True
+
+    mock_getpass = mocker.patch.object(cmdline, 'getpass')
+    mock_getpass.getpass.return_value = password
+
+    mock_input = mocker.patch.object(cmdline, 'input')
+    mock_authenticate_login = mocker.patch.object(cmdline, '_authenticate_login')
+    mock_authenticate_login.side_effect = [SynapseNoCredentialsError(), None]
+
+    cmdline.login_with_prompt(syn, username, None)
+    assert not mock_input.called
+    mock_authenticate_login.assert_called_with(
+        syn,
+        username,
+        password,
+        forced=False,
+        rememberMe=False,
+    )
 
 
 @patch.object(cmdline, 'build_parser')

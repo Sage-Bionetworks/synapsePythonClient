@@ -208,6 +208,7 @@ class TestIndex:
         from_storage_location_id = '1234'
         to_storage_location_id = '4321'
         data_file_handle_id = '5678'
+        file_size = 9876
 
         cursor = conn.cursor()
         _ensure_schema(cursor)
@@ -218,7 +219,10 @@ class TestIndex:
         mock_file = mock.MagicMock(synapseclient.File)
         mock_file.versionNumber = latest_version_number
         mock_file.dataFileHandleId = data_file_handle_id
-        mock_file._file_handle = {'storageLocationId': from_storage_location_id}
+        mock_file._file_handle = {
+            'contentSize': file_size,
+            'storageLocationId': from_storage_location_id,
+        }
         syn.get.return_value = mock_file
 
         _index_file_entity(cursor, syn, entity_id, parent_id, to_storage_location_id, file_version_strategy)
@@ -231,6 +235,7 @@ class TestIndex:
                     version,
                     from_storage_location_id,
                     from_file_handle_id,
+                    file_size,
                     status
                 from migrations
             """
@@ -242,6 +247,7 @@ class TestIndex:
         assert row_dict['parent_id'] == parent_id
         assert row_dict['from_storage_location_id'] == from_storage_location_id
         assert row_dict['from_file_handle_id'] == data_file_handle_id
+        assert row_dict['file_size'] == file_size
         assert row_dict['status'] == _MigrationStatus.INDEXED.value
         return mock_file, row_dict
 
@@ -273,13 +279,21 @@ class TestIndex:
 
         mock_file_2 = mock.MagicMock(synapseclient.File)
         mock_file_2.dataFileHandleId = 2
-        mock_file_2._file_handle = {'storageLocationId': from_storage_location_id}
+        mock_file_2_size = 9876
+        mock_file_2._file_handle = {
+            'contentSize': mock_file_2_size,
+            'storageLocationId': from_storage_location_id
+        }
         mock_file_2.versionNumber = 2
 
         # already in the destination storage location
         mock_file_3 = mock.MagicMock(synapseclient.File)
         mock_file_3.dataFileHandleId = 3
-        mock_file_3._file_handle = {'storageLocationId': to_storage_location_id}
+        mock_file_3_size = 1234
+        mock_file_3._file_handle = {
+            'contentSize': mock_file_3_size,
+            'storageLocationId': to_storage_location_id
+        }
         mock_file_3.versionNumber = 3
 
         syn.get.side_effect = [
@@ -303,6 +317,7 @@ class TestIndex:
                     version,
                     from_storage_location_id,
                     from_file_handle_id,
+                    file_size,
                     status
                 from migrations
             """
@@ -322,11 +337,14 @@ class TestIndex:
 
         assert row_dict_0['status'] == _MigrationStatus.INDEXED.value
         assert row_dict_0['from_storage_location_id'] == from_storage_location_id
+        assert row_dict_0['file_size'] == mock_file_2_size
         assert row_dict_1['status'] == _MigrationStatus.ALREADY_MIGRATED.value
         assert row_dict_1['from_storage_location_id'] == to_storage_location_id
+        assert row_dict_1['file_size'] == mock_file_3_size
 
-    @mock.patch.object(synapseutils.migrate_functions, '_get_batch_size')
-    def test_index_table_entity(self, mock_get_batch_size, conn):
+    def test_index_table_entity(self, mocker, conn):
+        mock_get_batch_size = mocker.patch.object(synapseutils.migrate_functions, '_get_batch_size')
+
         cursor = conn.cursor()
         _ensure_schema(cursor)
 
@@ -355,21 +373,29 @@ class TestIndex:
         file_handle_id_3 = 'fh3'
         file_handle_id_4 = 'fh4'
 
+        file_handle_size_1 = 100
+        file_handle_size_2 = 200
+        file_handle_size_3 = 300
+        file_handle_size_4 = 400
+
         file_handle_1 = {
             'fileHandle': {
                 'id': file_handle_id_1,
+                'contentSize': file_handle_size_1,
                 'storageLocationId': from_storage_location_id,
             }
         }
         file_handle_2 = {
             'fileHandle': {
                 'id': file_handle_id_2,
+                'contentSize': file_handle_size_2,
                 'storageLocationId': from_storage_location_id,
             }
         }
         file_handle_3 = {
             'fileHandle': {
                 'id': file_handle_id_3,
+                'contentSize': file_handle_size_3,
                 'storageLocationId': from_storage_location_id,
             }
         }
@@ -378,6 +404,7 @@ class TestIndex:
         file_handle_4 = {
             'fileHandle': {
                 'id': file_handle_id_4,
+                'contentSize': file_handle_size_4,
                 'storageLocationId': to_storage_location_id,
             }
         }
@@ -1095,9 +1122,11 @@ class TestMigrate:
         file1 = synapseclient.File(id='syn3', parentId=folder1.id)
         file1.dataFileHandleId = 3
         file1.versionNumber = 1
+        file1_file_size = 1234
         file1._file_handle = {
             'id': file1.dataFileHandleId,
-            'storageLocationId': old_storage_location
+            'storageLocationId': old_storage_location,
+            'contentSize': file1_file_size,
         }
         entities.append(file1)
 
@@ -1111,18 +1140,22 @@ class TestMigrate:
         file2 = synapseclient.File(id='syn6', parentId=folder2.id)
         file2.dataFileHandleId = 6
         file2.versionNumber = 1
+        file2_file_size = 9876
         file2._file_handle = {
             'id': file2.dataFileHandleId,
-            'storageLocationId': old_storage_location
+            'storageLocationId': old_storage_location,
+            'contentSizes': file2_file_size,
         }
         entities.append(file2)
 
         file3 = synapseclient.File(id='syn7', parentId=project.id)
         file3.dataFileHandleId = 7
         file3.versionNumber = 1
+        file3_file_size = 10 * utils.MB
         file3._file_handle = {
             'id': file3.dataFileHandleId,
-            'storageLocationId': old_storage_location
+            'storageLocationId': old_storage_location,
+            'contentSize': file3_file_size,
         }
         entities.append(file3)
 
@@ -1142,7 +1175,8 @@ class TestMigrate:
                 return {
                     'fileHandle': {
                         'id': 4,
-                        'storageLocationId': 1
+                        'storageLocationId': 1,
+                        'contentSize': 400
                     }
                 }
 
@@ -1224,6 +1258,7 @@ class TestMigrate:
                     _MigrationStatus.INDEXED.value,
                     None,
                     None,
+                    None,
                 ),
                 (
                     folder1.id,
@@ -1233,6 +1268,7 @@ class TestMigrate:
                     None,
                     project.id,
                     _MigrationStatus.INDEXED.value,
+                    None,
                     None,
                     None,
                 ),
@@ -1246,6 +1282,7 @@ class TestMigrate:
                     _MigrationStatus.INDEXED.value,
                     old_storage_location,
                     file1.dataFileHandleId,
+                    file1_file_size,
                 ),
                 (
                     table1.id,
@@ -1256,7 +1293,8 @@ class TestMigrate:
                     folder1.id,
                     _MigrationStatus.INDEXED.value,
                     old_storage_location,
-                    '4'
+                    '4',
+                    400,
                 ),
                 (
                     folder2.id,
@@ -1266,6 +1304,7 @@ class TestMigrate:
                     None,
                     project.id,
                     _MigrationStatus.INDEXED.value,
+                    None,
                     None,
                     None,
                 ),
@@ -1279,6 +1318,7 @@ class TestMigrate:
                     _MigrationStatus.INDEXED.value,
                     old_storage_location,
                     file2.dataFileHandleId,
+                    file2_file_size,
                 ),
                 (
                     file3.id,
@@ -1290,6 +1330,7 @@ class TestMigrate:
                     _MigrationStatus.INDEXED.value,
                     old_storage_location,
                     file3.dataFileHandleId,
+                    file3_file_size,
                 ),
             ]
 
@@ -1304,8 +1345,9 @@ class TestMigrate:
                         parent_id,
                         status,
                         from_storage_location_id,
-                        from_file_handle_id
-                    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        from_file_handle_id,
+                        file_size
+                    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 migration_values
             )
@@ -1375,76 +1417,90 @@ class TestMigrate:
             assert 'boom' in str(ex)
 
 
-def test_create_new_file_version__copy_file_handle(syn):
+def test_create_new_file_version__copy_file_handle(mocker, syn):
     """Verify the behavior of create_new_file_version when we need to copy the file handle"""
 
     key = _MigrationKey('syn123', _MigrationType.FILE, 1, None, None)
     from_file_handle_id = 1234
     to_file_handle_id = 4321
     storage_location_id = 9876
+    file_size = 1000 * utils.MB
 
     mock_file = mock.MagicMock(spec=synapseclient.File)
 
-    with mock.patch.object(syn, 'get') as mock_syn_get, \
-            mock.patch.object(syn, 'store') as mock_syn_store, \
-            mock.patch.object(migrate_functions, 'multipart_copy') as mock_multipart_copy:
-        mock_syn_get.return_value = mock_file
-        mock_multipart_copy.return_value = to_file_handle_id
+    mock_syn_get = mocker.patch.object(syn, 'get')
+    mock_syn_store = mocker.patch.object(syn, 'store')
+    mock_multipart_copy = mocker.patch.object(migrate_functions, 'multipart_copy')
+    mock_get_part_size = mocker.patch.object(migrate_functions, '_get_part_size')
+    mock_syn_get.return_value = mock_file
+    mock_multipart_copy.return_value = to_file_handle_id
+    mock_get_part_size.return_value = 5 * utils.MB
 
-        # first test without passing an existing destination file handle.
-        # the from file handle should be copied
-        assert to_file_handle_id == _create_new_file_version(syn, key, from_file_handle_id, None, storage_location_id)
+    # first test without passing an existing destination file handle.
+    # the from file handle should be copied
+    assert to_file_handle_id == _create_new_file_version(
+        syn,
+        key,
+        from_file_handle_id,
+        None,
+        file_size,
+        storage_location_id
+    )
 
-        mock_syn_get.assert_called_once_with(key.id, downloadFile=False)
-        mock_syn_store.assert_called_once_with(mock_file)
-        assert mock_file.dataFileHandleId == to_file_handle_id
+    mock_syn_get.assert_called_once_with(key.id, downloadFile=False)
+    mock_syn_store.assert_called_once_with(mock_file)
+    assert mock_file.dataFileHandleId == to_file_handle_id
 
-        mock_multipart_copy.assert_called_once_with(
-            syn,
-            {
-                'fileHandleId': from_file_handle_id,
-                'associateObjectId': key.id,
-                'associateObjectType': 'FileEntity',
-            },
-            storage_location_id=storage_location_id
-        )
+    mock_multipart_copy.assert_called_once_with(
+        syn,
+        {
+            'fileHandleId': from_file_handle_id,
+            'associateObjectId': key.id,
+            'associateObjectType': 'FileEntity',
+        },
+        storage_location_id=storage_location_id,
+        part_size=mock_get_part_size.return_value,
+    )
 
 
-def test_create_new_file_version__use_existing_file_handle(syn):
+def test_create_new_file_version__use_existing_file_handle(mocker, syn):
     """Verify the behavior of create_new_file_version when we can use an existing file handle"""
 
     key = _MigrationKey('syn123', _MigrationType.FILE, 1, None, None)
     from_file_handle_id = 1234
     to_file_handle_id = 4321
     storage_location_id = 9876
+    file_size = 123456
 
     mock_file = mock.MagicMock(spec=synapseclient.File)
 
-    with mock.patch.object(syn, 'get') as mock_syn_get, \
-            mock.patch.object(syn, 'store') as mock_syn_store, \
-            mock.patch.object(migrate_functions, 'multipart_copy') as mock_multipart_copy:
-        mock_syn_get.return_value = mock_file
+    mock_syn_get = mocker.patch.object(syn, 'get')
+    mock_syn_store = mocker.patch.object(syn, 'store')
+    mock_multipart_copy = mocker.patch.object(migrate_functions, 'multipart_copy')
+    mock_syn_get.return_value = mock_file
 
-        assert to_file_handle_id == _create_new_file_version(
-            syn,
-            key,
-            from_file_handle_id,
-            to_file_handle_id,
-            storage_location_id
-        )
+    assert to_file_handle_id == _create_new_file_version(
+        syn,
+        key,
+        from_file_handle_id,
+        to_file_handle_id,
+        file_size,
+        storage_location_id
+    )
 
-        mock_syn_get.assert_called_once_with(key.id, downloadFile=False)
-        mock_syn_store.assert_called_once_with(mock_file)
-        assert mock_multipart_copy.called is False
+    mock_syn_get.assert_called_once_with(key.id, downloadFile=False)
+    mock_syn_store.assert_called_once_with(mock_file)
+    assert mock_multipart_copy.called is False
 
 
-def test_migrate_file_version__copy_file_handle(syn):
+def test_migrate_file_version__copy_file_handle(mocker, syn):
     """Verify the behavior of migrate_file_version when we need to copy the file handle"""
 
     key = _MigrationKey('syn123', _MigrationType.FILE, 5, None, None)
     from_file_handle_id = 1234
     to_file_handle_id = 4321
     storage_location_id = 9876
+    file_size = 6543
 
     expected_file_version_update_put_uri = f"/entity/{key.id}/version/{key.version}/filehandle"
     expected_file_handle_update_request_body = json.dumps({
@@ -1452,59 +1508,71 @@ def test_migrate_file_version__copy_file_handle(syn):
         'newFileHandleId': to_file_handle_id,
     })
 
-    with mock.patch.object(syn, 'restPUT') as mock_syn_rest_put, \
-            mock.patch.object(migrate_functions, 'multipart_copy') as mock_multipart_copy:
+    mock_syn_rest_put = mocker.patch.object(syn, 'restPUT')
+    mock_multipart_copy = mocker.patch.object(migrate_functions, 'multipart_copy')
+    mock_get_part_size = mocker.patch.object(migrate_functions, '_get_part_size')
+    mock_get_part_size.return_value = 321
 
-        mock_multipart_copy.return_value = to_file_handle_id
+    mock_multipart_copy.return_value = to_file_handle_id
 
-        # first test without passing an existing destination file handle.
-        # the from file handle should be copied
-        assert to_file_handle_id == _migrate_file_version(syn, key, from_file_handle_id, None, storage_location_id)
+    # first test without passing an existing destination file handle.
+    # the from file handle should be copied
+    assert to_file_handle_id == _migrate_file_version(
+        syn,
+        key,
+        from_file_handle_id,
+        None,
+        file_size,
+        storage_location_id
+    )
 
-        mock_multipart_copy.assert_called_once_with(
-            syn,
-            {
-                'fileHandleId': from_file_handle_id,
-                'associateObjectId': key.id,
-                'associateObjectType': 'FileEntity',
-            },
-            storage_location_id=storage_location_id
-        )
+    mock_multipart_copy.assert_called_once_with(
+        syn,
+        {
+            'fileHandleId': from_file_handle_id,
+            'associateObjectId': key.id,
+            'associateObjectType': 'FileEntity',
+        },
+        storage_location_id=storage_location_id,
+        part_size=mock_get_part_size.return_value,
+    )
 
-        mock_syn_rest_put.assert_called_once_with(
-            expected_file_version_update_put_uri,
-            expected_file_handle_update_request_body
-        )
+    mock_syn_rest_put.assert_called_once_with(
+        expected_file_version_update_put_uri,
+        expected_file_handle_update_request_body
+    )
 
-        mock_syn_rest_put.reset_mock()
-        mock_multipart_copy.reset_mock()
+    mock_syn_rest_put.reset_mock()
+    mock_multipart_copy.reset_mock()
 
-        # test with an existing file handle id
-        assert to_file_handle_id == _migrate_file_version(
-            syn,
-            key,
-            from_file_handle_id,
-            to_file_handle_id,
-            storage_location_id
-        )
+    # test with an existing file handle id
+    assert to_file_handle_id == _migrate_file_version(
+        syn,
+        key,
+        from_file_handle_id,
+        to_file_handle_id,
+        file_size,
+        storage_location_id,
+    )
 
-        # should NOT have copied the file
-        assert mock_multipart_copy.called is False
+    # should NOT have copied the file
+    assert mock_multipart_copy.called is False
 
-        # but we still should have updated the entity version with the new file handle id
-        mock_syn_rest_put.assert_called_once_with(
-            expected_file_version_update_put_uri,
-            expected_file_handle_update_request_body
-        )
+    # but we still should have updated the entity version with the new file handle id
+    mock_syn_rest_put.assert_called_once_with(
+        expected_file_version_update_put_uri,
+        expected_file_handle_update_request_body
+    )
 
 
-def test_migrate_file_version__use_existing_file_handle(syn):
+def test_migrate_file_version__use_existing_file_handle(mocker, syn):
     """Verify the behavior of migrate_file_version when the file handle has already been copied"""
 
     key = _MigrationKey('syn123', _MigrationType.FILE, 5, None, None)
     from_file_handle_id = 1234
     to_file_handle_id = 4321
     storage_location_id = 9876
+    file_size = 123456789
 
     expected_file_version_update_put_uri = f"/entity/{key.id}/version/{key.version}/filehandle"
     expected_file_handle_update_request_body = json.dumps({
@@ -1512,29 +1580,30 @@ def test_migrate_file_version__use_existing_file_handle(syn):
         'newFileHandleId': to_file_handle_id,
     })
 
-    with mock.patch.object(syn, 'restPUT') as mock_syn_rest_put, \
-            mock.patch.object(migrate_functions, 'multipart_copy') as mock_multipart_copy:
+    mock_syn_rest_put = mocker.patch.object(syn, 'restPUT')
+    mock_multipart_copy = mocker.patch.object(migrate_functions, 'multipart_copy')
 
-        # test with an existing file handle id
-        assert to_file_handle_id == _migrate_file_version(
-            syn,
-            key,
-            from_file_handle_id,
-            to_file_handle_id,
-            storage_location_id
-        )
+    # test with an existing file handle id
+    assert to_file_handle_id == _migrate_file_version(
+        syn,
+        key,
+        from_file_handle_id,
+        to_file_handle_id,
+        file_size,
+        storage_location_id
+    )
 
-        # should NOT have copied the file
-        assert mock_multipart_copy.called is False
+    # should NOT have copied the file
+    assert mock_multipart_copy.called is False
 
-        # but we still should have updated the entity version with the new file handle id
-        mock_syn_rest_put.assert_called_once_with(
-            expected_file_version_update_put_uri,
-            expected_file_handle_update_request_body
-        )
+    # but we still should have updated the entity version with the new file handle id
+    mock_syn_rest_put.assert_called_once_with(
+        expected_file_version_update_put_uri,
+        expected_file_handle_update_request_body
+    )
 
 
-def test_migrate_table_attached_file__copy_file_handle(syn):
+def test_migrate_table_attached_file__copy_file_handle(mocker, syn):
     """"Verify the behavior of _migrate_table_attached_file when we need to copy the file"""
 
     key = _MigrationKey('syn123', _MigrationType.FILE, None, 5, 6)
@@ -1542,70 +1611,77 @@ def test_migrate_table_attached_file__copy_file_handle(syn):
     to_file_handle_id = 4321
     storage_location_id = 9876
     expected_row_mapping = {str(key.col_id): to_file_handle_id}
+    file_size = 987654
 
-    with mock.patch.object(syn, 'store') as mock_syn_store, \
-            mock.patch('synapseclient.table') as mock_table, \
-            mock.patch('synapseclient.PartialRowset') as mock_row_set, \
-            mock.patch.object(migrate_functions, 'multipart_copy') as mock_multipart_copy:
+    mock_syn_store = mocker.patch.object(syn, 'store')
+    mock_table = mocker.patch('synapseclient.table')
+    mock_get_part_size = mocker.patch.object(migrate_functions, '_get_part_size')
+    mock_row_set = mocker.patch('synapseclient.PartialRowset')
+    mock_multipart_copy = mocker.patch.object(migrate_functions, 'multipart_copy')
+    mock_get_part_size.return_value = 1024 * 1024
 
-        mock_multipart_copy.return_value = to_file_handle_id
+    mock_multipart_copy.return_value = to_file_handle_id
 
-        # calling without an existing to file handle should result in a copy
-        assert to_file_handle_id == _migrate_table_attached_file(
-            syn,
-            key,
-            from_file_handle_id,
-            None,
-            storage_location_id
-        )
+    # calling without an existing to file handle should result in a copy
+    assert to_file_handle_id == _migrate_table_attached_file(
+        syn,
+        key,
+        from_file_handle_id,
+        None,
+        file_size,
+        storage_location_id
+    )
 
-        mock_multipart_copy.assert_called_once_with(
-            syn,
-            {
-                'fileHandleId': from_file_handle_id,
-                'associateObjectId': key.id,
-                'associateObjectType': 'TableEntity',
-            },
-            storage_location_id=storage_location_id
-        )
+    mock_multipart_copy.assert_called_once_with(
+        syn,
+        {
+            'fileHandleId': from_file_handle_id,
+            'associateObjectId': key.id,
+            'associateObjectType': 'TableEntity',
+        },
+        storage_location_id=storage_location_id,
+        part_size=mock_get_part_size.return_value,
+    )
 
-        mock_syn_store.assert_called_once_with(
-            mock_row_set.return_value
-        )
-        mock_table.PartialRow.assert_called_once_with(expected_row_mapping, key.row_id)
-        mock_row_set.assert_called_once_with(key.id, [mock_table.PartialRow.return_value])
+    mock_syn_store.assert_called_once_with(
+        mock_row_set.return_value
+    )
+    mock_table.PartialRow.assert_called_once_with(expected_row_mapping, key.row_id)
+    mock_row_set.assert_called_once_with(key.id, [mock_table.PartialRow.return_value])
 
 
-def test_migrate_table_attached_file__use_existing_file_handle(syn):
+def test_migrate_table_attached_file__use_existing_file_handle(mocker, syn):
     """"Verify the behavior of _migrate_table_attached_file when the file handle has already been copied"""
 
     key = _MigrationKey('syn123', _MigrationType.FILE, None, 5, 6)
     from_file_handle_id = 1234
     to_file_handle_id = 4321
     storage_location_id = 9876
+    file_size = 765432
     expected_row_mapping = {str(key.col_id): to_file_handle_id}
 
-    with mock.patch.object(syn, 'store') as mock_syn_store, \
-            mock.patch('synapseclient.table') as mock_table, \
-            mock.patch('synapseclient.PartialRowset') as mock_row_set, \
-            mock.patch.object(migrate_functions, 'multipart_copy') as mock_multipart_copy:
+    mock_syn_store = mocker.patch.object(syn, 'store')
+    mock_table = mocker.patch('synapseclient.table')
+    mock_row_set = mocker.patch('synapseclient.PartialRowset')
+    mock_multipart_copy = mocker.patch.object(migrate_functions, 'multipart_copy')
 
-        # calling with an existing to file handle should not result in a copy
-        assert to_file_handle_id == _migrate_table_attached_file(
-            syn,
-            key,
-            from_file_handle_id,
-            to_file_handle_id,
-            storage_location_id
-        )
+    # calling with an existing to file handle should not result in a copy
+    assert to_file_handle_id == _migrate_table_attached_file(
+        syn,
+        key,
+        from_file_handle_id,
+        to_file_handle_id,
+        file_size,
+        storage_location_id,
+    )
 
-        mock_syn_store.assert_called_once_with(
-            mock_row_set.return_value
-        )
-        mock_table.PartialRow.assert_called_once_with(expected_row_mapping, key.row_id)
-        mock_row_set.assert_called_once_with(key.id, [mock_table.PartialRow.return_value])
+    mock_syn_store.assert_called_once_with(
+        mock_row_set.return_value
+    )
+    mock_table.PartialRow.assert_called_once_with(expected_row_mapping, key.row_id)
+    mock_row_set.assert_called_once_with(key.id, [mock_table.PartialRow.return_value])
 
-        assert mock_multipart_copy.called is False
+    assert mock_multipart_copy.called is False
 
 
 def _verify_schema(cursor):
@@ -1642,6 +1718,7 @@ def _verify_schema(cursor):
             'exception',
             'from_storage_location_id',
             'from_file_handle_id',
+            'file_size',
             'to_file_handle_id'
         }
     }
