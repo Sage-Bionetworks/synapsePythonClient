@@ -15,6 +15,7 @@ from synapseclient.annotations import (
     to_submission_status_annotations,
     from_submission_status_annotations,
     convert_old_annotation_json,
+    check_annotations_changed,
     is_synapse_annotations,
     set_privacy,
 )
@@ -332,3 +333,23 @@ def test_convert_old_annotations_json__already_v2():
 
     converted = convert_old_annotation_json(annos_dict)
     assert annos_dict == converted
+
+
+def test_check_annotations_changed():
+    # annotations didn't change, new annotations are single key-value pair
+    mock_bundle_annotations = {'annotations': {'far': {'type': 'LONG', 'value': ['123']},
+                                               'boo': {'type': 'LONG', 'value': ['456']}}}
+    mock_new_annotations = {'far': 123, 'boo': 456}
+    assert not check_annotations_changed(mock_bundle_annotations, mock_new_annotations)
+
+    # annotations didn't change, new annotations are key to list of value pair
+    mock_bundle_annotations = {'annotations': {'far': {'type': 'LONG', 'value': ['123', '456']},
+                                               'boo': {'type': 'LONG', 'value': ['789']}}}
+    mock_new_annotations = {'far': [123, 456], 'boo': 789}
+    assert not check_annotations_changed(mock_bundle_annotations, mock_new_annotations)
+
+    # annotations are changed
+    mock_bundle_annotations = {'annotations': {'boo': {'type': 'LONG', 'value': ['456']},
+                                               'far': {'type': 'LONG', 'value': ['12345']}}}
+    mock_new_annotations = {'boo': 456, 'far': 789}
+    assert check_annotations_changed(mock_bundle_annotations, mock_new_annotations)
