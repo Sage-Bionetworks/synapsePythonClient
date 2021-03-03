@@ -1124,7 +1124,7 @@ class Synapse(object):
             self._createAccessRequirementIfNone(properties)
 
         # Update annotations
-        if needs_upload or check_annotations_changed(bundle['annotations'], annotations):
+        if not bundle or check_annotations_changed(bundle['annotations'], annotations):
             annotations = self.set_annotations(Annotations(properties['id'], properties['etag'], annotations))
             properties['etag'] = annotations.etag
 
