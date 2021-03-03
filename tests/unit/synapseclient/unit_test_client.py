@@ -2107,10 +2107,11 @@ def test_store__no_need_to_update_annotation(syn):
             patch.object(syn, 'get'):
         mock_get_entity_bundle.return_value = returned_bundle
 
-        f = File(f"/{file_name}", parent=parent_id, annotations=Annotations(id=synapse_id, etag=etag, values=new_annotations))
+        f = File(f"/{file_name}", parent=parent_id, **new_annotations)
         syn.store(f)
 
         mock_set_annotations.assert_not_called()
+
 
 def test_update_entity_version(syn):
     """Confirm behavior of entity version incrementing/labeling when invoking syn._updateEntity"""
