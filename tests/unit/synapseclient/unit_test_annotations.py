@@ -86,6 +86,25 @@ def test__convert_to_annotations_list():
                                            'type': 'STRING'}}
     assert expected_annos == actually_annos
 
+    a_with_single_value = {'foo': 1234,
+                           'zoo': 123.1,
+                           'species': 'Platypus',
+                           'birthdays': Datetime(1969, 4, 28),
+                           'test_boolean': True}
+    actually_annos = _convert_to_annotations_list(a_with_single_value)
+
+    expected_annos = {'foo': {'value': ['1234'],
+                              'type': 'LONG'},
+                      'zoo': {'value': ['123.1'],
+                              'type': 'DOUBLE'},
+                      'species': {'value': ['Platypus'],
+                                  'type': 'STRING'},
+                      'birthdays': {'value': ['-21427200000'],
+                                    'type': 'TIMESTAMP_MS'},
+                      'test_boolean': {'value': ['true'],
+                                       'type': 'STRING'}}
+    assert expected_annos == actually_annos
+
 
 def test_annotations_unicode():
     a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
