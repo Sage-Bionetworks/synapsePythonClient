@@ -331,6 +331,13 @@ def test_syncFromSynapse__manifest_is_suppress(mock__get_file_entity_provenance_
         assert mock_generateManifest.call_count == 0
 
 
+def test_syncFromSynapse__manifest_value_is_invalid(syn):
+    project = Project(name="the project", parent="whatever", id="syn123")
+    with pytest.raises(ValueError) as ve:
+        synapseutils.syncFromSynapse(syn, project, path="./", downloadFile=False, manifest="invalid_str")
+    assert str(ve.value) == 'Value of manifest option should be one of the ("all", "root", "suppress")'
+
+
 def _compareCsv(expected_csv_string, csv_path):
     # compare our expected csv with the one written to the given path.
     # compare parsed dictionaries vs just comparing strings to avoid newline differences across platforms

@@ -93,7 +93,7 @@ def get(args, syn):
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
         synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation, followLink=args.followLink,
-                                     manifest=args.createManifest)
+                                     manifest=args.manifest)
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
             raise ValueError('You cannot specify a version or id when you are downloading a query.')
@@ -579,7 +579,7 @@ def build_parser():
     parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
     # add no manifest option
-    parser_get.add_argument('--createManifest', type=str, choices=['all', 'root', 'suppress'],
+    parser_get.add_argument('--manifest', type=str, choices=['all', 'root', 'suppress'],
                             default='all', help='Determines whether creating manifest file automatically.')
     parser_get.set_defaults(func=get)
 

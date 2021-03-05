@@ -131,19 +131,19 @@ def test_get_manifest_option(mock_synapseutils):
 
     # createManifest defaults to all
     args = parser.parse_args(['get', '-r', 'syn123'])
-    assert args.createManifest == 'all'
+    assert args.manifest == 'all'
     cmdline.get(args, syn)
     mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="all")
 
     # creating the root manifest file only
-    args = parser.parse_args(['get', '-r', 'syn123', '--createManifest', 'root'])
-    assert args.createManifest == 'root'
+    args = parser.parse_args(['get', '-r', 'syn123', '--manifest', 'root'])
+    assert args.manifest == 'root'
     cmdline.get(args, syn)
     mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="root")
 
     # suppress creating the manifest file
-    args = parser.parse_args(['get', '-r', 'syn123', '--createManifest', 'suppress'])
-    assert args.createManifest == 'suppress'
+    args = parser.parse_args(['get', '-r', 'syn123', '--manifest', 'suppress'])
+    assert args.manifest == 'suppress'
     cmdline.get(args, syn)
     mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="suppress")
 

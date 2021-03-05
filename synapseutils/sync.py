@@ -63,6 +63,10 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                         Defaults to False
 
     :param manifest:    Determines whether creating manifest file automatically.
+                        The optional values here ("all", "root", "suppress").
+
+    :param downloadFile Determines whether downloading the files.
+                        Defaults to True
 
     :returns: list of entities (files, tables, links)
 
@@ -86,6 +90,9 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     """
 
+    if manifest not in ("all", "root", "suppress"):
+        raise ValueError('Value of manifest option should be one of the ("all", "root", "suppress")')
+
     # we'll have the following threads:
     # 1. the entrant thread to this function walks the folder hierarchy and schedules files for download,
     #    and then waits for all the file downloads to complete
@@ -95,8 +102,8 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     # To support multipart downloads in #3 using the same Executor as the download thread #2, we need at least
     # 2 threads always, if those aren't available then we'll run single threaded to avoid a deadlock
     with _sync_executor(syn) as executor:
-        sync_from_synapse = _SyncDownloader(syn, executor, create_manifest=manifest)
-        files = sync_from_synapse.sync(entity, path, ifcollision, followLink, downloadFile)
+        sync_from_synapse = _SyncDownloader(syn, executor)
+        files = sync_from_synapse.sync(entity, path, ifcollision, followLink, downloadFile, manifest)
 
     # the allFiles parameter used to be passed in as part of the recursive implementation of this function
     # with the public signature invoking itself. now that this isn't a recursive any longer we don't need
@@ -147,7 +154,6 @@ class _FolderSync:
                 self._provenance.update(provenance)
 
             if self._is_finished():
-                # if self._create_manifest == "all" or self._create_manifest == "root":
                 if self._create_manifest:
                     self._generate_folder_manifest()
 
@@ -204,16 +210,13 @@ class _SyncDownloader:
     Manages the downloads associated associated with a syncFromSynapse call concurrently.
     """
 
-    def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_downloads=None,
-                 create_manifest="all"):
+    def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_downloads=None):
         """
         :param syn:             A synapse client
         :param executor:        An ExecutorService in which concurrent file downlaods can be scheduled
-        :param create_manifest: Boolean that determine whether creating the manifest file.
         """
         self._syn = syn
         self._executor = executor
-        self.create_manifest = create_manifest
 
         # by default limit the number of concurrent file downloads that can happen at once to some proportion
         # of the available threads. otherwise we could end up downloading a single part from many files at once
@@ -221,7 +224,7 @@ class _SyncDownloader:
         max_concurrent_file_downloads = max(int(max_concurrent_file_downloads or self._syn.max_threads / 2), 1)
         self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_downloads)
 
-    def sync(self, entity, path, ifcollision, followLink, downloadFile=True):
+    def sync(self, entity, path, ifcollision, followLink, downloadFile=True, manifest="all"):
         progress = CumulativeTransferProgress('Downloaded')
 
         if is_synapse_id(entity):
@@ -234,7 +237,7 @@ class _SyncDownloader:
             )
 
         if is_container(entity):
-            root_folder_sync = self._sync_root(entity, path, ifcollision, followLink, progress, downloadFile)
+            root_folder_sync = self._sync_root(entity, path, ifcollision, followLink, progress, downloadFile, manifest)
 
             # once the whole folder hierarchy has been traversed this entrant thread waits for
             # all file downloads to complete before returning
@@ -298,15 +301,15 @@ class _SyncDownloader:
         finally:
             self._file_semaphore.release()
 
-    def _sync_root(self, root, root_path, ifcollision, followLink, progress, downloadFile):
+    def _sync_root(self, root, root_path, ifcollision, followLink, progress, downloadFile, manifest="all"):
         # stack elements are a 3-tuple of:
         # 1. the folder entity/dict
         # 2. the local path to the folder to download to
         # 3. the FolderSync of the parent to the folder (None at the root)
 
-        create_root_manifest = True if self.create_manifest != "suppress" else False
+        create_root_manifest = True if manifest != "suppress" else False
         folder_stack = [(root, root_path, None, create_root_manifest)]
-        create_child_manifest = True if self.create_manifest == "all" else False
+        create_child_manifest = True if manifest == "all" else False
 
         root_folder_sync = None
         while folder_stack:
@@ -347,7 +350,7 @@ class _SyncDownloader:
                 folder_path,
                 child_ids,
                 parent_folder_sync,
-                create_manifest,
+                create_manifest=create_manifest,
             )
             if not root_folder_sync:
                 root_folder_sync = folder_sync
