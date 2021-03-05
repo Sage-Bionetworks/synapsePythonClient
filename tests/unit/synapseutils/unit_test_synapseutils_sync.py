@@ -805,8 +805,6 @@ def test_check_size_each_file(mock_os, syn):
     mock_stat.st_size = 5
 
     # mock syn.get() to return a project because the final check is making sure parent is a container
-    # mock isfile() to always return true to avoid having to create files in the home directory
-    # side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
     with patch.object(syn, "get", return_value=Project()):
         sync.readManifestFile(syn, manifest)
         mock_os.stat.call_count == 4
@@ -859,13 +857,12 @@ def test_check_file_name(mock_os, syn):
     row3 = f"{path3}\t{project_id}\t\n"
 
     manifest = StringIO(header + row1 + row2 + row3)
+    # mock isfile() to always return true to avoid having to create files in the home directory
     mock_os.path.isfile.return_value = True
     mock_os.path.abspath.side_effect = [path1, path2, path3]
     mock_os.path.basename.return_value = 'file3.txt'
 
     # mock syn.get() to return a project because the final check is making sure parent is a container
-    # mock isfile() to always return true to avoid having to create files in the home directory
-    # side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
     with patch.object(syn, "get", return_value=Project()):
         sync.readManifestFile(syn, manifest)
 

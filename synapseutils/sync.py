@@ -779,7 +779,7 @@ def readManifestFile(syn, manifestFile):
     # check the name of each file should be store on Synapse
     name_column = 'name'
     if name_column in df.columns:
-        sys.stdout.write('Validating that all name column are filled... \n')
+        sys.stdout.write('Validating file names... \n')
         _check_file_name(df)
         sys.stdout.write('OK\n')
 
