@@ -70,7 +70,7 @@ def test__convert_to_annotations_list():
          'birthdays': [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)],
          'test_boolean': True,
          'test_mo_booleans': [False, True, True, False]}
-    actually_annos = _convert_to_annotations_list(a)
+    actual_annos = _convert_to_annotations_list(a)
 
     expected_annos = {'foo': {'value': ['1234'],
                               'type': 'LONG'},
@@ -84,14 +84,14 @@ def test__convert_to_annotations_list():
                                        'type': 'STRING'},
                       'test_mo_booleans': {'value': ['false', 'true', 'true', 'false'],
                                            'type': 'STRING'}}
-    assert expected_annos == actually_annos
+    assert expected_annos == actual_annos
 
     a_with_single_value = {'foo': 1234,
                            'zoo': 123.1,
                            'species': 'Platypus',
                            'birthdays': Datetime(1969, 4, 28),
                            'test_boolean': True}
-    actually_annos = _convert_to_annotations_list(a_with_single_value)
+    actual_annos = _convert_to_annotations_list(a_with_single_value)
 
     expected_annos = {'foo': {'value': ['1234'],
                               'type': 'LONG'},
@@ -103,7 +103,7 @@ def test__convert_to_annotations_list():
                                     'type': 'TIMESTAMP_MS'},
                       'test_boolean': {'value': ['true'],
                                        'type': 'STRING'}}
-    assert expected_annos == actually_annos
+    assert expected_annos == actual_annos
 
 
 def test_annotations_unicode():
