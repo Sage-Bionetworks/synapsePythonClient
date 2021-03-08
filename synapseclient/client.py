@@ -52,7 +52,13 @@ import webbrowser
 import zipfile
 
 import synapseclient
-from .annotations import from_synapse_annotations, to_synapse_annotations, Annotations, convert_old_annotation_json
+from .annotations import (
+    from_synapse_annotations,
+    to_synapse_annotations,
+    Annotations,
+    convert_old_annotation_json,
+    check_annotations_changed,
+)
 from .activity import Activity
 import synapseclient.core.multithread_download as multithread_download
 from .entity import Entity, File, Folder, Versionable,\
@@ -1137,8 +1143,9 @@ class Synapse(object):
             self._createAccessRequirementIfNone(properties)
 
         # Update annotations
-        annotations = self.set_annotations(Annotations(properties['id'], properties['etag'], annotations))
-        properties['etag'] = annotations.etag
+        if not bundle or check_annotations_changed(bundle['annotations'], annotations):
+            annotations = self.set_annotations(Annotations(properties['id'], properties['etag'], annotations))
+            properties['etag'] = annotations.etag
 
         # If the parameters 'used' or 'executed' are given, create an Activity object
         if used or executed:

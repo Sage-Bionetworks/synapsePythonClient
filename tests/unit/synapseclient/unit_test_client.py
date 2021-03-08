@@ -2110,6 +2110,74 @@ def test_store__409_processed_as_update(syn):
         mock_findEntityId.assert_called_once_with(file_name, parent_id)
 
 
+def test_store__no_need_to_update_annotation(syn):
+    """
+    Verify if the annotations don't change, no need to call set_annotation method
+    """
+    file_handle_id = '123412341234'
+    returned_file_handle = {
+        'id': file_handle_id
+    }
+
+    parent_id = 'syn122'
+    synapse_id = 'syn123'
+    etag = 'db9bc70b-1eb6-4a21-b3e8-9bf51d964031'
+    file_name = 'fake_file.txt'
+
+    existing_bundle_annotations = {
+        'foo': {
+            'type': 'LONG',
+            'value': ['1']
+        },
+        'bar': {
+            'type': 'LONG',
+            'value': ['2']
+        },
+    }
+    new_annotations = {
+        'foo': [1],
+        'bar': 2,
+    }
+
+    returned_bundle = {
+        'entity': {
+            'name': file_name,
+            'id': synapse_id,
+            'etag': etag,
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'dataFileHandleId': file_handle_id,
+        },
+        'entityType': 'file',
+        'fileHandles': [
+            {
+                'id': file_handle_id,
+                'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle',
+            }
+        ],
+        'annotations': {
+            'id': synapse_id,
+            'etag': etag,
+            'annotations': existing_bundle_annotations
+        },
+    }
+
+    with patch.object(syn, '_getEntityBundle') as mock_get_entity_bundle, \
+            patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
+            patch.object(syn.cache, 'contains', return_value=True), \
+            patch.object(syn, '_createEntity'), \
+            patch.object(syn, '_updateEntity'), \
+            patch.object(syn, 'findEntityId'), \
+            patch.object(syn, 'set_annotations') as mock_set_annotations, \
+            patch.object(Entity, 'create'), \
+            patch.object(syn, 'get'):
+        mock_get_entity_bundle.return_value = returned_bundle
+
+        f = File(f"/{file_name}", parent=parent_id, **new_annotations)
+        syn.store(f)
+
+        mock_set_annotations.assert_not_called()
+
+
 def test_update_entity_version(syn):
     """Confirm behavior of entity version incrementing/labeling when invoking syn._updateEntity"""
     entity_id = 'syn123'
