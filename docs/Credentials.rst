@@ -11,10 +11,15 @@ Use `username` and `password` to login as follows::
     import synapseclient
     syn = synapseclient.login("username", "password")
 
+Alternately you can login using a personal access token obtained from synapse.org under your Settings. Note that a token must minimally have the *view* scope to be used with the Synapse Python Client.
+
+::
+
+    syn = synapseclient.login(authToken="authtoken")
 
 Use `.synapseConfig`
 ====================
-For writing code using the Synapse Python client, that is easy to share with others, please do not include your credentials in the code. Instead, please use `.synapseConfig` file to manage your credentials.
+For writing code using the Synapse Python client that is easy to share with others, please do not include your credentials in the code. Instead, please use `.synapseConfig` file to manage your credentials.
 
 When installing the Synapse Python client, the `.synapseConfig` is added to your home directory. Open the `.synapseConfig` file and find the following section::
 
@@ -23,8 +28,7 @@ When installing the Synapse Python client, the `.synapseConfig` is added to your
     #password = <password>
     #authtoken = <authtoken>
 
-To enable this section, uncomment it. You will only need to specify either a `username` and `password` pair, or an `authtoken`. For security purposes, we recommend that you use `authtoken` instead of your `password`.
-You can generate a personal access token to that can be used in the .synapseConfig as an authtoken at synapse.org under your Settings. A token must minimally have the *view* scope to be used with the Synapse Python Client.
+To enable this section, uncomment it. You will only need to specify either a `username` and `password` pair, or an `authtoken`. For security purposes, we recommend that you use `authtoken` instead of your `password`. A personal access token generated from your synapse.org Settings can be used as your *.synapseConfig* authtoken.
 
 ::
 

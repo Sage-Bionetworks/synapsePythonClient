@@ -200,7 +200,7 @@ of its contents using the
     import synapseutils
 
     entity_id = 'syn123'  # a Synapse entity whose contents need to be migrated, e.g. a Project or Folder
-    storage_location_id = '12345'  # the id of the storage location being migrated to
+    dest_storage_location_id = '12345'  # the id of the destination storage location being migrated to
 
     # a path on disk where this utility can create a sqlite database to store its index.
     # nothing needs to exist at this path, but it must be a valid path on a volume with sufficient
@@ -211,13 +211,14 @@ of its contents using the
     result = synapseutils.index_files_for_migration(
         syn,
         entity_id,
-        storage_location_id,
+        dest_storage_location_id,
         db_path,
 
         # optional args, see function documentation linked above for a description of these parameters
+        source_storage_location_ids=['54321', '98765'],
         file_version_strategy='new',
-        include_table_files=false,
-        continue_on_error=true
+        include_table_files=False,
+        continue_on_error=True
     )
 
 If called on a container (e.g. a Project or Folder) the *index_files_for_migration* function will recursively
