@@ -737,7 +737,6 @@ class Synapse(object):
             #                    "(syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to "
             #                    "review and fulfill its download requirement(s).\n" % id_of(entity))
             if downloadFile and bundle['entityType'] not in ["project", "folder"]:
-            # if downloadFile:
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
 

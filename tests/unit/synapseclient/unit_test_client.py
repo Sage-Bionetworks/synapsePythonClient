@@ -958,7 +958,7 @@ def test_check_entity_restrictions__unmet_restriction_entity_file_with_downloadF
                   'entityType': 'file',
                   'restrictionInformation': {
                       'hasUnmetAccessRequirement': True}
-        }
+                  }
         pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, bundle, True)
 
         # restriction_requirements = {'hasUnmetAccessRequirement': True}
@@ -979,7 +979,7 @@ def test_check_entity_restrictions__unmet_restriction_entity_project_with_downlo
                   'entityType': 'project',
                   'restrictionInformation': {
                       'hasUnmetAccessRequirement': True}
-        }
+                  }
         syn._check_entity_restrictions(bundle, True)
     mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
                                    '(syn.onweb("syn123")). Click the downward pointing arrow next to the file\'s name '
@@ -996,7 +996,7 @@ def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloa
                   'entityType': 'folder',
                   'restrictionInformation': {
                       'hasUnmetAccessRequirement': True}
-        }
+                  }
         syn._check_entity_restrictions(bundle, True)
     mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
                                    '(syn.onweb("syn123")). Click the downward pointing arrow next to the file\'s name '
