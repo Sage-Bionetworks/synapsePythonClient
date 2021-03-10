@@ -933,30 +933,99 @@ def test_getChildren__nextPageToken(syn):
 
 def test_check_entity_restrictions__no_unmet_restriction(syn):
     with patch("warnings.warn") as mocked_warn:
-        restriction_requirements = {'hasUnmetAccessRequirement': False}
+        bundle = {'entity': {
+                      'id': 'syn123',
+                      'name': 'anonymous',
+                      'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+                      'parentId': 'syn12345'},
+                  'restrictionInformation': {
+                      'hasUnmetAccessRequirement': False}
+                  }
+        syn._check_entity_restrictions(bundle, True)
+        # restriction_requirements = {'hasUnmetAccessRequirement': False}
 
-        syn._check_entity_restrictions(restriction_requirements, "syn123", True)
-
+        # syn._check_entity_restrictions(restriction_requirements, "syn123", True)
         mocked_warn.assert_not_called()
 
 
-def test_check_entity_restrictions__unmet_restriction_downloadFile_is_True(syn):
+def test_check_entity_restrictions__unmet_restriction_entity_file_with_downloadFile_is_True(syn):
     with patch("warnings.warn") as mocked_warn:
-        restriction_requirements = {'hasUnmetAccessRequirement': True}
+        bundle = {'entity': {
+                      'id': 'syn123',
+                      'name': 'anonymous',
+                      'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+                      'parentId': 'syn12345'},
+                  'entityType': 'file',
+                  'restrictionInformation': {
+                      'hasUnmetAccessRequirement': True}
+        }
+        pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, bundle, True)
 
-        pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, restriction_requirements,
-                      "syn123", True)
+        # restriction_requirements = {'hasUnmetAccessRequirement': True}
 
-        mocked_warn.assert_not_called()
+        # pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, restriction_requirements,
+        #               "syn123", True)
+
+    mocked_warn.assert_not_called()
+
+
+def test_check_entity_restrictions__unmet_restriction_entity_project_with_downloadFile_is_True(syn):
+    with patch("warnings.warn") as mocked_warn:
+        bundle = {'entity': {
+                      'id': 'syn123',
+                      'name': 'anonymous',
+                      'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+                      'parentId': 'syn12345'},
+                  'entityType': 'project',
+                  'restrictionInformation': {
+                      'hasUnmetAccessRequirement': True}
+        }
+        syn._check_entity_restrictions(bundle, True)
+    mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
+                                   '(syn.onweb("syn123")). Click the downward pointing arrow next to the file\'s name '
+                                   'to review and fulfill its download requirement(s).\n')
+
+
+def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloadFile_is_True(syn):
+    with patch("warnings.warn") as mocked_warn:
+        bundle = {'entity': {
+                      'id': 'syn123',
+                      'name': 'anonymous',
+                      'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+                      'parentId': 'syn12345'},
+                  'entityType': 'folder',
+                  'restrictionInformation': {
+                      'hasUnmetAccessRequirement': True}
+        }
+        syn._check_entity_restrictions(bundle, True)
+    mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
+                                   '(syn.onweb("syn123")). Click the downward pointing arrow next to the file\'s name '
+                                   'to review and fulfill its download requirement(s).\n')
 
 
 def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(syn):
     with patch("warnings.warn") as mocked_warn:
-        restriction_requirements = {'hasUnmetAccessRequirement': True}
-
-        syn._check_entity_restrictions(restriction_requirements, "syn123", False)
-
+        bundle = {'entity': {
+            'id': 'syn123',
+            'name': 'anonymous',
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'parentId': 'syn12345'},
+            'entityType': 'file',
+            'restrictionInformation': {
+                'hasUnmetAccessRequirement': True}
+        }
+        syn._check_entity_restrictions(bundle, False)
+        # restriction_requirements = {'hasUnmetAccessRequirement': True}
+        # syn._check_entity_restrictions(restriction_requirements, "syn123", False)
         mocked_warn.assert_called_once()
+
+        bundle['entityType'] = 'project'
+        syn._check_entity_restrictions(bundle, False)
+        assert mocked_warn.call_count == 2
+
+        bundle['entityType'] = 'folder'
+        syn._check_entity_restrictions(bundle, False)
+        assert mocked_warn.call_count == 3
 
 
 class TestGetColumns(object):
