@@ -942,10 +942,8 @@ def test_check_entity_restrictions__no_unmet_restriction(syn):
                 'hasUnmetAccessRequirement': False
             }
         }
-        syn._check_entity_restrictions(bundle, True)
-        # restriction_requirements = {'hasUnmetAccessRequirement': False}
-
-        # syn._check_entity_restrictions(restriction_requirements, "syn123", True)
+        entity = 'syn123'
+        syn._check_entity_restrictions(bundle, entity, True)
         mocked_warn.assert_not_called()
 
 
@@ -961,13 +959,8 @@ def test_check_entity_restrictions__unmet_restriction_entity_file_with_downloadF
                 'hasUnmetAccessRequirement': True
             }
         }
-        pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, bundle, True)
-
-        # restriction_requirements = {'hasUnmetAccessRequirement': True}
-
-        # pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, restriction_requirements,
-        #               "syn123", True)
-
+        entity = 'syn123'
+        pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, bundle, entity, True)
     mocked_warn.assert_not_called()
 
 
@@ -983,7 +976,8 @@ def test_check_entity_restrictions__unmet_restriction_entity_project_with_downlo
                 'hasUnmetAccessRequirement': True
             }
         }
-        syn._check_entity_restrictions(bundle, True)
+        entity = 'syn123'
+        syn._check_entity_restrictions(bundle, entity, True)
     mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
                                    '(syn.onweb("syn123")). Click the downward pointing arrow next to the file\'s name '
                                    'to review and fulfill its download requirement(s).\n')
@@ -1001,7 +995,8 @@ def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloa
                 'hasUnmetAccessRequirement': True
             }
         }
-        syn._check_entity_restrictions(bundle, True)
+        entity = 'syn123'
+        syn._check_entity_restrictions(bundle, entity, True)
     mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
                                    '(syn.onweb("syn123")). Click the downward pointing arrow next to the file\'s name '
                                    'to review and fulfill its download requirement(s).\n')
@@ -1018,17 +1013,17 @@ def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(syn)
             'restrictionInformation': {
                 'hasUnmetAccessRequirement': True}
         }
-        syn._check_entity_restrictions(bundle, False)
-        # restriction_requirements = {'hasUnmetAccessRequirement': True}
-        # syn._check_entity_restrictions(restriction_requirements, "syn123", False)
+        entity = 'syn123'
+
+        syn._check_entity_restrictions(bundle, entity, False)
         mocked_warn.assert_called_once()
 
         bundle['entityType'] = 'project'
-        syn._check_entity_restrictions(bundle, False)
+        syn._check_entity_restrictions(bundle, entity, False)
         assert mocked_warn.call_count == 2
 
         bundle['entityType'] = 'folder'
-        syn._check_entity_restrictions(bundle, False)
+        syn._check_entity_restrictions(bundle, entity, False)
         assert mocked_warn.call_count == 3
 
 
