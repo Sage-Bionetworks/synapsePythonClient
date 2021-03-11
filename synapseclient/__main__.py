@@ -119,6 +119,7 @@ def get(args, syn):
         if "path" in entity:
             syn.logger.info('Creating %s', entity.path)
 
+
 def sync(args, syn):
     synapseutils.syncToSynapse(syn, manifestFile=args.manifestFile,
                                dryRun=args.dryRun, sendMessages=args.sendMessages,
