@@ -242,7 +242,7 @@ of its contents using the
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseutils</span>
 
 <span class="n">entity_id</span> <span class="o">=</span> <span class="s1">&#39;syn123&#39;</span>  <span class="c1"># a Synapse entity whose contents need to be migrated, e.g. a Project or Folder</span>
-<span class="n">storage_location_id</span> <span class="o">=</span> <span class="s1">&#39;12345&#39;</span>  <span class="c1"># the id of the storage location being migrated to</span>
+<span class="n">dest_storage_location_id</span> <span class="o">=</span> <span class="s1">&#39;12345&#39;</span>  <span class="c1"># the id of the destination storage location being migrated to</span>
 
 <span class="c1"># a path on disk where this utility can create a sqlite database to store its index.</span>
 <span class="c1"># nothing needs to exist at this path, but it must be a valid path on a volume with sufficient</span>
@@ -253,13 +253,14 @@ of its contents using the
 <span class="n">result</span> <span class="o">=</span> <span class="n">synapseutils</span><span class="o">.</span><span class="n">index_files_for_migration</span><span class="p">(</span>
     <span class="n">syn</span><span class="p">,</span>
     <span class="n">entity_id</span><span class="p">,</span>
-    <span class="n">storage_location_id</span><span class="p">,</span>
+    <span class="n">dest_storage_location_id</span><span class="p">,</span>
     <span class="n">db_path</span><span class="p">,</span>
 
     <span class="c1"># optional args, see function documentation linked above for a description of these parameters</span>
+    <span class="n">source_storage_location_ids</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;54321&#39;</span><span class="p">,</span> <span class="s1">&#39;98765&#39;</span><span class="p">],</span>
     <span class="n">file_version_strategy</span><span class="o">=</span><span class="s1">&#39;new&#39;</span><span class="p">,</span>
-    <span class="n">include_table_files</span><span class="o">=</span><span class="n">false</span><span class="p">,</span>
-    <span class="n">continue_on_error</span><span class="o">=</span><span class="n">true</span>
+    <span class="n">include_table_files</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">continue_on_error</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -396,7 +397,7 @@ Writing csv log to /tmp/migrate.csv
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Feb 24, 2021.
+      Last updated on Mar 11, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">
