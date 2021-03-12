@@ -660,7 +660,8 @@ class Synapse(object):
     #                   Get / Store methods                    #
     ############################################################
 
-    def get(self, entity, **kwargs):
+    def get(self, entity, *, version=None, downloadFile=True, downloadLocation=None, followLink=False, ifcollision=None,
+            limitSearch=None):
         """
         Gets a Synapse entity from the repository service.
 
@@ -701,10 +702,11 @@ class Synapse(object):
 
         """
         # If entity is a local file determine the corresponding synapse entity
+        path = None
         if isinstance(entity, str) and os.path.isfile(entity):
-            bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
-            kwargs['downloadFile'] = False
-            kwargs['path'] = entity
+            bundle = self._getFromFile(entity, limitSearch)
+            downloadFile = False
+            path = entity
 
         elif isinstance(entity, str) and not utils.is_synapse_id(entity):
             raise SynapseFileNotFoundError(
@@ -718,12 +720,13 @@ class Synapse(object):
                 " Please use syn.store() to save your entity and try again."
             )
         else:
-            version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
         # Check and warn for unmet access requirements
-        self._check_entity_restrictions(bundle['restrictionInformation'], entity, kwargs.get('downloadFile', True))
+        self._check_entity_restrictions(bundle['restrictionInformation'], entity, downloadFile)
 
-        return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
+        return self._getWithEntityBundle(entityBundle=bundle, entity=entity, downloadFile=downloadFile,
+                                         downloadLocation=downloadLocation, followLink=followLink,
+                                         ifcollision=ifcollision, path=path)
 
     def _check_entity_restrictions(self, restrictionInformation, entity, downloadFile):
         if restrictionInformation['hasUnmetAccessRequirement']:
@@ -785,7 +788,8 @@ class Synapse(object):
 
         return entity
 
-    def _getWithEntityBundle(self, entityBundle, entity=None, **kwargs):
+    def _getWithEntityBundle(self, entityBundle, entity=None, downloadFile=True, downloadLocation=None,
+                             followLink=False, ifcollision=None, submission=None, path=None):
         """
         Creates a :py:mod:`synapseclient.Entity` from an entity bundle returned by Synapse.
         An existing Entity can be supplied in case we want to refresh a stale Entity.
@@ -795,23 +799,10 @@ class Synapse(object):
         :param submission:   Optional, access associated files through a submission rather than
                              through an entity.
 
-        See :py:func:`synapseclient.Synapse.get`.
+        See :py:func:`synapseclient.Synapse.get` for additional documentation of keyword arguments.
         See :py:func:`synapseclient.Synapse._getEntityBundle`.
         See :py:mod:`synapseclient.Entity`.
         """
-
-        # Note: This version overrides the version of 'entity' (if the object is Mappable)
-        kwargs.pop('version', None)
-        downloadFile = kwargs.pop('downloadFile', True)
-        downloadLocation = kwargs.pop('downloadLocation', None)
-        ifcollision = kwargs.pop('ifcollision', None)
-        submission = kwargs.pop('submission', None)
-        followLink = kwargs.pop('followLink', False)
-        path = kwargs.pop('path', None)
-
-        # make sure user didn't accidentlaly pass a kwarg that we don't handle
-        if kwargs:  # if there are remaining items in the kwargs
-            raise TypeError('Unexpected **kwargs: %r' % kwargs)
 
         # If Link, get target ID entity bundle
         if entityBundle['entity']['concreteType'] == 'org.sagebionetworks.repo.model.Link' and followLink:
