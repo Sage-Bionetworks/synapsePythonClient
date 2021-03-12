@@ -1110,9 +1110,9 @@ def _index_container(
     concrete_type = utils.concrete_type_of(container_entity)
     logging.info('Indexing %s %s', concrete_type[concrete_type.rindex('.') + 1:], entity_id)
 
-    include_types = ['folder']
+    include_types = []
     if file_version_strategy != 'skip':
-        include_types.append('file')
+        include_types.extend(('folder', 'file'))
     if include_table_files:
         include_types.append('table')
 

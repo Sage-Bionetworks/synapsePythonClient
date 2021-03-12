@@ -633,7 +633,7 @@ class TestIndex:
             continue_on_error,
         )
 
-        syn.getChildren.assert_called_once_with(folder_id, includeTypes=['folder', 'table'])
+        syn.getChildren.assert_called_once_with(folder_id, includeTypes=['table'])
 
         expected_calls = [
             mock.call(
