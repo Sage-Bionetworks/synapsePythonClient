@@ -963,7 +963,7 @@ def _index_file_entity(
     if entity_versions:
         insert_values = []
         for (entity, version) in entity_versions:
-            from_storage_location_id = entity._file_handle['storageLocationId']
+            from_storage_location_id = entity._file_handle.get('storageLocationId')
 
             if _include_file_storage_location_in_index(
                 source_storage_location_ids,
@@ -1005,24 +1005,32 @@ def _index_file_entity(
             )
 
 
-def _get_file_handle_rows(syn, table_id):
+def _get_table_file_handle_rows(syn, table_id):
     file_handle_columns = [c for c in syn.restGET("/entity/{id}/column".format(id=table_id))['results']
                            if c['columnType'] == 'FILEHANDLEID']
-    file_column_select = ','.join(c['name'] for c in file_handle_columns)
-    results = syn.tableQuery("select {} from {}".format(file_column_select, table_id))
-    for row in results:
-        file_handles = {}
+    if file_handle_columns:
+        # quote column names in case they include whitespace or other special characters
+        # and double quote escape existing quotes.
+        file_column_select = '"' + '","'.join(c['name'].replace('"', '""') for c in file_handle_columns) + '"'
+        results = syn.tableQuery("select {} from {}".format(file_column_select, table_id))
+        for row in results:
+            file_handles = {}
 
-        # first two cols are row id and row version, rest are file handle ids from our query
-        row_id, row_version = row[:2]
+            # first two cols are row id and row version, rest are file handle ids from our query
+            row_id, row_version = row[:2]
 
-        file_handle_ids = row[2:]
-        for i, file_handle_id in enumerate(file_handle_ids):
-            col_id = file_handle_columns[i]['id']
-            file_handle = syn._getFileHandleDownload(file_handle_id, table_id, objectType='TableEntity')['fileHandle']
-            file_handles[col_id] = file_handle
+            file_handle_ids = row[2:]
+            for i, file_handle_id in enumerate(file_handle_ids):
+                if file_handle_id:
+                    col_id = file_handle_columns[i]['id']
+                    file_handle = syn._getFileHandleDownload(
+                        file_handle_id,
+                        table_id,
+                        objectType='TableEntity'
+                    )['fileHandle']
+                    file_handles[col_id] = file_handle
 
-        yield row_id, row_version, file_handles
+            yield row_id, row_version, file_handles
 
 
 def _index_table_entity(
@@ -1058,9 +1066,9 @@ def _index_table_entity(
                 row_batch
             )
 
-    for row_id, row_version, file_handles in _get_file_handle_rows(syn, entity_id):
+    for row_id, row_version, file_handles in _get_table_file_handle_rows(syn, entity_id):
         for col_id, file_handle in file_handles.items():
-            existing_storage_location_id = file_handle['storageLocationId']
+            existing_storage_location_id = file_handle.get('storageLocationId')
 
             if _include_file_storage_location_in_index(
                 source_storage_location_ids,
