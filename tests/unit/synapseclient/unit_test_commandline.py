@@ -525,11 +525,24 @@ class TestGetFunction:
     def test_get__with_normal_id(self, mock_os):
         parser = cmdline.build_parser()
         args = parser.parse_args(['get', 'syn123'])
-        mock_os.path.isfile.return_value = False
         mock_entity = MagicMock(id='syn123')
+        mock_os.path.isfile.return_value = False
         self.syn.get.return_value = mock_entity
         cmdline.get(args, self.syn)
 
         self.syn.get.assert_called_once_with('syn123', version=None, followLink=False, downloadLocation='./')
         assert self.syn.logger.info.call_args_list == [call('WARNING: No files associated with entity %s\n', 'syn123'),
                                                        call(mock_entity)]
+
+        mock_entity2 = MagicMock(id='syn123', path='./tmp_path')
+        mock_dict = {'path': './tmp_path'}
+        mock_entity2.__contains__.side_effect = mock_dict.__contains__
+
+        self.syn.get.return_value = mock_entity2
+        mock_os.path.exists.return_value = True
+        mock_os.path.basename.return_value = "./base_tmp_path"
+        cmdline.get(args, self.syn)
+        assert self.syn.logger.info.call_args_list == [call('WARNING: No files associated with entity %s\n', 'syn123'),
+                                                       call(mock_entity),
+                                                       call('Downloaded file: %s', './base_tmp_path'),
+                                                       call('Creating %s', './tmp_path')]
