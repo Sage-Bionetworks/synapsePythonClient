@@ -165,7 +165,11 @@ jobs:
           pip install wheel
           pip install dist/synapseclient-2.3.0-py3-none-any.whl
 
+      - name: test-synapse
+        shell: bash
+        run: |
           synapse --version
+          synapse get 'syn25014409'
 
 
 #      - name: check-pypi
