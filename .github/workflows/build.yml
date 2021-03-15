@@ -126,7 +126,7 @@ jobs:
           # create distribution
           python3 setup.py sdist bdist_wheel
 
-          echo "PACKAGE_NAME=synapseclient-${{env.VERSION}}.tar.gz" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=synapseclient-2.3.0-py3-none-any.whl" >> $GITHUB_ENV
 
       # upload the artifact to the GitHub Action
       - name: upload-build-artifact
