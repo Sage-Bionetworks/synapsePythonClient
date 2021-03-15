@@ -14,6 +14,7 @@ import json
 import getpass
 import csv
 import re
+import shutil
 
 import synapseclient
 import synapseutils
@@ -376,6 +377,46 @@ def storeTable(args, syn):
                                             args.csv)
     table_ent = syn.store(table)
     syn.logger.info('{"tableId": "%s"}', table_ent.tableId)
+
+
+def config(args, syn):
+    """Create/modify a synapse configuration file"""
+    user = input("Username:")
+    secret_prompt = "Auth token:"
+    passwd = None
+    while not passwd:
+        # if the terminal is not a tty, we are unable to read from standard input
+        # For git bash using python getpass
+        # https://stackoverflow.com/questions/49858821/python-getpass-doesnt-work-on-windows-git-bash-mingw64
+        if not sys.stdin.isatty():
+            raise SynapseAuthenticationError(
+                "No password, key, or token was provided and unable to read from standard input")
+        else:
+            passwd = getpass.getpass(secret_prompt)
+    # Since we don't split up credential configuration file, it is simply too
+    # hacky to try to edit the file minimally in place.  Therefore, I will
+    # copy the old configuration file into a .synapseConfig.backup and write a
+    # new .synaspeConfig file.
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    # Read in configuration
+    cur_config_path = os.path.dirname(os.path.realpath(args.configPath))
+    # Make a copy of the existing config if it exists
+    if os.path.exists(args.configPath):
+        shutil.copyfile(args.configPath,
+                        os.path.join(cur_config_path,
+                                    f"{args.configPath}.backup"))
+
+    with open(os.path.join(script_dir, ".synapseConfig"), "r") as config_o:
+        config_text = config_o.read()
+
+    config_text = config_text.replace("#[authentication]",
+                                      "[authentication]")
+    config_text = config_text.replace("#username = <username>",
+                                      f"username = {user}")
+    config_text = config_text.replace("#authtoken = <authtoken>",
+                                      f"authtoken = {passwd}")
+    with open(args.configPath, "w") as config_o:
+        config_o.write(config_text)
 
 
 def submit(args, syn):
@@ -804,6 +845,10 @@ def build_parser():
                              help='List modified by and modified date')
     parser_list.set_defaults(func=ls)
 
+    parser_config = subparsers.add_parser('config',
+                                          help='Create or modify a Synapse configuration file')
+    parser_config.set_defaults(func=config)
+
     parser_set_provenance = subparsers.add_parser('set-provenance',
                                                   help='create provenance records')
     parser_set_provenance.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
@@ -968,7 +1013,7 @@ def build_parser():
 
 def perform_main(args, syn):
     if 'func' in args:
-        if args.func != login:
+        if args.func != login and args.func != config:
             login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
         try:
             args.func(args, syn)
