@@ -402,15 +402,15 @@ def config(args, syn):
     cur_config_path = os.path.dirname(os.path.realpath(args.configPath))
     # Make a copy of the existing config if it exists
     if os.path.exists(args.configPath):
-        shutil.copyfile(args.configPath,
-                        os.path.join(cur_config_path,
-                                    f"{args.configPath}.backup"))
+        shutil.copyfile(
+            args.configPath,
+            os.path.join(cur_config_path, f"{args.configPath}.backup")
+        )
 
     with open(os.path.join(script_dir, ".synapseConfig"), "r") as config_o:
         config_text = config_o.read()
-
-    config_text = config_text.replace("#[authentication]",
-                                      "[authentication]")
+    # Replace text in configuration
+    config_text = config_text.replace("#[authentication]", "[authentication]")
     config_text = config_text.replace("#username = <username>",
                                       f"username = {user}")
     config_text = config_text.replace("#authtoken = <authtoken>",
