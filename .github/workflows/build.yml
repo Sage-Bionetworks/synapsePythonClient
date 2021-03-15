@@ -65,63 +65,11 @@ jobs:
         run: |
           flake8
 
-      - name: run-unit-tests
-        shell: bash
-        run: |
-          pytest -sv tests/unit
-
-      # run integration tests iff the decryption keys for the test configuration are available.
-      # they will not be available in pull requests from forks.
-      # run integration tests on the oldest and newest supported versions of python.
-      # we don't run on the entire matrix to avoid a 3xN set of concurrent tests against
-      # the target server where N is the number of supported python versions.
-      - name: run-integration-tests
-        shell: bash
-
-        # keep versions consistent with the first and last from the strategy matrix
-        if: ${{ contains(fromJSON('[3.6, 3.9]'), matrix.python) }}
-        run: |
-          if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_key }}" ]; then
-            echo "No test configuration decryption keys available, skipping integration tests"
-
-          else
-
-            # decrypt the encrypted test synapse configuration
-            openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
-            mv test.synapseConfig ~/.synapseConfig
-
-            if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
-              # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
-              # Docker is not available on GH Action runners on Mac and Windows.
-
-              docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
-              docker run -d sftp_tests:latest
-
-              # get the internal IP address of the just launched container
-              export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
-
-              printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
-
-              # add to known_hosts so the ssh connections can be made without any prompting/errors
-              mkdir -p ~/.ssh
-              ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
-            fi
-
-             # set env vars used in external bucket tests from secrets
-            export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
-            export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
-            export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
-
-            pytest -sv tests/integration
-          fi
-
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
     needs: test
 
     runs-on: ubuntu-18.04
-
-    if: github.event_name == 'release'
 
     steps:
       - uses: actions/checkout@v2
@@ -175,7 +123,7 @@ jobs:
           python3 setup.py install
 
           # create distribution
-          python3 setup.py sdist
+          python3 setup.py sdist bdist_wheel
 
           echo "PACKAGE_NAME=synapseclient-${{env.VERSION}}.tar.gz" >> $GITHUB_ENV
 
@@ -199,74 +147,35 @@ jobs:
 
   # re-download the built package to the appropriate pypi server.
   # we upload prereleases to test.pypi.org and releases to pypi.org.
-  deploy:
+  test_wheel:
     needs: package
 
-    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        os: [ ubuntu-18.04, macos-10.15, windows-2019 ]
+        # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
+        python: [ 3.6, 3.7, 3.8, 3.9 ]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
 
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ matrix.python }}
 
       - uses: actions/download-artifact@v2
         with:
           name: synapseclient
           path: dist
 
-      - name: deploy-to-pypi
+      - name: install-the-artifact-wheel
         shell: bash
         run: |
-          python3 -m pip install twine
 
-          if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
-            # production deploy to prod pypi server
+          pip install dist/synapseclient*.whl
 
-            PYPI_NAME="pypi"
-            PYPI_URL="https://pypi.org"
-            PYPI_REPO="https://upload.pypi.org/legacy/"
-            PYPI_USERNAME="${{ secrets.PYPI_PROD_USERNAME }}"
-            PYPI_PASSWORD="${{ secrets.PYPI_PROD_PASSWORD }}"
-          else
-            # staging deploy to test pypi server
-
-            PYPI_NAME=testpypi
-            PYPI_URL="https://test.pypi.org"
-            PYPI_REPO=https://test.pypi.org/legacy/
-            PYPI_USERNAME="${{ secrets.PYPI_TEST_USERNAME }}"
-            PYPI_PASSWORD="${{ secrets.PYPI_TEST_PASSWORD }}"
-            PYPI_INDEX_URL="https://test.pypi.org/simple/"
-          fi
-
-          # create .pypirc file
-          echo "[distutils]" > ~/.pypirc
-          echo "index-servers=$PYPI_NAME" >> ~/.pypirc
-          echo >> ~/.pypirc
-          echo "[$PYPI_NAME]" >> ~/.pypirc
-          echo "repository: $PYPI_REPO" >> ~/.pypirc
-          echo "username:$PYPI_USERNAME" >> ~/.pypirc
-          echo "password:$PYPI_PASSWORD" >> ~/.pypirc
-
-          twine upload --repository $PYPI_NAME dist/*
-
-  # on each of our matrix platforms, download the newly uploaded package from pypi and confirm its version
-  check-deploy:
-    needs: deploy
-
-    strategy:
-      matrix:
-        os: [ubuntu-18.04, macos-10.15, windows-2019]
-
-        # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
-        python: [3.6, 3.7, 3.8, 3.9]
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python }}
+          
 
       - name: check-pypi
         shell: bash
