@@ -135,17 +135,6 @@ jobs:
           name: synapseclient
           path: dist/${{ env.PACKAGE_NAME }}
 
-      # upload the artifact as an asset of the GitHub Release
-      - name: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: https://uploads.github.com/repos/${{ github.event.repository.full_name }}/releases/${{ github.event.release.id }}/assets?name=${{ env.PACKAGE_NAME }}
-          asset_name: ${{ env.PACKAGE_NAME }}
-          asset_path: dist/${{ env.PACKAGE_NAME }}
-          asset_content_type: application/gzip
-
   # re-download the built package to the appropriate pypi server.
   # we upload prereleases to test.pypi.org and releases to pypi.org.
   test_wheel:
