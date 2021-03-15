@@ -78,30 +78,6 @@ jobs:
         with:
           python-version: 3.6
 
-#      - name: set-release-env
-#        shell: bash
-#        run: |
-#          RELEASE_TAG="${{ github.event.release.tag_name }}"
-#          if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
-#            VERSION="${BASH_REMATCH[1]}"
-#            if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
-#              if [[ -z "${BASH_REMATCH[2]}" ]]; then
-#                echo "A test release tag should end with \"-rc\""
-#                exit 1
-#              fi
-#
-#              # for staging builds we append the build number so we have
-#              # distinct version numbers between prod and test pypi.
-#              VERSION="$VERSION.$GITHUB_RUN_NUMBER"
-#            fi
-#
-#          else
-#            echo "Unable to parse deployment version from $RELEASE_TAG"
-#            exit 1
-#          fi
-#
-#          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
       # ensure that the version file in the package will have the correct version
       # matching the name of the tag
       - name: update-version
@@ -169,44 +145,3 @@ jobs:
         shell: bash
         run: |
           synapse --version
-
-
-#      - name: check-pypi
-#        shell: bash
-#        run: |
-#          if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
-#            PYPI_INDEX_URL="https://pypi.org/simple/"
-#          else
-#            PYPI_INDEX_URL="https://test.pypi.org/simple/"
-#          fi
-#
-#          RELEASE_TAG="${{ github.event.release.tag_name }}"
-#          if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
-#            VERSION="${BASH_REMATCH[1]}"
-#            if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
-#              VERSION="$VERSION.$GITHUB_RUN_NUMBER"
-#            fi
-#          else
-#            echo "Unrecognized release tag"
-#            exit 1
-#          fi
-#
-#          # it can take some time for the packages to become available in pypi after uploading
-#          for i in 5 10 20 40; do
-#            if pip3 install --index-url $PYPI_INDEX_URL --extra-index-url https://pypi.org/simple "synapseclient==$VERSION"; then
-#              ACTUAL_VERSION=$(synapse --version)
-#
-#              if [ -n "$(echo "$ACTUAL_VERSION" | grep -oF "$VERSION")" ]; then
-#                echo "Successfully installed version $VERSION"
-#                exit 0
-#              else
-#                echo "Expected version $VERSION, found $ACTUAL_VERSION instead"
-#                exit 1
-#              fi
-#            fi
-#
-#            sleep $i
-#          done
-#
-#          echo "Failed to install expected version $VERSION"
-#          exit 1
