@@ -10,6 +10,7 @@ from unittest.mock import call, Mock, patch, MagicMock
 
 import synapseclient.__main__ as cmdline
 from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseNoCredentialsError
+from synapseclient.entity import File
 import synapseutils
 
 
@@ -534,9 +535,7 @@ class TestGetFunction:
         assert self.syn.logger.info.call_args_list == [call('WARNING: No files associated with entity %s\n', 'syn123'),
                                                        call(mock_entity)]
 
-        mock_entity2 = MagicMock(id='syn123', path='./tmp_path')
-        mock_dict = {'path': './tmp_path'}
-        mock_entity2.__contains__.side_effect = mock_dict.__contains__
+        mock_entity2 = File(path='./tmp_path', parent='syn123')
 
         self.syn.get.return_value = mock_entity2
         mock_os.path.exists.return_value = True
