@@ -118,6 +118,7 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install setuptools
+          pip install wheel
 
           # install synapseclient
           python3 setup.py install
