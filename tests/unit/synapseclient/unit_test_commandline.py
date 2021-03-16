@@ -6,10 +6,11 @@ import base64
 import os
 
 import pytest
-from unittest.mock import call, Mock, patch
+from unittest.mock import call, Mock, patch, MagicMock
 
 import synapseclient.__main__ as cmdline
 from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseNoCredentialsError
+from synapseclient.entity import File
 import synapseutils
 
 
@@ -485,3 +486,62 @@ def test_command_auto_login(mock_login_with_prompt, syn):
     cmdline.perform_main(args, syn)
 
     mock_login_with_prompt.assert_called_once_with(syn, 'test_user', None, silent=True)
+
+
+class TestGetFunction:
+    @patch('synapseclient.client.Synapse')
+    def setup(self, mock_syn):
+        self.syn = mock_syn
+
+    @patch.object(synapseutils, 'syncFromSynapse')
+    def test_get__with_arg_recursive(self, mock_syncFromSynapse):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['get', '-r', 'syn123'])
+        cmdline.get(args, self.syn)
+
+        mock_syncFromSynapse.assert_called_once_with(self.syn, 'syn123', './', followLink=False)
+
+    @patch.object(cmdline, '_getIdsFromQuery')
+    def test_get__with_arg_queryString(self, mock_getIdsFromQuery):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['get', '-q', 'test_query'])
+        mock_getIdsFromQuery.return_value = ['syn123', 'syn456']
+        cmdline.get(args, self.syn)
+
+        mock_getIdsFromQuery.assert_called_once_with('test_query', self.syn, './')
+        assert self.syn.get.call_args_list == [call('syn123', downloadLocation='./'),
+                                               call('syn456', downloadLocation='./')]
+
+    @patch.object(cmdline, 'os')
+    def test_get__with_id_path(self, mock_os):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['get', './temp/path'])
+        mock_os.path.isfile.return_value = True
+        self.syn.get.return_value = {}
+        cmdline.get(args, self.syn)
+
+        self.syn.get.assert_called_once_with('./temp/path', version=None, limitSearch=None, downloadFile=False)
+
+    @patch.object(cmdline, 'os')
+    def test_get__with_normal_id(self, mock_os):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['get', 'syn123'])
+        mock_entity = MagicMock(id='syn123')
+        mock_os.path.isfile.return_value = False
+        self.syn.get.return_value = mock_entity
+        cmdline.get(args, self.syn)
+
+        self.syn.get.assert_called_once_with('syn123', version=None, followLink=False, downloadLocation='./')
+        assert self.syn.logger.info.call_args_list == [call('WARNING: No files associated with entity %s\n', 'syn123'),
+                                                       call(mock_entity)]
+
+        mock_entity2 = File(path='./tmp_path', parent='syn123')
+
+        self.syn.get.return_value = mock_entity2
+        mock_os.path.exists.return_value = True
+        mock_os.path.basename.return_value = "./base_tmp_path"
+        cmdline.get(args, self.syn)
+        assert self.syn.logger.info.call_args_list == [call('WARNING: No files associated with entity %s\n', 'syn123'),
+                                                       call(mock_entity),
+                                                       call('Downloaded file: %s', './base_tmp_path'),
+                                                       call('Creating %s', './tmp_path')]

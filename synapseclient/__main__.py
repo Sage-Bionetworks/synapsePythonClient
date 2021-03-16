@@ -116,7 +116,8 @@ def get(args, syn):
             else:
                 syn.logger.info('WARNING: No files associated with entity %s\n', entity.id)
                 syn.logger.info(entity)
-        syn.logger.info('Creating %s', entity.path)
+        if "path" in entity:
+            syn.logger.info('Creating %s', entity.path)
 
 
 def sync(args, syn):
