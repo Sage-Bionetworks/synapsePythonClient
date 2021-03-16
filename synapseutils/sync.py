@@ -936,8 +936,8 @@ def _manifest_upload(syn, df):
 
 
 def _check_file_name(df):
+    compiled = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
     for idx, row in df.iterrows():
-        compiled = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
         file_name = row['name']
         if not file_name:
             directory_name = os.path.basename(row['path'])
@@ -950,12 +950,10 @@ def _check_file_name(df):
 
 
 def _check_size_each_file(df):
-    # for f in df.path:
     for idx, row in df.iterrows():
         file_path = row['path']
         file_name = row['name'] if 'name' in row else os.path.basename(row['path'])
-        if is_url(file_path):
-            continue
-        single_file_size = os.stat(os.path.expandvars(os.path.expanduser(file_path))).st_size
-        if single_file_size == 0:
-            raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))
+        if not is_url(file_path):
+            single_file_size = os.stat(os.path.expandvars(os.path.expanduser(file_path))).st_size
+            if single_file_size == 0:
+                raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))
