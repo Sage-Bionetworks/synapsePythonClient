@@ -170,12 +170,13 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install setuptools
+          python3 -m pip install wheel
 
           # install synapseclient
           python3 setup.py install
 
           # create distribution
-          python3 setup.py sdist
+          python3 setup.py sdist bdist_wheel
 
           echo "PACKAGE_NAME=synapseclient-${{env.VERSION}}.tar.gz" >> $GITHUB_ENV
 
