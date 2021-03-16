@@ -526,7 +526,7 @@ class TestGetFunction:
         args = parser.parse_args(['get', '-r', 'syn123'])
         cmdline.get(args, self.syn)
 
-        mock_syncFromSynapse.assert_called_once_with(self.syn, 'syn123', './', followLink=False)
+        mock_syncFromSynapse.assert_called_once_with(self.syn, 'syn123', './', followLink=False, manifest='all')
 
     @patch.object(cmdline, '_getIdsFromQuery')
     def test_get__with_arg_queryString(self, mock_getIdsFromQuery):
