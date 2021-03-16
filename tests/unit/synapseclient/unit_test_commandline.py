@@ -163,6 +163,33 @@ def test_migrate__dont_continue(mocker, syn):
     cmdline.migrate(args, syn)
 
 
+@patch.object(cmdline, 'synapseutils')
+def test_get_manifest_option(mock_synapseutils):
+    """
+    Verify the create manifest option works properly for three choices which are 'all', 'root', 'suppress'.
+    """
+    parser = cmdline.build_parser()
+    syn = Mock()
+
+    # createManifest defaults to all
+    args = parser.parse_args(['get', '-r', 'syn123'])
+    assert args.manifest == 'all'
+    cmdline.get(args, syn)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="all")
+
+    # creating the root manifest file only
+    args = parser.parse_args(['get', '-r', 'syn123', '--manifest', 'root'])
+    assert args.manifest == 'root'
+    cmdline.get(args, syn)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="root")
+
+    # suppress creating the manifest file
+    args = parser.parse_args(['get', '-r', 'syn123', '--manifest', 'suppress'])
+    assert args.manifest == 'suppress'
+    cmdline.get(args, syn)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="suppress")
+
+
 def test_get_multi_threaded_flag():
     """Test the multi threaded command line flag"""
     parser = cmdline.build_parser()

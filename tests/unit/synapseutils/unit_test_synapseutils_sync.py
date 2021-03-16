@@ -156,7 +156,186 @@ def test_syncFromSynapse__project_contains_empty_folder(syn):
             downloadLocation=None,
             ifcollision='overwrite.local',
             followLink=False,
+            downloadFile=True,
         )
+
+
+def test_syncFromSynapse__downloadFile_is_false(syn):
+    """
+    Verify when passing the argument downloadFile is equal to False,
+    syncFromSynapse won't download the file to clients' local end.
+    """
+
+    project = Project(name="the project", parent="whatever", id="syn123")
+    file = File(name="a file", parent=project, id="syn456")
+    folder = Folder(name="a folder", parent=project, id="syn789")
+
+    entities = {
+        file.id: file,
+        folder.id: folder,
+    }
+
+    def syn_get_side_effect(entity, *args, **kwargs):
+        return entities[id_of(entity)]
+
+    with patch.object(syn, "getChildren", side_effect=[[folder, file], []]),\
+            patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
+
+        synapseutils.syncFromSynapse(syn, project, downloadFile=False)
+        patch_syn_get.assert_called_once_with(
+            file['id'],
+            downloadLocation=None,
+            ifcollision='overwrite.local',
+            followLink=False,
+            downloadFile=False,
+        )
+
+
+@patch.object(synapseutils.sync, 'generateManifest')
+@patch.object(synapseutils.sync, '_get_file_entity_provenance_dict')
+def test_syncFromSynapse__manifest_is_all(mock__get_file_entity_provenance_dict, mock_generateManifest, syn):
+    """
+    Verify manifest argument equal to "all" that pass in to syncFromSynapse, it will create root_manifest and all
+    child_manifests for every layers.
+    """
+
+    project = Project(name="the project", parent="whatever", id="syn123")
+    file1 = File(name="a file", parent=project, id="syn456")
+    folder = Folder(name="a folder", parent=project, id="syn789")
+    file2 = File(name="a file2", parent=folder, id="syn789123")
+
+    # Structure of nested project
+    # project
+    #    |---> file1
+    #    |---> folder
+    #             |---> file2
+
+    entities = {
+        file1.id: file1,
+        folder.id: folder,
+        file2.id: file2,
+    }
+
+    def syn_get_side_effect(entity, *args, **kwargs):
+        return entities[id_of(entity)]
+
+    mock__get_file_entity_provenance_dict.return_value = {}
+
+    with patch.object(syn, "getChildren", side_effect=[[folder, file1], [file2]]),\
+            patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
+
+        synapseutils.syncFromSynapse(syn, project, path="./", downloadFile=False, manifest="all")
+        assert patch_syn_get.call_args_list == [call(file1['id'], downloadLocation="./",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False,),
+                                                call(file2['id'], downloadLocation="./a folder",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False, )]
+
+        assert mock_generateManifest.call_count == 2
+
+        # child_manifest in folder
+        call_files = mock_generateManifest.call_args_list[0][0][1]
+        assert len(call_files) == 1
+        assert call_files[0].id == "syn789123"
+
+        # root_manifest file
+        call_files = mock_generateManifest.call_args_list[1][0][1]
+        assert len(call_files) == 2
+        assert call_files[0].id == "syn456"
+        assert call_files[1].id == "syn789123"
+
+
+@patch.object(synapseutils.sync, 'generateManifest')
+@patch.object(synapseutils.sync, '_get_file_entity_provenance_dict')
+def test_syncFromSynapse__manifest_is_root(mock__get_file_entity_provenance_dict, mock_generateManifest, syn):
+    """
+    Verify manifest argument equal to "root" that pass in to syncFromSynapse, it will create root_manifest file only.
+    """
+
+    project = Project(name="the project", parent="whatever", id="syn123")
+    file1 = File(name="a file", parent=project, id="syn456")
+    folder = Folder(name="a folder", parent=project, id="syn789")
+    file2 = File(name="a file2", parent=folder, id="syn789123")
+
+    # Structure of nested project
+    # project
+    #    |---> file1
+    #    |---> folder
+    #             |---> file2
+
+    entities = {
+        file1.id: file1,
+        folder.id: folder,
+        file2.id: file2,
+    }
+
+    def syn_get_side_effect(entity, *args, **kwargs):
+        return entities[id_of(entity)]
+
+    mock__get_file_entity_provenance_dict.return_value = {}
+
+    with patch.object(syn, "getChildren", side_effect=[[folder, file1], [file2]]),\
+            patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
+
+        synapseutils.syncFromSynapse(syn, project, path="./", downloadFile=False, manifest="root")
+        assert patch_syn_get.call_args_list == [call(file1['id'], downloadLocation="./",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False,),
+                                                call(file2['id'], downloadLocation="./a folder",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False, )]
+
+        assert mock_generateManifest.call_count == 1
+
+        call_files = mock_generateManifest.call_args_list[0][0][1]
+        assert len(call_files) == 2
+        assert call_files[0].id == "syn456"
+        assert call_files[1].id == "syn789123"
+
+
+@patch.object(synapseutils.sync, 'generateManifest')
+@patch.object(synapseutils.sync, '_get_file_entity_provenance_dict')
+def test_syncFromSynapse__manifest_is_suppress(mock__get_file_entity_provenance_dict, mock_generateManifest, syn):
+    """
+    Verify manifest argument equal to "suppress" that pass in to syncFromSynapse, it won't create any manifest file.
+    """
+
+    project = Project(name="the project", parent="whatever", id="syn123")
+    file1 = File(name="a file", parent=project, id="syn456")
+    folder = Folder(name="a folder", parent=project, id="syn789")
+    file2 = File(name="a file2", parent=folder, id="syn789123")
+
+    # Structure of nested project
+    # project
+    #    |---> file1
+    #    |---> folder
+    #             |---> file2
+
+    entities = {
+        file1.id: file1,
+        folder.id: folder,
+        file2.id: file2,
+    }
+
+    def syn_get_side_effect(entity, *args, **kwargs):
+        return entities[id_of(entity)]
+
+    mock__get_file_entity_provenance_dict.return_value = {}
+
+    with patch.object(syn, "getChildren", side_effect=[[folder, file1], [file2]]),\
+            patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
+
+        synapseutils.syncFromSynapse(syn, project, path="./", downloadFile=False, manifest="suppress")
+        assert patch_syn_get.call_args_list == [call(file1['id'], downloadLocation="./",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False,),
+                                                call(file2['id'], downloadLocation="./a folder",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False, )]
+
+        assert mock_generateManifest.call_count == 0
+
+
+def test_syncFromSynapse__manifest_value_is_invalid(syn):
+    project = Project(name="the project", parent="whatever", id="syn123")
+    with pytest.raises(ValueError) as ve:
+        synapseutils.syncFromSynapse(syn, project, path="./", downloadFile=False, manifest="invalid_str")
+    assert str(ve.value) == 'Value of manifest option should be one of the ("all", "root", "suppress")'
 
 
 def _compareCsv(expected_csv_string, csv_path):
@@ -255,12 +434,14 @@ class TestFolderSync:
         child_ids = ['syn456', 'syn789']
 
         parent = _FolderSync(syn, 'syn987', '/tmp/foo', [entity_id], None)
-        child = _FolderSync(syn, entity_id, path, child_ids, parent)
+        child = _FolderSync(syn, entity_id, path, child_ids, parent, create_manifest=False)
         assert syn == child._syn
         assert entity_id == child._entity_id
         assert path == child._path
         assert set(child_ids) == child._pending_ids
         assert parent == child._parent
+        assert parent._create_manifest
+        assert not child._create_manifest
 
     def test_update(self):
         syn = Mock()
@@ -277,14 +458,15 @@ class TestFolderSync:
         assert [file] == folder_sync._files
         assert provenance == folder_sync._provenance
 
-    def _finished_test(self, path):
+    def _finished_test(self, path, create_manifest=True):
         syn = Mock()
         entity_id = 'syn123'
         child_ids = ['syn456']
         file = Mock()
 
-        parent = _FolderSync(syn, 'syn987', path, [entity_id], None)
-        child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
+        parent = _FolderSync(syn, 'syn987', path, [entity_id], None, create_manifest=create_manifest)
+        child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent,
+                            create_manifest=create_manifest)
 
         child.update(finished_id='syn456', files=[file])
         assert child._is_finished()
@@ -302,6 +484,8 @@ class TestFolderSync:
             manifest_filename = folder_sync._manifest_filename()
             parent_manifest_filename = folder_sync._parent._manifest_filename()
 
+            mock_generateManifest.call_count == 2
+
             expected_manifest_calls = [
                 call(folder_sync._syn, folder_sync._files, manifest_filename,
                      provenance_cache={}),
@@ -309,6 +493,15 @@ class TestFolderSync:
                      provenance_cache={}),
             ]
             assert expected_manifest_calls == mock_generateManifest.call_args_list
+
+    def test_update__finish__without_generating_manifest(self):
+        """
+        Verify the update method won't call generate_manifest if the create_manifest is False
+        """
+        with patch.object(synapseutils.sync, 'generateManifest') as mock_generateManifest:
+            # create_manifest flag is False then won't call generateManifest
+            self._finished_test('/tmp/foo', False)
+            mock_generateManifest.assert_not_called()
 
     def test_set_exception(self):
         syn = Mock()
