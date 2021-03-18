@@ -2336,6 +2336,7 @@ def test_store__update_versionComment(syn):
             None,  # versionLabel
         )
 
+
 def test_update_entity_version(syn):
     """Confirm behavior of entity version incrementing/labeling when invoking syn._updateEntity"""
     entity_id = 'syn123'
