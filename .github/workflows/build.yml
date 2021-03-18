@@ -193,13 +193,13 @@ jobs:
       - name: upload-build-sdist
         uses: actions/upload-artifact@v2
         with:
-          name: synapseclient
+          name: ${{ steps.build-package.outputs.sdist-package-name }}
           path: dist/${{ steps.build-package.outputs.sdist-package-name }}
 
       - name: upload-build-bdist
         uses: actions/upload-artifact@v2
         with:
-          name: synapseclient
+          name: ${{ steps.build-package.outputs.bdist-package-name }}
           path: dist/${{ steps.build-package.outputs.bdist-package-name }}
 
       # upload the packages as artifacts of the GitHub release
