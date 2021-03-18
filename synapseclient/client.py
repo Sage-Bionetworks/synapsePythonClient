@@ -1016,6 +1016,7 @@ class Synapse(object):
         properties, annotations, local_state = split_entity_namespaces(entity)
         bundle = None
         # Anything with a path is treated as a cache-able item
+        properties['versionComment'] = properties['versionComment'] if 'versionComment' in properties else None
         if entity.get('path', False):
             if 'concreteType' not in properties:
                 properties['concreteType'] = File._synapse_entity_type
