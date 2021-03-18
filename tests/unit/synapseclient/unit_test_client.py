@@ -2046,7 +2046,7 @@ def test_store__existing_processed_as_update(syn):
         'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
         'dataFileHandleId': file_handle_id,
         'parentId': parent_id,
-
+        'versionComment': None,
     }
     expected_annotations = {
         'foo': [3],
@@ -2135,7 +2135,7 @@ def test_store__409_processed_as_update(syn):
         'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
         'dataFileHandleId': file_handle_id,
         'parentId': parent_id,
-
+        'versionComment': None,
     }
     expected_update_properties = {
         **expected_create_properties,
@@ -2245,6 +2245,96 @@ def test_store__no_need_to_update_annotation(syn):
 
         mock_set_annotations.assert_not_called()
 
+
+def test_store__update_versionComment(syn):
+    file_handle_id = '123412341234'
+    returned_file_handle = {
+        'id': file_handle_id
+    }
+
+    parent_id = 'syn122'
+    synapse_id = 'syn123'
+    etag = 'db9bc70b-1eb6-4a21-b3e8-9bf51d964031'
+    file_name = 'fake_file.txt'
+
+    existing_bundle_annotations = {
+        'foo': {
+            'type': 'LONG',
+            'value': ['1']
+        },
+
+        # this annotation is not included in the passed which is interpreted as a deletion
+        'bar': {
+            'type': 'LONG',
+            'value': ['2']
+        },
+    }
+    returned_bundle = {
+        'entity': {
+            'name': file_name,
+            'id': synapse_id,
+            'etag': etag,
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'dataFileHandleId': file_handle_id,
+        },
+        'entityType': 'file',
+        'fileHandles': [
+            {
+                'id': file_handle_id,
+                'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle',
+            }
+        ],
+        'annotations': {
+            'id': synapse_id,
+            'etag': etag,
+            'annotations': existing_bundle_annotations
+        },
+    }
+
+    expected_update_properties = {
+        'id': synapse_id,
+        'etag': etag,
+        'name': file_name,
+        'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+        'dataFileHandleId': file_handle_id,
+        'parentId': parent_id,
+        'versionComment': '12345',
+    }
+
+    with patch.object(syn, '_getEntityBundle') as mock_get_entity_bundle, \
+            patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
+            patch.object(syn.cache, 'contains', return_value=True), \
+            patch.object(syn, '_createEntity') as mock_createEntity, \
+            patch.object(syn, '_updateEntity') as mock_updateEntity, \
+            patch.object(syn, 'findEntityId') as mock_findEntityId, \
+            patch.object(syn, 'set_annotations') as mock_set_annotations, \
+            patch.object(Entity, 'create'), \
+            patch.object(syn, 'get'):
+        mock_get_entity_bundle.return_value = returned_bundle
+
+        f = File(f"/{file_name}", parent=parent_id, versionComment='12345')
+        syn.store(f)
+
+        assert mock_set_annotations.called
+        assert not mock_createEntity.called
+        assert not mock_findEntityId.called
+
+        mock_updateEntity.assert_called_once_with(
+            expected_update_properties,
+            True,  # createOrUpdate
+            None,  # versionLabel
+        )
+
+        # entity that stores on synapse without versionComment
+        f = File(f"/{file_name}", parent=parent_id)
+        expected_update_properties['versionComment'] = None
+        syn.store(f)
+
+        mock_updateEntity.assert_called_with(
+            expected_update_properties,
+            True,  # createOrUpdate
+            None,  # versionLabel
+        )
 
 def test_update_entity_version(syn):
     """Confirm behavior of entity version incrementing/labeling when invoking syn._updateEntity"""
