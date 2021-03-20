@@ -1,9 +1,11 @@
 import abc
 import deprecated.sphinx
+import os
 
+import synapseclient.core.utils as utils
 from synapseclient.core.exceptions import SynapseAuthenticationError
-from .cred_data import SynapseApiKeyCredentials, SynapseAuthTokenCredentials
-from . import cached_sessions
+from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials, SynapseAuthTokenCredentials
+from synapseclient.core.credentials import cached_sessions
 
 
 class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
@@ -12,6 +14,7 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
     username/api key) from a source(e.g. login args, config file, cached credentials in keyring), and use them to return
     a ``SynapseCredentials` instance.
     """
+
     @abc.abstractmethod
     def _get_auth_info(self, syn, user_login_args):
         """
@@ -69,6 +72,7 @@ class UserArgsCredentialsProvider(SynapseCredentialsProvider):
     """
     Retrieves auth info from user_login_args
     """
+
     def _get_auth_info(self, syn, user_login_args):
         return (
             user_login_args.username,
@@ -103,6 +107,7 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     """
     Retrieves auth info from .synapseConfig file
     """
+
     def _get_auth_info(self, syn, user_login_args):
         config_dict = syn._get_config_authentication()
         # check to make sure we didn't accidentally provide the wrong user
@@ -127,6 +132,7 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
     """
     Retrieves auth info from cached_sessions
     """
+
     def _get_auth_info(self, syn, user_login_args):
         username = None
         password = None
@@ -145,11 +151,44 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
         return username, password, api_key, auth_token
 
 
+class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
+    """
+    Retrieves user's authentication token from AWS SSM Parameter store
+    """
+
+    ENVIRONMENT_VAR_NAME = "SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME"
+
+    def _get_auth_info(self, syn, user_login_args):
+        ssm_param_name = os.environ.get(self.ENVIRONMENT_VAR_NAME)
+        token = None
+        if ssm_param_name:
+            boto3 = utils.attempt_import("boto3",
+                                         "\n\nThe Synapse client uses boto3 "
+                                         "in order to access Systems Manager Parameter Storage.\n")
+            import botocore  # if can import boto3, can import botocore
+            try:
+                ssm_client = boto3.client('ssm')
+                result = ssm_client.get_parameter(
+                    Name=ssm_param_name,
+                    WithDecryption=True,
+                )
+                token = result['Parameter']['Value']
+            except botocore.exceptions.ClientError as e:
+                syn.logger.warn(f'{self.ENVIRONMENT_VAR_NAME} was defined as {ssm_param_name}, '
+                                'but the matching parameter name could not be found in AWS Parameter Store. '
+                                f'Caused by AWS error:\n {e}')
+
+        # if username is included in user's arguments, return it so that
+        # it may be validated against the username authenticated by the token
+        return user_login_args.username, None, None, token
+
+
 class SynapseCredentialsProviderChain(object):
     """
     Class that has a list of ``SynapseCredentialsProvider`` from which this class attempts to retrieve
     ``SynapseCredentials``.
     """
+
     def __init__(self, cred_providers):
         """
         :param list[``SynapseCredentialsProvider``] cred_providers: list of credential providers
@@ -178,7 +217,9 @@ DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([
     UserArgsSessionTokenCredentialsProvider(),  # This provider is DEPRECATED
     UserArgsCredentialsProvider(),
     ConfigFileCredentialsProvider(),
-    CachedCredentialsProvider()])
+    CachedCredentialsProvider(),
+    AWSParameterStoreCredentialsProvider()
+])
 
 
 def get_default_credential_chain():
