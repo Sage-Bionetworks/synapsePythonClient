@@ -249,10 +249,10 @@ class TestUserArgsCredentialsProvider(object):
         returned_tuple = provider._get_auth_info(self.syn, user_login_args)
 
         assert (
-           user_login_args.username,
-           user_login_args.password,
-           user_login_args.api_key,
-           user_login_args.auth_token
+            user_login_args.username,
+            user_login_args.password,
+            user_login_args.api_key,
+            user_login_args.auth_token
         ) == returned_tuple
 
 
