@@ -1,12 +1,12 @@
 import base64
 import os
+import sys
 from unittest.mock import create_autospec, MagicMock, patch
 
 import boto3
 import pytest
 from botocore.stub import Stubber
 from pytest_mock import MockerFixture
-import sys
 
 from synapseclient.core.credentials import credential_provider
 from synapseclient.core.credentials.cred_data import (

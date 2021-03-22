@@ -1,11 +1,11 @@
 import abc
-import deprecated.sphinx
 import os
 
-import synapseclient.core.utils as utils
-from synapseclient.core.exceptions import SynapseAuthenticationError
-from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials, SynapseAuthTokenCredentials
+import deprecated.sphinx
+
 from synapseclient.core.credentials import cached_sessions
+from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials, SynapseAuthTokenCredentials
+from synapseclient.core.exceptions import SynapseAuthenticationError
 
 
 class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
