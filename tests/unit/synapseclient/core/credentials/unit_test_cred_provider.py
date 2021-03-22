@@ -112,7 +112,7 @@ class TestSynapseCredentialProvider(object):
     def test_get_synapse_credentials(self):
         auth_info = ("username", "password", "api_key")
         with patch.object(self.provider, "_get_auth_info", return_value=auth_info) as mock_get_auth_info, \
-                patch.object(self.provider, "_create_synapse_credential") as mock_create_synapse_credentials:
+             patch.object(self.provider, "_create_synapse_credential") as mock_create_synapse_credentials:
             self.provider.get_synapse_credentials(self.syn, self.user_login_args)
 
             mock_get_auth_info.assert_called_once_with(self.syn, self.user_login_args)
@@ -141,7 +141,7 @@ class TestSynapseCredentialProvider(object):
         over api key and auth bearer token)"""
         session_token = "37842837946"
         with patch.object(self.syn, "_getSessionToken", return_value=session_token) as mock_get_session_token, \
-                patch.object(self.syn, "_getAPIKey", return_value=self.api_key) as mock_get_api_key:
+             patch.object(self.syn, "_getAPIKey", return_value=self.api_key) as mock_get_api_key:
             # even if api key and/or auth_token is provided, password applies first
             cred = self.provider._create_synapse_credential(
                 self.syn,
