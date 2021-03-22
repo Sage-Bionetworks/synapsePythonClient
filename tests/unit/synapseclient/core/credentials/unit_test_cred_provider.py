@@ -477,7 +477,7 @@ class TestAWSParameterStoreCredentialsProvider(object):
     def test_get_auth_info__boto3_ImportError(self, mocker, syn, environ_with_param_name):
         mocker.patch.dict(os.environ, environ_with_param_name)
         # simulate import error by "removing" boto3 from sys.modules
-        mocker.patch.dict(sys.modules, {'boto3':None})
+        mocker.patch.dict(sys.modules, {'boto3': None})
 
         user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
 
