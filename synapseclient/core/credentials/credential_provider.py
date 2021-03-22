@@ -223,7 +223,7 @@ DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([
     UserArgsCredentialsProvider(),
     ConfigFileCredentialsProvider(),
     CachedCredentialsProvider(),
-    AWSParameterStoreCredentialsProvider()
+    AWSParameterStoreCredentialsProvider(),
 ])
 
 
