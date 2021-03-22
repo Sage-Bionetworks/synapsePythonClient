@@ -6,6 +6,7 @@ import boto3
 import pytest
 from botocore.stub import Stubber
 from pytest_mock import MockerFixture
+import sys
 
 from synapseclient.core.credentials import credential_provider
 from synapseclient.core.credentials.cred_data import (
@@ -421,8 +422,7 @@ class TestAWSParameterStoreCredentialsProvider(object):
         self.provider = AWSParameterStoreCredentialsProvider()
 
     def test_get_auth_info__no_environment_variable(self, mocker: MockerFixture, syn):
-        empty_dict = {}
-        mocker.patch.object(os, "environ", new=empty_dict)
+        mocker.patch.dict(os.environ, {}, clear=True)
         mock_boto3_client, stubber = self.stub_ssm(mocker)
 
         user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
@@ -431,11 +431,13 @@ class TestAWSParameterStoreCredentialsProvider(object):
         assert not mock_boto3_client.called
         stubber.assert_no_pending_responses()
 
-    def test_get_auth_info__parameter_name_not_exist(self, mocker: MockerFixture, syn, environ_with_param_name):
-        mocker.patch.object(os, 'environ', new=environ_with_param_name)
+    # there could be other errors as well, but we will handle them all in the same way
+    @pytest.mark.parametrize('error_code', ['UnrecognizedClientException', 'AccessDenied', 'ParameterNotFound'])
+    def test_get_auth_info__get_parameter_error(self, mocker: MockerFixture, syn, environ_with_param_name, error_code):
+        mocker.patch.dict(os.environ, environ_with_param_name)
 
         mock_boto3_client, stubber = self.stub_ssm(mocker)
-        stubber.add_client_error('get_parameter', 'ParameterNotFound')
+        stubber.add_client_error('get_parameter', error_code)
 
         user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
 
@@ -445,7 +447,7 @@ class TestAWSParameterStoreCredentialsProvider(object):
             stubber.assert_no_pending_responses()
 
     def test_get_auth_info__parameter_name_exists(self, mocker: MockerFixture, syn, environ_with_param_name):
-        mocker.patch.object(os, 'environ', new=environ_with_param_name)
+        mocker.patch.dict(os.environ, environ_with_param_name)
 
         mock_boto3_client, stubber = self.stub_ssm(mocker)
         token = 'KmhhY2tlciB2b2ljZSogIkknbSBpbiI='
@@ -471,3 +473,12 @@ class TestAWSParameterStoreCredentialsProvider(object):
             assert (username, None, None, token) == self.provider._get_auth_info(syn, user_login_args)
             mock_boto3_client.assert_called_once_with("ssm")
             stubber.assert_no_pending_responses()
+
+    def test_get_auth_info__boto3_ImportError(self, mocker, syn, environ_with_param_name):
+        mocker.patch.dict(os.environ, environ_with_param_name)
+        # simulate import error by "removing" boto3 from sys.modules
+        mocker.patch.dict(sys.modules, {'boto3':None})
+
+        user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
+
+        assert (None,) * 4 == self.provider._get_auth_info(syn, user_login_args)
