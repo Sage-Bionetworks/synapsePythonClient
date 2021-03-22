@@ -162,21 +162,26 @@ class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
         ssm_param_name = os.environ.get(self.ENVIRONMENT_VAR_NAME)
         token = None
         if ssm_param_name:
-            boto3 = utils.attempt_import("boto3",
-                                         "\n\nThe Synapse client uses boto3 "
-                                         "in order to access Systems Manager Parameter Storage.\n")
-            import botocore  # if can import boto3, can import botocore
             try:
+                import boto3
+                import botocore
                 ssm_client = boto3.client('ssm')
                 result = ssm_client.get_parameter(
                     Name=ssm_param_name,
                     WithDecryption=True,
                 )
                 token = result['Parameter']['Value']
-            except botocore.exceptions.ClientError as e:
-                syn.logger.warn(f'{self.ENVIRONMENT_VAR_NAME} was defined as {ssm_param_name}, '
-                                'but the matching parameter name could not be found in AWS Parameter Store. '
-                                f'Caused by AWS error:\n {e}')
+            except ImportError:
+                syn.logger.warning(
+                    f'{self.ENVIRONMENT_VAR_NAME} was defined as {ssm_param_name}, but "boto3" could not be imported.'
+                    ' The Synapse client uses "boto3" in order to access Systems Manager Parameter Storage.'
+                    ' Please ensure that you have installed "boto3" to enable this feature.')
+            # this except block must be defined after the ImportError except block
+            # otherwise, there's no guarantee "botocore" is already imported and defined
+            except botocore.exceptions.ClientError:
+                syn.logger.warning(f'{self.ENVIRONMENT_VAR_NAME} was defined as {ssm_param_name}, '
+                                   'but the matching parameter name could not be found in AWS Parameter Store. '
+                                   f'Caused by AWS error:\n', exc_info=True)
 
         # if username is included in user's arguments, return it so that
         # it may be validated against the username authenticated by the token
