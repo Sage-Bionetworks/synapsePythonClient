@@ -1,3 +1,5 @@
+from requests import Response
+
 import pytest
 from unittest.mock import MagicMock
 
@@ -53,6 +55,25 @@ def test_with_retry():
     function.side_effect = foo
     pytest.raises(SynapseError, with_retry, function, **retryParams)
     assert function.call_count == 1 + 4 + 3 + 4 + 1
+
+
+def test_with_retry__status_code_not_in():
+    """Verify using retry with retry_status_code_in=False to retry unless thee status code matches"""
+
+    non_matching_response = MagicMock(spec=Response)
+    non_matching_response.status_code = 200
+
+    matching_response = MagicMock(spec=Response)
+    matching_response.status_code = 201
+
+    fn = MagicMock()
+    fn.side_effect = [
+        non_matching_response,
+        matching_response,
+    ]
+
+    response = with_retry(fn, retry_status_codes=[201], retry_status_code_in=False)
+    assert response == matching_response
 
 
 def test_with_retry__no_status_code():

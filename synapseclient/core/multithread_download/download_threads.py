@@ -17,10 +17,10 @@ import time
 
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.pool_provider import get_executor
+from synapseclient.core.retry import with_retry
 
 # constants
 MAX_QUEUE_SIZE: int = 20
-MAX_RETRIES: int = 20
 MiB: int = 2 ** 20
 SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MiB
 ISO_AWS_STR_FORMAT: str = '%Y%m%dT%H%M%SZ'
@@ -324,16 +324,28 @@ class _MultithreadedDownloader:
     def _get_response_with_retry(presigned_url_provider, start: int, end: int) -> Response:
         session = _get_thread_session()
         range_header = {'Range': f'bytes={start}-{end}'}
-        response = session.get(presigned_url_provider.get_info().url, headers=range_header, stream=True)
-        # try request until successful or out of retries
-        try_counter = 1
-        while response.status_code != HTTPStatus.PARTIAL_CONTENT:
-            if try_counter >= MAX_RETRIES:
-                raise SynapseError(
-                    f'Could not download the file: {presigned_url_provider.get_info().file_name},'
-                    f' please try again.')
-            response = session.get(presigned_url_provider.get_info().url, headers=range_header, stream=True)
-            try_counter += 1
+
+        def session_get():
+            return session.get(presigned_url_provider.get_info().url, headers=range_header)
+
+        response = None
+        cause = None
+        try:
+            response = with_retry(
+                session_get,
+                retry_status_code_in=False,
+                retry_status_codes=(HTTPStatus.PARTIAL_CONTENT,),
+                retry_exceptions=(ConnectionResetError,)
+            )
+        except Exception as ex:
+            cause = ex
+
+        if not response or response.status_code != HTTPStatus.PARTIAL_CONTENT:
+            raise SynapseError(
+                f'Could not download the file: {presigned_url_provider.get_info().file_name},'
+                f' please try again.'
+            ) from cause
+
         return start, response
 
     @staticmethod
