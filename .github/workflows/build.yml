@@ -134,7 +134,7 @@ jobs:
             export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
             export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
-            pytest -sv tests/integration -n 2
+            pytest -sv tests/integration -n 2 --dist loadscope
           fi
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
