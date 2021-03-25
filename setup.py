@@ -31,7 +31,7 @@ test_deps = [
     "pytest>=5.0.0,<7.0",
     "pytest-mock>=3.0,<4.0",
     "flake8>=3.7.0,<4.0",
-    "pytest-xdist>=2.2,<3.0.0",
+    "pytest-xdist[psutil]>=2.2,<3.0.0",
 ]
 
 install_requires = [
