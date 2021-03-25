@@ -45,7 +45,30 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      - name: get-dependencies-location
+        shell: bash
+        run: |
+          SITE_PACKAGES_LOCATION=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+          SITE_BIN_DIR=$(python3 -c "import os; import platform; import distutils.sysconfig; pre = distutils.sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
+          echo "::set-output name=site_packages_loc::$SITE_PACKAGES_LOCATION"
+          echo "::set-output name=site_bin_dir::$SITE_BIN_DIR"
+          echo $SITE_PACKAGES_LOCATION
+          echo $SITE_BIN_DIR
+        id: get_dependencies
+
+      - name: Cache py-dependencies
+        id: cache-venv
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-py-dependencies
+        with:
+          path: |
+            ${{ steps.get_dependencies.outputs.site_packages_loc }}
+            ${{ steps.get_dependencies.outputs.site_bin_dir }}
+          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v6
+
       - name: install-py-dependencies
+        if: steps.cache-venv.outputs.cache-hit != 'true'
         shell: bash
         run: |
           pip install -e ".[boto3,pandas,pysftp,tests]"
@@ -59,7 +82,6 @@ jobs:
             pip install numpy
           fi
 
-
       - name: lint
         shell: bash
         run: |
@@ -68,7 +90,7 @@ jobs:
       - name: run-unit-tests
         shell: bash
         run: |
-          pytest -sv tests/unit
+          pytest -sv tests/unit -n 2
 
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
@@ -112,7 +134,7 @@ jobs:
             export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
             export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
-            pytest -sv tests/integration
+            pytest -sv tests/integration -n 2
           fi
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
