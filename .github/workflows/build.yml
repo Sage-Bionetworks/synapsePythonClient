@@ -65,7 +65,7 @@ jobs:
           path: |
             ${{ steps.get_dependencies.outputs.site_packages_loc }}
             ${{ steps.get_dependencies.outputs.site_bin_dir }}
-          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v6
+          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v7
 
       - name: install-py-dependencies
         if: steps.cache-venv.outputs.cache-hit != 'true'
