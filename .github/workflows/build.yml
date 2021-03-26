@@ -90,7 +90,7 @@ jobs:
       - name: run-unit-tests
         shell: bash
         run: |
-          pytest -sv tests/unit -n auto --dist loadscope --cov synapseclient --cov synapseutils --cov-report html
+          pytest -sv tests/unit --cov synapseclient --cov synapseutils --cov-report html
 
       # upload the unit test coverage html to the GitHub Action
       - name: upload-build-unit-test-coverage
