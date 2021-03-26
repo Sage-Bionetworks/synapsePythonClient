@@ -3,6 +3,7 @@ import concurrent.futures
 from contextlib import contextmanager
 import io
 import os
+import re
 import sys
 import threading
 import typing
@@ -788,6 +789,18 @@ def readManifestFile(syn, manifestFile):
         raise ValueError("All rows in manifest must contain a unique file to upload")
     sys.stdout.write('OK\n')
 
+    # Check each size of uploaded file
+    sys.stdout.write('Validating that all the files are not empty...')
+    _check_size_each_file(df)
+    sys.stdout.write('OK\n')
+
+    # check the name of each file should be store on Synapse
+    name_column = 'name'
+    if name_column in df.columns:
+        sys.stdout.write('Validating file names... \n')
+        _check_file_name(df)
+        sys.stdout.write('OK\n')
+
     sys.stdout.write('Validating provenance...')
     df = _sortAndFixProvenance(syn, df)
     sys.stdout.write('OK\n')
@@ -887,6 +900,7 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     """
     df = readManifestFile(syn, manifestFile)
+    # have to check all size of single file
     sizes = [os.stat(os.path.expandvars(os.path.expanduser(f))).st_size for f in df.path if not is_url(f)]
     # Write output on what is getting pushed and estimated times - send out message.
     sys.stdout.write('='*50+'\n')
@@ -937,3 +951,27 @@ def _manifest_upload(syn, df):
         uploader.upload(items)
 
     return True
+
+
+def _check_file_name(df):
+    compiled = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
+    for idx, row in df.iterrows():
+        file_name = row['name']
+        if not file_name:
+            directory_name = os.path.basename(row['path'])
+            df.loc[df.path == row['path'], 'name'] = file_name = directory_name
+            sys.stdout.write('No file name assigned to path: %s, defaulting to %s\n' % (row['path'], directory_name))
+        if not compiled.match(file_name):
+            raise ValueError("File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
+                             "underscores, hyphens, periods, plus signs, apostrophes, "
+                             "and parentheses".format(file_name))
+
+
+def _check_size_each_file(df):
+    for idx, row in df.iterrows():
+        file_path = row['path']
+        file_name = row['name'] if 'name' in row else os.path.basename(row['path'])
+        if not is_url(file_path):
+            single_file_size = os.stat(os.path.expandvars(os.path.expanduser(file_path))).st_size
+            if single_file_size == 0:
+                raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))
