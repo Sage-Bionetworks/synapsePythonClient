@@ -55,7 +55,7 @@ jobs:
         id: get-dependencies
 
       - name: Cache py-dependencies
-        id: cache-dependencies
+        id: cache-venv
         uses: actions/cache@v2
         env:
           cache-name: cache-py-dependencies
@@ -66,7 +66,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v8
 
       - name: install-py-dependencies
-        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        if: steps.cache-venv.outputs.cache-hit != 'true'
         shell: bash
         run: |
           pip install -e ".[boto3,pandas,pysftp,tests]"
