@@ -81,9 +81,9 @@ def test__convert_to_annotations_list():
                       'birthdays': {'value': ['-21427200000', '124156800000', '1199318400000'],
                                     'type': 'TIMESTAMP_MS'},
                       'test_boolean': {'value': ['true'],
-                                       'type': 'STRING'},
+                                       'type': 'BOOLEAN'},
                       'test_mo_booleans': {'value': ['false', 'true', 'true', 'false'],
-                                           'type': 'STRING'}}
+                                           'type': 'BOOLEAN'}}
     assert expected_annos == actual_annos
 
     a_with_single_value = {'foo': 1234,
@@ -102,7 +102,7 @@ def test__convert_to_annotations_list():
                       'birthdays': {'value': ['-21427200000'],
                                     'type': 'TIMESTAMP_MS'},
                       'test_boolean': {'value': ['true'],
-                                       'type': 'STRING'}}
+                                       'type': 'BOOLEAN'}}
     assert expected_annos == actual_annos
 
 
@@ -123,10 +123,22 @@ def test_annotations_unicode():
 
 def test_round_trip_annotations():
     """Test that annotations can make the round trip from a simple dictionary to the synapse format and back"""
-    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
-                    {'foo': [1234], 'zoo': [123.1, 456.2, 789.3], 'species': ['Moose'],
-                     'birthdays': [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3),
-                                   Datetime(2013, 3, 15)]})
+    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f', {
+        'foo': [1234],
+        'zoo': [123.1, 456.2, 789.3],
+        'species': ['Moose'],
+        'birthdays': [
+            Datetime(1969, 4, 28),
+            Datetime(1973, 12, 8),
+            Datetime(2008, 1, 3),
+            Datetime(2013, 3, 15),
+        ],
+        'facts': [
+            True,
+            False,
+        ]
+    })
+
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
     assert a == a2
@@ -137,12 +149,13 @@ def test_round_trip_annotations():
 def test_mixed_annotations():
     """test that to_synapse_annotations will coerce a list of mixed types to strings"""
     a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
-                    {'foo': [1, 'a', Datetime(1969, 4, 28, 11, 47)]})
+                    {'foo': [1, 'a', Datetime(1969, 4, 28, 11, 47), True]})
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
     assert a2['foo'][0] == '1'
     assert a2['foo'][1] == 'a'
     assert a2['foo'][2].find('1969') > -1
+    assert a2['foo'][3] == 'True'
     assert 'syn123' == a2.id
     assert '7bdb83e9-a50a-46e4-987a-4962559f090f' == a2.etag
 
@@ -150,7 +163,7 @@ def test_mixed_annotations():
 def test_idempotent_annotations():
     """test that to_synapse_annotations won't mess up a dictionary that's already in the synapse format"""
     a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
-                    {'species': 'Moose', 'n': 42, 'birthday': Datetime(1969, 4, 28)})
+                    {'species': 'Moose', 'n': 42, 'birthday': Datetime(1969, 4, 28), 'fact': True})
     sa = to_synapse_annotations(a)
     a2 = {}
     a2.update(sa)
