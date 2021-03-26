@@ -52,7 +52,9 @@ jobs:
           SITE_BIN_DIR=$(python3 -c "import os; import platform; import distutils.sysconfig; pre = distutils.sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
           echo "::set-output name=site_packages_loc::$SITE_PACKAGES_LOCATION"
           echo "::set-output name=site_bin_dir::$SITE_BIN_DIR"
-        id: get-dependencies
+          echo $SITE_PACKAGES_LOCATION
+          echo $SITE_BIN_DIR
+        id: get_dependencies
 
       - name: Cache py-dependencies
         id: cache-venv
@@ -63,7 +65,7 @@ jobs:
           path: |
             ${{ steps.get_dependencies.outputs.site_packages_loc }}
             ${{ steps.get_dependencies.outputs.site_bin_dir }}
-          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v8
+          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v7
 
       - name: install-py-dependencies
         if: steps.cache-venv.outputs.cache-hit != 'true'
@@ -139,7 +141,6 @@ jobs:
             export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
             export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
-             # use --dist loadscope to avoid issues running tests concurrently that share scoped fixtures
             pytest -sv tests/integration -n auto --dist loadscope
           fi
 
