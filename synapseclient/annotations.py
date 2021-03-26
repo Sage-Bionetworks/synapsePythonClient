@@ -82,6 +82,7 @@ ANNO_TYPE_TO_FUNC: typing.Dict[str, typing.Callable[[str], typing.Union[str, int
         raise_anno_type_error,
         {
             'STRING': _identity,
+            'BOOLEAN': lambda bool_str: bool_str == 'true',
             'LONG': int,
             'DOUBLE': float,
             'TIMESTAMP_MS': lambda time_str: from_unix_epoch_time(int(time_str))
@@ -308,8 +309,8 @@ def _convert_to_annotations_list(annotations):
             nested_annos[key] = {'type': 'STRING',
                                  'value': elements}
         elif issubclass(element_cls, bool):
-            nested_annos[key] = {'type': 'STRING',
-                                 'value': [str(e).lower() for e in elements]}
+            nested_annos[key] = {'type': 'BOOLEAN',
+                                 'value': ['true' if e else 'false' for e in elements]}
         elif issubclass(element_cls, int):
             nested_annos[key] = {'type': 'LONG',
                                  'value': [str(e) for e in elements]}
@@ -347,7 +348,13 @@ def check_annotations_changed(bundle_annotations, new_annotations):
 
 def convert_old_annotation_json(annotations):
     """Transforms a parsed JSON dictionary of old style annotations
-    into a new style consistent with the entity bundle v2 format."""
+    into a new style consistent with the entity bundle v2 format.
+
+    This is intended to support some models that were saved as serialized
+    entity bundle JSON (Submissions). we don't need to support newer
+    types here e.g. BOOLEAN because they did not exist at the time
+    that annotation JSON was saved in this form.
+    """
 
     meta_keys = ('id', 'etag', 'creationDate', 'uri')
 
