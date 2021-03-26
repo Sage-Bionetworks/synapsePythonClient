@@ -90,7 +90,14 @@ jobs:
       - name: run-unit-tests
         shell: bash
         run: |
-          pytest -sv tests/unit -n auto
+          pytest -sv tests/unit -n auto --dist loadscope --cov synapseclient --cov synapseutils --cov-report html
+
+      # upload the unit test coverage html to the GitHub Action
+      - name: upload-build-unit-test-coverage
+        uses: actions/upload-artifact@v2
+        with:
+          name: Unit_Test_Coverage
+          path: htmlcov/index.html
 
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
