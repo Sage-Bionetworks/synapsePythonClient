@@ -1023,6 +1023,10 @@ class Synapse(object):
         entity = obj
         properties, annotations, local_state = split_entity_namespaces(entity)
         bundle = None
+        # Explicitly set an empty versionComment property if none is supplied,
+        # otherwise an existing entity bundle's versionComment will be copied to the update.
+        properties['versionComment'] = properties['versionComment'] if 'versionComment' in properties else None
+
         # Anything with a path is treated as a cache-able item
         if entity.get('path', False):
             if 'concreteType' not in properties:
