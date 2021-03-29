@@ -26,7 +26,7 @@ on:
 
   schedule:
     # schedule for every 10 mins
-    - cron: '20 * * * *'
+    - cron: '*/15 * * * *'
 
 jobs:
 
