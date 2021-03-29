@@ -10,6 +10,10 @@
 name: build
 
 on:
+  schedule:
+    # schedule for every 15 mins
+    - cron: '*/15 * * * *'
+
   push:
     # we test all pushed branches, but not tags.
     # we only push tags with releases, and we handle releases explicitly
@@ -23,10 +27,6 @@ on:
   release:
     types:
       - 'published'
-
-  schedule:
-    # schedule for every 10 mins
-    - cron: '*/15 * * * *'
 
 jobs:
 
