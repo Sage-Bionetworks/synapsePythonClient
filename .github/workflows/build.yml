@@ -14,19 +14,19 @@ on:
     # schedule for every 15 mins
     - cron: "*/15 * * * *"
 
-#  push:
-#    # we test all pushed branches, but not tags.
-#    # we only push tags with releases, and we handle releases explicitly
-#    branches:
-#      - '**'
-#    tags-ignore:
-#      - '**'
-#
-#  pull_request:
-#
-#  release:
-#    types:
-#      - 'published'
+  push:
+    # we test all pushed branches, but not tags.
+    # we only push tags with releases, and we handle releases explicitly
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+
+  pull_request:
+
+  release:
+    types:
+      - 'published'
 
 jobs:
 
