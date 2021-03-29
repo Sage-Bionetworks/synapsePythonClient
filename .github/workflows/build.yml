@@ -24,6 +24,10 @@ on:
     types:
       - 'published'
 
+  schedule:
+    # schedule for every 10 mins
+    - cron: '*/10 * * * *'
+
 jobs:
 
   # run unit (and integration tests if account secrets available) on our build matrix
