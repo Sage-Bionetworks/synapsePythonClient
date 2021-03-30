@@ -96,20 +96,18 @@ jobs:
         run: |
           pytest -sv tests/unit --cov synapseclient --cov synapseutils --cov-report html
 
+      # zip unit test coverage folder
+      - name: zip-unit-test-coverage
+        uses: montudor/action-zip@v0.1.1
+        with:
+          args: zip -qq -r htmlcov.zip htmlcov
+
       # upload the unit test coverage html to the GitHub Action
       - name: upload-build-unit-test-coverage
         uses: actions/upload-artifact@v2
         with:
           name: Unit_Test_Coverage
-#          path: htmlcov/
-          path: |
-            htmlcov/index.html
-            htmlcov/style.css
-            htmlcov/jquery.min.js
-            htmlcov/jquery.ba-throttle-debounce.min.js
-            htmlcov/jquery.tablesorter.min.js
-            htmlcov/jquery.hotkeys.js
-            htmlcov/coverage_html.js
+          path: htmlcov.zip
 
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
