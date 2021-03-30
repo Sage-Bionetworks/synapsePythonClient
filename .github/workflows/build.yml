@@ -96,18 +96,16 @@ jobs:
         run: |
           pytest -sv tests/unit --cov synapseclient --cov synapseutils --cov-report html
 
-      # tar unit test coverage folder
-#      - name: tar-unit-test-coverage
-#        run: tar -cvf htmlcov.tar htmlcov
+      # zip unit test coverage folder
       - name: zip-unit-test-coverage
         run: zip htmlcov.zip htmlcov
 
-      # upload the unit test coverage tar file to the GitHub Action
+      # upload the unit test coverage zip file to the GitHub Action
       - name: upload-build-unit-test-coverage
         uses: actions/upload-artifact@v2
         with:
           name: Unit_Test_Coverage
-          path: htmlcov.tar
+          path: htmlcov.zip
 
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
