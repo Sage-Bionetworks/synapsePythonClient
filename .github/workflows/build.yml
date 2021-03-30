@@ -97,8 +97,10 @@ jobs:
           pytest -sv tests/unit --cov synapseclient --cov synapseutils --cov-report html
 
       # tar unit test coverage folder
-      - name: tar-unit-test-coverage
-        run: tar -cvf htmlcov.tar htmlcov
+#      - name: tar-unit-test-coverage
+#        run: tar -cvf htmlcov.tar htmlcov
+      - name: zip-unit-test-coverage
+        run: zip htmlcov.zip htmlcov
 
       # upload the unit test coverage tar file to the GitHub Action
       - name: upload-build-unit-test-coverage
