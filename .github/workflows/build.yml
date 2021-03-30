@@ -97,11 +97,8 @@ jobs:
           pytest -sv tests/unit --cov synapseclient --cov synapseutils --cov-report html
 
       # zip unit test coverage folder
-      - name: zip-unit-test-coverage-ubuntu
-        if: ${{startsWith(runner.os, 'ubuntu')}}
-        run: zip htmlcov.zip htmlcov
-      - name: zip-unit-test-coverage-mac
-        if: ${{startsWith(runner.os, 'macos')}}
+      - name: zip-unit-test-coverage-ubuntu-mac
+        if: ${{startsWith(runner.os, 'windows')}} != true
         run: zip htmlcov.zip htmlcov
       - name: zip-unit-test-coverage-windows
         if: ${{startsWith(runner.os, 'windows')}}
