@@ -98,7 +98,12 @@ jobs:
 
       # zip unit test coverage folder
       - name: zip-unit-test-coverage
+        if: ${{startsWith(runner.os, 'ubuntu')}}
         run: zip htmlcov.zip htmlcov
+        if: ${{startsWith(runner.os, 'macos')}}
+        run: zip htmlcov.zip htmlcov
+        if: ${{startsWith(runner.os, 'windows')}}
+        run: 7z a htmlcov.zip htmlcov
 
       # upload the unit test coverage zip file to the GitHub Action
       - name: upload-build-unit-test-coverage
