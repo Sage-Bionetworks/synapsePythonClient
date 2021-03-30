@@ -98,7 +98,7 @@ jobs:
 
       # zip unit test coverage folder
       - name: zip-unit-test-coverage-ubuntu-mac
-        if: runner.os == 'Windows' != true
+        if: runner.os != 'Windows'
         run: zip htmlcov.zip htmlcov
       - name: zip-unit-test-coverage-windows
         if: runner.os == 'Windows'
@@ -154,7 +154,7 @@ jobs:
             export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
              # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-            pytest -sv tests/integration -n auto --dist loadscope
+#            pytest -sv tests/integration -n auto --dist loadscope
           fi
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
