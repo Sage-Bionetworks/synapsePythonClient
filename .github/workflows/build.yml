@@ -98,9 +98,9 @@ jobs:
 
       # zip unit test coverage folder
       - name: zip-unit-test-coverage
-        uses: montudor/action-zip@v0.1.1
-        with:
-          args: zip -qq -r htmlcov.zip htmlcov
+        run: tar -cvf htmlcov.tar htmlcov
+
+
 
       # upload the unit test coverage html to the GitHub Action
       - name: upload-build-unit-test-coverage
