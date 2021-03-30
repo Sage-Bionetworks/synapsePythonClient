@@ -2,7 +2,6 @@ import filecmp
 import os
 import tempfile
 import shutil
-import time
 
 import pytest
 
