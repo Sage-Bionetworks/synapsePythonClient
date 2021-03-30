@@ -98,10 +98,10 @@ jobs:
 
       # zip unit test coverage folder
       - name: zip-unit-test-coverage-ubuntu-mac
-        if: ${{startsWith(runner.os, 'windows')}} != true
+        if: ${{startsWith(runner.os, 'Windows')}} != true
         run: zip htmlcov.zip htmlcov
       - name: zip-unit-test-coverage-windows
-        if: ${{startsWith(runner.os, 'windows')}}
+        if: ${{startsWith(runner.os, 'Windows')}}
         run: 7z a htmlcov.zip htmlcov
 
       # upload the unit test coverage zip file to the GitHub Action
