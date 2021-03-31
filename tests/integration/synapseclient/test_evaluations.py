@@ -144,7 +144,7 @@ def test_evaluations(syn, project, schedule_for_cleanup):
             except AssertionError:
                 attempts -= 1
                 time.sleep(sleep_time)
-                # sleep_time *= 2
+                sleep_time *= 2
             else:
                 attempts = 0
 
@@ -192,7 +192,7 @@ def test_teams(syn, project, schedule_for_cleanup):
 
     # needs to be retried 'cause appending to the search index is asynchronous
     tries = 5
-    sleep_time = 0.5
+    sleep_time = 1
     found_team = None
     while tries > 0:
         try:
@@ -202,5 +202,5 @@ def test_teams(syn, project, schedule_for_cleanup):
             tries -= 1
             if tries > 0:
                 time.sleep(sleep_time)
-                # sleep_time *= 2
+                sleep_time *= 2
     assert team == found_team
