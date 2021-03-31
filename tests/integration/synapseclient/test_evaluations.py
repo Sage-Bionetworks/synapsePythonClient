@@ -203,4 +203,5 @@ def test_teams(syn, project, schedule_for_cleanup):
             if tries > 0:
                 time.sleep(sleep_time)
                 sleep_time *= 2
+            print("-------------------------", sleep_time)
     assert team == found_team
