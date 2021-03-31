@@ -5,6 +5,7 @@ import uuid
 import random
 
 import pytest
+import sys
 
 from synapseclient import Evaluation, File, SubmissionViewSchema, Synapse, Team
 from synapseclient.core.exceptions import SynapseHTTPError
@@ -203,5 +204,5 @@ def test_teams(syn, project, schedule_for_cleanup):
             if tries > 0:
                 time.sleep(sleep_time)
                 sleep_time *= 2
-            print("-------------------------", sleep_time)
+            sys.stdout("-------------------------", sleep_time)
     assert team == found_team
