@@ -196,7 +196,8 @@ class TestS3ClientWrapper:
                 upload_file_path,
                 remote_file_key,
                 Callback=progress_callback,
-                Config=transfer_config
+                Config=transfer_config,
+                ExtraArgs={'ACL': 'bucket-owner-full-control'},
             )
 
             # why do we return something we passed...?
