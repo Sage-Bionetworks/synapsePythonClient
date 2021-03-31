@@ -155,6 +155,7 @@ class ExernalStorageTest(unittest.TestCase):
             Filename=temp_file.name,
             Bucket=bucket_name,
             Key=remote_key,
+            ExtraArgs={'ACL': 'bucket-owner-full-control'},
         )
 
         # now read the file using our read credentials
