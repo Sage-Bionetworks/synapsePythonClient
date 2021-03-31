@@ -131,7 +131,8 @@ def test_evaluations(syn, project, schedule_for_cleanup):
         # These queries run against an eventually consistent index table which is
         # populated by an asynchronous worker. Thus, the queries may remain out
         # of sync for some unbounded, but assumed to be short time.
-        attempts = 2
+        attempts = 5
+        sleep_time = 1
         while attempts > 0:
             try:
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s" % ev.id)
@@ -142,7 +143,8 @@ def test_evaluations(syn, project, schedule_for_cleanup):
                 assert len(results['rows']) == num_of_submissions
             except AssertionError:
                 attempts -= 1
-                time.sleep(2)
+                time.sleep(sleep_time)
+                sleep_time *= 2
             else:
                 attempts = 0
 
@@ -189,7 +191,8 @@ def test_teams(syn, project, schedule_for_cleanup):
     assert found is not None, "Couldn't find user {} in team".format(p.userName)
 
     # needs to be retried 'cause appending to the search index is asynchronous
-    tries = 10
+    tries = 5
+    sleep_time = 1
     found_team = None
     while tries > 0:
         try:
@@ -198,5 +201,6 @@ def test_teams(syn, project, schedule_for_cleanup):
         except ValueError:
             tries -= 1
             if tries > 0:
-                time.sleep(1)
+                time.sleep(sleep_time)
+                sleep_time *= 2
     assert team == found_team
