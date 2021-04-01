@@ -907,7 +907,7 @@ class Synapse(object):
             if downloadPath is None or not os.path.exists(downloadPath):
                 return
 
-        entity.path = downloadPath
+        entity.path = os.path.normpath(downloadPath)
         entity.files = [os.path.basename(downloadPath)]
         entity.cacheDir = os.path.dirname(downloadPath)
 
