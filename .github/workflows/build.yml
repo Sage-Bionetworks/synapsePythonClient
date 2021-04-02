@@ -123,6 +123,10 @@ jobs:
 
     if: github.event_name == 'release'
 
+    outputs:
+      sdist-package-name: ${{ steps.build-package.outputs.sdist-package-name }}
+      bdist-package-name: ${{ steps.build-package.outputs.bdist-package-name }}
+
     steps:
       - uses: actions/checkout@v2
 
@@ -238,9 +242,16 @@ jobs:
         with:
           python-version: 3.6
 
-      - uses: actions/download-artifact@v2
+      - name: download-sdist
+        uses: actions/download-artifact@v2
         with:
-          name: synapseclient
+          name: ${{ needs.package.outputs.sdist-package-name }}
+          path: dist
+
+      - name: download-bdist
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ needs.package.outputs.bdist-package-name }}
           path: dist
 
       - name: deploy-to-pypi
