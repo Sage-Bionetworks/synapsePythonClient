@@ -288,7 +288,7 @@ class Cache:
         the cache.
 
         Either the before_date or after_date must be specified. If both are passed, files between the two dates are
-        selected for removal. Dates must be formatted as a Unix timestamp (epoch time). 
+        selected for removal. Dates must be formatted as a Unix timestamp (epoch time).
 
         :param before_date: if specified, all files before this date will be removed
         :param after_date:  if specified, all files after this date will be removed
