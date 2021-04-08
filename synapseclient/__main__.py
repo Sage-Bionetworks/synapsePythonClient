@@ -379,42 +379,83 @@ def storeTable(args, syn):
     syn.logger.info('{"tableId": "%s"}', table_ent.tableId)
 
 
-def config(args, syn):
-    """Create/modify a synapse configuration file"""
-    user = input("Username:")
-    secret_prompt = "Auth token:"
-    passwd = None
-    while not passwd:
-        # if the terminal is not a tty, we are unable to read from standard input
-        # For git bash using python getpass
-        # https://stackoverflow.com/questions/49858821/python-getpass-doesnt-work-on-windows-git-bash-mingw64
-        if not sys.stdin.isatty():
-            raise SynapseAuthenticationError(
-                "No password, key, or token was provided and unable to read from standard input")
-        else:
-            passwd = getpass.getpass(secret_prompt)
-    # Since we don't split up credential configuration file, it is simply too
-    # hacky to try to edit the file minimally in place.  Therefore, I will
-    # copy the old configuration file into a .synapseConfig.backup and write a
-    # new .synaspeConfig file.
+def _replace_existing_config(path, auth_section):
+    # insert the auth section into the existing config file
+
+    # always make a backup of the existing config file,
+    # but don't overwrite an existing backup
+    i = 1
+    cur_config_path = os.path.dirname(os.path.realpath(path))
+    while True:
+        copy_filename = f"{path}.backup{i if i > 1 else ''}"
+        copy_to = os.path.join(cur_config_path, copy_filename)
+        if not os.path.exists(copy_to):
+            shutil.copyfile(path, copy_to)
+            break
+
+        i += 1
+
+    # find the existing authentication section, we'll replace it wholly with an updated
+    # section with the new values.
+    with open(path, 'r') as config_o:
+        config_text = config_o.read()
+
+    matcher = re.search(
+        r'^[ \t]*(\[authentication\].*?)(^[ \t]*\[|\Z)',
+        config_text,
+        flags=re.MULTILINE | re.DOTALL
+    )
+    if matcher:
+        # we matched an existing authentication section
+        new_config_text = config_text[:matcher.start(1)] + auth_section + config_text[matcher.end(1):]
+
+    else:
+        # weren't able to find an authentication section so
+        # we write a new authentication section at the start of the file
+        new_config_text = auth_section + '\n\n' + config_text
+
+    return new_config_text
+
+
+def _generate_new_config(auth_section):
+    # insert the auth section into the default config template file
+
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    # Read in configuration
-    cur_config_path = os.path.dirname(os.path.realpath(args.configPath))
-    # Make a copy of the existing config if it exists
-    if os.path.exists(args.configPath):
-        shutil.copyfile(
-            args.configPath,
-            os.path.join(cur_config_path, f"{args.configPath}.backup")
-        )
 
     with open(os.path.join(script_dir, ".synapseConfig"), "r") as config_o:
         config_text = config_o.read()
+
     # Replace text in configuration
-    config_text = config_text.replace("#[authentication]", "[authentication]")
-    config_text = config_text.replace("#username = <username>",
-                                      f"username = {user}")
-    config_text = config_text.replace("#authtoken = <authtoken>",
-                                      f"authtoken = {passwd}")
+    new_config_text = re.sub(
+        r'#\[authentication\].*<authtoken>',
+        auth_section,
+        config_text,
+        flags=re.MULTILINE | re.DOTALL
+    )
+    return new_config_text
+
+
+def config(args, syn):
+    """Create/modify a synapse configuration file"""
+    user, secret = _prompt_for_credentials()
+
+    # validate the credentials provided and determine what login
+    # mechanism was used (password, authToken, apiKey)
+    # this means that writing a config requires connectivity
+    # (and that the endpoints in the current config point to
+    # the endpoints of the credentials)
+    login_key = _authenticate_login(syn, user, secret, silent=True)
+
+    auth_section = '[authentication]\n'
+    if user:
+        auth_section += f"username={user}\n"
+    auth_section += f"{login_key.lower()}={secret}\n\n"
+
+    if os.path.exists(args.configPath):
+        config_text = _replace_existing_config(args.configPath, auth_section)
+    else:
+        config_text = _generate_new_config(auth_section)
+
     with open(args.configPath, "w") as config_o:
         config_o.write(config_text)
 
@@ -1033,24 +1074,31 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
         _authenticate_login(syn, user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
         # there were no complete credentials in the cache nor provided
-        if not user:
-            # if username was passed then we use that username
-            user = input("Synapse username (leave blank if using an auth token): ")
+        user, passwd = _prompt_for_credentials(user=user)
 
-        # if no username was provided then prompt for auth token, since no other secret will suffice without a user
-        secret_prompt = f"Password, api key, or auth token for user {user}:" if user else "Auth token:"
-
-        passwd = None
-        while not passwd:
-            # if the terminal is not a tty, we are unable to read from standard input
-            # For git bash using python getpass
-            # https://stackoverflow.com/questions/49858821/python-getpass-doesnt-work-on-windows-git-bash-mingw64
-            if not sys.stdin.isatty():
-                raise SynapseAuthenticationError(
-                    "No password, key, or token was provided and unable to read from standard input")
-            else:
-                passwd = getpass.getpass(secret_prompt)
         _authenticate_login(syn, user, passwd, rememberMe=rememberMe, forced=forced)
+
+
+def _prompt_for_credentials(user=None):
+    if not user:
+        # if username was passed then we use that username
+        user = input("Synapse username (leave blank if using an auth token): ")
+
+    # if no username was provided then prompt for auth token, since no other secret will suffice without a user
+    secret_prompt = f"Password, api key, or auth token for user {user}:" if user else "Auth token:"
+
+    passwd = None
+    while not passwd:
+        # if the terminal is not a tty, we are unable to read from standard input
+        # For git bash using python getpass
+        # https://stackoverflow.com/questions/49858821/python-getpass-doesnt-work-on-windows-git-bash-mingw64
+        if not sys.stdin.isatty():
+            raise SynapseAuthenticationError(
+                "No password, key, or token was provided and unable to read from standard input")
+        else:
+            passwd = getpass.getpass(secret_prompt)
+
+    return user, passwd
 
 
 def _authenticate_login(syn, user, secret, **login_kwargs):
@@ -1084,7 +1132,7 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
                 login_kwargs_with_secret = {login_key: secret} if login_key else {}
                 login_kwargs_with_secret.update(login_kwargs)
                 syn.login(user, **login_kwargs_with_secret)
-                break
+                return login_key
             except SynapseNoCredentialsError:
                 # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
                 raise
