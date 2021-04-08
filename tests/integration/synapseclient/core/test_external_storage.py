@@ -8,7 +8,6 @@ from synapseclient.core.retry import with_retry
 
 import pytest
 import unittest
-from unittest import mock
 
 try:
     boto3 = importlib.import_module('boto3')
@@ -182,37 +181,3 @@ class ExernalStorageTest(unittest.TestCase):
         retrieved_file_entity = self.syn.get(file_entity['id'])
         with open(retrieved_file_entity.path, 'r') as f:
             assert file_contents == f.read()
-
-    def test_boto_upload__acl(self):
-        """Verify when we store a Synapse object using boto we apply a bucket-owner-full-control ACL to the object"""
-        bucket_name, _ = get_aws_env()
-        _, folder, storage_location_id = self._configure_storage_location(sts_enabled=True)
-
-        file_contents = str(uuid.uuid4())
-        upload_file = self._make_temp_file(contents=file_contents)
-
-        # mock the sts setting so that we upload this file using boto regardless of test configuration
-        with mock.patch.object(self.syn, 'use_boto_sts_transfers', new_callable=mock.PropertyMock(return_value=True)):
-            file = self.syn.store(File(path=upload_file.name, parent=folder))
-
-        s3_read_client = boto3.client('s3', **get_aws_env()[1])
-        bucket_acl = s3_read_client.get_bucket_acl(Bucket=bucket_name)
-        bucket_grantee = bucket_acl['Grants'][0]['Grantee']
-        assert bucket_grantee['Type'] == 'CanonicalUser'
-        bucket_owner_id = bucket_grantee['ID']
-
-        # with_retry to avoid acidity issues of an S3 put
-        object_acl = with_retry(
-            lambda: s3_read_client.get_object_acl(
-                Bucket=bucket_name,
-                Key=file['_file_handle']['key']
-            ),
-            retry_exceptions=[s3_read_client.exceptions.NoSuchKey]
-        )
-        grants = object_acl['Grants']
-        assert len(grants) == 1
-        grant = grants[0]
-        grantee = grant['Grantee']
-        assert grantee['Type'] == 'CanonicalUser'
-        assert grantee['ID'] == bucket_owner_id
-        assert grant['Permission'] == 'FULL_CONTROL'
