@@ -23,6 +23,7 @@ from synapseutils.migrate_functions import (
     _create_new_file_version,
     _confirm_migration,
     _ensure_schema,
+    _get_part_size,
     _get_row_dict,
     _include_file_storage_location_in_index,
     _index_container,
@@ -38,6 +39,8 @@ from synapseutils.migrate_functions import (
     _retrieve_index_settings,
     _verify_index_settings,
     _verify_storage_location_ownership,
+    DEFAULT_PART_SIZE,
+    MAX_NUMBER_OF_PARTS,
     index_files_for_migration,
     migrate_indexed_files,
 )
@@ -2258,3 +2261,16 @@ class TestIncludeFileStorageLocation:
             source_storage_location_ids,
             to_storage_location_id,
         ) is None
+
+
+@pytest.mark.parametrize('file_size,expected_part_size', [
+    (1, DEFAULT_PART_SIZE),
+    (10 * utils.MB, DEFAULT_PART_SIZE),
+    (5000 * utils.MB, DEFAULT_PART_SIZE),
+    (DEFAULT_PART_SIZE * MAX_NUMBER_OF_PARTS, DEFAULT_PART_SIZE),
+    ((DEFAULT_PART_SIZE * MAX_NUMBER_OF_PARTS) + 1, DEFAULT_PART_SIZE + 1),
+    ((5000000 * utils.MB) + 1, 524288001),
+])
+def test_get_part_size(file_size, expected_part_size):
+    """Verify part size calculations."""
+    assert _get_part_size(file_size) == expected_part_size

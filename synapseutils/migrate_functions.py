@@ -3,6 +3,7 @@ import csv
 from enum import Enum
 import json
 import logging
+import math
 import sys
 import traceback
 import typing
@@ -13,7 +14,6 @@ from synapseclient.core import pool_provider
 from synapseclient.core import utils
 from synapseclient.core.upload.multipart_upload import (
     MAX_NUMBER_OF_PARTS,
-    MIN_PART_SIZE,
     multipart_copy,
     shared_executor,
 )
@@ -38,6 +38,14 @@ def test_import_sqlite3():
 installation of python. Using a Python installed from a binary package or compiled from source with sqlite
 development headers available should ensure that the sqlite3 module is available.""")
         raise
+
+
+# we use a much larger default part size for part copies than we would for part uploads.
+# with part copies the data transfer is within AWS so don't need to concern ourselves
+# with upload failures of the actual bytes.
+# this value aligns with what some AWS client libraries use e.g.
+# https://github.com/aws/aws-sdk-java/blob/1.11.995/aws-java-sdk-s3/src/main/java/com/amazonaws/services/s3/transfer/TransferManagerConfiguration.java#L46
+DEFAULT_PART_SIZE = 100 * utils.MB
 
 
 class _MigrationStatus(Enum):
@@ -1239,9 +1247,7 @@ def _index_entity(
 
 
 def _get_part_size(file_size):
-    # recommended part size per
-    # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadCopyRequest.html
-    return max(MIN_PART_SIZE, (file_size / MAX_NUMBER_OF_PARTS))
+    return max(DEFAULT_PART_SIZE, math.ceil((file_size / MAX_NUMBER_OF_PARTS)))
 
 
 def _create_new_file_version(syn, key, from_file_handle_id, to_file_handle_id, file_size, storage_location_id):
