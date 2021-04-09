@@ -25,6 +25,7 @@ from synapseutils.migrate_functions import (
     _ensure_schema,
     _get_part_size,
     _get_row_dict,
+    _get_table_file_handle_rows,
     _include_file_storage_location_in_index,
     _index_container,
     _index_entity,
@@ -418,11 +419,13 @@ class TestIndex:
         file_handle_id_2 = 'fh2'
         file_handle_id_3 = 'fh3'
         file_handle_id_4 = 'fh4'
+        file_handle_id_5 = 'fh5'
 
         file_handle_size_1 = 100
         file_handle_size_2 = 200
         file_handle_size_3 = 300
         file_handle_size_4 = 400
+        file_handle_size_5 = 500
 
         file_handle_1 = {
             'fileHandle': {
@@ -432,6 +435,7 @@ class TestIndex:
                 'storageLocationId': from_storage_location_id,
             }
         }
+
         file_handle_2 = {
             'fileHandle': {
                 'id': file_handle_id_2,
@@ -461,9 +465,19 @@ class TestIndex:
             }
         }
 
+        # this has no listed storage location
+        file_handle_5 = {
+            'fileHandle': {
+                'id': file_handle_id_5,
+                'concreteType': S3_FILE_HANDLE,
+                'contentSize': file_handle_size_5,
+            }
+        }
+
         syn.tableQuery.return_value = [
             [1, 1, file_handle_id_1, file_handle_id_2],
             [2, 1, file_handle_id_3, file_handle_id_4],
+            [3, 1, file_handle_id_5, None],
         ]
 
         syn._getFileHandleDownload.side_effect = [
@@ -471,6 +485,7 @@ class TestIndex:
             file_handle_2,
             file_handle_3,
             file_handle_4,
+            file_handle_5,
         ]
 
         _index_table_entity(cursor, syn, table_id, parent_id, to_storage_location_id, [from_storage_location_id, '543'])
@@ -518,6 +533,27 @@ class TestIndex:
         assert row_2_dict['status'] == _MigrationStatus.ALREADY_MIGRATED.value
 
         # file 3 is excluded entirely because it wasn't in a relevant storage location
+
+    def test_index_table_entity__no_file_handles(self, mocker, syn):
+        """Verify behavior when there are no file handle columns in an indexed table"""
+
+        entity = 'syn123'
+        parent_id = 'syn456'
+        dest_storage_location_id = '12345'
+        source_storage_location_ids = None
+
+        mock_get_table_file_handle_rows = mocker.patch.object(migrate_functions, '_get_table_file_handle_rows')
+
+        def mock_get_table_file_handle_rows_side_effect(*args, **kwargs):
+            yield from []
+
+        mock_get_table_file_handle_rows.side_effect = mock_get_table_file_handle_rows_side_effect
+        mock_cursor = mock.MagicMock(sqlite3.Cursor)
+
+        _index_table_entity(mock_cursor, syn, entity, parent_id, dest_storage_location_id, source_storage_location_ids)
+
+        # should not have tried to insert anything
+        assert mock_cursor.executemany.called is False
 
     @mock.patch.object(synapseutils.migrate_functions, '_index_entity')
     def test_index_container__files(self, mock_index_entity, conn):
@@ -650,7 +686,7 @@ class TestIndex:
             continue_on_error,
         )
 
-        syn.getChildren.assert_called_once_with(folder_id, includeTypes=['folder', 'table'])
+        syn.getChildren.assert_called_once_with(folder_id, includeTypes=['table'])
 
         expected_calls = [
             mock.call(
@@ -1897,6 +1933,102 @@ def test_migrate_table_attached_file__use_existing_file_handle(mocker, syn):
     mock_row_set.assert_called_once_with(key.id, [mock_table.PartialRow.return_value])
 
     assert mock_multipart_copy.called is False
+
+
+def test_get_table_file_handle_rows(mocker, syn):
+    """Verify behavior of get_table_file_handles. In particular verify proper escaping of columns
+    names when querying tables for file handle ids"""
+
+    table_id = 'syn123'
+
+    mock_rest_get = mocker.patch.object(syn, 'restGET')
+    mock_rest_get.return_value = {
+        'results': [
+            {
+                'id': 1,
+                'name': 'column_1_file_handle',
+                'columnType': 'FILEHANDLEID',
+            },
+            {
+                'id': 2,
+                'name': 'column_2_not_a_file_handle',
+                'columnType': 'STRING',
+            },
+            {
+                'id': 3,
+                'name': 'column_3_file_handle with spaces and "quotes"',
+                'columnType': 'FILEHANDLEID',
+            },
+        ]
+    }
+
+    row_1_id = 1
+    row_1_version = 3
+    row_1_col_1_val = '12345'
+    row_1_col_3_val = '54321'
+
+    row_2_id = 2
+    row_2_version = 4
+    row_2_col_1_val = '98765'
+    row_2_col_2_val = '56789'
+
+    mock_table_query = mocker.patch.object(syn, 'tableQuery')
+    mock_table_query.return_value = [
+        (row_1_id, row_1_version, row_1_col_1_val, row_1_col_3_val),
+        (row_2_id, row_2_version, row_2_col_1_val, row_2_col_2_val),
+    ]
+
+    file_handles = [
+        {'fileHandle': {'id': row_1_col_1_val}},
+        {'fileHandle': {'id': row_1_col_3_val}},
+        {'fileHandle': {'id': row_2_col_1_val}},
+        {'fileHandle': {'id': row_2_col_2_val}},
+    ]
+
+    mock_get_file_handle_download = mocker.patch.object(syn, '_getFileHandleDownload')
+    mock_get_file_handle_download.side_effect = [
+        {'fileHandle': file_handle} for file_handle in file_handles
+    ]
+
+    expected_table_file_rows = [
+        (row_1_id, row_1_version, {1: file_handles[0], 3: file_handles[1]}),
+        (row_2_id, row_2_version, {1: file_handles[2], 3: file_handles[3]}),
+    ]
+    table_file_rows = [t for t in _get_table_file_handle_rows(syn, table_id)]
+    assert table_file_rows == expected_table_file_rows
+
+    mock_rest_get.assert_called_once_with(f"/entity/{table_id}/column")
+    mock_table_query.assert_called_once_with(
+        f'select "column_1_file_handle","column_3_file_handle with spaces and ""quotes""" from {table_id}'
+    )
+    assert mock_get_file_handle_download.call_args_list == [
+        mock.call(file_handle['fileHandle']['id'], table_id, objectType='TableEntity') for file_handle in file_handles
+    ]
+
+
+def test_get_table_file_handle_rows__no_file_columns(mocker, syn):
+    """Verify the behavior of get_table_file_handle_rows when no columns in the table are FILEHANDLEIDS"""
+
+    table_id = 'syn123'
+
+    mock_rest_get = mocker.patch.object(syn, 'restGET')
+    mock_rest_get.return_value = {
+        'results': [
+            {
+                'id': 1,
+                'name': 'column_1',
+                'columnType': 'INTEGER',
+            },
+            {
+                'id': 2,
+                'name': 'column_2',
+                'columnType': 'STRING',
+            },
+        ]
+    }
+
+    assert [i for i in _get_table_file_handle_rows(syn, table_id)] == []
+    mock_rest_get.assert_called_once_with(f"/entity/{table_id}/column")
 
 
 def _verify_schema(cursor):

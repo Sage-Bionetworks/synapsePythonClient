@@ -922,9 +922,9 @@ def _include_file_storage_location_in_index(
     # if the current storage location already matches the destination location then we also
     # include it in the index, we'll mark it as already migrated.
 
-    from_storage_location_id = file_handle['storageLocationId']
+    from_storage_location_id = file_handle.get('storageLocationId')
     if (
-            (file_handle['concreteType'] == concrete_types.S3_FILE_HANDLE) and
+            (file_handle.get('concreteType') == concrete_types.S3_FILE_HANDLE) and
             (
                 not source_storage_location_ids or
                 str(from_storage_location_id) in source_storage_location_ids or
@@ -1020,24 +1020,32 @@ def _index_file_entity(
             )
 
 
-def _get_file_handle_rows(syn, table_id):
+def _get_table_file_handle_rows(syn, table_id):
     file_handle_columns = [c for c in syn.restGET("/entity/{id}/column".format(id=table_id))['results']
                            if c['columnType'] == 'FILEHANDLEID']
-    file_column_select = ','.join(c['name'] for c in file_handle_columns)
-    results = syn.tableQuery("select {} from {}".format(file_column_select, table_id))
-    for row in results:
-        file_handles = {}
+    if file_handle_columns:
+        # quote column names in case they include whitespace or other special characters
+        # and double quote escape existing quotes.
+        file_column_select = '"' + '","'.join(c['name'].replace('"', '""') for c in file_handle_columns) + '"'
+        results = syn.tableQuery("select {} from {}".format(file_column_select, table_id))
+        for row in results:
+            file_handles = {}
 
-        # first two cols are row id and row version, rest are file handle ids from our query
-        row_id, row_version = row[:2]
+            # first two cols are row id and row version, rest are file handle ids from our query
+            row_id, row_version = row[:2]
 
-        file_handle_ids = row[2:]
-        for i, file_handle_id in enumerate(file_handle_ids):
-            col_id = file_handle_columns[i]['id']
-            file_handle = syn._getFileHandleDownload(file_handle_id, table_id, objectType='TableEntity')['fileHandle']
-            file_handles[col_id] = file_handle
+            file_handle_ids = row[2:]
+            for i, file_handle_id in enumerate(file_handle_ids):
+                if file_handle_id:
+                    col_id = file_handle_columns[i]['id']
+                    file_handle = syn._getFileHandleDownload(
+                        file_handle_id,
+                        table_id,
+                        objectType='TableEntity'
+                    )['fileHandle']
+                    file_handles[col_id] = file_handle
 
-        yield row_id, row_version, file_handles
+            yield row_id, row_version, file_handles
 
 
 def _index_table_entity(
@@ -1073,9 +1081,8 @@ def _index_table_entity(
                 row_batch
             )
 
-    for row_id, row_version, file_handles in _get_file_handle_rows(syn, entity_id):
+    for row_id, row_version, file_handles in _get_table_file_handle_rows(syn, entity_id):
         for col_id, file_handle in file_handles.items():
-
             migration_status = _include_file_storage_location_in_index(
                 file_handle,
                 source_storage_location_ids,
@@ -1120,9 +1127,9 @@ def _index_container(
     concrete_type = utils.concrete_type_of(container_entity)
     logging.info('Indexing %s %s', concrete_type[concrete_type.rindex('.') + 1:], entity_id)
 
-    include_types = ['folder']
+    include_types = []
     if file_version_strategy != 'skip':
-        include_types.append('file')
+        include_types.extend(('folder', 'file'))
     if include_table_files:
         include_types.append('table')
 
