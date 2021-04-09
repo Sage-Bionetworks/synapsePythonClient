@@ -8,7 +8,13 @@ from unittest import mock, skipIf
 import synapseclient
 from synapseclient.core.exceptions import SynapseHTTPError
 import synapseclient.core.upload
-from synapseclient.core.constants.concrete_types import FILE_ENTITY, FOLDER_ENTITY, PROJECT_ENTITY, TABLE_ENTITY
+from synapseclient.core.constants.concrete_types import (
+    FILE_ENTITY,
+    FOLDER_ENTITY,
+    PROJECT_ENTITY,
+    S3_FILE_HANDLE,
+    TABLE_ENTITY,
+)
 from synapseclient.core import utils
 import synapseutils
 from synapseutils import migrate_functions
@@ -224,6 +230,7 @@ class TestIndex:
         mock_file._file_handle = {
             'contentSize': file_size,
             'storageLocationId': from_storage_location_id,
+            'concreteType': S3_FILE_HANDLE,
         }
         syn.get.return_value = mock_file
 
@@ -291,6 +298,7 @@ class TestIndex:
         mock_file_2.dataFileHandleId = 2
         mock_file_2_size = 9876
         mock_file_2._file_handle = {
+            'concreteType': S3_FILE_HANDLE,
             'contentSize': mock_file_2_size,
             'storageLocationId': from_storage_location_id
         }
@@ -301,6 +309,7 @@ class TestIndex:
         mock_file_3.dataFileHandleId = 3
         mock_file_3_size = 1234
         mock_file_3._file_handle = {
+            'concreteType': S3_FILE_HANDLE,
             'contentSize': mock_file_3_size,
 
             # already migrated
@@ -313,6 +322,7 @@ class TestIndex:
         mock_file_4.dataFileHandleId = 4
         mock_file_4_size = 9876
         mock_file_4._file_handle = {
+            'concreteType': S3_FILE_HANDLE,
             'contentSize': mock_file_4_size,
 
             'storageLocationId': 'not a matching storage location'
@@ -414,6 +424,7 @@ class TestIndex:
         file_handle_1 = {
             'fileHandle': {
                 'id': file_handle_id_1,
+                'concreteType': S3_FILE_HANDLE,
                 'contentSize': file_handle_size_1,
                 'storageLocationId': from_storage_location_id,
             }
@@ -421,6 +432,7 @@ class TestIndex:
         file_handle_2 = {
             'fileHandle': {
                 'id': file_handle_id_2,
+                'concreteType': S3_FILE_HANDLE,
                 'contentSize': file_handle_size_2,
                 'storageLocationId': from_storage_location_id,
             }
@@ -430,6 +442,7 @@ class TestIndex:
         file_handle_3 = {
             'fileHandle': {
                 'id': file_handle_id_3,
+                'concreteType': S3_FILE_HANDLE,
                 'contentSize': file_handle_size_3,
                 'storageLocationId': 'not a source storage location',
             }
@@ -439,6 +452,7 @@ class TestIndex:
         file_handle_4 = {
             'fileHandle': {
                 'id': file_handle_id_4,
+                'concreteType': S3_FILE_HANDLE,
                 'contentSize': file_handle_size_4,
                 'storageLocationId': to_storage_location_id,
             }
@@ -2175,52 +2189,72 @@ class TestIncludeFileStorageLocation:
         """Verify that if source_storage_location_ids are not specified then we include
         the record in the index because no sources means all sources."""
 
-        source_storage_location_ids = None
         from_storage_location_id = '1234'
+        file_handle = {
+            'concreteType': S3_FILE_HANDLE,
+            'storageLocationId': from_storage_location_id,
+        }
+
+        source_storage_location_ids = None
         to_storage_location_id = '4321'
         assert _include_file_storage_location_in_index(
+            file_handle,
             source_storage_location_ids,
-            from_storage_location_id,
             to_storage_location_id,
-        ) is True
+        ) == _MigrationStatus.INDEXED.value
 
     def test_include_file_storage_location_in_index__source_location_id_matched(self):
         """Verify that if source_storage_location_ids is specified then we include
         the record if the file's current storage location matches."""
 
-        source_storage_location_ids = ['0987', '1234', '8765']
         from_storage_location_id = '1234'
+        file_handle = {
+            'concreteType': S3_FILE_HANDLE,
+            'storageLocationId': from_storage_location_id,
+        }
+
+        source_storage_location_ids = ['0987', '1234', '8765']
         to_storage_location_id = '4321'
         assert _include_file_storage_location_in_index(
+            file_handle,
             source_storage_location_ids,
-            from_storage_location_id,
             to_storage_location_id,
-        ) is True
+        ) is _MigrationStatus.INDEXED.value
 
     def test_include_file_storage_location_in_index__already_in_destination(self):
         """Verify that if the file is already in the destination storage location
         then we include it in the index (it will be marked as ALREADY_MIGRATED).
         This helps show what happened with the file."""
 
-        source_storage_location_ids = ['0987', '8765']
         from_storage_location_id = '1234'
+        file_handle = {
+            'concreteType': S3_FILE_HANDLE,
+            'storageLocationId': from_storage_location_id,
+        }
+
+        source_storage_location_ids = ['0987', '8765']
         to_storage_location_id = from_storage_location_id
         assert _include_file_storage_location_in_index(
+            file_handle,
             source_storage_location_ids,
-            from_storage_location_id,
             to_storage_location_id,
-        ) is True
+        ) == _MigrationStatus.ALREADY_MIGRATED.value
 
     def test_include_file_storage_location_in_index__exclude(self):
         """Verify that if the file's current storage location doesn't match
         one of the source specified locations and it isn't already in the target
         destination it is excluded from the index altogether. It's not relevant to the migration."""
 
-        source_storage_location_ids = ['0987', '8765']
         from_storage_location_id = '1234'
+        file_handle = {
+            'concreteType': S3_FILE_HANDLE,
+            'storageLocationId': from_storage_location_id,
+        }
+
+        source_storage_location_ids = ['0987', '8765']
         to_storage_location_id = '4321'
         assert _include_file_storage_location_in_index(
+            file_handle,
             source_storage_location_ids,
-            from_storage_location_id,
             to_storage_location_id,
-        ) is False
+        ) is None

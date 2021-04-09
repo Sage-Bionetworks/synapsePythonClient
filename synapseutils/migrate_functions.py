@@ -905,19 +905,31 @@ def _get_version_numbers(syn, entity_id):
 
 
 def _include_file_storage_location_in_index(
+    file_handle,
     source_storage_location_ids,
-    from_storage_location_id,
     to_storage_location_id,
 ):
     # helper determines whether a file is included in the index depending on its storage location.
     # if source_storage_location_ids are specified the from storage location must be in it.
     # if the current storage location already matches the destination location then we also
     # include it in the index, we'll mark it as already migrated.
-    return (
-        not source_storage_location_ids or
-        str(from_storage_location_id) in source_storage_location_ids or
-        str(from_storage_location_id) == str(to_storage_location_id)
-    )
+
+    from_storage_location_id = file_handle['storageLocationId']
+    if (
+            (file_handle['concreteType'] == concrete_types.S3_FILE_HANDLE) and
+            (
+                not source_storage_location_ids or
+                str(from_storage_location_id) in source_storage_location_ids or
+                str(from_storage_location_id) == str(to_storage_location_id)
+            )
+    ):
+        migration_status = _MigrationStatus.INDEXED.value \
+            if str(from_storage_location_id) != str(to_storage_location_id) \
+            else _MigrationStatus.ALREADY_MIGRATED.value
+        return migration_status
+
+    # this file is not included in this index
+    return None
 
 
 def _index_file_entity(
@@ -963,17 +975,12 @@ def _index_file_entity(
     if entity_versions:
         insert_values = []
         for (entity, version) in entity_versions:
-            from_storage_location_id = entity._file_handle['storageLocationId']
-
-            if _include_file_storage_location_in_index(
+            migration_status = _include_file_storage_location_in_index(
+                entity._file_handle,
                 source_storage_location_ids,
-                from_storage_location_id,
                 to_storage_location_id
-            ):
-
-                migration_status = _MigrationStatus.INDEXED.value \
-                    if str(from_storage_location_id) != str(to_storage_location_id) \
-                    else _MigrationStatus.ALREADY_MIGRATED.value
+            )
+            if migration_status:
 
                 file_size = entity._file_handle['contentSize']
                 insert_values.append((
@@ -981,7 +988,7 @@ def _index_file_entity(
                     _MigrationType.FILE.value,
                     version,
                     parent_id,
-                    from_storage_location_id,
+                    entity._file_handle['storageLocationId'],
                     entity.dataFileHandleId,
                     file_size,
                     migration_status
@@ -1060,18 +1067,13 @@ def _index_table_entity(
 
     for row_id, row_version, file_handles in _get_file_handle_rows(syn, entity_id):
         for col_id, file_handle in file_handles.items():
-            existing_storage_location_id = file_handle['storageLocationId']
 
-            if _include_file_storage_location_in_index(
+            migration_status = _include_file_storage_location_in_index(
+                file_handle,
                 source_storage_location_ids,
-                existing_storage_location_id,
                 dest_storage_location_id,
-            ):
-
-                migration_status = _MigrationStatus.INDEXED.value \
-                    if str(dest_storage_location_id) != str(existing_storage_location_id) \
-                    else _MigrationStatus.ALREADY_MIGRATED.value
-
+            )
+            if migration_status:
                 file_size = file_handle['contentSize']
                 row_batch.append((
                     entity_id,
@@ -1080,7 +1082,7 @@ def _index_table_entity(
                     row_id,
                     col_id,
                     row_version,
-                    existing_storage_location_id,
+                    file_handle['storageLocationId'],
                     file_handle['id'],
                     file_size,
                     migration_status
