@@ -8,7 +8,7 @@ Release Notes
 Highlights
 ----------
 
-- Entities can be annotated with boolean datatypes, e.g.:
+- Entities can be annotated with boolean datatypes, for example:
 
   .. code-block::
 
@@ -32,7 +32,7 @@ Improvements
 -  [`SYNPY-1120 <https://sagebionetworks.jira.com/browse/SYNPY-1120>`__] -
    Build wheel distributions
 -  [`SYNPY-1129 <https://sagebionetworks.jira.com/browse/SYNPY-1129>`__] -
-   support boolean annotations in Python client
+   Support boolean annotations in Python client
 
 
 2.3.0 (2021-03-03)
