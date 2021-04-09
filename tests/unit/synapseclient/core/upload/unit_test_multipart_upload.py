@@ -232,7 +232,7 @@ class TestUploadAttempt:
         with pytest.raises(SynapseUploadAbortedException):
             upload._handle_part(5)
 
-    def test_handle_part_500(self, syn):
+    def test_handle_part__500(self, syn):
         """Test that we retry if we encounter a 500 from AWS on a PUT to the signed URL"""
 
         upload = self._init_upload_attempt(syn)
@@ -263,6 +263,42 @@ class TestUploadAttempt:
                 (
                     mock.call(pre_signed_url, chunk, headers=signed_headers),
                     mock_500
+                ),
+                (
+                    mock.call(pre_signed_url, chunk, headers=signed_headers),
+                    mock.Mock(status_code=200)
+                ),
+            ],
+            chunk,
+            None
+        )
+
+    def test_handle_part__connection_error(self, syn):
+        """Test that we retry if we encounter a ConnectionError on a reqeust to PUT to an AWS presigend url"""
+
+        upload = self._init_upload_attempt(syn)
+        upload._upload_id = '123'
+        part_number = 1
+        chunk = b'1' * TestUploadAttempt.part_size
+
+        pre_signed_url = 'https://foo.com/1'
+        signed_headers = {'a': 1}
+
+        upload._pre_signed_part_urls = {part_number: (pre_signed_url, signed_headers)}
+
+        self._handle_part_success_test(
+            syn,
+            upload,
+            part_number,
+            pre_signed_url,
+
+
+            # initial call is expired and results in a 500
+            # second call is successful
+            [
+                (
+                    mock.call(pre_signed_url, chunk, headers=signed_headers),
+                    requests.exceptions.ConnectionError('aborted')
                 ),
                 (
                     mock.call(pre_signed_url, chunk, headers=signed_headers),
