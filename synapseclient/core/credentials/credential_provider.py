@@ -234,7 +234,7 @@ DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([
     EnvironmentVariableCredentialsProvider(),
     ConfigFileCredentialsProvider(),
     CachedCredentialsProvider(),
-    AWSParameterStoreCredentialsProvider(), # see service catalog issue: SC-260
+    AWSParameterStoreCredentialsProvider(),  # see service catalog issue: SC-260
 ])
 
 

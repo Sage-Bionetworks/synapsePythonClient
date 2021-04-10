@@ -250,12 +250,10 @@ class TestUserArgsCredentialsProvider(object):
         provider = UserArgsCredentialsProvider()
         returned_tuple = provider._get_auth_info(self.syn, user_login_args)
 
-        assert (
-                   user_login_args.username,
-                   user_login_args.password,
-                   user_login_args.api_key,
-                   user_login_args.auth_token
-               ) == returned_tuple
+        assert (user_login_args.username,
+                user_login_args.password,
+                user_login_args.api_key,
+                user_login_args.auth_token) == returned_tuple
 
 
 class TestConfigFileCredentialsProvider(object):
@@ -505,7 +503,8 @@ class TestEnvironmentVariableCredentialsProvider():
         token = "aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj1mQzdvVU9VRUVpNA=="
         mocker.patch.dict(os.environ, {'SYNAPSE_ACCESS_TOKEN': token})
         username = "foobar"
-        user_login_args = UserLoginArgs(username=username, password=None, api_key=None, skip_cache=False, auth_token=None)
+        user_login_args = UserLoginArgs(username=username, password=None, api_key=None, skip_cache=False,
+                                        auth_token=None)
         assert (username, None, None, token) == self.provider._get_auth_info(syn, user_login_args)
 
     def test_get_auth_info__no_environment_variable(self, mocker: MockerFixture, syn):
