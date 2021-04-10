@@ -22,7 +22,8 @@ from synapseclient.core.credentials.credential_provider import (
     SynapseCredentialsProviderChain,
     UserArgsCredentialsProvider,
     UserArgsSessionTokenCredentialsProvider,
-    AWSParameterStoreCredentialsProvider
+    AWSParameterStoreCredentialsProvider,
+    EnvironmentVariableCredentialsProvider,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
 
@@ -112,7 +113,7 @@ class TestSynapseCredentialProvider(object):
     def test_get_synapse_credentials(self):
         auth_info = ("username", "password", "api_key")
         with patch.object(self.provider, "_get_auth_info", return_value=auth_info) as mock_get_auth_info, \
-             patch.object(self.provider, "_create_synapse_credential") as mock_create_synapse_credentials:
+                patch.object(self.provider, "_create_synapse_credential") as mock_create_synapse_credentials:
             self.provider.get_synapse_credentials(self.syn, self.user_login_args)
 
             mock_get_auth_info.assert_called_once_with(self.syn, self.user_login_args)
@@ -141,7 +142,7 @@ class TestSynapseCredentialProvider(object):
         over api key and auth bearer token)"""
         session_token = "37842837946"
         with patch.object(self.syn, "_getSessionToken", return_value=session_token) as mock_get_session_token, \
-             patch.object(self.syn, "_getAPIKey", return_value=self.api_key) as mock_get_api_key:
+                patch.object(self.syn, "_getAPIKey", return_value=self.api_key) as mock_get_api_key:
             # even if api key and/or auth_token is provided, password applies first
             cred = self.provider._create_synapse_credential(
                 self.syn,
@@ -250,11 +251,11 @@ class TestUserArgsCredentialsProvider(object):
         returned_tuple = provider._get_auth_info(self.syn, user_login_args)
 
         assert (
-            user_login_args.username,
-            user_login_args.password,
-            user_login_args.api_key,
-            user_login_args.auth_token
-        ) == returned_tuple
+                   user_login_args.username,
+                   user_login_args.password,
+                   user_login_args.api_key,
+                   user_login_args.auth_token
+               ) == returned_tuple
 
 
 class TestConfigFileCredentialsProvider(object):
@@ -478,6 +479,37 @@ class TestAWSParameterStoreCredentialsProvider(object):
         mocker.patch.dict(os.environ, environ_with_param_name)
         # simulate import error by "removing" boto3 from sys.modules
         mocker.patch.dict(sys.modules, {'boto3': None})
+
+        user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
+
+        assert (None,) * 4 == self.provider._get_auth_info(syn, user_login_args)
+
+
+class TestEnvironmentVariableCredentialsProvider():
+
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
+    def setup(self):
+        self.provider = EnvironmentVariableCredentialsProvider()
+
+    def test_get_auth_info__has_environment_variable(self, mocker: MockerFixture, syn):
+        token = "aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj1mQzdvVU9VRUVpNA=="
+        mocker.patch.dict(os.environ, {'SYNAPSE_ACCESS_TOKEN': token})
+
+        user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
+        assert (None, None, None, token) == self.provider._get_auth_info(syn, user_login_args)
+
+    def test_get_auth_info__has_environment_variable_user_args_with_username(self, mocker: MockerFixture, syn):
+        token = "aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj1mQzdvVU9VRUVpNA=="
+        mocker.patch.dict(os.environ, {'SYNAPSE_ACCESS_TOKEN': token})
+        username = "foobar"
+        user_login_args = UserLoginArgs(username=username, password=None, api_key=None, skip_cache=False, auth_token=None)
+        assert (username, None, None, token) == self.provider._get_auth_info(syn, user_login_args)
+
+    def test_get_auth_info__no_environment_variable(self, mocker: MockerFixture, syn):
+        mocker.patch.dict(os.environ, {}, clear=True)
 
         user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
 

@@ -2,6 +2,33 @@
 Release Notes
 =============
 
+
+2.4.0 (2021-05-XX)
+==================
+
+Highlights
+----------
+
+- Added ability to :code:`syn.login()` without arguments if the :code:`SYNAPSE_ACCESS_TOKEN` enviroment variable is set with a valid personal access token
+
+  .. code-block:: bash
+
+        # set environment variable for python
+        SYNAPSE_ACCESS_TOKEN='<my_personal_access_token>' python3
+
+  .. code-block:: python3
+
+        import synapseclient
+        # login() will retrieve the personal access token from environment variable
+        syn = synapseclient.login()
+  The environment variable will take priority over credentials in the user's :code:`.synapseConfig` file
+  or any credentials saved in a prior login using :code:`syn.login(rememberMe=True)`.
+New Features
+------------
+
+-  [`SYNPY-1125 <https://sagebionetworks.jira.com/browse/SYNPY-1125>`__] -
+   Allow login with environment variables
+
 2.3.0 (2021-03-03)
 ================
 

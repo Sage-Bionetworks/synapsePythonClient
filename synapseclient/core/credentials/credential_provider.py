@@ -188,6 +188,16 @@ class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
         return user_login_args.username, None, None, token
 
 
+class EnvironmentVariableCredentialsProvider(SynapseCredentialsProvider):
+    """
+    Retrieves the user's auth token from an environment variable
+    """
+    ENVIRONMENT_VAR_NAME = "SYNAPSE_ACCESS_TOKEN"
+
+    def _get_auth_info(self, syn, user_login_args):
+        return user_login_args.username, None, None, os.environ.get(self.ENVIRONMENT_VAR_NAME)
+
+
 class SynapseCredentialsProviderChain(object):
     """
     Class that has a list of ``SynapseCredentialsProvider`` from which this class attempts to retrieve
@@ -221,9 +231,10 @@ class SynapseCredentialsProviderChain(object):
 DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([
     UserArgsSessionTokenCredentialsProvider(),  # This provider is DEPRECATED
     UserArgsCredentialsProvider(),
+    EnvironmentVariableCredentialsProvider(),
     ConfigFileCredentialsProvider(),
     CachedCredentialsProvider(),
-    AWSParameterStoreCredentialsProvider(),
+    AWSParameterStoreCredentialsProvider(), # see service catalog issue: SC-260
 ])
 
 
