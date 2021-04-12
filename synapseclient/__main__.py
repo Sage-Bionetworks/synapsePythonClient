@@ -27,6 +27,8 @@ from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseFileNotFoundError,
     SynapseNoCredentialsError,
+    SynapseProvenanceError,
+    SynapseError,
 )
 
 
@@ -289,6 +291,18 @@ def onweb(args, syn):
 
 def setProvenance(args, syn):
     """Set provenance information on a synapse entity."""
+    if isinstance(args.id, str) and os.path.isfile(args.id):
+        results = syn.restGET('/entity/md5/%s' % utils.md5_for_file(args.id).hexdigest())['results']
+        if args.limitSearch is not None:
+            results = filter_id_by_limitSearch(syn, results, args.limitSearch)
+
+        set_id_result = check_id_results(results)
+        if len(set_id_result) > 1:
+            raise SynapseProvenanceError('There are more than one identical content for this file in different '
+                                         'locations on Synapse')
+        target_syn_id = results[-1]['id']
+    else:
+        target_syn_id = args.id
 
     activity = Activity(name=args.name, description=args.description)
 
@@ -298,7 +312,7 @@ def setProvenance(args, syn):
     if args.executed:
         for item in syn._convertProvenanceList(args.executed, args.limitSearch):
             activity.used(item, wasExecuted=True)
-    activity = syn.setProvenance(args.id, activity)
+    activity = syn.setProvenance(target_syn_id, activity)
 
     # Display the activity record, if -o or -output specified
     if args.output:
@@ -314,7 +328,18 @@ def setProvenance(args, syn):
 
 
 def getProvenance(args, syn):
-    activity = syn.getProvenance(args.id, args.version)
+    if isinstance(args.id, str) and os.path.isfile(args.id):
+        results = syn.restGET('/entity/md5/%s' % utils.md5_for_file(args.id).hexdigest())['results']
+        if args.limitSearch is not None:
+            results = filter_id_by_limitSearch(syn, results, args.limitSearch)
+
+        set_id_result = check_id_results(results)
+        if len(set_id_result) > 1:
+            raise SynapseProvenanceError('There are more than one identical content for this file in different '
+                                         'locations on Synapse')
+        activity = syn.getProvenance(results[-1]['id'], args.version)
+    else:
+        activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output == 'STDOUT':
         syn.logger.info(json.dumps(activity, sort_keys=True, indent=2))
@@ -348,7 +373,20 @@ def setAnnotations(args, syn):
             "For example, to set an annotations called 'foo' to the value 1, the format should be "
             "'{\"foo\": 1, \"bar\":\"quux\"}'.")
 
-    annots = syn.get_annotations(args.id)
+    if isinstance(args.id, str) and os.path.isfile(args.id):
+        results = syn.restGET('/entity/md5/%s' % utils.md5_for_file(args.id).hexdigest())['results']
+        if args.limitSearch is not None:
+            results = filter_id_by_limitSearch(syn, results, args.limitSearch)
+
+        set_id_result = check_id_results(results)
+        if len(set_id_result) > 1:
+            raise SynapseError('There are more than one identical content for this file in different locations '
+                               'on Synapse')
+        target_syn_id = results[-1]['id']
+    else:
+        target_syn_id = args.id
+
+    annots = syn.get_annotations(target_syn_id)
 
     if args.replace:
         annots = Annotations(annots.id, annots.etag, newannots)
@@ -361,7 +399,18 @@ def setAnnotations(args, syn):
 
 
 def getAnnotations(args, syn):
-    annotations = syn.get_annotations(args.id)
+    if isinstance(args.id, str) and os.path.isfile(args.id):
+        results = syn.restGET('/entity/md5/%s' % utils.md5_for_file(args.id).hexdigest())['results']
+        if args.limitSearch is not None:
+            results = filter_id_by_limitSearch(syn, results, args.limitSearch)
+
+        set_id_result = check_id_results(results)
+        if len(set_id_result) > 1:
+            raise SynapseError('There are more than one identical content for this file in different locations '
+                               'on Synapse')
+        annotations = syn.get_annotations(results[-1]['id'])
+    else:
+        annotations = syn.get_annotations(args.id)
 
     if args.output is None or args.output == 'STDOUT':
         syn.logger.info(json.dumps(annotations, sort_keys=True, indent=2))
@@ -370,6 +419,20 @@ def getAnnotations(args, syn):
             f.write(json.dumps(annotations))
             f.write('\n')
 
+
+def filter_id_by_limitSearch(syn, results, limitSearch):
+    # Go through and find the path of every entity found
+    paths = [syn.restGET('/entity/%s/path' % ent['id']) for ent in results]
+    # Filter out all entities whose path does not contain limitSearch
+    results = [ent for ent, path in zip(results, paths) if utils.is_in_path(limitSearch, path)]
+    return results
+
+
+def check_id_results(results):
+    set_id_result = set()
+    for res in results:
+        set_id_result.add(res['id'])
+    return set_id_result
 
 def storeTable(args, syn):
     """Store table given csv"""
@@ -836,6 +899,9 @@ def build_parser():
                                        help='Synapse ID of entity whose provenance we are accessing.')
     parser_get_provenance.add_argument('--version', metavar='version', type=int, required=False,
                                        help='version of Synapse entity whose provenance we are accessing.')
+    parser_get_provenance.add_argument('-limitSearch', '--limitSearch', metavar='projId', type=str, default=None,
+                                       help='Synapse ID of a container such as project or folder to limit search for '
+                                            'provenance files.')
 
     parser_get_provenance.add_argument('-o', '-output', '--output', metavar='OUTPUT_FILE', dest='output',
                                        const='STDOUT', nargs='?', type=str,
@@ -844,22 +910,26 @@ def build_parser():
 
     parser_set_annotations = subparsers.add_parser('set-annotations',
                                                    help='create annotations records')
-    parser_set_annotations.add_argument("--id", metavar='syn123', type=str, required=True,
+    parser_set_annotations.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
                                         help='Synapse ID of entity whose annotations we are accessing.')
     parser_set_annotations.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=True,
                                         help="Annotations to add as a JSON formatted string, should evaluate to a "
                                              "dictionary (key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
     parser_set_annotations.add_argument('-r', '--replace', action='store_true', default=False,
                                         help='Replace all existing annotations with the given annotations')
+    parser_set_annotations.add_argument('-limitSearch', '--limitSearch', metavar='projId', type=str, default=None,
+                                        help='Synapse ID of a container such as project or folder to limit search to.')
     parser_set_annotations.set_defaults(func=setAnnotations)
 
     parser_get_annotations = subparsers.add_parser('get-annotations',
                                                    help='show annotations records')
-    parser_get_annotations.add_argument('--id', metavar='syn123', type=str, required=True,
+    parser_get_annotations.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
                                         help='Synapse ID of entity whose annotations we are accessing.')
     parser_get_annotations.add_argument('-o', '--output', metavar='OUTPUT_FILE', dest='output',
                                         const='STDOUT', nargs='?', type=str,
                                         help='Output the annotations record in JSON format')
+    parser_get_annotations.add_argument('-limitSearch', '--limitSearch', metavar='projId', type=str, default=None,
+                                        help='Synapse ID of a container such as project or folder to limit search to.')
     parser_get_annotations.set_defaults(func=getAnnotations)
 
     parser_create = subparsers.add_parser('create',
