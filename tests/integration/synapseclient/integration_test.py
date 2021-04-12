@@ -3,7 +3,6 @@ import tempfile
 import os
 import filecmp
 import shutil
-import time
 import uuid
 import configparser
 from datetime import datetime
@@ -12,7 +11,7 @@ import pytest
 from unittest.mock import patch
 
 from synapseclient import client
-from synapseclient import Activity, Annotations, File, Folder, login, Project, Synapse, Team
+from synapseclient import Activity, Annotations, File, Folder, login, Project, Synapse
 from synapseclient.core.credentials import credential_provider
 from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseHTTPError, SynapseNoCredentialsError
 import synapseclient.core.utils as utils
@@ -359,32 +358,6 @@ def test_get_user_profile(syn):
     # get by user ID
     p2 = syn.getUserProfile(p1.ownerId)
     assert p2.userName == p1.userName
-
-
-def test_teams(syn):
-    unique_name = "Team Gnarly Rad " + str(uuid.uuid4())
-    team = Team(name=unique_name, description="A gnarly rad team", canPublicJoin=True)
-    team = syn.store(team)
-
-    team2 = syn.getTeam(team.id)
-    assert team == team2
-
-    # Asynchronously populates index, so wait 'til it's there
-    retry = 0
-    backoff = 0.2
-    while retry < 10:
-        retry += 1
-        time.sleep(backoff)
-        backoff *= 2
-        found_teams = list(syn._findTeam(team.name))
-        if len(found_teams) > 0:
-            break
-    else:
-        print("Failed to create team. May not be a real error.")
-
-    syn.delete(team)
-
-    assert team == found_teams[0]
 
 
 def test_findEntityIdByNameAndParent(syn, schedule_for_cleanup):
