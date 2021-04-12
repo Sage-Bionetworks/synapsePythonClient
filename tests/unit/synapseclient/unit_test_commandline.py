@@ -578,9 +578,11 @@ class TestGetFunction:
                                                        call('Creating %s', './tmp_path')]
 
 
+@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-def test_get_provenance_function__with_syn_id(mock_os, mock_syn):
+def test_get_provenance_function__with_syn_id(mock_os, mock_syn, mock_filter_id_by_limitSearch, mock_check_id_results):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-provenance', '-id', 'syn123'])
     mock_os.path.isfile.return_value = False
@@ -591,6 +593,8 @@ def test_get_provenance_function__with_syn_id(mock_os, mock_syn):
     mock_syn.getProvenance.assert_called_with('syn123', None)
     mock_syn.logger.info.assert_called_with('{\n  "description": "test_description",\n  "id": "syn123",\n  '
                                             '"name": "test_name"\n}')
+    mock_filter_id_by_limitSearch.assert_not_called()
+    mock_check_id_results.assert_not_called()
 
 
 @patch('synapseclient.client.Synapse')
@@ -618,7 +622,7 @@ def test_get_provenance_function__with_syn_id_md5__only_one_result__without_limi
 @patch.object(cmdline, 'os')
 @patch.object(cmdline, 'utils')
 def test_get_provenance_function__with_syn_id_md5__with_limitSeatch(mock_utils, mock_os, mock_filter_id_by_limitSearch,
-                                                               mock_syn):
+                                                                    mock_syn):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-provenance', '-id', 'home/temp_path/temp_file', '-limitSearch', 'syn123'])
     mock_os.path.isfile.return_value = True
@@ -831,3 +835,154 @@ def test_set_provenance_function__raise_exception(mock_utils, mock_os, mock_syn,
     str(syn_ex.value) == 'There are more than one identical content for this file in different locations on Synapse'
     mock_syn.setProvenance.assert_not_called()
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
+
+
+@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, 'filter_id_by_limitSearch')
+@patch('synapseclient.client.Synapse')
+@patch.object(cmdline, 'os')
+def test_get_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id_by_limitSearch, mock_check_id_results):
+    parser = cmdline.build_parser()
+    args = parser.parse_args(['get-annotations', '-id', 'syn123'])
+    mock_os.path.isfile.return_value = False
+
+    mock_syn.get_annotations.return_value = {'test_key': ['test_val']}
+    cmdline.getAnnotations(args, mock_syn)
+
+    mock_syn.get_annotations.assert_called_with('syn123')
+    mock_syn.logger.info.assert_called_with('{\n  "test_key": [\n    "test_val"\n  ]\n}')
+    mock_filter_id_by_limitSearch.assert_not_called()
+    mock_check_id_results.assert_not_called()
+
+
+@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, 'filter_id_by_limitSearch')
+@patch('synapseclient.client.Synapse')
+@patch.object(cmdline, 'os')
+@patch.object(cmdline, 'utils')
+def test_get_annotations_function__with_syn_id_md5__only_one_result__without_limitSeatch(mock_utils, mock_os, mock_syn,
+                                                                                         mock_filter_id_by_limitSearch,
+                                                                                         mock_check_id_results):
+    parser = cmdline.build_parser()
+    args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file'])
+    mock_os.path.isfile.return_value = True
+
+    mock_syn.restGET.return_value = {'results': [{'name': 'test_file', 'id': 'syn12345',
+                                                  'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                  'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}]}
+
+    mock_syn.get_annotations.return_value = {'test_key': ['test_val']}
+    mock_utils.md5_for_file.return_value = hashlib.md5()
+
+    cmdline.getAnnotations(args, mock_syn)
+
+    mock_syn.get_annotations.assert_called_with('syn12345')
+    mock_filter_id_by_limitSearch.assert_not_called()
+    mock_check_id_results.assert_called_with([{'name': 'test_file',
+                                               'id': 'syn12345',
+                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                               'versionNumber': 1,
+                                               'versionLabel': '1',
+                                               'isLatestVersion': False}])
+    mock_syn.logger.info.assert_called_with('{\n  "test_key": [\n    "test_val"\n  ]\n}')
+
+
+@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, 'filter_id_by_limitSearch')
+@patch('synapseclient.client.Synapse')
+@patch.object(cmdline, 'os')
+@patch.object(cmdline, 'utils')
+def test_get_annotation_function__with_syn_id_md5__with_limitSeatch(mock_utils, mock_os, mock_syn,
+                                                                    mock_filter_id_by_limitSearch,
+                                                                    mock_check_id_results):
+    parser = cmdline.build_parser()
+    args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file', '-limitSearch', 'syn456789'])
+    mock_os.path.isfile.return_value = True
+
+    mock_syn.restGET.return_value = {'results': [{'name': 'test_file', 'id': 'syn12345',
+                                                  'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                  'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
+                                                 {'name': 'test_file', 'id': 'syn12345',
+                                                  'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                  'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}]}
+    mock_filter_id_by_limitSearch.return_value = [{'name': 'test_file', 'id': 'syn12345',
+                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
+                                                  {'name': 'test_file', 'id': 'syn12345',
+                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
+                                                  ]
+
+    mock_syn.get_annotations.return_value = {'test_key': ['test_val']}
+    mock_utils.md5_for_file.return_value = hashlib.md5()
+
+    cmdline.getAnnotations(args, mock_syn)
+
+    mock_syn.get_annotations.assert_called_with('syn12345')
+    mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
+    mock_check_id_results.assert_called_with([{'name': 'test_file',
+                                               'id': 'syn12345',
+                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                               'versionNumber': 1,
+                                               'versionLabel': '1',
+                                               'isLatestVersion': False},
+                                              {'name': 'test_file',
+                                               'id': 'syn12345',
+                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                               'versionNumber': 2,
+                                               'versionLabel': '2',
+                                               'isLatestVersion': False}])
+
+
+@patch.object(cmdline, 'filter_id_by_limitSearch')
+@patch('synapseclient.client.Synapse')
+@patch.object(cmdline, 'os')
+@patch.object(cmdline, 'utils')
+def test_get_annotation_function__raise_exception(mock_utils, mock_os, mock_syn, mock_filter_id_by_limitSearch):
+    parser = cmdline.build_parser()
+    args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file', '-limitSearch', 'syn456789'])
+    mock_os.path.isfile.return_value = True
+
+    mock_syn.restGET.return_value = {'results': [{'name': 'test_file', 'id': 'syn12345',
+                                                  'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                  'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
+                                                 {'name': 'test_file', 'id': 'syn789',
+                                                  'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                  'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}]}
+    mock_filter_id_by_limitSearch.return_value = [{'name': 'test_file', 'id': 'syn12345',
+                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
+                                                  {'name': 'test_file', 'id': 'syn789',
+                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
+                                                  ]
+    mock_utils.md5_for_file.return_value = hashlib.md5()
+
+    assert len(cmdline.check_id_results(mock_filter_id_by_limitSearch())) == 2
+
+    with pytest.raises(SynapseError) as syn_ex:
+        cmdline.getAnnotations(args, mock_syn)
+
+    str(syn_ex.value) == 'There are more than one identical content for this file in different locations on Synapse'
+    mock_syn.get_annotations.assert_not_called()
+    mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
+
+
+def test_check_id_results():
+    results = [{'name': 'test_file', 'id': 'syn12345', 'type': 'org.sagebionetworks.repo.model.FileEntity',
+                'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
+               {'name': 'test_file', 'id': 'syn12345', 'type': 'org.sagebionetworks.repo.model.FileEntity',
+                'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False},
+               {'name': 'test_file', 'id': 'syn12345', 'type': 'org.sagebionetworks.repo.model.FileEntity',
+                'versionNumber': 3, 'versionLabel': '3', 'isLatestVersion': False}
+               ]
+    assert len(cmdline.check_id_results(results)) == 1
+
+    results = [{'name': 'test_file', 'id': 'syn12345', 'type': 'org.sagebionetworks.repo.model.FileEntity',
+                'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
+               {'name': 'test_file', 'id': 'syn12345', 'type': 'org.sagebionetworks.repo.model.FileEntity',
+                'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False},
+               {'name': 'test_file', 'id': 'syn789', 'type': 'org.sagebionetworks.repo.model.FileEntity',
+                'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}
+               ]
+    assert len(cmdline.check_id_results(results)) == 2

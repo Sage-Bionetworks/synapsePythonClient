@@ -434,6 +434,7 @@ def check_id_results(results):
         set_id_result.add(res['id'])
     return set_id_result
 
+
 def storeTable(args, syn):
     """Store table given csv"""
     table = synapseclient.table.build_table(args.name,
