@@ -406,14 +406,13 @@ class TestIndex:
 
         # gets the columns of the table
         # 4 columns, 2 of the file handles
-        syn.restGET.return_value = {
-            'results': [
-                {'columnType': 'STRING'},
-                {'columnType': 'FILEHANDLEID', 'id': '1', 'name': 'col1'},
-                {'columnType': 'FILEHANDLEID', 'id': '2', 'name': 'col2'},
-                {'columnType': 'INTEGER'},
-            ]
-        }
+        mock_get_table_columns = mocker.patch.object(syn, 'getTableColumns')
+        mock_get_table_columns.return_value = [
+            {'columnType': 'STRING'},
+            {'columnType': 'FILEHANDLEID', 'id': '1', 'name': 'col1'},
+            {'columnType': 'FILEHANDLEID', 'id': '2', 'name': 'col2'},
+            {'columnType': 'INTEGER'},
+        ]
 
         file_handle_id_1 = 'fh1'
         file_handle_id_2 = 'fh2'
@@ -1941,26 +1940,24 @@ def test_get_table_file_handle_rows(mocker, syn):
 
     table_id = 'syn123'
 
-    mock_rest_get = mocker.patch.object(syn, 'restGET')
-    mock_rest_get.return_value = {
-        'results': [
-            {
-                'id': 1,
-                'name': 'column_1_file_handle',
-                'columnType': 'FILEHANDLEID',
-            },
-            {
-                'id': 2,
-                'name': 'column_2_not_a_file_handle',
-                'columnType': 'STRING',
-            },
-            {
-                'id': 3,
-                'name': 'column_3_file_handle with spaces and "quotes"',
-                'columnType': 'FILEHANDLEID',
-            },
-        ]
-    }
+    mock_get_table_columns = mocker.patch.object(syn, 'getTableColumns')
+    mock_get_table_columns.return_value = [
+        {
+            'id': 1,
+            'name': 'column_1_file_handle',
+            'columnType': 'FILEHANDLEID',
+        },
+        {
+            'id': 2,
+            'name': 'column_2_not_a_file_handle',
+            'columnType': 'STRING',
+        },
+        {
+            'id': 3,
+            'name': 'column_3_file_handle with spaces and "quotes"',
+            'columnType': 'FILEHANDLEID',
+        },
+    ]
 
     row_1_id = 1
     row_1_version = 3
@@ -1997,7 +1994,7 @@ def test_get_table_file_handle_rows(mocker, syn):
     table_file_rows = [t for t in _get_table_file_handle_rows(syn, table_id)]
     assert table_file_rows == expected_table_file_rows
 
-    mock_rest_get.assert_called_once_with(f"/entity/{table_id}/column")
+    mock_get_table_columns.assert_called_once_with(table_id)
     mock_table_query.assert_called_once_with(
         f'select "column_1_file_handle","column_3_file_handle with spaces and ""quotes""" from {table_id}'
     )

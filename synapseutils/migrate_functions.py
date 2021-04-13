@@ -12,6 +12,7 @@ import synapseclient
 from synapseclient.core.constants import concrete_types
 from synapseclient.core import pool_provider
 from synapseclient.core import utils
+from synapseclient.table import join_column_names
 from synapseclient.core.upload.multipart_upload import (
     MAX_NUMBER_OF_PARTS,
     multipart_copy,
@@ -1021,12 +1022,9 @@ def _index_file_entity(
 
 
 def _get_table_file_handle_rows(syn, table_id):
-    file_handle_columns = [c for c in syn.restGET("/entity/{id}/column".format(id=table_id))['results']
-                           if c['columnType'] == 'FILEHANDLEID']
+    file_handle_columns = [c for c in syn.getTableColumns(table_id) if c['columnType'] == 'FILEHANDLEID']
     if file_handle_columns:
-        # quote column names in case they include whitespace or other special characters
-        # and double quote escape existing quotes.
-        file_column_select = '"' + '","'.join(c['name'].replace('"', '""') for c in file_handle_columns) + '"'
+        file_column_select = join_column_names(file_handle_columns)
         results = syn.tableQuery("select {} from {}".format(file_column_select, table_id))
         for row in results:
             file_handles = {}
