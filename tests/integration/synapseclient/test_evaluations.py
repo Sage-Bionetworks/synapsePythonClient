@@ -132,16 +132,17 @@ def test_evaluations(syn, project, schedule_for_cleanup):
         assert len(invalid_submissions) == 1, len(invalid_submissions)
         assert invalid_submissions[0]['name'] == 'Submission 01'
 
+        view = SubmissionViewSchema(name="Testing view", scopes=[ev['id']],
+                                    parent=project['id'])
+        view_ent = syn.store(view)
+
         # test that we can retrieve annotations via a submission view
         # retry a few times because this may be related to asynchronous worker activity
-        attempts = 10
+        attempts = 8
         sleep_time = 1
         i = 0
         while True:
             try:
-                view = SubmissionViewSchema(name="Testing view", scopes=[ev['id']],
-                                            parent=project['id'])
-                view_ent = syn.store(view)
                 view_table = syn.tableQuery(f"select * from {view_ent.id}")
                 viewdf = view_table.asDataFrame()
                 assert viewdf['foo'].tolist() == ["bar", "bar"]
@@ -185,7 +186,7 @@ def test_teams(syn, project, schedule_for_cleanup):
     assert found is not None, "Couldn't find user {} in team".format(p.userName)
 
     # needs to be retried 'cause appending to the search index is asynchronous
-    tries = 10
+    tries = 8
     sleep_time = 1
     found_team = None
     while tries > 0:
