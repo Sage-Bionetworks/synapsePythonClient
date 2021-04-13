@@ -2011,16 +2011,16 @@ def test_get_table_file_handle_rows__no_file_columns(mocker, syn):
     mock_get_table_columns = mocker.patch.object(syn, 'getTableColumns')
     mock_get_file_handle_download = mocker.patch.object(syn, '_getFileHandleDownload')
     mock_get_table_columns.return_value = [
-       {
-           'id': 1,
-           'name': 'column_1',
-           'columnType': 'INTEGER',
-       },
-       {
-           'id': 2,
-           'name': 'column_2',
-           'columnType': 'STRING',
-       },
+        {
+            'id': 1,
+            'name': 'column_1',
+            'columnType': 'INTEGER',
+        },
+        {
+            'id': 2,
+            'name': 'column_2',
+            'columnType': 'STRING',
+        },
     ]
 
     assert [i for i in _get_table_file_handle_rows(syn, table_id)] == []
