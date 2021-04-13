@@ -1976,10 +1976,10 @@ def test_get_table_file_handle_rows(mocker, syn):
     ]
 
     file_handles = [
-        {'fileHandle': {'id': row_1_col_1_val}},
-        {'fileHandle': {'id': row_1_col_3_val}},
-        {'fileHandle': {'id': row_2_col_1_val}},
-        {'fileHandle': {'id': row_2_col_2_val}},
+        {'id': row_1_col_1_val},
+        {'id': row_1_col_3_val},
+        {'id': row_2_col_1_val},
+        {'id': row_2_col_2_val},
     ]
 
     mock_get_file_handle_download = mocker.patch.object(syn, '_getFileHandleDownload')
@@ -1999,7 +1999,7 @@ def test_get_table_file_handle_rows(mocker, syn):
         f'select "column_1_file_handle","column_3_file_handle with spaces and ""quotes""" from {table_id}'
     )
     assert mock_get_file_handle_download.call_args_list == [
-        mock.call(file_handle['fileHandle']['id'], table_id, objectType='TableEntity') for file_handle in file_handles
+        mock.call(file_handle['id'], table_id, objectType='TableEntity') for file_handle in file_handles
     ]
 
 
