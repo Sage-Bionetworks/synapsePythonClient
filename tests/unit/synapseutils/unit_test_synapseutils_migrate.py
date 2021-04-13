@@ -2008,24 +2008,24 @@ def test_get_table_file_handle_rows__no_file_columns(mocker, syn):
 
     table_id = 'syn123'
 
-    mock_rest_get = mocker.patch.object(syn, 'restGET')
-    mock_rest_get.return_value = {
-        'results': [
-            {
-                'id': 1,
-                'name': 'column_1',
-                'columnType': 'INTEGER',
-            },
-            {
-                'id': 2,
-                'name': 'column_2',
-                'columnType': 'STRING',
-            },
-        ]
-    }
+    mock_get_table_columns = mocker.patch.object(syn, 'getTableColumns')
+    mock_get_file_handle_download = mocker.patch.object(syn, '_getFileHandleDownload')
+    mock_get_table_columns.return_value = [
+       {
+           'id': 1,
+           'name': 'column_1',
+           'columnType': 'INTEGER',
+       },
+       {
+           'id': 2,
+           'name': 'column_2',
+           'columnType': 'STRING',
+       },
+    ]
 
     assert [i for i in _get_table_file_handle_rows(syn, table_id)] == []
-    mock_rest_get.assert_called_once_with(f"/entity/{table_id}/column")
+    mock_get_table_columns.assert_called_once_with(table_id)
+    assert mock_get_file_handle_download.called is False
 
 
 def _verify_schema(cursor):
