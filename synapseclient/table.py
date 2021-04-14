@@ -534,7 +534,7 @@ def cast_row_set(rowset):
 def escape_column_name(column):
     """Escape the name of the given column for use in a Synapse table query statement
     :param column: a string or column dictionary object with a 'name' key"""
-    col_name = column['name'] if isinstance(column, collections.Mapping) else str(column)
+    col_name = column['name'] if isinstance(column, collections.abc.Mapping) else str(column)
     escaped_name = col_name.replace('"', '""')
     return f'"{escaped_name}"'
 

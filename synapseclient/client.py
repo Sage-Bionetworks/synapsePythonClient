@@ -3229,7 +3229,7 @@ class Synapse(object):
 
         # check the activity id or object is provided
         activity_id = None
-        if isinstance(activity, collections.Mapping):
+        if isinstance(activity, collections.abc.Mapping):
             if 'id' not in activity:
                 activity = self._saveActivity(activity)
             activity_id = activity['id']
