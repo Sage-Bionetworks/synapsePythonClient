@@ -7,7 +7,9 @@ import time
 import uuid
 
 import pytest
+from unittest.mock import patch
 
+from synapseclient import annotations
 from synapseclient.annotations import (
     Annotations,
     to_synapse_annotations,
@@ -15,14 +17,26 @@ from synapseclient.annotations import (
     to_submission_status_annotations,
     from_submission_status_annotations,
     convert_old_annotation_json,
+    check_annotations_changed,
     is_synapse_annotations,
     set_privacy,
+    _convert_to_annotations_list,
 )
 from synapseclient.entity import File
 import synapseclient.core.utils as utils
 
 
-def test_annotations():
+@patch.object(annotations, '_convert_to_annotations_list')
+def test_to_synapse_annotations__called_convert_to_annotations_list(mock_convert_to_annotations_list):
+    """Test the helper function _convert_to_annotations_list called properly"""
+    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
+                    {'foo': 'bar', 'zoo': ['zing', 'zaboo'], 'species': 'Platypus'})
+    to_synapse_annotations(a)
+    mock_convert_to_annotations_list.assert_called_once_with({'foo': 'bar', 'zoo': ['zing', 'zaboo'],
+                                                              'species': 'Platypus'})
+
+
+def test_to_synapse_annotations():
     """Test string annotations"""
     a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
                     {'foo': 'bar', 'zoo': ['zing', 'zaboo'], 'species': 'Platypus'})
@@ -48,36 +62,48 @@ def test_to_synapse_annotations__require_id_and_etag():
     pytest.raises(TypeError, to_synapse_annotations, a)
 
 
-def test_more_annotations():
+def test__convert_to_annotations_list():
     """Test long, float and data annotations"""
-    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
-                    {'foo': 1234,
-                     'zoo': [123.1, 456.2, 789.3],
-                     'species': 'Platypus',
-                     'birthdays': [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)],
-                     'test_boolean': True,
-                     'test_mo_booleans': [False, True, True, False]})
-    sa = to_synapse_annotations(a)
+    a = {'foo': 1234,
+         'zoo': [123.1, 456.2, 789.3],
+         'species': 'Platypus',
+         'birthdays': [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)],
+         'test_boolean': True,
+         'test_mo_booleans': [False, True, True, False]}
+    actual_annos = _convert_to_annotations_list(a)
 
-    expected = {
-        'id': 'syn123',
-        'etag': '7bdb83e9-a50a-46e4-987a-4962559f090f',
-        'annotations': {
-            'foo': {'value': ['1234'],
-                    'type': 'LONG'},
-            'zoo': {'value': ['123.1', '456.2', '789.3'],
-                    'type': 'DOUBLE'},
-            'species': {'value': ['Platypus'],
-                        'type': 'STRING'},
-            'birthdays': {'value': ['-21427200000', '124156800000', '1199318400000'],
-                          'type': 'TIMESTAMP_MS'},
-            'test_boolean': {'value': ['true'],
-                             'type': 'STRING'},
-            'test_mo_booleans': {'value': ['false', 'true', 'true', 'false'],
-                                 'type': 'STRING'}
-        }
-    }
-    assert expected == sa
+    expected_annos = {'foo': {'value': ['1234'],
+                              'type': 'LONG'},
+                      'zoo': {'value': ['123.1', '456.2', '789.3'],
+                              'type': 'DOUBLE'},
+                      'species': {'value': ['Platypus'],
+                                  'type': 'STRING'},
+                      'birthdays': {'value': ['-21427200000', '124156800000', '1199318400000'],
+                                    'type': 'TIMESTAMP_MS'},
+                      'test_boolean': {'value': ['true'],
+                                       'type': 'BOOLEAN'},
+                      'test_mo_booleans': {'value': ['false', 'true', 'true', 'false'],
+                                           'type': 'BOOLEAN'}}
+    assert expected_annos == actual_annos
+
+    a_with_single_value = {'foo': 1234,
+                           'zoo': 123.1,
+                           'species': 'Platypus',
+                           'birthdays': Datetime(1969, 4, 28),
+                           'test_boolean': True}
+    actual_annos = _convert_to_annotations_list(a_with_single_value)
+
+    expected_annos = {'foo': {'value': ['1234'],
+                              'type': 'LONG'},
+                      'zoo': {'value': ['123.1'],
+                              'type': 'DOUBLE'},
+                      'species': {'value': ['Platypus'],
+                                  'type': 'STRING'},
+                      'birthdays': {'value': ['-21427200000'],
+                                    'type': 'TIMESTAMP_MS'},
+                      'test_boolean': {'value': ['true'],
+                                       'type': 'BOOLEAN'}}
+    assert expected_annos == actual_annos
 
 
 def test_annotations_unicode():
@@ -97,10 +123,22 @@ def test_annotations_unicode():
 
 def test_round_trip_annotations():
     """Test that annotations can make the round trip from a simple dictionary to the synapse format and back"""
-    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
-                    {'foo': [1234], 'zoo': [123.1, 456.2, 789.3], 'species': ['Moose'],
-                     'birthdays': [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3),
-                                   Datetime(2013, 3, 15)]})
+    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f', {
+        'foo': [1234],
+        'zoo': [123.1, 456.2, 789.3],
+        'species': ['Moose'],
+        'birthdays': [
+            Datetime(1969, 4, 28),
+            Datetime(1973, 12, 8),
+            Datetime(2008, 1, 3),
+            Datetime(2013, 3, 15),
+        ],
+        'facts': [
+            True,
+            False,
+        ]
+    })
+
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
     assert a == a2
@@ -111,12 +149,13 @@ def test_round_trip_annotations():
 def test_mixed_annotations():
     """test that to_synapse_annotations will coerce a list of mixed types to strings"""
     a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
-                    {'foo': [1, 'a', Datetime(1969, 4, 28, 11, 47)]})
+                    {'foo': [1, 'a', Datetime(1969, 4, 28, 11, 47), True]})
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
     assert a2['foo'][0] == '1'
     assert a2['foo'][1] == 'a'
     assert a2['foo'][2].find('1969') > -1
+    assert a2['foo'][3] == 'True'
     assert 'syn123' == a2.id
     assert '7bdb83e9-a50a-46e4-987a-4962559f090f' == a2.etag
 
@@ -124,7 +163,7 @@ def test_mixed_annotations():
 def test_idempotent_annotations():
     """test that to_synapse_annotations won't mess up a dictionary that's already in the synapse format"""
     a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
-                    {'species': 'Moose', 'n': 42, 'birthday': Datetime(1969, 4, 28)})
+                    {'species': 'Moose', 'n': 42, 'birthday': Datetime(1969, 4, 28), 'fact': True})
     sa = to_synapse_annotations(a)
     a2 = {}
     a2.update(sa)
@@ -332,3 +371,29 @@ def test_convert_old_annotations_json__already_v2():
 
     converted = convert_old_annotation_json(annos_dict)
     assert annos_dict == converted
+
+
+def test_check_annotations_changed():
+    # annotations didn't change, new annotations are single key-value pair
+    mock_bundle_annotations = {'annotations': {'far': {'type': 'LONG', 'value': ['123']},
+                                               'boo': {'type': 'STRING', 'value': ['text']}}}
+    mock_new_annotations = {'far': 123, 'boo': 'text'}
+    assert not check_annotations_changed(mock_bundle_annotations, mock_new_annotations)
+
+    # annotations didn't change, new annotations are key to list of value pair
+    mock_bundle_annotations = {'annotations': {'far': {'type': 'DOUBLE', 'value': ['123.12', '456.33']},
+                                               'boo': {'type': 'LONG', 'value': ['789']}}}
+    mock_new_annotations = {'far': [123.12, 456.33], 'boo': 789}
+    assert not check_annotations_changed(mock_bundle_annotations, mock_new_annotations)
+
+    # verify remove the annotations, check function should return True
+    mock_bundle_annotations = {'annotations': {'far': {'type': 'LONG', 'value': ['123', '456']},
+                                               'boo': {'type': 'LONG', 'value': ['789']}}}
+    mock_new_annotations = {'far': [123], 'boo': 789}
+    assert check_annotations_changed(mock_bundle_annotations, mock_new_annotations)
+
+    # annotations are changed
+    mock_bundle_annotations = {'annotations': {'boo': {'type': 'LONG', 'value': ['456']},
+                                               'far': {'type': 'LONG', 'value': ['12345']}}}
+    mock_new_annotations = {'boo': 456, 'far': 789}
+    assert check_annotations_changed(mock_bundle_annotations, mock_new_annotations)

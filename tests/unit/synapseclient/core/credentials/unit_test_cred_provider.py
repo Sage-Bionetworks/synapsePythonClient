@@ -1,10 +1,19 @@
 import base64
-
-import pytest
+import os
+import sys
 from unittest.mock import create_autospec, MagicMock, patch
 
-from synapseclient.core.exceptions import SynapseAuthenticationError
+import boto3
+import pytest
+from botocore.stub import Stubber
+from pytest_mock import MockerFixture
+
 from synapseclient.core.credentials import credential_provider
+from synapseclient.core.credentials.cred_data import (
+    SynapseApiKeyCredentials,
+    SynapseAuthTokenCredentials,
+    UserLoginArgs,
+)
 from synapseclient.core.credentials.credential_provider import (
     cached_sessions,
     CachedCredentialsProvider,
@@ -13,12 +22,9 @@ from synapseclient.core.credentials.credential_provider import (
     SynapseCredentialsProviderChain,
     UserArgsCredentialsProvider,
     UserArgsSessionTokenCredentialsProvider,
+    AWSParameterStoreCredentialsProvider
 )
-from synapseclient.core.credentials.cred_data import (
-    SynapseApiKeyCredentials,
-    SynapseAuthTokenCredentials,
-    UserLoginArgs,
-)
+from synapseclient.core.exceptions import SynapseAuthenticationError
 
 
 class TestSynapseApiKeyCredentialsProviderChain(object):
@@ -94,18 +100,19 @@ class TestSynapseCredentialProvider(object):
             self.session_token,
             self.auth_token
         )
+
         # SynapseApiKeyCredentialsProvider has abstractmethod so we can't instantiate it unless we overwrite it
 
         class SynapseCredProviderTester(SynapseCredentialsProvider):
             def _get_auth_info(self, syn, user_login_args):
                 pass
+
         self.provider = SynapseCredProviderTester()
 
     def test_get_synapse_credentials(self):
         auth_info = ("username", "password", "api_key")
         with patch.object(self.provider, "_get_auth_info", return_value=auth_info) as mock_get_auth_info, \
              patch.object(self.provider, "_create_synapse_credential") as mock_create_synapse_credentials:
-
             self.provider.get_synapse_credentials(self.syn, self.user_login_args)
 
             mock_get_auth_info.assert_called_once_with(self.syn, self.user_login_args)
@@ -135,7 +142,6 @@ class TestSynapseCredentialProvider(object):
         session_token = "37842837946"
         with patch.object(self.syn, "_getSessionToken", return_value=session_token) as mock_get_session_token, \
              patch.object(self.syn, "_getAPIKey", return_value=self.api_key) as mock_get_api_key:
-
             # even if api key and/or auth_token is provided, password applies first
             cred = self.provider._create_synapse_credential(
                 self.syn,
@@ -394,3 +400,85 @@ class TestCachedCredentialsProvider(object):
         self.mock_get_most_recent_user.assert_not_called()
         self.mock_api_key_credentials.get_from_keyring.assert_called_once_with(self.username)
         self.mock_auth_token_credentials.get_from_keyring.assert_called_once_with(self.username)
+
+
+class TestAWSParameterStoreCredentialsProvider(object):
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
+    @pytest.fixture()
+    def environ_with_param_name(self):
+        return {'SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME': '/synapse/cred/i-12134312'}
+
+    def stub_ssm(self, mocker: MockerFixture):
+        # use fake credentials otherwise boto will look for them via http calls
+        ssm_client = boto3.client('ssm', aws_access_key_id='foo', aws_secret_access_key='bar', region_name='us-east-1')
+        stubber = Stubber(ssm_client)
+        mock_boto3_client = mocker.patch.object(boto3, 'client', return_value=ssm_client)
+        return mock_boto3_client, stubber
+
+    def setup(self):
+        self.provider = AWSParameterStoreCredentialsProvider()
+
+    def test_get_auth_info__no_environment_variable(self, mocker: MockerFixture, syn):
+        mocker.patch.dict(os.environ, {}, clear=True)
+        mock_boto3_client, stubber = self.stub_ssm(mocker)
+
+        user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
+
+        assert (None,) * 4 == self.provider._get_auth_info(syn, user_login_args)
+        assert not mock_boto3_client.called
+        stubber.assert_no_pending_responses()
+
+    # there could be other errors as well, but we will handle them all in the same way
+    @pytest.mark.parametrize('error_code', ['UnrecognizedClientException', 'AccessDenied', 'ParameterNotFound'])
+    def test_get_auth_info__get_parameter_error(self, mocker: MockerFixture, syn, environ_with_param_name, error_code):
+        mocker.patch.dict(os.environ, environ_with_param_name)
+
+        mock_boto3_client, stubber = self.stub_ssm(mocker)
+        stubber.add_client_error('get_parameter', error_code)
+
+        user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
+
+        with stubber:
+            assert (None,) * 4 == self.provider._get_auth_info(syn, user_login_args)
+            mock_boto3_client.assert_called_once_with("ssm")
+            stubber.assert_no_pending_responses()
+
+    def test_get_auth_info__parameter_name_exists(self, mocker: MockerFixture, syn, environ_with_param_name):
+        mocker.patch.dict(os.environ, environ_with_param_name)
+
+        mock_boto3_client, stubber = self.stub_ssm(mocker)
+        token = 'KmhhY2tlciB2b2ljZSogIkknbSBpbiI='
+        response = {
+            'Parameter': {
+                'Name': '/synapse/cred/i-12134312',
+                'Type': 'SecureString',
+                'Value': token,
+                'Version': 502,
+                'LastModifiedDate': 'Sun, 20 Apr 1969 16:20:00 GMT',
+                'ARN':
+                    'arn:aws:ssm:us-east-1:123123123:parameter/synapse/cred/i-12134312',
+                'DataType': 'text'
+            },
+        }
+        stubber.add_response('get_parameter', response)
+
+        username = 'foobar'
+        user_login_args = UserLoginArgs(username=username, password=None, api_key=None,
+                                        skip_cache=False, auth_token=None)
+
+        with stubber:
+            assert (username, None, None, token) == self.provider._get_auth_info(syn, user_login_args)
+            mock_boto3_client.assert_called_once_with("ssm")
+            stubber.assert_no_pending_responses()
+
+    def test_get_auth_info__boto3_ImportError(self, mocker, syn, environ_with_param_name):
+        mocker.patch.dict(os.environ, environ_with_param_name)
+        # simulate import error by "removing" boto3 from sys.modules
+        mocker.patch.dict(sys.modules, {'boto3': None})
+
+        user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
+
+        assert (None,) * 4 == self.provider._get_auth_info(syn, user_login_args)

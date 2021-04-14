@@ -82,6 +82,7 @@ ANNO_TYPE_TO_FUNC: typing.Dict[str, typing.Callable[[str], typing.Union[str, int
         raise_anno_type_error,
         {
             'STRING': _identity,
+            'BOOLEAN': lambda bool_str: bool_str == 'true',
             'LONG': int,
             'DOUBLE': float,
             'TIMESTAMP_MS': lambda time_str: from_unix_epoch_time(int(time_str))
@@ -295,7 +296,12 @@ def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.
     synapse_annos['id'] = annotations.id
     synapse_annos['etag'] = annotations.etag
 
-    nested_annos = synapse_annos.setdefault('annotations', {})
+    synapse_annos['annotations'] = _convert_to_annotations_list(annotations)
+    return synapse_annos
+
+
+def _convert_to_annotations_list(annotations):
+    nested_annos = {}
     for key, value in annotations.items():
         elements = to_list(value)
         element_cls = _annotation_value_list_element_type(elements)
@@ -303,8 +309,8 @@ def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.
             nested_annos[key] = {'type': 'STRING',
                                  'value': elements}
         elif issubclass(element_cls, bool):
-            nested_annos[key] = {'type': 'STRING',
-                                 'value': [str(e).lower() for e in elements]}
+            nested_annos[key] = {'type': 'BOOLEAN',
+                                 'value': ['true' if e else 'false' for e in elements]}
         elif issubclass(element_cls, int):
             nested_annos[key] = {'type': 'LONG',
                                  'value': [str(e) for e in elements]}
@@ -317,7 +323,7 @@ def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.
         else:
             nested_annos[key] = {'type': 'STRING',
                                  'value': [str(e) for e in elements]}
-    return synapse_annos
+    return nested_annos
 
 
 def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any]) -> Annotations:
@@ -335,9 +341,20 @@ def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any]) -> A
     return annos
 
 
+def check_annotations_changed(bundle_annotations, new_annotations):
+    converted_annos = _convert_to_annotations_list(new_annotations)
+    return bundle_annotations['annotations'] != converted_annos
+
+
 def convert_old_annotation_json(annotations):
     """Transforms a parsed JSON dictionary of old style annotations
-    into a new style consistent with the entity bundle v2 format."""
+    into a new style consistent with the entity bundle v2 format.
+
+    This is intended to support some models that were saved as serialized
+    entity bundle JSON (Submissions). we don't need to support newer
+    types here e.g. BOOLEAN because they did not exist at the time
+    that annotation JSON was saved in this form.
+    """
 
     meta_keys = ('id', 'etag', 'creationDate', 'uri')
 
