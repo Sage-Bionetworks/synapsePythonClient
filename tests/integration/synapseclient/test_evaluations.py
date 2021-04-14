@@ -5,6 +5,7 @@ import uuid
 import random
 
 import pytest
+import unittest
 
 from synapseclient import Evaluation, File, SubmissionViewSchema, Synapse, Team
 from synapseclient.core.exceptions import SynapseHTTPError
@@ -165,6 +166,7 @@ def test_evaluations(syn, project, schedule_for_cleanup):
     pytest.raises(SynapseHTTPError, syn.getEvaluation, ev)
 
 
+@unittest.skip(reason='Unstable timing, particularly on dev stack, SYNPY-816')
 def test_teams(syn, project, schedule_for_cleanup):
     name = "My Uniquely Named Team " + str(uuid.uuid4())
     team = syn.store(Team(name=name, description="A fake team for testing..."))
