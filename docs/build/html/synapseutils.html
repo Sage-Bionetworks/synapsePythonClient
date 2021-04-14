@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Overview &#8212; Synapse Python Client 2.3.0 documentation</title>
+    <title>Overview &#8212; Synapse Python Client 2.3.1 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -38,7 +38,7 @@
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.1 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Overview</a></li> 
       </ul>
     </div>  
@@ -628,7 +628,7 @@ exception - if an error was encountered indexing/migrating the file/version its 
 
 <dl class="py function">
 <dt id="synapseutils.migrate_functions.index_files_for_migration">
-<code class="sig-prename descclassname">synapseutils.migrate_functions.</code><code class="sig-name descname">index_files_for_migration</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span><span class="p">:</span> <span class="n">synapseclient.client.Synapse</span></em>, <em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">storage_location_id</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">db_path</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">file_version_strategy</span><span class="o">=</span><span class="default_value">'new'</span></em>, <em class="sig-param"><span class="n">include_table_files</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">continue_on_error</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.index_files_for_migration" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">synapseutils.migrate_functions.</code><code class="sig-name descname">index_files_for_migration</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span><span class="p">:</span> <span class="n">synapseclient.client.Synapse</span></em>, <em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">dest_storage_location_id</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">db_path</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">source_storage_location_ids</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">file_version_strategy</span><span class="o">=</span><span class="default_value">'new'</span></em>, <em class="sig-param"><span class="n">include_table_files</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">continue_on_error</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.index_files_for_migration" title="Permalink to this definition">¶</a></dt>
 <dd><p>Index the given entity for migration to a new storage location. This is the first step in migrating an entity
 to a new storage location using synapseutils.</p>
 <p>This function will create a sqlite database at the given db_path that can be subsequently passed
@@ -641,9 +641,13 @@ in any way.</p>
 <li><p><strong>entity</strong> – A Synapse entity whose files should be migrated. Can be a Project, Folder,
 File entity, or Table entity. If it is a container (a Project or Folder) its
 contents will be recursively indexed.</p></li>
-<li><p><strong>storage_location_id</strong> – The id of the new storage location to be migrated to.</p></li>
+<li><p><strong>dest_storage_location_id</strong> – The id of the new storage location to be migrated to.</p></li>
 <li><p><strong>db_path</strong> – A path on disk where a sqlite db can be created to store the contents of the
 created index.</p></li>
+<li><p><strong>source_storage_location_ids</strong> – An optional iterable of storage location ids that will be migrated. If provided,
+files outside of one of the listed storage locations will not be indexed
+for migration. If not provided, then all files not already in the destination
+storage location will be indexed for migrated.</p></li>
 <li><p><strong>file_version_strategy</strong> – <p>One of “new” (default), “all”, “latest”, “skip” as follows:</p>
 <ul>
 <li><p>”new” - will create a new version of file entities in the new storage location, leaving existing versions unchanged</p></li>
@@ -742,13 +746,13 @@ This can be bypassed by using the force=True option.</p></li>
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.1 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Overview</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Feb 24, 2021.
+      Last updated on Apr 13, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">
