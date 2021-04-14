@@ -8,7 +8,13 @@ from unittest import mock, skipIf
 import synapseclient
 from synapseclient.core.exceptions import SynapseHTTPError
 import synapseclient.core.upload
-from synapseclient.core.constants.concrete_types import FILE_ENTITY, FOLDER_ENTITY, PROJECT_ENTITY, TABLE_ENTITY
+from synapseclient.core.constants.concrete_types import (
+    FILE_ENTITY,
+    FOLDER_ENTITY,
+    PROJECT_ENTITY,
+    S3_FILE_HANDLE,
+    TABLE_ENTITY,
+)
 from synapseclient.core import utils
 import synapseutils
 from synapseutils import migrate_functions
@@ -17,7 +23,9 @@ from synapseutils.migrate_functions import (
     _create_new_file_version,
     _confirm_migration,
     _ensure_schema,
+    _get_part_size,
     _get_row_dict,
+    _get_table_file_handle_rows,
     _include_file_storage_location_in_index,
     _index_container,
     _index_entity,
@@ -32,6 +40,8 @@ from synapseutils.migrate_functions import (
     _retrieve_index_settings,
     _verify_index_settings,
     _verify_storage_location_ownership,
+    DEFAULT_PART_SIZE,
+    MAX_NUMBER_OF_PARTS,
     index_files_for_migration,
     migrate_indexed_files,
 )
@@ -224,6 +234,7 @@ class TestIndex:
         mock_file._file_handle = {
             'contentSize': file_size,
             'storageLocationId': from_storage_location_id,
+            'concreteType': S3_FILE_HANDLE,
         }
         syn.get.return_value = mock_file
 
@@ -291,6 +302,7 @@ class TestIndex:
         mock_file_2.dataFileHandleId = 2
         mock_file_2_size = 9876
         mock_file_2._file_handle = {
+            'concreteType': S3_FILE_HANDLE,
             'contentSize': mock_file_2_size,
             'storageLocationId': from_storage_location_id
         }
@@ -301,6 +313,7 @@ class TestIndex:
         mock_file_3.dataFileHandleId = 3
         mock_file_3_size = 1234
         mock_file_3._file_handle = {
+            'concreteType': S3_FILE_HANDLE,
             'contentSize': mock_file_3_size,
 
             # already migrated
@@ -313,6 +326,7 @@ class TestIndex:
         mock_file_4.dataFileHandleId = 4
         mock_file_4_size = 9876
         mock_file_4._file_handle = {
+            'concreteType': S3_FILE_HANDLE,
             'contentSize': mock_file_4_size,
 
             'storageLocationId': 'not a matching storage location'
@@ -392,35 +406,39 @@ class TestIndex:
 
         # gets the columns of the table
         # 4 columns, 2 of the file handles
-        syn.restGET.return_value = {
-            'results': [
-                {'columnType': 'STRING'},
-                {'columnType': 'FILEHANDLEID', 'id': '1', 'name': 'col1'},
-                {'columnType': 'FILEHANDLEID', 'id': '2', 'name': 'col2'},
-                {'columnType': 'INTEGER'},
-            ]
-        }
+        mock_get_table_columns = mocker.patch.object(syn, 'getTableColumns')
+        mock_get_table_columns.return_value = [
+            {'columnType': 'STRING'},
+            {'columnType': 'FILEHANDLEID', 'id': '1', 'name': 'col1'},
+            {'columnType': 'FILEHANDLEID', 'id': '2', 'name': 'col2'},
+            {'columnType': 'INTEGER'},
+        ]
 
         file_handle_id_1 = 'fh1'
         file_handle_id_2 = 'fh2'
         file_handle_id_3 = 'fh3'
         file_handle_id_4 = 'fh4'
+        file_handle_id_5 = 'fh5'
 
         file_handle_size_1 = 100
         file_handle_size_2 = 200
         file_handle_size_3 = 300
         file_handle_size_4 = 400
+        file_handle_size_5 = 500
 
         file_handle_1 = {
             'fileHandle': {
                 'id': file_handle_id_1,
+                'concreteType': S3_FILE_HANDLE,
                 'contentSize': file_handle_size_1,
                 'storageLocationId': from_storage_location_id,
             }
         }
+
         file_handle_2 = {
             'fileHandle': {
                 'id': file_handle_id_2,
+                'concreteType': S3_FILE_HANDLE,
                 'contentSize': file_handle_size_2,
                 'storageLocationId': from_storage_location_id,
             }
@@ -430,6 +448,7 @@ class TestIndex:
         file_handle_3 = {
             'fileHandle': {
                 'id': file_handle_id_3,
+                'concreteType': S3_FILE_HANDLE,
                 'contentSize': file_handle_size_3,
                 'storageLocationId': 'not a source storage location',
             }
@@ -439,14 +458,25 @@ class TestIndex:
         file_handle_4 = {
             'fileHandle': {
                 'id': file_handle_id_4,
+                'concreteType': S3_FILE_HANDLE,
                 'contentSize': file_handle_size_4,
                 'storageLocationId': to_storage_location_id,
+            }
+        }
+
+        # this has no listed storage location
+        file_handle_5 = {
+            'fileHandle': {
+                'id': file_handle_id_5,
+                'concreteType': S3_FILE_HANDLE,
+                'contentSize': file_handle_size_5,
             }
         }
 
         syn.tableQuery.return_value = [
             [1, 1, file_handle_id_1, file_handle_id_2],
             [2, 1, file_handle_id_3, file_handle_id_4],
+            [3, 1, file_handle_id_5, None],
         ]
 
         syn._getFileHandleDownload.side_effect = [
@@ -454,6 +484,7 @@ class TestIndex:
             file_handle_2,
             file_handle_3,
             file_handle_4,
+            file_handle_5,
         ]
 
         _index_table_entity(cursor, syn, table_id, parent_id, to_storage_location_id, [from_storage_location_id, '543'])
@@ -501,6 +532,27 @@ class TestIndex:
         assert row_2_dict['status'] == _MigrationStatus.ALREADY_MIGRATED.value
 
         # file 3 is excluded entirely because it wasn't in a relevant storage location
+
+    def test_index_table_entity__no_file_handles(self, mocker, syn):
+        """Verify behavior when there are no file handle columns in an indexed table"""
+
+        entity = 'syn123'
+        parent_id = 'syn456'
+        dest_storage_location_id = '12345'
+        source_storage_location_ids = None
+
+        mock_get_table_file_handle_rows = mocker.patch.object(migrate_functions, '_get_table_file_handle_rows')
+
+        def mock_get_table_file_handle_rows_side_effect(*args, **kwargs):
+            yield from []
+
+        mock_get_table_file_handle_rows.side_effect = mock_get_table_file_handle_rows_side_effect
+        mock_cursor = mock.MagicMock(sqlite3.Cursor)
+
+        _index_table_entity(mock_cursor, syn, entity, parent_id, dest_storage_location_id, source_storage_location_ids)
+
+        # should not have tried to insert anything
+        assert mock_cursor.executemany.called is False
 
     @mock.patch.object(synapseutils.migrate_functions, '_index_entity')
     def test_index_container__files(self, mock_index_entity, conn):
@@ -633,7 +685,7 @@ class TestIndex:
             continue_on_error,
         )
 
-        syn.getChildren.assert_called_once_with(folder_id, includeTypes=['folder', 'table'])
+        syn.getChildren.assert_called_once_with(folder_id, includeTypes=['table'])
 
         expected_calls = [
             mock.call(
@@ -1882,6 +1934,100 @@ def test_migrate_table_attached_file__use_existing_file_handle(mocker, syn):
     assert mock_multipart_copy.called is False
 
 
+def test_get_table_file_handle_rows(mocker, syn):
+    """Verify behavior of get_table_file_handles. In particular verify proper escaping of columns
+    names when querying tables for file handle ids"""
+
+    table_id = 'syn123'
+
+    mock_get_table_columns = mocker.patch.object(syn, 'getTableColumns')
+    mock_get_table_columns.return_value = [
+        {
+            'id': 1,
+            'name': 'column_1_file_handle',
+            'columnType': 'FILEHANDLEID',
+        },
+        {
+            'id': 2,
+            'name': 'column_2_not_a_file_handle',
+            'columnType': 'STRING',
+        },
+        {
+            'id': 3,
+            'name': 'column_3_file_handle with spaces and "quotes"',
+            'columnType': 'FILEHANDLEID',
+        },
+    ]
+
+    row_1_id = 1
+    row_1_version = 3
+    row_1_col_1_val = '12345'
+    row_1_col_3_val = '54321'
+
+    row_2_id = 2
+    row_2_version = 4
+    row_2_col_1_val = '98765'
+    row_2_col_2_val = '56789'
+
+    mock_table_query = mocker.patch.object(syn, 'tableQuery')
+    mock_table_query.return_value = [
+        (row_1_id, row_1_version, row_1_col_1_val, row_1_col_3_val),
+        (row_2_id, row_2_version, row_2_col_1_val, row_2_col_2_val),
+    ]
+
+    file_handles = [
+        {'id': row_1_col_1_val},
+        {'id': row_1_col_3_val},
+        {'id': row_2_col_1_val},
+        {'id': row_2_col_2_val},
+    ]
+
+    mock_get_file_handle_download = mocker.patch.object(syn, '_getFileHandleDownload')
+    mock_get_file_handle_download.side_effect = [
+        {'fileHandle': file_handle} for file_handle in file_handles
+    ]
+
+    expected_table_file_rows = [
+        (row_1_id, row_1_version, {1: file_handles[0], 3: file_handles[1]}),
+        (row_2_id, row_2_version, {1: file_handles[2], 3: file_handles[3]}),
+    ]
+    table_file_rows = [t for t in _get_table_file_handle_rows(syn, table_id)]
+    assert table_file_rows == expected_table_file_rows
+
+    mock_get_table_columns.assert_called_once_with(table_id)
+    mock_table_query.assert_called_once_with(
+        f'select "column_1_file_handle","column_3_file_handle with spaces and ""quotes""" from {table_id}'
+    )
+    assert mock_get_file_handle_download.call_args_list == [
+        mock.call(file_handle['id'], table_id, objectType='TableEntity') for file_handle in file_handles
+    ]
+
+
+def test_get_table_file_handle_rows__no_file_columns(mocker, syn):
+    """Verify the behavior of get_table_file_handle_rows when no columns in the table are FILEHANDLEIDS"""
+
+    table_id = 'syn123'
+
+    mock_get_table_columns = mocker.patch.object(syn, 'getTableColumns')
+    mock_get_file_handle_download = mocker.patch.object(syn, '_getFileHandleDownload')
+    mock_get_table_columns.return_value = [
+        {
+            'id': 1,
+            'name': 'column_1',
+            'columnType': 'INTEGER',
+        },
+        {
+            'id': 2,
+            'name': 'column_2',
+            'columnType': 'STRING',
+        },
+    ]
+
+    assert [i for i in _get_table_file_handle_rows(syn, table_id)] == []
+    mock_get_table_columns.assert_called_once_with(table_id)
+    assert mock_get_file_handle_download.called is False
+
+
 def _verify_schema(cursor):
     results = cursor.execute(
         """
@@ -2175,52 +2321,85 @@ class TestIncludeFileStorageLocation:
         """Verify that if source_storage_location_ids are not specified then we include
         the record in the index because no sources means all sources."""
 
-        source_storage_location_ids = None
         from_storage_location_id = '1234'
+        file_handle = {
+            'concreteType': S3_FILE_HANDLE,
+            'storageLocationId': from_storage_location_id,
+        }
+
+        source_storage_location_ids = None
         to_storage_location_id = '4321'
         assert _include_file_storage_location_in_index(
+            file_handle,
             source_storage_location_ids,
-            from_storage_location_id,
             to_storage_location_id,
-        ) is True
+        ) == _MigrationStatus.INDEXED.value
 
     def test_include_file_storage_location_in_index__source_location_id_matched(self):
         """Verify that if source_storage_location_ids is specified then we include
         the record if the file's current storage location matches."""
 
-        source_storage_location_ids = ['0987', '1234', '8765']
         from_storage_location_id = '1234'
+        file_handle = {
+            'concreteType': S3_FILE_HANDLE,
+            'storageLocationId': from_storage_location_id,
+        }
+
+        source_storage_location_ids = ['0987', '1234', '8765']
         to_storage_location_id = '4321'
         assert _include_file_storage_location_in_index(
+            file_handle,
             source_storage_location_ids,
-            from_storage_location_id,
             to_storage_location_id,
-        ) is True
+        ) is _MigrationStatus.INDEXED.value
 
     def test_include_file_storage_location_in_index__already_in_destination(self):
         """Verify that if the file is already in the destination storage location
         then we include it in the index (it will be marked as ALREADY_MIGRATED).
         This helps show what happened with the file."""
 
-        source_storage_location_ids = ['0987', '8765']
         from_storage_location_id = '1234'
+        file_handle = {
+            'concreteType': S3_FILE_HANDLE,
+            'storageLocationId': from_storage_location_id,
+        }
+
+        source_storage_location_ids = ['0987', '8765']
         to_storage_location_id = from_storage_location_id
         assert _include_file_storage_location_in_index(
+            file_handle,
             source_storage_location_ids,
-            from_storage_location_id,
             to_storage_location_id,
-        ) is True
+        ) == _MigrationStatus.ALREADY_MIGRATED.value
 
     def test_include_file_storage_location_in_index__exclude(self):
         """Verify that if the file's current storage location doesn't match
         one of the source specified locations and it isn't already in the target
         destination it is excluded from the index altogether. It's not relevant to the migration."""
 
-        source_storage_location_ids = ['0987', '8765']
         from_storage_location_id = '1234'
+        file_handle = {
+            'concreteType': S3_FILE_HANDLE,
+            'storageLocationId': from_storage_location_id,
+        }
+
+        source_storage_location_ids = ['0987', '8765']
         to_storage_location_id = '4321'
         assert _include_file_storage_location_in_index(
+            file_handle,
             source_storage_location_ids,
-            from_storage_location_id,
             to_storage_location_id,
-        ) is False
+        ) is None
+
+
+@pytest.mark.parametrize('file_size,expected_part_size', [
+    (1, DEFAULT_PART_SIZE),
+    (10 * utils.MB, DEFAULT_PART_SIZE),
+    (5000 * utils.MB, DEFAULT_PART_SIZE),
+    (DEFAULT_PART_SIZE * MAX_NUMBER_OF_PARTS, DEFAULT_PART_SIZE),
+    ((DEFAULT_PART_SIZE * MAX_NUMBER_OF_PARTS) + 1, DEFAULT_PART_SIZE + 1),
+    ((5000000 * utils.MB) + 1, 524288001),
+])
+def test_get_part_size(file_size, expected_part_size):
+    """Verify part size calculations."""
+    assert _get_part_size(file_size) == expected_part_size
