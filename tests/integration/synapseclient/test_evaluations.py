@@ -132,10 +132,6 @@ def test_evaluations(syn, project, schedule_for_cleanup):
         assert len(invalid_submissions) == 1, len(invalid_submissions)
         assert invalid_submissions[0]['name'] == 'Submission 01'
 
-        view = SubmissionViewSchema(name="Testing view", scopes=[ev['id']],
-                                    parent=project['id'])
-        view_ent = syn.store(view)
-
         # test that we can retrieve annotations via a submission view
         # retry a few times because this may be related to asynchronous worker activity
         attempts = 8
@@ -143,6 +139,10 @@ def test_evaluations(syn, project, schedule_for_cleanup):
         i = 0
         while True:
             try:
+                view = SubmissionViewSchema(name="Testing view", scopes=[ev['id']],
+                                            parent=project['id'])
+                view_ent = syn.store(view)
+
                 view_table = syn.tableQuery(f"select * from {view_ent.id}")
                 viewdf = view_table.asDataFrame()
                 assert viewdf['foo'].tolist() == ["bar", "bar"]
