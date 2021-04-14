@@ -319,7 +319,9 @@ def test_annotations(syn, project, schedule_for_cleanup):
 
     # Set the annotations, with keywords too
     anno['bogosity'] = 'total'
-    syn.set_annotations(Annotations(entity, entity.etag, anno, wazoo='Frank', label='Barking Pumpkin', shark=16776960))
+    syn.set_annotations(
+        Annotations(entity, entity.etag, anno,
+                    wazoo='Frank', label='Barking Pumpkin', shark=16776960))
 
     # Check the update
     annote = syn.get_annotations(entity)
@@ -333,6 +335,7 @@ def test_annotations(syn, project, schedule_for_cleanup):
     annote['phat_numbers'] = [1234.5678, 8888.3333, 1212.3434, 6677.8899]
     annote['goobers'] = ['chris', 'jen', 'jane']
     annote['present_time'] = datetime.now()
+    annote['maybe'] = [True, False]
     syn.set_annotations(annote)
 
     # Check it again
@@ -342,6 +345,7 @@ def test_annotations(syn, project, schedule_for_cleanup):
     assert annotation['goobers'] == ['chris', 'jen', 'jane']
     assert (annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') ==
             annote['present_time'].strftime('%Y-%m-%d %H:%M:%S'))
+    assert annotation['maybe'] == [True, False]
 
 
 def test_get_user_profile(syn):

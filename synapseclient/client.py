@@ -354,8 +354,6 @@ class Synapse(object):
                              following fields: email, password, apiKey
         :param rememberMe:   Whether the authentication information should be cached in your operating system's
                              credential storage.
-        :param silent:       Suppress login welcome message
-        :param forced:       Skip any cached credential lookup
         :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
                                 password or apiKey
 
