@@ -1136,3 +1136,89 @@ def test_check_id_results():
                 'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}
                ]
     assert len(cmdline.check_id_results(results)) == 2
+
+
+@patch('synapseclient.client.Synapse')
+def test_filter_id_by_limitSearch(mock_syn):
+    limitSearch_id = 'syn12345'
+    results = [{'name': 'test1.txt',
+                'id': 'syn123',
+                'type': 'org.sagebionetworks.repo.model.FileEntity',
+                'versionNumber': 1,
+                'versionLabel': '1',
+                'isLatestVersion': True},
+               {'name': 'test2.txt',
+                'id': 'syn456',
+                'type': 'org.sagebionetworks.repo.model.FileEntity',
+                'versionNumber': 1,
+                'versionLabel': '1',
+                'isLatestVersion': False},
+               {'name': 'test3.txt',
+                'id': 'syn789',
+                'type': 'org.sagebionetworks.repo.model.FileEntity',
+                'versionNumber': 9,
+                'versionLabel': '9',
+                'isLatestVersion': False}
+               ]
+    mock_syn.restGET.side_effect = [{'path': [{'name': 'root',
+                                                'id': 'syn4489',
+                                                'type': 'org.sagebionetworks.repo.model.Folder'},
+                                               {'name': 'test_project',
+                                                'id': 'syn12345',
+                                                'type': 'org.sagebionetworks.repo.model.Project'},
+                                               {'name': 'test1.txt',
+                                                'id': 'syn123',
+                                                'type': 'org.sagebionetworks.repo.model.FileEntity'}]},
+                                     {'path': [{'name': 'root',
+                                                'id': 'syn4489',
+                                                'type': 'org.sagebionetworks.repo.model.Folder'},
+                                               {'name': 'test_project',
+                                                'id': 'syn12345',
+                                                'type': 'org.sagebionetworks.repo.model.Project'},
+                                               {'name': 'test2.txt',
+                                                'id': 'syn456',
+                                                'type': 'org.sagebionetworks.repo.model.FileEntity'}]},
+                                     {'path': [{'name': 'root',
+                                                'id': 'syn4489',
+                                                'type': 'org.sagebionetworks.repo.model.Folder'},
+                                               {'name': 'test_project_chl',
+                                                'id': 'syn24179727',
+                                                'type': 'org.sagebionetworks.repo.model.Project'},
+                                               {'name': 'another folder',
+                                                'id': 'syn123456789',
+                                                'type': 'org.sagebionetworks.repo.model.Folder'},
+                                               {'name': 'test1_v2.txt',
+                                                'id': 'syn789',
+                                                'type': 'org.sagebionetworks.repo.model.FileEntity'}]}]
+
+    expected_results = [{'name': 'test1.txt',
+                         'id': 'syn123',
+                         'type': 'org.sagebionetworks.repo.model.FileEntity',
+                         'versionNumber': 1,
+                         'versionLabel': '1',
+                         'isLatestVersion': True},
+                        {'name': 'test2.txt',
+                         'id': 'syn456',
+                         'type': 'org.sagebionetworks.repo.model.FileEntity',
+                         'versionNumber': 1,
+                         'versionLabel': '1',
+                         'isLatestVersion': False}]
+    assert expected_results == cmdline.filter_id_by_limitSearch(mock_syn, results, limitSearch_id)
+
+
+@patch.object(cmdline, 'os')
+def test_check_id_or_path_md5(mock_os):
+    parser = cmdline.build_parser()
+    mock_os.path.isfile.return_value = True
+
+    args = parser.parse_args(['get-annotations', '-id', 'syn123'])
+    assert cmdline.check_id_or_path_md5(args)
+
+    args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file'])
+    assert cmdline.check_id_or_path_md5(args)
+
+    args = parser.parse_args(['get-annotations', 'home/temp_path/temp_file'])
+    assert cmdline.check_id_or_path_md5(args)
+
+    mock_os.path.isfile.return_value = False
+    assert not cmdline.check_id_or_path_md5(args)

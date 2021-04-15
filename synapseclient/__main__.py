@@ -291,7 +291,7 @@ def onweb(args, syn):
 def setProvenance(args, syn):
     """Set provenance information on a synapse entity."""
     if check_id_or_path_md5(args):
-        results = filter_results_with_path_md5(args, syn)
+        results = _filter_results_with_path_md5(args, syn)
         target_syn_id = results[-1]['id']
     else:
         target_syn_id = args.id
@@ -322,7 +322,7 @@ def setProvenance(args, syn):
 
 def getProvenance(args, syn):
     if check_id_or_path_md5(args):
-        results = filter_results_with_path_md5(args, syn)
+        results = _filter_results_with_path_md5(args, syn)
         activity = syn.getProvenance(results[-1]['id'], args.version)
     else:
         activity = syn.getProvenance(args.id, args.version)
@@ -360,7 +360,7 @@ def setAnnotations(args, syn):
             "'{\"foo\": 1, \"bar\":\"quux\"}'.")
 
     if check_id_or_path_md5(args):
-        results = filter_results_with_path_md5(args, syn)
+        results = _filter_results_with_path_md5(args, syn)
         target_syn_id = results[-1]['id']
     else:
         target_syn_id = args.id
@@ -379,7 +379,7 @@ def setAnnotations(args, syn):
 
 def getAnnotations(args, syn):
     if check_id_or_path_md5(args):
-        results = filter_results_with_path_md5(args, syn)
+        results = _filter_results_with_path_md5(args, syn)
         annotations = syn.get_annotations(results[-1]['id'])
     else:
         annotations = syn.get_annotations(args.id)
@@ -392,7 +392,7 @@ def getAnnotations(args, syn):
             f.write('\n')
 
 
-def filter_results_with_path_md5(args, syn):
+def _filter_results_with_path_md5(args, syn):
     path_md5 = args.id if args.id else args.path_md5
     results = syn.restGET('/entity/md5/%s' % utils.md5_for_file(path_md5).hexdigest())['results']
     if args.limitSearch is not None:
@@ -400,8 +400,7 @@ def filter_results_with_path_md5(args, syn):
 
     set_id_result = check_id_results(results)
     if len(set_id_result) > 1:
-        raise SynapseError('There are more than one identical content for this file in different locations '
-                           'on Synapse')
+        raise SynapseError(f"{args.id} matched more than one file: {set_id_result}")
     return results
 
 
