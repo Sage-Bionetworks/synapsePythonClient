@@ -11,8 +11,7 @@ from unittest.mock import call, Mock, patch, MagicMock
 
 import synapseclient.__main__ as cmdline
 from synapseclient.annotations import Annotations
-from synapseclient.core.exceptions import (SynapseAuthenticationError, SynapseNoCredentialsError,
-                                           SynapseProvenanceError, SynapseError)
+from synapseclient.core.exceptions import (SynapseAuthenticationError, SynapseNoCredentialsError, SynapseError)
 from synapseclient.entity import File
 
 import synapseutils
@@ -600,8 +599,9 @@ def test_get_provenance_function__with_syn_id(mock_os, mock_syn, mock_filter_id_
 
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_get_provenance_function__with_syn_id_md5__only_one_result__without_limitSeatch(mock_utils, mock_os, mock_syn):
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_get_provenance_function__with_syn_id_md5__only_one_result__without_limitSearch(mock_md5_for_file, mock_os,
+                                                                                        mock_syn):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-provenance', '-id', 'home/temp_path/temp_file'])
     mock_os.path.isfile.return_value = True
@@ -611,7 +611,7 @@ def test_get_provenance_function__with_syn_id_md5__only_one_result__without_limi
                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}]}
 
     mock_syn.getProvenance.return_value = {'id': 'syn123', 'name': 'test_name', 'description': 'test_description'}
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
 
     cmdline.getProvenance(args, mock_syn)
 
@@ -621,9 +621,9 @@ def test_get_provenance_function__with_syn_id_md5__only_one_result__without_limi
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_get_provenance_function__with_syn_id_md5__with_limitSeatch(mock_utils, mock_os, mock_filter_id_by_limitSearch,
-                                                                    mock_syn):
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_get_provenance_function__with_syn_id_md5__with_limitSearch(mock_md5_for_file, mock_os,
+                                                                    mock_filter_id_by_limitSearch, mock_syn):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-provenance', '-id', 'home/temp_path/temp_file', '-limitSearch', 'syn123'])
     mock_os.path.isfile.return_value = True
@@ -635,15 +635,13 @@ def test_get_provenance_function__with_syn_id_md5__with_limitSeatch(mock_utils, 
                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
                                                  ]}
-    mock_filter_id_by_limitSearch.return_value = [{'name': 'test_file', 'id': 'syn12345',
-                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
+    mock_filter_id_by_limitSearch.return_value = [
                                                   {'name': 'test_file', 'id': 'syn12345',
                                                    'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                    'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
                                                   ]
     mock_syn.getProvenance.return_value = {'id': 'syn123', 'name': 'test_name', 'description': 'test_description'}
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
 
     cmdline.getProvenance(args, mock_syn)
 
@@ -654,8 +652,8 @@ def test_get_provenance_function__with_syn_id_md5__with_limitSeatch(mock_utils, 
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_get_provenance_function__raise_exception(mock_utils, mock_os, mock_filter_id_by_limitSearch, mock_syn):
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_get_provenance_function__raise_exception(mock_md5_for_file, mock_os, mock_filter_id_by_limitSearch, mock_syn):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-provenance', '-id', 'home/temp_path/temp_file', '-limitSearch', 'syn123'])
     mock_os.path.isfile.return_value = True
@@ -665,21 +663,24 @@ def test_get_provenance_function__raise_exception(mock_utils, mock_os, mock_filt
                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
                                                  {'name': 'test_file', 'id': 'syn12345',
                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                  'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
+                                                  'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False},
+                                                 {'name': 'test_file', 'id': 'syn789',
+                                                  'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                  'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}
                                                  ]}
     mock_filter_id_by_limitSearch.return_value = [{'name': 'test_file', 'id': 'syn12345',
                                                    'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
+                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False},
                                                   {'name': 'test_file', 'id': 'syn789',
                                                    'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
+                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}
                                                   ]
     mock_syn.getProvenance.return_value = {'id': 'syn123', 'name': 'test_name', 'description': 'test_description'}
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
 
     assert len(cmdline.check_id_results(mock_filter_id_by_limitSearch())) == 2
 
-    with pytest.raises(SynapseProvenanceError) as syn_ex:
+    with pytest.raises(SynapseError) as syn_ex:
         cmdline.getProvenance(args, mock_syn)
 
     str(syn_ex.value) == 'There are more than one identical content for this file in different locations on Synapse'
@@ -714,8 +715,9 @@ def test_set_provenance_function__with_syn_id(mock_os, mock_syn, mock_filter_id_
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_set_provenance_function__with_syn_id_md5__only_one_result__without_limitSeatch(mock_utils, mock_os, mock_syn,
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_set_provenance_function__with_syn_id_md5__only_one_result__without_limitSearch(mock_md5_for_file, mock_os,
+                                                                                        mock_syn,
                                                                                         mock_filter_id_by_limitSearch,
                                                                                         mock_check_id_results):
     parser = cmdline.build_parser()
@@ -727,7 +729,7 @@ def test_set_provenance_function__with_syn_id_md5__only_one_result__without_limi
                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}]}
 
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
     mock_syn._convertProvenanceList.return_value = ['syn456']
 
     cmdline.setProvenance(args, mock_syn)
@@ -752,8 +754,8 @@ def test_set_provenance_function__with_syn_id_md5__only_one_result__without_limi
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_set_provenance_function__with_syn_id_md5__with_limitSeatch(mock_utils, mock_os, mock_syn,
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_set_provenance_function__with_syn_id_md5__with_limitSearch(mock_md5_for_file, mock_os, mock_syn,
                                                                     mock_filter_id_by_limitSearch,
                                                                     mock_check_id_results):
     parser = cmdline.build_parser()
@@ -767,15 +769,13 @@ def test_set_provenance_function__with_syn_id_md5__with_limitSeatch(mock_utils, 
                                                  {'name': 'test_file', 'id': 'syn12345',
                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}]}
-    mock_filter_id_by_limitSearch.return_value = [{'name': 'test_file', 'id': 'syn12345',
-                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
+    mock_filter_id_by_limitSearch.return_value = [
                                                   {'name': 'test_file', 'id': 'syn12345',
                                                    'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                    'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
                                                   ]
 
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
     mock_syn._convertProvenanceList.return_value = ['syn456']
 
     cmdline.setProvenance(args, mock_syn)
@@ -791,12 +791,6 @@ def test_set_provenance_function__with_syn_id_md5__with_limitSeatch(mock_utils, 
     mock_check_id_results.assert_called_with([{'name': 'test_file',
                                                'id': 'syn12345',
                                                'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                               'versionNumber': 1,
-                                               'versionLabel': '1',
-                                               'isLatestVersion': False},
-                                              {'name': 'test_file',
-                                               'id': 'syn12345',
-                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                'versionNumber': 2,
                                                'versionLabel': '2',
                                                'isLatestVersion': False}])
@@ -805,8 +799,8 @@ def test_set_provenance_function__with_syn_id_md5__with_limitSeatch(mock_utils, 
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_set_provenance_function__raise_exception(mock_utils, mock_os, mock_syn, mock_filter_id_by_limitSearch):
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_set_provenance_function__raise_exception(mock_md5_for_file, mock_os, mock_syn, mock_filter_id_by_limitSearch):
     parser = cmdline.build_parser()
     args = parser.parse_args(['set-provenance', '-id', 'home/temp_path/temp_file', '-name', 'test_filename',
                               '-description', 'test_desc', '-used', 'syn456', '-limitSearch', 'syn456789'])
@@ -826,11 +820,11 @@ def test_set_provenance_function__raise_exception(mock_utils, mock_os, mock_syn,
                                                    'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}
                                                   ]
 
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
 
     assert len(cmdline.check_id_results(mock_filter_id_by_limitSearch())) == 2
 
-    with pytest.raises(SynapseProvenanceError) as syn_ex:
+    with pytest.raises(SynapseError) as syn_ex:
         cmdline.setProvenance(args, mock_syn)
 
     str(syn_ex.value) == 'There are more than one identical content for this file in different locations on Synapse'
@@ -860,8 +854,9 @@ def test_get_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_get_annotations_function__with_syn_id_md5__only_one_result__without_limitSeatch(mock_utils, mock_os, mock_syn,
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_get_annotations_function__with_syn_id_md5__only_one_result__without_limitSearch(mock_md5_for_file, mock_os,
+                                                                                         mock_syn,
                                                                                          mock_filter_id_by_limitSearch,
                                                                                          mock_check_id_results):
     parser = cmdline.build_parser()
@@ -873,7 +868,7 @@ def test_get_annotations_function__with_syn_id_md5__only_one_result__without_lim
                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}]}
 
     mock_syn.get_annotations.return_value = {'test_key': ['test_val']}
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
 
     cmdline.getAnnotations(args, mock_syn)
 
@@ -892,8 +887,8 @@ def test_get_annotations_function__with_syn_id_md5__only_one_result__without_lim
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_get_annotation_function__with_syn_id_md5__with_limitSeatch(mock_utils, mock_os, mock_syn,
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_get_annotation_function__with_syn_id_md5__with_limitSearch(mock_md5_for_file, mock_os, mock_syn,
                                                                     mock_filter_id_by_limitSearch,
                                                                     mock_check_id_results):
     parser = cmdline.build_parser()
@@ -906,28 +901,20 @@ def test_get_annotation_function__with_syn_id_md5__with_limitSeatch(mock_utils, 
                                                  {'name': 'test_file', 'id': 'syn12345',
                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}]}
-    mock_filter_id_by_limitSearch.return_value = [{'name': 'test_file', 'id': 'syn12345',
-                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
+    mock_filter_id_by_limitSearch.return_value = [
                                                   {'name': 'test_file', 'id': 'syn12345',
                                                    'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                    'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
                                                   ]
 
     mock_syn.get_annotations.return_value = {'test_key': ['test_val']}
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
 
     cmdline.getAnnotations(args, mock_syn)
 
     mock_syn.get_annotations.assert_called_with('syn12345')
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
     mock_check_id_results.assert_called_with([{'name': 'test_file',
-                                               'id': 'syn12345',
-                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                               'versionNumber': 1,
-                                               'versionLabel': '1',
-                                               'isLatestVersion': False},
-                                              {'name': 'test_file',
                                                'id': 'syn12345',
                                                'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                'versionNumber': 2,
@@ -938,8 +925,8 @@ def test_get_annotation_function__with_syn_id_md5__with_limitSeatch(mock_utils, 
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_get_annotation_function__raise_exception(mock_utils, mock_os, mock_syn, mock_filter_id_by_limitSearch):
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_get_annotation_function__raise_exception(mock_md5_for_file, mock_os, mock_syn, mock_filter_id_by_limitSearch):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file', '-limitSearch', 'syn456789'])
     mock_os.path.isfile.return_value = True
@@ -949,15 +936,15 @@ def test_get_annotation_function__raise_exception(mock_utils, mock_os, mock_syn,
                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
                                                  {'name': 'test_file', 'id': 'syn789',
                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                  'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}]}
+                                                  'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}]}
     mock_filter_id_by_limitSearch.return_value = [{'name': 'test_file', 'id': 'syn12345',
                                                    'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                    'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
                                                   {'name': 'test_file', 'id': 'syn789',
                                                    'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
+                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}
                                                   ]
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
 
     assert len(cmdline.check_id_results(mock_filter_id_by_limitSearch())) == 2
 
@@ -999,8 +986,9 @@ def test_set_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_set_annotations_function__with_syn_id_md5__only_one_result__without_limitSeatch(mock_utils, mock_os, mock_syn,
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_set_annotations_function__with_syn_id_md5__only_one_result__without_limitSearch(mock_md5_for_file, mock_os,
+                                                                                         mock_syn,
                                                                                          mock_filter_id_by_limitSearch,
                                                                                          mock_check_id_results):
     parser = cmdline.build_parser()
@@ -1011,7 +999,7 @@ def test_set_annotations_function__with_syn_id_md5__only_one_result__without_lim
                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}]}
 
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
     annotation = Annotations('syn12345', 'test_etag', {'test_key': 'test_val'})
     mock_syn.get_annotations.return_value = annotation
     updated_annotations = {'test_key': 'test_val', 'foo': 1}
@@ -1033,8 +1021,8 @@ def test_set_annotations_function__with_syn_id_md5__only_one_result__without_lim
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_set_annotations_function__with_syn_id_md5__with_limitSeatch(mock_utils, mock_os, mock_syn,
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_set_annotations_function__with_syn_id_md5__with_limitSearch(mock_md5_for_file, mock_os, mock_syn,
                                                                      mock_filter_id_by_limitSearch,
                                                                      mock_check_id_results):
     parser = cmdline.build_parser()
@@ -1047,7 +1035,11 @@ def test_set_annotations_function__with_syn_id_md5__with_limitSeatch(mock_utils,
                                                   'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
                                                  {'name': 'test_file', 'id': 'syn12345',
                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                  'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}]}
+                                                  'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False},
+                                                 {'name': 'test_file', 'id': 'syn000',
+                                                  'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                                  'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
+                                                 ]}
     mock_filter_id_by_limitSearch.return_value = [{'name': 'test_file', 'id': 'syn12345',
                                                    'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                    'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
@@ -1056,7 +1048,7 @@ def test_set_annotations_function__with_syn_id_md5__with_limitSeatch(mock_utils,
                                                    'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
                                                   ]
 
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
     annotation = Annotations('syn12345', 'test_etag', {'test_key': 'test_val'})
     mock_syn.get_annotations.return_value = annotation
     updated_annotations = {'test_key': 'test_val', 'foo': 1}
@@ -1091,8 +1083,8 @@ def test_set_annotations_function__raise_exception__for_loading_json_failed(mock
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-@patch.object(cmdline, 'utils')
-def test_set_annotations_function__raise_SynapseError_exception(mock_utils, mock_os, mock_syn,
+@patch.object(cmdline.utils, 'md5_for_file')
+def test_set_annotations_function__raise_SynapseError_exception(mock_md5_for_file, mock_os, mock_syn,
                                                                 mock_filter_id_by_limitSearch):
     parser = cmdline.build_parser()
     args = parser.parse_args(['set-annotations', '-id', 'home/temp_path/temp_file', '--annotations', '{"foo": 1}',
@@ -1113,7 +1105,7 @@ def test_set_annotations_function__raise_SynapseError_exception(mock_utils, mock
                                                    'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
                                                   ]
 
-    mock_utils.md5_for_file.return_value = hashlib.md5()
+    mock_md5_for_file.return_value = hashlib.md5()
 
     assert len(cmdline.check_id_results(mock_filter_id_by_limitSearch())) == 2
 
