@@ -636,10 +636,10 @@ def test_get_provenance_function__with_syn_id_md5__with_limitSearch(mock_md5_for
                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
                                                  ]}
     mock_filter_id_by_limitSearch.return_value = [
-                                                  {'name': 'test_file', 'id': 'syn12345',
-                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
-                                                  ]
+        {'name': 'test_file', 'id': 'syn12345',
+         'type': 'org.sagebionetworks.repo.model.FileEntity',
+         'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
+    ]
     mock_syn.getProvenance.return_value = {'id': 'syn123', 'name': 'test_name', 'description': 'test_description'}
     mock_md5_for_file.return_value = hashlib.md5()
 
@@ -770,10 +770,10 @@ def test_set_provenance_function__with_syn_id_md5__with_limitSearch(mock_md5_for
                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}]}
     mock_filter_id_by_limitSearch.return_value = [
-                                                  {'name': 'test_file', 'id': 'syn12345',
-                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
-                                                  ]
+        {'name': 'test_file', 'id': 'syn12345',
+         'type': 'org.sagebionetworks.repo.model.FileEntity',
+         'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
+    ]
 
     mock_md5_for_file.return_value = hashlib.md5()
     mock_syn._convertProvenanceList.return_value = ['syn456']
@@ -902,10 +902,10 @@ def test_get_annotation_function__with_syn_id_md5__with_limitSearch(mock_md5_for
                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}]}
     mock_filter_id_by_limitSearch.return_value = [
-                                                  {'name': 'test_file', 'id': 'syn12345',
-                                                   'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                                   'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
-                                                  ]
+        {'name': 'test_file', 'id': 'syn12345',
+         'type': 'org.sagebionetworks.repo.model.FileEntity',
+         'versionNumber': 2, 'versionLabel': '2', 'isLatestVersion': False}
+    ]
 
     mock_syn.get_annotations.return_value = {'test_key': ['test_val']}
     mock_md5_for_file.return_value = hashlib.md5()
@@ -1161,35 +1161,35 @@ def test_filter_id_by_limitSearch(mock_syn):
                 'isLatestVersion': False}
                ]
     mock_syn.restGET.side_effect = [{'path': [{'name': 'root',
-                                                'id': 'syn4489',
-                                                'type': 'org.sagebionetworks.repo.model.Folder'},
-                                               {'name': 'test_project',
-                                                'id': 'syn12345',
-                                                'type': 'org.sagebionetworks.repo.model.Project'},
-                                               {'name': 'test1.txt',
-                                                'id': 'syn123',
-                                                'type': 'org.sagebionetworks.repo.model.FileEntity'}]},
-                                     {'path': [{'name': 'root',
-                                                'id': 'syn4489',
-                                                'type': 'org.sagebionetworks.repo.model.Folder'},
-                                               {'name': 'test_project',
-                                                'id': 'syn12345',
-                                                'type': 'org.sagebionetworks.repo.model.Project'},
-                                               {'name': 'test2.txt',
-                                                'id': 'syn456',
-                                                'type': 'org.sagebionetworks.repo.model.FileEntity'}]},
-                                     {'path': [{'name': 'root',
-                                                'id': 'syn4489',
-                                                'type': 'org.sagebionetworks.repo.model.Folder'},
-                                               {'name': 'test_project_chl',
-                                                'id': 'syn24179727',
-                                                'type': 'org.sagebionetworks.repo.model.Project'},
-                                               {'name': 'another folder',
-                                                'id': 'syn123456789',
-                                                'type': 'org.sagebionetworks.repo.model.Folder'},
-                                               {'name': 'test1_v2.txt',
-                                                'id': 'syn789',
-                                                'type': 'org.sagebionetworks.repo.model.FileEntity'}]}]
+                                               'id': 'syn4489',
+                                               'type': 'org.sagebionetworks.repo.model.Folder'},
+                                              {'name': 'test_project',
+                                               'id': 'syn12345',
+                                               'type': 'org.sagebionetworks.repo.model.Project'},
+                                              {'name': 'test1.txt',
+                                               'id': 'syn123',
+                                               'type': 'org.sagebionetworks.repo.model.FileEntity'}]},
+                                    {'path': [{'name': 'root',
+                                               'id': 'syn4489',
+                                               'type': 'org.sagebionetworks.repo.model.Folder'},
+                                              {'name': 'test_project',
+                                               'id': 'syn12345',
+                                               'type': 'org.sagebionetworks.repo.model.Project'},
+                                              {'name': 'test2.txt',
+                                               'id': 'syn456',
+                                               'type': 'org.sagebionetworks.repo.model.FileEntity'}]},
+                                    {'path': [{'name': 'root',
+                                               'id': 'syn4489',
+                                               'type': 'org.sagebionetworks.repo.model.Folder'},
+                                              {'name': 'test_project_chl',
+                                               'id': 'syn24179727',
+                                               'type': 'org.sagebionetworks.repo.model.Project'},
+                                              {'name': 'another folder',
+                                               'id': 'syn123456789',
+                                               'type': 'org.sagebionetworks.repo.model.Folder'},
+                                              {'name': 'test1_v2.txt',
+                                               'id': 'syn789',
+                                               'type': 'org.sagebionetworks.repo.model.FileEntity'}]}]
 
     expected_results = [{'name': 'test1.txt',
                          'id': 'syn123',
