@@ -21,7 +21,7 @@ Use Environment Variable
 =========================
 
 Setting the :code:`SYNAPSE_ACCESS_TOKEN` environment variable will allow you to login
-to synapse with a personal access token.
+to Synapse with a personal access token.
 
 The environment variable will take priority over credentials in the user's :code:`.synapseConfig` file
 or any credentials saved in a prior login using :code:`syn.login(rememberMe=True)`.
@@ -47,6 +47,21 @@ Once you are inside Python, you may simply login without passing any arguments:
     import synapseclient
     syn = synapseclient.login()
 
+To use the environment variable with the command line client, simply substitute :code:`python` for the :code:`synapse` command
+
+.. code-block:: bash
+
+    SYNAPSE_ACCESS_TOKEN='<my_personal_access_token>' synapse get syn123
+    SYNAPSE_ACCESS_TOKEN='<my_personal_access_token>' synapse store --parentid syn123 ~/foobar.txt
+
+Or alternatively, for multiple commands:
+
+.. code-block:: bash
+
+    export SYNAPSE_ACCESS_TOKEN='<my_personal_access_token>'
+    synapse get syn123
+    synapse store --parentid syn123 ~/foobar.txt
+
 
 Use :code:`.synapseConfig`
 ====================
@@ -59,19 +74,19 @@ When installing the Synapse Python client, the `.synapseConfig` is added to your
     #password = <password>
     #authtoken = <authtoken>
 
-To enable this section, uncomment it. You will only need to specify either a :code:`username` and :code:`password` pair, or an :code:`authtoken`. For security purposes, we recommend that you use :code:`authtoken` instead of your :code:`password`. A personal access token generated from your synapse.org Settings can be used as your *.synapseConfig* authtoken.
+To enable this section, uncomment it. You will only need to specify either :code:`username` and :code:`password` as a pair, or :code:`authtoken`. For security purposes, we recommend that you use :code:`authtoken` instead of :code:`username` and :code:`password`. A personal access token generated from your synapse.org Settings can be used as your *.synapseConfig* authtoken.
 
 ::
 
     [authentication]
     authtoken = <authtoken>
 
-Now, you can login without specifying your :code:`username` and :code:`password`::
+Now, you can login without specifying any arguments::
 
     import synapseclient
     syn = synapseclient.login()
 
-The .synapseConfig also supports a legacy :code:`apikey` which can be used with a :code:`username` instead of the :code:`password` or :code:`authtoken`, however api key support in the synapseConfig is considered deprecated in favor of personal access tokens which
+The .synapseConfig also supports a legacy :code:`apikey` which can be used with a :code:`username` instead of :code:`password` or :code:`authtoken`, however API key support in the .synapseConfig is considered deprecated in favor of personal access tokens which
 can be scoped to certain functions and which are revocable. If needed your legacy :code:`apikey` can also be obtained from your synapse.org Settings.
 
 Letting the Operating System Manage Your Synapse Credentials
@@ -84,7 +99,7 @@ For users who would like to save their credentials and let other OS configured a
 
 The application (keychain in Mac) will then prompt you to allow Python to access these credentials. Please choose "Yes" or "OK".
 
-The second time you login, you will not have to enter your :code:`username` or :code:`password`::
+The second time you login, you will not have to enter any arguments to :code:`login()`::
 
     import synapseclient
     syn = synapseclient.login()
