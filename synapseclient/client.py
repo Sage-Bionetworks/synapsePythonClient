@@ -343,7 +343,7 @@ class Synapse(object):
         If no login arguments are provided or only username is provided, login() will attempt to log in using
          information from these sources (in order of preference):
 
-        #. User's personal access token from environment the variable: SYNAPSE_ACCESS_TOKEN
+        #. User's personal access token from environment the variable: SYNAPSE_AUTH_TOKEN
 
         #. .synapseConfig file (in user home folder unless configured otherwise)
 
