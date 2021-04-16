@@ -3,6 +3,64 @@ Release Notes
 =============
 
 
+2.4.0 (2021-05-XX)
+==================
+
+Highlights
+----------
+
+- Added ability to :code:`syn.login()` without arguments if the :code:`SYNAPSE_AUTH_TOKEN` enviroment variable is set with a valid personal access token
+
+  .. code-block:: bash
+
+        # set environment variable for python
+        SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' python3
+
+  .. code-block:: python3
+
+        import synapseclient
+        # login() will retrieve the personal access token from environment variable
+        syn = synapseclient.login()
+  The environment variable will take priority over credentials in the user's :code:`.synapseConfig` file
+  or any credentials saved in a prior login using :code:`syn.login(rememberMe=True)`.
+New Features
+------------
+
+-  [`SYNPY-1125 <https://sagebionetworks.jira.com/browse/SYNPY-1125>`__] -
+   Allow login with environment variables
+
+
+2.3.1 (2021-04-13)
+==================
+
+Highlights
+----------
+
+- Entities can be annotated with boolean datatypes, for example:
+
+  .. code-block::
+
+    file = synapseclient.File('/path/to/file', parentId='syn123', synapse_is_great=True)
+    syn.store(file)
+
+- synapseclient is additionally packaged as a Python wheel.
+
+
+Bug Fixes
+---------
+
+-  [`SYNPY-829 <https://sagebionetworks.jira.com/browse/SYNPY-829>`__] -
+   syn.store always updates annotations
+-  [`SYNPY-1033 <https://sagebionetworks.jira.com/browse/SYNPY-1033>`__] -
+   If versionComment is left blank, previous version comment populates
+
+Improvements
+------------
+
+-  [`SYNPY-1120 <https://sagebionetworks.jira.com/browse/SYNPY-1120>`__] -
+   Build wheel distributions
+-  [`SYNPY-1129 <https://sagebionetworks.jira.com/browse/SYNPY-1129>`__] -
+   Support boolean annotations in Python client
 
 2.3.0 (2021-03-03)
 ================
