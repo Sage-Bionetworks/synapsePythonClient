@@ -34,7 +34,7 @@ In your shell, you can pass an environment variable to Python inline by defining
 
     SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' python3
 
-Alternatively you may export it first, then start Python
+Alternatively you may export it first, then start: Python
 
 .. code-block:: bash
 
