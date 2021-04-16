@@ -86,7 +86,7 @@ Now, you can login without specifying any arguments::
     import synapseclient
     syn = synapseclient.login()
 
-For legacy compatibility, the :code:`.synapseConfig` :code:`[authentication]` section also supports :code:`apikey`, which can be used instead of :code:`username` + :code:`password` pair, or :code:`authtoken`, however API key support in the .synapseConfig is considered deprecated in favor of personal access tokens (:code:`authtoken`) which
+For legacy compatibility, the :code:`.synapseConfig` :code:`[authentication]` section also supports :code:`apikey`, which can be used instead of :code:`username` + :code:`password` pair, or :code:`authtoken`, however :code:`apikey` support in the .synapseConfig is considered deprecated in favor of personal access tokens (:code:`authtoken`) which
 can be scoped to certain functions and are revocable. If needed, your legacy :code:`apikey` can also be obtained from your synapse.org Settings.
 
 Letting the Operating System Manage Your Synapse Credentials
