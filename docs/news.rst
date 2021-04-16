@@ -9,12 +9,12 @@ Release Notes
 Highlights
 ----------
 
-- Added ability to :code:`syn.login()` without arguments if the :code:`SYNAPSE_ACCESS_TOKEN` enviroment variable is set with a valid personal access token
+- Added ability to :code:`syn.login()` without arguments if the :code:`SYNAPSE_AUTH_TOKEN` enviroment variable is set with a valid personal access token
 
   .. code-block:: bash
 
         # set environment variable for python
-        SYNAPSE_ACCESS_TOKEN='<my_personal_access_token>' python3
+        SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' python3
 
   .. code-block:: python3
 

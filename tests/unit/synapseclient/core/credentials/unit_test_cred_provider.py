@@ -494,14 +494,14 @@ class TestEnvironmentVariableCredentialsProvider():
 
     def test_get_auth_info__has_environment_variable(self, mocker: MockerFixture, syn):
         token = "aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj1mQzdvVU9VRUVpNA=="
-        mocker.patch.dict(os.environ, {'SYNAPSE_ACCESS_TOKEN': token})
+        mocker.patch.dict(os.environ, {'SYNAPSE_AUTH_TOKEN': token})
 
         user_login_args = UserLoginArgs(username=None, password=None, api_key=None, skip_cache=False, auth_token=None)
         assert (None, None, None, token) == self.provider._get_auth_info(syn, user_login_args)
 
     def test_get_auth_info__has_environment_variable_user_args_with_username(self, mocker: MockerFixture, syn):
         token = "aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj1mQzdvVU9VRUVpNA=="
-        mocker.patch.dict(os.environ, {'SYNAPSE_ACCESS_TOKEN': token})
+        mocker.patch.dict(os.environ, {'SYNAPSE_AUTH_TOKEN': token})
         username = "foobar"
         user_login_args = UserLoginArgs(username=username, password=None, api_key=None, skip_cache=False,
                                         auth_token=None)

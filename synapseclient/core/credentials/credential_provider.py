@@ -192,7 +192,7 @@ class EnvironmentVariableCredentialsProvider(SynapseCredentialsProvider):
     """
     Retrieves the user's auth token from an environment variable
     """
-    ENVIRONMENT_VAR_NAME = "SYNAPSE_ACCESS_TOKEN"
+    ENVIRONMENT_VAR_NAME = "SYNAPSE_AUTH_TOKEN"
 
     def _get_auth_info(self, syn, user_login_args):
         return user_login_args.username, None, None, os.environ.get(self.ENVIRONMENT_VAR_NAME)

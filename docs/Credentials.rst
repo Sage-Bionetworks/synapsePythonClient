@@ -20,7 +20,7 @@ Alternately you can login using a personal access token obtained from synapse.or
 Use Environment Variable
 =========================
 
-Setting the :code:`SYNAPSE_ACCESS_TOKEN` environment variable will allow you to login
+Setting the :code:`SYNAPSE_AUTH_TOKEN` environment variable will allow you to login
 to Synapse with a personal access token.
 
 The environment variable will take priority over credentials in the user's :code:`.synapseConfig` file
@@ -32,13 +32,13 @@ In your shell, you can pass an environment variable to Python inline by defining
 
 .. code-block:: bash
 
-    SYNAPSE_ACCESS_TOKEN='<my_personal_access_token>' python3
+    SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' python3
 
 Alternatively you may export it first, then start Python
 
 .. code-block:: bash
 
-    export SYNAPSE_ACCESS_TOKEN='<my_personal_access_token>'
+    export SYNAPSE_AUTH_TOKEN='<my_personal_access_token>'
     python3
 Once you are inside Python, you may simply login without passing any arguments:
 
@@ -51,14 +51,14 @@ To use the environment variable with the command line client, simply substitute 
 
 .. code-block:: bash
 
-    SYNAPSE_ACCESS_TOKEN='<my_personal_access_token>' synapse get syn123
-    SYNAPSE_ACCESS_TOKEN='<my_personal_access_token>' synapse store --parentid syn123 ~/foobar.txt
+    SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' synapse get syn123
+    SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' synapse store --parentid syn123 ~/foobar.txt
 
 Or alternatively, for multiple commands:
 
 .. code-block:: bash
 
-    export SYNAPSE_ACCESS_TOKEN='<my_personal_access_token>'
+    export SYNAPSE_AUTH_TOKEN='<my_personal_access_token>'
     synapse get syn123
     synapse store --parentid syn123 ~/foobar.txt
 
@@ -86,8 +86,8 @@ Now, you can login without specifying any arguments::
     import synapseclient
     syn = synapseclient.login()
 
-The .synapseConfig also supports a legacy :code:`apikey` which can be used with a :code:`username` instead of :code:`password` or :code:`authtoken`, however API key support in the .synapseConfig is considered deprecated in favor of personal access tokens which
-can be scoped to certain functions and which are revocable. If needed your legacy :code:`apikey` can also be obtained from your synapse.org Settings.
+For legacy compatibility, the :code:`.synapseConfig` :code:`[authentication]` section also supports :code:`apikey`, which can be used instead of :code:`username` + :code:`password` pair, or :code:`authtoken`, however API key support in the .synapseConfig is considered deprecated in favor of personal access tokens (:code:`authtoken`) which
+can be scoped to certain functions and are revocable. If needed, your legacy :code:`apikey` can also be obtained from your synapse.org Settings.
 
 Letting the Operating System Manage Your Synapse Credentials
 ============================================================
