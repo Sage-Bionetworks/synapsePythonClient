@@ -9,9 +9,10 @@ import tempfile
 import threading
 
 import pytest
-from unittest.mock import ANY, patch, create_autospec, Mock, call
+from unittest.mock import ANY, patch, create_autospec, Mock, call, MagicMock
 
 import synapseutils
+from synapseutils import sync
 from synapseutils.sync import _FolderSync, _PendingProvenance, _SyncUploader, _SyncUploadItem
 from synapseclient import Activity, File, Folder, Project, Schema, Synapse
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
@@ -36,7 +37,8 @@ def test_readManifest__sync_order_with_home_directory(syn):
     # mock isfile() to always return true to avoid having to create files in the home directory
     # side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
     with patch.object(syn, "get", return_value=Project()), \
-            patch.object(os.path, "isfile", side_effect=[True, True, True, False]):
+            patch.object(os.path, "isfile", side_effect=[True, True, True, False]), \
+            patch.object(sync, "_check_size_each_file", return_value=Mock()):
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
         expected_order = pd.Series([os.path.normpath(os.path.expanduser(file_path2)),
                                     os.path.normpath(os.path.expanduser(file_path1))])
@@ -58,8 +60,9 @@ def test_readManifestFile__synapseStore_values_not_set(syn):
     }
 
     manifest = StringIO(header+row1+row2)
-    with patch.object(syn, "get", return_value=Project()),\
-            patch.object(os.path, "isfile", return_value=True):  # side effect mocks values for: file1.txt
+    with patch.object(syn, "get", return_value=Project()), \
+            patch.object(os.path, "isfile", return_value=True), \
+            patch.object(sync, "_check_size_each_file", return_value=Mock()):  # side effect mocks values for: file1.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
         actual_synapseStore = (manifest_dataframe.set_index('path')['synapseStore'].to_dict())
         assert expected_synapseStore == actual_synapseStore
@@ -93,7 +96,8 @@ def test_readManifestFile__synapseStore_values_are_set(syn):
     }
 
     manifest = StringIO(header+row1+row2+row3+row4+row5+row6)
-    with patch.object(syn, "get", return_value=Project()),\
+    with patch.object(syn, "get", return_value=Project()), \
+            patch.object(sync, "_check_size_each_file", return_value=Mock()), \
             patch.object(os.path, "isfile", return_value=True):  # mocks values for: file1.txt, file3.txt, file5.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
 
@@ -966,3 +970,156 @@ class TestGetFileEntityProvenanceDict:
         self.mock_syn.getProvenance.side_effect = SynapseHTTPError(response=Mock(status_code=400))
 
         pytest.raises(SynapseHTTPError, synapseutils.sync._get_file_entity_provenance_dict, self.mock_syn, "syn123")
+
+
+@patch.object(sync, 'os')
+def test_check_size_each_file(mock_os, syn):
+    """
+    Verify the check_size_each_file method works correctly
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = 'http://www.synapse.org'
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = 'http://www.github.com'
+
+    row1 = f'{path1}\t{project_id}\n'
+    row2 = f'{path2}\t{project_id}\n'
+    row3 = f'{path3}\t{project_id}\n'
+    row4 = f'{path4}\t{project_id}\n'
+
+    manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.isfile.side_effect = [True, True, True, False]
+    mock_os.path.abspath.side_effect = [path1, path3]
+    mock_stat = MagicMock(spec='st_size')
+    mock_os.stat.return_value = mock_stat
+    mock_stat.st_size = 5
+
+    # mock syn.get() to return a project because the final check is making sure parent is a container
+    with patch.object(syn, "get", return_value=Project()):
+        sync.readManifestFile(syn, manifest)
+        mock_os.stat.call_count == 4
+
+
+@patch.object(sync, 'os')
+def test_check_size_each_file_raise_error(mock_os, syn):
+    """
+    Verify the check_size_each_file method raises the ValueError when the file is empty.
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = 'http://www.synapse.org'
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = 'http://www.github.com'
+
+    row1 = f'{path1}\t{project_id}\n'
+    row2 = f'{path2}\t{project_id}\n'
+    row3 = f'{path3}\t{project_id}\n'
+    row4 = f'{path4}\t{project_id}\n'
+
+    manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.isfile.side_effect = [True, True, True, False]
+    mock_os.path.abspath.side_effect = [path1, path3]
+    mock_os.path.basename.return_value = 'file1.txt'
+    mock_stat = MagicMock(spec='st_size')
+    mock_os.stat.return_value = mock_stat
+    mock_stat.st_size = 0
+    with pytest.raises(ValueError) as ve:
+        sync.readManifestFile(syn, manifest)
+    assert str(ve.value) == "File {} is empty, empty files cannot be uploaded to Synapse".format("file1.txt")
+
+
+@patch.object(sync, 'os')
+def test_check_file_name(mock_os, syn):
+    """
+    Verify the check_file_name method works correctly
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\tname\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+
+    row1 = f"{path1}\t{project_id}\tTest_file_name.txt\n"
+    row2 = f"{path2}\t{project_id}\tTest_file-name`s(1).txt\n"
+    row3 = f"{path3}\t{project_id}\t\n"
+
+    manifest = StringIO(header + row1 + row2 + row3)
+    # mock isfile() to always return true to avoid having to create files in the home directory
+    mock_os.path.isfile.return_value = True
+    mock_os.path.abspath.side_effect = [path1, path2, path3]
+    mock_os.path.basename.return_value = 'file3.txt'
+
+    # mock syn.get() to return a project because the final check is making sure parent is a container
+    with patch.object(syn, "get", return_value=Project()):
+        sync.readManifestFile(syn, manifest)
+
+
+@patch.object(sync, 'os')
+def test_check_file_name_with_illegal_char(mock_os, syn):
+    """
+    Verify the check_file_name method raises the ValueError when the file name contains illegal char
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\tname\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = os.path.abspath(os.path.expanduser('~/file4.txt'))
+
+    row1 = f"{path1}\t{project_id}\tTest_file_name.txt\n"
+    row2 = f"{path2}\t{project_id}\tTest_file-name`s(1).txt\n"
+    row3 = f"{path3}\t{project_id}\t\n"
+    illegal_name = "Test_file_name_with_#.txt"
+    row4 = f"{path4}\t{project_id}\t{illegal_name}\n"
+
+    manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.isfile.return_value = True
+    mock_os.path.abspath.side_effect = [path1, path2, path3, path4]
+    mock_os.path.basename.return_value = 'file3.txt'
+
+    with pytest.raises(ValueError) as ve:
+        sync.readManifestFile(syn, manifest)
+    assert str(ve.value) == "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, " \
+                            "underscores, hyphens, periods, plus signs, apostrophes, " \
+                            "and parentheses".format(illegal_name)
+
+
+@patch.object(sync, 'os')
+def test_check_file_name_with_too_long_filename(mock_os, syn):
+    """
+    Verify the check_file_name method raises the ValueError when the file name is too long
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\tname\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = os.path.abspath(os.path.expanduser('~/file4.txt'))
+
+    long_file_name = 'test_filename_too_long_test_filename_too_long_test_filename_too_long_test_filename_too_long_' \
+                     'test_filename_too_long_test_filename_too_long_test_filename_too_long_test_filename_too_long_' \
+                     'test_filename_too_long_test_filename_too_long_test_filename_too_long_test_filename_too_long_'
+
+    row1 = f"{path1}\t{project_id}\tTest_file_name.txt\n"
+    row2 = f"{path2}\t{project_id}\tTest_file-name`s(1).txt\n"
+    row3 = f"{path3}\t{project_id}\t\n"
+    row4 = f"{path4}\t{project_id}\t{long_file_name}\n"
+
+    manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.isfile.return_value = True
+    mock_os.path.abspath.side_effect = [path1, path2, path3, path4]
+    mock_os.path.basename.return_value = 'file3.txt'
+
+    with pytest.raises(ValueError) as ve:
+        sync.readManifestFile(syn, manifest)
+    assert str(ve.value) == "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, " \
+                            "underscores, hyphens, periods, plus signs, apostrophes, " \
+                            "and parentheses".format(long_file_name)
