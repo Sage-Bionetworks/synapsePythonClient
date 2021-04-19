@@ -1206,22 +1206,37 @@ def test_filter_id_by_limitSearch(mock_syn):
     assert expected_results == cmdline.filter_id_by_limitSearch(mock_syn, results, limitSearch_id)
 
 
+@patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-def test_check_id_or_syn_id(mock_os):
+def test_check_syn_id(mock_os, mock_syn):
     parser = cmdline.build_parser()
     mock_os.path.isfile.return_value = True
 
     args = parser.parse_args(['get-annotations', '-id', 'syn123'])
-    syn_id = args.id or args.syn_id
-    assert cmdline.check_id_or_syn_id(syn_id)
+    syn_id = cmdline.get_syn_id_from_args(args, mock_syn)
+    assert cmdline.check_syn_id(syn_id)
 
     args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file'])
-    syn_id = args.id or args.syn_id
-    assert cmdline.check_id_or_syn_id(syn_id)
+    syn_id = cmdline.get_syn_id_from_args(args, mock_syn)
+    assert cmdline.check_syn_id(syn_id)
 
     args = parser.parse_args(['get-annotations', 'home/temp_path/temp_file'])
-    syn_id = args.id or args.syn_id
-    assert cmdline.check_id_or_syn_id(syn_id)
+    syn_id = cmdline.get_syn_id_from_args(args, mock_syn)
+    assert cmdline.check_syn_id(syn_id)
 
     mock_os.path.isfile.return_value = False
-    assert not cmdline.check_id_or_syn_id(args)
+    assert not cmdline.check_syn_id(args)
+
+
+@patch('synapseclient.client.Synapse')
+def test_get_syn_id_from_args(mock_syn):
+    parser = cmdline.build_parser()
+
+    args = parser.parse_args(['get-annotations', 'home/temp_path/temp_file'])
+    cmdline.get_syn_id_from_args(args, mock_syn)
+    mock_syn.logger.info.assert_not_called()
+
+    args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file'])
+    cmdline.get_syn_id_from_args(args, mock_syn)
+    mock_syn.logger.info.assert_called_with("It is deprecated to use the positional argument, you can just enter the "
+                                            "synapse id or path directly")

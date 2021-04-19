@@ -290,8 +290,8 @@ def onweb(args, syn):
 
 def setProvenance(args, syn):
     """Set provenance information on a synapse entity."""
-    syn_id = args.id or args.syn_id
-    if check_id_or_syn_id(syn_id):
+    syn_id = get_syn_id_from_args(args, syn)
+    if check_syn_id(syn_id):
         results = _filter_results_with_path_md5(syn_id, args.limitSearch, syn)
         target_syn_id = results[-1]['id']
     else:
@@ -321,8 +321,8 @@ def setProvenance(args, syn):
 
 
 def getProvenance(args, syn):
-    syn_id = args.id or args.syn_id
-    if check_id_or_syn_id(syn_id):
+    syn_id = get_syn_id_from_args(args, syn)
+    if check_syn_id(syn_id):
         results = _filter_results_with_path_md5(syn_id, args.limitSearch, syn)
         activity = syn.getProvenance(results[-1]['id'], args.version)
     else:
@@ -360,8 +360,8 @@ def setAnnotations(args, syn):
             "For example, to set an annotations called 'foo' to the value 1, the format should be "
             "'{\"foo\": 1, \"bar\":\"quux\"}'.")
 
-    syn_id = args.id or args.syn_id
-    if check_id_or_syn_id(syn_id):
+    syn_id = get_syn_id_from_args(args, syn)
+    if check_syn_id(syn_id):
         results = _filter_results_with_path_md5(syn_id, args.limitSearch, syn)
         target_syn_id = results[-1]['id']
     else:
@@ -380,8 +380,8 @@ def setAnnotations(args, syn):
 
 
 def getAnnotations(args, syn):
-    syn_id = args.id or args.syn_id
-    if check_id_or_syn_id(syn_id):
+    syn_id = get_syn_id_from_args(args, syn)
+    if check_syn_id(syn_id):
         results = _filter_results_with_path_md5(syn_id, args.limitSearch, syn)
         annotations = syn.get_annotations(results[-1]['id'])
     else:
@@ -420,7 +420,14 @@ def check_id_results(results):
     return set_id_result
 
 
-def check_id_or_syn_id(syn_id):
+def get_syn_id_from_args(args, syn):
+    if args.syn_id:
+        syn.logger.info("It is deprecated to use the positional argument, you can just enter the synapse id or path "
+                        "directly")
+    return args.syn_id or args.id
+
+
+def check_syn_id(syn_id):
     return isinstance(syn_id, str) and os.path.isfile(syn_id)
 
 
