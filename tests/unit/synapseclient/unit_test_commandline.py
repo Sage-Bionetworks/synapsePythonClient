@@ -1207,18 +1207,21 @@ def test_filter_id_by_limitSearch(mock_syn):
 
 
 @patch.object(cmdline, 'os')
-def test_check_id_or_path_md5(mock_os):
+def test_check_id_or_syn_id(mock_os):
     parser = cmdline.build_parser()
     mock_os.path.isfile.return_value = True
 
     args = parser.parse_args(['get-annotations', '-id', 'syn123'])
-    assert cmdline.check_id_or_path_md5(args)
+    syn_id = args.id or args.syn_id
+    assert cmdline.check_id_or_syn_id(syn_id)
 
     args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file'])
-    assert cmdline.check_id_or_path_md5(args)
+    syn_id = args.id or args.syn_id
+    assert cmdline.check_id_or_syn_id(syn_id)
 
     args = parser.parse_args(['get-annotations', 'home/temp_path/temp_file'])
-    assert cmdline.check_id_or_path_md5(args)
+    syn_id = args.id or args.syn_id
+    assert cmdline.check_id_or_syn_id(syn_id)
 
     mock_os.path.isfile.return_value = False
-    assert not cmdline.check_id_or_path_md5(args)
+    assert not cmdline.check_id_or_syn_id(args)
