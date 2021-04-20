@@ -743,11 +743,11 @@ def test_set_provenance_function__with_syn_id_md5__only_one_result__without_limi
                                                            'description': 'test_desc'})
     mock_filter_id_by_limitSearch.assert_not_called()
     mock__get_unique_ids.assert_called_with([{'name': 'test_file',
-                                               'id': 'syn12345',
-                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                               'versionNumber': 1,
-                                               'versionLabel': '1',
-                                               'isLatestVersion': False}])
+                                              'id': 'syn12345',
+                                              'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                              'versionNumber': 1,
+                                              'versionLabel': '1',
+                                              'isLatestVersion': False}])
 
 
 @patch.object(cmdline, '_get_unique_ids')
@@ -789,11 +789,11 @@ def test_set_provenance_function__with_syn_id_md5__with_limitSearch(mock_md5_for
                                                            'description': 'test_desc'})
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
     mock__get_unique_ids.assert_called_with([{'name': 'test_file',
-                                               'id': 'syn12345',
-                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                               'versionNumber': 2,
-                                               'versionLabel': '2',
-                                               'isLatestVersion': False}])
+                                              'id': 'syn12345',
+                                              'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                              'versionNumber': 2,
+                                              'versionLabel': '2',
+                                              'isLatestVersion': False}])
 
 
 @patch.object(cmdline, 'filter_id_by_limitSearch')
@@ -875,11 +875,11 @@ def test_get_annotations_function__with_syn_id_md5__only_one_result__without_lim
     mock_syn.get_annotations.assert_called_with('syn12345')
     mock_filter_id_by_limitSearch.assert_not_called()
     mock__get_unique_ids.assert_called_with([{'name': 'test_file',
-                                               'id': 'syn12345',
-                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                               'versionNumber': 1,
-                                               'versionLabel': '1',
-                                               'isLatestVersion': False}])
+                                              'id': 'syn12345',
+                                              'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                              'versionNumber': 1,
+                                              'versionLabel': '1',
+                                              'isLatestVersion': False}])
     mock_syn.logger.info.assert_called_with('{\n  "test_key": [\n    "test_val"\n  ]\n}')
 
 
@@ -915,11 +915,11 @@ def test_get_annotation_function__with_syn_id_md5__with_limitSearch(mock_md5_for
     mock_syn.get_annotations.assert_called_with('syn12345')
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
     mock__get_unique_ids.assert_called_with([{'name': 'test_file',
-                                               'id': 'syn12345',
-                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                               'versionNumber': 2,
-                                               'versionLabel': '2',
-                                               'isLatestVersion': False}])
+                                              'id': 'syn12345',
+                                              'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                              'versionNumber': 2,
+                                              'versionLabel': '2',
+                                              'isLatestVersion': False}])
 
 
 @patch.object(cmdline, 'filter_id_by_limitSearch')
@@ -1010,11 +1010,11 @@ def test_set_annotations_function__with_syn_id_md5__only_one_result__without_lim
     mock_syn.set_annotations.assert_called_with(updated_annotations)
     mock_filter_id_by_limitSearch.assert_not_called()
     mock__get_unique_ids.assert_called_with([{'name': 'test_file',
-                                               'id': 'syn123',
-                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                               'versionNumber': 1,
-                                               'versionLabel': '1',
-                                               'isLatestVersion': False}])
+                                              'id': 'syn123',
+                                              'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                              'versionNumber': 1,
+                                              'versionLabel': '1',
+                                              'isLatestVersion': False}])
 
 
 @patch.object(cmdline, '_get_unique_ids')
@@ -1059,17 +1059,17 @@ def test_set_annotations_function__with_syn_id_md5__with_limitSearch(mock_md5_fo
     mock_syn.set_annotations.assert_called_with(updated_annotations)
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
     mock__get_unique_ids.assert_called_with([{'name': 'test_file',
-                                               'id': 'syn12345',
-                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                               'versionNumber': 1,
-                                               'versionLabel': '1',
-                                               'isLatestVersion': False},
-                                              {'name': 'test_file',
-                                               'id': 'syn12345',
-                                               'type': 'org.sagebionetworks.repo.model.FileEntity',
-                                               'versionNumber': 2,
-                                               'versionLabel': '2',
-                                               'isLatestVersion': False}])
+                                              'id': 'syn12345',
+                                              'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                              'versionNumber': 1,
+                                              'versionLabel': '1',
+                                              'isLatestVersion': False},
+                                             {'name': 'test_file',
+                                              'id': 'syn12345',
+                                              'type': 'org.sagebionetworks.repo.model.FileEntity',
+                                              'versionNumber': 2,
+                                              'versionLabel': '2',
+                                              'isLatestVersion': False}])
 
 
 @patch('synapseclient.client.Synapse')
