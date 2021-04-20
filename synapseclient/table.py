@@ -531,6 +531,20 @@ def cast_row_set(rowset):
     return rowset
 
 
+def escape_column_name(column):
+    """Escape the name of the given column for use in a Synapse table query statement
+    :param column: a string or column dictionary object with a 'name' key"""
+    col_name = column['name'] if isinstance(column, collections.abc.Mapping) else str(column)
+    escaped_name = col_name.replace('"', '""')
+    return f'"{escaped_name}"'
+
+
+def join_column_names(columns):
+    """Join the names of the given columns into a comma delimited list suitable for use in a Synapse table query
+    :param columns: a sequence of column string names or dictionary objets with column 'name' keys"""
+    return ",".join(escape_column_name(c) for c in columns)
+
+
 def _csv_to_pandas_df(filepath,
                       separator=DEFAULT_SEPARATOR,
                       quote_char=DEFAULT_QUOTE_CHARACTER,
