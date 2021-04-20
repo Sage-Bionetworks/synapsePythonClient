@@ -578,11 +578,11 @@ class TestGetFunction:
                                                        call('Creating %s', './tmp_path')]
 
 
-@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, '_get_unique_ids')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-def test_get_provenance_function__with_syn_id(mock_os, mock_syn, mock_filter_id_by_limitSearch, mock_check_id_results):
+def test_get_provenance_function__with_syn_id(mock_os, mock_syn, mock_filter_id_by_limitSearch, mock__get_unique_ids):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-provenance', '-id', 'syn123'])
     mock_os.path.isfile.return_value = False
@@ -594,7 +594,7 @@ def test_get_provenance_function__with_syn_id(mock_os, mock_syn, mock_filter_id_
     mock_syn.logger.info.assert_called_with('{\n  "description": "test_description",\n  "id": "syn123",\n  '
                                             '"name": "test_name"\n}')
     mock_filter_id_by_limitSearch.assert_not_called()
-    mock_check_id_results.assert_not_called()
+    mock__get_unique_ids.assert_not_called()
 
 
 @patch('synapseclient.client.Synapse')
@@ -678,7 +678,7 @@ def test_get_provenance_function__raise_exception(mock_md5_for_file, mock_os, mo
     mock_syn.getProvenance.return_value = {'id': 'syn123', 'name': 'test_name', 'description': 'test_description'}
     mock_md5_for_file.return_value = hashlib.md5()
 
-    assert len(cmdline.check_id_results(mock_filter_id_by_limitSearch())) == 2
+    assert len(cmdline._get_unique_ids(mock_filter_id_by_limitSearch())) == 2
 
     with pytest.raises(SynapseError) as syn_ex:
         cmdline.getProvenance(args, mock_syn)
@@ -687,11 +687,11 @@ def test_get_provenance_function__raise_exception(mock_md5_for_file, mock_os, mo
     mock_syn.getProvenance.assert_not_called()
 
 
-@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, '_get_unique_ids')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-def test_set_provenance_function__with_syn_id(mock_os, mock_syn, mock_filter_id_by_limitSearch, mock_check_id_results):
+def test_set_provenance_function__with_syn_id(mock_os, mock_syn, mock_filter_id_by_limitSearch, mock__get_unique_ids):
     parser = cmdline.build_parser()
     args = parser.parse_args(['set-provenance', '-id', 'syn123', '-name', 'test_filename', '-description', 'test_desc',
                               '-used', 'syn456'])
@@ -708,10 +708,10 @@ def test_set_provenance_function__with_syn_id(mock_os, mock_syn, mock_filter_id_
                                                          'name': 'test_filename',
                                                          'description': 'test_desc'})
     mock_filter_id_by_limitSearch.assert_not_called()
-    mock_check_id_results.assert_not_called()
+    mock__get_unique_ids.assert_not_called()
 
 
-@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, '_get_unique_ids')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
@@ -719,7 +719,7 @@ def test_set_provenance_function__with_syn_id(mock_os, mock_syn, mock_filter_id_
 def test_set_provenance_function__with_syn_id_md5__only_one_result__without_limitSearch(mock_md5_for_file, mock_os,
                                                                                         mock_syn,
                                                                                         mock_filter_id_by_limitSearch,
-                                                                                        mock_check_id_results):
+                                                                                        mock__get_unique_ids):
     parser = cmdline.build_parser()
     args = parser.parse_args(['set-provenance', '-id', 'home/temp_path/temp_file', '-name', 'test_filename',
                               '-description', 'test_desc', '-used', 'syn456'])
@@ -742,7 +742,7 @@ def test_set_provenance_function__with_syn_id_md5__only_one_result__without_limi
                                                            'name': 'test_filename',
                                                            'description': 'test_desc'})
     mock_filter_id_by_limitSearch.assert_not_called()
-    mock_check_id_results.assert_called_with([{'name': 'test_file',
+    mock__get_unique_ids.assert_called_with([{'name': 'test_file',
                                                'id': 'syn12345',
                                                'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                'versionNumber': 1,
@@ -750,14 +750,14 @@ def test_set_provenance_function__with_syn_id_md5__only_one_result__without_limi
                                                'isLatestVersion': False}])
 
 
-@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, '_get_unique_ids')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
 @patch.object(cmdline.utils, 'md5_for_file')
 def test_set_provenance_function__with_syn_id_md5__with_limitSearch(mock_md5_for_file, mock_os, mock_syn,
                                                                     mock_filter_id_by_limitSearch,
-                                                                    mock_check_id_results):
+                                                                    mock__get_unique_ids):
     parser = cmdline.build_parser()
     args = parser.parse_args(['set-provenance', '-id', 'home/temp_path/temp_file', '-name', 'test_filename',
                               '-description', 'test_desc', '-used', 'syn456', '-limitSearch', 'syn456789'])
@@ -788,7 +788,7 @@ def test_set_provenance_function__with_syn_id_md5__with_limitSearch(mock_md5_for
                                                            'name': 'test_filename',
                                                            'description': 'test_desc'})
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
-    mock_check_id_results.assert_called_with([{'name': 'test_file',
+    mock__get_unique_ids.assert_called_with([{'name': 'test_file',
                                                'id': 'syn12345',
                                                'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                'versionNumber': 2,
@@ -822,7 +822,7 @@ def test_set_provenance_function__raise_exception(mock_md5_for_file, mock_os, mo
 
     mock_md5_for_file.return_value = hashlib.md5()
 
-    assert len(cmdline.check_id_results(mock_filter_id_by_limitSearch())) == 2
+    assert len(cmdline._get_unique_ids(mock_filter_id_by_limitSearch())) == 2
 
     with pytest.raises(SynapseError) as syn_ex:
         cmdline.setProvenance(args, mock_syn)
@@ -832,11 +832,11 @@ def test_set_provenance_function__raise_exception(mock_md5_for_file, mock_os, mo
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
 
 
-@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, '_get_unique_ids')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-def test_get_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id_by_limitSearch, mock_check_id_results):
+def test_get_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id_by_limitSearch, mock__get_unique_ids):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-annotations', '-id', 'syn123'])
     mock_os.path.isfile.return_value = False
@@ -847,10 +847,10 @@ def test_get_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id
     mock_syn.get_annotations.assert_called_with('syn123')
     mock_syn.logger.info.assert_called_with('{\n  "test_key": [\n    "test_val"\n  ]\n}')
     mock_filter_id_by_limitSearch.assert_not_called()
-    mock_check_id_results.assert_not_called()
+    mock__get_unique_ids.assert_not_called()
 
 
-@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, '_get_unique_ids')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
@@ -858,7 +858,7 @@ def test_get_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id
 def test_get_annotations_function__with_syn_id_md5__only_one_result__without_limitSearch(mock_md5_for_file, mock_os,
                                                                                          mock_syn,
                                                                                          mock_filter_id_by_limitSearch,
-                                                                                         mock_check_id_results):
+                                                                                         mock__get_unique_ids):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file'])
     mock_os.path.isfile.return_value = True
@@ -874,7 +874,7 @@ def test_get_annotations_function__with_syn_id_md5__only_one_result__without_lim
 
     mock_syn.get_annotations.assert_called_with('syn12345')
     mock_filter_id_by_limitSearch.assert_not_called()
-    mock_check_id_results.assert_called_with([{'name': 'test_file',
+    mock__get_unique_ids.assert_called_with([{'name': 'test_file',
                                                'id': 'syn12345',
                                                'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                'versionNumber': 1,
@@ -883,14 +883,14 @@ def test_get_annotations_function__with_syn_id_md5__only_one_result__without_lim
     mock_syn.logger.info.assert_called_with('{\n  "test_key": [\n    "test_val"\n  ]\n}')
 
 
-@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, '_get_unique_ids')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
 @patch.object(cmdline.utils, 'md5_for_file')
 def test_get_annotation_function__with_syn_id_md5__with_limitSearch(mock_md5_for_file, mock_os, mock_syn,
                                                                     mock_filter_id_by_limitSearch,
-                                                                    mock_check_id_results):
+                                                                    mock__get_unique_ids):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file', '-limitSearch', 'syn456789'])
     mock_os.path.isfile.return_value = True
@@ -914,7 +914,7 @@ def test_get_annotation_function__with_syn_id_md5__with_limitSearch(mock_md5_for
 
     mock_syn.get_annotations.assert_called_with('syn12345')
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
-    mock_check_id_results.assert_called_with([{'name': 'test_file',
+    mock__get_unique_ids.assert_called_with([{'name': 'test_file',
                                                'id': 'syn12345',
                                                'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                'versionNumber': 2,
@@ -946,7 +946,7 @@ def test_get_annotation_function__raise_exception(mock_md5_for_file, mock_os, mo
                                                   ]
     mock_md5_for_file.return_value = hashlib.md5()
 
-    assert len(cmdline.check_id_results(mock_filter_id_by_limitSearch())) == 2
+    assert len(cmdline._get_unique_ids(mock_filter_id_by_limitSearch())) == 2
 
     with pytest.raises(SynapseError) as syn_ex:
         cmdline.getAnnotations(args, mock_syn)
@@ -956,11 +956,11 @@ def test_get_annotation_function__raise_exception(mock_md5_for_file, mock_os, mo
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
 
 
-@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, '_get_unique_ids')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-def test_set_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id_by_limitSearch, mock_check_id_results):
+def test_set_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id_by_limitSearch, mock__get_unique_ids):
     parser = cmdline.build_parser()
     args = parser.parse_args(['set-annotations', '-id', 'syn123', '--annotations', '{"foo": 1}'])
     mock_os.path.isfile.return_value = False
@@ -973,7 +973,7 @@ def test_set_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id
     mock_syn.get_annotations.assert_called_with('syn123')
     mock_syn.set_annotations.assert_called_with(updated_annotations)
     mock_filter_id_by_limitSearch.assert_not_called()
-    mock_check_id_results.assert_not_called()
+    mock__get_unique_ids.assert_not_called()
 
     # with --replace argument
     args = parser.parse_args(['set-annotations', '--replace', '-id', 'syn123', '--annotations', '{"foo": 1}'])
@@ -982,7 +982,7 @@ def test_set_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id
     mock_syn.set_annotations.assert_called_with(updated_annotations)
 
 
-@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, '_get_unique_ids')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
@@ -990,7 +990,7 @@ def test_set_annotations_function__with_syn_id(mock_os, mock_syn, mock_filter_id
 def test_set_annotations_function__with_syn_id_md5__only_one_result__without_limitSearch(mock_md5_for_file, mock_os,
                                                                                          mock_syn,
                                                                                          mock_filter_id_by_limitSearch,
-                                                                                         mock_check_id_results):
+                                                                                         mock__get_unique_ids):
     parser = cmdline.build_parser()
     args = parser.parse_args(['set-annotations', '-id', 'home/temp_path/temp_file', '--annotations', '{"foo": 1}'])
     mock_os.path.isfile.return_value = True
@@ -1009,7 +1009,7 @@ def test_set_annotations_function__with_syn_id_md5__only_one_result__without_lim
     mock_syn.get_annotations.assert_called_with('syn123')
     mock_syn.set_annotations.assert_called_with(updated_annotations)
     mock_filter_id_by_limitSearch.assert_not_called()
-    mock_check_id_results.assert_called_with([{'name': 'test_file',
+    mock__get_unique_ids.assert_called_with([{'name': 'test_file',
                                                'id': 'syn123',
                                                'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                'versionNumber': 1,
@@ -1017,14 +1017,14 @@ def test_set_annotations_function__with_syn_id_md5__only_one_result__without_lim
                                                'isLatestVersion': False}])
 
 
-@patch.object(cmdline, 'check_id_results')
+@patch.object(cmdline, '_get_unique_ids')
 @patch.object(cmdline, 'filter_id_by_limitSearch')
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
 @patch.object(cmdline.utils, 'md5_for_file')
 def test_set_annotations_function__with_syn_id_md5__with_limitSearch(mock_md5_for_file, mock_os, mock_syn,
                                                                      mock_filter_id_by_limitSearch,
-                                                                     mock_check_id_results):
+                                                                     mock__get_unique_ids):
     parser = cmdline.build_parser()
     args = parser.parse_args(['set-annotations', '-id', 'home/temp_path/temp_file', '--annotations', '{"foo": 1}',
                               '-limitSearch', 'syn456789'])
@@ -1058,7 +1058,7 @@ def test_set_annotations_function__with_syn_id_md5__with_limitSearch(mock_md5_fo
     mock_syn.get_annotations.assert_called_with('syn12345')
     mock_syn.set_annotations.assert_called_with(updated_annotations)
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
-    mock_check_id_results.assert_called_with([{'name': 'test_file',
+    mock__get_unique_ids.assert_called_with([{'name': 'test_file',
                                                'id': 'syn12345',
                                                'type': 'org.sagebionetworks.repo.model.FileEntity',
                                                'versionNumber': 1,
@@ -1107,7 +1107,7 @@ def test_set_annotations_function__raise_SynapseError_exception(mock_md5_for_fil
 
     mock_md5_for_file.return_value = hashlib.md5()
 
-    assert len(cmdline.check_id_results(mock_filter_id_by_limitSearch())) == 2
+    assert len(cmdline._get_unique_ids(mock_filter_id_by_limitSearch())) == 2
 
     with pytest.raises(SynapseError) as syn_ex:
         cmdline.setAnnotations(args, mock_syn)
@@ -1118,7 +1118,7 @@ def test_set_annotations_function__raise_SynapseError_exception(mock_md5_for_fil
     mock_filter_id_by_limitSearch.assert_called_with(mock_syn, mock_syn.restGET()['results'], args.limitSearch)
 
 
-def test_check_id_results():
+def test__get_unique_ids():
     results = [{'name': 'test_file', 'id': 'syn12345', 'type': 'org.sagebionetworks.repo.model.FileEntity',
                 'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
                {'name': 'test_file', 'id': 'syn12345', 'type': 'org.sagebionetworks.repo.model.FileEntity',
@@ -1126,7 +1126,7 @@ def test_check_id_results():
                {'name': 'test_file', 'id': 'syn12345', 'type': 'org.sagebionetworks.repo.model.FileEntity',
                 'versionNumber': 3, 'versionLabel': '3', 'isLatestVersion': False}
                ]
-    assert len(cmdline.check_id_results(results)) == 1
+    assert len(cmdline._get_unique_ids(results)) == 1
 
     results = [{'name': 'test_file', 'id': 'syn12345', 'type': 'org.sagebionetworks.repo.model.FileEntity',
                 'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False},
@@ -1135,7 +1135,7 @@ def test_check_id_results():
                {'name': 'test_file', 'id': 'syn789', 'type': 'org.sagebionetworks.repo.model.FileEntity',
                 'versionNumber': 1, 'versionLabel': '1', 'isLatestVersion': False}
                ]
-    assert len(cmdline.check_id_results(results)) == 2
+    assert len(cmdline._get_unique_ids(results)) == 2
 
 
 @patch('synapseclient.client.Synapse')
@@ -1208,35 +1208,38 @@ def test_filter_id_by_limitSearch(mock_syn):
 
 @patch('synapseclient.client.Synapse')
 @patch.object(cmdline, 'os')
-def test_check_syn_id(mock_os, mock_syn):
-    parser = cmdline.build_parser()
+def test__check_id_is_path(mock_os, mock_syn):
     mock_os.path.isfile.return_value = True
-
-    args = parser.parse_args(['get-annotations', '-id', 'syn123'])
-    syn_id = cmdline.get_syn_id_from_args(args, mock_syn)
-    assert cmdline.check_syn_id(syn_id)
-
-    args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file'])
-    syn_id = cmdline.get_syn_id_from_args(args, mock_syn)
-    assert cmdline.check_syn_id(syn_id)
-
-    args = parser.parse_args(['get-annotations', 'home/temp_path/temp_file'])
-    syn_id = cmdline.get_syn_id_from_args(args, mock_syn)
-    assert cmdline.check_syn_id(syn_id)
+    assert cmdline._check_id_is_path('home/temp_path/temp_file')
 
     mock_os.path.isfile.return_value = False
-    assert not cmdline.check_syn_id(args)
+    assert not cmdline._check_id_is_path('syn123')
 
 
 @patch('synapseclient.client.Synapse')
-def test_get_syn_id_from_args(mock_syn):
+def test__get_id_from_args(mock_syn):
     parser = cmdline.build_parser()
+    args = parser.parse_args(['get-annotations', 'syn123'])
+    id_or_path = cmdline._get_id_from_args(args, mock_syn, 'get-annotations')
+    assert id_or_path == 'syn123'
 
-    args = parser.parse_args(['get-annotations', 'home/temp_path/temp_file'])
-    cmdline.get_syn_id_from_args(args, mock_syn)
+    args = parser.parse_args(['get-annotations', '/home/temp_path/temp_file'])
+    id_or_path = cmdline._get_id_from_args(args, mock_syn, 'get-annotations')
+    assert id_or_path == '/home/temp_path/temp_file'
     mock_syn.logger.info.assert_not_called()
 
-    args = parser.parse_args(['get-annotations', '-id', 'home/temp_path/temp_file'])
-    cmdline.get_syn_id_from_args(args, mock_syn)
-    mock_syn.logger.info.assert_called_with("It is deprecated to use the positional argument, you can just enter the "
-                                            "synapse id or path directly")
+    args = parser.parse_args(['get-annotations', '-id', '/home/temp_path/temp_file'])
+    id_or_path = cmdline._get_id_from_args(args, mock_syn, 'get-annotations')
+    assert id_or_path == '/home/temp_path/temp_file'
+    mock_syn.logger.info.assert_called_with("Using the -id or --id argument is deprecated, instead pass the id or path "
+                                            "as the first argument to get-annotations")
+
+
+def test__add_id_mutex_group():
+    parser = cmdline.build_parser()
+    args = parser.parse_args(['get-annotations', '-id', 'syn123'])
+    assert args.syn_id == 'syn123'
+    args = parser.parse_args(['get-annotations', 'home/temp_path/temp_file'])
+    assert args.id == 'home/temp_path/temp_file'
+    with pytest.raises(SystemExit):
+        parser.parse_args(['get-annotations', '-id', 'syn123', 'home/temp_path/temp_file'])

@@ -290,12 +290,12 @@ def onweb(args, syn):
 
 def setProvenance(args, syn):
     """Set provenance information on a synapse entity."""
-    syn_id = get_syn_id_from_args(args, syn)
-    if check_syn_id(syn_id):
-        results = _filter_results_with_path_md5(syn_id, args.limitSearch, syn)
+    id_or_path = _get_id_from_args(args, syn, 'set-provenance')
+    if _check_id_is_path(id_or_path):
+        results = _filter_results_with_path_md5(id_or_path, args.limitSearch, syn)
         target_syn_id = results[-1]['id']
     else:
-        target_syn_id = syn_id
+        target_syn_id = id_or_path
 
     activity = Activity(name=args.name, description=args.description)
 
@@ -317,16 +317,16 @@ def setProvenance(args, syn):
                 f.write(json.dumps(activity))
                 f.write('\n')
     else:
-        syn.logger.info('Set provenance record %s on entity %s\n', str(activity['id']), syn_id)
+        syn.logger.info('Set provenance record %s on entity %s\n', str(activity['id']), id_or_path)
 
 
 def getProvenance(args, syn):
-    syn_id = get_syn_id_from_args(args, syn)
-    if check_syn_id(syn_id):
-        results = _filter_results_with_path_md5(syn_id, args.limitSearch, syn)
+    id_or_path = _get_id_from_args(args, syn, 'get-provenance')
+    if _check_id_is_path(id_or_path):
+        results = _filter_results_with_path_md5(id_or_path, args.limitSearch, syn)
         activity = syn.getProvenance(results[-1]['id'], args.version)
     else:
-        activity = syn.getProvenance(syn_id, args.version)
+        activity = syn.getProvenance(id_or_path, args.version)
 
     if args.output is None or args.output == 'STDOUT':
         syn.logger.info(json.dumps(activity, sort_keys=True, indent=2))
@@ -360,12 +360,12 @@ def setAnnotations(args, syn):
             "For example, to set an annotations called 'foo' to the value 1, the format should be "
             "'{\"foo\": 1, \"bar\":\"quux\"}'.")
 
-    syn_id = get_syn_id_from_args(args, syn)
-    if check_syn_id(syn_id):
-        results = _filter_results_with_path_md5(syn_id, args.limitSearch, syn)
+    id_or_path = _get_id_from_args(args, syn, 'set-annotations')
+    if _check_id_is_path(id_or_path):
+        results = _filter_results_with_path_md5(id_or_path, args.limitSearch, syn)
         target_syn_id = results[-1]['id']
     else:
-        target_syn_id = syn_id
+        target_syn_id = id_or_path
 
     annots = syn.get_annotations(target_syn_id)
 
@@ -376,16 +376,16 @@ def setAnnotations(args, syn):
 
     syn.set_annotations(annots)
 
-    sys.stderr.write('Set annotations on entity %s\n' % syn_id)
+    sys.stderr.write('Set annotations on entity %s\n' % id_or_path)
 
 
 def getAnnotations(args, syn):
-    syn_id = get_syn_id_from_args(args, syn)
-    if check_syn_id(syn_id):
-        results = _filter_results_with_path_md5(syn_id, args.limitSearch, syn)
+    id_or_path = _get_id_from_args(args, syn, 'get-annotations')
+    if _check_id_is_path(id_or_path):
+        results = _filter_results_with_path_md5(id_or_path, args.limitSearch, syn)
         annotations = syn.get_annotations(results[-1]['id'])
     else:
-        annotations = syn.get_annotations(syn_id)
+        annotations = syn.get_annotations(id_or_path)
 
     if args.output is None or args.output == 'STDOUT':
         syn.logger.info(json.dumps(annotations, sort_keys=True, indent=2))
@@ -399,7 +399,7 @@ def _filter_results_with_path_md5(syn_id, limitSearch, syn):
     results = syn.restGET('/entity/md5/%s' % utils.md5_for_file(syn_id).hexdigest())['results']
     if limitSearch is not None:
         results = filter_id_by_limitSearch(syn, results, limitSearch)
-    set_id_result = check_id_results(results)
+    set_id_result = _get_unique_ids(results)
     if len(set_id_result) > 1:
         raise SynapseError(f"{syn_id} matched more than one file: {set_id_result}")
     return results
@@ -413,21 +413,21 @@ def filter_id_by_limitSearch(syn, results, limitSearch):
     return results
 
 
-def check_id_results(results):
+def _get_unique_ids(results):
     set_id_result = set()
     for res in results:
         set_id_result.add(res['id'])
     return set_id_result
 
 
-def get_syn_id_from_args(args, syn):
+def _get_id_from_args(args, syn, command):
     if args.syn_id:
-        syn.logger.info("It is deprecated to use the positional argument, you can just enter the synapse id or path "
-                        "directly")
+        syn.logger.info(f"Using the -id or --id argument is deprecated, instead pass the id or path as the first "
+                        f"argument to {command}")
     return args.syn_id or args.id
 
 
-def check_syn_id(syn_id):
+def _check_id_is_path(syn_id):
     return isinstance(syn_id, str) and os.path.isfile(syn_id)
 
 
@@ -594,7 +594,7 @@ def migrate(args, syn):
         result.as_csv(args.csv_log_path)
 
 
-def add_id_mutex_group(parser, arg_name):
+def _add_id_mutex_group(parser, arg_name):
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('id', metavar='id', type=str, nargs='?',
                        help=f'Synapse ID of entity whose {arg_name} we are accessing.')
@@ -880,7 +880,7 @@ def build_parser():
 
     parser_set_provenance = subparsers.add_parser('set-provenance',
                                                   help='create provenance records')
-    add_id_mutex_group(parser_set_provenance, 'provenance')
+    _add_id_mutex_group(parser_set_provenance, 'provenance')
 
     parser_set_provenance.add_argument('-name', '--name', metavar='NAME', type=str, required=False,
                                        help='Name of the activity that generated the entity')
@@ -901,7 +901,7 @@ def build_parser():
 
     parser_get_provenance = subparsers.add_parser('get-provenance',
                                                   help='show provenance records')
-    add_id_mutex_group(parser_get_provenance, 'provenance')
+    _add_id_mutex_group(parser_get_provenance, 'provenance')
     parser_get_provenance.add_argument('--version', metavar='version', type=int, required=False,
                                        help='version of Synapse entity whose provenance we are accessing.')
     parser_get_provenance.add_argument('-limitSearch', '--limitSearch', metavar='projId', type=str, default=None,
@@ -915,7 +915,7 @@ def build_parser():
 
     parser_set_annotations = subparsers.add_parser('set-annotations',
                                                    help='create annotations records')
-    add_id_mutex_group(parser_set_annotations, 'annotations')
+    _add_id_mutex_group(parser_set_annotations, 'annotations')
     parser_set_annotations.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=True,
                                         help="Annotations to add as a JSON formatted string, should evaluate to a "
                                              "dictionary (key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
@@ -927,7 +927,7 @@ def build_parser():
 
     parser_get_annotations = subparsers.add_parser('get-annotations',
                                                    help='show annotations records')
-    add_id_mutex_group(parser_get_annotations, 'annotations')
+    _add_id_mutex_group(parser_get_annotations, 'annotations')
     parser_get_annotations.add_argument('-o', '--output', metavar='OUTPUT_FILE', dest='output',
                                         const='STDOUT', nargs='?', type=str,
                                         help='Output the annotations record in JSON format')
