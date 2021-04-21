@@ -1220,16 +1220,16 @@ def test__check_id_is_path(mock_os, mock_syn):
 def test__get_id_from_args(mock_syn):
     parser = cmdline.build_parser()
     args = parser.parse_args(['get-annotations', 'syn123'])
-    id_or_path = cmdline._get_id_from_args(args, mock_syn, 'get-annotations')
+    id_or_path = cmdline._get_id_from_args(args, mock_syn)
     assert id_or_path == 'syn123'
 
     args = parser.parse_args(['get-annotations', '/home/temp_path/temp_file'])
-    id_or_path = cmdline._get_id_from_args(args, mock_syn, 'get-annotations')
+    id_or_path = cmdline._get_id_from_args(args, mock_syn)
     assert id_or_path == '/home/temp_path/temp_file'
     mock_syn.logger.info.assert_not_called()
 
     args = parser.parse_args(['get-annotations', '-id', '/home/temp_path/temp_file'])
-    id_or_path = cmdline._get_id_from_args(args, mock_syn, 'get-annotations')
+    id_or_path = cmdline._get_id_from_args(args, mock_syn)
     assert id_or_path == '/home/temp_path/temp_file'
     mock_syn.logger.info.assert_called_with("Using the -id or --id argument is deprecated, instead pass the id or path "
                                             "as the first argument to get-annotations")

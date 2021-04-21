@@ -290,7 +290,7 @@ def onweb(args, syn):
 
 def setProvenance(args, syn):
     """Set provenance information on a synapse entity."""
-    id_or_path = _get_id_from_args(args, syn, 'set-provenance')
+    id_or_path = _get_id_from_args(args, syn)
     if _check_id_is_path(id_or_path):
         results = _filter_results_with_path_md5(id_or_path, args.limitSearch, syn)
         target_syn_id = results[-1]['id']
@@ -321,7 +321,7 @@ def setProvenance(args, syn):
 
 
 def getProvenance(args, syn):
-    id_or_path = _get_id_from_args(args, syn, 'get-provenance')
+    id_or_path = _get_id_from_args(args, syn)
     if _check_id_is_path(id_or_path):
         results = _filter_results_with_path_md5(id_or_path, args.limitSearch, syn)
         activity = syn.getProvenance(results[-1]['id'], args.version)
@@ -360,7 +360,7 @@ def setAnnotations(args, syn):
             "For example, to set an annotations called 'foo' to the value 1, the format should be "
             "'{\"foo\": 1, \"bar\":\"quux\"}'.")
 
-    id_or_path = _get_id_from_args(args, syn, 'set-annotations')
+    id_or_path = _get_id_from_args(args, syn)
     if _check_id_is_path(id_or_path):
         results = _filter_results_with_path_md5(id_or_path, args.limitSearch, syn)
         target_syn_id = results[-1]['id']
@@ -380,7 +380,7 @@ def setAnnotations(args, syn):
 
 
 def getAnnotations(args, syn):
-    id_or_path = _get_id_from_args(args, syn, 'get-annotations')
+    id_or_path = _get_id_from_args(args, syn)
     if _check_id_is_path(id_or_path):
         results = _filter_results_with_path_md5(id_or_path, args.limitSearch, syn)
         annotations = syn.get_annotations(results[-1]['id'])
@@ -420,10 +420,10 @@ def _get_unique_ids(results):
     return set_id_result
 
 
-def _get_id_from_args(args, syn, command):
+def _get_id_from_args(args, syn):
     if args.syn_id:
         syn.logger.info(f"Using the -id or --id argument is deprecated, instead pass the id or path as the first "
-                        f"argument to {command}")
+                        f"argument to {args.subparser}")
     return args.syn_id or args.id
 
 
@@ -630,7 +630,7 @@ def build_parser():
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
                         help='suppress checking for version upgrade messages and endpoint redirection')
 
-    subparsers = parser.add_subparsers(title='commands',
+    subparsers = parser.add_subparsers(title='commands', dest='subparser',
                                        description='The following commands are available:',
                                        help='For additional help: "synapse <COMMAND> -h"')
 
