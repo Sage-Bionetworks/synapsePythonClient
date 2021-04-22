@@ -3,6 +3,7 @@ import csv
 from enum import Enum
 import json
 import logging
+import math
 import sys
 import traceback
 import typing
@@ -11,9 +12,9 @@ import synapseclient
 from synapseclient.core.constants import concrete_types
 from synapseclient.core import pool_provider
 from synapseclient.core import utils
+from synapseclient.table import join_column_names
 from synapseclient.core.upload.multipart_upload import (
     MAX_NUMBER_OF_PARTS,
-    MIN_PART_SIZE,
     multipart_copy,
     shared_executor,
 )
@@ -38,6 +39,14 @@ def test_import_sqlite3():
 installation of python. Using a Python installed from a binary package or compiled from source with sqlite
 development headers available should ensure that the sqlite3 module is available.""")
         raise
+
+
+# we use a much larger default part size for part copies than we would for part uploads.
+# with part copies the data transfer is within AWS so don't need to concern ourselves
+# with upload failures of the actual bytes.
+# this value aligns with what some AWS client libraries use e.g.
+# https://github.com/aws/aws-sdk-java/blob/1.11.995/aws-java-sdk-s3/src/main/java/com/amazonaws/services/s3/transfer/TransferManagerConfiguration.java#L46
+DEFAULT_PART_SIZE = 100 * utils.MB
 
 
 class _MigrationStatus(Enum):
@@ -905,19 +914,31 @@ def _get_version_numbers(syn, entity_id):
 
 
 def _include_file_storage_location_in_index(
+    file_handle,
     source_storage_location_ids,
-    from_storage_location_id,
     to_storage_location_id,
 ):
     # helper determines whether a file is included in the index depending on its storage location.
     # if source_storage_location_ids are specified the from storage location must be in it.
     # if the current storage location already matches the destination location then we also
     # include it in the index, we'll mark it as already migrated.
-    return (
-        not source_storage_location_ids or
-        str(from_storage_location_id) in source_storage_location_ids or
-        str(from_storage_location_id) == str(to_storage_location_id)
-    )
+
+    from_storage_location_id = file_handle.get('storageLocationId')
+    if (
+            (file_handle.get('concreteType') == concrete_types.S3_FILE_HANDLE) and
+            (
+                not source_storage_location_ids or
+                str(from_storage_location_id) in source_storage_location_ids or
+                str(from_storage_location_id) == str(to_storage_location_id)
+            )
+    ):
+        migration_status = _MigrationStatus.INDEXED.value \
+            if str(from_storage_location_id) != str(to_storage_location_id) \
+            else _MigrationStatus.ALREADY_MIGRATED.value
+        return migration_status
+
+    # this file is not included in this index
+    return None
 
 
 def _index_file_entity(
@@ -963,17 +984,12 @@ def _index_file_entity(
     if entity_versions:
         insert_values = []
         for (entity, version) in entity_versions:
-            from_storage_location_id = entity._file_handle['storageLocationId']
-
-            if _include_file_storage_location_in_index(
+            migration_status = _include_file_storage_location_in_index(
+                entity._file_handle,
                 source_storage_location_ids,
-                from_storage_location_id,
                 to_storage_location_id
-            ):
-
-                migration_status = _MigrationStatus.INDEXED.value \
-                    if str(from_storage_location_id) != str(to_storage_location_id) \
-                    else _MigrationStatus.ALREADY_MIGRATED.value
+            )
+            if migration_status:
 
                 file_size = entity._file_handle['contentSize']
                 insert_values.append((
@@ -981,7 +997,7 @@ def _index_file_entity(
                     _MigrationType.FILE.value,
                     version,
                     parent_id,
-                    from_storage_location_id,
+                    entity._file_handle['storageLocationId'],
                     entity.dataFileHandleId,
                     file_size,
                     migration_status
@@ -1005,24 +1021,29 @@ def _index_file_entity(
             )
 
 
-def _get_file_handle_rows(syn, table_id):
-    file_handle_columns = [c for c in syn.restGET("/entity/{id}/column".format(id=table_id))['results']
-                           if c['columnType'] == 'FILEHANDLEID']
-    file_column_select = ','.join(c['name'] for c in file_handle_columns)
-    results = syn.tableQuery("select {} from {}".format(file_column_select, table_id))
-    for row in results:
-        file_handles = {}
+def _get_table_file_handle_rows(syn, table_id):
+    file_handle_columns = [c for c in syn.getTableColumns(table_id) if c['columnType'] == 'FILEHANDLEID']
+    if file_handle_columns:
+        file_column_select = join_column_names(file_handle_columns)
+        results = syn.tableQuery("select {} from {}".format(file_column_select, table_id))
+        for row in results:
+            file_handles = {}
 
-        # first two cols are row id and row version, rest are file handle ids from our query
-        row_id, row_version = row[:2]
+            # first two cols are row id and row version, rest are file handle ids from our query
+            row_id, row_version = row[:2]
 
-        file_handle_ids = row[2:]
-        for i, file_handle_id in enumerate(file_handle_ids):
-            col_id = file_handle_columns[i]['id']
-            file_handle = syn._getFileHandleDownload(file_handle_id, table_id, objectType='TableEntity')['fileHandle']
-            file_handles[col_id] = file_handle
+            file_handle_ids = row[2:]
+            for i, file_handle_id in enumerate(file_handle_ids):
+                if file_handle_id:
+                    col_id = file_handle_columns[i]['id']
+                    file_handle = syn._getFileHandleDownload(
+                        file_handle_id,
+                        table_id,
+                        objectType='TableEntity'
+                    )['fileHandle']
+                    file_handles[col_id] = file_handle
 
-        yield row_id, row_version, file_handles
+            yield row_id, row_version, file_handles
 
 
 def _index_table_entity(
@@ -1058,20 +1079,14 @@ def _index_table_entity(
                 row_batch
             )
 
-    for row_id, row_version, file_handles in _get_file_handle_rows(syn, entity_id):
+    for row_id, row_version, file_handles in _get_table_file_handle_rows(syn, entity_id):
         for col_id, file_handle in file_handles.items():
-            existing_storage_location_id = file_handle['storageLocationId']
-
-            if _include_file_storage_location_in_index(
+            migration_status = _include_file_storage_location_in_index(
+                file_handle,
                 source_storage_location_ids,
-                existing_storage_location_id,
                 dest_storage_location_id,
-            ):
-
-                migration_status = _MigrationStatus.INDEXED.value \
-                    if str(dest_storage_location_id) != str(existing_storage_location_id) \
-                    else _MigrationStatus.ALREADY_MIGRATED.value
-
+            )
+            if migration_status:
                 file_size = file_handle['contentSize']
                 row_batch.append((
                     entity_id,
@@ -1080,7 +1095,7 @@ def _index_table_entity(
                     row_id,
                     col_id,
                     row_version,
-                    existing_storage_location_id,
+                    file_handle['storageLocationId'],
                     file_handle['id'],
                     file_size,
                     migration_status
@@ -1110,9 +1125,9 @@ def _index_container(
     concrete_type = utils.concrete_type_of(container_entity)
     logging.info('Indexing %s %s', concrete_type[concrete_type.rindex('.') + 1:], entity_id)
 
-    include_types = ['folder']
+    include_types = []
     if file_version_strategy != 'skip':
-        include_types.append('file')
+        include_types.extend(('folder', 'file'))
     if include_table_files:
         include_types.append('table')
 
@@ -1237,9 +1252,7 @@ def _index_entity(
 
 
 def _get_part_size(file_size):
-    # recommended part size per
-    # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadCopyRequest.html
-    return max(MIN_PART_SIZE, (file_size / MAX_NUMBER_OF_PARTS))
+    return max(DEFAULT_PART_SIZE, math.ceil((file_size / MAX_NUMBER_OF_PARTS)))
 
 
 def _create_new_file_version(syn, key, from_file_handle_id, to_file_handle_id, file_size, storage_location_id):

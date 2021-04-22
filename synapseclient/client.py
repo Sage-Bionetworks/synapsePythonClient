@@ -345,6 +345,8 @@ class Synapse(object):
         If no login arguments are provided or only username is provided, login() will attempt to log in using
          information from these sources (in order of preference):
 
+        #. User's personal access token from environment the variable: SYNAPSE_AUTH_TOKEN
+
         #. .synapseConfig file (in user home folder unless configured otherwise)
 
         #. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
@@ -356,8 +358,6 @@ class Synapse(object):
                              following fields: email, password, apiKey
         :param rememberMe:   Whether the authentication information should be cached in your operating system's
                              credential storage.
-        :param silent:       Suppress login welcome message
-        :param forced:       Skip any cached credential lookup
         :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
                                 password or apiKey
 
@@ -1025,6 +1025,10 @@ class Synapse(object):
         entity = obj
         properties, annotations, local_state = split_entity_namespaces(entity)
         bundle = None
+        # Explicitly set an empty versionComment property if none is supplied,
+        # otherwise an existing entity bundle's versionComment will be copied to the update.
+        properties['versionComment'] = properties['versionComment'] if 'versionComment' in properties else None
+
         # Anything with a path is treated as a cache-able item
         if entity.get('path', False):
             if 'concreteType' not in properties:
@@ -3227,7 +3231,7 @@ class Synapse(object):
 
         # check the activity id or object is provided
         activity_id = None
-        if isinstance(activity, collections.Mapping):
+        if isinstance(activity, collections.abc.Mapping):
             if 'id' not in activity:
                 activity = self._saveActivity(activity)
             activity_id = activity['id']

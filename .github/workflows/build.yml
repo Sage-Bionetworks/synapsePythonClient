@@ -45,7 +45,28 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      - name: get-dependencies-location
+        shell: bash
+        run: |
+          SITE_PACKAGES_LOCATION=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+          SITE_BIN_DIR=$(python3 -c "import os; import platform; import distutils.sysconfig; pre = distutils.sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
+          echo "::set-output name=site_packages_loc::$SITE_PACKAGES_LOCATION"
+          echo "::set-output name=site_bin_dir::$SITE_BIN_DIR"
+        id: get-dependencies
+
+      - name: Cache py-dependencies
+        id: cache-dependencies
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-py-dependencies
+        with:
+          path: |
+            ${{ steps.get-dependencies.outputs.site_packages_loc }}
+            ${{ steps.get-dependencies.outputs.site_bin_dir }}
+          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v7
+
       - name: install-py-dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
         shell: bash
         run: |
           pip install -e ".[boto3,pandas,pysftp,tests]"
@@ -58,7 +79,6 @@ jobs:
             pip install setuptools
             pip install numpy
           fi
-
 
       - name: lint
         shell: bash
@@ -112,7 +132,8 @@ jobs:
             export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
             export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
-            pytest -sv tests/integration
+             # use loadscope to avoid issues running tests concurrently that share scoped fixtures
+            pytest -sv tests/integration -n auto --dist loadscope
           fi
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
@@ -122,6 +143,10 @@ jobs:
     runs-on: ubuntu-18.04
 
     if: github.event_name == 'release'
+
+    outputs:
+      sdist-package-name: ${{ steps.build-package.outputs.sdist-package-name }}
+      bdist-package-name: ${{ steps.build-package.outputs.bdist-package-name }}
 
     steps:
       - uses: actions/checkout@v2
@@ -170,32 +195,60 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install setuptools
+          python3 -m pip install wheel
 
           # install synapseclient
           python3 setup.py install
 
           # create distribution
-          python3 setup.py sdist
+          python3 setup.py sdist bdist_wheel
 
-          echo "PACKAGE_NAME=synapseclient-${{env.VERSION}}.tar.gz" >> $GITHUB_ENV
+          SDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}.tar.gz"
+          BDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}-py3-none-any.whl"
+          RELEASE_URL_PREFIX="https://uploads.github.com/repos/${{ github.event.repository.full_name }}/releases/${{ github.event.release.id }}/assets?name="
 
-      # upload the artifact to the GitHub Action
-      - name: upload-build-artifact
+          echo "::set-output name=sdist-package-name::$SDIST_PACKAGE_NAME"
+          echo "::set-output name=bdist-package-name::$BDIST_PACKAGE_NAME"
+
+          echo "::set-output name=sdist-release-url::${RELEASE_URL_PREFIX}${SDIST_PACKAGE_NAME}"
+          echo "::set-output name=bdist-release-url::${RELEASE_URL_PREFIX}${BDIST_PACKAGE_NAME}"
+
+      # upload the packages as build artifacts of the GitHub Action
+
+      - name: upload-build-sdist
         uses: actions/upload-artifact@v2
         with:
-          name: synapseclient
-          path: dist/${{ env.PACKAGE_NAME }}
+          name: ${{ steps.build-package.outputs.sdist-package-name }}
+          path: dist/${{ steps.build-package.outputs.sdist-package-name }}
 
-      # upload the artifact as an asset of the GitHub Release
-      - name: upload-release-asset
+      - name: upload-build-bdist
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.build-package.outputs.bdist-package-name }}
+          path: dist/${{ steps.build-package.outputs.bdist-package-name }}
+
+      # upload the packages as artifacts of the GitHub release
+
+      - name: upload-release-sdist
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: https://uploads.github.com/repos/${{ github.event.repository.full_name }}/releases/${{ github.event.release.id }}/assets?name=${{ env.PACKAGE_NAME }}
-          asset_name: ${{ env.PACKAGE_NAME }}
-          asset_path: dist/${{ env.PACKAGE_NAME }}
+          upload_url: ${{ steps.build-package.outputs.sdist-release-url }}
+          asset_name: ${{ steps.build-package.outputs.sdist-package-name }}
+          asset_path: dist/${{ steps.build-package.outputs.sdist-package-name }}
           asset_content_type: application/gzip
+
+      - name: upload-release-bdist
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.build-package.outputs.bdist-release-url }}
+          asset_name: ${{ steps.build-package.outputs.bdist-package-name }}
+          asset_path: dist/${{ steps.build-package.outputs.bdist-package-name }}
+          asset_content_type: application/zip
+
 
   # re-download the built package to the appropriate pypi server.
   # we upload prereleases to test.pypi.org and releases to pypi.org.
@@ -210,9 +263,16 @@ jobs:
         with:
           python-version: 3.6
 
-      - uses: actions/download-artifact@v2
+      - name: download-sdist
+        uses: actions/download-artifact@v2
         with:
-          name: synapseclient
+          name: ${{ needs.package.outputs.sdist-package-name }}
+          path: dist
+
+      - name: download-bdist
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ needs.package.outputs.bdist-package-name }}
           path: dist
 
       - name: deploy-to-pypi
