@@ -579,11 +579,11 @@ class TestGetFunction:
         with pytest.raises(ValueError) as ve:
             args = parser.parse_args(['get'])
             cmdline.get(args, self.syn)
-        assert str(ve.value) == "For the get command, the following synapse ID sucha as syn123 are required"
+        assert str(ve.value) == "Missing expected id argument for use with the get command"
 
         # test get command with -r but without synapse ID
         parser = cmdline.build_parser()
         with pytest.raises(ValueError) as ve:
             args = parser.parse_args(['get', '-r'])
             cmdline.get(args, self.syn)
-        assert str(ve.value) == "For the get command, the following synapse ID sucha as syn123 are required"
+        assert str(ve.value) == "Missing expected id argument for use with the get command"
