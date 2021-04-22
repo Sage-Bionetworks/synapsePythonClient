@@ -336,7 +336,7 @@ class _MultithreadedDownloader:
         cause = None
         try:
             # currently when doing a range request to AWS we retry on anything other than a 206.
-            # this seems a bit excessive (i.e. some 400 statuses would suggest a non-retryable)
+            # this seems a bit excessive (i.e. some 400 statuses would suggest a non-retryable condition)
             # but for now matching previous behavior.
             response = with_retry(
                 session_get,
