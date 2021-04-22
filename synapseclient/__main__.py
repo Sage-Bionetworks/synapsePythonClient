@@ -92,6 +92,7 @@ def get(args, syn):
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
+        _check_args_with_id(args)
         synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation, followLink=args.followLink,
                                      manifest=args.manifest)
     elif args.queryString is not None:
@@ -101,6 +102,7 @@ def get(args, syn):
         for id in ids:
             syn.get(id, downloadLocation=args.downloadLocation)
     else:
+        _check_args_with_id(args)
         # search by MD5
         if isinstance(args.id, str) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
@@ -119,6 +121,11 @@ def get(args, syn):
                 syn.logger.info(entity)
         if "path" in entity:
             syn.logger.info('Creating %s', entity.path)
+
+
+def _check_args_with_id(args):
+    if args.id is None:
+        raise ValueError(f'For the {args.subparser} command, the following synapse ID sucha as syn123 are required')
 
 
 def sync(args, syn):
@@ -561,7 +568,7 @@ def build_parser():
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
                         help='suppress checking for version upgrade messages and endpoint redirection')
 
-    subparsers = parser.add_subparsers(title='commands',
+    subparsers = parser.add_subparsers(title='commands', dest='subparser',
                                        description='The following commands are available:',
                                        help='For additional help: "synapse <COMMAND> -h"')
 
@@ -585,7 +592,7 @@ def build_parser():
                             default=True, help='Download file using a multiple threaded implementation. '
                             'This flag will be removed in the future when multi-threaded download '
                             'is deemed fully stable and becomes the default implementation.')
-    parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
+    parser_get.add_argument('id', metavar='syn123 or local_file_path', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
     # add no manifest option
     parser_get.add_argument('--manifest', type=str, choices=['all', 'root', 'suppress'],

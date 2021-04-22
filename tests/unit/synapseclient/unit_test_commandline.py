@@ -572,3 +572,18 @@ class TestGetFunction:
                                                        call(mock_entity),
                                                        call('Downloaded file: %s', './base_tmp_path'),
                                                        call('Creating %s', './tmp_path')]
+
+    def test_get__without_synapse_id(self):
+        # test normal get command without synapse ID
+        parser = cmdline.build_parser()
+        with pytest.raises(ValueError) as ve:
+            args = parser.parse_args(['get'])
+            cmdline.get(args, self.syn)
+        assert str(ve.value) == "For the get command, the following synapse ID sucha as syn123 are required"
+
+        # test get command with -r but without synapse ID
+        parser = cmdline.build_parser()
+        with pytest.raises(ValueError) as ve:
+            args = parser.parse_args(['get', '-r'])
+            cmdline.get(args, self.syn)
+        assert str(ve.value) == "For the get command, the following synapse ID sucha as syn123 are required"
