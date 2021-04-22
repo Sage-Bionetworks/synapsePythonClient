@@ -17,7 +17,11 @@ import time
 
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.pool_provider import get_executor
-from synapseclient.core.retry import with_retry
+from synapseclient.core.retry import (
+    with_retry,
+    RETRYABLE_CONNECTION_ERRORS,
+    RETRYABLE_CONNECTION_EXCEPTIONS,
+)
 
 # constants
 MAX_QUEUE_SIZE: int = 20
@@ -331,11 +335,15 @@ class _MultithreadedDownloader:
         response = None
         cause = None
         try:
+            # currently when doing a range request to AWS we retry on anything other than a 206.
+            # this seems a bit excessive (i.e. some 400 statuses would suggest a non-retryable)
+            # but for now matching previous behavior.
             response = with_retry(
                 session_get,
                 retry_status_code_in=False,
                 retry_status_codes=(HTTPStatus.PARTIAL_CONTENT,),
-                retry_exceptions=(ConnectionResetError,)
+                retry_errors=RETRYABLE_CONNECTION_ERRORS,
+                retry_exceptions=RETRYABLE_CONNECTION_EXCEPTIONS,
             )
         except Exception as ex:
             cause = ex

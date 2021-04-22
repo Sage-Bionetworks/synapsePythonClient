@@ -11,6 +11,32 @@ DEFAULT_WAIT = 1
 DEFAULT_BACK_OFF = 2
 DEFAULT_MAX_WAIT = 30
 
+DEFAULT_RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
+
+# strings that may appear in responses that suggest a retryable condition
+RETRYABLE_CONNECTION_ERRORS = [
+    "proxy error",
+    "slow down",
+    "timeout",
+    "timed out",
+    "connection reset by peer",
+    "unknown ssl protocol error",
+    "couldn't connect to host",
+    "slowdown",
+    "try again",
+    "connection reset by peer",
+]
+
+# Exceptions that may be retryable. These are socket level exceptions
+# not associated with an HTTP response
+RETRYABLE_CONNECTION_EXCEPTIONS = [
+    "ChunkedEncodingError",
+    "ConnectionError",
+    'ConnectionResetError',
+    "Timeout",
+    "timeout",
+]
+
 
 def with_retry(function, verbose=False,
                retry_status_codes=[429, 500, 502, 503, 504], retry_status_code_in=True,
