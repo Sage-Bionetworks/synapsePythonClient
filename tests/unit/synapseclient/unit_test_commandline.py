@@ -572,3 +572,16 @@ class TestGetFunction:
                                                        call(mock_entity),
                                                        call('Downloaded file: %s', './base_tmp_path'),
                                                        call('Creating %s', './tmp_path')]
+
+
+class TestStoreFunction:
+    @patch('synapseclient.client.Synapse')
+    def setup(self, mock_syn):
+        self.syn = mock_syn
+
+    def test_get__without_file_args(self):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['store', '--parentid', 'syn123', '--used', 'syn456'])
+        with pytest.raises(ValueError) as ve:
+            cmdline.store(args, self.syn)
+        assert str(ve.value) == "For the store command, put the positional FILE as the first arg"
