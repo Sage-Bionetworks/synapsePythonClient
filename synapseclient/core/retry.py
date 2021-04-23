@@ -91,7 +91,7 @@ def with_retry(function, verbose=False,
         if response is not None and hasattr(response, 'status_code'):
             if (
                 (expected_status_codes and response.status_code not in expected_status_codes) or
-                response.status_code in retry_status_codes
+                (retry_status_codes and response.status_code in retry_status_codes)
             ):
                 response_message = _get_message(response)
                 retry = True

@@ -57,6 +57,30 @@ def test_with_retry():
     assert function.call_count == 1 + 4 + 3 + 4 + 1
 
 
+@pytest.mark.parametrize('values', (
+    None,
+    [],
+    tuple(),
+))
+def test_with_retry__empty_status_codes(values):
+    """Verify that passing some Falsey values for the various sequence args is ok"""
+    response = MagicMock(spec=Response)
+    response.status_code = 200
+
+    fn = MagicMock()
+    fn.return_value = response
+
+    # no unexpected exceptions etc should be raised
+    returned_response = with_retry(
+        fn,
+        retry_status_codes=values,
+        expected_status_codes=values,
+        retry_exceptions=values,
+        retry_errors=values,
+    )
+    assert returned_response == response
+
+
 def test_with_retry__expected_status_code():
     """Verify using retry expected_status_codes"""
 
