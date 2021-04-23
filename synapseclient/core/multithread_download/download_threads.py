@@ -340,8 +340,7 @@ class _MultithreadedDownloader:
             # but for now matching previous behavior.
             response = with_retry(
                 session_get,
-                retry_status_code_in=False,
-                retry_status_codes=(HTTPStatus.PARTIAL_CONTENT,),
+                expected_status_codes=(HTTPStatus.PARTIAL_CONTENT,),
                 retry_errors=RETRYABLE_CONNECTION_ERRORS,
                 retry_exceptions=RETRYABLE_CONNECTION_EXCEPTIONS,
             )

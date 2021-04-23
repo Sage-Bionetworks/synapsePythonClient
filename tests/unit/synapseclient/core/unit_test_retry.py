@@ -57,8 +57,8 @@ def test_with_retry():
     assert function.call_count == 1 + 4 + 3 + 4 + 1
 
 
-def test_with_retry__status_code_not_in():
-    """Verify using retry with retry_status_code_in=False to retry unless thee status code matches"""
+def test_with_retry__expected_status_code():
+    """Verify using retry expected_status_codes"""
 
     non_matching_response = MagicMock(spec=Response)
     non_matching_response.status_code = 200
@@ -72,7 +72,7 @@ def test_with_retry__status_code_not_in():
         matching_response,
     ]
 
-    response = with_retry(fn, retry_status_codes=[201], retry_status_code_in=False)
+    response = with_retry(fn, expected_status_codes=[201])
     assert response == matching_response
 
 

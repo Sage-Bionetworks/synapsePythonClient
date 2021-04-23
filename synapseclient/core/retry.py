@@ -39,7 +39,7 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
 
 
 def with_retry(function, verbose=False,
-               retry_status_codes=[429, 500, 502, 503, 504], retry_status_code_in=True,
+               retry_status_codes=[429, 500, 502, 503, 504], expected_status_codes=[],
                retry_errors=[], retry_exceptions=[],
                retries=DEFAULT_RETRIES, wait=DEFAULT_WAIT, back_off=DEFAULT_BACK_OFF, max_wait=DEFAULT_MAX_WAIT):
     """
@@ -47,8 +47,7 @@ def with_retry(function, verbose=False,
 
     :param function:                A function with no arguments.  If arguments are needed, use a lambda (see example).
     :param retry_status_codes:      What status codes to retry upon in the case of a SynapseHTTPError.
-    :param retry_status_code_in:    True if should retry if the status code is in retry_status_codes,
-                                    False if should retry unless the status code is in retry_status_codes
+    :param expected_status_codes:   If specified responses with any other status codes result in a retry.
     :param retry_errors:            What reasons to retry upon, if function().response.json()['reason'] exists.
     :param retry_exceptions:        What types of exceptions, specified as strings or Exception classes, to retry upon.
     :param retries:                 How many times to retry maximum.
@@ -91,8 +90,8 @@ def with_retry(function, verbose=False,
         # Check if we got a retry-able error
         if response is not None and hasattr(response, 'status_code'):
             if (
-                    (retry_status_code_in and response.status_code in retry_status_codes) or
-                    (not retry_status_code_in and response.status_code not in retry_status_codes)
+                (expected_status_codes and response.status_code not in expected_status_codes) or
+                response.status_code in retry_status_codes
             ):
                 response_message = _get_message(response)
                 retry = True
