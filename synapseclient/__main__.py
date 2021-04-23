@@ -134,7 +134,8 @@ def store(args, syn):
     # If both args.FILE and args.file specified raise error
     if args.file and args.FILE:
         raise ValueError('only specify one file')
-
+    if not args.file and not args.FILE:
+        raise ValueError(f'For the {args.subparser} command, put the positional FILE as the first arg')
     _descriptionFile_arg_check(args)
 
     args.file = args.FILE if args.FILE is not None else args.file
@@ -561,7 +562,7 @@ def build_parser():
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
                         help='suppress checking for version upgrade messages and endpoint redirection')
 
-    subparsers = parser.add_subparsers(title='commands',
+    subparsers = parser.add_subparsers(title='commands', dest='subparser',
                                        description='The following commands are available:',
                                        help='For additional help: "synapse <COMMAND> -h"')
 
