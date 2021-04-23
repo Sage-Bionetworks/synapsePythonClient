@@ -88,6 +88,7 @@ def with_retry(function, verbose=False,
         # Wait then retry
         retries -= 1
         if retries >= 0 and retry:
+            sys.stdout.write(f"here is retry -> {retries}")
             randomized_wait = wait*random.uniform(0.5, 1.5)
             logger.debug(('total wait time {total_wait:5.0f} seconds\n '
                           '... Retrying in {wait:5.1f} seconds...'.format(total_wait=total_wait, wait=randomized_wait)))
