@@ -94,7 +94,12 @@ from synapseclient.core.version_check import version_check
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
     find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
-from synapseclient.core.retry import with_retry
+from synapseclient.core.retry import (
+    with_retry,
+    DEFAULT_RETRY_STATUS_CODES,
+    RETRYABLE_CONNECTION_ERRORS,
+    RETRYABLE_CONNECTION_EXCEPTIONS,
+)
 from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
@@ -127,12 +132,9 @@ MAX_THREADS_CAP = 128
 
 # Defines the standard retry policy applied to the rest methods
 # The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
-STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 500, 502, 503, 504],
-                         "retry_errors": ["proxy error", "slow down", "timeout", "timed out",
-                                          "connection reset by peer", "unknown ssl protocol error",
-                                          "couldn't connect to host", "slowdown", "try again",
-                                          "connection reset by peer"],
-                         "retry_exceptions": ["ConnectionError", "Timeout", "timeout", "ChunkedEncodingError"],
+STANDARD_RETRY_PARAMS = {"retry_status_codes": DEFAULT_RETRY_STATUS_CODES,
+                         "retry_errors": RETRYABLE_CONNECTION_ERRORS,
+                         "retry_exceptions": RETRYABLE_CONNECTION_EXCEPTIONS,
                          "retries": 60,  # Retries for up to about 30 minutes
                          "wait": 1,
                          "max_wait": 30,
