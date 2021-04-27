@@ -3219,7 +3219,7 @@ class Synapse(object):
         :param label:  Optional snapshot label.
         :param activity:  Optional activity ID applied to snapshot version.
         :param wait: True if this method should return the snapshot version after waiting for any necessary
-                        asynchronous table updates to complete. If False this method will return return
+                        asynchronous table updates to complete. If False this method will return
                         as soon as any updates are initiated.
         :return: the snapshot version number if wait=True, None if wait=False
         """
