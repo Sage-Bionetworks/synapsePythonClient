@@ -520,7 +520,7 @@ def test_download_file_entity__correct_local_state(syn):
     with patch.object(syn.cache, 'get', return_value=mock_cache_path):
         syn._download_file_entity(downloadLocation=None, entity=file_entity, ifcollision="overwrite.local",
                                   submission=None)
-        assert mock_cache_path == file_entity.path
+        assert mock_cache_path == utils.normalize_path(file_entity.path)
         assert os.path.dirname(mock_cache_path) == file_entity.cacheDir
         assert 1 == len(file_entity.files)
         assert os.path.basename(mock_cache_path) == file_entity.files[0]
