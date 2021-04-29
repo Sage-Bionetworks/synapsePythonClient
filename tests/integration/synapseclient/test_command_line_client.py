@@ -10,6 +10,7 @@ import tempfile
 import shutil
 
 import pytest
+from unittest import mock
 from unittest.mock import patch
 
 from synapseclient import client
@@ -194,12 +195,13 @@ def test_command_line_client(test_state):
                  '-executed',
                  repo_url)
 
-    output = run(test_state,
-                 'synapse',
-                 '--skip-checks',
-                 'get-provenance',
-                 '--id',
-                 file_entity_id)
+    with mock.patch.object(test_state.syn.logger, 'warning'):
+        output = run(test_state,
+                     'synapse',
+                     '--skip-checks',
+                     'get-provenance',
+                     '--id',
+                     file_entity_id)
 
     activity = json.loads(output)
     assert activity['name'] == 'TestActivity'
@@ -303,7 +305,6 @@ def test_command_line_client_annotations(test_state):
                  'synapse'
                  '--skip-checks',
                  'get-annotations',
-                 '--id',
                  file_entity_id)
 
     annotations = json.loads(output)
@@ -327,7 +328,6 @@ def test_command_line_client_annotations(test_state):
                  'synapse'
                  '--skip-checks',
                  'get-annotations',
-                 '--id',
                  file_entity_id)
 
     annotations = json.loads(output)
@@ -363,7 +363,6 @@ def test_command_line_client_annotations(test_state):
                  'synapse'
                  '--skip-checks',
                  'get-annotations',
-                 '--id',
                  file_entity_id)
 
     annotations = json.loads(output)
@@ -393,7 +392,6 @@ def test_command_line_client_annotations(test_state):
                  'synapse'
                  '--skip-checks',
                  'get-annotations',
-                 '--id',
                  file_entity_id)
 
     annotations = json.loads(output)
@@ -719,7 +717,7 @@ def test_command_line_using_paths(test_state):
     output = run(test_state,
                  'synapse'
                  '--skip-checks', 'set-provenance',
-                 '-id', file_entity2.id,
+                 file_entity2.id,
                  '-name', 'TestActivity',
                  '-description', 'A very excellent provenance',
                  '-used', filename,
@@ -730,7 +728,7 @@ def test_command_line_using_paths(test_state):
     output = run(test_state,
                  'synapse'
                  '--skip-checks', 'get-provenance',
-                 '-id', file_entity2.id)
+                 file_entity2.id)
     activity = json.loads(output)
     assert activity['name'] == 'TestActivity'
     assert activity['description'] == 'A very excellent provenance'
@@ -749,7 +747,7 @@ def test_command_line_using_paths(test_state):
     output = run(test_state,
                  'synapse'
                  '--skip-checks', 'get-provenance',
-                 '-id', entity_id)
+                 entity_id)
     activity = json.loads(output)
     a = [a for a in activity['used'] if not a['wasExecuted']]
     assert a[0]['reference']['targetId'] in [file_entity.id, file_entity2.id]

@@ -176,7 +176,7 @@ def store(args, syn):
     # add them
     if args.annotations is not None:
         # Need to override the args id parameter
-        setattr(args, 'id', entity['id'])
+        setattr(args, 'syn_id', entity['id'])
         setAnnotations(args, syn)
 
 
@@ -429,7 +429,7 @@ def _get_unique_ids(results):
 
 def _get_id_from_args(args, syn):
     if args.syn_id:
-        syn.logger.info(f"Using the -id or --id argument is deprecated, instead pass the id or path as the first "
+        syn.logger.warning(f"Using the -id or --id argument is deprecated, instead pass the id or path as the first "
                         f"argument to {args.subparser}")
     return args.syn_id or args.id
 
