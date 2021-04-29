@@ -430,7 +430,7 @@ def _get_unique_ids(results):
 def _get_id_from_args(args, syn):
     if args.syn_id:
         syn.logger.warning(f"Using the -id or --id argument is deprecated, instead pass the id or path as the first "
-                        f"argument to {args.subparser}")
+                           f"argument to {args.subparser}")
     return args.syn_id or args.id
 
 
