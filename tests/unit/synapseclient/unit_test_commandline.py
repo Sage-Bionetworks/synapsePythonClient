@@ -584,4 +584,4 @@ class TestStoreFunction:
         args = parser.parse_args(['store', '--parentid', 'syn123', '--used', 'syn456'])
         with pytest.raises(ValueError) as ve:
             cmdline.store(args, self.syn)
-        assert str(ve.value) == "For the store command, put the positional FILE as the first arg"
+        assert str(ve.value) == "store missing required FILE argument"
