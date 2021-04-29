@@ -9,9 +9,9 @@ from synapseclient import (Evaluation, Submission, SubmissionStatus,
 def test_Evaluation():
     """Test the construction and accessors of Evaluation objects."""
 
-    # Status can only be one of ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']
-    pytest.raises(ValueError, Evaluation, name='foo', description='bar', status='BAH')
-    pytest.raises(ValueError, Evaluation, name='foo', description='bar', status='OPEN', contentSource='a')
+    # contentSource must be specified and must be a synapse id
+    pytest.raises(ValueError, Evaluation, name='foo', description='bar')
+    pytest.raises(ValueError, Evaluation, name='foo', description='bar', contentSource='a')
 
     # Assert that the values are
     ev = Evaluation(name='foobar2', description='bar', status='OPEN', contentSource='syn1234')
