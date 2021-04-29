@@ -754,9 +754,13 @@ def build_parser():
     parser_query = subparsers.add_parser('query',
                                          help='Performs SQL like queries on Synapse')
     parser_query.add_argument('queryString', metavar='string', type=str, nargs='*',
-                              help='A query string, see '
-                                   'https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html'  # noqa
-                                   ' for more information')
+                              help="""A query string. Note that when using the command line query strings must be
+passed intact as a single string. In most shells this can mean wrapping the query in quotes as appropriate and escaping
+any quotes that may appear within the query string itself.
+Example::
+
+    synapse query "select \\"column has spaces\\" from syn123"
+See https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html' for more information""")
     parser_query.set_defaults(func=query)
 
     parser_submit = subparsers.add_parser('submit',
