@@ -93,6 +93,7 @@ def get(args, syn):
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
+        _validate_id_arg(args)
         synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation, followLink=args.followLink,
                                      manifest=args.manifest)
     elif args.queryString is not None:
@@ -102,6 +103,7 @@ def get(args, syn):
         for id in ids:
             syn.get(id, downloadLocation=args.downloadLocation)
     else:
+        _validate_id_arg(args)
         # search by MD5
         if isinstance(args.id, str) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
@@ -120,6 +122,11 @@ def get(args, syn):
                 syn.logger.info(entity)
         if "path" in entity:
             syn.logger.info('Creating %s', entity.path)
+
+
+def _validate_id_arg(args):
+    if args.id is None:
+        raise ValueError(f'Missing expected id argument for use with the {args.subparser} command')
 
 
 def sync(args, syn):
@@ -654,7 +661,7 @@ def build_parser():
                             default=True, help='Download file using a multiple threaded implementation. '
                             'This flag will be removed in the future when multi-threaded download '
                             'is deemed fully stable and becomes the default implementation.')
-    parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
+    parser_get.add_argument('id', metavar='local path', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
     # add no manifest option
     parser_get.add_argument('--manifest', type=str, choices=['all', 'root', 'suppress'],

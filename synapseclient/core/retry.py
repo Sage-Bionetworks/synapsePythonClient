@@ -6,20 +6,54 @@ from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_N
 from synapseclient.core.utils import is_json
 from synapseclient.core.dozer import doze
 
+DEFAULT_RETRIES = 3
+DEFAULT_WAIT = 1
+DEFAULT_BACK_OFF = 2
+DEFAULT_MAX_WAIT = 30
+
+DEFAULT_RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
+
+# strings that may appear in responses that suggest a retryable condition
+RETRYABLE_CONNECTION_ERRORS = [
+    "proxy error",
+    "slow down",
+    "timeout",
+    "timed out",
+    "connection reset by peer",
+    "unknown ssl protocol error",
+    "couldn't connect to host",
+    "slowdown",
+    "try again",
+    "connection reset by peer",
+]
+
+# Exceptions that may be retryable. These are socket level exceptions
+# not associated with an HTTP response
+RETRYABLE_CONNECTION_EXCEPTIONS = [
+    "ChunkedEncodingError",
+    "ConnectionError",
+    'ConnectionResetError',
+    "Timeout",
+    "timeout",
+]
+
 
 def with_retry(function, verbose=False,
-               retry_status_codes=[429, 500, 502, 503, 504], retry_errors=[], retry_exceptions=[],
-               retries=3, wait=1, back_off=2, max_wait=30):
+               retry_status_codes=[429, 500, 502, 503, 504], expected_status_codes=[],
+               retry_errors=[], retry_exceptions=[],
+               retries=DEFAULT_RETRIES, wait=DEFAULT_WAIT, back_off=DEFAULT_BACK_OFF, max_wait=DEFAULT_MAX_WAIT):
     """
     Retries the given function under certain conditions.
 
-    :param function:           A function with no arguments.  If arguments are needed, use a lambda (see example).
-    :param retry_status_codes: What status codes to retry upon in the case of a SynapseHTTPError.
-    :param retry_errors:       What reasons to retry upon, if function().response.json()['reason'] exists.
-    :param retry_exceptions:   What types of exceptions, specified as strings, to retry upon.
-    :param retries:            How many times to retry maximum.
-    :param wait:               How many seconds to wait between retries.
-    :param back_off:           Exponential constant to increase wait for between progressive failures.
+    :param function:                A function with no arguments.  If arguments are needed, use a lambda (see example).
+    :param retry_status_codes:      What status codes to retry upon in the case of a SynapseHTTPError.
+    :param expected_status_codes:   If specified responses with any other status codes result in a retry.
+    :param retry_errors:            What reasons to retry upon, if function().response.json()['reason'] exists.
+    :param retry_exceptions:        What types of exceptions, specified as strings or Exception classes, to retry upon.
+    :param retries:                 How many times to retry maximum.
+    :param wait:                    How many seconds to wait between retries.
+    :param back_off:                Exponential constant to increase wait for between progressive failures.
+    :param max_wait:                back_off between requests will not exceed this value
 
     :returns: function()
 
@@ -55,7 +89,10 @@ def with_retry(function, verbose=False,
 
         # Check if we got a retry-able error
         if response is not None and hasattr(response, 'status_code'):
-            if response.status_code in retry_status_codes:
+            if (
+                (expected_status_codes and response.status_code not in expected_status_codes) or
+                (retry_status_codes and response.status_code in retry_status_codes)
+            ):
                 response_message = _get_message(response)
                 retry = True
                 logger.debug("retrying on status code: %s" % str(response.status_code))

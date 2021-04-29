@@ -20,7 +20,7 @@ import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
     PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask, \
-    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema
+    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema, escape_column_name, join_column_names
 
 from synapseclient.core.utils import from_unix_epoch_time
 from unittest.mock import patch
@@ -1261,3 +1261,27 @@ def test_set_view_types_invalid_input():
     view = EntityViewSchema(type='project', properties=properties)
     assert view['viewTypeMask'] == 2
     pytest.raises(ValueError, view.set_entity_types, None)
+
+
+@pytest.mark.parametrize("column,expected_name", (
+    ("foo", '"foo"'),  # all names are quoted
+    ('foo"bar', '"foo""bar"'),  # quotes are double quoted
+    ('foo bar', '"foo bar"'),  # other special characters e.g. spaces are left alone (within the quoted string)
+))
+def test_escape_column_names(column, expected_name):
+    """Verify column name escaping"""
+    # test as a string
+    assert escape_column_name(column) == expected_name
+
+    # test as a dictionary/column object
+    assert escape_column_name({'name': column}) == expected_name
+
+
+def test_join_column_names():
+    """Verify the behavior of join_column_names"""
+    column_names = ['foo', 'foo"bar', 'foo bar']
+    column_dicts = [{'name': n} for n in column_names]
+    expected = '"foo","foo""bar","foo bar"'
+
+    assert join_column_names(column_names) == expected
+    assert join_column_names(column_dicts) == expected

@@ -2,7 +2,6 @@ import filecmp
 import os
 import tempfile
 import shutil
-import time
 
 import pytest
 
@@ -59,7 +58,7 @@ def test_http_download__range_request_error(syn, project):
     file_path = utils.make_bogus_data_file()
     file_entity = syn.store(File(file_path, parent=project))
 
-    syn.cache.purge(time.time())
+    syn.cache.remove(file_entity['_file_handle']['id'])
     # download once and rename to temp file to simulate range exceed
     file_entity = syn.get(file_entity)
     shutil.move(file_entity.path, utils.temp_download_filename(file_entity.path, file_entity.dataFileHandleId))

@@ -1077,7 +1077,11 @@ def test_create__same_project_name(test_state):
     assert entity_id_first == entity_id_second
 
 
-def test_storeTable__csv(test_state):
+@patch.object(utils.sys.stdin, 'isatty')
+def test_storeTable__csv(mock_sys, test_state):
+    # when running on windows os with multiple CPU, the sys.stdin.isatty will return True
+    # Thus we mock the utils.sys.stdin.
+    mock_sys.return_value = False
     output = run(test_state,
                  'synapse',
                  'store-table',
@@ -1088,5 +1092,6 @@ def test_storeTable__csv(test_state):
                  '--parentid',
                  test_state.project.id
                  )
+
     mapping = json.loads(output)
     test_state.schedule_for_cleanup(mapping['tableId'])

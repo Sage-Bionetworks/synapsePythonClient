@@ -13,11 +13,12 @@ This is part of the internal implementation of the client and should not be acce
 import collections.abc
 import datetime
 import json
+import math
 import operator
 import os
 import re
 import shutil
-import math
+import typing
 
 from synapseclient.core.lock import Lock
 from synapseclient.core import utils
@@ -280,15 +281,28 @@ class Cache:
                     if os.path.isdir(path2) and re.match('\\d+', item2):
                         yield path2
 
-    def purge(self, before_date=None, after_date=None, dry_run=False):
+    def purge(
+        self,
+        before_date: typing.Union[datetime.datetime, int] = None,
+        after_date: typing.Union[datetime.datetime, int] = None,
+        dry_run: bool = False
+    ):
         """
-        Purge the cache. Use with caution. Delete files whose cache maps were last updated prior to the given date.
+        Purge the cache. Use with caution. Deletes files whose cache maps were last updated in a specified period.
 
         Deletes .cacheMap files and files stored in the cache.cache_root_dir, but does not delete files stored outside
         the cache.
 
         Either the before_date or after_date must be specified. If both are passed, files between the two dates are
-        selected for removal.
+        selected for removal. Dates must either be a timezone naive Python datetime.datetime instance or the number
+        of seconds since the unix epoch. For example to delete all the files modified in January 2021, either of the
+        following can be used::
+
+            # using offset naive datetime objects
+            cache.purge(after_date=datetime.datetime(2021, 1, 1), before_date=datetime.datetime(2021, 2, 1))
+
+            # using seconds since the unix epoch
+            cache.purge(after_date=1609459200, before_date=1612137600)
 
         :param before_date: if specified, all files before this date will be removed
         :param after_date:  if specified, all files after this date will be removed
