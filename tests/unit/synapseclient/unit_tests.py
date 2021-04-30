@@ -1,7 +1,7 @@
-from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_is_not_none
 import sys
 import inspect
-from nose import SkipTest
+
+import pytest
 
 from synapseclient import Activity
 import synapseclient.core.utils as utils
@@ -15,17 +15,17 @@ def test_activity_creation_from_dict():
          'description': 'hipster beard dataset',
          'used': [{'reference': {'targetId': 'syn12345', 'versionNumber': 42}, 'wasExecuted': True}]}
     a = Activity(data=d)
-    assert_equals(a['name'], 'Project Fuzz')
-    assert_equals(a['description'], 'hipster beard dataset')
+    assert a['name'] == 'Project Fuzz'
+    assert a['description'] == 'hipster beard dataset'
 
     usedEntities = a['used']
-    assert_equals(len(usedEntities), 1)
+    assert len(usedEntities) == 1
 
     u = usedEntities[0]
-    assert_true(u['wasExecuted'])
+    assert u['wasExecuted']
 
-    assert_equals(u['reference']['targetId'], 'syn12345')
-    assert_equals(u['reference']['versionNumber'], 42)
+    assert u['reference']['targetId'] == 'syn12345'
+    assert u['reference']['versionNumber'] == 42
 
 
 def test_activity_used_execute_methods():
@@ -36,16 +36,16 @@ def test_activity_used_execute_methods():
     usedEntities = a['used']
     len(usedEntities), 2
 
-    assert_equals(a['name'], 'Fuzz')
-    assert_equals(a['description'], 'hipster beard dataset')
+    assert a['name'] == 'Fuzz'
+    assert a['description'] == 'hipster beard dataset'
 
     used_syn101 = utils._find_used(a, lambda res: res['reference']['targetId'] == 'syn101')
-    assert_equals(used_syn101['reference']['targetVersionNumber'], 42)
-    assert_false(used_syn101['wasExecuted'])
+    assert used_syn101['reference']['targetVersionNumber'] == 42
+    assert not used_syn101['wasExecuted']
 
     used_syn102 = utils._find_used(a, lambda res: res['reference']['targetId'] == 'syn102')
-    assert_equals(used_syn102['reference']['targetVersionNumber'], 1)
-    assert_true(used_syn102['wasExecuted'])
+    assert used_syn102['reference']['targetVersionNumber'] == 1
+    assert used_syn102['wasExecuted']
 
 
 def test_activity_creation_by_constructor():
@@ -58,17 +58,17 @@ def test_activity_creation_by_constructor():
     a = Activity(name='Fuzz', description='hipster beard dataset', used=[ue1, ue3], executed=[ue2])
 
     used_syn101 = utils._find_used(a, lambda res: res['reference']['targetId'] == 'syn101')
-    assert_is_not_none(used_syn101)
-    assert_equals(used_syn101['reference']['targetVersionNumber'], 42)
-    assert_false(used_syn101['wasExecuted'])
+    assert used_syn101 is not None
+    assert used_syn101['reference']['targetVersionNumber'] == 42
+    assert not used_syn101['wasExecuted']
 
     used_syn102 = utils._find_used(a, lambda res: res['reference']['targetId'] == 'syn102')
-    assert_is_not_none(used_syn102)
-    assert_equals(used_syn102['reference']['targetVersionNumber'], 2)
-    assert_true(used_syn102['wasExecuted'])
+    assert used_syn102 is not None
+    assert used_syn102['reference']['targetVersionNumber'] == 2
+    assert used_syn102['wasExecuted']
 
     used_syn103 = utils._find_used(a, lambda res: res['reference']['targetId'] == 'syn103')
-    assert_is_not_none(used_syn103)
+    assert used_syn103 is not None
 
 
 def test_activity_used_url():
@@ -86,42 +86,42 @@ def test_activity_used_url():
     a.used(url='http://earthquake.usgs.gov/earthquakes/feed/geojson/2.5/day', name='earthquakes')
 
     u = utils._find_used(a, lambda res: 'url' in res and res['url'] == u1)
-    assert_is_not_none(u)
-    assert_equals(u['url'], u1)
-    assert_false(u['wasExecuted'])
+    assert u is not None
+    assert u['url'] == u1
+    assert not u['wasExecuted']
 
     u = utils._find_used(a, lambda res: 'name' in res and res['name'] == 'The Onion')
-    assert_is_not_none(u)
-    assert_equals(u['url'], 'http://theonion.com')
-    assert_false(u['wasExecuted'])
+    assert u is not None
+    assert u['url'] == 'http://theonion.com'
+    assert not u['wasExecuted']
 
     u = utils._find_used(a, lambda res: 'name' in res and res['name'] == 'Seriously advanced code')
-    assert_is_not_none(u)
-    assert_equals(u['url'], u3['url'])
-    assert_equals(u['wasExecuted'], u3['wasExecuted'])
+    assert u is not None
+    assert u['url'] == u3['url']
+    assert u['wasExecuted'] == u3['wasExecuted']
 
     u = utils._find_used(a, lambda res: 'name' in res and res['name'] == 'Heavy duty algorithm')
-    assert_is_not_none(u)
-    assert_equals(u['url'], u4['url'])
-    assert_true(u['wasExecuted'])
+    assert u is not None
+    assert u['url'] == u4['url']
+    assert u['wasExecuted']
 
     u = utils._find_used(a, lambda res: 'name' in res and res['name'] == 'glm.net')
-    assert_is_not_none(u)
-    assert_equals(u['url'], 'http://cran.r-project.org/web/packages/glmnet/index.html')
-    assert_true(u['wasExecuted'])
+    assert u is not None
+    assert u['url'] == 'http://cran.r-project.org/web/packages/glmnet/index.html'
+    assert u['wasExecuted']
 
     u = utils._find_used(a, lambda res: 'name' in res and res['name'] == 'earthquakes')
-    assert_is_not_none(u)
-    assert_equals(u['url'], 'http://earthquake.usgs.gov/earthquakes/feed/geojson/2.5/day')
-    assert_false(u['wasExecuted'])
+    assert u is not None
+    assert u['url'] == 'http://earthquake.usgs.gov/earthquakes/feed/geojson/2.5/day'
+    assert not u['wasExecuted']
 
 
 def test_activity_parameter_errors():
     """Test error handling in Activity.used()"""
     a = Activity(name='Foobarbat', description='Apply foo to a bar and a bat')
-    assert_raises(SynapseMalformedEntityError, a.used, ['syn12345', 'http://google.com'], url='http://amazon.com')
-    assert_raises(SynapseMalformedEntityError, a.used, 'syn12345', url='http://amazon.com')
-    assert_raises(SynapseMalformedEntityError, a.used, 'http://amazon.com', targetVersion=1)
+    pytest.raises(SynapseMalformedEntityError, a.used, ['syn12345', 'http://google.com'], url='http://amazon.com')
+    pytest.raises(SynapseMalformedEntityError, a.used, 'syn12345', url='http://amazon.com')
+    pytest.raises(SynapseMalformedEntityError, a.used, 'http://amazon.com', targetVersion=1)
 
 
 def test_unicode_output():
@@ -130,7 +130,7 @@ def test_unicode_output():
     if encoding and encoding.lower() in ['utf-8', 'utf-16']:
         print("ȧƈƈḗƞŧḗḓ uʍop-ǝpısdn ŧḗẋŧ ƒǿř ŧḗşŧīƞɠ")
     else:
-        raise SkipTest("can't display unicode, skipping test_unicode_output...")
+        raise pytest.skip("can't display unicode, skipping test_unicode_output...")
 
 
 def test_raise_for_status():
@@ -150,7 +150,7 @@ def test_raise_for_status():
             method="PUT",
             body="body"))
 
-    assert_raises(SynapseHTTPError, _raise_for_status, response, verbose=False)
+    pytest.raises(SynapseHTTPError, _raise_for_status, response, verbose=False)
 
 
 def _calling_module_test_helper():
@@ -158,10 +158,10 @@ def _calling_module_test_helper():
 
 
 def test_calling_module():
-    # 'case' is the name of the module with which nosetests runs these tests
+    # 'python' is the name of the module with which pytest runs these tests
     # 'unit_test' is the name of the module in which this test resides
     # we made a helper so that the call order is: case.some_function_for_running_tests()
     # -> unit_test.test_calling_module() -> unit_test._calling_module_test_helper()
     # since both _calling_module_test_helper and test_calling_module are a part of the unit_test module,
     # we can test that callers of the same module do indeed are skipped
-    assert_equals("case", _calling_module_test_helper())
+    assert "python" == _calling_module_test_helper()

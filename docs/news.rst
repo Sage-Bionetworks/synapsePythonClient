@@ -2,11 +2,264 @@
 Release Notes
 =============
 
+
+2.4.0 (2021-05-XX)
+==================
+
+Highlights
+----------
+
+- Added ability to :code:`syn.login()` without arguments if the :code:`SYNAPSE_AUTH_TOKEN` enviroment variable is set with a valid personal access token
+
+  .. code-block:: bash
+
+        # set environment variable for python
+        SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' python3
+
+  .. code-block:: python3
+
+        import synapseclient
+        # login() will retrieve the personal access token from environment variable
+        syn = synapseclient.login()
+  The environment variable will take priority over credentials in the user's :code:`.synapseConfig` file
+  or any credentials saved in a prior login using :code:`syn.login(rememberMe=True)`.
+New Features
+------------
+
+-  [`SYNPY-1125 <https://sagebionetworks.jira.com/browse/SYNPY-1125>`__] -
+   Allow login with environment variables
+
+
+2.3.1 (2021-04-13)
+==================
+
+Highlights
+----------
+
+- Entities can be annotated with boolean datatypes, for example:
+
+  .. code-block::
+
+    file = synapseclient.File('/path/to/file', parentId='syn123', synapse_is_great=True)
+    syn.store(file)
+
+- synapseclient is additionally packaged as a Python wheel.
+
+
+Bug Fixes
+---------
+
+-  [`SYNPY-829 <https://sagebionetworks.jira.com/browse/SYNPY-829>`__] -
+   syn.store always updates annotations
+-  [`SYNPY-1033 <https://sagebionetworks.jira.com/browse/SYNPY-1033>`__] -
+   If versionComment is left blank, previous version comment populates
+
+Improvements
+------------
+
+-  [`SYNPY-1120 <https://sagebionetworks.jira.com/browse/SYNPY-1120>`__] -
+   Build wheel distributions
+-  [`SYNPY-1129 <https://sagebionetworks.jira.com/browse/SYNPY-1129>`__] -
+   Support boolean annotations in Python client
+
+2.3.0 (2021-03-03)
+================
+
+Highlights
+----------
+
+- The `index_files_for_migration <synapseutils.html#synapseutils.migrate_functions.index_files_for_migration>`__ and
+  `migrate_indexed_files <synapseutils.html#synapseutils.migrate_functions.migrate_indexed_files>`__ functions are added
+  to synapseutils to help migrate files in Synapse projects and folders between AWS S3 buckets in the same region.
+  More details on using these utilities can be found `here <S3Storage.html#storage-location-migration>`__.
+
+- This version supports login programatically and from the command line using personal access tokens that can be obtained
+  from your synapse.org Settings. Additional documentation on login and be found `here <Credentials.html>`__.
+
+  .. code-block::
+
+   # programmatic
+   syn = synapseclient.login(authToken=<token>)
+
+  .. code-block::
+
+   # command line
+   synapse login -p <token>
+
+- The location where downloaded entities are cached can be customized to a location other than the user's home directory.
+  This is useful in environments where writing to a home directory is not appropriate (e.g. an AWS lambda).
+
+  .. code-block::
+
+   syn = synapseclient.Synapse(cache_root_dir=<directory path>)
+
+- A `helper method <index.html#synapseclient.Synapse.is_certified>`__ on the Synapse object has been added to enable obtaining the Synapse certification quiz status of a user.
+
+  .. code-block::
+
+   passed = syn.is_certified(<username or user_id>)
+
+- This version has been tested with Python 3.9.
+
+
+Bug Fixes
+---------
+
+-  [`SYNPY-1039 <https://sagebionetworks.jira.com/browse/SYNPY-1039>`__] -
+   tableQuery asDataFrame() results with TYPE_LIST columns should be lists and not literal strings
+-  [`SYNPY-1109 <https://sagebionetworks.jira.com/browse/SYNPY-1109>`__] -
+   unparseable synapse cacheMap raises JSONDecodeError
+-  [`SYNPY-1110 <https://sagebionetworks.jira.com/browse/SYNPY-1110>`__] -
+   Cleanup on Windows console login
+-  [`SYNPY-1112 <https://sagebionetworks.jira.com/browse/SYNPY-1112>`__] -
+   Concurrent migration of entities sharing the same file handle can result in an error
+-  [`SYNPY-1114 <https://sagebionetworks.jira.com/browse/SYNPY-1114>`__] -
+   Mitigate new Rust compiler dependency on Linux via transitive cryptography dependency
+-  [`SYNPY-1118 <https://sagebionetworks.jira.com/browse/SYNPY-1118>`__] -
+   Migration tool erroring when it shouldn't
+New Features
+------------
+
+-  [`SYNPY-1058 <https://sagebionetworks.jira.com/browse/SYNPY-1058>`__] -
+   Accept oauth access token for authentication to use Synapse REST services
+-  [`SYNPY-1103 <https://sagebionetworks.jira.com/browse/SYNPY-1103>`__] -
+   Multipart copy integration
+-  [`SYNPY-1111 <https://sagebionetworks.jira.com/browse/SYNPY-1111>`__] -
+   Add function to get user certification status
+
+Improvements
+------------
+
+-  [`SYNPY-885 <https://sagebionetworks.jira.com/browse/SYNPY-885>`__] -
+   Public interface to customize CACHE_ROOT_DIR
+-  [`SYNPY-1102 <https://sagebionetworks.jira.com/browse/SYNPY-1102>`__] -
+   syncToSynapse adds empty annotation values
+-  [`SYNPY-1104 <https://sagebionetworks.jira.com/browse/SYNPY-1104>`__] -
+   Python 3.9 support
+-  [`SYNPY-1119 <https://sagebionetworks.jira.com/browse/SYNPY-1119>`__] -
+   Add source storage location option to storage migrate functions
+
+2.2.2 (2020-10-18)
+==================
+
+Highlights
+----------
+
+- This version addresses an issue with downloads being retried unsuccessfully after encountering certain types of errors.
+- A `create_snapshot_version <index.html#synapseclient.Synapse.create_snapshot_version>`__ function is added for making table and view snapshots.
+
+Bug Fixes
+---------
+-  [`SYNPY-1096 <https://sagebionetworks.jira.com/browse/SYNPY-1096>`__] -
+   Fix link to Synapse on PyPI
+-  [`SYNPY-1097 <https://sagebionetworks.jira.com/browse/SYNPY-1097>`__] -
+   downloaded files are reset when disk space exhausted
+
+New Features
+------------
+
+-  [`SYNPY-1041 <https://sagebionetworks.jira.com/browse/SYNPY-1041>`__] -
+   Snapshot feature and programmatic clients
+
+Improvements
+------------
+
+-  [`SYNPY-1063 <https://sagebionetworks.jira.com/browse/SYNPY-1063>`__] -
+   Consolidate builds to GitHub Actions
+-  [`SYNPY-1099 <https://sagebionetworks.jira.com/browse/SYNPY-1099>`__] -
+   Replace usage of deprecated PUT /entity/{id}/version endpoint
+
+
+2.2.0 (2020-08-31)
+==================
+
+Highlights
+----------
+
+- Files that are part of
+  `syncFromSynapse <https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse>`__
+  and
+  `syncToSynapse <https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncToSynapse>`__
+  operations (:code:`synapse get -r` and :code:`synapse sync` in the command line client, respectively) are
+  transferred in in parallel threads rather than serially, substantially improving the performance of these operations.
+- Table metadata from `synapse get -q` is automatically downloaded to a users working directory instead of to the Synapse cache (a hidden folder).
+- Users can now pass their API key to `synapse login` in place of a password.
+
+Bug Fixes
+---------
+-  [`SYNPY-1082 <https://sagebionetworks.jira.com/browse/SYNPY-1082>`__] -
+   Downloading entity linked to URL fails: module 'urllib.parse' has no attribute 'urlretrieve'
+
+Improvements
+------------
+
+-  [`SYNPY-1072 <https://sagebionetworks.jira.com/browse/SYNPY-1072>`__] -
+   Improve throughput of multiple small file transfers
+-  [`SYNPY-1073 <https://sagebionetworks.jira.com/browse/SYNPY-1073>`__] -
+   Parellelize upload syncs
+-  [`SYNPY-1074 <https://sagebionetworks.jira.com/browse/SYNPY-1074>`__] -
+   Parallelize download syncs
+-  [`SYNPY-1084 <https://sagebionetworks.jira.com/browse/SYNPY-1084>`__] -
+   Allow anonymous usage for public APIs like GET /teamMembers/{id}
+-  [`SYNPY-1088 <https://sagebionetworks.jira.com/browse/SYNPY-1088>`__] -
+   Manifest is in cache with synapse get -q
+-  [`SYNPY-1090 <https://sagebionetworks.jira.com/browse/SYNPY-1090>`__] -
+   Command line client does not support apikey
+
+Tasks
+-----
+-  [`SYNPY-1080 <https://sagebionetworks.jira.com/browse/SYNPY-1080>`__] -
+   Remove Versionable from SchemaBase
+-  [`SYNPY-1085 <https://sagebionetworks.jira.com/browse/SYNPY-1085>`__] -
+   Move to pytest testing framework
+-  [`SYNPY-1087 <https://sagebionetworks.jira.com/browse/SYNPY-1087>`__] -
+   Improve synapseclient installation instructions
+
+2.1.1 (2020-07-10)
+==================
+
+Highlights
+----------
+
+- This version includes a performance improvement for
+  `syncFromSynapse <https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse>`__
+  downloads of deep folder hierarchies to local filesystem locations outside of the
+  `Synapse cache <https://docs.synapse.org/articles/downloading_data.html#downloading-a-file>`__.
+
+- Support is added for **SubmissionViews** that can be used to query and edit
+  a set of submissions through table services.
+
+  .. code-block:: python
+
+   from synapseclient import SubmissionViewSchema
+
+   project = syn.get("syn123")
+   evaluation_id = '9876543'
+   view = syn.store(SubmissionViewSchema(name='My Submission View', parent=project, scopes=[evaluation_id]))
+   view_table = syn.tableQuery(f"select * from {view.id}")
+
+Bug Fixes
+---------
+
+-  [`SYNPY-1075 <https://sagebionetworks.jira.com/browse/SYNPY-1075>`__] -
+   Error in Python test (submission annotations)
+-  [`SYNPY-1076 <https://sagebionetworks.jira.com/browse/SYNPY-1076>`__] -
+   Upgrade/fix Pandas dependency
+
+Improvements
+------------
+
+-  [`SYNPY-1070 <https://sagebionetworks.jira.com/browse/SYNPY-1070>`__] -
+   Add support for submission views
+-  [`SYNPY-1078 <https://sagebionetworks.jira.com/browse/SYNPY-1078>`__] -
+   Improve syncFromSynapse performance for large folder structures synced to external paths
+
+
 2.1.0 (2020-06-16)
 ==================
 
-Highlights:
-----------------
+Highlights
+----------
 
 - A :code:`max_threads` property of the Synapse object has been added to customize the number of concurrent threads
   that will be used during file transfers.
@@ -55,8 +308,8 @@ Highlights:
 
 A full list of issues addressed in this release are below.
 
-Bug
----
+Bug Fixes
+---------
 
 -  [`SYNPY-913 <https://sagebionetworks.jira.com/browse/SYNPY-913>`__] -
    Travis Build badge for develop branch is pointing to pull request
@@ -67,16 +320,16 @@ Bug
 -  [`SYNPY-1056 <https://sagebionetworks.jira.com/browse/SYNPY-1056>`__] -
    syn.getSubmissions fails due to new Annotation class in v2.1.0-rc
 
-Improvement
------------
+Improvements
+------------
 
 -  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1029>`__] -
    Make upload speeds comparable to those of the AWS S3 CLI
 -  [`SYNPY-1049 <https://sagebionetworks.jira.com/browse/SYNPY-1049>`__] -
    Expose STS-related APIs
 
-Task
-----
+Tasks
+-----
 
 -  [`SYNPY-1059 <https://sagebionetworks.jira.com/browse/SYNPY-1059>`__] -
    Use collections.abc instead of collections
@@ -119,16 +372,16 @@ Highlights:
 
 A full list of issues addressed in this release are below.
 
-Bug
----
+Bugs Fixes
+----------
 
 -  [`SYNPY-271 <https://sagebionetworks.jira.com/browse/SYNPY-271>`__] -
    cache.remove fails to return the file handles we removed
 -  [`SYNPY-1032 <https://sagebionetworks.jira.com/browse/SYNPY-1032>`__]
    - Support new columnTypes defined in backend
 
-Task
-----
+Tasks
+-----
 
 -  [`SYNPY-999 <https://sagebionetworks.jira.com/browse/SYNPY-999>`__] -
    Remove unsafe copy functions from client
@@ -136,8 +389,8 @@ Task
    - Copy function should copy things when users are part of a Team that
    has DOWNLOAD access
 
-Improvement
------------
+Improvements
+------------
 
 -  [`SYNPY-389 <https://sagebionetworks.jira.com/browse/SYNPY-389>`__] -
    submission of Docker repository
@@ -161,8 +414,8 @@ Improvement
 1.9.4 (2019-06-28)
 ==================
 
-Bug
----
+Bug Fixes
+---------
 
 -  [`SYNPY-881 <https://sagebionetworks.jira.com/browse/SYNPY-881>`__] -
    Synu.copy fails when copying a file with READ permissions
@@ -175,14 +428,14 @@ Bug
 -  [`SYNPY-1018 <https://sagebionetworks.jira.com/browse/SYNPY-1018>`__]
    - Synu.copy shouldn't copy any files with access restrictions
 
-New Feature
------------
+New Features
+------------
 
 -  [`SYNPY-851 <https://sagebionetworks.jira.com/browse/SYNPY-851>`__] -
    invite user or list of users to a team
 
-Improvement
------------
+Improvements
+------------
 
 -  [`SYNPY-608 <https://sagebionetworks.jira.com/browse/SYNPY-608>`__] -
    Add how to contribute md to github project

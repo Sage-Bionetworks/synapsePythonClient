@@ -1,71 +1,12 @@
 """
-***************************
-Synapse command line client
-***************************
+The Synapse command line client.
 
-The Synapse Python Client can be used from the command line via the **synapse** command.
-
-Installation
-============
-
-The command line client is installed along with `installation of the Synapse Python client \
-<http://python-docs.synapse.org/build/html/index.html#installation>`_.
-
-Help
-====
-
-For help, type::
-
-    synapse -h.
-
-For help on specific commands, type::
-
-    synapse [command] -h
-
-
-Optional arguments
-==================
-
-.. code-block:: shell
-
-    -h, --help            show this help message and exit
-    --version             show program's version number and exit
-    -u SYNAPSEUSER, --username SYNAPSEUSER
-                        Username used to connect to Synapse
-    -p SYNAPSEPASSWORD, --password SYNAPSEPASSWORD
-                        Password used to connect to Synapse
-
-Commands
-========
-  * **get**              - download an entity and associated data
-  * **sync**             - Synchronize files described in a manifest to Synapse
-  * **store**            - uploads and adds a file to Synapse
-  * **store-table**      - uploads a table to Syanpse given a csv
-  * **add**              - add or modify content to Synapse
-  * **mv**               - move a dataset in Synapse
-  * **cp**               - copy an entity/dataset in Synapse
-  * **associate**        - Associate local files with the files stored in Synapse so
-                           that calls to 'syntapse get' and 'synapse show' don't
-                           re-download the files, but use the already existing file.
-  * **delete**           - removes a dataset from Synapse
-  * **query**            - performs SQL like queries on Synapse
-  * **submit**           - submit an entity for evaluation
-  * **show**             - displays information about a Entity
-  * **cat**              - prints a dataset from Synapse
-  * **list**             - List Synapse entities contained by the given Project or
-                           Folder. Note: May not be supported in future versions of
-                           the client.
-  * **set-provenance**   - create provenance records
-  * **get-provenance**   - show provenance records
-  * **set-annotations**  - create annotations
-  * **get-annotations**  - show annotations
-  * **create**           - Creates folders or projects on Synapse
-  * **onweb**            - opens Synapse website for Entity
-  * **login**            - login to Synapse and (optionally) cache credentials
-  * **test-encoding**    - test character encoding to help diagnose problems
+For a description of its usage and parameters, see its documentation:
+https://python-docs.synapse.org/build/html/CommandLineClient.html
 """
 import argparse
 import collections.abc
+import logging
 import os
 import sys
 import signal
@@ -81,7 +22,29 @@ from synapseclient import Activity
 from synapseclient.wiki import Wiki
 from synapseclient.annotations import Annotations
 from synapseclient.core import utils
-from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseNoCredentialsError
+from synapseclient.core.exceptions import (
+    SynapseAuthenticationError,
+    SynapseHTTPError,
+    SynapseFileNotFoundError,
+    SynapseNoCredentialsError,
+)
+
+
+def _init_console_logging():
+    # init a stdout logger for purposes of logging cli activity.
+    # logging is preferred to writing directly to stdout since it can be configured/formatted/suppressed
+    # but this is not yet universal across the client so it is initialized here from cli commands that
+    # don't still have other direct stdout calls
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+
+    # message only for these cli stdout messages, meant for output directly to be viewed by interactive user
+    formatter = logging.Formatter('%(message)s')
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
 
 
 def query(args, syn):
@@ -108,11 +71,11 @@ def query(args, syn):
                          ' https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html')
 
 
-def _getIdsFromQuery(queryString, syn):
+def _getIdsFromQuery(queryString, syn, downloadLocation):
     """Helper function that extracts the ids out of returned query."""
 
     if re.search('from syn\\d', queryString.lower()):
-        tbl = syn.tableQuery(queryString)
+        tbl = syn.tableQuery(queryString, downloadLocation=downloadLocation)
 
         check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
         assert check_for_id_col, ValueError("Query does not include the id column.")
@@ -129,31 +92,40 @@ def get(args, syn):
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
-        synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation, followLink=args.followLink)
+        _validate_id_arg(args)
+        synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation, followLink=args.followLink,
+                                     manifest=args.manifest)
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
             raise ValueError('You cannot specify a version or id when you are downloading a query.')
-        ids = _getIdsFromQuery(args.queryString, syn)
+        ids = _getIdsFromQuery(args.queryString, syn, args.downloadLocation)
         for id in ids:
             syn.get(id, downloadLocation=args.downloadLocation)
     else:
+        _validate_id_arg(args)
         # search by MD5
         if isinstance(args.id, str) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
-                print("Associated file: %s with synapse ID %s" % (entity.path, entity.id))
+                syn.logger.info("Associated file: %s with synapse ID %s", entity.path, entity.id)
         # normal syn.get operation
         else:
             entity = syn.get(args.id, version=args.version,  # limitSearch=args.limitSearch,
                              followLink=args.followLink,
                              downloadLocation=args.downloadLocation)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
-                print("Downloaded file: %s" % os.path.basename(entity.path))
-            else:
-                print('WARNING: No files associated with entity %s\n' % entity.id)
-                print(entity)
 
-        print('Creating %s' % entity.path)
+                syn.logger.info("Downloaded file: %s", os.path.basename(entity.path))
+            else:
+                syn.logger.info('WARNING: No files associated with entity %s\n', entity.id)
+                syn.logger.info(entity)
+        if "path" in entity:
+            syn.logger.info('Creating %s', entity.path)
+
+
+def _validate_id_arg(args):
+    if args.id is None:
+        raise ValueError(f'Missing expected id argument for use with the {args.subparser} command')
 
 
 def sync(args, syn):
@@ -197,8 +169,7 @@ def store(args, syn):
                        forceVersion=force_version)
 
     _create_wiki_description_if_necessary(args, entity, syn)
-
-    print('Created/Updated entity: %s\t%s' % (entity['id'], entity['name']))
+    syn.logger.info('Created/Updated entity: %s\t%s', entity['id'], entity['name'])
 
     # After creating/updating, if there are annotations to add then
     # add them
@@ -228,7 +199,7 @@ def _descriptionFile_arg_check(args):
 def move(args, syn):
     """Moves an entity specified by args.id to args.parentId"""
     entity = syn.move(args.id, args.parentid)
-    print('Moved %s to %s' % (entity.id, entity.parentId))
+    syn.logger.info('Moved %s to %s', entity.id, entity.parentId)
 
 
 def associate(args, syn):
@@ -245,9 +216,9 @@ def associate(args, syn):
         try:
             ent = syn.get(fp, limitSearch=args.limitSearch)
         except SynapseFileNotFoundError:
-            print('WARNING: The file %s is not available in Synapse' % fp)
+            syn.logger.warning('WARNING: The file %s is not available in Synapse', fp)
         else:
-            print('%s.%i\t%s' % (ent.id, ent.versionNumber, fp))
+            syn.logger.info('%s.%i\t%s', ent.id, ent.versionNumber, fp)
 
 
 def copy(args, syn):
@@ -257,7 +228,7 @@ def copy(args, syn):
                                  excludeTypes=args.excludeTypes,
                                  version=args.version, updateExisting=args.updateExisting,
                                  setProvenance=args.setProvenance)
-    print(mappings)
+    syn.logger.info(mappings)
 
 
 def cat(args, syn):
@@ -290,18 +261,18 @@ def show(args, syn):
     sys.stdout.write('Provenance:\n')
     try:
         prov = syn.getProvenance(ent)
-        print(prov)
+        syn.logger.info(prov)
     except SynapseHTTPError:
-        print('  No Activity specified.\n')
+        syn.logger.error('  No Activity specified.\n')
 
 
 def delete(args, syn):
     if args.version:
         syn.delete(args.id, args.version)
-        print('Deleted entity %s, version %s' % (args.id, args.version))
+        syn.logger.info('Deleted entity %s, version %s', args.id, args.version)
     else:
         syn.delete(args.id)
-        print('Deleted entity: %s' % args.id)
+        syn.logger.info('Deleted entity: %s', args.id)
 
 
 def create(args, syn):
@@ -316,8 +287,7 @@ def create(args, syn):
     entity = syn.store(entity)
 
     _create_wiki_description_if_necessary(args, entity, syn)
-
-    print('Created entity: %s\t%s\n' % (entity['id'], entity['name']))
+    syn.logger.info('Created entity: %s\t%s\n', entity['id'], entity['name'])
 
 
 def onweb(args, syn):
@@ -347,14 +317,14 @@ def setProvenance(args, syn):
                 f.write(json.dumps(activity))
                 f.write('\n')
     else:
-        print('Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id)))
+        syn.logger.info('Set provenance record %s on entity %s\n', str(activity['id']), str(args.id))
 
 
 def getProvenance(args, syn):
     activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output == 'STDOUT':
-        print(json.dumps(activity, sort_keys=True, indent=2))
+        syn.logger.info(json.dumps(activity, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
@@ -401,7 +371,7 @@ def getAnnotations(args, syn):
     annotations = syn.get_annotations(args.id)
 
     if args.output is None or args.output == 'STDOUT':
-        print(json.dumps(annotations, sort_keys=True, indent=2))
+        syn.logger.info(json.dumps(annotations, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
@@ -414,7 +384,7 @@ def storeTable(args, syn):
                                             args.parentid,
                                             args.csv)
     table_ent = syn.store(table)
-    print('{"tableId": "%s"}' % table_ent.tableId)
+    syn.logger.info('{"tableId": "%s"}', table_ent.tableId)
 
 
 def submit(args, syn):
@@ -470,7 +440,7 @@ def login(args, syn):
     """Log in to Synapse, optionally caching credentials"""
     login_with_prompt(syn, args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe, forced=True)
     profile = syn.getUserProfile()
-    print("Logged in as: {userName} ({ownerId})".format(**profile))
+    syn.logger.info("Logged in as: {userName} ({ownerId})".format(**profile))
 
 
 def test_encoding(args, syn):
@@ -498,8 +468,77 @@ def get_sts_token(args, syn):
         sts_string = json.dumps(resp)
     else:
         sts_string = str(resp)
+    syn.logger.info(sts_string)
 
-    print(sts_string)
+
+def migrate(args, syn):
+    """Migrate Synapse entities to a new storage location"""
+    _init_console_logging()
+
+    result = synapseutils.index_files_for_migration(
+        syn,
+        args.id,
+        args.dest_storage_location_id,
+        args.db_path,
+        source_storage_location_ids=args.source_storage_location_ids,
+        file_version_strategy=args.file_version_strategy,
+        include_table_files=args.include_table_files,
+        continue_on_error=args.continue_on_error,
+    )
+
+    counts = result.get_counts_by_status()
+    indexed_count = counts['INDEXED']
+    already_migrated_count = counts['ALREADY_MIGRATED']
+    errored_count = counts['ERRORED']
+
+    logging.info(
+        "Indexed %s items, %s needing migration, %s already stored in destination storage location (%s). "
+        "Encountered %s errors.",
+        indexed_count + already_migrated_count,
+        indexed_count,
+        already_migrated_count,
+        args.dest_storage_location_id,
+        errored_count
+    )
+
+    if indexed_count == 0:
+
+        logging.info("No files found needing migration.")
+
+    elif args.dryRun:
+        logging.info(
+            "Dry run, index created at %s but skipping migration. Can proceed with migration by running "
+            "the same command without the dry run option."
+        )
+
+    else:
+        # there are items to migrate and this is not a dry run, proceed with migration
+        result = synapseutils.migrate_indexed_files(
+            syn,
+            args.db_path,
+            create_table_snapshots=True,
+            continue_on_error=args.continue_on_error,
+            force=args.force,
+        )
+
+        if result:
+            # result is None if not using the arg and the user declined to
+            # continue with the migration
+
+            counts = result.get_counts_by_status()
+            migrated_count = counts['MIGRATED']
+            errored_count = counts['ERRORED']
+
+            logging.info(
+                "Completed migration of %s. %s files migrated. %s errors encountered",
+                args.id,
+                migrated_count,
+                errored_count,
+            )
+
+    if args.csv_log_path:
+        logging.info("Writing csv log to %s", args.csv_log_path)
+        result.as_csv(args.csv_log_path)
 
 
 def build_parser():
@@ -516,15 +555,20 @@ def build_parser():
     parser.add_argument('-u', '--username', dest='synapseUser',
                         help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword',
-                        help='Password used to connect to Synapse')
+                        help='Password, api key, or token used to connect to Synapse')
     parser.add_argument('-c', '--configPath', dest='configPath', default=synapseclient.client.CONFIG_FILE,
                         help='Path to configuration file used to connect to Synapse [default: %(default)s]')
 
-    parser.add_argument('--debug', dest='debug', action='store_true')
+    parser.add_argument('--debug', dest='debug', action='store_true',
+                        help='"Set to debug mode, additional output and error messages are printed to the console"')
+
+    parser.add_argument('--silent', dest='silent', action='store_true',
+                        help='"Set to silent mode, console output is suppressed"')
+
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
                         help='suppress checking for version upgrade messages and endpoint redirection')
 
-    subparsers = parser.add_subparsers(title='commands',
+    subparsers = parser.add_subparsers(title='commands', dest='subparser',
                                        description='The following commands are available:',
                                        help='For additional help: "synapse <COMMAND> -h"')
 
@@ -545,11 +589,14 @@ def build_parser():
     parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
                             help='Directory to download file to [default: %(default)s].')
     parser_get.add_argument('--multiThreaded', action='store_true',
-                            default=False, help='Download file using a multiple threaded implementation. '
-                                                'This flag will be removed in the future when multi-threaded download '
-                                                'is deemed fully stable and becomes the default implementation.')
-    parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
+                            default=True, help='Download file using a multiple threaded implementation. '
+                            'This flag will be removed in the future when multi-threaded download '
+                            'is deemed fully stable and becomes the default implementation.')
+    parser_get.add_argument('id', metavar='local path', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
+    # add no manifest option
+    parser_get.add_argument('--manifest', type=str, choices=['all', 'root', 'suppress'],
+                            default='all', help='Determines whether creating manifest file automatically.')
     parser_get.set_defaults(func=get)
 
     parser_sync = subparsers.add_parser('sync',
@@ -873,7 +920,7 @@ def build_parser():
     parser_login.add_argument('-u', '--username', dest='synapseUser',
                               help='Username used to connect to Synapse')
     parser_login.add_argument('-p', '--password', dest='synapsePassword',
-                              help='Password used to connect to Synapse')
+                              help='Password or api key used to connect to Synapse')
     parser_login.add_argument('--rememberMe', '--remember-me', dest='rememberMe', action='store_true', default=False,
                               help='Cache credentials for automatic authentication on future interactions with Synapse')
     parser_login.set_defaults(func=login)
@@ -898,11 +945,43 @@ def build_parser():
         choices=['json', 'boto', 'shell', 'bash', 'cmd', 'powershell'])
     parser_get_sts_token.set_defaults(func=get_sts_token)
 
+    parser_migrate = subparsers.add_parser(
+        'migrate',
+        help='Migrate Synapse entities to a different storage location'
+    )
+    parser_migrate.add_argument('id', type=str, help='Synapse id')
+    parser_migrate.add_argument('dest_storage_location_id', type=str, help='Destination Synapse storage location id')
+    parser_migrate.add_argument('db_path', type=str, help='Local system path where a record keeping file can be stored')
+    parser_migrate.add_argument('--source_storage_location_ids', type=str, nargs='*',
+                                help="Source Synapse storage location ids. If specified only files in these storage "
+                                "locations will be migrated.")
+    parser_migrate.add_argument('--file_version_strategy', type=str, default='new',
+                                help="""one of 'new', 'latest', 'all', 'skip'
+                                     new creates a new version of each entity,
+                                     latest migrates the most recent version,
+                                     all migrates all versions,
+                                     skip avoids migrating file entities (use when exclusively
+                                     targeting table attached files""")
+    parser_migrate.add_argument('--include_table_files', action='store_true', default=False,
+                                help='Include table attached files when migrating')
+    parser_migrate.add_argument('--continue_on_error', action='store_true', default=False,
+                                help='Whether to continue processing other entities if migration of one fails')
+    parser_migrate.add_argument('--csv_log_path', type=str,
+                                help='Path where to log a csv documenting the changes from the migration')
+    parser_migrate.add_argument('--dryRun', action='store_true', default=False,
+                                help='Dry run, files will be indexed by not migrated')
+    parser_migrate.add_argument('--force', action='store_true', default=False,
+                                help='Bypass interactive prompt confirming migration')
+
+    parser_migrate.set_defaults(func=migrate)
+
     return parser
 
 
 def perform_main(args, syn):
     if 'func' in args:
+        if args.func != login:
+            login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
         try:
             args.func(args, syn)
         except Exception as ex:
@@ -910,31 +989,88 @@ def perform_main(args, syn):
                 raise
             else:
                 sys.stderr.write(utils._synapse_error_msg(ex))
+    else:
+        # if no command provided print out help and quit
+        # if we require python 3.7 or above, we can use required argument tp add_subparsers instead
+        build_parser().print_help()
 
 
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
     try:
-        syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
+        _authenticate_login(syn, user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
-        # if there were no credentials in the cache nor provided, prompt the user and try again
-        while not user:
-            user = input("Synapse username: ")
+        # there were no complete credentials in the cache nor provided
+        if not user:
+            # if username was passed then we use that username
+            user = input("Synapse username (leave blank if using an auth token): ")
+
+        # if no username was provided then prompt for auth token, since no other secret will suffice without a user
+        secret_prompt = f"Password, api key, or auth token for user {user}:" if user else "Auth token:"
 
         passwd = None
         while not passwd:
-            # must encode password prompt because getpass() has OS-dependent implementation and complains about unicode
-            # on Windows python 2.7
-            passwd = getpass.getpass(("Password for " + user + ": ").encode('utf-8'))
-        syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
+            # if the terminal is not a tty, we are unable to read from standard input
+            # For git bash using python getpass
+            # https://stackoverflow.com/questions/49858821/python-getpass-doesnt-work-on-windows-git-bash-mingw64
+            if not sys.stdin.isatty():
+                raise SynapseAuthenticationError(
+                    "No password, key, or token was provided and unable to read from standard input")
+            else:
+                passwd = getpass.getpass(secret_prompt)
+        _authenticate_login(syn, user, passwd, rememberMe=rememberMe, forced=forced)
+
+
+def _authenticate_login(syn, user, secret, **login_kwargs):
+    # login using the given secret.
+    # we try logging in using the secret as a password, a auth bearer token, an api key in that order.
+    # each attempt results in a call to the services, which can mean extra calls than if we explicitly knew
+    # which type of secret we had, but the alternative of defining separate commands/parameters for the different
+    # types of secrets would pollute the top level argument space and make the stdin input option more complex
+    # for the user (e.g. first ask them to specify which type of secret they have rather than just an input prompt)
+
+    login_attempts = (
+        # a username is required when attempting a password login
+        ('password', lambda user, secret: user is not None and secret is not None),
+
+        # auth token login can be attempted without a username.
+        # although tokens are technically encoded, the client treats them as opaque so we don't do an encoding check
+        # on the secret itself
+        ('authToken', lambda user, secret: secret is not None),
+
+        # username is required for an api key and secret is base 64 encoded
+        ('apiKey', lambda user, secret: user is not None and utils.is_base64_encoded(secret)),
+
+        # an inputless login (i.e. derived from config or cache)
+        (None, lambda user, secret: user is None and secret is None),
+    )
+
+    first_auth_ex = None
+    for (login_key, secret_filter) in login_attempts:
+        if secret_filter(user, secret):
+            try:
+                login_kwargs_with_secret = {login_key: secret} if login_key else {}
+                login_kwargs_with_secret.update(login_kwargs)
+                syn.login(user, **login_kwargs_with_secret)
+                break
+            except SynapseNoCredentialsError:
+                # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
+                raise
+            except SynapseAuthenticationError as ex:
+                if not first_auth_ex:
+                    first_auth_ex = ex
+                continue
+    else:
+        # if one of the login filters applied raise that exception
+        # otherwise if none of them applied then a no credentials error
+        # will result in a login prompt
+        raise first_auth_ex or SynapseNoCredentialsError()
 
 
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
-    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks, configPath=args.configPath)
-    if not ('func' in args and args.func == login):
-        # if we're not executing the "login" operation, automatically authenticate before running operation
-        login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
+    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks,
+                                configPath=args.configPath, silent=args.silent, )
     perform_main(args, syn)
 
 

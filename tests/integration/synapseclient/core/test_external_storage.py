@@ -6,9 +6,8 @@ import uuid
 from synapseclient import File
 from synapseclient.core.retry import with_retry
 
-from nose.tools import assert_equal, assert_raises, assert_true
+import pytest
 import unittest
-from tests import integration
 
 try:
     boto3 = importlib.import_module('boto3')
@@ -38,11 +37,6 @@ def check_test_preconditions():
     return skip_tests, reason
 
 
-def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
-
-
 def get_aws_env():
     return os.environ['EXTERNAL_S3_BUCKET_NAME'], {
         'aws_access_key_id': os.environ['EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID'],
@@ -53,10 +47,18 @@ def get_aws_env():
 @unittest.skipIf(*check_test_preconditions())
 class ExernalStorageTest(unittest.TestCase):
 
+    @pytest.fixture(autouse=True)
+    def _syn(self, syn):
+        self.syn = syn
+
+    @pytest.fixture(autouse=True)
+    def _project(self, project):
+        self.project = project
+
     @classmethod
     def _make_temp_file(cls, contents=None, **kwargs):
-        tmp_file = tempfile.NamedTemporaryFile(**kwargs)
-
+        # delete=False for Windows
+        tmp_file = tempfile.NamedTemporaryFile(**kwargs, delete=False)
         if contents:
             with open(tmp_file.name, 'w') as f:
                 f.write(contents)
@@ -67,7 +69,7 @@ class ExernalStorageTest(unittest.TestCase):
         bucket_name, aws_creds = get_aws_env()
         s3_client = boto3.client('s3', **aws_creds)
         s3_client.put_object(
-            Body=syn.credentials.username,
+            Body=self.syn.credentials.username,
             Bucket=bucket_name,
             Key=f"{key_prefix}/owner.txt"
         )
@@ -79,8 +81,8 @@ class ExernalStorageTest(unittest.TestCase):
         s3_client = self._prepare_bucket_location(folder_name)
 
         bucket_name, _ = get_aws_env()
-        folder, storage_location_setting, _ = syn.create_s3_storage_location(
-            parent=integration.project,
+        folder, storage_location_setting, _ = self.syn.create_s3_storage_location(
+            parent=self.project,
             folder_name=folder_name,
             bucket_name=bucket_name,
             base_key=folder_name,
@@ -100,17 +102,17 @@ class ExernalStorageTest(unittest.TestCase):
         upload_file = self._make_temp_file(contents=file_contents)
 
         file = File(path=upload_file.name, parent=folder)
-        file_entity = syn.store(file)
+        file_entity = self.syn.store(file)
 
         # verify we can download the file via synapse
-        file_entity = syn.get(file_entity['id'])
+        file_entity = self.syn.get(file_entity['id'])
         with open(file_entity.path, 'r') as f:
-            return f.read()
-        assert_equal(file_contents, downloaded_content)
+            downloaded_content = f.read()
+        assert file_contents == downloaded_content
 
         # now verify directly using boto that the file is in the external storage
         # location as we expect it to be
-        file_handle = syn._get_file_handle_as_creator(file_entity['dataFileHandleId'])
+        file_handle = self.syn._get_file_handle_as_creator(file_entity['dataFileHandleId'])
 
         # will raise an error if he key doesn't exist
         bucket_name, _ = get_aws_env()
@@ -126,8 +128,8 @@ class ExernalStorageTest(unittest.TestCase):
         bucket_name, _ = get_aws_env()
         _, folder, storage_location_id = self._configure_storage_location(sts_enabled=True)
 
-        sts_read_creds = syn.get_sts_storage_token(folder['id'], 'read_only', output_format='boto')
-        sts_write_creds = syn.get_sts_storage_token(folder['id'], 'read_write', output_format='boto')
+        sts_read_creds = self.syn.get_sts_storage_token(folder['id'], 'read_only', output_format='boto')
+        sts_write_creds = self.syn.get_sts_storage_token(folder['id'], 'read_write', output_format='boto')
 
         s3_read_client = boto3.client('s3', **sts_read_creds)
         s3_write_client = boto3.client('s3', **sts_write_creds)
@@ -139,13 +141,13 @@ class ExernalStorageTest(unittest.TestCase):
         remote_key = f"{folder.name}/sts_saved"
 
         # verify that the read credentials are in fact read only
-        with assert_raises(Exception) as ex_cm:
+        with pytest.raises(Exception) as ex_cm:
             s3_read_client.upload_file(
                 Filename=temp_file.name,
                 Bucket=bucket_name,
                 Key=remote_key,
             )
-        assert_true('Access Denied' in str(ex_cm.exception))
+        assert 'Access Denied' in str(ex_cm.value)
 
         # now create a file directly in s3 using our STS creds
         s3_write_client.upload_file(
@@ -166,16 +168,16 @@ class ExernalStorageTest(unittest.TestCase):
         )
 
         # create an external file handle so we can read it via synapse
-        file_handle = syn.create_external_s3_file_handle(
+        file_handle = self.syn.create_external_s3_file_handle(
             bucket_name,
             remote_key,
             temp_file.name,
             storage_location_id=storage_location_id,
         )
         file = File(parentId=folder['id'], dataFileHandleId=file_handle['id'])
-        file_entity = syn.store(file)
+        file_entity = self.syn.store(file)
 
         # now should be able to retrieve the file via synapse
-        retrieved_file_entity = syn.get(file_entity['id'])
+        retrieved_file_entity = self.syn.get(file_entity['id'])
         with open(retrieved_file_entity.path, 'r') as f:
-            assert_equal(file_contents, f.read())
+            assert file_contents == f.read()

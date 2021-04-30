@@ -75,8 +75,14 @@ Submission Status
    :members: __init__
 
 """
+import json
+import typing
 
 from synapseclient.core.models.dict_object import DictObject
+from synapseclient.annotations import (Annotations,
+                                       from_synapse_annotations,
+                                       is_synapse_annotations,
+                                       to_synapse_annotations)
 
 
 class Evaluation(DictObject):
@@ -124,10 +130,7 @@ class Evaluation(DictObject):
         return '/evaluation/%s' % id
 
     def __init__(self, **kwargs):
-        kwargs['status'] = kwargs.get('status', 'OPEN')
         kwargs['contentSource'] = kwargs.get('contentSource', '')
-        if kwargs['status'] not in ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']:
-            raise ValueError('Evaluation Status must be one of [OPEN, PLANNED, CLOSED, COMPLETED]')
         if not kwargs['contentSource'].startswith('syn'):  # Verify that synapse Id given
             raise ValueError('The "contentSource" parameter must be specified as a Synapse Entity when creating an'
                              ' Evaluation')
@@ -182,26 +185,85 @@ class Submission(DictObject):
         return '/evaluation/submission/%s' % self.id
 
 
+def _convert_to_annotation_cls(
+        id: str, etag: str,
+        values: typing.Union[Annotations, dict]) -> Annotations:
+    """Convert synapse style annotation or dict to synapseclient.Annotation
+
+    :param id:  The id of the entity / submission
+    :param etag: The etag of the entity / submission
+    :param values:  A synapseclient.Annotations or dict
+
+    :returns: A synapseclient.Annotations
+    """
+    if isinstance(values, Annotations):
+        return values
+    if is_synapse_annotations(values):
+        values = from_synapse_annotations(values)
+    else:
+        values = Annotations(id=id,
+                             etag=etag,
+                             values=values)
+    return values
+
+
 class SubmissionStatus(DictObject):
     """
     Builds an Synapse submission status object.
+    https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatus.html
 
-    :param score:      The score of the submission
-    :param status:     Status can be one of {'OPEN', 'CLOSED', 'SCORED', 'INVALID'}.
+    :param id: Unique immutable Synapse Id of the Submission
+    :param status: Status can be one of
+                   https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html.
+    :param submissionAnnotations: synapseclient.Annotations to store annotations of submission
+    :param canCancel: Can this submission be cancelled?
+    :param cancelRequested: Has user requested to cancel this submission?
     """
 
     @classmethod
     def getURI(cls, id):
         return '/evaluation/submission/%s/status' % id
 
-    def __init__(self, **kwargs):
-        super(SubmissionStatus, self).__init__(kwargs)
+    def __init__(self, id, etag, **kwargs):
+        annotations = kwargs.pop('submissionAnnotations', {})
+        # If it is synapse annotations, turn into a format
+        # that can be worked with otherwise, create
+        # synapseclient.Annotations
+        submission_annotations = _convert_to_annotation_cls(
+            id=id,
+            etag=etag,
+            values=annotations
+        )
+        super(SubmissionStatus, self).__init__(
+            id=id, etag=etag, submissionAnnotations=submission_annotations, **kwargs
+        )
 
-    def postURI(self):
-        return '/evaluation/submission/%s/status' % self.id
+    # def postURI(self):
+    #     return '/evaluation/submission/%s/status' % self.id
 
     def putURI(self):
         return '/evaluation/submission/%s/status' % self.id
 
-    def deleteURI(self):
-        return '/evaluation/submission/%s/status' % self.id
+    # def deleteURI(self):
+    #     return '/evaluation/submission/%s/status' % self.id
+
+    def json(self, ensure_ascii=True):
+        """Overloaded json function, turning submissionAnnotations into
+        synapse style annotations"""
+
+        json_dict = self
+        # If not synapse annotations, turn them into synapseclient.Annotations
+        # must have id and etag to turn into synapse annotations
+        if not is_synapse_annotations(self.submissionAnnotations):
+            json_dict = self.copy()
+
+            annotations = _convert_to_annotation_cls(
+                id=self.id, etag=self.etag,
+                values=self.submissionAnnotations
+            )
+            # Turn into synapse annotation
+            json_dict['submissionAnnotations'] = to_synapse_annotations(
+                annotations
+            )
+        return json.dumps(json_dict, sort_keys=True, indent=2,
+                          ensure_ascii=ensure_ascii)

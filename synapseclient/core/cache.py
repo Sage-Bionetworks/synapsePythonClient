@@ -13,15 +13,15 @@ This is part of the internal implementation of the client and should not be acce
 import collections.abc
 import datetime
 import json
+import math
 import operator
 import os
 import re
 import shutil
-import math
+import typing
 
 from synapseclient.core.lock import Lock
 from synapseclient.core import utils
-
 
 CACHE_ROOT_DIR = os.path.join('~', '.synapseCache')
 
@@ -103,7 +103,13 @@ class Cache:
             return {}
 
         with open(cache_map_file, 'r') as f:
-            cache_map = json.load(f)
+            try:
+                cache_map = json.load(f)
+            except json.decoder.JSONDecodeError:
+                # a corrupt cache map file that is not parseable as JSON is treated
+                # as if it does not exist at all (will be overwritten).
+                return {}
+
         return cache_map
 
     def _write_cache_map(self, cache_dir, cache_map):
@@ -275,22 +281,55 @@ class Cache:
                     if os.path.isdir(path2) and re.match('\\d+', item2):
                         yield path2
 
-    def purge(self, before_date, dry_run=False):
+    def purge(
+        self,
+        before_date: typing.Union[datetime.datetime, int] = None,
+        after_date: typing.Union[datetime.datetime, int] = None,
+        dry_run: bool = False
+    ):
         """
-        Purge the cache. Use with caution. Delete files whose cache maps were last updated prior to the given date.
+        Purge the cache. Use with caution. Deletes files whose cache maps were last updated in a specified period.
 
         Deletes .cacheMap files and files stored in the cache.cache_root_dir, but does not delete files stored outside
         the cache.
+
+        Either the before_date or after_date must be specified. If both are passed, files between the two dates are
+        selected for removal. Dates must either be a timezone naive Python datetime.datetime instance or the number
+        of seconds since the unix epoch. For example to delete all the files modified in January 2021, either of the
+        following can be used::
+
+            # using offset naive datetime objects
+            cache.purge(after_date=datetime.datetime(2021, 1, 1), before_date=datetime.datetime(2021, 2, 1))
+
+            # using seconds since the unix epoch
+            cache.purge(after_date=1609459200, before_date=1612137600)
+
+        :param before_date: if specified, all files before this date will be removed
+        :param after_date:  if specified, all files after this date will be removed
+        :param dry_run:     if dry_run is True, then the selected files are printed rather than removed
+        :returns:           the number of files selected for removal
         """
+        if before_date is None and after_date is None:
+            raise ValueError("Either before date or after date should be provided")
+
         if isinstance(before_date, datetime.datetime):
             before_date = utils.to_unix_epoch_time_secs(before_date)
+        if isinstance(after_date, datetime.datetime):
+            after_date = utils.to_unix_epoch_time_secs(after_date)
+
+        if before_date and after_date and before_date < after_date:
+            raise ValueError("Before date should be larger than after date")
+
         count = 0
         for cache_dir in self._cache_dirs():
             # _get_modified_time returns None if the cache map file doesn't
             # exist and n > None evaluates to True in python 2.7(wtf?). I'm guessing it's
             # OK to purge directories in the cache that have no .cacheMap file
+
             last_modified_time = _get_modified_time(os.path.join(cache_dir, self.cache_map_file_name))
-            if last_modified_time is None or before_date > last_modified_time:
+            if last_modified_time is None or (
+                    (not before_date or before_date > last_modified_time) and
+                    (not after_date or after_date < last_modified_time)):
                 if dry_run:
                     print(cache_dir)
                 else:

@@ -304,7 +304,7 @@ from builtins import zip
 from synapseclient.core.utils import id_of, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
-from .entity import Entity, Versionable, entity_type_to_class
+from .entity import Entity, entity_type_to_class
 from synapseclient.core.constants import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
@@ -531,6 +531,20 @@ def cast_row_set(rowset):
     return rowset
 
 
+def escape_column_name(column):
+    """Escape the name of the given column for use in a Synapse table query statement
+    :param column: a string or column dictionary object with a 'name' key"""
+    col_name = column['name'] if isinstance(column, collections.abc.Mapping) else str(column)
+    escaped_name = col_name.replace('"', '""')
+    return f'"{escaped_name}"'
+
+
+def join_column_names(columns):
+    """Join the names of the given columns into a comma delimited list suitable for use in a Synapse table query
+    :param columns: a sequence of column string names or dictionary objets with column 'name' keys"""
+    return ",".join(escape_column_name(c) for c in columns)
+
+
 def _csv_to_pandas_df(filepath,
                       separator=DEFAULT_SEPARATOR,
                       quote_char=DEFAULT_QUOTE_CHARACTER,
@@ -538,6 +552,7 @@ def _csv_to_pandas_df(filepath,
                       contain_headers=True,
                       lines_to_skip=0,
                       date_columns=None,
+                      list_columns=None,
                       rowIdAndVersionInIndex=True):
     test_import_pandas()
     import pandas as pd
@@ -550,6 +565,11 @@ def _csv_to_pandas_df(filepath,
 
     line_terminator = str(os.linesep)
 
+    # assign line terminator only if for single character
+    # line terminators (e.g. not '\r\n') 'cause pandas doesn't
+    # longer line terminators. See:
+    #    https://github.com/pydata/pandas/issues/3501
+    # "ValueError: Only length-1 line terminators supported"
     df = pd.read_csv(filepath,
                      sep=separator,
                      lineterminator=line_terminator if len(line_terminator) == 1 else None,
@@ -559,6 +579,13 @@ def _csv_to_pandas_df(filepath,
                      skiprows=lines_to_skip,
                      parse_dates=date_columns,
                      date_parser=datetime_millisecond_parser)
+    # Turn list columns into lists
+    if list_columns:
+        for col in list_columns:
+            # Fill NA values with empty lists, it must be a string for json.loads to work
+            df[col].fillna('[]', inplace=True)
+            df[col] = df[col].apply(json.loads)
+
     if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
         # combine row-ids (in index) and row-versions (in column 0) to
         # make new row labels consisting of the row id and version
@@ -602,13 +629,13 @@ def _delete_rows(syn, schema, row_id_vers_list):
         os.remove(delete_row_csv_filepath)
 
 
-class SchemaBase(Entity, Versionable, metaclass=abc.ABCMeta):
+class SchemaBase(Entity, metaclass=abc.ABCMeta):
     """
     This is the an Abstract Class for EntityViewSchema and Schema containing the common methods for both.
     You can not create an object of this type.
     """
 
-    _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
+    _property_keys = Entity._property_keys + ['columnIds']
     _local_keys = Entity._local_keys + ['columns_to_store']
 
     @property
@@ -702,7 +729,94 @@ class Schema(SchemaBase):
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
-class EntityViewSchema(SchemaBase):
+class ViewBase(SchemaBase):
+    """
+    This is a helper class for EntityViewSchema and SubmissionViewSchema
+    containing the common methods for both.
+    """
+    _synapse_entity_type = ""
+    _property_keys = SchemaBase._property_keys + ['viewTypeMask', 'scopeIds']
+    _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns',
+                                            'ignoredAnnotationColumnNames']
+
+    def add_scope(self, entities):
+        """
+        :param entities: a Project, Folder, Evaluation object or its ID, can also be a list of them
+        """
+        if isinstance(entities, list):
+            # add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
+            temp_list = [id_of(entity) for entity in entities]
+            self.scopeIds.extend(temp_list)
+        else:
+            self.scopeIds.append(id_of(entities))
+
+    def _filter_duplicate_columns(self, syn, columns_to_add):
+        """
+        If a column to be added has the same name and same type as an existing column, it will be considered a duplicate
+         and not added.
+        :param syn:             a :py:class:`synapseclient.client.Synapse` object that is logged in
+        :param columns_to_add:  iterable collection of type :py:class:`synapseclient.table.Column` objects
+        :return: a filtered list of columns to add
+        """
+
+        # no point in making HTTP calls to retrieve existing Columns if we not adding any new columns
+        if not columns_to_add:
+            return columns_to_add
+
+        # set up Column name/type tracking
+        # map of str -> set(str), where str is the column type as a string and set is a set of column name strings
+        column_type_to_annotation_names = {}
+
+        # add to existing columns the columns that user has added but not yet created in synapse
+        column_generator = itertools.chain(syn.getColumns(self.columnIds),
+                                           self.columns_to_store) if self.columns_to_store \
+            else syn.getColumns(self.columnIds)
+
+        for column in column_generator:
+            column_name = column['name']
+            column_type = column['columnType']
+
+            column_type_to_annotation_names.setdefault(column_type, set()).add(column_name)
+
+        valid_columns = []
+        for column in columns_to_add:
+            new_col_name = column['name']
+            new_col_type = column['columnType']
+
+            typed_col_name_set = column_type_to_annotation_names.setdefault(new_col_type, set())
+            if new_col_name not in typed_col_name_set:
+                typed_col_name_set.add(new_col_name)
+                valid_columns.append(column)
+        return valid_columns
+
+    def _before_synapse_store(self, syn):
+        # get the default EntityView columns from Synapse and add them to the columns list
+        additional_columns = []
+        view_type = self._synapse_entity_type.split(".")[-1].lower()
+        mask = self.get("viewTypeMask")
+
+        if self.addDefaultViewColumns:
+            additional_columns.extend(
+                syn._get_default_view_columns(view_type, view_type_mask=mask)
+            )
+
+        # get default annotations
+        if self.addAnnotationColumns:
+            anno_columns = [x for x in syn._get_annotation_view_columns(self.scopeIds, view_type,
+                                                                        view_type_mask=mask)
+                            if x['name'] not in self.ignoredAnnotationColumnNames]
+            additional_columns.extend(anno_columns)
+
+        self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
+
+        # set these boolean flags to false so they are not repeated.
+        self.addDefaultViewColumns = False
+        self.addAnnotationColumns = False
+
+        super(ViewBase, self)._before_synapse_store(syn)
+
+
+class EntityViewSchema(ViewBase):
     """
     A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects
     (depending on user choice) within a given set of scopes
@@ -745,9 +859,6 @@ class EntityViewSchema(SchemaBase):
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
-    _property_keys = SchemaBase._property_keys + ['viewTypeMask', 'scopeIds']
-    _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns',
-                                            'ignoredAnnotationColumnNames']
 
     def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, includeEntityTypes=None,
                  addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[],
@@ -782,17 +893,6 @@ class EntityViewSchema(SchemaBase):
         if scopes is not None:
             self.add_scope(scopes)
 
-    def add_scope(self, entities):
-        """
-        :param entities: a Project or Folder object or its ID, can also be a list of them
-        """
-        if isinstance(entities, list):
-            # add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
-            temp_list = [id_of(entity) for entity in entities]
-            self.scopeIds.extend(temp_list)
-        else:
-            self.scopeIds.append(id_of(entities))
-
     def set_entity_types(self, includeEntityTypes):
         """
         :param includeEntityTypes: a list of entity types to include in the view. This list will replace the previous
@@ -806,69 +906,70 @@ class EntityViewSchema(SchemaBase):
         """
         self.viewTypeMask = _get_view_type_mask(includeEntityTypes)
 
-    def _before_synapse_store(self, syn):
-        # get the default EntityView columns from Synapse and add them to the columns list
-        additional_columns = []
-        if self.addDefaultViewColumns:
-            additional_columns.extend(syn._get_default_entity_view_columns(self['viewTypeMask']))
 
-        # get default annotations
-        if self.addAnnotationColumns:
-            anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self['viewTypeMask'])
-                            if x['name'] not in self.ignoredAnnotationColumnNames]
-            additional_columns.extend(anno_columns)
+class SubmissionViewSchema(ViewBase):
+    """
+    A SubmissionViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects
+    (depending on user choice) within a given set of scopes
 
-        self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
+    :param name:                            the name of the Entity View Table object
+    :param columns:                         a list of :py:class:`Column` objects or their IDs. These are optional.
+    :param parent:                          the project in Synapse to which this table belongs
+    :param scopes:                          a list of Evaluation Queues or their ids
+    :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
+                                            Defaults to True.
+                                            The default columns will be added after a call to
+                                            :py:meth:`synapseclient.Synapse.store`.
+    :param addAnnotationColumns:            If true, adds columns for all annotation keys defined across all Entities in
+                                            the SubmissionViewSchema's scope. Defaults to True.
+                                            The annotation columns will be added after a call to
+                                            :py:meth:`synapseclient.Synapse.store`.
+    :param ignoredAnnotationColumnNames:    A list of strings representing annotation names.
+                                            When addAnnotationColumns is True, the names in this list will not be
+                                            automatically added as columns to the SubmissionViewSchema if they exist in
+                                            any of the defined scopes.
+    :param properties:                      A map of Synapse properties
+    :param annotations:                     A map of user defined annotations
+    :param local_state:                     Internal use only
 
-        # set these boolean flags to false so they are not repeated.
-        self.addDefaultViewColumns = False
-        self.addAnnotationColumns = False
+    Example::
+        from synapseclient import SubmissionViewSchema
 
-        super(EntityViewSchema, self)._before_synapse_store(syn)
+        project = syn.get("syn123")
+        schema = syn.store(SubmissionViewSchema(name='My Submission View', parent=project, scopes=['9614543']))
+    """
 
-    def _filter_duplicate_columns(self, syn, columns_to_add):
-        """
-        If a column to be added has the same name and same type as an existing column, it will be considered a duplicate
-         and not added.
-        :param syn:             a :py:class:`synapseclient.client.Synapse` object that is logged in
-        :param columns_to_add:  iterable collection of type :py:class:`synapseclient.table.Column` objects
-        :return: a filtered list of columns to add
-        """
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.SubmissionView'
 
-        # no point in making HTTP calls to retrieve existing Columns if we not adding any new columns
-        if not columns_to_add:
-            return columns_to_add
+    def __init__(self, name=None, columns=None, parent=None, scopes=None,
+                 addDefaultViewColumns=True, addAnnotationColumns=True,
+                 ignoredAnnotationColumnNames=[],
+                 properties=None, annotations=None, local_state=None, **kwargs):
 
-        # set up Column name/type tracking
-        # map of str -> set(str), where str is the column type as a string and set is a set of column name strings
-        column_type_to_annotation_names = {}
+        self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
+        super(SubmissionViewSchema, self).__init__(
+            name=name, columns=columns, properties=properties,
+            annotations=annotations, local_state=local_state, parent=parent,
+            **kwargs
+        )
+        # This is a hacky solution to make sure we don't try to add columns to schemas that we retrieve from synapse
+        is_from_normal_constructor = not (properties or local_state)
+        # allowing annotations because user might want to update annotations all at once
+        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor
+        self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
 
-        # add to existing columns the columns that user has added but not yet created in synapse
-        column_generator = itertools.chain(syn.getColumns(self.columnIds),
-                                           self.columns_to_store) if self.columns_to_store \
-            else syn.getColumns(self.columnIds)
+        if self.get('scopeIds') is None:
+            self.scopeIds = []
 
-        for column in column_generator:
-            column_name = column['name']
-            column_type = column['columnType']
-
-            column_type_to_annotation_names.setdefault(column_type, set()).add(column_name)
-
-        valid_columns = []
-        for column in columns_to_add:
-            new_col_name = column['name']
-            new_col_type = column['columnType']
-
-            typed_col_name_set = column_type_to_annotation_names.setdefault(new_col_type, set())
-            if new_col_name not in typed_col_name_set:
-                typed_col_name_set.add(new_col_name)
-                valid_columns.append(column)
-        return valid_columns
+        # add the scopes last so that we can append the passed in scopes to those defined in properties
+        if scopes is not None:
+            self.add_scope(scopes)
 
 
 # add Schema to the map of synapse entity types to their Python representations
 entity_type_to_class[Schema._synapse_entity_type] = Schema
 entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
+entity_type_to_class[SubmissionViewSchema._synapse_entity_type] = SubmissionViewSchema
 
 
 class SelectColumn(DictObject):
@@ -962,7 +1063,8 @@ class AppendableRowset(DictObject, metaclass=abc.ABCMeta):
                                  'toAppend': self,
                                  'entityId': self.tableId}
 
-        response = syn._POST_table_transaction(self.tableId, append_rowset_request)
+        response = syn._async_table_update(self.tableId, [append_rowset_request], wait=True)
+        syn._check_table_transaction_response(response)
         return response['results'][0]
 
 
@@ -1562,7 +1664,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
     @classmethod
     def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep),
-                         separator=",", header=True, includeRowIdAndRowVersion=True):
+                         separator=",", header=True, includeRowIdAndRowVersion=True, downloadLocation=None):
         """
         Create a Table object wrapping a CSV file resulting from querying a Synapse table.
         Mostly for internal use.
@@ -1575,7 +1677,9 @@ class CsvFileTable(TableAbstractBaseClass):
             lineEnd=lineEnd,
             separator=separator,
             header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+            downloadLocation=downloadLocation,
+        )
 
         # A dirty hack to find out if we got back row ID and Version
         # in particular, we don't get these back from aggregate queries
@@ -1818,16 +1922,16 @@ class CsvFileTable(TableAbstractBaseClass):
 
             # determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
             date_columns = []
-            if convert_to_datetime:
-                for select_column in self.headers:
-                    if select_column.columnType == "DATE":
-                        date_columns.append(select_column.name)
+            list_columns = []
 
-            # assign line terminator only if for single character
-            # line terminators (e.g. not '\r\n') 'cause pandas doesn't
-            # longer line terminators. See:
-            #    https://github.com/pydata/pandas/issues/3501
-            # "ValueError: Only length-1 line terminators supported"
+            if self.headers is not None:
+                if convert_to_datetime:
+                    for select_column in self.headers:
+                        if select_column.columnType == "DATE":
+                            date_columns.append(select_column.name)
+                for select_column in self.headers:
+                    if select_column.columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST'}:
+                        list_columns.append(select_column.name)
             return _csv_to_pandas_df(self.filepath,
                                      separator=self.separator,
                                      quote_char=quoteChar,
@@ -1835,6 +1939,7 @@ class CsvFileTable(TableAbstractBaseClass):
                                      contain_headers=self.header,
                                      lines_to_skip=self.linesToSkip,
                                      date_columns=date_columns,
+                                     list_columns=list_columns,
                                      rowIdAndVersionInIndex=rowIdAndVersionInIndex)
         except pd.parser.CParserError:
             return pd.DataFrame()

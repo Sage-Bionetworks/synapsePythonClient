@@ -5,7 +5,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Overview &#8212; Synapse Python Client 2.0.0 documentation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overview &#8212; Synapse Python Client 2.3.1 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -37,39 +38,10 @@
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.0.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Overview</a></li> 
       </ul>
-    </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>$('#searchbox').show(0);</script>
-  <h3><a href="index.html">Table of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">Overview</a></li>
-<li><a class="reference internal" href="#module-synapseutils.copy">copy</a></li>
-<li><a class="reference internal" href="#module-synapseutils.walk">walk</a></li>
-<li><a class="reference internal" href="#module-synapseutils.sync">sync</a></li>
-<li><a class="reference internal" href="#module-synapseutils.monitor">monitor</a></li>
-</ul>
-
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/synapseutils.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-        </div>
-      </div>
+    </div>  
 
     <div class="document">
       <div class="documentwrapper">
@@ -81,42 +53,64 @@
 <p>The <code class="docutils literal notranslate"><span class="pre">synapseutils</span></code> package provides both higher level functions as well as utilities for interacting with
 <a class="reference external" href="http://www.synapse.org">Synapse</a>.  These functionalities include:</p>
 <ul class="simple">
-<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">copy.copy()</span></code></p></li>
-<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">copy.copyWiki()</span></code></p></li>
+<li><p><a class="reference internal" href="#synapseutils.copy_functions.copy" title="synapseutils.copy_functions.copy"><code class="xref py py-func docutils literal notranslate"><span class="pre">copy_functions.copy()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#synapseutils.copy_functions.copyWiki" title="synapseutils.copy_functions.copyWiki"><code class="xref py py-func docutils literal notranslate"><span class="pre">copy_functions.copyWiki()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#synapseutils.walk.walk" title="synapseutils.walk.walk"><code class="xref py py-func docutils literal notranslate"><span class="pre">walk.walk()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#synapseutils.sync.syncFromSynapse" title="synapseutils.sync.syncFromSynapse"><code class="xref py py-func docutils literal notranslate"><span class="pre">sync.syncFromSynapse()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#synapseutils.sync.syncToSynapse" title="synapseutils.sync.syncToSynapse"><code class="xref py py-func docutils literal notranslate"><span class="pre">sync.syncToSynapse()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#synapseutils.monitor.notifyMe" title="synapseutils.monitor.notifyMe"><code class="xref py py-func docutils literal notranslate"><span class="pre">monitor.notifyMe()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#synapseutils.migrate_functions.index_files_for_migration" title="synapseutils.migrate_functions.index_files_for_migration"><code class="xref py py-func docutils literal notranslate"><span class="pre">migrate_functions.index_files_for_migration()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#synapseutils.migrate_functions.migrate_indexed_files" title="synapseutils.migrate_functions.migrate_indexed_files"><code class="xref py py-func docutils literal notranslate"><span class="pre">migrate_functions.migrate_indexed_files()</span></code></a></p></li>
 </ul>
 </div>
-<div class="section" id="module-synapseutils.copy">
-<span id="copy"></span><h1>copy<a class="headerlink" href="#module-synapseutils.copy" title="Permalink to this headline">¶</a></h1>
-<ul class="simple">
+<div class="section" id="module-synapseutils.copy_functions">
+<span id="copy"></span><h1>copy<a class="headerlink" href="#module-synapseutils.copy_functions" title="Permalink to this headline">¶</a></h1>
+<dl class="py function">
+<dt id="synapseutils.copy_functions.changeFileMetaData">
+<code class="sig-prename descclassname">synapseutils.copy_functions.</code><code class="sig-name descname">changeFileMetaData</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">downloadAs</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">contentType</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.copy_functions.changeFileMetaData" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>entity</strong> – Synapse entity Id or object</p></li>
+<li><p><strong>contentType</strong> – Specify content type to change the content type of a filehandle</p></li>
+<li><p><strong>downloadAs</strong> – Specify filename to change the filename of a filehandle</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Synapse Entity</p>
+</dd>
+</dl>
+<p>Can be used to change the filename or the file content-type without downloading:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">file_entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">synid</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">file_entity</span><span class="o">.</span><span class="n">path</span><span class="p">))</span>  <span class="c1">## prints, e.g., &quot;my_file.txt&quot;</span>
+<span class="n">file_entity</span> <span class="o">=</span> <span class="n">synapseutils</span><span class="o">.</span><span class="n">changeFileMetaData</span><span class="p">(</span><span class="n">syn</span><span class="p">,</span> <span class="n">file_entity</span><span class="p">,</span> <span class="s2">&quot;my_new_name_file.txt&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseutils.copy_functions.copy">
+<code class="sig-prename descclassname">synapseutils.copy_functions.</code><code class="sig-name descname">copy</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">destinationId</span></em>, <em class="sig-param"><span class="n">skipCopyWikiPage</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">skipCopyAnnotations</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.copy_functions.copy" title="Permalink to this definition">¶</a></dt>
+<dd><ul class="simple">
 <li><p>This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
 and will recursively copy everything in directories.</p></li>
 <li><p>A Mapping of the old entities to the new entities will be created and all the wikis of each entity
 will also be copied over and links to synapse Ids will be updated.</p></li>
 </ul>
 <dl class="field-list simple">
-<dt class="field-odd">param syn</dt>
-<dd class="field-odd"><p>A synapse object: syn = synapseclient.login()- Must be logged into synapse</p>
-</dd>
-<dt class="field-even">param entity</dt>
-<dd class="field-even"><p>A synapse entity ID</p>
-</dd>
-<dt class="field-odd">param destinationId</dt>
-<dd class="field-odd"><p>Synapse ID of a folder/project that the copied entity is being copied to</p>
-</dd>
-<dt class="field-even">param skipCopyWikiPage</dt>
-<dd class="field-even"><p>Skip copying the wiki pages
-Default is False</p>
-</dd>
-<dt class="field-odd">param skipCopyAnnotations</dt>
-<dd class="field-odd"><p>Skips copying the annotations
-Default is False</p>
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – A synapse object: syn = synapseclient.login()- Must be logged into synapse</p></li>
+<li><p><strong>entity</strong> – A synapse entity ID</p></li>
+<li><p><strong>destinationId</strong> – Synapse ID of a folder/project that the copied entity is being copied to</p></li>
+<li><p><strong>skipCopyWikiPage</strong> – Skip copying the wiki pages
+Default is False</p></li>
+<li><p><strong>skipCopyAnnotations</strong> – Skips copying the annotations
+Default is False</p></li>
+</ul>
 </dd>
 </dl>
-<p>Examples::                        
+<p>Examples::
 import synapseutils
 import synapseclient
 syn = synapseclient.login()
@@ -124,21 +118,19 @@ synapseutils.copy(syn, …)</p>
 <p>Examples and extra parameters unique to each copy function
 – COPYING FILES</p>
 <dl class="field-list simple">
-<dt class="field-odd">param version</dt>
-<dd class="field-odd"><p>Can specify version of a file. 
-Default to None</p>
-</dd>
-<dt class="field-even">param updateExisting</dt>
-<dd class="field-even"><p>When the destination has an entity that has the same name, 
-users can choose to update that entity.  
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>version</strong> – Can specify version of a file.
+Default to None</p></li>
+<li><p><strong>updateExisting</strong> – When the destination has an entity that has the same name,
+users can choose to update that entity.
 It must be the same entity type
-Default to False</p>
-</dd>
-<dt class="field-odd">param setProvenance</dt>
-<dd class="field-odd"><p>Has three values to set the provenance of the copied entity:
+Default to False</p></li>
+<li><p><strong>setProvenance</strong> – Has three values to set the provenance of the copied entity:
 traceback: Sets to the source entity
 existing: Sets to source entity’s original provenance (if it exists)
-None: No provenance is set</p>
+None: No provenance is set</p></li>
+</ul>
 </dd>
 </dl>
 <dl class="simple">
@@ -147,8 +139,8 @@ None: No provenance is set</p>
 </dl>
 <p>– COPYING FOLDERS/PROJECTS</p>
 <dl class="field-list simple">
-<dt class="field-odd">param excludeTypes</dt>
-<dd class="field-odd"><p>Accepts a list of entity types (file, table, link) which determines which entity types to
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>excludeTypes</strong> – Accepts a list of entity types (file, table, link) which determines which entity types to
 not copy.
 Defaults to an empty list.</p>
 </dd>
@@ -157,10 +149,76 @@ Defaults to an empty list.</p>
 #This will copy everything in the project into the destinationId except files and tables.
 synapseutils.copy(syn, “syn123450”,”syn345678”,excludeTypes=[“file”,”table”])</p>
 <dl class="field-list simple">
-<dt class="field-odd">returns</dt>
+<dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>a mapping between the original and copied entity: {‘syn1234’:’syn33455’}</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseutils.copy_functions.copyFileHandles">
+<code class="sig-prename descclassname">synapseutils.copy_functions.</code><code class="sig-name descname">copyFileHandles</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">fileHandles</span></em>, <em class="sig-param"><span class="n">associateObjectTypes</span></em>, <em class="sig-param"><span class="n">associateObjectIds</span></em>, <em class="sig-param"><span class="n">newContentTypes</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">newFileNames</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.copy_functions.copyFileHandles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a list of fileHandle Ids or Objects, copy the fileHandles</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – A Synapse object with user’s login, e.g. syn = synapseclient.login()</p></li>
+<li><p><strong>fileHandles</strong> – List of fileHandle Ids or Objects</p></li>
+<li><p><strong>associateObjectTypes</strong> – List of associated object types: FileEntity, TableEntity, WikiAttachment,
+UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
+VerificationSubmission (Must be the same length as fileHandles)</p></li>
+<li><p><strong>associateObjectIds</strong> – List of associated object Ids: If copying a file, the objectId is the synapse id,
+and if copying a wiki attachment, the object id is the wiki subpage id.
+(Must be the same length as fileHandles)</p></li>
+<li><p><strong>newContentTypes</strong> – (Optional) List of content types. Set each item to a new content type for each file
+handle, or leave the item as None to keep the original content type. Default None,
+which keeps all original content types.</p></li>
+<li><p><strong>newFileNames</strong> – (Optional) List of filenames. Set each item to a new filename for each file handle,
+or leave the item as None to keep the original name. Default None, which keeps all
+original file names.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
+NOT_FOUND</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If length of all input arguments are not the same</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseutils.copy_functions.copyWiki">
+<code class="sig-prename descclassname">synapseutils.copy_functions.</code><code class="sig-name descname">copyWiki</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">destinationId</span></em>, <em class="sig-param"><span class="n">entitySubPageId</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">destinationSubPageId</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">updateLinks</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">updateSynIds</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">entityMap</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.copy_functions.copyWiki" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copies wikis and updates internal links</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – A synapse object: syn = synapseclient.login()- Must be logged into synapse</p></li>
+<li><p><strong>entity</strong> – A synapse ID of an entity whose wiki you want to copy</p></li>
+<li><p><strong>destinationId</strong> – Synapse ID of a folder/project that the wiki wants to be copied to</p></li>
+<li><p><strong>updateLinks</strong> – Update all the internal links. (e.g. syn1234/wiki/34345 becomes syn3345/wiki/49508)
+Defaults to True</p></li>
+<li><p><strong>updateSynIds</strong> – Update all the synapse ID’s referenced in the wikis. (e.g. syn1234 becomes syn2345)
+Defaults to True but needs an entityMap</p></li>
+<li><p><strong>entityMap</strong> – An entity map {‘oldSynId’,’newSynId’} to update the synapse IDs referenced in the
+wiki.
+Defaults to None</p></li>
+<li><p><strong>entitySubPageId</strong> – Can specify subPageId and copy all of its subwikis
+Defaults to None, which copies the entire wiki subPageId can be found:
+<a class="reference external" href="https://www.synapse.org/#!Synapse:syn123/wiki/1234">https://www.synapse.org/#!Synapse:syn123/wiki/1234</a>
+In this case, 1234 is the subPageId.</p></li>
+<li><p><strong>destinationSubPageId</strong> – Can specify destination subPageId to copy wikis to
+Defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A list of Objects with three fields: id, title and parentId.</p>
+</dd>
+</dl>
+</dd></dl>
+
 </div>
 <div class="section" id="module-synapseutils.walk">
 <span id="walk"></span><h1>walk<a class="headerlink" href="#module-synapseutils.walk" title="Permalink to this headline">¶</a></h1>
@@ -192,13 +250,14 @@ synapseutils.copy(syn, “syn123450”,”syn345678”,excludeTypes=[“file”,
 <span id="sync"></span><h1>sync<a class="headerlink" href="#module-synapseutils.sync" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="synapseutils.sync.generateManifest">
-<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">generateManifest</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">allFiles</span></em>, <em class="sig-param"><span class="n">filename</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.generateManifest" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">synapseutils.sync.</code><code class="sig-name descname">generateManifest</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">allFiles</span></em>, <em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">provenance_cache</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.generateManifest" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generates a manifest file based on a list of entities objects.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>allFiles</strong> – A list of File Entities</p></li>
 <li><p><strong>filename</strong> – file where manifest will be written</p></li>
+<li><p><strong>provenance_cache</strong> – an optional dict of known provenance dicts keyed by entity ids</p></li>
 </ul>
 </dd>
 </dl>
@@ -500,9 +559,180 @@ Any additional columns will be added as annotations.</p>
 </dd></dl>
 
 </div>
+<div class="section" id="migrate">
+<h1>migrate<a class="headerlink" href="#migrate" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-synapseutils.migrate_functions"></span><dl class="py class">
+<dt id="synapseutils.migrate_functions.MigrationResult">
+<em class="property">class </em><code class="sig-prename descclassname">synapseutils.migrate_functions.</code><code class="sig-name descname">MigrationResult</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span></em>, <em class="sig-param"><span class="n">db_path</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.MigrationResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>A MigrationResult is a proxy object to the underlying sqlite db.
+It provides a programmatic interface that allows the caller to iterate over the
+file handles that were migrated without having to connect to or know the schema
+of the sqlite db, and also avoids the potential memory liability of putting
+everything into an in memory data structure that could be a liability when
+migrating a huge project of hundreds of thousands/millions of entities.</p>
+<p>As this proxy object is not thread safe since it accesses an underlying sqlite db.</p>
+<dl class="py method">
+<dt id="synapseutils.migrate_functions.MigrationResult.as_csv">
+<code class="sig-name descname">as_csv</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.MigrationResult.as_csv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Output a flat csv file of the contents of the Migration index.
+Its columns are as follows:</p>
+<blockquote>
+<div><p>id - the Synapse id
+type - the concrete type of the entity
+version - the verson of the file entity (if applicable)
+row_id - the row of the table attached file (if applicable)
+col_name - the column name of the column the table attached file resides in (if applicable)
+from_storage_location_id - the previous storage location id where the file/version was stored
+from_file_handle_id - the id file handle of the existing file/version
+to_file_handle_id - if migrated, the new file handle id
+status - one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
+exception - if an error was encountered indexing/migrating the file/version its stack is here</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseutils.migrate_functions.MigrationResult.get_counts_by_status">
+<code class="sig-name descname">get_counts_by_status</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.MigrationResult.get_counts_by_status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dictionary of counts by the migration status of each indexed file/version.
+Keys are as follows:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>INDEXED - the file/version has been indexed and will be migrated on a call to migrate_indexed_files</p></li>
+<li><p>MIGRATED - the file/version has been migrated</p></li>
+<li><p>ALREADY_MIGRATED - the file/version was already stored at the target storage location and no migration is needed</p></li>
+<li><p>ERRORED - an error occurred while indexing or migrating the file/version</p></li>
+</ul>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseutils.migrate_functions.MigrationResult.get_migrations">
+<code class="sig-name descname">get_migrations</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.MigrationResult.get_migrations" title="Permalink to this definition">¶</a></dt>
+<dd><p>A generator yielding each file/version in the migration index.
+A dictionary of the properties of the migration row is yielded as follows:</p>
+<blockquote>
+<div><p>id - the Synapse id
+type - the concrete type of the entity
+version - the verson of the file entity (if applicable)
+row_id - the row of the table attached file (if applicable)
+col_id - the column id of the table attached file (if applicable)
+from_storage_location_id - the previous storage location id where the file/version was stored
+from_file_handle_id - the id file handle of the existing file/version
+to_file_handle_id - if migrated, the new file handle id
+status - one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
+exception - if an error was encountered indexing/migrating the file/version its stack is here</p>
+</div></blockquote>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseutils.migrate_functions.index_files_for_migration">
+<code class="sig-prename descclassname">synapseutils.migrate_functions.</code><code class="sig-name descname">index_files_for_migration</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span><span class="p">:</span> <span class="n">synapseclient.client.Synapse</span></em>, <em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">dest_storage_location_id</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">db_path</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">source_storage_location_ids</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">file_version_strategy</span><span class="o">=</span><span class="default_value">'new'</span></em>, <em class="sig-param"><span class="n">include_table_files</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">continue_on_error</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.index_files_for_migration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Index the given entity for migration to a new storage location. This is the first step in migrating an entity
+to a new storage location using synapseutils.</p>
+<p>This function will create a sqlite database at the given db_path that can be subsequently passed
+to the migrate_indexed_files function for actual migration. This function itself does not modify the given entity
+in any way.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – A Synapse object with user’s login, e.g. syn = synapseclient.login()</p></li>
+<li><p><strong>entity</strong> – A Synapse entity whose files should be migrated. Can be a Project, Folder,
+File entity, or Table entity. If it is a container (a Project or Folder) its
+contents will be recursively indexed.</p></li>
+<li><p><strong>dest_storage_location_id</strong> – The id of the new storage location to be migrated to.</p></li>
+<li><p><strong>db_path</strong> – A path on disk where a sqlite db can be created to store the contents of the
+created index.</p></li>
+<li><p><strong>source_storage_location_ids</strong> – An optional iterable of storage location ids that will be migrated. If provided,
+files outside of one of the listed storage locations will not be indexed
+for migration. If not provided, then all files not already in the destination
+storage location will be indexed for migrated.</p></li>
+<li><p><strong>file_version_strategy</strong> – <p>One of “new” (default), “all”, “latest”, “skip” as follows:</p>
+<ul>
+<li><p>”new” - will create a new version of file entities in the new storage location, leaving existing versions unchanged</p></li>
+<li><p>”all” - all existing versions will be migrated in place to the new storage location</p></li>
+<li><p>”latest” - the latest version will be migrated in place to the new storage location</p></li>
+<li><p>”skip” - skip migrating file entities. use this e.g. if wanting to e.g. migrate table attached files in a container while leaving the files unchanged</p></li>
+</ul>
+</p></li>
+<li><p><strong>include_table_files</strong> – Whether to migrate files attached to tables. If False (default) then e.g. only
+file entities in the container will be migrated and tables will be untouched.</p></li>
+<li><p><strong>continue_on_error</strong> – Whether any errors encountered while indexing an entity (access etc) will be raised
+or instead just recorded in the index while allowing the index creation
+to continue. Default is False (any errors are raised).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A MigrationResult object that can be used to inspect the contents of the index
+or output the index to a CSV for manual inspection.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseutils.migrate_functions.migrate_indexed_files">
+<code class="sig-prename descclassname">synapseutils.migrate_functions.</code><code class="sig-name descname">migrate_indexed_files</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">syn</span><span class="p">:</span> <span class="n">synapseclient.client.Synapse</span></em>, <em class="sig-param"><span class="n">db_path</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">create_table_snapshots</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">continue_on_error</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">force</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.migrate_indexed_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Migrate files previously indexed in a sqlite database at the given db_path using the separate
+index_files_for_migration function. The files listed in the index will be migrated according to the
+configuration of that index.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – A Synapse object with user’s login, e.g. syn = synapseclient.login()</p></li>
+<li><p><strong>db_path</strong> – A path on disk where a sqlite db was created using the index_files_for_migration
+function.</p></li>
+<li><p><strong>create_table_snapshots</strong> – When updating the files in any table, whether the a snapshot of the table is
+first created (default True).</p></li>
+<li><p><strong>continue_on_error</strong> – Whether any errors encountered while migrating will be raised
+or instead just recorded in the sqlite database while allowing the migration
+to continue. Default is False (any errors are raised).</p></li>
+<li><p><strong>force</strong> – If running in an interactive shell, migration requires an interactice confirmation.
+This can be bypassed by using the force=True option.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A MigrationResult object that can be used to inspect the results of the migration.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
 
 
+            <div class="clearer"></div>
           </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Overview</a></li>
+<li><a class="reference internal" href="#module-synapseutils.copy_functions">copy</a></li>
+<li><a class="reference internal" href="#module-synapseutils.walk">walk</a></li>
+<li><a class="reference internal" href="#module-synapseutils.sync">sync</a></li>
+<li><a class="reference internal" href="#module-synapseutils.monitor">monitor</a></li>
+<li><a class="reference internal" href="#migrate">migrate</a></li>
+</ul>
+
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/synapseutils.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
         </div>
       </div>
       <div class="clearer"></div>
@@ -516,13 +746,14 @@ Any additional columns will be added as annotations.</p>
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.0.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Overview</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on May 28, 2020.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
+      Last updated on Apr 13, 2021.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

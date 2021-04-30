@@ -1,13 +1,15 @@
 import filecmp
+import hashlib
 import os
 import random
 import requests
+import string
 import tempfile
 import traceback
+import uuid
 from io import open
 
-from nose.tools import assert_equals, assert_true, assert_is_not_none
-from unittest import mock
+from unittest import mock, skip
 
 from synapseclient import File
 import synapseclient.core.config
@@ -15,18 +17,12 @@ import synapseclient.core.utils as utils
 from synapseclient.core.upload.multipart_upload import (
     MIN_PART_SIZE,
     multipart_upload_file,
-    multipart_upload_string
+    multipart_upload_string,
+    multipart_copy,
 )
-from tests import integration
-from tests.integration import schedule_for_cleanup
 
 
-def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
-
-
-def test_round_trip():
+def test_round_trip(syn, project, schedule_for_cleanup):
     fhid = None
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE + 777771)
     try:
@@ -39,7 +35,7 @@ def test_round_trip():
         schedule_for_cleanup(tmp_path)
 
         junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-        assert_true(filecmp.cmp(filepath, junk.path))
+        assert filecmp.cmp(filepath, junk.path)
 
     finally:
         try:
@@ -53,16 +49,16 @@ def test_round_trip():
             print(traceback.format_exc())
 
 
-def test_single_thread_upload():
+def test_single_thread_upload(syn):
     synapseclient.core.config.single_threaded = True
     try:
         filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + 1)
-        assert_is_not_none(multipart_upload_file(syn, filepath))
+        assert multipart_upload_file(syn, filepath) is not None
     finally:
         synapseclient.core.config.single_threaded = False
 
 
-def test_randomly_failing_parts():
+def test_randomly_failing_parts(syn, project, schedule_for_cleanup):
     """Verify that we can recover gracefully with some randomly inserted errors
     while uploading parts."""
 
@@ -99,7 +95,7 @@ def test_randomly_failing_parts():
             schedule_for_cleanup(tmp_path)
 
             junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-            assert_true(filecmp.cmp(filepath, junk.path))
+            assert filecmp.cmp(filepath, junk.path)
 
         finally:
             try:
@@ -113,7 +109,7 @@ def test_randomly_failing_parts():
                 print(traceback.format_exc())
 
 
-def test_multipart_upload_big_string():
+def test_multipart_upload_big_string(syn, project, schedule_for_cleanup):
     cities = ["Seattle", "Portland", "Vancouver", "Victoria",
               "San Francisco", "Los Angeles", "New York",
               "Oaxaca", "Cancún", "Curaçao", "जोधपुर",
@@ -141,4 +137,97 @@ def test_multipart_upload_big_string():
     with open(junk.path, encoding='utf-8') as f:
         retrieved_text = f.read()
 
-    assert_equals(retrieved_text, text)
+    assert retrieved_text == text
+
+
+def _multipart_copy_test(syn, project, schedule_for_cleanup, part_size):
+    import logging
+    logging.basicConfig()
+    logging.getLogger(synapseclient.client.DEFAULT_LOGGER_NAME).setLevel(logging.DEBUG)
+
+    dest_folder_name = "test_multipart_copy_{}".format(uuid.uuid4())
+
+    # create a new folder with a storage location we own that we can copy to
+    dest_folder, storage_location_setting, _ = syn.create_s3_storage_location(
+        parent=project,
+        folder_name=dest_folder_name
+    )
+
+    part_size = part_size
+    file_size = int(part_size * 1.1)
+
+    base_string = ''.join(random.choices(string.ascii_lowercase, k=1024))
+
+    file_content = base_string
+    while len(file_content) < file_size:
+        file_content += base_string
+
+    part_md5_hexes = []
+    part_count = file_size // part_size
+    if file_size % part_size > 0:
+        part_count += 1
+
+    content_pos = 0
+    for _ in range(part_count):
+        next_pos = content_pos + part_size
+        part_content = file_content[content_pos:next_pos]
+        content_pos = next_pos
+
+        md5 = hashlib.md5(part_content.encode('utf-8'))
+        part_md5_hexes.append(md5.hexdigest())
+
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    schedule_for_cleanup(tmp.name)
+
+    with open(tmp.name, 'w') as tmp_out:
+        tmp_out.write(file_content)
+
+    file = File(tmp.name, parent=project)
+    entity = syn.store(file)
+
+    fhid = entity['dataFileHandleId']
+
+    #    source_file_handle = syn._get_file_handle_as_creator(fhid)
+
+    dest_file_name = "{}_copy".format(entity.name)
+    source_file_handle_assocation = {
+        'fileHandleId': fhid,
+        'associateObjectId': entity.id,
+        'associateObjectType': 'FileEntity',
+    }
+
+    dest_storage_location = storage_location_setting['storageLocationId']
+
+    copied_fhid = multipart_copy(
+        syn,
+        source_file_handle_assocation,
+        dest_file_name,
+        part_size,
+        dest_storage_location,
+    )
+
+    copied_file_handle = syn._get_file_handle_as_creator(copied_fhid)
+
+    dest_file = File(
+        name=dest_file_name,
+        parent=dest_folder,
+    )
+    dest_file['dataFileHandleId'] = copied_fhid
+    dest_file['_file_handle'] = copied_file_handle
+    dest_file_entity = syn.store(dest_file)
+
+    dest_file_local = syn.get(dest_file_entity.id)
+    with open(dest_file_local.path, 'r') as dest_file_in:
+        dest_file_content = dest_file_in.read()
+
+    assert file_content == dest_file_content
+
+
+def test_multipart_copy(syn, project, schedule_for_cleanup):
+    """Test multi part copy using the minimum part size."""
+    _multipart_copy_test(syn, project, schedule_for_cleanup, MIN_PART_SIZE)
+
+
+@skip("Skip in normal testing because the large size makes it slow")
+def test_multipart_copy__big_parts(syn, project, schedule_for_cleanup):
+    _multipart_copy_test(syn, project, schedule_for_cleanup, 100 * utils.MB)

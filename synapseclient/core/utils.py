@@ -6,25 +6,27 @@ Utility Functions
 Utility functions useful in the implementation and testing of the Synapse client.
 
 """
-import collections.abc
-import os
-import sys
-import hashlib
-import re
+import base64
 import cgi
+import collections.abc
 import datetime
 import errno
-import inspect
-import random
-import requests
-import tempfile
-import platform
 import functools
-import threading
-import uuid
+import hashlib
 import importlib
+import inspect
 import numbers
+import os
+import platform
+import random
+import re
+import requests
+import sys
+import tempfile
+import threading
 import urllib.parse as urllib_parse
+import uuid
+import warnings
 
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0)
@@ -36,7 +38,7 @@ KB = 2**10
 BUFFER_SIZE = 8*KB
 
 
-def md5_for_file(filename, block_size=2*MB):
+def md5_for_file(filename, block_size=2 * MB, callback=None):
     """
     Calculates the MD5 of the given file.
     See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
@@ -44,12 +46,16 @@ def md5_for_file(filename, block_size=2*MB):
     :param filename:   The file to read in
     :param block_size: How much of the file to read in at once (bytes).
                        Defaults to 2 MB
+    :param callback:   The callback function that help us show loading spinner on terminal.
+                       Defaults to None
     :returns: The MD5
     """
 
     md5 = hashlib.md5()
     with open(filename, 'rb') as f:
         while True:
+            if callback:
+                callback()
             data = f.read(block_size)
             if not data:
                 break
@@ -161,6 +167,25 @@ def id_of(obj):
             return str(syn_id)
 
     raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
+
+
+def concrete_type_of(obj: collections.abc.Mapping):
+    """
+    Return the concrete type of an object representing a Synapse entity.
+    This is meant to operate either against an actual Entity object, or the lighter
+    weight dictionary returned by Synapse#getChildren, both of which are Mappings.
+    """
+    concrete_type = None
+    if isinstance(obj, collections.abc.Mapping):
+        for key in ('concreteType', 'type'):
+            concrete_type = obj.get(key)
+            if concrete_type:
+                break
+
+    if not isinstance(concrete_type, str) or not concrete_type.startswith('org.sagebionetworks.repo.model'):
+        raise ValueError('Unable to determine concreteType')
+
+    return concrete_type
 
 
 def is_in_path(id, path):
@@ -509,7 +534,20 @@ def _synapse_error_msg(ex):
     if isinstance(ex, str):
         return ex
 
-    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
+    # one line for the root exception and then an additional line per chained cause
+    error_str = ""
+    depth = 0
+    while ex:
+        error_str += \
+            '\n' + ("  " * depth) + ("caused by " if depth > 0 else "") + ex.__class__.__name__ + ': ' + str(ex)
+
+        ex = ex.__cause__
+        if ex:
+            depth += 1
+        else:
+            break
+
+    return error_str + '\n\n'
 
 
 def _limit_and_offset(uri, limit=None, offset=None):
@@ -888,3 +926,55 @@ def snake_case(string):
     """Convert the given string from CamelCase to snake_case"""
     # https://stackoverflow.com/a/1176023
     return re.sub(r'(?<!^)(?=[A-Z])', '_', string).lower()
+
+
+def is_base64_encoded(input_string):
+    """Return whether the given input string appears to be base64 encoded"""
+    if not input_string:
+        # None, empty string are not considered encoded
+        return False
+    try:
+        # see if we can decode it and then reencode it back to the input
+        byte_string = input_string if isinstance(input_string, bytes) else str.encode(input_string)
+        return base64.b64encode(base64.b64decode(byte_string)) == byte_string
+    except Exception:
+        return False
+
+
+class deprecated_keyword_param:
+    """A decorator to use to warn when a keyword parameter from a function has been deprecated
+    and is intended for future removal. Will emit a warning such a keyword is passed."""
+
+    def __init__(self, keywords, version, reason):
+        self.keywords = set(keywords)
+        self.version = version
+        self.reason = reason
+
+    def __call__(self, fn):
+        def wrapper(*args, **kwargs):
+            found = self.keywords.intersection(kwargs)
+            if found:
+                warnings.warn(
+                    "Parameter(s) {} deprecated since version {}; {}".format(
+                        sorted(list(found)), self.version, self.reason
+                    ),
+                    category=DeprecationWarning,
+                    stacklevel=2
+                )
+
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+
+class Spinner:
+    def __init__(self, msg=""):
+        self._tick = 0
+        self.msg = msg
+
+    def print_tick(self):
+        spinner = ['|', '/', '-', '\\'][self._tick % 4]
+        if sys.stdin.isatty():
+            sys.stdout.write(f"\r {spinner} {self.msg}")
+            sys.stdout.flush()
+        self._tick += 1

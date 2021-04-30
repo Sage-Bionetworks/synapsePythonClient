@@ -1,88 +1,46 @@
+import concurrent.futures
 import datetime
-import queue
-import time
-import threading
-import unittest.mock as mock
+import os
 import requests
 
-from nose.tools import assert_equals, assert_raises, assert_greater, assert_in
+import pytest
+from unittest import TestCase
+import unittest.mock as mock
 
 import synapseclient.core.multithread_download.download_threads as download_threads
+from synapseclient.core.multithread_download.download_threads import (
+    _MultithreadedDownloader,
+    download_file,
+    DownloadRequest,
+    PresignedUrlInfo,
+    PresignedUrlProvider,
+    TransferStatus,
+)
+from synapseclient.core.retry import DEFAULT_RETRIES
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseError
 
 
-class TestCloseableQueue:
-    def setup(self):
-        self.queue = download_threads.CloseableQueue(maxsize=5)
-
-    def test_send_sentinel(self):
-        self.queue.send_sentinel(3)
-        for _ in range(3):
-            assert_equals(download_threads.CloseableQueue.SENTINEL, self.queue.get())
-
-        assert_raises(queue.Empty, self.queue.get_nowait)
-
-    def test_iter(self):
-        for i in range(3):
-            self.queue.put(i)
-
-        wait_for_sentinel_sec = 3
-
-        def delay_send_sentinel(closable_queue):
-            time.sleep(wait_for_sentinel_sec)
-            closable_queue.send_sentinel()
-            print("done")
-
-        # delay sending the sentinel on another thread
-        t = threading.Thread(target=delay_send_sentinel, args=(self.queue,), daemon=True)
-        t.start()
-        start_time = time.time()
-        for i, queue_val in enumerate(self.queue):
-            assert_equals(i, queue_val)
-        elapsed_time = time.time() - start_time
-        # should have waited for some time before loop closed
-        assert_greater(elapsed_time, wait_for_sentinel_sec - 1)
-
-    def test_close(self):
-        for i in range(2):
-            self.queue.put(i)
-
-        self.queue.close()
-
-        # get() should always return the sentinel even past the actual capacity of the queue
-        for _ in range(8):
-            assert_equals(download_threads.CloseableQueue.SENTINEL, self.queue.get())
-
-        # put() should always throw a QueueClosed exception
-        for i in range(8):
-            assert_raises(download_threads.QueueClosedException, self.queue.put, i)
-
-    def test_unsupported_operations(self):
-        assert_raises(NotImplementedError, self.queue.join)
-        assert_raises(NotImplementedError, self.queue.task_done)
-
-
 class TestPresignedUrlProvider(object):
     def setup(self):
         self.mock_synapse_client = mock.create_autospec(Synapse)
-        self.download_request = download_threads.DownloadRequest(123, '456', 'FileEntity', '/myFakepath')
+        self.download_request = DownloadRequest(123, '456', 'FileEntity', '/myFakepath')
 
     def test_get_info_not_expired(self):
         utc_now = datetime.datetime.utcnow()
 
-        info = download_threads.PresignedUrlInfo("myFile.txt", "https://synapse.org/somefile.txt",
-                                                 expiration_utc=utc_now + datetime.timedelta(seconds=6))
+        info = PresignedUrlInfo("myFile.txt", "https://synapse.org/somefile.txt",
+                                expiration_utc=utc_now + datetime.timedelta(seconds=6))
 
-        with mock.patch.object(download_threads.PresignedUrlProvider, '_get_pre_signed_info',
+        with mock.patch.object(PresignedUrlProvider, '_get_pre_signed_info',
                                return_value=info) as mock_get_presigned_info, \
                 mock.patch.object(download_threads, "datetime", wraps=datetime) as mock_datetime:
             mock_datetime.datetime.utcnow.return_value = utc_now
 
-            presigned_url_provider = download_threads.PresignedUrlProvider(self.mock_synapse_client,
-                                                                           self.download_request)
-            assert_equals(info, presigned_url_provider.get_info())
+            presigned_url_provider = PresignedUrlProvider(self.mock_synapse_client,
+                                                          self.download_request)
+            assert info == presigned_url_provider.get_info()
 
             # only caled once in init
             mock_get_presigned_info.assert_called_once()
@@ -92,24 +50,23 @@ class TestPresignedUrlProvider(object):
         utc_now = datetime.datetime.utcnow()
 
         # expires in the past
-        expired_info = download_threads.PresignedUrlInfo("myFile.txt", "https://synapse.org/somefile.txt",
-                                                         expiration_utc=utc_now - datetime.timedelta(seconds=5))
-        unexpired_info = download_threads.PresignedUrlInfo("myFile.txt",
-                                                           "https://synapse.org/somefile.txt",
-                                                           expiration_utc=utc_now + datetime.timedelta(
-                                                               seconds=6))
+        expired_info = PresignedUrlInfo("myFile.txt", "https://synapse.org/somefile.txt",
+                                        expiration_utc=utc_now - datetime.timedelta(seconds=5))
+        unexpired_info = PresignedUrlInfo("myFile.txt",
+                                          "https://synapse.org/somefile.txt",
+                                          expiration_utc=utc_now + datetime.timedelta(seconds=6))
 
-        with mock.patch.object(download_threads.PresignedUrlProvider, '_get_pre_signed_info',
+        with mock.patch.object(PresignedUrlProvider, '_get_pre_signed_info',
                                side_effect=[expired_info, unexpired_info]) as mock_get_presigned_info, \
                 mock.patch.object(download_threads, "datetime") as mock_datetime:
             mock_datetime.datetime.utcnow.return_value = utc_now
 
-            presigned_url_provider = download_threads.PresignedUrlProvider(self.mock_synapse_client,
-                                                                           self.download_request)
-            assert_equals(unexpired_info, presigned_url_provider.get_info())
+            presigned_url_provider = PresignedUrlProvider(self.mock_synapse_client,
+                                                          self.download_request)
+            assert unexpired_info == presigned_url_provider.get_info()
 
-            # only caled once in init and again in get_info
-            assert_equals(2, mock_get_presigned_info.call_count)
+            # only called once in init and again in get_info
+            assert 2 == mock_get_presigned_info.call_count
             mock_datetime.datetime.utcnow.assert_called_once()
 
     def test_get_pre_signed_info(self):
@@ -126,195 +83,18 @@ class TestPresignedUrlProvider(object):
 
             self.mock_synapse_client._getFileHandleDownload.return_value = fake_file_handle_response
 
-            presigned_url_provider = download_threads.PresignedUrlProvider(self.mock_synapse_client,
-                                                                           self.download_request)
+            presigned_url_provider = PresignedUrlProvider(self.mock_synapse_client,
+                                                          self.download_request)
 
-            expected = download_threads.PresignedUrlInfo(fake_file_name, fake_url, fake_exp_time)
-            assert_equals(expected, presigned_url_provider._get_pre_signed_info())
+            expected = PresignedUrlInfo(fake_file_name, fake_url, fake_exp_time)
+            assert expected == presigned_url_provider._get_pre_signed_info()
 
             mock_pre_signed_url_expiration_time.assert_called_with(fake_url)
-
-
-class TestDataChunkDownloadThread:
-
-    def setup(self):
-        self.mock_data_queue = mock.create_autospec(download_threads.CloseableQueue)
-        self.mock_range_queue = mock.create_autospec(download_threads.CloseableQueue)
-        self.mock_presigned_url_provider = mock.create_autospec(download_threads.PresignedUrlProvider)
-        self.presigned_url_info = download_threads.PresignedUrlInfo("foo.txt", "synapse.org/foo.txt",
-                                                                    datetime.datetime.utcnow())
-        self.mock_presigned_url_provider.get_info.return_value = self.presigned_url_info
-        self.mock_requests_session = mock.create_autospec(requests.Session)
-        self.mock_requests_response = mock.create_autospec(requests.Response)
-        self.mock_requests_session.get.return_value = self.mock_requests_response
-        self.response_bytes = [b'some bytes', b'some more bytes']
-        self.mock_requests_response.iter_content.return_value = self.response_bytes
-
-        response_byte_len = sum(len(x) for x in self.response_bytes)
-        self.mock_range_queue.__iter__.return_value = [(0, response_byte_len - 1),
-                                                       (response_byte_len, response_byte_len * 2)]
-
-    def test_get_response_with_retry__exceed_max_retries(self):
-        self.mock_requests_response.status_code = 403
-        start = 5
-        end = 42
-
-        with mock.patch.object(download_threads, "_get_new_session",
-                               return_value=self.mock_requests_session):
-            download_thread = download_threads.DataChunkDownloadThread(self.mock_presigned_url_provider,
-                                                                       self.mock_range_queue,
-                                                                       self.mock_data_queue)
-
-            assert_raises(SynapseError, download_thread._get_response_with_retry, start, end)
-
-            expected_call_list = [mock.call(self.presigned_url_info.url, headers={"Range": "bytes=5-42"},
-                                            stream=True)] * download_threads.MAX_RETRIES
-            assert_equals(expected_call_list, self.mock_requests_session.get.call_args_list)
-
-    def test_get_response_with_retry__partial_content_reponse(self):
-        self.mock_requests_response.status_code = 206
-        start = 5
-        end = 42
-
-        with mock.patch.object(download_threads, "_get_new_session",
-                               return_value=self.mock_requests_session):
-            download_thread = download_threads.DataChunkDownloadThread(self.mock_presigned_url_provider,
-                                                                       self.mock_range_queue,
-                                                                       self.mock_data_queue)
-
-            assert_equals(self.mock_requests_response, download_thread._get_response_with_retry(start, end))
-
-            self.mock_requests_session.get \
-                .assert_called_once_with(self.presigned_url_info.url, headers={"Range": "bytes=5-42"}, stream=True)
-
-    def test_run(self):
-        with mock.patch.object(download_threads, "_get_new_session",
-                               return_value=self.mock_requests_session), \
-             mock.patch.object(download_threads.DataChunkDownloadThread, "_get_response_with_retry",
-                               return_value=self.mock_requests_response):
-            t = download_threads.DataChunkDownloadThread(self.mock_presigned_url_provider,
-                                                         self.mock_range_queue,
-                                                         self.mock_data_queue)
-
-            t.run()
-
-            # should terminate early since queue is closed
-            assert_equals(4, self.mock_data_queue.put.call_count)
-            expected_queue_put_calls = [mock.call((0, b'some bytes')), mock.call((10, b'some more bytes')),
-                                        mock.call((25, b'some bytes')), mock.call((35, b'some more bytes'))]
-            assert_equals(expected_queue_put_calls, self.mock_data_queue.put.call_args_list)
-            self.mock_requests_response.close.assert_not_called()
-
-    def test_run__queue_closed(self):
-        self.mock_data_queue.put.side_effect = download_threads.QueueClosedException('')
-
-        with mock.patch.object(download_threads, "_get_new_session", return_value=self.mock_requests_session), \
-            mock.patch.object(download_threads.DataChunkDownloadThread, "_get_response_with_retry",
-                              return_value=self.mock_requests_response):
-            t = download_threads.DataChunkDownloadThread(self.mock_presigned_url_provider,
-                                                         self.mock_range_queue,
-                                                         self.mock_data_queue)
-
-            t.run()
-
-            # should terminate early since queue is closed
-            assert_equals(1, self.mock_data_queue.put.call_count)
-            self.mock_requests_response.close.assert_called_once()
-
-
-class TestDataChunkWriteToFileThread:
-    def setup(self):
-        self.mock_data_queue = mock.create_autospec(download_threads.CloseableQueue)
-        self.path = "/myfakepath/foo.txt"
-        self.expected_file_size = 58
-        self.bytes_a = b'some bytes'
-        self.bytes_b = b'some more bytes'
-        self.bytes_c = b'another chunk of bytes'
-        self.offset_b = len(self.bytes_a)
-        self.offset_c = self.offset_b + len(self.bytes_b)
-        self.mock_data_queue.__iter__.return_value = [(0, self.bytes_a), (self.offset_b, self.bytes_b),
-                                                      (self.offset_c, self.bytes_c)]
-
-    def test_run(self):
-        with mock.patch.object(download_threads, 'open', mock.mock_open()) as mock_open:
-            t = download_threads.DataChunkWriteToFileThread(self.mock_data_queue, self.path, self.expected_file_size)
-
-            t.run()
-
-            self.mock_data_queue.close.assert_not_called()
-            assert_equals(3, mock_open().write.call_count)
-
-            # make sure seek/write was called in order
-            expected_calls = [mock.call.seek(0), mock.call.write(self.bytes_a),
-                              mock.call.seek(self.offset_b), mock.call.write(self.bytes_b),
-                              mock.call.seek(self.offset_c), mock.call.write(self.bytes_c)]
-            print(mock_open().mock_calls)
-            print(expected_calls)
-            assert_in(expected_calls, mock_open().mock_calls)
-
-    def test_run__write_error(self):
-        with mock.patch.object(download_threads, 'open', mock.mock_open()) as mock_open:
-            mock_open().write.side_effect = [len(self.bytes_a), OSError('fake error')]
-
-            t = download_threads.DataChunkWriteToFileThread(self.mock_data_queue, self.path, self.expected_file_size)
-
-            assert_raises(OSError, t.run)
-
-            self.mock_data_queue.close.assert_called_once()
-
-            assert_equals(2, mock_open().write.call_count)
-            # make sure seek/write was called in order
-            assert_in([mock.call.seek(0), mock.call.write(b'some bytes'),
-                       mock.call.seek(self.offset_b), mock.call.write(b'some more bytes')],
-                      mock_open().mock_calls)
-
-
-class TestDownloadThread:
-    def setup(self):
-        self.mock_data_queue = mock.create_autospec(download_threads.CloseableQueue)
-        self.mock_range_queue = mock.create_autospec(download_threads.CloseableQueue)
-        self.mock_write_file_thread = mock.create_autospec(download_threads.DataChunkWriteToFileThread)
-        self.mock_write_file_thread.path = "/fake_path/foo.txt"
-        self.mock_data_chunk_download_threads = [mock.create_autospec(download_threads.DataChunkDownloadThread)
-                                                 for _ in range(4)]
-        self.chunk_ranges = [(0, 7), (8, 15), (16, 18)]
-
-    def test_download_file__exception_thrown(self):
-        self.mock_range_queue.put.side_effect = KeyboardInterrupt("fake interrupt")
-
-        with mock.patch.object(download_threads.os, "remove") as mock_os_remove:
-            assert_raises(KeyboardInterrupt, download_threads._download_file, self.mock_data_queue,
-                          self.mock_range_queue,
-                          self.mock_write_file_thread, self.mock_data_chunk_download_threads,
-                          self.chunk_ranges)
-
-            self.mock_data_queue.close.assert_called_once()
-            self.mock_range_queue.close.assert_called_once()
-            self.mock_write_file_thread.join.assert_called_once()
-            mock_os_remove.assert_called_once()
-
-            self.mock_range_queue.send_sentinel.assert_not_called()
-            self.mock_data_queue.send_sentinel.assert_not_called()
-
-    def test_download_file__no_exception(self):
-        with mock.patch.object(download_threads.os, "remove") as mock_os_remove:
-            download_threads._download_file(self.mock_data_queue, self.mock_range_queue,
-                                            self.mock_write_file_thread, self.mock_data_chunk_download_threads,
-                                            self.chunk_ranges)
-
-            self.mock_data_queue.close.assert_not_called()
-            self.mock_range_queue.close.assert_not_called()
-            mock_os_remove.assert_not_called()
-
-            self.mock_range_queue.send_sentinel.assert_called_once_with(len(self.mock_data_chunk_download_threads))
-            self.mock_data_queue.send_sentinel.assert_called_once()
-
-            self.mock_write_file_thread.join.assert_called_once()
-            for mock_download_thread in self.mock_data_chunk_download_threads:
-                mock_download_thread.join.assert_called_once()
-
-            assert_equals([mock.call(chunk_range) for chunk_range in self.chunk_ranges],
-                          self.mock_range_queue.put.call_args_list)
+            self.mock_synapse_client._getFileHandleDownload.assert_called_with(
+                self.download_request.file_handle_id,
+                self.download_request.object_id,
+                objectType=self.download_request.object_type,
+            )
 
 
 def test_generate_chunk_ranges():
@@ -325,7 +105,7 @@ def test_generate_chunk_ranges():
 
     expected = [(0, 7), (8, 15), (16, 17)]
 
-    assert_equals(expected, result)
+    assert expected == result
 
 
 def test_pre_signed_url_expiration_time():
@@ -339,4 +119,471 @@ def test_pre_signed_url_expiration_time():
 
     expected = datetime.datetime(year=2013, month=7, day=21, hour=20, minute=12, second=7) + datetime.timedelta(
         seconds=86400)
-    assert_equals(expected, download_threads._pre_signed_url_expiration_time(url))
+    assert expected == download_threads._pre_signed_url_expiration_time(url)
+
+
+@mock.patch.object(download_threads, '_MultithreadedDownloader')
+def test_download_file(mock_multithreaded_downloader_init):
+    """Verify that initiating a download instantiates a downloader and passes it the correct args.
+    This test simulates a shared executor being set externally via the sharedexecutor context manager"""
+
+    syn = mock.Mock()
+    file_handle_id = 1234
+    object_id = 'syn123'
+    object_type = None
+    path = '/tmp/foo'
+    request = DownloadRequest(
+        file_handle_id,
+        object_id,
+        object_type,
+        path,
+    )
+
+    mock_executor = mock.Mock()
+    mock_downloader = mock.Mock()
+    mock_multithreaded_downloader_init.return_value = mock_downloader
+
+    max_concurrent_parts = 5
+
+    with download_threads.shared_executor(mock_executor):
+        download_file(syn, request, max_concurrent_parts=max_concurrent_parts)
+
+    mock_multithreaded_downloader_init.assert_called_once_with(syn, mock_executor, max_concurrent_parts)
+    mock_downloader.download_file.assert_called_once_with(request)
+
+    # executor was passed in from the outside, so it should be managed from the outside
+    assert not mock_executor.shutdown.called
+
+
+@mock.patch.object(download_threads, 'get_executor')
+@mock.patch.object(download_threads, '_MultithreadedDownloader')
+def test_download_file__executor_shutdown(mock_multithreaded_downloader_init, mock_get_executor):
+    """Verify that if no external executor is passed in the internally created one
+    is shutdown once the download is done"""
+
+    max_threads = 5
+    syn = mock.Mock(max_threads=max_threads)
+
+    file_handle_id = 1234
+    object_id = 'syn123'
+    object_type = None
+    path = '/tmp/foo'
+    request = DownloadRequest(
+        file_handle_id,
+        object_id,
+        object_type,
+        path,
+    )
+
+    mock_executor = mock.Mock()
+    mock_get_executor.return_value = mock_executor
+
+    mock_downloader = mock.Mock()
+    mock_multithreaded_downloader_init.return_value = mock_downloader
+
+    download_file(syn, request)
+
+    # no max_concurrent_parts passed, should default to the number of client configured threads
+    mock_multithreaded_downloader_init.assert_called_once_with(syn, mock_executor, max_threads)
+    mock_downloader.download_file.assert_called_once_with(request)
+
+    # internally created executor should be shutdown
+    assert mock_executor.shutdown.called
+
+
+class MultithreadedDownloaderTests(TestCase):
+
+    def test_download_file(self):
+        """Test downloading a file, succesfully, with multiple trips through the loop needed to complete the file"""
+
+        file_handle_id = 1234
+        object_id = 'syn123'
+        path = '/tmp/foo'
+        url = 'http://foo.com/bar'
+        file_size = int(1.5 * (2 ** 20))
+        request = DownloadRequest(file_handle_id, object_id, None, path)
+
+        with mock.patch.object(download_threads, 'PresignedUrlProvider') as mock_url_provider_init, \
+                mock.patch.object(download_threads, 'TransferStatus') as mock_transfer_status_init, \
+                mock.patch.object(download_threads, '_get_file_size') as mock_get_file_size, \
+                mock.patch.object(download_threads, '_generate_chunk_ranges') as mock_generate_chunk_ranges, \
+                mock.patch.object(_MultithreadedDownloader, '_prep_file') as mock_prep_file, \
+                mock.patch.object(_MultithreadedDownloader, '_submit_chunks') as mock_submit_chunks, \
+                mock.patch.object(_MultithreadedDownloader, '_write_chunks') as mock_write_chunks, \
+                mock.patch('concurrent.futures.wait') as mock_futures_wait, \
+                mock.patch.object(_MultithreadedDownloader, '_check_for_errors') as mock_check_for_errors:
+
+            mock_url_info = mock.create_autospec(PresignedUrlInfo, url=url)
+            mock_url_provider = mock.create_autospec(PresignedUrlProvider)
+            mock_url_provider.get_info.return_value = mock_url_info
+
+            mock_url_provider_init.return_value = mock_url_provider
+            mock_get_file_size.return_value = file_size
+            chunk_generator = mock.Mock()
+            mock_generate_chunk_ranges.return_value = chunk_generator
+
+            transfer_status = TransferStatus(file_size)
+            mock_transfer_status_init.return_value = transfer_status
+
+            first_future = mock.Mock()
+            second_future = mock.Mock()
+            third_future = mock.Mock()
+
+            # 3 parts total, submit 2, then 1, then no more the third time through the loop
+            mock_submit_chunks.side_effect = [
+                set([first_future, second_future]),
+                set([third_future]),
+                set(),
+            ]
+
+            # on first wait 1 part is done, one is pending,
+            # on second wait last remaining part is completed
+
+            mock_futures_wait.side_effect = [
+                (set([first_future]), set([second_future])),
+                (set([second_future, third_future]), set()),
+            ]
+
+            syn = mock.Mock()
+            executor = mock.Mock()
+            max_concurrent_parts = 5
+            downloader = _MultithreadedDownloader(syn, executor, max_concurrent_parts)
+
+            downloader.download_file(request)
+
+            mock_prep_file.assert_called_once_with(request)
+
+            expected_submit_chunks_calls = [
+                mock.call(mock_url_provider, chunk_generator, set()),
+                mock.call(mock_url_provider, chunk_generator, set([second_future])),
+                mock.call(mock_url_provider, chunk_generator, set()),
+            ]
+            assert expected_submit_chunks_calls == mock_submit_chunks.call_args_list
+
+            expected_write_chunk_calls = [
+                mock.call(request, set(), transfer_status),
+                mock.call(request, set([first_future]), transfer_status),
+                mock.call(request, set([second_future, third_future]), transfer_status),
+            ]
+            assert expected_write_chunk_calls == mock_write_chunks.call_args_list
+
+            expected_futures_wait_calls = [
+                mock.call(set([first_future, second_future]), return_when=concurrent.futures.FIRST_COMPLETED),
+                mock.call(set([second_future, third_future]), return_when=concurrent.futures.FIRST_COMPLETED),
+            ]
+            assert expected_futures_wait_calls == mock_futures_wait.call_args_list
+
+            expected_check_for_errors_calls = [
+                mock.call(request, set([first_future])),
+                mock.call(request, set([second_future, third_future])),
+            ]
+            assert expected_check_for_errors_calls == mock_check_for_errors.call_args_list
+
+    def test_download_file__error(self):
+        """Test downloading a file when one of the file downloads generates an error.
+        It should be surfaced raised in the entrant thread.
+        """
+
+        file_handle_id = 1234
+        entity_id = 'syn123'
+        path = '/tmp/foo'
+        url = 'http://foo.com/bar'
+        file_size = int(1.5 * (2 ** 20))
+        request = DownloadRequest(file_handle_id, entity_id, None, path)
+
+        with mock.patch.object(download_threads, 'PresignedUrlProvider') as mock_url_provider_init, \
+                mock.patch.object(download_threads, 'TransferStatus') as mock_transfer_status_init, \
+                mock.patch.object(download_threads, '_get_file_size') as mock_get_file_size, \
+                mock.patch.object(download_threads, '_generate_chunk_ranges') as mock_generate_chunk_ranges, \
+                mock.patch.object(download_threads, 'os') as mock_os, \
+                mock.patch.object(_MultithreadedDownloader, '_prep_file'), \
+                mock.patch.object(_MultithreadedDownloader, '_submit_chunks') as mock_submit_chunks, \
+                mock.patch.object(_MultithreadedDownloader, '_write_chunks'), \
+                mock.patch('concurrent.futures.wait') as mock_futures_wait:
+
+            mock_url_info = mock.create_autospec(PresignedUrlInfo, url=url)
+            mock_url_provider = mock.create_autospec(PresignedUrlProvider)
+            mock_url_provider.get_info.return_value = mock_url_info
+
+            mock_url_provider_init.return_value = mock_url_provider
+            mock_get_file_size.return_value = file_size
+            chunk_generator = mock.Mock()
+            mock_generate_chunk_ranges.return_value = chunk_generator
+
+            transfer_status = TransferStatus(file_size)
+            mock_transfer_status_init.return_value = transfer_status
+
+            exception = ValueError('failed!')
+            part_future_1 = mock.create_autospec(concurrent.futures.Future)
+            part_future_1.exception.return_value = exception
+            part_future_2 = mock.create_autospec(concurrent.futures.Future)
+
+            # future 1 completed with an error.
+            # should atempt to cancel future 2 as a result
+            mock_submit_chunks.return_value = set([part_future_1, part_future_2])
+            mock_futures_wait.return_value = (set([part_future_1]), set([part_future_2]))
+
+            syn = mock.Mock()
+            executor = mock.Mock()
+            max_concurrent_parts = 5
+            downloader = _MultithreadedDownloader(syn, executor, max_concurrent_parts)
+
+            with pytest.raises(exception.__class__):
+                downloader.download_file(request)
+
+            # file should have been removed
+            mock_os.remove.assert_called_once_with(path)
+
+            # should have been an attempt to cancel the Future
+            part_future_2.cancel.assert_called_once_with()
+
+    @mock.patch.object(download_threads, 'open')
+    def test_prep_file(self, mock_open):
+        """Should open and close the file to create/truncate it"""
+        path = '/tmp/foo'
+        request = DownloadRequest(None, None, None, path)
+        download_threads._MultithreadedDownloader._prep_file(request)
+        mock_open.assert_called_once_with(path, 'wb')
+
+        mock_open.return_value.close.assert_called_once_with()
+
+    def test_submit_chunks(self):
+        """Verify chunks are submitted to the executor as expected, not exceeding the available
+        number of outstanding concurrent parts"""
+
+        syn = mock.Mock()
+        max_concurrent_parts = 3
+        pending_futures = [mock.Mock()] * 1
+
+        expected_submit_count = max_concurrent_parts - len(pending_futures)
+        executor_submit_side_effect = [mock.Mock() for _ in range(expected_submit_count)]
+        executor_submit = mock.Mock(side_effect=executor_submit_side_effect)
+        executor = mock.Mock(submit=executor_submit)
+        url_provider = mock.Mock()
+
+        file_size = int(2.5 * download_threads.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE)
+        chunk_range_generator = download_threads._generate_chunk_ranges(file_size)
+
+        downloader = _MultithreadedDownloader(syn, executor, max_concurrent_parts)
+        submitted_futures = downloader._submit_chunks(url_provider, chunk_range_generator, pending_futures)
+
+        ranges = [r for r in download_threads._generate_chunk_ranges(file_size)][:expected_submit_count]
+        expected_submits = [
+            mock.call(
+                downloader._get_response_with_retry,
+                url_provider,
+                start,
+                end,
+            ) for start, end in ranges
+        ]
+        assert expected_submits == executor_submit.call_args_list
+        assert set(executor_submit_side_effect) == submitted_futures
+
+    @mock.patch.object(download_threads, 'open')
+    def test_write_chunks__none_ready(self, mock_open):
+        """Verify that if there are no parts ready that nothing is written out"""
+        request = mock.Mock()
+        transfer_status = mock.Mock()
+        completed_futures = set()
+        downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)
+        downloader._write_chunks(request, completed_futures, transfer_status)
+        assert not mock_open.called
+
+    @mock.patch.object(download_threads, 'open')
+    def test_write_chunks(self, mock_open):
+        """Verify expected behavior writing out chunks to disk"""
+        request = mock.Mock(path='/tmp/foo')
+
+        chunks = [b'foo', b'bar', b'baz']
+        file_size = sum(len(d) for d in chunks)
+        transfer_status = TransferStatus(file_size)
+
+        completed_futures = []
+        expected_seeks = []
+        expected_writes = []
+        expected_print_transfer_progresses = []
+
+        byte_start = 0
+        for chunk in chunks:
+            future = mock.Mock(
+                result=mock.Mock(
+                    return_value=(
+                        byte_start,
+                        mock.Mock(content=chunk)
+                    )
+                )
+            )
+            completed_futures.append(future)
+            expected_seeks.append(mock.call(byte_start))
+            expected_writes.append(mock.call(chunk))
+
+            byte_start += len(chunk)
+            expected_print_transfer_progresses.append(
+                mock.call(byte_start, file_size, 'Downloading ', os.path.basename(request.path), dt=mock.ANY)
+            )
+
+        downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)
+        downloader._write_chunks(request, completed_futures, transfer_status)
+
+        # with open (as a context manager)
+        mock_write = mock_open.return_value.__enter__.return_value
+        assert expected_seeks == mock_write.seek.call_args_list
+        assert expected_writes == mock_write.write.call_args_list
+
+        assert sum(len(c) for c in chunks) == transfer_status.transferred
+        assert expected_print_transfer_progresses == downloader._syn._print_transfer_progress.call_args_list
+
+    def test_check_for_errors__no_errors(self):
+        """Verify check_for_errors when there were no errors"""
+        downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)
+
+        request = mock.Mock()
+        completed_futures = [mock.Mock(exception=mock.Mock(return_value=None))] * 3
+
+        # does not raise error
+        downloader._check_for_errors(request, completed_futures)
+
+    def test_check_for_errors(self):
+        """Verify check_for_errors when there were no errors"""
+        downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)
+
+        request = mock.Mock()
+        exception = ValueError('failed')
+
+        successful_future = mock.Mock(exception=mock.Mock(return_value=None))
+        failed_future = mock.Mock(exception=mock.Mock(return_value=exception))
+        completed_futures = ([successful_future] * 2) + [failed_future] + [successful_future]
+
+        with pytest.raises(exception.__class__):
+            downloader._check_for_errors(request, completed_futures)
+
+    @mock.patch.object(download_threads, "_get_thread_session")
+    def test_get_response_with_retry__exceed_max_retries(self, mock_get_thread_session):
+        mock_requests_response = mock.Mock(status_code=403)
+        mock_requests_session = mock.create_autospec(requests.Session)
+        mock_requests_session.get.return_value = mock_requests_response
+        mock_get_thread_session.return_value = mock_requests_session
+
+        mock_presigned_url_provider = mock.create_autospec(download_threads.PresignedUrlProvider)
+        presigned_url_info = download_threads.PresignedUrlInfo(
+            "foo.txt", "synapse.org/foo.txt",
+            datetime.datetime.utcnow()
+        )
+        mock_presigned_url_provider.get_info.return_value = presigned_url_info
+
+        start = 5
+        end = 42
+
+        downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)
+        with pytest.raises(SynapseError):
+            downloader._get_response_with_retry(mock_presigned_url_provider, start, end)
+
+        expected_call_list = [
+            mock.call(presigned_url_info.url, headers={"Range": "bytes=5-42"})
+        ] * (DEFAULT_RETRIES + 1)
+        assert expected_call_list == mock_requests_session.get.call_args_list
+
+    @mock.patch.object(download_threads, "_get_thread_session")
+    def test_get_response_with_retry__partial_content_response(self, mock_get_thread_session):
+        mock_requests_response = mock.Mock(status_code=206)
+        mock_requests_session = mock.create_autospec(requests.Session)
+        mock_requests_session.get.return_value = mock_requests_response
+        mock_get_thread_session.return_value = mock_requests_session
+
+        mock_presigned_url_provider = mock.create_autospec(download_threads.PresignedUrlProvider)
+        presigned_url_info = download_threads.PresignedUrlInfo(
+            "foo.txt", "synapse.org/foo.txt",
+            datetime.datetime.utcnow()
+        )
+
+        mock_presigned_url_provider.get_info.return_value = presigned_url_info
+        start = 5
+        end = 42
+
+        downloader = _MultithreadedDownloader(mock.Mock(), mock.Mock(), 5)
+        assert (
+            (start, mock_requests_response) ==
+            downloader._get_response_with_retry(mock_presigned_url_provider, start, end)
+        )
+
+        mock_requests_session.get.assert_called_once_with(
+            presigned_url_info.url,
+            headers={"Range": "bytes=5-42"},
+        )
+
+    @mock.patch.object(download_threads, "_get_thread_session")
+    def test_get_response_with_retry__connection_reset(self, mock_get_thread_session):
+        """Verify a ConnectionResetError during a part download will be retried"""
+
+        mock_requests_response = mock.Mock(status_code=206)
+        mock_requests_session = mock.create_autospec(requests.Session)
+        mock_requests_session.get.side_effect = [
+            ConnectionResetError(),
+            mock_requests_response
+        ]
+        mock_get_thread_session.return_value = mock_requests_session
+
+        mock_presigned_url_provider = mock.create_autospec(download_threads.PresignedUrlProvider)
+        presigned_url_info = download_threads.PresignedUrlInfo(
+            "foo.txt", "synapse.org/foo.txt",
+            datetime.datetime.utcnow()
+        )
+
+        mock_presigned_url_provider.get_info.return_value = presigned_url_info
+        start = 5
+        end = 42
+
+        mock_syn = mock.Mock(spec=Synapse)
+        mock_executor = mock.Mock(spec=concurrent.futures.Executor)
+        downloader = _MultithreadedDownloader(mock_syn, mock_executor, 5)
+        assert (
+            (start, mock_requests_response) ==
+            downloader._get_response_with_retry(mock_presigned_url_provider, start, end)
+        )
+
+        expected_get_call_args_list = [mock.call(presigned_url_info.url, headers={"Range": "bytes=5-42"})] * 2
+        assert mock_requests_session.get.call_args_list == expected_get_call_args_list
+
+    @mock.patch.object(download_threads, "_get_thread_session")
+    def test_get_response_with_retry__error_status(self, mock_get_thread_session):
+        """Verify an errored status code during a part download will be retried"""
+        mock_requests_error_response = mock.Mock(status_code=500)
+        mock_requests_response = mock.Mock(status_code=206)
+        mock_requests_session = mock.create_autospec(requests.Session)
+        mock_requests_session.get.side_effect = [
+            mock_requests_error_response,
+            mock_requests_response,
+        ]
+        mock_get_thread_session.return_value = mock_requests_session
+
+        mock_presigned_url_provider = mock.create_autospec(download_threads.PresignedUrlProvider)
+        presigned_url_info = download_threads.PresignedUrlInfo(
+            "foo.txt", "synapse.org/foo.txt",
+            datetime.datetime.utcnow()
+        )
+
+        mock_presigned_url_provider.get_info.return_value = presigned_url_info
+        start = 5
+        end = 42
+
+        mock_syn = mock.Mock(spec=Synapse)
+        mock_executor = mock.Mock(spec=concurrent.futures.Executor)
+        downloader = _MultithreadedDownloader(mock_syn, mock_executor, 5)
+        assert (
+            (start, mock_requests_response) ==
+            downloader._get_response_with_retry(mock_presigned_url_provider, start, end)
+        )
+
+        expected_get_call_args_list = [mock.call(presigned_url_info.url, headers={"Range": "bytes=5-42"})] * 2
+        assert mock_requests_session.get.call_args_list == expected_get_call_args_list
+
+
+def test_shared_executor():
+    """Test the shared_executor contextmanager which should set up thread_local Executor"""
+    assert not hasattr(download_threads._thread_local, 'executor')
+
+    executor = mock.Mock()
+    with download_threads.shared_executor(executor):
+        assert executor == download_threads._thread_local.executor
+
+    assert not hasattr(download_threads._thread_local, 'executor')

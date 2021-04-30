@@ -1,0 +1,369 @@
+# GitHub Action workflow for testing, building, and releasing the Synapse Python Client.
+
+# - all pushes, releases, and pull requests  are tested against unit tests, and additionally
+#     integration tests if account configuration secrets are available.
+# - releases are additionally packaged, uploaded as build and release artifacts,
+#     and deployed to pypi servers (test.pypi.org for prereleases, and pypi.org for releases)
+#     Release tags must conform to our semver versioning, e.g. v1.2.3 in order to be packaged
+#     for pypi deployment.
+
+name: build
+
+on:
+  push:
+    # we test all pushed branches, but not tags.
+    # we only push tags with releases, and we handle releases explicitly
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+
+  pull_request:
+
+  release:
+    types:
+      - 'published'
+
+jobs:
+
+  # run unit (and integration tests if account secrets available) on our build matrix
+  test:
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, macos-10.15, windows-2019]
+
+        # if changing the below change the run-integration-tests versions and the check-deploy versions
+        python: [3.6, 3.7, 3.8, 3.9]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: get-dependencies-location
+        shell: bash
+        run: |
+          SITE_PACKAGES_LOCATION=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+          SITE_BIN_DIR=$(python3 -c "import os; import platform; import distutils.sysconfig; pre = distutils.sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
+          echo "::set-output name=site_packages_loc::$SITE_PACKAGES_LOCATION"
+          echo "::set-output name=site_bin_dir::$SITE_BIN_DIR"
+        id: get-dependencies
+
+      - name: Cache py-dependencies
+        id: cache-dependencies
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-py-dependencies
+        with:
+          path: |
+            ${{ steps.get-dependencies.outputs.site_packages_loc }}
+            ${{ steps.get-dependencies.outputs.site_bin_dir }}
+          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v7
+
+      - name: install-py-dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          pip install -e ".[boto3,pandas,pysftp,tests]"
+
+          # ensure that numpy c extensions are installed on windows
+          # https://stackoverflow.com/a/59346525
+          if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
+            pip uninstall -y numpy
+            pip uninstall -y setuptools
+            pip install setuptools
+            pip install numpy
+          fi
+
+      - name: lint
+        shell: bash
+        run: |
+          flake8
+
+      - name: run-unit-tests
+        shell: bash
+        run: |
+          pytest -sv tests/unit
+
+      # run integration tests iff the decryption keys for the test configuration are available.
+      # they will not be available in pull requests from forks.
+      # run integration tests on the oldest and newest supported versions of python.
+      # we don't run on the entire matrix to avoid a 3xN set of concurrent tests against
+      # the target server where N is the number of supported python versions.
+      - name: run-integration-tests
+        shell: bash
+
+        # keep versions consistent with the first and last from the strategy matrix
+        if: ${{ contains(fromJSON('[3.6, 3.9]'), matrix.python) }}
+        run: |
+          if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_key }}" ]; then
+            echo "No test configuration decryption keys available, skipping integration tests"
+
+          else
+
+            # decrypt the encrypted test synapse configuration
+            openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
+            mv test.synapseConfig ~/.synapseConfig
+
+            if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
+              # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
+              # Docker is not available on GH Action runners on Mac and Windows.
+
+              docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
+              docker run -d sftp_tests:latest
+
+              # get the internal IP address of the just launched container
+              export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
+
+              printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
+
+              # add to known_hosts so the ssh connections can be made without any prompting/errors
+              mkdir -p ~/.ssh
+              ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
+            fi
+
+             # set env vars used in external bucket tests from secrets
+            export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
+            export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
+            export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
+
+             # use loadscope to avoid issues running tests concurrently that share scoped fixtures
+            pytest -sv tests/integration -n auto --dist loadscope
+          fi
+
+  # on a GitHub release, build the pip package and upload it as a GitHub release asset
+  package:
+    needs: test
+
+    runs-on: ubuntu-18.04
+
+    if: github.event_name == 'release'
+
+    outputs:
+      sdist-package-name: ${{ steps.build-package.outputs.sdist-package-name }}
+      bdist-package-name: ${{ steps.build-package.outputs.bdist-package-name }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      - name: set-release-env
+        shell: bash
+        run: |
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
+              if [[ -z "${BASH_REMATCH[2]}" ]]; then
+                echo "A test release tag should end with \"-rc\""
+                exit 1
+              fi
+
+              # for staging builds we append the build number so we have
+              # distinct version numbers between prod and test pypi.
+              VERSION="$VERSION.$GITHUB_RUN_NUMBER"
+            fi
+
+          else
+            echo "Unable to parse deployment version from $RELEASE_TAG"
+            exit 1
+          fi
+
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      # ensure that the version file in the package will have the correct version
+      # matching the name of the tag
+      - name: update-version
+        shell: bash
+        run: |
+          if [[ -n "$VERSION" ]]; then
+            sed "s|\"latestVersion\":.*$|\"latestVersion\":\"$VERSION\",|g" synapseclient/synapsePythonClient > temp
+            rm synapseclient/synapsePythonClient
+            mv temp synapseclient/synapsePythonClient
+          fi
+
+      - id: build-package
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install setuptools
+          python3 -m pip install wheel
+
+          # install synapseclient
+          python3 setup.py install
+
+          # create distribution
+          python3 setup.py sdist bdist_wheel
+
+          SDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}.tar.gz"
+          BDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}-py3-none-any.whl"
+          RELEASE_URL_PREFIX="https://uploads.github.com/repos/${{ github.event.repository.full_name }}/releases/${{ github.event.release.id }}/assets?name="
+
+          echo "::set-output name=sdist-package-name::$SDIST_PACKAGE_NAME"
+          echo "::set-output name=bdist-package-name::$BDIST_PACKAGE_NAME"
+
+          echo "::set-output name=sdist-release-url::${RELEASE_URL_PREFIX}${SDIST_PACKAGE_NAME}"
+          echo "::set-output name=bdist-release-url::${RELEASE_URL_PREFIX}${BDIST_PACKAGE_NAME}"
+
+      # upload the packages as build artifacts of the GitHub Action
+
+      - name: upload-build-sdist
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.build-package.outputs.sdist-package-name }}
+          path: dist/${{ steps.build-package.outputs.sdist-package-name }}
+
+      - name: upload-build-bdist
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.build-package.outputs.bdist-package-name }}
+          path: dist/${{ steps.build-package.outputs.bdist-package-name }}
+
+      # upload the packages as artifacts of the GitHub release
+
+      - name: upload-release-sdist
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.build-package.outputs.sdist-release-url }}
+          asset_name: ${{ steps.build-package.outputs.sdist-package-name }}
+          asset_path: dist/${{ steps.build-package.outputs.sdist-package-name }}
+          asset_content_type: application/gzip
+
+      - name: upload-release-bdist
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.build-package.outputs.bdist-release-url }}
+          asset_name: ${{ steps.build-package.outputs.bdist-package-name }}
+          asset_path: dist/${{ steps.build-package.outputs.bdist-package-name }}
+          asset_content_type: application/zip
+
+
+  # re-download the built package to the appropriate pypi server.
+  # we upload prereleases to test.pypi.org and releases to pypi.org.
+  deploy:
+    needs: package
+
+    runs-on: ubuntu-18.04
+
+    steps:
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      - name: download-sdist
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ needs.package.outputs.sdist-package-name }}
+          path: dist
+
+      - name: download-bdist
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ needs.package.outputs.bdist-package-name }}
+          path: dist
+
+      - name: deploy-to-pypi
+        shell: bash
+        run: |
+          python3 -m pip install twine
+
+          if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
+            # production deploy to prod pypi server
+
+            PYPI_NAME="pypi"
+            PYPI_URL="https://pypi.org"
+            PYPI_REPO="https://upload.pypi.org/legacy/"
+            PYPI_USERNAME="${{ secrets.PYPI_PROD_USERNAME }}"
+            PYPI_PASSWORD="${{ secrets.PYPI_PROD_PASSWORD }}"
+          else
+            # staging deploy to test pypi server
+
+            PYPI_NAME=testpypi
+            PYPI_URL="https://test.pypi.org"
+            PYPI_REPO=https://test.pypi.org/legacy/
+            PYPI_USERNAME="${{ secrets.PYPI_TEST_USERNAME }}"
+            PYPI_PASSWORD="${{ secrets.PYPI_TEST_PASSWORD }}"
+            PYPI_INDEX_URL="https://test.pypi.org/simple/"
+          fi
+
+          # create .pypirc file
+          echo "[distutils]" > ~/.pypirc
+          echo "index-servers=$PYPI_NAME" >> ~/.pypirc
+          echo >> ~/.pypirc
+          echo "[$PYPI_NAME]" >> ~/.pypirc
+          echo "repository: $PYPI_REPO" >> ~/.pypirc
+          echo "username:$PYPI_USERNAME" >> ~/.pypirc
+          echo "password:$PYPI_PASSWORD" >> ~/.pypirc
+
+          twine upload --repository $PYPI_NAME dist/*
+
+  # on each of our matrix platforms, download the newly uploaded package from pypi and confirm its version
+  check-deploy:
+    needs: deploy
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, macos-10.15, windows-2019]
+
+        # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
+        python: [3.6, 3.7, 3.8, 3.9]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: check-pypi
+        shell: bash
+        run: |
+          if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
+            PYPI_INDEX_URL="https://pypi.org/simple/"
+          else
+            PYPI_INDEX_URL="https://test.pypi.org/simple/"
+          fi
+
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
+              VERSION="$VERSION.$GITHUB_RUN_NUMBER"
+            fi
+          else
+            echo "Unrecognized release tag"
+            exit 1
+          fi
+
+          # it can take some time for the packages to become available in pypi after uploading
+          for i in 5 10 20 40; do
+            if pip3 install --index-url $PYPI_INDEX_URL --extra-index-url https://pypi.org/simple "synapseclient==$VERSION"; then
+              ACTUAL_VERSION=$(synapse --version)
+
+              if [ -n "$(echo "$ACTUAL_VERSION" | grep -oF "$VERSION")" ]; then
+                echo "Successfully installed version $VERSION"
+                exit 0
+              else
+                echo "Expected version $VERSION, found $ACTUAL_VERSION instead"
+                exit 1
+              fi
+            fi
+
+            sleep $i
+          done
+
+          echo "Failed to install expected version $VERSION"
+          exit 1

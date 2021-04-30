@@ -3,11 +3,19 @@ import urllib.parse as urllib_parse
 import uuid
 
 from synapseclient.core.utils import is_url, md5_for_file, as_url, file_url_to_path, id_of
+from synapseclient.core import cumulative_transfer_progress
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file
 from synapseclient.core.exceptions import SynapseMd5MismatchError
+
+
+def log_upload_message(syn, message):
+    # if this upload is in the context of a larger, multi threaded sync upload as indicated by a cumulative progress
+    # then we don't print the individual upload messages to the console since they wouldn't be properly interleaved.
+    if not cumulative_transfer_progress.is_active():
+        syn.logger.info(message)
 
 
 def upload_file_handle(
@@ -56,7 +64,10 @@ def upload_file_handle(
     if sts_transfer.is_boto_sts_transfer_enabled(syn) and \
        sts_transfer.is_storage_location_sts_enabled(syn, entity_parent_id, location) and \
        upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
-        syn.logger.info('\n' + '#' * 50 + '\n Uploading file to external S3 storage using boto3 \n' + '#' * 50 + '\n')
+        log_upload_message(
+            syn,
+            '\n' + '#' * 50 + '\n Uploading file to external S3 storage using boto3 \n' + '#' * 50 + '\n'
+        )
 
         return upload_synapse_sts_boto_s3(
             syn,
@@ -73,7 +84,10 @@ def upload_file_handle(
         storageString = 'Synapse' \
             if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION \
             else 'your external S3'
-        syn.logger.info('\n' + '#' * 50 + '\n Uploading file to ' + storageString + ' storage \n' + '#' * 50 + '\n')
+        log_upload_message(
+            syn,
+            '\n' + '#' * 50 + '\n Uploading file to ' + storageString + ' storage \n' + '#' * 50 + '\n'
+        )
 
         return upload_synapse_s3(
             syn,
@@ -85,22 +99,35 @@ def upload_file_handle(
     # external file handle (sftp)
     elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
         if location['uploadType'] == 'SFTP':
-            syn.logger.info('\n%s\n%s\nUploading to: %s\n%s\n' % ('#' * 50, location.get('banner', ''),
-                                                                  urllib_parse.urlparse(location['url']).netloc,
-                                                                  '#' * 50))
+            log_upload_message(
+                syn,
+                '\n%s\n%s\nUploading to: %s\n%s\n' % ('#' * 50, location.get('banner', ''),
+                                                      urllib_parse.urlparse(location['url']).netloc,
+                                                      '#' * 50)
+            )
             return upload_external_file_handle_sftp(syn, expanded_upload_path, location['url'], mimetype=mimetype)
         else:
             raise NotImplementedError('Can only handle SFTP upload locations.')
     # client authenticated S3
     elif upload_destination_type == concrete_types.EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION:
-        syn.logger.info('\n%s\n%s\nUploading to endpoint: [%s] bucket: [%s]\n%s\n'
-                        % ('#' * 50, location.get('banner', ''), location.get('endpointUrl'), location.get('bucket'),
-                           '#' * 50))
+        log_upload_message(
+            syn,
+            '\n%s\n%s\nUploading to endpoint: [%s] bucket: [%s]\n%s\n' % (
+                '#' * 50, location.get('banner', ''),
+                location.get('endpointUrl'),
+                location.get('bucket'),
+                '#' * 50,
+            )
+        )
         return upload_client_auth_s3(syn, expanded_upload_path, location['bucket'], location['endpointUrl'],
                                      location['keyPrefixUUID'], location['storageLocationId'], mimetype=mimetype)
     else:  # unknown storage location
-        syn.logger.info('\n%s\n%s\nUNKNOWN STORAGE LOCATION. Defaulting upload to Synapse.\n%s\n'
-                        % ('!' * 50, location.get('banner', ''), '!' * 50))
+        log_upload_message(
+            syn,
+            '\n%s\n%s\nUNKNOWN STORAGE LOCATION. Defaulting upload to Synapse.\n%s\n' % (
+                '!' * 50, location.get('banner', ''), '!' * 50
+            )
+        )
         return upload_synapse_s3(syn, expanded_upload_path, None, mimetype=mimetype, max_threads=max_threads)
 
 
