@@ -16,6 +16,7 @@ from synapseclient.core.multithread_download.download_threads import (
     PresignedUrlProvider,
     TransferStatus,
 )
+from synapseclient.core.retry import DEFAULT_RETRIES
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseError
@@ -478,14 +479,12 @@ class MultithreadedDownloaderTests(TestCase):
             downloader._get_response_with_retry(mock_presigned_url_provider, start, end)
 
         expected_call_list = [
-            mock.call(
-                presigned_url_info.url, headers={"Range": "bytes=5-42"}, stream=True
-            )
-        ] * download_threads.MAX_RETRIES
+            mock.call(presigned_url_info.url, headers={"Range": "bytes=5-42"})
+        ] * (DEFAULT_RETRIES + 1)
         assert expected_call_list == mock_requests_session.get.call_args_list
 
     @mock.patch.object(download_threads, "_get_thread_session")
-    def test_get_response_with_retry__partial_content_reponse(self, mock_get_thread_session):
+    def test_get_response_with_retry__partial_content_response(self, mock_get_thread_session):
         mock_requests_response = mock.Mock(status_code=206)
         mock_requests_session = mock.create_autospec(requests.Session)
         mock_requests_session.get.return_value = mock_requests_response
@@ -510,8 +509,73 @@ class MultithreadedDownloaderTests(TestCase):
         mock_requests_session.get.assert_called_once_with(
             presigned_url_info.url,
             headers={"Range": "bytes=5-42"},
-            stream=True
         )
+
+    @mock.patch.object(download_threads, "_get_thread_session")
+    def test_get_response_with_retry__connection_reset(self, mock_get_thread_session):
+        """Verify a ConnectionResetError during a part download will be retried"""
+
+        mock_requests_response = mock.Mock(status_code=206)
+        mock_requests_session = mock.create_autospec(requests.Session)
+        mock_requests_session.get.side_effect = [
+            ConnectionResetError(),
+            mock_requests_response
+        ]
+        mock_get_thread_session.return_value = mock_requests_session
+
+        mock_presigned_url_provider = mock.create_autospec(download_threads.PresignedUrlProvider)
+        presigned_url_info = download_threads.PresignedUrlInfo(
+            "foo.txt", "synapse.org/foo.txt",
+            datetime.datetime.utcnow()
+        )
+
+        mock_presigned_url_provider.get_info.return_value = presigned_url_info
+        start = 5
+        end = 42
+
+        mock_syn = mock.Mock(spec=Synapse)
+        mock_executor = mock.Mock(spec=concurrent.futures.Executor)
+        downloader = _MultithreadedDownloader(mock_syn, mock_executor, 5)
+        assert (
+            (start, mock_requests_response) ==
+            downloader._get_response_with_retry(mock_presigned_url_provider, start, end)
+        )
+
+        expected_get_call_args_list = [mock.call(presigned_url_info.url, headers={"Range": "bytes=5-42"})] * 2
+        assert mock_requests_session.get.call_args_list == expected_get_call_args_list
+
+    @mock.patch.object(download_threads, "_get_thread_session")
+    def test_get_response_with_retry__error_status(self, mock_get_thread_session):
+        """Verify an errored status code during a part download will be retried"""
+        mock_requests_error_response = mock.Mock(status_code=500)
+        mock_requests_response = mock.Mock(status_code=206)
+        mock_requests_session = mock.create_autospec(requests.Session)
+        mock_requests_session.get.side_effect = [
+            mock_requests_error_response,
+            mock_requests_response,
+        ]
+        mock_get_thread_session.return_value = mock_requests_session
+
+        mock_presigned_url_provider = mock.create_autospec(download_threads.PresignedUrlProvider)
+        presigned_url_info = download_threads.PresignedUrlInfo(
+            "foo.txt", "synapse.org/foo.txt",
+            datetime.datetime.utcnow()
+        )
+
+        mock_presigned_url_provider.get_info.return_value = presigned_url_info
+        start = 5
+        end = 42
+
+        mock_syn = mock.Mock(spec=Synapse)
+        mock_executor = mock.Mock(spec=concurrent.futures.Executor)
+        downloader = _MultithreadedDownloader(mock_syn, mock_executor, 5)
+        assert (
+            (start, mock_requests_response) ==
+            downloader._get_response_with_retry(mock_presigned_url_provider, start, end)
+        )
+
+        expected_get_call_args_list = [mock.call(presigned_url_info.url, headers={"Range": "bytes=5-42"})] * 2
+        assert mock_requests_session.get.call_args_list == expected_get_call_args_list
 
 
 def test_shared_executor():
