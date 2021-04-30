@@ -45,10 +45,7 @@ intend to use with reticulate. This may be a particular installation of Python, 
 information on how reticulate can be configured to use particular Python environments.
 
 For help installing a reticulate compatible Python, see the reticulate version of the
-`SynapseShinyApp <https://github.com/jkiang13/SynapseShinyApp/tree/reticulate>`__.
-
-..
-    TODO move the above branch into the Sage repo
+`SynapseShinyApp <https://github.com/Sage-Bionetworks/SynapseShinyApp/tree/reticulate>`__.
 
 Once you have ensured you are interacting with your intended Python interpreter, follow the standard synapseclient
 `installation instructions <index.html#installation>`__ to install synapseclient.
@@ -521,7 +518,7 @@ We can update annotations using a view as follows:
     data["class"] <- c("V", "VI")
     syn$store(synapseclient$Table(view$properties$id, data))
 
-    # the change in annotations is reflected in synGetAnnotations():
+    # the change in annotations is reflected in get_annotations():
     syn$get_annotations(file2$properties$id)
 
 Update View's Content
@@ -543,7 +540,8 @@ taken. When using reticulate with synapseclient, session scoped Synapse client o
 that avoid this issue.
 
 See `SynapseShinyApp <https://github.com/Sage-Bionetworks/SynapseShinyApp>`__ for a sample application
-and a discussion of the issue, and the `reticulate <https://github.com/jkiang13/SynapseShinyApp/tree/reticulate>`__ branch for an alternative implementation using reticulate with synapseclient.
+and a discussion of the issue, and the `reticulate <https://github.com/Sage-Bionetworks/SynapseShinyApp/tree/reticulate>`__
+branch for an alternative implementation using reticulate with synapseclient.
 
 ..
     Move the second repo link above to Sage
