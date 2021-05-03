@@ -200,6 +200,6 @@ def test_teams(syn, project, schedule_for_cleanup):
     #         if tries > 0:
     #             time.sleep(sleep_time)
     #             sleep_time *= 2
-    found_team = with_retry(function=lambda: anonymous_syn.getTeam(name), retry_errors=[ValueError],
+    found_team = with_retry(function=lambda: anonymous_syn.getTeam(name),
                             retries=8)
     assert team == found_team
