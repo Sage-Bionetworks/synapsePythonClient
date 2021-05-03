@@ -166,7 +166,7 @@ def test_evaluations(syn, project, schedule_for_cleanup):
     pytest.raises(SynapseHTTPError, syn.getEvaluation, ev)
 
 
-@unittest.skip(reason='Unstable timing, particularly on dev stack, SYNPY-816')
+# @unittest.skip(reason='Unstable timing, particularly on dev stack, SYNPY-816')
 def test_teams(syn, project, schedule_for_cleanup):
     name = "My Uniquely Named Team " + str(uuid.uuid4())
     team = syn.store(Team(name=name, description="A fake team for testing..."))
@@ -200,5 +200,6 @@ def test_teams(syn, project, schedule_for_cleanup):
     #         if tries > 0:
     #             time.sleep(sleep_time)
     #             sleep_time *= 2
-    found_team = with_retry(function=lambda: anonymous_syn.getTeam(42), retry_exceptions=[ValueError], retries=8)
+    found_team = with_retry(function=lambda: anonymous_syn.getTeam(name),
+                            retries=5)
     assert team == found_team

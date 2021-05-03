@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 
-from synapseclient.core.retry import with_retry
+from synapseclient.core.retry import with_retry, with_retry_network
 from synapseclient.core.exceptions import SynapseError
 
 
@@ -13,12 +13,12 @@ def test_with_retry():
 
     # -- No failures --
     response.status_code.__eq__.side_effect = lambda x: x == 250
-    with_retry(function, verbose=True, **retryParams)
+    with_retry_network(function, verbose=True, **retryParams)
     assert function.call_count == 1
 
     # -- Always fail --
     response.status_code.__eq__.side_effect = lambda x: x == 503
-    with_retry(function, verbose=True, **retryParams)
+    with_retry_network(function, verbose=True, **retryParams)
     assert function.call_count == 1 + 4
 
     # -- Fail then succeed --
@@ -30,7 +30,7 @@ def test_with_retry():
             return count != 3
         return x == 503
     response.status_code.__eq__.side_effect = theCharm
-    with_retry(function, verbose=True, **retryParams)
+    with_retry_network(function, verbose=True, **retryParams)
     assert function.call_count == 1 + 4 + 3
 
     # -- Retry with an error message --
@@ -41,7 +41,7 @@ def test_with_retry():
     response.headers.__contains__.side_effect = lambda x: x == 'content-type'
     response.headers.get.side_effect = lambda x, default_value: "application/json" if x == 'content-type' else None
     response.json.return_value = {"reason": retryErrorMessages[0]}
-    with_retry(function, **retryParams)
+    with_retry_network(function, **retryParams)
     assert response.headers.get.called
     assert function.call_count == 1 + 4 + 3 + 4
 

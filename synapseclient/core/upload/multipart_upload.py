@@ -25,7 +25,7 @@ import threading
 import time
 from typing import List, Mapping
 
-from synapseclient.core.retry import with_retry
+from synapseclient.core.retry import with_retry_network
 from synapseclient.core import pool_provider
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
@@ -238,7 +238,7 @@ class UploadAttempt:
                 return session.put(part_url, body, headers=signed_headers)
             try:
                 # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
-                response = with_retry(put_fn, retry_exceptions=[requests.exceptions.ConnectionError])
+                response = with_retry_network(put_fn, retry_exceptions=[requests.exceptions.ConnectionError])
                 _raise_for_status(response)
 
                 # completed upload part to s3 successfully
