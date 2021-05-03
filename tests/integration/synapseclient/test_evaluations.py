@@ -5,7 +5,7 @@ import uuid
 import random
 
 import pytest
-import unittest
+# import unittest
 
 from synapseclient import Evaluation, File, SubmissionViewSchema, Synapse, Team
 from synapseclient.core.exceptions import SynapseHTTPError

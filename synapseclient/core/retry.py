@@ -35,9 +35,10 @@ def handle_status_code(response, retry_status_codes, retry_info, logger):
     # retry_info['retry'] = retry
     return retry
 
+
 def with_retry_network(function, verbose=False,
-               retry_status_codes=[429, 500, 502, 503, 504], retry_errors=[], retry_exceptions=[],
-               retries=3, wait=1, back_off=2, max_wait=30):
+                       retry_status_codes=[429, 500, 502, 503, 504], retry_errors=[], retry_exceptions=[],
+                       retries=3, wait=1, back_off=2, max_wait=30):
 
     return with_retry(function, handle_status_code, verbose=verbose, retry_status_codes=retry_status_codes,
                       retry_errors=retry_errors, retry_exceptions=retry_exceptions, retries=retries, wait=wait,
@@ -119,7 +120,8 @@ def with_retry(function, retry_evaluator=None, verbose=False,
         # if retries >= 0 and retry_info['retry']:
         #     randomized_wait = wait*random.uniform(0.5, 1.5)
         #     logger.debug(('total wait time {total_wait:5.0f} seconds\n '
-        #                   '... Retrying in {wait:5.1f} seconds...'.format(total_wait=total_wait, wait=randomized_wait)))
+        #                   '... Retrying in {wait:5.1f} seconds...'.format(total_wait=total_wait,
+        #                   wait=randomized_wait)))
         #     total_wait += randomized_wait
         #     doze(randomized_wait)
         #     wait = min(max_wait, wait*back_off)
@@ -145,6 +147,7 @@ def _retry(retry_info, logger):
         retry_info['wait'] = min(retry_info['max_wait'], retry_info['wait'] * retry_info['back_off'])
         return True
     return False
+
 
 def _get_message(response):
     """
