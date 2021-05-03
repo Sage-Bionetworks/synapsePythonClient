@@ -94,7 +94,7 @@ from synapseclient.core.version_check import version_check
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
     find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
-from synapseclient.core.retry import with_retry
+from synapseclient.core.retry import with_retry_network
 from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
@@ -1973,7 +1973,7 @@ class Synapse(object):
 
                 # pass along synapse auth credentials only if downloading directly from synapse
                 auth = self.credentials if self._is_synapse_uri(url) else None
-                response = with_retry(
+                response = with_retry_network(
                     lambda: self._requests_session.get(
                         url,
                         headers=self._generate_headers(range_header),
@@ -3855,7 +3855,7 @@ class Synapse(object):
 
         auth = kwargs.pop('auth', self.credentials)
         requests_method_fn = getattr(requests_session, method)
-        response = with_retry(
+        response = with_retry_network(
             lambda: requests_method_fn(
                 uri,
                 data=data,
