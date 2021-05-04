@@ -5,7 +5,7 @@ from synapseclient.core.retry import with_retry, with_retry_network
 from synapseclient.core.exceptions import SynapseError
 
 
-def test_with_retry():
+def test_with_retry_network():
     retryParams = {"retries": 3, "wait": 0}
     response = MagicMock()
     function = MagicMock()
@@ -72,3 +72,7 @@ def test_with_retry__no_status_code():
 
     response = with_retry(fn, retry_exceptions=[ValueError])
     assert 2 == response
+
+
+# def test_
+
