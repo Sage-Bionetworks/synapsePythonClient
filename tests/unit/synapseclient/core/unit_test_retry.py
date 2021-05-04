@@ -72,7 +72,3 @@ def test_with_retry__no_status_code():
 
     response = with_retry(fn, retry_exceptions=[ValueError])
     assert 2 == response
-
-
-# def test_
-

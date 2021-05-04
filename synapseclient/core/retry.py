@@ -134,8 +134,7 @@ def with_retry(function, retry_evaluator=None, verbose=False, retry_errors=[], r
         if retries >= 0 and retry:
             randomized_wait = wait*random.uniform(0.5, 1.5)
             logger.debug(('total wait time {total_wait:5.0f} seconds\n '
-                          '... Retrying in {wait:5.1f} seconds...'.format(total_wait=total_wait,
-                          wait=randomized_wait)))
+                          '... Retrying in {wait:5.1f} seconds...'.format(total_wait=total_wait, wait=randomized_wait)))
             total_wait += randomized_wait
             doze(randomized_wait)
             wait = min(max_wait, wait*back_off)
