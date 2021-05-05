@@ -53,9 +53,14 @@ def test_with_retry_network():
     def foo():
         raise SynapseError("Bar")
     function.side_effect = foo
-    pytest.raises(SynapseError, with_retry, function, **retryParams)
-    assert function.call_count == 1 + 4 + 3 + 4 + 1
+    # since users didn't pass in any exception so the retry method will retry 3 times
+    pytest.raises(SynapseError, with_retry_network, function, **retryParams)
+    assert function.call_count == 1 + 4 + 3 + 4 + 4
 
+    # since users pass in sepecific exception so the retry method won't retru if meet other exception
+    retryParams = {"retries": 3, "wait": 0, "retry_exceptions": [ValueError]}
+    pytest.raises(SynapseError, with_retry_network, function, **retryParams)
+    assert function.call_count == 1 + 4 + 3 + 4 + 4 + 1
 
 @pytest.mark.parametrize('values', (
     None,
