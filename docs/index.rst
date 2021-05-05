@@ -15,6 +15,7 @@ Articles
    Views
    Upload
    S3Storage
+   reticulate
 
 =========
 Reference

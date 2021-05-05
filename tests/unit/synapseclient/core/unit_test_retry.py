@@ -1,3 +1,5 @@
+from requests import Response
+
 import pytest
 from unittest.mock import MagicMock
 
@@ -53,6 +55,49 @@ def test_with_retry_network():
     function.side_effect = foo
     pytest.raises(SynapseError, with_retry, function, **retryParams)
     assert function.call_count == 1 + 4 + 3 + 4 + 1
+
+
+@pytest.mark.parametrize('values', (
+    None,
+    [],
+    tuple(),
+))
+def test_with_retry__empty_status_codes(values):
+    """Verify that passing some Falsey values for the various sequence args is ok"""
+    response = MagicMock(spec=Response)
+    response.status_code = 200
+
+    fn = MagicMock()
+    fn.return_value = response
+
+    # no unexpected exceptions etc should be raised
+    returned_response = with_retry_network(
+        fn,
+        retry_status_codes=values,
+        expected_status_codes=values,
+        retry_exceptions=values,
+        retry_errors=values,
+    )
+    assert returned_response == response
+
+
+def test_with_retry__expected_status_code():
+    """Verify using retry expected_status_codes"""
+
+    non_matching_response = MagicMock(spec=Response)
+    non_matching_response.status_code = 200
+
+    matching_response = MagicMock(spec=Response)
+    matching_response.status_code = 201
+
+    fn = MagicMock()
+    fn.side_effect = [
+        non_matching_response,
+        matching_response,
+    ]
+
+    response = with_retry_network(fn, expected_status_codes=[201])
+    assert response == matching_response
 
 
 def test_with_retry__no_status_code():

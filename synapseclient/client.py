@@ -94,7 +94,12 @@ from synapseclient.core.version_check import version_check
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
     find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
-from synapseclient.core.retry import with_retry_network
+from synapseclient.core.retry import (
+    with_retry_network,
+    DEFAULT_RETRY_STATUS_CODES,
+    RETRYABLE_CONNECTION_ERRORS,
+    RETRYABLE_CONNECTION_EXCEPTIONS,
+)
 from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
@@ -127,12 +132,9 @@ MAX_THREADS_CAP = 128
 
 # Defines the standard retry policy applied to the rest methods
 # The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
-STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 500, 502, 503, 504],
-                         "retry_errors": ["proxy error", "slow down", "timeout", "timed out",
-                                          "connection reset by peer", "unknown ssl protocol error",
-                                          "couldn't connect to host", "slowdown", "try again",
-                                          "connection reset by peer"],
-                         "retry_exceptions": ["ConnectionError", "Timeout", "timeout", "ChunkedEncodingError"],
+STANDARD_RETRY_PARAMS = {"retry_status_codes": DEFAULT_RETRY_STATUS_CODES,
+                         "retry_errors": RETRYABLE_CONNECTION_ERRORS,
+                         "retry_exceptions": RETRYABLE_CONNECTION_EXCEPTIONS,
                          "retries": 60,  # Retries for up to about 30 minutes
                          "wait": 1,
                          "max_wait": 30,
@@ -907,7 +909,8 @@ class Synapse(object):
             if downloadPath is None or not os.path.exists(downloadPath):
                 return
 
-        entity.path = downloadPath
+        # converts the path format from forward slashes back to backward slashes on Windows
+        entity.path = os.path.normpath(downloadPath)
         entity.files = [os.path.basename(downloadPath)]
         entity.cacheDir = os.path.dirname(downloadPath)
 
@@ -996,7 +999,15 @@ class Synapse(object):
         # _synapse_store hook
         # for objects that know how to store themselves
         if hasattr(obj, '_synapse_store'):
-            return obj._synapse_store(self)
+            obj = obj._synapse_store(self)
+            return self._apply_provenance(
+                obj,
+                activity=activity,
+                used=used,
+                executed=executed,
+                activityName=activityName,
+                activityDescription=activityDescription,
+            )
 
         # Handle all non-Entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
@@ -1152,6 +1163,30 @@ class Synapse(object):
             annotations = self.set_annotations(Annotations(properties['id'], properties['etag'], annotations))
             properties['etag'] = annotations.etag
 
+        properties = self._apply_provenance(
+            properties,
+            activity=activity,
+            used=used,
+            executed=executed,
+            activityName=activityName,
+            activityDescription=activityDescription,
+        )
+
+        # Return the updated Entity object
+        entity = Entity.create(properties, annotations, local_state)
+        return self.get(entity, downloadFile=False)
+
+    def _apply_provenance(
+        self,
+        entity,
+        activity=None,
+        used=None,
+        executed=None,
+        activityName=None,
+        activityDescription=None
+    ):
+        # apply any provenance passed to via the store method to the entity
+
         # If the parameters 'used' or 'executed' are given, create an Activity object
         if used or executed:
             if activity is not None:
@@ -1163,14 +1198,12 @@ class Synapse(object):
 
         # If we have an Activity, set it as the Entity's provenance record
         if activity:
-            self.setProvenance(properties, activity)
+            self.setProvenance(entity, activity)
 
             # 'etag' has changed, so get the new Entity
-            properties = self._getEntity(properties)
+            entity = self._getEntity(entity)
 
-        # Return the updated Entity object
-        entity = Entity.create(properties, annotations, local_state)
-        return self.get(entity, downloadFile=False)
+        return entity
 
     def _createAccessRequirementIfNone(self, entity):
         """
@@ -3187,7 +3220,7 @@ class Synapse(object):
         :param label:  Optional snapshot label.
         :param activity:  Optional activity ID applied to snapshot version.
         :param wait: True if this method should return the snapshot version after waiting for any necessary
-                        asynchronous table updates to complete. If False this method will return return
+                        asynchronous table updates to complete. If False this method will return
                         as soon as any updates are initiated.
         :return: the snapshot version number if wait=True, None if wait=False
         """

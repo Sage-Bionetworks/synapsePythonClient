@@ -36,6 +36,7 @@ from synapseclient.core.exceptions import (
     SynapseFileNotFoundError,
     SynapseHTTPError,
     SynapseMd5MismatchError,
+    SynapseProvenanceError,
     SynapseUnmetAccessRestrictions,
 )
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME, SILENT_LOGGER_NAME
@@ -2423,6 +2424,82 @@ def test_store__existing_no_update(syn):
 
         # should not have attempted an update
         assert not mock_updatentity.called
+
+
+def test_store_self_stored_obj__provenance_applied(syn):
+    """Verify that any object with its own _synapse_store mechanism (e.g. a table) will have
+    any passed provenance applied"""
+
+    obj = Mock()
+    del obj._before_synapse_store
+    obj._synapse_store = lambda x: x
+
+    activity_kwargs = {
+        'activity': MagicMock(spec=synapseclient.Activity),
+        'activityName': 'test name',
+        'activityDescription': 'test description',
+        'used': ['syn123'],
+        'executed': ['syn456'],
+    }
+
+    with patch.object(syn, '_apply_provenance') as mock_apply_provenance:
+        stored = syn.store(obj, **activity_kwargs)
+        assert mock_apply_provenance.called_once_with(obj, **activity_kwargs)
+        assert stored == mock_apply_provenance.return_value
+
+
+def test_apply_provenance__duplicate_args(syn):
+    """Verify that a SynapseProvenanceError is raised if both used/executed and an Activity is passed"""
+    with pytest.raises(SynapseProvenanceError):
+        syn._apply_provenance(
+            Mock(),
+            activity=MagicMock(spec=synapseclient.Activity),
+            used=['syn123'],
+            executed=['syn456'],
+            activityName='test name',
+            activityDescription='test description',
+        )
+
+
+def test_apply_provenance__activity(syn):
+    """Verify _apply_provenance behavior when an Activity is passed"""
+
+    obj = Mock()
+    activity = synapseclient.Activity(used=['syn123'])
+    with patch.object(syn, 'setProvenance') as mock_set_provenance, \
+            patch.object(syn, '_getEntity') as mock_get_entity:
+        result = syn._apply_provenance(obj, activity=activity)
+
+        mock_set_provenance.assert_called_once_with(obj, activity)
+        mock_get_entity.assert_called_once_with(obj)
+        assert result is mock_get_entity.return_value
+
+
+def test_apply_provenance__used_executed(syn):
+    """Verify _apply_provenance behavior with used and executed args"""
+
+    obj = Mock()
+
+    used = ['syn123']
+    executed = ['syn456']
+    name = 'test name'
+    description = 'test description'
+
+    expected_activity = synapseclient.Activity(used=used, executed=executed, name=name, description=description)
+
+    with patch.object(syn, 'setProvenance') as mock_set_provenance, \
+            patch.object(syn, '_getEntity') as mock_get_entity:
+        result = syn._apply_provenance(
+            obj,
+            used=used,
+            executed=executed,
+            activityName=name,
+            activityDescription=description
+        )
+
+        mock_set_provenance.assert_called_once_with(obj, expected_activity)
+        mock_get_entity.assert_called_once_with(obj)
+        assert result is mock_get_entity.return_value
 
 
 def test_get_submission_with_annotations(syn):

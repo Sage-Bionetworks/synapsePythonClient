@@ -173,7 +173,7 @@ def test_syncFromSynapse(test_state):
 
     assert len(output) == len(uploaded_paths)
     for f in output:
-        assert f.path in uploaded_paths
+        assert utils.normalize_path(f.path) in uploaded_paths
 
 
 def test_syncFromSynapse__children_contain_non_file(test_state):
@@ -240,7 +240,7 @@ def test_syncFromSynapse_Links(test_state):
 
     assert len(output) == len(uploaded_paths)
     for f in output:
-        assert f.path in uploaded_paths
+        assert utils.normalize_path(f.path) in uploaded_paths
 
 
 def test_write_manifest_data__unicode_characters_in_rows(test_state):
