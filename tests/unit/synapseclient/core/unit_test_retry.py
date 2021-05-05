@@ -62,6 +62,7 @@ def test_with_retry_network():
     pytest.raises(SynapseError, with_retry_network, function, **retryParams)
     assert function.call_count == 1 + 4 + 3 + 4 + 4 + 1
 
+
 @pytest.mark.parametrize('values', (
     None,
     [],
