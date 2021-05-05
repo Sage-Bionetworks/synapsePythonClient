@@ -180,18 +180,6 @@ def test_teams(syn, project, schedule_for_cleanup):
     assert found is not None, "Couldn't find user {} in team".format(p.userName)
 
     # needs to be retried 'cause appending to the search index is asynchronous
-    # tries = 8
-    # sleep_time = 1
-    # found_team = None
-    # while tries > 0:
-    #     try:
-    #         found_team = anonymous_syn.getTeam(name)
-    #         break
-    #     except ValueError:
-    #         tries -= 1
-    #         if tries > 0:
-    #             time.sleep(sleep_time)
-    #             sleep_time *= 2
     found_team = with_retry(function=lambda: anonymous_syn.getTeam(name),
                             retries=8)
     assert team == found_team

@@ -69,7 +69,7 @@ def with_retry_network(function, verbose=False,
             # special case for message throttling
             elif 'Please slow down.  You may send a maximum of 10 message' in response:
                 logger.debug("retrying " + response_message)
-                raise SynapseThrottling(response_message, wait=16)
+                raise _SynapseThrottlingException(response_message, wait=16)
         return retry
     return with_retry(function, _handle_status_code, verbose=verbose,
                       retry_errors=retry_errors, retry_exceptions=retry_exceptions, retries=retries, wait=wait,
@@ -115,7 +115,7 @@ def with_retry(function, retry_evaluator=None, verbose=False, retry_errors=[], r
             response = function()
             if retry_evaluator:
                 retry = retry_evaluator(response)
-        except SynapseThrottling as throttling_ex:
+        except _SynapseThrottlingException as throttling_ex:
             retry = True
             wait = throttling_ex.wait
         except Exception as ex:
@@ -127,10 +127,11 @@ def with_retry(function, retry_evaluator=None, verbose=False, retry_errors=[], r
 
         # Check if we got a retry-able exception
         if exc is not None:
-            if (exc.__class__.__name__ in retry_exceptions or
-                    exc.__class__ in retry_exceptions or
-                    not retry_errors or
-                    any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors])):
+            if not retry_exceptions or (
+                    (exc.__class__.__name__ in retry_exceptions or
+                     exc.__class__ in retry_exceptions or
+                     any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors]))
+            ):
                 retry = True
                 logger.debug("retrying exception: " + str(exc))
 
@@ -177,7 +178,7 @@ def _get_message(response):
         return None
 
 
-class SynapseThrottling(Exception):
+class _SynapseThrottlingException(Exception):
     def __init__(self, message, wait):
         super().__init__(message)
         self.wait = wait

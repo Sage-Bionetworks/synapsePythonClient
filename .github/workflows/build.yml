@@ -134,7 +134,6 @@ jobs:
 
              # use loadscope to avoid issues running tests concurrently that share scoped fixtures
             pytest -sv tests/integration -n auto --dist loadscope
-            # pytest -sv tests/integration/synapseclient/test_evaluations.py::test_teams -n auto --dist loadscope
           fi
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
