@@ -40,7 +40,7 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
 
 def with_retry_network(function, verbose=False,
                        retry_status_codes=[429, 500, 502, 503, 504], expected_status_codes=[], retry_errors=[],
-                       retry_exceptions=[], retries=3, wait=1, back_off=2, max_wait=30):
+                       retry_exceptions=None, retries=3, wait=1, back_off=2, max_wait=30):
     logger = _get_logger(verbose)
 
     def _handle_status_code(response):
@@ -76,7 +76,7 @@ def with_retry_network(function, verbose=False,
                       back_off=back_off, max_wait=max_wait)
 
 
-def with_retry(function, retry_evaluator=None, verbose=False, retry_errors=[], retry_exceptions=[],
+def with_retry(function, retry_evaluator=None, verbose=False, retry_errors=[], retry_exceptions=None,
                retries=DEFAULT_RETRIES, wait=DEFAULT_WAIT, back_off=DEFAULT_BACK_OFF, max_wait=DEFAULT_MAX_WAIT):
     """
     Retries the given function under certain conditions.
@@ -127,7 +127,9 @@ def with_retry(function, retry_evaluator=None, verbose=False, retry_errors=[], r
 
         # Check if we got a retry-able exception
         if exc is not None:
-            if not retry_exceptions or (
+            # if users didn't pass in the retry_exceptions then it's None and we will retry no matter what exception
+            # occurs, otherwise if users pass in the empty list, then no exception will trigger retry.
+            if retry_exceptions is None or (
                     (exc.__class__.__name__ in retry_exceptions or
                      exc.__class__ in retry_exceptions or
                      any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors]))

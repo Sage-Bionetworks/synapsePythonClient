@@ -57,8 +57,8 @@ def test_with_retry_network():
     pytest.raises(SynapseError, with_retry_network, function, **retryParams)
     assert function.call_count == 1 + 4 + 3 + 4 + 4
 
-    # since users pass in sepecific exception so the retry method won't retru if meet other exception
-    retryParams = {"retries": 3, "wait": 0, "retry_exceptions": [ValueError]}
+    # since users pass in exception which is empty list so the retry method won't retry
+    retryParams = {"retries": 3, "wait": 0, "retry_exceptions": []}
     pytest.raises(SynapseError, with_retry_network, function, **retryParams)
     assert function.call_count == 1 + 4 + 3 + 4 + 4 + 1
 
