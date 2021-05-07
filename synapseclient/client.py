@@ -95,6 +95,7 @@ from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
     find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
 from synapseclient.core.retry import (
+    with_retry,
     with_retry_network,
     DEFAULT_RETRY_STATUS_CODES,
     RETRYABLE_CONNECTION_ERRORS,
@@ -104,7 +105,6 @@ from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.upload_functions import upload_file_handle, upload_synapse_s3
-from synapseclient.core.dozer import doze
 
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint': 'https://repo-prod.prod.sagebase.org/repo/v1',
@@ -3129,36 +3129,75 @@ class Synapse(object):
         async_job_id = self.restPOST(uri+'/start', body=json.dumps(request), endpoint=endpoint)
 
         # http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
-        sleep = self.table_query_sleep
-        start_time = time.time()
-        lastMessage, lastProgress, lastTotal, progressed = '', 0, 1, False
-        while time.time()-start_time < self.table_query_timeout:
-            result = self.restGET(uri+'/get/%s' % async_job_id['token'], endpoint=endpoint)
-            if result.get('jobState', None) == 'PROCESSING':
-                progressed = True
-                message = result.get('progressMessage', lastMessage)
-                progress = result.get('progressCurrent', lastProgress)
-                total = result.get('progressTotal', lastTotal)
-                if message != '':
-                    self._print_transfer_progress(progress, total, message, isBytes=False)
-                # Reset the time if we made progress (fix SYNPY-214)
-                if message != lastMessage or lastProgress != progress:
-                    start_time = time.time()
-                    lastMessage, lastProgress, lastTotal = message, progress, total
-                sleep = min(self.table_query_max_sleep, sleep * self.table_query_backoff)
-                doze(sleep)
-            else:
-                break
-        else:
-            raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' % (time.time()-start_time))
+        # sleep = self.table_query_sleep
+        # start_time = time.time()
+        # lastMessage, lastProgress, lastTotal, progressed = '', 0, 1, False
+
+        retry_info = {
+            'lastMessage': '',
+            'lastProgress': 0,
+            'lastTotal': 1,
+            'progressed': False,
+            'start_time': time.time(),
+            'sleep': self.table_query_sleep
+        }
+
+        result = with_retry(lambda: self.restGET(uri + '/get/%s' % async_job_id['token'], endpoint=endpoint),
+                            self._waitForAsync_evaluator, evaluator_info=retry_info,
+                            wait=self.table_query_sleep, back_off=self.table_query_backoff,
+                            max_wait=self.table_query_max_sleep)
+
+        # while time.time()-start_time < self.table_query_timeout:
+        #     result = self.restGET(uri+'/get/%s' % async_job_id['token'], endpoint=endpoint)
+        #     if result.get('jobState', None) == 'PROCESSING':
+        #         progressed = True
+        #         message = result.get('progressMessage', lastMessage)
+        #         progress = result.get('progressCurrent', lastProgress)
+        #         total = result.get('progressTotal', lastTotal)
+        #         if message != '':
+        #             self._print_transfer_progress(progress, total, message, isBytes=False)
+        #         # Reset the time if we made progress (fix SYNPY-214)
+        #         if message != lastMessage or lastProgress != progress:
+        #             start_time = time.time()
+        #             lastMessage, lastProgress, lastTotal = message, progress, total
+        #         sleep = min(self.table_query_max_sleep, sleep * self.table_query_backoff)
+        #         doze(sleep)
+        #     else:
+        #         break
+        # else:
+        #     raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' % (time.time()-start_time))
         if result.get('jobState', None) == 'FAILED':
             raise SynapseError(
                 result.get('errorMessage', None) + '\n' + result.get('errorDetails', None),
                 asynchronousJobStatus=result
             )
-        if progressed:
-            self._print_transfer_progress(total, total, message, isBytes=False)
+        if retry_info['progressed']:
+            self._print_transfer_progress(retry_info['lastTotal'], retry_info['lastTotal'], retry_info['lastMessage'],
+                                          isBytes=False)
         return result
+
+    def _waitForAsync_evaluator(self, response, retry_info):
+        if time.time() - retry_info['start_time'] >= self.table_query_timeout:
+            raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' %
+                                      (time.time() - retry_info['start_time']))
+        if response.get('jobState', None) == 'PROCESSING':
+            retry_info['progressed'] = True
+            message = response.get('progressMessage', retry_info['lastMessage'])
+            progress = response.get('progressCurrent', retry_info['lastProgress'])
+            total = response.get('progressTotal', retry_info['lastTotal'])
+            if message != '':
+                self._print_transfer_progress(progress, total, message, isBytes=False)
+            # Reset the time if we made progress (fix SYNPY-214)
+            if message != retry_info['lastMessage'] or retry_info['lastProgress'] != progress:
+                retry_info['start_time'] = time.time()
+                retry_info['lastMessage'] = message
+                retry_info['lastProgress'] = progress
+                retry_info['lastTotal'] = total
+            # sleep = min(self.table_query_max_sleep, sleep * self.table_query_backoff)
+            # doze(sleep)
+            return True
+        else:
+            return False
 
     def getColumn(self, id):
         """

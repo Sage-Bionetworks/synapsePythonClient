@@ -43,7 +43,11 @@ def with_retry_network(function, verbose=False,
                        retry_exceptions=None, retries=3, wait=1, back_off=2, max_wait=30):
     logger = _get_logger(verbose)
 
-    def _handle_status_code(response):
+    retry_info = {
+        'wait': wait,
+    }
+
+    def _handle_status_code(response, evaluator_info):
         retry = False
         # Check if we got a retry-able error
         if response is None or not hasattr(response, 'status_code'):
@@ -57,9 +61,9 @@ def with_retry_network(function, verbose=False,
             logger.debug("retrying on status code: %s" % str(response.status_code))
             # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
             logger.debug(str(response_message))
-            # if (response.status_code == 429) and (wait > 10):
-            #     logger.warning('%s...\n' % response_message)
-            #     logger.warning('Retrying in %i seconds' % wait)
+            if (response.status_code == 429) and (evaluator_info['wait'] > 10):
+                logger.warning('%s...\n' % response_message)
+                logger.warning('Retrying in %i seconds' % evaluator_info['wait'])
         elif response.status_code not in range(200, 299):
             # For all other non 200 messages look for retryable errors in the body or reason field
             response_message = _get_message(response)
@@ -71,13 +75,13 @@ def with_retry_network(function, verbose=False,
                 logger.debug("retrying " + response_message)
                 raise _SynapseThrottlingException(response_message, wait=16)
         return retry
-    return with_retry(function, _handle_status_code, verbose=verbose,
+    return with_retry(function, _handle_status_code, evaluator_info=retry_info, verbose=verbose,
                       retry_errors=retry_errors, retry_exceptions=retry_exceptions, retries=retries, wait=wait,
                       back_off=back_off, max_wait=max_wait)
 
 
-def with_retry(function, retry_evaluator=None, verbose=False, retry_errors=[], retry_exceptions=None,
-               retries=DEFAULT_RETRIES, wait=DEFAULT_WAIT, back_off=DEFAULT_BACK_OFF, max_wait=DEFAULT_MAX_WAIT):
+def with_retry(function, retry_evaluator=None, evaluator_info=None, verbose=False, retry_errors=[],
+               retry_exceptions=None, retries=DEFAULT_RETRIES, wait=DEFAULT_WAIT, back_off=DEFAULT_BACK_OFF, max_wait=DEFAULT_MAX_WAIT):
     """
     Retries the given function under certain conditions.
 
@@ -114,7 +118,7 @@ def with_retry(function, retry_evaluator=None, verbose=False, retry_errors=[], r
         try:
             response = function()
             if retry_evaluator:
-                retry = retry_evaluator(response)
+                retry = retry_evaluator(response, evaluator_info)
         except _SynapseThrottlingException as throttling_ex:
             retry = True
             wait = throttling_ex.wait
