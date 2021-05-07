@@ -81,7 +81,8 @@ def with_retry_network(function, verbose=False,
 
 
 def with_retry(function, retry_evaluator=None, evaluator_info=None, verbose=False, retry_errors=[],
-               retry_exceptions=None, retries=DEFAULT_RETRIES, wait=DEFAULT_WAIT, back_off=DEFAULT_BACK_OFF, max_wait=DEFAULT_MAX_WAIT):
+               retry_exceptions=None, retries=DEFAULT_RETRIES, wait=DEFAULT_WAIT, back_off=DEFAULT_BACK_OFF,
+               max_wait=DEFAULT_MAX_WAIT):
     """
     Retries the given function under certain conditions.
 
