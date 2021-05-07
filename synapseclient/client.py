@@ -3143,7 +3143,7 @@ class Synapse(object):
         }
 
         result = with_retry(lambda: self.restGET(uri + '/get/%s' % async_job_id['token'], endpoint=endpoint),
-                            self._waitForAsync_evaluator, evaluator_info=retry_info,
+                            self._waitForAsync_evaluator, evaluator_info=retry_info, retries=10,
                             wait=self.table_query_sleep, back_off=self.table_query_backoff,
                             max_wait=self.table_query_max_sleep)
 
