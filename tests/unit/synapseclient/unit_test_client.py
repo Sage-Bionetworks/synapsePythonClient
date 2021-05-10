@@ -489,6 +489,7 @@ class TestDownloadFileHandle:
             )
         assert str(ex.value) == 'Something wrong when downloading syn123 in try block!'
 
+
 class TestPrivateSubmit:
 
     @pytest.fixture(autouse=True, scope='function')
