@@ -989,7 +989,7 @@ def perform_main(args, syn):
                 raise
             else:
                 sys.stderr.write(utils._synapse_error_msg(ex))
-                sys.exit(127)
+                sys.exit(1)
     else:
         # if no command provided print out help and quit
         # if we require python 3.7 or above, we can use required argument tp add_subparsers instead
