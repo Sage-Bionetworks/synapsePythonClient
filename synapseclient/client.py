@@ -3193,8 +3193,6 @@ class Synapse(object):
                 retry_info['lastMessage'] = message
                 retry_info['lastProgress'] = progress
                 retry_info['lastTotal'] = total
-            # sleep = min(self.table_query_max_sleep, sleep * self.table_query_backoff)
-            # doze(sleep)
             return True
         else:
             return False
