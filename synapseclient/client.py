@@ -3196,7 +3196,6 @@ class Synapse(object):
                                           isBytes=False)
         return result
 
-
     def getColumn(self, id):
         """
         Gets a Column object from Synapse by ID.
