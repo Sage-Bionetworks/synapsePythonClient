@@ -3142,10 +3142,30 @@ class Synapse(object):
             'sleep': self.table_query_sleep
         }
 
+        def _waitForAsync_evaluator(response):
+            if time.time() - retry_info['start_time'] >= self.table_query_timeout:
+                raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' %
+                                          (time.time() - retry_info['start_time']))
+            if response.get('jobState', None) == 'PROCESSING':
+                retry_info['progressed'] = True
+                message = response.get('progressMessage', retry_info['lastMessage'])
+                progress = response.get('progressCurrent', retry_info['lastProgress'])
+                total = response.get('progressTotal', retry_info['lastTotal'])
+                if message != '':
+                    self._print_transfer_progress(progress, total, message, isBytes=False)
+                # Reset the time if we made progress (fix SYNPY-214)
+                if message != retry_info['lastMessage'] or retry_info['lastProgress'] != progress:
+                    retry_info['start_time'] = time.time()
+                    retry_info['lastMessage'] = message
+                    retry_info['lastProgress'] = progress
+                    retry_info['lastTotal'] = total
+                return True
+            else:
+                return False
+
         result = with_retry(lambda: self.restGET(uri + '/get/%s' % async_job_id['token'], endpoint=endpoint),
-                            self._waitForAsync_evaluator, evaluator_info=retry_info, retries=10,
-                            wait=self.table_query_sleep, back_off=self.table_query_backoff,
-                            max_wait=self.table_query_max_sleep)
+                            _waitForAsync_evaluator, retries=10, wait=self.table_query_sleep,
+                            back_off=self.table_query_backoff, max_wait=self.table_query_max_sleep)
 
         # while time.time()-start_time < self.table_query_timeout:
         #     result = self.restGET(uri+'/get/%s' % async_job_id['token'], endpoint=endpoint)
@@ -3176,26 +3196,6 @@ class Synapse(object):
                                           isBytes=False)
         return result
 
-    def _waitForAsync_evaluator(self, response, retry_info):
-        if time.time() - retry_info['start_time'] >= self.table_query_timeout:
-            raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' %
-                                      (time.time() - retry_info['start_time']))
-        if response.get('jobState', None) == 'PROCESSING':
-            retry_info['progressed'] = True
-            message = response.get('progressMessage', retry_info['lastMessage'])
-            progress = response.get('progressCurrent', retry_info['lastProgress'])
-            total = response.get('progressTotal', retry_info['lastTotal'])
-            if message != '':
-                self._print_transfer_progress(progress, total, message, isBytes=False)
-            # Reset the time if we made progress (fix SYNPY-214)
-            if message != retry_info['lastMessage'] or retry_info['lastProgress'] != progress:
-                retry_info['start_time'] = time.time()
-                retry_info['lastMessage'] = message
-                retry_info['lastProgress'] = progress
-                retry_info['lastTotal'] = total
-            return True
-        else:
-            return False
 
     def getColumn(self, id):
         """
