@@ -134,7 +134,49 @@ def sync(args, syn):
                                retries=args.retries)
 
 
-def store(args, syn):
+def _recursive_store(args, syn):
+    # Credit for the original design of this function goes to Larsson Omberg
+    # https://gist.github.com/larssono/db35917cf58440fe0b19
+
+    args.file = args.FILE if args.FILE is not None else args.file
+    args.FILE = None
+
+    if args.parentid is None:
+        raise ValueError('You must use --parentId when making a recursive upload.')
+    if not os.path.isdir(args.file):
+        raise ValueError('You can only recursively upload a folder.')
+
+    parents = {args.file: args.parentid}
+    for dirpath, dirnames, filenames in os.walk(args.file):
+        # Add the subfolders
+        for dirname in dirnames:
+            folder_path = os.path.join(dirpath, dirname)
+            create_args = argparse.Namespace()
+            create_args.parentid = parents[dirpath]
+            create_args.name = dirname
+            create_args.type = "Folder"
+            create_args.description = args.description
+            create_args.descriptionFile = args.descriptionFile
+            folder = create(create_args, syn)
+            parents[folder_path] = folder.id
+        # Add the files
+        for filename in filenames:
+            file_path = os.path.join(dirpath, filename)
+            args.file = file_path
+            args.parentid = parents[dirpath]
+            args.name = filename
+            args.type = "File"
+            if os.stat(args.file).st_size > 0:
+                store(args, syn, first_call=False)
+
+
+def store(args, syn, first_call=True):
+
+    # Intercept recursive store command
+    if args.recursive and first_call:
+        _recursive_store(args, syn)
+        return
+
     # If we are storing a fileEntity we need to have id or parentId
     if args.parentid is None and args.id is None and args.file is not None:
         raise ValueError('synapse store requires at least either parentId or id to be specified.')
@@ -177,6 +219,8 @@ def store(args, syn):
         # Need to override the args id parameter
         setattr(args, 'id', entity['id'])
         setAnnotations(args, syn)
+
+    return entity
 
 
 def _create_wiki_description_if_necessary(args, entity, syn):
@@ -288,6 +332,8 @@ def create(args, syn):
 
     _create_wiki_description_if_necessary(args, entity, syn)
     syn.logger.info('Created entity: %s\t%s\n', entity['id'], entity['name'])
+
+    return entity
 
 
 def onweb(args, syn):
@@ -646,7 +692,8 @@ def build_parser():
                                    "(key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
     parser_store.add_argument('--replace', action='store_true', default=False,
                               help='Replace all existing annotations with the given annotations')
-
+    parser_store.add_argument('-r', '--recursive', action='store_true', default=False,
+                              help='Uploads folder to Synapse recursively (compatible with --parentId and not --id).')
     parser_store.add_argument('--file', type=str, help=argparse.SUPPRESS)
     parser_store.add_argument('FILE', nargs='?', type=str,
                               help='file to be added to synapse.')
