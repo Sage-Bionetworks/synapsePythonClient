@@ -1177,6 +1177,53 @@ class TestCsvFileTable:
 
         pd.testing.assert_frame_equal(expected_df, df)
 
+    def test_as_data_frame__boolean_like_string_column(self):
+        # Verify the string type column which store boolean value not convert to Python Boolean type from pandas
+        data = [["1", "John Coltrane", False, "FALSE"],
+                ["2", "Miles Davis", False, "FALSE"],
+                ["3", "Bill Evans", False, "FALSE"],
+                ["4", "Paul Chambers", False, "FALSE"],
+                ["5", "Jimmy Cobb", True, "TRUE"],
+                ["6", "Scott LaFaro", False, "FALSE"],
+                ["7", "Sonny Rollins", True, "TRUE"],
+                ["8", "Kenny Burrel", True, "TRUE"]]
+
+        cols = [Column(id='1', name='Name', columnType='STRING'),
+                Column(id='2', name='IsImportantBool', columnType='BOOLEAN'),
+                Column(id='3', name='IsImportantText', columnType='STRING')]
+
+        schema1 = Schema(id='syn1234', name='Jazz Guys', columns=cols, parent="syn1000001")
+
+        # create CSV file
+        with tempfile.NamedTemporaryFile(delete=False) as temp:
+            filename = temp.name
+
+        with io.open(filename, mode='w', encoding="utf-8", newline='') as temp:
+            writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=str(os.linesep))
+            headers = ['ROW_ID'] + [col.name for col in cols]
+            writer.writerow(headers)
+            for row in data:
+                writer.writerow(row)
+
+        table = Table(schema1, filename)
+        assert isinstance(table, CsvFileTable)
+
+        # need to set column headers to read a CSV file
+        table.setColumnHeaders(
+            [SelectColumn(name="ROW_ID", columnType="STRING")] + [SelectColumn.from_column(col) for col in cols]
+        )
+
+        # test iterator
+        for table_row, expected_row in zip(table, data):
+            assert table_row == expected_row
+
+        # test the boolean-like string column remains as all capital TRUE/FALSE value
+        df = table.asDataFrame()
+        assert list(df['Name']) == [row[1] for row in data]
+        assert list(df['IsImportantBool']) == [row[2] for row in data]
+        assert list(df['IsImportantText']) == [row[3] for row in data]
+        assert df.shape == (8, 4)
+
 
 def test_Row_forward_compatibility():
     row = Row("2, 3, 4", rowId=1, versionNumber=1, etag=None, new_field="new")
