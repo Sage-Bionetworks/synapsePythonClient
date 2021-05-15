@@ -138,42 +138,64 @@ def _recursive_store(args, syn):
     # Credit for the original design of this function goes to Larsson Omberg
     # https://gist.github.com/larssono/db35917cf58440fe0b19
 
-    args.file = args.FILE if args.FILE is not None else args.file
-    args.FILE = None
-
-    if args.parentid is None:
-        raise ValueError('You must use --parentId when making a recursive upload.')
+    # Determine and confirm local root directory
+    args.file, args.FILE = args.FILE if args.FILE else args.file, None
     if not os.path.isdir(args.file):
-        raise ValueError('You can only recursively upload a folder.')
+        raise ValueError('Only folders can be recursively uploaded.')
 
+    # Confirm that target entity on Synapse is a folder
+    if args.parentid is None:
+        raise ValueError('--parentId is required for recursive uploads.')
+    parent = syn.get(args.parentid, downloadFile=False)
+    parent_type = parent.concreteType.split(".")[-1]
+    if not parent_type == "Folder" and not parent_type == "Project":
+        raise ValueError('--parentId must refer to a folder or project.')
+
+    # Some CLI arguments are ignored with --recursive; set to None
+    ignored = ["name", "annotations", "replace", "used", "executed"]
+    if any(getattr(args, x, None) for x in ignored):
+        syn.logger.warning("/".join("--%s" % x for x in ignored) +
+                           ' are ignored when used with --recursive.')
+        for arg in ignored:
+            setattr(args, arg, None)
+
+    # Apply wiki description to top folder only (not nested entities)
+    if args.description or args.descriptionFile:
+        syn.logger.warning('Description only applied to the parent folder.')
+        _descriptionFile_arg_check(args)
+        _create_wiki_description_if_necessary(args, parent, syn)
+        args.description, args.descriptionFile = None, None
+
+    # Create folders and upload files
+    args.recursive = False
     parents = {args.file: args.parentid}
     for dirpath, dirnames, filenames in os.walk(args.file):
         # Add the subfolders
         for dirname in dirnames:
-            folder_path = os.path.join(dirpath, dirname)
-            create_args = argparse.Namespace()
-            create_args.parentid = parents[dirpath]
-            create_args.name = dirname
-            create_args.type = "Folder"
-            create_args.description = args.description
-            create_args.descriptionFile = args.descriptionFile
-            folder = create(create_args, syn)
-            parents[folder_path] = folder.id
+            # Create folder
+            args.path = os.path.join(dirpath, dirname)
+            args.parentid = parents[dirpath]
+            args.name = dirname
+            args.type = "Folder"
+            create(args, syn)
+            # Store Synapse ID for sub-folders/files
+            folder_id = syn.findEntityId(args.name, args.parentid)
+            parents[args.path] = folder_id
         # Add the files
         for filename in filenames:
-            file_path = os.path.join(dirpath, filename)
-            args.file = file_path
+            # Upload/store file
+            args.file = os.path.join(dirpath, filename)
             args.parentid = parents[dirpath]
             args.name = filename
             args.type = "File"
             if os.stat(args.file).st_size > 0:
-                store(args, syn, first_call=False)
+                store(args, syn)
 
 
-def store(args, syn, first_call=True):
+def store(args, syn):
 
     # Intercept recursive store command
-    if args.recursive and first_call:
+    if args.recursive:
         _recursive_store(args, syn)
         return
 
@@ -219,8 +241,6 @@ def store(args, syn, first_call=True):
         # Need to override the args id parameter
         setattr(args, 'id', entity['id'])
         setAnnotations(args, syn)
-
-    return entity
 
 
 def _create_wiki_description_if_necessary(args, entity, syn):
@@ -332,8 +352,6 @@ def create(args, syn):
 
     _create_wiki_description_if_necessary(args, entity, syn)
     syn.logger.info('Created entity: %s\t%s\n', entity['id'], entity['name'])
-
-    return entity
 
 
 def onweb(args, syn):
