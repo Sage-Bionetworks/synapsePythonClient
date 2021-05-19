@@ -353,7 +353,8 @@ def test_pandas_to_table_convert__boolean_data_type(test_df):
                                                                  None)})])
 def test_pandas_to_table_convert__date_data_type(test_df):
     schema = Schema(name="Foo", parent="syn12345")
-    test_df['datetime'] = pd.to_datetime(test_df['datetime'])
+    test_df['datetime1'] = pd.to_datetime(test_df['datetime1'])
+    test_df['datetime2'] = pd.to_datetime(test_df['datetime2'])
     test_table = Table(schema, test_df)
     for col in test_table.headers:
         assert col.columnType == "DATE"
