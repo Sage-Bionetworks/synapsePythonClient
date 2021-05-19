@@ -102,7 +102,9 @@ Using credentials with the awscli
 ---------------------------------
 This example illustrates obtaining STS credentials and using them with the awscli command line tool.
 The first command outputs the credentials as shell commands to execute which will then be picked up
-by subsequent aws cli commands.
+by subsequent aws cli commands. Note that the bucket-owner-full-control ACL is required when putting
+an object via STS credentials. This ensures that the object ownership will be transferred to the
+owner of the AWS bucket.
 
   .. code-block::
 
@@ -116,12 +118,14 @@ by subsequent aws cli commands.
     # if the above are executed in the shell, the awscli will automatically apply them
 
     # e.g. copy a file directly to the bucket using the exported credentials
-    $ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION
+    $ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION --acl bucket-owner-full-control
 
 Using credentials with boto3 in python
 --------------------------------------
 This example illustrates retrieving STS credentials and using them with boto3 within python code,
-in this case to upload a file.
+in this case to upload a file.  Note that the bucket-owner-full-control ACL is required when putting
+an object via STS credentials. This ensures that the object ownership will be transferred to the
+owner of the AWS bucket.
 
   .. code-block::
 
@@ -133,6 +137,7 @@ in this case to upload a file.
         Filename='/path/to/local/file,
         Bucket='my-external-synapse-bucket',
         Key='path/within/bucket/file',
+        ExtraArgs={'ACL': 'bucket-owner-full-control'},
     )
 
 Automatic transfers to/from STS storage locations using boto3 with synapseclient
