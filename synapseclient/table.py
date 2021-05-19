@@ -300,6 +300,7 @@ import abc
 import enum
 import json
 from builtins import zip
+from pandas.api.types import infer_dtype
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -316,6 +317,17 @@ DTYPE_2_TABLETYPE = {'?': 'BOOLEAN',
                      'm': 'INTEGER', 'q': 'INTEGER', 'Q': 'INTEGER',
                      'S': 'STRING', 'U': 'STRING', 'O': 'STRING',
                      'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
+
+# default is STRING, only need to put the non-STRING keys in here
+PANDAS_TABLE_TYPE = {
+    'floating': 'DOUBLE',
+    'decimal': 'DOUBLE',
+    'integer': 'INTEGER',
+    'boolean': 'BOOLEAN',
+    'datetime64': 'DATE',
+    'datetime': 'DATE',
+    'date': 'DATE',
+}
 
 MAX_NUM_TABLE_COLUMNS = 152
 
@@ -409,7 +421,8 @@ def as_table_columns(values):
 
     cols = list()
     for col in df:
-        columnType = DTYPE_2_TABLETYPE[df[col].dtype.char]
+        inferred_type = infer_dtype(df[col], skipna=True)
+        columnType = PANDAS_TABLE_TYPE.get(inferred_type, 'STRING')
         if columnType == 'STRING':
             maxStrLen = df[col].str.len().max()
             if maxStrLen > 1000:
