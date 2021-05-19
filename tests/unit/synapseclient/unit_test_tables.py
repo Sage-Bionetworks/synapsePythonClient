@@ -309,49 +309,47 @@ def test_pandas_to_table_convert__string_data_type(test_df):
         assert col.columnType == "STRING"
 
 
-@pytest.mark.parametrize("test_df", [pd.DataFrame({'float1': (1.0, 2.0, 3.0),
-                                                   'float2': (1.0, 2.0, None)})])
-def test_pandas_to_table_convert__float_data_type(test_df):
+def test_pandas_to_table_convert__float_data_type():
+    test_df = pd.DataFrame({'float1': (1.0, 2.0, 3.0), 'float2': (1.0, 2.0, None)})
     schema = Schema(name="Foo", parent="syn12345")
     test_table = Table(schema, test_df)
     for col in test_table.headers:
         assert col.columnType == "DOUBLE"
 
 
-@pytest.mark.parametrize("test_df", [pd.DataFrame({'double1': (1.99999999999999, 1.00000000000000001, 3.33333333333333),
-                                                   'double2': (1.99999999999999, 1.000000000000000001, None)})])
-def test_pandas_to_table_convert__double_data_type(test_df):
+def test_pandas_to_table_convert__double_data_type():
+    test_df = pd.DataFrame({'double1': (1.99999999999999, 1.00000000000000001, 3.33333333333333),
+                            'double2': (1.99999999999999, 1.000000000000000001, None)})
     schema = Schema(name="Foo", parent="syn12345")
     test_table = Table(schema, test_df)
     for col in test_table.headers:
         assert col.columnType == "DOUBLE"
 
 
-@pytest.mark.parametrize("test_df", [pd.DataFrame({'int1': (1, 2, 3),
-                                                   'int2': (1, 3, 5)})])
-def test_pandas_to_table_convert__integer_data_type(test_df):
+def test_pandas_to_table_convert__integer_data_type():
+    test_df = pd.DataFrame({'int1': (1, 2, 3), 'int2': (1, 3, 5)})
     schema = Schema(name="Foo", parent="syn12345")
     test_table = Table(schema, test_df)
     for col in test_table.headers:
         assert col.columnType == "INTEGER"
 
 
-@pytest.mark.parametrize("test_df", [pd.DataFrame({'bool1': (False, True, False),
-                                                   'bool2': (False, True, None)})])
-def test_pandas_to_table_convert__boolean_data_type(test_df):
+def test_pandas_to_table_convert__boolean_data_type():
+    test_df = pd.DataFrame({'bool1': (False, True, False),
+                            'bool2': (False, True, None)})
     schema = Schema(name="Foo", parent="syn12345")
     test_table = Table(schema, test_df)
     for col in test_table.headers:
         assert col.columnType == "BOOLEAN"
 
 
-@pytest.mark.parametrize("test_df", [pd.DataFrame({'datetime1': ('2017-07-06 00:00:00',
-                                                                 '2017-07-06 00:00:00',
-                                                                 '2017-07-06 00:00:00'),
-                                                   'datetime2': ('2017-07-06 00:00:00',
-                                                                 '2017-07-06 00:00:00',
-                                                                 None)})])
-def test_pandas_to_table_convert__date_data_type(test_df):
+def test_pandas_to_table_convert__date_data_type():
+    test_df = pd.DataFrame({'datetime1': ('2017-07-06 00:00:00',
+                                          '2017-07-06 00:00:00',
+                                          '2017-07-06 00:00:00'),
+                            'datetime2': ('2017-07-06 00:00:00',
+                                          '2017-07-06 00:00:00',
+                                          None)})
     schema = Schema(name="Foo", parent="syn12345")
     test_df['datetime1'] = pd.to_datetime(test_df['datetime1'])
     test_df['datetime2'] = pd.to_datetime(test_df['datetime2'])
