@@ -1748,6 +1748,16 @@ class CsvFileTable(TableAbstractBaseClass):
             df = df2
             includeRowIdAndRowVersion = True
 
+        def _trailing_date_time_millisecond(t):
+            if isinstance(t, str):
+                return t[:-3]
+
+        for col in schema.columns_to_store:
+            if col['columnType'] == 'DATE':
+                import pandas as pd
+                df[col.name] = pd.to_datetime(df[col.name], errors='coerce').dt.strftime('%s%f')
+                df[col.name] = df[col.name].apply(lambda x: _trailing_date_time_millisecond(x))
+
         f = None
         try:
             if not filepath:
