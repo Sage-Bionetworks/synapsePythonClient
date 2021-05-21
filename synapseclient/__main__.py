@@ -141,7 +141,8 @@ def store(args, syn):
     # If both args.FILE and args.file specified raise error
     if args.file and args.FILE:
         raise ValueError('only specify one file')
-
+    if args.type == 'File' and not args.file and not args.FILE:
+        raise ValueError(f'{args.subparser} missing required FILE argument')
     _descriptionFile_arg_check(args)
 
     args.file = args.FILE if args.FILE is not None else args.file

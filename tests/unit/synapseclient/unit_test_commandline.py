@@ -589,3 +589,16 @@ class TestGetFunction:
             args = parser.parse_args(['get', '-r'])
             cmdline.get(args, self.syn)
         assert str(ve.value) == "Missing expected id argument for use with the get command"
+
+
+class TestStoreFunction:
+    @patch('synapseclient.client.Synapse')
+    def setup(self, mock_syn):
+        self.syn = mock_syn
+
+    def test_get__without_file_args(self):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['store', '--parentid', 'syn123', '--used', 'syn456'])
+        with pytest.raises(ValueError) as ve:
+            cmdline.store(args, self.syn)
+        assert str(ve.value) == "store missing required FILE argument"
