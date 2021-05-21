@@ -9,15 +9,18 @@ from synapseclient import (Evaluation, Submission, SubmissionStatus,
 def test_Evaluation():
     """Test the construction and accessors of Evaluation objects."""
 
-    # Status can only be one of ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']
-    pytest.raises(ValueError, Evaluation, name='foo', description='bar', status='BAH')
-    pytest.raises(ValueError, Evaluation, name='foo', description='bar', status='OPEN', contentSource='a')
+    content_source_missing_ex = 'The "contentSource" parameter must be specified'
+    with pytest.raises(ValueError, match=content_source_missing_ex):
+        # with no contentSource
+        Evaluation(name='foo', description='bar')
+    with pytest.raises(ValueError, match=content_source_missing_ex):
+        # with non-synapse id contentSource
+        Evaluation(name='foo', description='bar', contentSource='a')
 
     # Assert that the values are
-    ev = Evaluation(name='foobar2', description='bar', status='OPEN', contentSource='syn1234')
+    ev = Evaluation(name='foobar2', description='bar', contentSource='syn1234')
     assert ev['name'] == ev.name
     assert ev['description'] == ev.description
-    assert ev['status'] == ev.status
 
 
 def test_Submission():

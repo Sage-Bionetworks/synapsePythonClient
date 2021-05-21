@@ -504,8 +504,9 @@ def test_no_command_print_help(mock_build_parser, syn):
     mock_build_parser.return_value.print_help.assert_called_once_with()
 
 
+@patch.object(cmdline.sys, 'exit')
 @patch.object(cmdline, 'login_with_prompt')
-def test_command_auto_login(mock_login_with_prompt, syn):
+def test_command_auto_login(mock_login_with_prompt, mock_sys_exit, syn):
     """
     Verify command with the function but without login function,
     we are calling login_with_prompt automatically.
@@ -517,6 +518,7 @@ def test_command_auto_login(mock_login_with_prompt, syn):
     cmdline.perform_main(args, syn)
 
     mock_login_with_prompt.assert_called_once_with(syn, 'test_user', None, silent=True)
+    mock_sys_exit.assert_called_once_with(1)
 
 
 class TestGetFunction:
@@ -1258,3 +1260,16 @@ def test__add_id_mutex_group():
     assert args.id == 'home/temp_path/temp_file'
     with pytest.raises(SystemExit):
         parser.parse_args(['get-annotations', '-id', 'syn123', 'home/temp_path/temp_file'])
+
+
+class TestStoreFunction:
+    @patch('synapseclient.client.Synapse')
+    def setup(self, mock_syn):
+        self.syn = mock_syn
+
+    def test_get__without_file_args(self):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['store', '--parentid', 'syn123', '--used', 'syn456'])
+        with pytest.raises(ValueError) as ve:
+            cmdline.store(args, self.syn)
+        assert str(ve.value) == "store missing required FILE argument"

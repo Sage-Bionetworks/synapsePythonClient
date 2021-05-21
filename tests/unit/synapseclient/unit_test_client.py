@@ -470,6 +470,25 @@ class TestDownloadFileHandle:
         assert mock_get.call_args[1]['auth'] is None
         assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
 
+    @patch.object(Synapse, '_getFileHandleDownload')
+    def test_downloadFileHandle_preserve_exception_info(self, mock_getFileHandleDownload):
+        file_handle_id = 1234
+        syn_id = 'syn123'
+
+        def getFileHandleDownload_side_effect(*args):
+            raise SynapseError(f'Something wrong when downloading {syn_id} in try block!')
+
+        mock_getFileHandleDownload.side_effect = getFileHandleDownload_side_effect
+
+        with pytest.raises(SynapseError) as ex:
+            self.syn._downloadFileHandle(
+                file_handle_id,
+                syn_id,
+                objectType='FileEntity',
+                destination='/tmp/foo'
+            )
+        assert str(ex.value) == 'Something wrong when downloading syn123 in try block!'
+
 
 class TestPrivateSubmit:
 

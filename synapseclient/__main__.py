@@ -142,7 +142,8 @@ def store(args, syn):
     # If both args.FILE and args.file specified raise error
     if args.file and args.FILE:
         raise ValueError('only specify one file')
-
+    if args.type == 'File' and not args.file and not args.FILE:
+        raise ValueError(f'{args.subparser} missing required FILE argument')
     _descriptionFile_arg_check(args)
 
     args.file = args.FILE if args.FILE is not None else args.file
@@ -1062,6 +1063,7 @@ def perform_main(args, syn):
                 raise
             else:
                 sys.stderr.write(utils._synapse_error_msg(ex))
+                sys.exit(1)
     else:
         # if no command provided print out help and quit
         # if we require python 3.7 or above, we can use required argument tp add_subparsers instead

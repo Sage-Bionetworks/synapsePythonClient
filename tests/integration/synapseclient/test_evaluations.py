@@ -15,7 +15,7 @@ def test_evaluations(syn, project, schedule_for_cleanup):
     # Create an Evaluation
     name = 'Test Evaluation %s' % str(uuid.uuid4())
     ev = Evaluation(name=name, description='Evaluation for testing',
-                    contentSource=project['id'], status='CLOSED')
+                    contentSource=project['id'])
     ev = syn.store(ev)
 
     try:
@@ -29,7 +29,6 @@ def test_evaluations(syn, project, schedule_for_cleanup):
         assert ev['id'] == evalNamed['id']
         assert ev['name'] == evalNamed['name']
         assert ev['ownerId'] == evalNamed['ownerId']
-        assert ev['status'] == evalNamed['status']
 
         # -- Get the Evaluation by project
         evalProj = syn.getEvaluationByContentSource(project)
@@ -41,13 +40,6 @@ def test_evaluations(syn, project, schedule_for_cleanup):
         assert ev['id'] == evalProj['id']
         assert ev['name'] == evalProj['name']
         assert ev['ownerId'] == evalProj['ownerId']
-        assert ev['status'] == evalProj['status']
-
-        # Update the Evaluation
-        ev['status'] = 'OPEN'
-        ev = syn.store(ev, createOrUpdate=True)
-        schedule_for_cleanup(ev)
-        assert ev.status == 'OPEN'
 
         # Add the current user as a participant
         myOwnerId = int(syn.getUserProfile()['ownerId'])
