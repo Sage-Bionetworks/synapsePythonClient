@@ -233,7 +233,7 @@ def test_tables_pandas(syn, project):
     df['string_'] = df['string_'].transform(str)
 
     # SYNPY-717
-    df['datetime64'] = df['datetime64'].apply(lambda x: pd.Timestamp(x).tz_localize('UTC'))
+    df['datetime64'] = pd.to_datetime(df['datetime64'], unit='ms', utc=True)
 
     # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column;
     # second .all() gives a bool that is ANDed value of that Series

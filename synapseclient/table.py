@@ -1748,16 +1748,6 @@ class CsvFileTable(TableAbstractBaseClass):
             df = df2
             includeRowIdAndRowVersion = True
 
-        def _trailing_date_time_millisecond(t):
-            if isinstance(t, str):
-                return t[:-3]
-
-        for col in schema.columns_to_store:
-            if col['columnType'] == 'DATE':
-                import pandas as pd
-                df[col.name] = pd.to_datetime(df[col.name], errors='coerce').dt.strftime('%s%f')
-                df[col.name] = df[col.name].apply(lambda x: _trailing_date_time_millisecond(x))
-
         f = None
         try:
             if not filepath:
@@ -1765,6 +1755,15 @@ class CsvFileTable(TableAbstractBaseClass):
                 filepath = os.path.join(temp_dir, 'table.csv')
 
             f = io.open(filepath, mode='w', encoding='utf-8', newline='')
+
+            import pandas as pd
+            for col in schema.columns_to_store:
+                if col['columnType'] == 'DATE':
+                    def _trailing_date_time_millisecond(t):
+                        if isinstance(t, str):
+                            return t[:-3]
+                    df[col.name] = pd.to_datetime(df[col.name], errors='coerce').dt.strftime('%s%f')
+                    df[col.name] = df[col.name].apply(lambda x: _trailing_date_time_millisecond(x))
 
             df.to_csv(f,
                       index=False,
