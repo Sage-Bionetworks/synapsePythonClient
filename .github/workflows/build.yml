@@ -133,7 +133,7 @@ jobs:
             export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
              # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-            pytest -sv tests/integration/synapseclient/test_tables.py::test_tables_pandas -n auto --dist loadscope
+            pytest -sv tests/integration -n auto --dist loadscope
           fi
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
