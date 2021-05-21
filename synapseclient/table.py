@@ -310,14 +310,6 @@ from synapseclient.core.constants import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
 
-DTYPE_2_TABLETYPE = {'?': 'BOOLEAN',
-                     'd': 'DOUBLE', 'g': 'DOUBLE', 'e': 'DOUBLE', 'f': 'DOUBLE',
-                     'b': 'INTEGER', 'B': 'INTEGER', 'h': 'INTEGER', 'H': 'INTEGER',
-                     'i': 'INTEGER', 'I': 'INTEGER', 'l': 'INTEGER', 'L': 'INTEGER',
-                     'm': 'INTEGER', 'q': 'INTEGER', 'Q': 'INTEGER',
-                     'S': 'STRING', 'U': 'STRING', 'O': 'STRING',
-                     'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
-
 # default is STRING, only need to put the non-STRING keys in here
 PANDAS_TABLE_TYPE = {
     'floating': 'DOUBLE',
