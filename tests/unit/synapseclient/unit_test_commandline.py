@@ -519,19 +519,39 @@ def test__replace_existing_config__prepend(syn):
     )
 
     assert new_config_text == expected_text
-    assert os.path.exists(f.name + ".backup")
     f.close()
 
 
-def test__replace_existing_config__replace(syn):
-    """Replace existing authentication"""
+def test__replace_existing_config__backup(syn):
+    """Replace backup files are created"""
     f = tempfile.NamedTemporaryFile()
-    auth_section = (
+    auth_section = "foobar"
+    with open(f.name, "w") as config_f:
+        config_f.write(auth_section)
+    new_auth_section = (
         '[authentication]\n'
         "username=foobar\n"
-        "password=testingtestingtesting\n\n"
-        "randomwords\n"
-        "[section]\n"
+        "apikey=foobar\n\n"
+    )
+    cmdline._replace_existing_config(f.name, new_auth_section)
+    # If command is run again, it will make sure to save existing
+    # backup files
+    cmdline._replace_existing_config(f.name, new_auth_section)
+    assert os.path.exists(f.name + ".backup")
+    assert os.path.exists(f.name + ".backup2")
+    f.close()
+
+
+
+def test__replace_existing_config__prepend(syn):
+    """Replace adding authentication to .synapseConfig when there is no
+    authentication section
+    """
+    f = tempfile.NamedTemporaryFile()
+    auth_section = (
+        '#[authentication]\n'
+        "#username=foobar\n"
+        "#password=testingtestingtesting\n\n"
     )
     with open(f.name, "w") as config_f:
         config_f.write(auth_section)
@@ -539,14 +559,18 @@ def test__replace_existing_config__replace(syn):
     new_auth_section = (
         '[authentication]\n'
         "username=foobar\n"
-        "apikey=foobar\n\n"
+        "apikey=testingtesting\n\n"
     )
     new_config_text = cmdline._replace_existing_config(f.name, new_auth_section)
+
     expected_text = (
-        "[authentication]\n"
+        '[authentication]\n'
         "username=foobar\n"
-        "apikey=foobar\n\n"
-        "[section]\n"
+        "apikey=testingtesting\n\n\n\n"
+        '#[authentication]\n'
+        "#username=foobar\n"
+        "#password=testingtestingtesting\n\n"
     )
+
     assert new_config_text == expected_text
     f.close()
