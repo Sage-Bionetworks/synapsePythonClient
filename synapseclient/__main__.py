@@ -152,7 +152,7 @@ def _recursive_store(args, syn):
         raise ValueError('--parentId must refer to a folder or project.')
 
     # Some CLI arguments are ignored with --recursive; set to None
-    ignored = ["name", "annotations", "replace", "used", "executed"]
+    ignored = ["id", "name", "annotations", "replace", "used", "executed"]
     if any(getattr(args, x, None) for x in ignored):
         syn.logger.warning("/".join("--%s" % x for x in ignored) +
                            ' are ignored when used with --recursive.')
