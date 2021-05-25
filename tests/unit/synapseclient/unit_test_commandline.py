@@ -6,6 +6,8 @@ import base64
 import os
 
 import pytest
+import tempfile
+import shutil
 from unittest.mock import call, Mock, patch
 
 import synapseclient.__main__ as cmdline
@@ -485,3 +487,66 @@ def test_command_auto_login(mock_login_with_prompt, syn):
     cmdline.perform_main(args, syn)
 
     mock_login_with_prompt.assert_called_once_with(syn, 'test_user', None, silent=True)
+
+
+def test__replace_existing_config__prepend(syn):
+    """Replace adding authentication to .synapseConfig when there is no
+    authentication section
+    """
+    f = tempfile.NamedTemporaryFile()
+    auth_section = (
+        '#[authentication]\n'
+        "#username=foobar\n"
+        "#password=testingtestingtesting\n\n"
+    )
+    with open(f.name, "w") as config_f:
+        config_f.write(auth_section)
+
+    new_auth_section = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "apikey=testingtesting\n\n"
+    )
+    new_config_text = cmdline._replace_existing_config(f.name, new_auth_section)
+
+    expected_text = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "apikey=testingtesting\n\n\n\n"
+        '#[authentication]\n'
+        "#username=foobar\n"
+        "#password=testingtestingtesting\n\n"
+    )
+
+    assert new_config_text == expected_text
+    assert os.path.exists(f.name + ".backup")
+    f.close()
+
+
+def test__replace_existing_config__replace(syn):
+    """Replace existing authentication"""
+    f = tempfile.NamedTemporaryFile()
+    auth_section = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "password=testingtestingtesting\n\n"
+        "randomwords\n"
+        "[section]\n"
+    )
+    with open(f.name, "w") as config_f:
+        config_f.write(auth_section)
+
+    new_auth_section = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "apikey=foobar\n\n"
+    )
+    new_config_text = cmdline._replace_existing_config(f.name, new_auth_section)
+    expected_text = (
+        "[authentication]\n"
+        "username=foobar\n"
+        "apikey=foobar\n\n"
+        "[section]\n"
+    )
+    assert new_config_text == expected_text
+    f.close()
