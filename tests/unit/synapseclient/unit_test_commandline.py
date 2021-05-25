@@ -7,7 +7,6 @@ import os
 
 import pytest
 import tempfile
-import shutil
 from unittest.mock import call, Mock, patch
 
 import synapseclient.__main__ as cmdline
@@ -542,16 +541,14 @@ def test__replace_existing_config__backup(syn):
     f.close()
 
 
-
-def test__replace_existing_config__prepend(syn):
-    """Replace adding authentication to .synapseConfig when there is no
-    authentication section
+def test__replace_existing_config__replace(syn):
+    """Replace existing authentication to .synapseConfig
     """
     f = tempfile.NamedTemporaryFile()
     auth_section = (
-        '#[authentication]\n'
-        "#username=foobar\n"
-        "#password=testingtestingtesting\n\n"
+        '[authentication]\n'
+        "username=foobar\n"
+        "password=testingtestingtesting\n\n"
     )
     with open(f.name, "w") as config_f:
         config_f.write(auth_section)
@@ -566,11 +563,59 @@ def test__replace_existing_config__prepend(syn):
     expected_text = (
         '[authentication]\n'
         "username=foobar\n"
-        "apikey=testingtesting\n\n\n\n"
-        '#[authentication]\n'
-        "#username=foobar\n"
-        "#password=testingtestingtesting\n\n"
+        "apikey=testingtesting\n\n"
     )
-
     assert new_config_text == expected_text
     f.close()
+
+
+def test__generate_new_config(syn):
+    """Generate new configuration file"""
+    new_auth_section = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "apikey=testingtesting\n\n"
+    )
+    new_config_text = cmdline._generate_new_config(new_auth_section)
+    expected_text = (
+        "###########################\n# Login Credentials       "
+        "#\n###########################\n\n"
+        "## Used for logging in to Synapse\n## Alternatively, you can use "
+        "rememberMe=True in synapseclient.login or login subcommand of the "
+        "commandline client.\n[authentication]\nusername=foobar\n"
+        "apikey=testingtesting\n\n\n\n\n## If you have projects with file "
+        "stored on SFTP servers, you can specify your credentials here\n## "
+        "You can specify multiple sftp credentials\n"
+        "#[sftp://some.sftp.url.com]\n#username= <sftpuser>\n"
+        "#password= <sftppwd>\n#[sftp://a.different.sftp.url.com]\n"
+        "#username= <sftpuser>\n#password= <sftppwd>\n\n\n## If you have "
+        "projects that need to be stored in an S3-like (e.g. AWS S3, "
+        "Openstack) storage but cannot allow Synapse\n## to manage access "
+        "your storage you may put your credentials here.\n## To avoid "
+        "duplicating credentials with that used by the AWS Command Line "
+        "Client,\n## simply put the profile name form your "
+        "~/.aws/credentials file\n## more information about aws credentials "
+        "can be found here http://docs.aws.amazon.com/cli/latest/userguide/"
+        "cli-config-files.html\n#[https://s3.amazonaws.com/bucket_name] # "
+        "this is the bucket's endpoint\n"
+        "#profile_name=local_credential_profile_name\n\n\n"
+        "###########################\n# Caching                 "
+        "#\n###########################\n\n## your downloaded files are "
+        "cached to avoid repeat downloads of the same file. change "
+        "'location' to use a different folder on your computer as the "
+        "cache location\n#[cache]\n#location = ~/.synapseCache\n\n\n"
+        "###########################\n# Advanced Configurations #\n"
+        "###########################\n\n## If this section is specified, "
+        "then the synapseclient will print out debug information\n#[debug]"
+        "\n\n\n## Configuring these will cause the Python client to use "
+        "these as Synapse service endpoints instead of the default prod "
+        "endpoints.\n#[endpoints]\n#repoEndpoint=<repoEndpoint>\n#"
+        "authEndpoint=<authEndpoint>\n#fileHandleEndpoint="
+        "<fileHandleEndpoint>\n#portalEndpoint=<portalEndpoint>\n\n## "
+        "Settings to configure how Synapse uploads/downloads data\n"
+        "#[transfer]\n\n# use this to configure the default for how "
+        "many threads/connections Synapse will use to perform file "
+        "transfers.\n# Currently this applies only to files whose "
+        "underlying storage is AWS S3.\n# max_threads=16\n"
+    )
+    assert new_config_text == expected_text
