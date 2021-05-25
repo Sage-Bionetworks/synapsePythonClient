@@ -578,3 +578,54 @@ def test__generate_new_config(syn):
     )
     new_config_text = cmdline._generate_new_config(new_auth_section)
     assert new_auth_section in new_config_text
+
+
+@patch.object(cmdline, '_generate_new_config')
+@patch.object(cmdline, '_authenticate_login')
+@patch.object(cmdline, '_prompt_for_credentials')
+def test_config_generate(mock__prompt_for_credentials,
+                         mock__authenticate_login,
+                         mock__generate_new_config, syn):
+    """Config when generating new configuration"""
+    mock__prompt_for_credentials.return_value = ("test", "wow")
+    mock__authenticate_login.return_value = "password"
+    mock__generate_new_config.return_value = "test"
+
+    expected_auth_section = (
+        '[authentication]\n'
+        "username=test\n"
+        "password=wow\n\n"
+    )
+    args = Mock()
+    args.configPath = "foo"
+    cmdline.config(args, syn)
+    os.unlink("foo")
+    mock__generate_new_config.assert_called_once_with(
+        expected_auth_section
+    )
+
+
+@patch.object(cmdline, '_replace_existing_config')
+@patch.object(cmdline, '_authenticate_login')
+@patch.object(cmdline, '_prompt_for_credentials')
+def test_config_replace(mock__prompt_for_credentials,
+                        mock__authenticate_login,
+                        mock__replace_existing_config, syn):
+    """Config when replacing configuration"""
+    mock__prompt_for_credentials.return_value = ("test", "wow")
+    mock__authenticate_login.return_value = "password"
+    mock__replace_existing_config.return_value = "test"
+
+    expected_auth_section = (
+        '[authentication]\n'
+        "username=test\n"
+        "password=wow\n\n"
+    )
+    temp = tempfile.NamedTemporaryFile()
+    args = Mock()
+    args.configPath = temp.name
+    cmdline.config(args, syn)
+    mock__replace_existing_config.assert_called_once_with(
+        temp.name, expected_auth_section
+    )
+    temp.close()
