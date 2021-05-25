@@ -9,9 +9,10 @@ import tempfile
 import threading
 
 import pytest
-from unittest.mock import ANY, patch, create_autospec, Mock, call
+from unittest.mock import ANY, patch, create_autospec, Mock, call, MagicMock
 
 import synapseutils
+from synapseutils import sync
 from synapseutils.sync import _FolderSync, _PendingProvenance, _SyncUploader, _SyncUploadItem
 from synapseclient import Activity, File, Folder, Project, Schema, Synapse
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
@@ -36,7 +37,8 @@ def test_readManifest__sync_order_with_home_directory(syn):
     # mock isfile() to always return true to avoid having to create files in the home directory
     # side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
     with patch.object(syn, "get", return_value=Project()), \
-            patch.object(os.path, "isfile", side_effect=[True, True, True, False]):
+            patch.object(os.path, "isfile", side_effect=[True, True, True, False]), \
+            patch.object(sync, "_check_size_each_file", return_value=Mock()):
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
         expected_order = pd.Series([os.path.normpath(os.path.expanduser(file_path2)),
                                     os.path.normpath(os.path.expanduser(file_path1))])
@@ -58,8 +60,9 @@ def test_readManifestFile__synapseStore_values_not_set(syn):
     }
 
     manifest = StringIO(header+row1+row2)
-    with patch.object(syn, "get", return_value=Project()),\
-            patch.object(os.path, "isfile", return_value=True):  # side effect mocks values for: file1.txt
+    with patch.object(syn, "get", return_value=Project()), \
+            patch.object(os.path, "isfile", return_value=True), \
+            patch.object(sync, "_check_size_each_file", return_value=Mock()):  # side effect mocks values for: file1.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
         actual_synapseStore = (manifest_dataframe.set_index('path')['synapseStore'].to_dict())
         assert expected_synapseStore == actual_synapseStore
@@ -93,7 +96,8 @@ def test_readManifestFile__synapseStore_values_are_set(syn):
     }
 
     manifest = StringIO(header+row1+row2+row3+row4+row5+row6)
-    with patch.object(syn, "get", return_value=Project()),\
+    with patch.object(syn, "get", return_value=Project()), \
+            patch.object(sync, "_check_size_each_file", return_value=Mock()), \
             patch.object(os.path, "isfile", return_value=True):  # mocks values for: file1.txt, file3.txt, file5.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
 
@@ -156,7 +160,186 @@ def test_syncFromSynapse__project_contains_empty_folder(syn):
             downloadLocation=None,
             ifcollision='overwrite.local',
             followLink=False,
+            downloadFile=True,
         )
+
+
+def test_syncFromSynapse__downloadFile_is_false(syn):
+    """
+    Verify when passing the argument downloadFile is equal to False,
+    syncFromSynapse won't download the file to clients' local end.
+    """
+
+    project = Project(name="the project", parent="whatever", id="syn123")
+    file = File(name="a file", parent=project, id="syn456")
+    folder = Folder(name="a folder", parent=project, id="syn789")
+
+    entities = {
+        file.id: file,
+        folder.id: folder,
+    }
+
+    def syn_get_side_effect(entity, *args, **kwargs):
+        return entities[id_of(entity)]
+
+    with patch.object(syn, "getChildren", side_effect=[[folder, file], []]),\
+            patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
+
+        synapseutils.syncFromSynapse(syn, project, downloadFile=False)
+        patch_syn_get.assert_called_once_with(
+            file['id'],
+            downloadLocation=None,
+            ifcollision='overwrite.local',
+            followLink=False,
+            downloadFile=False,
+        )
+
+
+@patch.object(synapseutils.sync, 'generateManifest')
+@patch.object(synapseutils.sync, '_get_file_entity_provenance_dict')
+def test_syncFromSynapse__manifest_is_all(mock__get_file_entity_provenance_dict, mock_generateManifest, syn):
+    """
+    Verify manifest argument equal to "all" that pass in to syncFromSynapse, it will create root_manifest and all
+    child_manifests for every layers.
+    """
+
+    project = Project(name="the project", parent="whatever", id="syn123")
+    file1 = File(name="a file", parent=project, id="syn456")
+    folder = Folder(name="a folder", parent=project, id="syn789")
+    file2 = File(name="a file2", parent=folder, id="syn789123")
+
+    # Structure of nested project
+    # project
+    #    |---> file1
+    #    |---> folder
+    #             |---> file2
+
+    entities = {
+        file1.id: file1,
+        folder.id: folder,
+        file2.id: file2,
+    }
+
+    def syn_get_side_effect(entity, *args, **kwargs):
+        return entities[id_of(entity)]
+
+    mock__get_file_entity_provenance_dict.return_value = {}
+
+    with patch.object(syn, "getChildren", side_effect=[[folder, file1], [file2]]),\
+            patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
+
+        synapseutils.syncFromSynapse(syn, project, path="./", downloadFile=False, manifest="all")
+        assert patch_syn_get.call_args_list == [call(file1['id'], downloadLocation="./",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False,),
+                                                call(file2['id'], downloadLocation="./a folder",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False, )]
+
+        assert mock_generateManifest.call_count == 2
+
+        # child_manifest in folder
+        call_files = mock_generateManifest.call_args_list[0][0][1]
+        assert len(call_files) == 1
+        assert call_files[0].id == "syn789123"
+
+        # root_manifest file
+        call_files = mock_generateManifest.call_args_list[1][0][1]
+        assert len(call_files) == 2
+        assert call_files[0].id == "syn456"
+        assert call_files[1].id == "syn789123"
+
+
+@patch.object(synapseutils.sync, 'generateManifest')
+@patch.object(synapseutils.sync, '_get_file_entity_provenance_dict')
+def test_syncFromSynapse__manifest_is_root(mock__get_file_entity_provenance_dict, mock_generateManifest, syn):
+    """
+    Verify manifest argument equal to "root" that pass in to syncFromSynapse, it will create root_manifest file only.
+    """
+
+    project = Project(name="the project", parent="whatever", id="syn123")
+    file1 = File(name="a file", parent=project, id="syn456")
+    folder = Folder(name="a folder", parent=project, id="syn789")
+    file2 = File(name="a file2", parent=folder, id="syn789123")
+
+    # Structure of nested project
+    # project
+    #    |---> file1
+    #    |---> folder
+    #             |---> file2
+
+    entities = {
+        file1.id: file1,
+        folder.id: folder,
+        file2.id: file2,
+    }
+
+    def syn_get_side_effect(entity, *args, **kwargs):
+        return entities[id_of(entity)]
+
+    mock__get_file_entity_provenance_dict.return_value = {}
+
+    with patch.object(syn, "getChildren", side_effect=[[folder, file1], [file2]]),\
+            patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
+
+        synapseutils.syncFromSynapse(syn, project, path="./", downloadFile=False, manifest="root")
+        assert patch_syn_get.call_args_list == [call(file1['id'], downloadLocation="./",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False,),
+                                                call(file2['id'], downloadLocation="./a folder",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False, )]
+
+        assert mock_generateManifest.call_count == 1
+
+        call_files = mock_generateManifest.call_args_list[0][0][1]
+        assert len(call_files) == 2
+        assert call_files[0].id == "syn456"
+        assert call_files[1].id == "syn789123"
+
+
+@patch.object(synapseutils.sync, 'generateManifest')
+@patch.object(synapseutils.sync, '_get_file_entity_provenance_dict')
+def test_syncFromSynapse__manifest_is_suppress(mock__get_file_entity_provenance_dict, mock_generateManifest, syn):
+    """
+    Verify manifest argument equal to "suppress" that pass in to syncFromSynapse, it won't create any manifest file.
+    """
+
+    project = Project(name="the project", parent="whatever", id="syn123")
+    file1 = File(name="a file", parent=project, id="syn456")
+    folder = Folder(name="a folder", parent=project, id="syn789")
+    file2 = File(name="a file2", parent=folder, id="syn789123")
+
+    # Structure of nested project
+    # project
+    #    |---> file1
+    #    |---> folder
+    #             |---> file2
+
+    entities = {
+        file1.id: file1,
+        folder.id: folder,
+        file2.id: file2,
+    }
+
+    def syn_get_side_effect(entity, *args, **kwargs):
+        return entities[id_of(entity)]
+
+    mock__get_file_entity_provenance_dict.return_value = {}
+
+    with patch.object(syn, "getChildren", side_effect=[[folder, file1], [file2]]),\
+            patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
+
+        synapseutils.syncFromSynapse(syn, project, path="./", downloadFile=False, manifest="suppress")
+        assert patch_syn_get.call_args_list == [call(file1['id'], downloadLocation="./",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False,),
+                                                call(file2['id'], downloadLocation="./a folder",
+                                                ifcollision='overwrite.local', followLink=False, downloadFile=False, )]
+
+        assert mock_generateManifest.call_count == 0
+
+
+def test_syncFromSynapse__manifest_value_is_invalid(syn):
+    project = Project(name="the project", parent="whatever", id="syn123")
+    with pytest.raises(ValueError) as ve:
+        synapseutils.syncFromSynapse(syn, project, path="./", downloadFile=False, manifest="invalid_str")
+    assert str(ve.value) == 'Value of manifest option should be one of the ("all", "root", "suppress")'
 
 
 def _compareCsv(expected_csv_string, csv_path):
@@ -255,12 +438,14 @@ class TestFolderSync:
         child_ids = ['syn456', 'syn789']
 
         parent = _FolderSync(syn, 'syn987', '/tmp/foo', [entity_id], None)
-        child = _FolderSync(syn, entity_id, path, child_ids, parent)
+        child = _FolderSync(syn, entity_id, path, child_ids, parent, create_manifest=False)
         assert syn == child._syn
         assert entity_id == child._entity_id
         assert path == child._path
         assert set(child_ids) == child._pending_ids
         assert parent == child._parent
+        assert parent._create_manifest
+        assert not child._create_manifest
 
     def test_update(self):
         syn = Mock()
@@ -277,14 +462,15 @@ class TestFolderSync:
         assert [file] == folder_sync._files
         assert provenance == folder_sync._provenance
 
-    def _finished_test(self, path):
+    def _finished_test(self, path, create_manifest=True):
         syn = Mock()
         entity_id = 'syn123'
         child_ids = ['syn456']
         file = Mock()
 
-        parent = _FolderSync(syn, 'syn987', path, [entity_id], None)
-        child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent)
+        parent = _FolderSync(syn, 'syn987', path, [entity_id], None, create_manifest=create_manifest)
+        child = _FolderSync(syn, entity_id, (path + '/bar') if path else None, child_ids, parent,
+                            create_manifest=create_manifest)
 
         child.update(finished_id='syn456', files=[file])
         assert child._is_finished()
@@ -302,6 +488,8 @@ class TestFolderSync:
             manifest_filename = folder_sync._manifest_filename()
             parent_manifest_filename = folder_sync._parent._manifest_filename()
 
+            mock_generateManifest.call_count == 2
+
             expected_manifest_calls = [
                 call(folder_sync._syn, folder_sync._files, manifest_filename,
                      provenance_cache={}),
@@ -309,6 +497,15 @@ class TestFolderSync:
                      provenance_cache={}),
             ]
             assert expected_manifest_calls == mock_generateManifest.call_args_list
+
+    def test_update__finish__without_generating_manifest(self):
+        """
+        Verify the update method won't call generate_manifest if the create_manifest is False
+        """
+        with patch.object(synapseutils.sync, 'generateManifest') as mock_generateManifest:
+            # create_manifest flag is False then won't call generateManifest
+            self._finished_test('/tmp/foo', False)
+            mock_generateManifest.assert_not_called()
 
     def test_set_exception(self):
         syn = Mock()
@@ -773,3 +970,156 @@ class TestGetFileEntityProvenanceDict:
         self.mock_syn.getProvenance.side_effect = SynapseHTTPError(response=Mock(status_code=400))
 
         pytest.raises(SynapseHTTPError, synapseutils.sync._get_file_entity_provenance_dict, self.mock_syn, "syn123")
+
+
+@patch.object(sync, 'os')
+def test_check_size_each_file(mock_os, syn):
+    """
+    Verify the check_size_each_file method works correctly
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = 'http://www.synapse.org'
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = 'http://www.github.com'
+
+    row1 = f'{path1}\t{project_id}\n'
+    row2 = f'{path2}\t{project_id}\n'
+    row3 = f'{path3}\t{project_id}\n'
+    row4 = f'{path4}\t{project_id}\n'
+
+    manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.isfile.side_effect = [True, True, True, False]
+    mock_os.path.abspath.side_effect = [path1, path3]
+    mock_stat = MagicMock(spec='st_size')
+    mock_os.stat.return_value = mock_stat
+    mock_stat.st_size = 5
+
+    # mock syn.get() to return a project because the final check is making sure parent is a container
+    with patch.object(syn, "get", return_value=Project()):
+        sync.readManifestFile(syn, manifest)
+        mock_os.stat.call_count == 4
+
+
+@patch.object(sync, 'os')
+def test_check_size_each_file_raise_error(mock_os, syn):
+    """
+    Verify the check_size_each_file method raises the ValueError when the file is empty.
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = 'http://www.synapse.org'
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = 'http://www.github.com'
+
+    row1 = f'{path1}\t{project_id}\n'
+    row2 = f'{path2}\t{project_id}\n'
+    row3 = f'{path3}\t{project_id}\n'
+    row4 = f'{path4}\t{project_id}\n'
+
+    manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.isfile.side_effect = [True, True, True, False]
+    mock_os.path.abspath.side_effect = [path1, path3]
+    mock_os.path.basename.return_value = 'file1.txt'
+    mock_stat = MagicMock(spec='st_size')
+    mock_os.stat.return_value = mock_stat
+    mock_stat.st_size = 0
+    with pytest.raises(ValueError) as ve:
+        sync.readManifestFile(syn, manifest)
+    assert str(ve.value) == "File {} is empty, empty files cannot be uploaded to Synapse".format("file1.txt")
+
+
+@patch.object(sync, 'os')
+def test_check_file_name(mock_os, syn):
+    """
+    Verify the check_file_name method works correctly
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\tname\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+
+    row1 = f"{path1}\t{project_id}\tTest_file_name.txt\n"
+    row2 = f"{path2}\t{project_id}\tTest_file-name`s(1).txt\n"
+    row3 = f"{path3}\t{project_id}\t\n"
+
+    manifest = StringIO(header + row1 + row2 + row3)
+    # mock isfile() to always return true to avoid having to create files in the home directory
+    mock_os.path.isfile.return_value = True
+    mock_os.path.abspath.side_effect = [path1, path2, path3]
+    mock_os.path.basename.return_value = 'file3.txt'
+
+    # mock syn.get() to return a project because the final check is making sure parent is a container
+    with patch.object(syn, "get", return_value=Project()):
+        sync.readManifestFile(syn, manifest)
+
+
+@patch.object(sync, 'os')
+def test_check_file_name_with_illegal_char(mock_os, syn):
+    """
+    Verify the check_file_name method raises the ValueError when the file name contains illegal char
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\tname\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = os.path.abspath(os.path.expanduser('~/file4.txt'))
+
+    row1 = f"{path1}\t{project_id}\tTest_file_name.txt\n"
+    row2 = f"{path2}\t{project_id}\tTest_file-name`s(1).txt\n"
+    row3 = f"{path3}\t{project_id}\t\n"
+    illegal_name = "Test_file_name_with_#.txt"
+    row4 = f"{path4}\t{project_id}\t{illegal_name}\n"
+
+    manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.isfile.return_value = True
+    mock_os.path.abspath.side_effect = [path1, path2, path3, path4]
+    mock_os.path.basename.return_value = 'file3.txt'
+
+    with pytest.raises(ValueError) as ve:
+        sync.readManifestFile(syn, manifest)
+    assert str(ve.value) == "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, " \
+                            "underscores, hyphens, periods, plus signs, apostrophes, " \
+                            "and parentheses".format(illegal_name)
+
+
+@patch.object(sync, 'os')
+def test_check_file_name_with_too_long_filename(mock_os, syn):
+    """
+    Verify the check_file_name method raises the ValueError when the file name is too long
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\tname\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = os.path.abspath(os.path.expanduser('~/file4.txt'))
+
+    long_file_name = 'test_filename_too_long_test_filename_too_long_test_filename_too_long_test_filename_too_long_' \
+                     'test_filename_too_long_test_filename_too_long_test_filename_too_long_test_filename_too_long_' \
+                     'test_filename_too_long_test_filename_too_long_test_filename_too_long_test_filename_too_long_'
+
+    row1 = f"{path1}\t{project_id}\tTest_file_name.txt\n"
+    row2 = f"{path2}\t{project_id}\tTest_file-name`s(1).txt\n"
+    row3 = f"{path3}\t{project_id}\t\n"
+    row4 = f"{path4}\t{project_id}\t{long_file_name}\n"
+
+    manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.isfile.return_value = True
+    mock_os.path.abspath.side_effect = [path1, path2, path3, path4]
+    mock_os.path.basename.return_value = 'file3.txt'
+
+    with pytest.raises(ValueError) as ve:
+        sync.readManifestFile(syn, manifest)
+    assert str(ve.value) == "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, " \
+                            "underscores, hyphens, periods, plus signs, apostrophes, " \
+                            "and parentheses".format(long_file_name)

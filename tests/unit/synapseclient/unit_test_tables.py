@@ -20,7 +20,7 @@ import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
     PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask, \
-    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema
+    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema, escape_column_name, join_column_names
 
 from synapseclient.core.utils import from_unix_epoch_time
 from unittest.mock import patch
@@ -1177,6 +1177,53 @@ class TestCsvFileTable:
 
         pd.testing.assert_frame_equal(expected_df, df)
 
+    def test_as_data_frame__boolean_like_string_column(self):
+        # Verify the string type column which store boolean value not convert to Python Boolean type from pandas
+        data = [["1", "John Coltrane", False, "FALSE"],
+                ["2", "Miles Davis", False, "FALSE"],
+                ["3", "Bill Evans", False, "FALSE"],
+                ["4", "Paul Chambers", False, "FALSE"],
+                ["5", "Jimmy Cobb", True, "TRUE"],
+                ["6", "Scott LaFaro", False, "FALSE"],
+                ["7", "Sonny Rollins", True, "TRUE"],
+                ["8", "Kenny Burrel", True, "TRUE"]]
+
+        cols = [Column(id='1', name='Name', columnType='STRING'),
+                Column(id='2', name='IsImportantBool', columnType='BOOLEAN'),
+                Column(id='3', name='IsImportantText', columnType='STRING')]
+
+        schema1 = Schema(id='syn1234', name='Jazz Guys', columns=cols, parent="syn1000001")
+
+        # create CSV file
+        with tempfile.NamedTemporaryFile(delete=False) as temp:
+            filename = temp.name
+
+        with io.open(filename, mode='w', encoding="utf-8", newline='') as temp:
+            writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=str(os.linesep))
+            headers = ['ROW_ID'] + [col.name for col in cols]
+            writer.writerow(headers)
+            for row in data:
+                writer.writerow(row)
+
+        table = Table(schema1, filename)
+        assert isinstance(table, CsvFileTable)
+
+        # need to set column headers to read a CSV file
+        table.setColumnHeaders(
+            [SelectColumn(name="ROW_ID", columnType="STRING")] + [SelectColumn.from_column(col) for col in cols]
+        )
+
+        # test iterator
+        for table_row, expected_row in zip(table, data):
+            assert table_row == expected_row
+
+        # test the boolean-like string column remains as all capital TRUE/FALSE value
+        df = table.asDataFrame()
+        assert list(df['Name']) == [row[1] for row in data]
+        assert list(df['IsImportantBool']) == [row[2] for row in data]
+        assert list(df['IsImportantText']) == [row[3] for row in data]
+        assert df.shape == (8, 4)
+
 
 def test_Row_forward_compatibility():
     row = Row("2, 3, 4", rowId=1, versionNumber=1, etag=None, new_field="new")
@@ -1261,3 +1308,27 @@ def test_set_view_types_invalid_input():
     view = EntityViewSchema(type='project', properties=properties)
     assert view['viewTypeMask'] == 2
     pytest.raises(ValueError, view.set_entity_types, None)
+
+
+@pytest.mark.parametrize("column,expected_name", (
+    ("foo", '"foo"'),  # all names are quoted
+    ('foo"bar', '"foo""bar"'),  # quotes are double quoted
+    ('foo bar', '"foo bar"'),  # other special characters e.g. spaces are left alone (within the quoted string)
+))
+def test_escape_column_names(column, expected_name):
+    """Verify column name escaping"""
+    # test as a string
+    assert escape_column_name(column) == expected_name
+
+    # test as a dictionary/column object
+    assert escape_column_name({'name': column}) == expected_name
+
+
+def test_join_column_names():
+    """Verify the behavior of join_column_names"""
+    column_names = ['foo', 'foo"bar', 'foo bar']
+    column_dicts = [{'name': n} for n in column_names]
+    expected = '"foo","foo""bar","foo bar"'
+
+    assert join_column_names(column_names) == expected
+    assert join_column_names(column_dicts) == expected

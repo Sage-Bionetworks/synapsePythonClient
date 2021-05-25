@@ -7,10 +7,11 @@ import os
 
 import pytest
 import tempfile
-from unittest.mock import call, Mock, patch
+from unittest.mock import call, MagicMock, Mock, patch
 
 import synapseclient.__main__ as cmdline
 from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseNoCredentialsError
+from synapseclient.entity import File
 import synapseutils
 
 
@@ -161,6 +162,33 @@ def test_migrate__dont_continue(mocker, syn):
     ])
 
     cmdline.migrate(args, syn)
+
+
+@patch.object(cmdline, 'synapseutils')
+def test_get_manifest_option(mock_synapseutils):
+    """
+    Verify the create manifest option works properly for three choices which are 'all', 'root', 'suppress'.
+    """
+    parser = cmdline.build_parser()
+    syn = Mock()
+
+    # createManifest defaults to all
+    args = parser.parse_args(['get', '-r', 'syn123'])
+    assert args.manifest == 'all'
+    cmdline.get(args, syn)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="all")
+
+    # creating the root manifest file only
+    args = parser.parse_args(['get', '-r', 'syn123', '--manifest', 'root'])
+    assert args.manifest == 'root'
+    cmdline.get(args, syn)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="root")
+
+    # suppress creating the manifest file
+    args = parser.parse_args(['get', '-r', 'syn123', '--manifest', 'suppress'])
+    assert args.manifest == 'suppress'
+    cmdline.get(args, syn)
+    mock_synapseutils.syncFromSynapse.assert_called_with(syn, 'syn123', './', followLink=False, manifest="suppress")
 
 
 def test_get_multi_threaded_flag():
@@ -473,8 +501,9 @@ def test_no_command_print_help(mock_build_parser, syn):
     mock_build_parser.return_value.print_help.assert_called_once_with()
 
 
+@patch.object(cmdline.sys, 'exit')
 @patch.object(cmdline, 'login_with_prompt')
-def test_command_auto_login(mock_login_with_prompt, syn):
+def test_command_auto_login(mock_login_with_prompt, mock_sys_exit, syn):
     """
     Verify command with the function but without login function,
     we are calling login_with_prompt automatically.
@@ -486,6 +515,7 @@ def test_command_auto_login(mock_login_with_prompt, syn):
     cmdline.perform_main(args, syn)
 
     mock_login_with_prompt.assert_called_once_with(syn, 'test_user', None, silent=True)
+    mock_sys_exit.assert_called_once_with(1)
 
 
 def test__replace_existing_config__prepend(syn):
@@ -629,3 +659,90 @@ def test_config_replace(mock__prompt_for_credentials,
         temp.name, expected_auth_section
     )
     temp.close()
+
+
+class TestGetFunction:
+    @patch('synapseclient.client.Synapse')
+    def setup(self, mock_syn):
+        self.syn = mock_syn
+
+    @patch.object(synapseutils, 'syncFromSynapse')
+    def test_get__with_arg_recursive(self, mock_syncFromSynapse):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['get', '-r', 'syn123'])
+        cmdline.get(args, self.syn)
+
+        mock_syncFromSynapse.assert_called_once_with(self.syn, 'syn123', './', followLink=False, manifest='all')
+
+    @patch.object(cmdline, '_getIdsFromQuery')
+    def test_get__with_arg_queryString(self, mock_getIdsFromQuery):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['get', '-q', 'test_query'])
+        mock_getIdsFromQuery.return_value = ['syn123', 'syn456']
+        cmdline.get(args, self.syn)
+
+        mock_getIdsFromQuery.assert_called_once_with('test_query', self.syn, './')
+        assert self.syn.get.call_args_list == [call('syn123', downloadLocation='./'),
+                                               call('syn456', downloadLocation='./')]
+
+    @patch.object(cmdline, 'os')
+    def test_get__with_id_path(self, mock_os):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['get', './temp/path'])
+        mock_os.path.isfile.return_value = True
+        self.syn.get.return_value = {}
+        cmdline.get(args, self.syn)
+
+        self.syn.get.assert_called_once_with('./temp/path', version=None, limitSearch=None, downloadFile=False)
+
+    @patch.object(cmdline, 'os')
+    def test_get__with_normal_id(self, mock_os):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['get', 'syn123'])
+        mock_entity = MagicMock(id='syn123')
+        mock_os.path.isfile.return_value = False
+        self.syn.get.return_value = mock_entity
+        cmdline.get(args, self.syn)
+
+        self.syn.get.assert_called_once_with('syn123', version=None, followLink=False, downloadLocation='./')
+        assert self.syn.logger.info.call_args_list == [call('WARNING: No files associated with entity %s\n', 'syn123'),
+                                                       call(mock_entity)]
+
+        mock_entity2 = File(path='./tmp_path', parent='syn123')
+
+        self.syn.get.return_value = mock_entity2
+        mock_os.path.exists.return_value = True
+        mock_os.path.basename.return_value = "./base_tmp_path"
+        cmdline.get(args, self.syn)
+        assert self.syn.logger.info.call_args_list == [call('WARNING: No files associated with entity %s\n', 'syn123'),
+                                                       call(mock_entity),
+                                                       call('Downloaded file: %s', './base_tmp_path'),
+                                                       call('Creating %s', './tmp_path')]
+
+    def test_get__without_synapse_id(self):
+        # test normal get command without synapse ID
+        parser = cmdline.build_parser()
+        with pytest.raises(ValueError) as ve:
+            args = parser.parse_args(['get'])
+            cmdline.get(args, self.syn)
+        assert str(ve.value) == "Missing expected id argument for use with the get command"
+
+        # test get command with -r but without synapse ID
+        parser = cmdline.build_parser()
+        with pytest.raises(ValueError) as ve:
+            args = parser.parse_args(['get', '-r'])
+            cmdline.get(args, self.syn)
+        assert str(ve.value) == "Missing expected id argument for use with the get command"
+
+
+class TestStoreFunction:
+    @patch('synapseclient.client.Synapse')
+    def setup(self, mock_syn):
+        self.syn = mock_syn
+
+    def test_get__without_file_args(self):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['store', '--parentid', 'syn123', '--used', 'syn456'])
+        with pytest.raises(ValueError) as ve:
+            cmdline.store(args, self.syn)
+        assert str(ve.value) == "store missing required FILE argument"

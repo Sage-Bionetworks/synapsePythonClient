@@ -93,7 +93,9 @@ def get(args, syn):
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
-        synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation, followLink=args.followLink)
+        _validate_id_arg(args)
+        synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation, followLink=args.followLink,
+                                     manifest=args.manifest)
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
             raise ValueError('You cannot specify a version or id when you are downloading a query.')
@@ -101,6 +103,7 @@ def get(args, syn):
         for id in ids:
             syn.get(id, downloadLocation=args.downloadLocation)
     else:
+        _validate_id_arg(args)
         # search by MD5
         if isinstance(args.id, str) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
@@ -117,7 +120,13 @@ def get(args, syn):
             else:
                 syn.logger.info('WARNING: No files associated with entity %s\n', entity.id)
                 syn.logger.info(entity)
-        syn.logger.info('Creating %s', entity.path)
+        if "path" in entity:
+            syn.logger.info('Creating %s', entity.path)
+
+
+def _validate_id_arg(args):
+    if args.id is None:
+        raise ValueError(f'Missing expected id argument for use with the {args.subparser} command')
 
 
 def sync(args, syn):
@@ -133,7 +142,8 @@ def store(args, syn):
     # If both args.FILE and args.file specified raise error
     if args.file and args.FILE:
         raise ValueError('only specify one file')
-
+    if args.type == 'File' and not args.file and not args.FILE:
+        raise ValueError(f'{args.subparser} missing required FILE argument')
     _descriptionFile_arg_check(args)
 
     args.file = args.FILE if args.FILE is not None else args.file
@@ -641,7 +651,7 @@ def build_parser():
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
                         help='suppress checking for version upgrade messages and endpoint redirection')
 
-    subparsers = parser.add_subparsers(title='commands',
+    subparsers = parser.add_subparsers(title='commands', dest='subparser',
                                        description='The following commands are available:',
                                        help='For additional help: "synapse <COMMAND> -h"')
 
@@ -665,8 +675,11 @@ def build_parser():
                             default=True, help='Download file using a multiple threaded implementation. '
                             'This flag will be removed in the future when multi-threaded download '
                             'is deemed fully stable and becomes the default implementation.')
-    parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
+    parser_get.add_argument('id', metavar='local path', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
+    # add no manifest option
+    parser_get.add_argument('--manifest', type=str, choices=['all', 'root', 'suppress'],
+                            default='all', help='Determines whether creating manifest file automatically.')
     parser_get.set_defaults(func=get)
 
     parser_sync = subparsers.add_parser('sync',
@@ -1063,6 +1076,7 @@ def perform_main(args, syn):
                 raise
             else:
                 sys.stderr.write(utils._synapse_error_msg(ex))
+                sys.exit(1)
     else:
         # if no command provided print out help and quit
         # if we require python 3.7 or above, we can use required argument tp add_subparsers instead

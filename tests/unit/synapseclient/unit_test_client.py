@@ -36,6 +36,7 @@ from synapseclient.core.exceptions import (
     SynapseFileNotFoundError,
     SynapseHTTPError,
     SynapseMd5MismatchError,
+    SynapseProvenanceError,
     SynapseUnmetAccessRestrictions,
 )
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME, SILENT_LOGGER_NAME
@@ -468,6 +469,25 @@ class TestDownloadFileHandle:
         out_destination = self.syn._download_from_URL(uri, in_destination)
         assert mock_get.call_args[1]['auth'] is None
         assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
+
+    @patch.object(Synapse, '_getFileHandleDownload')
+    def test_downloadFileHandle_preserve_exception_info(self, mock_getFileHandleDownload):
+        file_handle_id = 1234
+        syn_id = 'syn123'
+
+        def getFileHandleDownload_side_effect(*args):
+            raise SynapseError(f'Something wrong when downloading {syn_id} in try block!')
+
+        mock_getFileHandleDownload.side_effect = getFileHandleDownload_side_effect
+
+        with pytest.raises(SynapseError) as ex:
+            self.syn._downloadFileHandle(
+                file_handle_id,
+                syn_id,
+                objectType='FileEntity',
+                destination='/tmp/foo'
+            )
+        assert str(ex.value) == 'Something wrong when downloading syn123 in try block!'
 
 
 class TestPrivateSubmit:
@@ -933,30 +953,98 @@ def test_getChildren__nextPageToken(syn):
 
 def test_check_entity_restrictions__no_unmet_restriction(syn):
     with patch("warnings.warn") as mocked_warn:
-        restriction_requirements = {'hasUnmetAccessRequirement': False}
-
-        syn._check_entity_restrictions(restriction_requirements, "syn123", True)
-
+        bundle = {'entity': {
+            'id': 'syn123',
+            'name': 'anonymous',
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'parentId': 'syn12345'},
+            'restrictionInformation': {
+                'hasUnmetAccessRequirement': False
+            }
+        }
+        entity = 'syn123'
+        syn._check_entity_restrictions(bundle, entity, True)
         mocked_warn.assert_not_called()
 
 
-def test_check_entity_restrictions__unmet_restriction_downloadFile_is_True(syn):
+def test_check_entity_restrictions__unmet_restriction_entity_file_with_downloadFile_is_True(syn):
     with patch("warnings.warn") as mocked_warn:
-        restriction_requirements = {'hasUnmetAccessRequirement': True}
+        bundle = {'entity': {
+            'id': 'syn123',
+            'name': 'anonymous',
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'parentId': 'syn12345'},
+            'entityType': 'file',
+            'restrictionInformation': {
+                'hasUnmetAccessRequirement': True
+            }
+        }
+        entity = 'syn123'
+        pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, bundle, entity, True)
+    mocked_warn.assert_not_called()
 
-        pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, restriction_requirements,
-                      "syn123", True)
 
-        mocked_warn.assert_not_called()
+def test_check_entity_restrictions__unmet_restriction_entity_project_with_downloadFile_is_True(syn):
+    with patch("warnings.warn") as mocked_warn:
+        bundle = {'entity': {
+            'id': 'syn123',
+            'name': 'anonymous',
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'parentId': 'syn12345'},
+            'entityType': 'project',
+            'restrictionInformation': {
+                'hasUnmetAccessRequirement': True
+            }
+        }
+        entity = 'syn123'
+        syn._check_entity_restrictions(bundle, entity, True)
+    mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
+                                   '(syn.onweb("syn123")). Click the downward pointing arrow next to the file\'s name '
+                                   'to review and fulfill its download requirement(s).\n')
+
+
+def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloadFile_is_True(syn):
+    with patch("warnings.warn") as mocked_warn:
+        bundle = {'entity': {
+            'id': 'syn123',
+            'name': 'anonymous',
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'parentId': 'syn12345'},
+            'entityType': 'folder',
+            'restrictionInformation': {
+                'hasUnmetAccessRequirement': True
+            }
+        }
+        entity = 'syn123'
+        syn._check_entity_restrictions(bundle, entity, True)
+    mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
+                                   '(syn.onweb("syn123")). Click the downward pointing arrow next to the file\'s name '
+                                   'to review and fulfill its download requirement(s).\n')
 
 
 def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(syn):
     with patch("warnings.warn") as mocked_warn:
-        restriction_requirements = {'hasUnmetAccessRequirement': True}
+        bundle = {'entity': {
+            'id': 'syn123',
+            'name': 'anonymous',
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'parentId': 'syn12345'},
+            'entityType': 'file',
+            'restrictionInformation': {
+                'hasUnmetAccessRequirement': True}
+        }
+        entity = 'syn123'
 
-        syn._check_entity_restrictions(restriction_requirements, "syn123", False)
-
+        syn._check_entity_restrictions(bundle, entity, False)
         mocked_warn.assert_called_once()
+
+        bundle['entityType'] = 'project'
+        syn._check_entity_restrictions(bundle, entity, False)
+        assert mocked_warn.call_count == 2
+
+        bundle['entityType'] = 'folder'
+        syn._check_entity_restrictions(bundle, entity, False)
+        assert mocked_warn.call_count == 3
 
 
 class TestGetColumns(object):
@@ -1978,7 +2066,7 @@ def test_store__existing_processed_as_update(syn):
         'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
         'dataFileHandleId': file_handle_id,
         'parentId': parent_id,
-
+        'versionComment': None,
     }
     expected_annotations = {
         'foo': [3],
@@ -2067,7 +2155,7 @@ def test_store__409_processed_as_update(syn):
         'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
         'dataFileHandleId': file_handle_id,
         'parentId': parent_id,
-
+        'versionComment': None,
     }
     expected_update_properties = {
         **expected_create_properties,
@@ -2178,6 +2266,97 @@ def test_store__no_need_to_update_annotation(syn):
         mock_set_annotations.assert_not_called()
 
 
+def test_store__update_versionComment(syn):
+    file_handle_id = '123412341234'
+    returned_file_handle = {
+        'id': file_handle_id
+    }
+
+    parent_id = 'syn122'
+    synapse_id = 'syn123'
+    etag = 'db9bc70b-1eb6-4a21-b3e8-9bf51d964031'
+    file_name = 'fake_file.txt'
+
+    existing_bundle_annotations = {
+        'foo': {
+            'type': 'LONG',
+            'value': ['1']
+        },
+
+        # this annotation is not included in the passed which is interpreted as a deletion
+        'bar': {
+            'type': 'LONG',
+            'value': ['2']
+        },
+    }
+    returned_bundle = {
+        'entity': {
+            'name': file_name,
+            'id': synapse_id,
+            'etag': etag,
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'dataFileHandleId': file_handle_id,
+        },
+        'entityType': 'file',
+        'fileHandles': [
+            {
+                'id': file_handle_id,
+                'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle',
+            }
+        ],
+        'annotations': {
+            'id': synapse_id,
+            'etag': etag,
+            'annotations': existing_bundle_annotations
+        },
+    }
+
+    expected_update_properties = {
+        'id': synapse_id,
+        'etag': etag,
+        'name': file_name,
+        'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+        'dataFileHandleId': file_handle_id,
+        'parentId': parent_id,
+        'versionComment': '12345',
+    }
+
+    with patch.object(syn, '_getEntityBundle') as mock_get_entity_bundle, \
+            patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
+            patch.object(syn.cache, 'contains', return_value=True), \
+            patch.object(syn, '_createEntity') as mock_createEntity, \
+            patch.object(syn, '_updateEntity') as mock_updateEntity, \
+            patch.object(syn, 'findEntityId') as mock_findEntityId, \
+            patch.object(syn, 'set_annotations') as mock_set_annotations, \
+            patch.object(Entity, 'create'), \
+            patch.object(syn, 'get'):
+        mock_get_entity_bundle.return_value = returned_bundle
+
+        f = File(f"/{file_name}", parent=parent_id, versionComment='12345')
+        syn.store(f)
+
+        assert mock_set_annotations.called
+        assert not mock_createEntity.called
+        assert not mock_findEntityId.called
+
+        mock_updateEntity.assert_called_once_with(
+            expected_update_properties,
+            True,  # createOrUpdate
+            None,  # versionLabel
+        )
+
+        # entity that stores on synapse without versionComment
+        f = File(f"/{file_name}", parent=parent_id)
+        expected_update_properties['versionComment'] = None
+        syn.store(f)
+
+        mock_updateEntity.assert_called_with(
+            expected_update_properties,
+            True,  # createOrUpdate
+            None,  # versionLabel
+        )
+
+
 def test_update_entity_version(syn):
     """Confirm behavior of entity version incrementing/labeling when invoking syn._updateEntity"""
     entity_id = 'syn123'
@@ -2264,6 +2443,82 @@ def test_store__existing_no_update(syn):
 
         # should not have attempted an update
         assert not mock_updatentity.called
+
+
+def test_store_self_stored_obj__provenance_applied(syn):
+    """Verify that any object with its own _synapse_store mechanism (e.g. a table) will have
+    any passed provenance applied"""
+
+    obj = Mock()
+    del obj._before_synapse_store
+    obj._synapse_store = lambda x: x
+
+    activity_kwargs = {
+        'activity': MagicMock(spec=synapseclient.Activity),
+        'activityName': 'test name',
+        'activityDescription': 'test description',
+        'used': ['syn123'],
+        'executed': ['syn456'],
+    }
+
+    with patch.object(syn, '_apply_provenance') as mock_apply_provenance:
+        stored = syn.store(obj, **activity_kwargs)
+        assert mock_apply_provenance.called_once_with(obj, **activity_kwargs)
+        assert stored == mock_apply_provenance.return_value
+
+
+def test_apply_provenance__duplicate_args(syn):
+    """Verify that a SynapseProvenanceError is raised if both used/executed and an Activity is passed"""
+    with pytest.raises(SynapseProvenanceError):
+        syn._apply_provenance(
+            Mock(),
+            activity=MagicMock(spec=synapseclient.Activity),
+            used=['syn123'],
+            executed=['syn456'],
+            activityName='test name',
+            activityDescription='test description',
+        )
+
+
+def test_apply_provenance__activity(syn):
+    """Verify _apply_provenance behavior when an Activity is passed"""
+
+    obj = Mock()
+    activity = synapseclient.Activity(used=['syn123'])
+    with patch.object(syn, 'setProvenance') as mock_set_provenance, \
+            patch.object(syn, '_getEntity') as mock_get_entity:
+        result = syn._apply_provenance(obj, activity=activity)
+
+        mock_set_provenance.assert_called_once_with(obj, activity)
+        mock_get_entity.assert_called_once_with(obj)
+        assert result is mock_get_entity.return_value
+
+
+def test_apply_provenance__used_executed(syn):
+    """Verify _apply_provenance behavior with used and executed args"""
+
+    obj = Mock()
+
+    used = ['syn123']
+    executed = ['syn456']
+    name = 'test name'
+    description = 'test description'
+
+    expected_activity = synapseclient.Activity(used=used, executed=executed, name=name, description=description)
+
+    with patch.object(syn, 'setProvenance') as mock_set_provenance, \
+            patch.object(syn, '_getEntity') as mock_get_entity:
+        result = syn._apply_provenance(
+            obj,
+            used=used,
+            executed=executed,
+            activityName=name,
+            activityDescription=description
+        )
+
+        mock_set_provenance.assert_called_once_with(obj, expected_activity)
+        mock_get_entity.assert_called_once_with(obj)
+        assert result is mock_get_entity.return_value
 
 
 def test_get_submission_with_annotations(syn):

@@ -3,6 +3,7 @@ import concurrent.futures
 from contextlib import contextmanager
 import io
 import os
+import re
 import sys
 import threading
 import typing
@@ -44,7 +45,8 @@ def _sync_executor(syn):
         executor.shutdown()
 
 
-def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles=None, followLink=False):
+def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles=None, followLink=False,
+                    manifest="all", downloadFile=True):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
     metadata.
 
@@ -60,6 +62,12 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     :param followLink:  Determines whether the link returns the target Entity.
                         Defaults to False
+
+    :param manifest:    Determines whether creating manifest file automatically.
+                        The optional values here ("all", "root", "suppress").
+
+    :param downloadFile Determines whether downloading the files.
+                        Defaults to True
 
     :returns: list of entities (files, tables, links)
 
@@ -83,6 +91,9 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     """
 
+    if manifest not in ("all", "root", "suppress"):
+        raise ValueError('Value of manifest option should be one of the ("all", "root", "suppress")')
+
     # we'll have the following threads:
     # 1. the entrant thread to this function walks the folder hierarchy and schedules files for download,
     #    and then waits for all the file downloads to complete
@@ -93,7 +104,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     # 2 threads always, if those aren't available then we'll run single threaded to avoid a deadlock
     with _sync_executor(syn) as executor:
         sync_from_synapse = _SyncDownloader(syn, executor)
-        files = sync_from_synapse.sync(entity, path, ifcollision, followLink)
+        files = sync_from_synapse.sync(entity, path, ifcollision, followLink, downloadFile, manifest)
 
     # the allFiles parameter used to be passed in as part of the recursive implementation of this function
     # with the public signature invoking itself. now that this isn't a recursive any longer we don't need
@@ -119,11 +130,12 @@ class _FolderSync:
     when finished.
     """
 
-    def __init__(self, syn, entity_id, path, child_ids, parent):
+    def __init__(self, syn, entity_id, path, child_ids, parent, create_manifest=True):
         self._syn = syn
         self._entity_id = entity_id
         self._path = path
         self._parent = parent
+        self._create_manifest = create_manifest
 
         self._pending_ids = set(child_ids or [])
         self._files = []
@@ -143,7 +155,8 @@ class _FolderSync:
                 self._provenance.update(provenance)
 
             if self._is_finished():
-                self._generate_folder_manifest()
+                if self._create_manifest:
+                    self._generate_folder_manifest()
 
                 if self._parent:
                     self._parent.update(
@@ -200,8 +213,8 @@ class _SyncDownloader:
 
     def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_downloads=None):
         """
-        :param syn:         A synapse client
-        :param executor:    An ExecutorService in which concurrent file downlaods can be scheduled
+        :param syn:             A synapse client
+        :param executor:        An ExecutorService in which concurrent file downlaods can be scheduled
         """
         self._syn = syn
         self._executor = executor
@@ -212,7 +225,7 @@ class _SyncDownloader:
         max_concurrent_file_downloads = max(int(max_concurrent_file_downloads or self._syn.max_threads / 2), 1)
         self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_downloads)
 
-    def sync(self, entity, path, ifcollision, followLink):
+    def sync(self, entity, path, ifcollision, followLink, downloadFile=True, manifest="all"):
         progress = CumulativeTransferProgress('Downloaded')
 
         if is_synapse_id(entity):
@@ -225,7 +238,7 @@ class _SyncDownloader:
             )
 
         if is_container(entity):
-            root_folder_sync = self._sync_root(entity, path, ifcollision, followLink, progress)
+            root_folder_sync = self._sync_root(entity, path, ifcollision, followLink, progress, downloadFile, manifest)
 
             # once the whole folder hierarchy has been traversed this entrant thread waits for
             # all file downloads to complete before returning
@@ -243,7 +256,7 @@ class _SyncDownloader:
         files.sort(key=lambda f: f.get('path') or '')
         return files
 
-    def _sync_file(self, entity_id, parent_folder_sync, path, ifcollision, followLink, progress):
+    def _sync_file(self, entity_id, parent_folder_sync, path, ifcollision, followLink, progress, downloadFile):
         try:
             # we use syn.get to download the File.
             # these context managers ensure that we are using some shared state
@@ -257,6 +270,7 @@ class _SyncDownloader:
                     downloadLocation=path,
                     ifcollision=ifcollision,
                     followLink=followLink,
+                    downloadFile=downloadFile,
                 )
 
             files = []
@@ -288,12 +302,15 @@ class _SyncDownloader:
         finally:
             self._file_semaphore.release()
 
-    def _sync_root(self, root, root_path, ifcollision, followLink, progress):
+    def _sync_root(self, root, root_path, ifcollision, followLink, progress, downloadFile, manifest="all"):
         # stack elements are a 3-tuple of:
         # 1. the folder entity/dict
         # 2. the local path to the folder to download to
         # 3. the FolderSync of the parent to the folder (None at the root)
-        folder_stack = [(root, root_path, None)]
+
+        create_root_manifest = True if manifest != "suppress" else False
+        folder_stack = [(root, root_path, None, create_root_manifest)]
+        create_child_manifest = True if manifest == "all" else False
 
         root_folder_sync = None
         while folder_stack:
@@ -304,7 +321,7 @@ class _SyncDownloader:
                 if exception:
                     raise ValueError("File download failed during sync") from exception
 
-            folder, parent_path, parent_folder_sync = folder_stack.pop()
+            folder, parent_path, parent_folder_sync, create_manifest = folder_stack.pop()
 
             entity_id = id_of(folder)
             folder_path = None
@@ -334,6 +351,7 @@ class _SyncDownloader:
                 folder_path,
                 child_ids,
                 parent_folder_sync,
+                create_manifest=create_manifest,
             )
             if not root_folder_sync:
                 root_folder_sync = folder_sync
@@ -353,10 +371,11 @@ class _SyncDownloader:
                         ifcollision,
                         followLink,
                         progress,
+                        downloadFile,
                     )
 
                 for child_folder in child_folders:
-                    folder_stack.append((child_folder, folder_path, folder_sync))
+                    folder_stack.append((child_folder, folder_path, folder_sync, create_child_manifest))
 
         return root_folder_sync
 
@@ -770,6 +789,18 @@ def readManifestFile(syn, manifestFile):
         raise ValueError("All rows in manifest must contain a unique file to upload")
     sys.stdout.write('OK\n')
 
+    # Check each size of uploaded file
+    sys.stdout.write('Validating that all the files are not empty...')
+    _check_size_each_file(df)
+    sys.stdout.write('OK\n')
+
+    # check the name of each file should be store on Synapse
+    name_column = 'name'
+    if name_column in df.columns:
+        sys.stdout.write('Validating file names... \n')
+        _check_file_name(df)
+        sys.stdout.write('OK\n')
+
     sys.stdout.write('Validating provenance...')
     df = _sortAndFixProvenance(syn, df)
     sys.stdout.write('OK\n')
@@ -869,6 +900,7 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     """
     df = readManifestFile(syn, manifestFile)
+    # have to check all size of single file
     sizes = [os.stat(os.path.expandvars(os.path.expanduser(f))).st_size for f in df.path if not is_url(f)]
     # Write output on what is getting pushed and estimated times - send out message.
     sys.stdout.write('='*50+'\n')
@@ -919,3 +951,27 @@ def _manifest_upload(syn, df):
         uploader.upload(items)
 
     return True
+
+
+def _check_file_name(df):
+    compiled = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
+    for idx, row in df.iterrows():
+        file_name = row['name']
+        if not file_name:
+            directory_name = os.path.basename(row['path'])
+            df.loc[df.path == row['path'], 'name'] = file_name = directory_name
+            sys.stdout.write('No file name assigned to path: %s, defaulting to %s\n' % (row['path'], directory_name))
+        if not compiled.match(file_name):
+            raise ValueError("File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
+                             "underscores, hyphens, periods, plus signs, apostrophes, "
+                             "and parentheses".format(file_name))
+
+
+def _check_size_each_file(df):
+    for idx, row in df.iterrows():
+        file_path = row['path']
+        file_name = row['name'] if 'name' in row else os.path.basename(row['path'])
+        if not is_url(file_path):
+            single_file_size = os.stat(os.path.expandvars(os.path.expanduser(file_path))).st_size
+            if single_file_size == 0:
+                raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))

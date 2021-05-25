@@ -507,7 +507,7 @@ def test_download_local_file_URL_path(syn, project, schedule_for_cleanup):
 
     localFileEntity = syn.store(File(dataFileHandleId=filehandle['id'], parent=project))
     e = syn.get(localFileEntity.id)
-    assert path == e.path
+    assert path == utils.normalize_path(e.path)
 
 
 # SYNPY-424
@@ -566,7 +566,7 @@ def test_store__changing_externalURL_by_changing_path(syn, project, schedule_for
 
     assert ext.externalURL != url
     assert utils.normalize_path(temp_path) == utils.file_url_to_path(ext.externalURL)
-    assert temp_path == ext.path
+    assert temp_path == utils.normalize_path(ext.path)
     assert not ext.synapseStore
 
 
