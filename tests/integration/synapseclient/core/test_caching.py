@@ -128,7 +128,9 @@ def thread_keep_storing_one_File(syn, project, schedule_for_cleanup):
         stored = store_catch_412_HTTPError(syn, myPrecious)
         if stored is not None:
             myPrecious = stored
-        else:
+        elif 'id' in myPrecious:
+            # only attempt to retrieve if the entity was initially saved above without encountering a 412 error
+            # and thus has a retrievable synapse id
             myPrecious = syn.get(myPrecious)
 
         sleep_for_a_bit()
