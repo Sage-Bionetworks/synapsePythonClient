@@ -54,12 +54,13 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
             credentials = SynapseAuthTokenCredentials(auth_token)
             profile = syn.restGET('/userProfile', auth=credentials)
             profile_username = profile.get('userName')
+            profile_emails = profile.get('emails', [])
 
-            if username and username != profile_username:
-                # if a username is not required when logging in with an auth token however if both are provided
+            if username and (username != profile_username and username not in profile_emails):
+                # a username/email is not required when logging in with an auth token however if both are provided
                 # raise an error if they do not correspond to avoid any ambiguity about what profile was logged in
                 raise SynapseAuthenticationError(
-                    'username and auth_token both provided but username does not match token profile'
+                    'username/email and auth_token both provided but username does not match token profile'
                 )
 
             credentials.username = profile_username
