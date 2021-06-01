@@ -1152,6 +1152,9 @@ class TestCsvFileTable:
             'string_list': ['["foo", "bar"]', '["wizzle", "wozzle"]'],
             'integer_list': ['[1, 5]', '[2, 1]'],
             'boolean_list': ['[true, false]', '[false, true]'],
+            'date_list': ['[1622614955000, 1622614955000]', '[1622614955000, 1622614955000]'],
+            'entity_list': ['["syn1235", "syn1236"]', '["syn1235", "syn1234"]'],
+            'user_list': ['[1111235, 1111233]', '[1111232, 1111234]'],
             'fill': [None, None],
         }
         pd_df = pd.DataFrame(data)
@@ -1160,6 +1163,9 @@ class TestCsvFileTable:
             'string_list': [['foo', 'bar'], ['wizzle', 'wozzle']],
             'integer_list': [[1, 5], [2, 1]],
             'boolean_list': [[True, False], [False, True]],
+            'date_list': [[1622614955000, 1622614955000], [1622614955000, 1622614955000]],
+            'entity_list': [['syn1235', 'syn1236'], ['syn1235', 'syn1234']],
+            'user_list': [[1111235, 1111233], [1111232, 1111234]],
             'fill': [[], []],
         })
 
@@ -1167,6 +1173,9 @@ class TestCsvFileTable:
             SelectColumn(name='string_list', columnType='STRING_LIST'),
             SelectColumn(name='integer_list', columnType='INTEGER_LIST'),
             SelectColumn(name='boolean_list', columnType='BOOLEAN_LIST'),
+            SelectColumn(name='date_list', columnType='DATE_LIST'),
+            SelectColumn(name='entity_list', columnType='ENTITYID_LIST'),
+            SelectColumn(name='user_list', columnType='USERID_LIST'),
             SelectColumn(name='fill', columnType='STRING_LIST'),
         ]
 
