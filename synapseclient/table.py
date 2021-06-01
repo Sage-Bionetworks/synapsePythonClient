@@ -1933,7 +1933,9 @@ class CsvFileTable(TableAbstractBaseClass):
                         # we want to identify string columns so that pandas doesn't try to
                         # automatically parse strings in a string column to other data types
                         dtype[select_column.name] = str
-                    elif select_column.columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST'}:
+                    elif select_column.columnType in {'STRING_LIST', 'INTEGER_LIST',
+                                                      'BOOLEAN_LIST', 'DATE_LIST',
+                                                      'ENTITYID_LIST', 'USERID_LIST'}:
                         list_columns.append(select_column.name)
                     elif select_column.columnType == "DATE" and convert_to_datetime:
                         date_columns.append(select_column.name)
