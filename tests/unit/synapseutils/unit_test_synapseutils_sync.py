@@ -1123,3 +1123,15 @@ def test_check_file_name_with_too_long_filename(mock_os, syn):
     assert str(ve.value) == "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, " \
                             "underscores, hyphens, periods, plus signs, apostrophes, " \
                             "and parentheses".format(long_file_name)
+
+
+def test_create_folder(syn):
+    folder_name = 'TestName'
+    folder_parent = 'syn123'
+    with patch.object(syn, "store") as patch_syn_store:
+        sync._create_folder(syn, folder_name, folder_parent)
+        patch_syn_store.assert_called_once_with({
+            'name': folder_name,
+            'concreteType': 'org.sagebionetworks.repo.model.Folder',
+            'parentId': folder_parent
+        })
