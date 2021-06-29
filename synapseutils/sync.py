@@ -977,7 +977,7 @@ def _check_size_each_file(df):
                 raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))
 
 
-def generate_sync_manifest(syn, directory_path, parent_id, manifest_path="-"):
+def generate_sync_manifest(syn, directory_path, parent_id, manifest_path):
     """Generate manifest for syncToSynapse() from a local directory."""
     manifest_cols = ["path", "parent"]
     manifest_rows = _walk_directory_tree(syn, directory_path, parent_id)

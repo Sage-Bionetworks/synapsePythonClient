@@ -613,7 +613,7 @@ def build_parser():
         '--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str,
         required=True, dest='parentid',
         help='Synapse ID of project or folder where to upload data.')
-    parser_manifest.add_argument('--manifestFile', metavar='OUTPUT', default="-",
+    parser_manifest.add_argument('--manifestFile', metavar='OUTPUT',
         help='A TSV output file path where the generated manifest is stored.')
     parser_manifest.set_defaults(func=manifest)
 
