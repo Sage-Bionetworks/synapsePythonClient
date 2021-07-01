@@ -605,15 +605,18 @@ def build_parser():
                             default='all', help='Determines whether creating manifest file automatically.')
     parser_get.set_defaults(func=get)
 
-    parser_manifest = subparsers.add_parser('manifest',
+    parser_manifest = subparsers.add_parser(
+        'manifest',
         help='Generate manifest for uploading directory tree to Synapse.')
-    parser_manifest.add_argument('path', metavar='PATH', type=str,
+    parser_manifest.add_argument(
+        'path', metavar='PATH', type=str,
         help='A path to a file or folder whose manifest will be generated.')
     parser_manifest.add_argument(
         '--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str,
         required=True, dest='parentid',
         help='Synapse ID of project or folder where to upload data.')
-    parser_manifest.add_argument('--manifestFile', metavar='OUTPUT',
+    parser_manifest.add_argument(
+        '--manifestFile', metavar='OUTPUT',
         help='A TSV output file path where the generated manifest is stored.')
     parser_manifest.set_defaults(func=manifest)
 
