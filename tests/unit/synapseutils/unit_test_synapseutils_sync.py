@@ -1169,8 +1169,8 @@ def test_generate_sync_manifest(syn):
     folder_name = 'TestName'
     parent_id = 'syn123'
     manifest_path = "TestFolder"
-    with (patch.object(sync, "_walk_directory_tree") as patch_walk_directory_tree,
-          patch.object(sync, "_write_manifest_data") as patch_write_manifest_data):
+    with patch.object(sync, "_walk_directory_tree") as patch_walk_directory_tree, \
+         patch.object(sync, "_write_manifest_data") as patch_write_manifest_data:
         sync.generate_sync_manifest(syn, folder_name, parent_id, manifest_path)
         patch_walk_directory_tree.assert_called_once_with(
             syn, folder_name, parent_id
