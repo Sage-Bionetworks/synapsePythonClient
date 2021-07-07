@@ -9,38 +9,37 @@ Release Notes
 Highlights
 ----------
 
-- Added ability to :code:`syn.login()` without arguments if the :code:`SYNAPSE_AUTH_TOKEN` enviroment variable is set with a valid personal access token
+- Added ability to authenticate from a :code:`SYNAPSE_AUTH_TOKEN` enviroment variable set with a valid `personal access token <https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens>`__.
 
   .. code-block:: bash
 
-        # set environment variable for python
-        SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' python3
+        # e.g. set environment variable prior to invoking a Synapse command or running a program that uses synapseclient
+        SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' synapse <subcommand options>
 
-  .. code-block:: python3
+  The environment variable will take priority over credentials in the user's :code:`.synapseConfig` filej
+  or any credentials saved in a prior login using the remember me option.
 
-        import synapseclient
-        # login() will retrieve the personal access token from environment variable
-        syn = synapseclient.login()
-  The environment variable will take priority over credentials in the user's :code:`.synapseConfig` file
-  or any credentials saved in a prior login using :code:`syn.login(rememberMe=True)`.
+  See `here <Credentials.html#use-environment-variable>`__ for more details on usage.
 
 - Added ability to silence all console output.
 
   .. code-block:: bash
 
-        # Use the --silent option with any synapse subcommand, here it will suppress the download progress indicator
+        # from the command line, use the --silent option with any synapse subcommand, here it will suppress the download progress indicator
         synapse --silent get <synid>
 
   .. code-block:: python3
 
-        # Suppress output using a programatically instantiated Synapse instance
+        # from code using synapseclient, pass the silent option to the Synapse constructor
         import synapseclient
 
         syn = synapseclient.Synapse(silent=True)
         syn.login()
         syn.get(<synid>)
 
-- Improved robustness during downloads with unstable connections.
+- Improved robustness during downloads with unstable connections. Specifically the client will automatically recover
+  when encoutering some types of network errors that previously would have caused a download to start over as indicated by a
+  reset progress bar.
 
 
 Bug Fixes
