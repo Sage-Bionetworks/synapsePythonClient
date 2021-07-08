@@ -1,0 +1,652 @@
+
+
+<!doctype html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Using synapseclient with R through reticulate &#8212; Synapse Python Client 2.4.0 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/bizstyle.js"></script>
+    <link rel="shortcut icon" href="_static/favicon.png"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Synapse Client" href="Client.html" />
+    <link rel="prev" title="S3 Storage Features" href="S3Storage.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+<div class="header">
+  <a href="https://www.synapse.org/"><img src="_static/synapse_logo.png" alt='Synapse' style="object-fit: scale-down; height:100%"/></a>
+  <h1>Synapse Python Client API</h1>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Client.html" title="Synapse Client"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="S3Storage.html" title="S3 Storage Features"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Using synapseclient with R through reticulate</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="using-synapseclient-with-r-through-reticulate">
+<h1>Using synapseclient with R through reticulate<a class="headerlink" href="#using-synapseclient-with-r-through-reticulate" title="Permalink to this headline">¶</a></h1>
+<p>This article describes using the Python synapseclient with R through the
+<a class="reference external" href="https://rstudio.github.io/reticulate/">reticulate</a> package, which provides an interface between R and Python
+libraries.</p>
+<p>While the separate <a class="reference external" href="https://github.com/Sage-Bionetworks/synapser">synapser</a> R package exists and can be installed
+directly in an R environment without the need for reticulate, it is not currently compatible with an
+R environment that already includes reticulate. In such cases using the Python synapseclient is an alternative.</p>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="installing-reticulate">
+<h3>Installing reticulate<a class="headerlink" href="#installing-reticulate" title="Permalink to this headline">¶</a></h3>
+<p>This article assumes that reticulate is installed and available in your R environment. If not it can be installed
+as follows:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">install</span><span class="o">.</span><span class="n">packages</span><span class="p">(</span><span class="s2">&quot;reticulate&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="installing-synapseclient">
+<h3>Installing synapseclient<a class="headerlink" href="#installing-synapseclient" title="Permalink to this headline">¶</a></h3>
+<p>The Python synapseclient can be installed either directly into the Python installation you intend to use with
+reticulate or from within R using the reticulate library.</p>
+<p>synapseclient has the same requirements and dependencies when installed for use with reticulate as it does in other
+usage. In particular note that synapseclient requires a Python version of 3.6 or greater.</p>
+<div class="section" id="installing-into-python">
+<h4>Installing into Python<a class="headerlink" href="#installing-into-python" title="Permalink to this headline">¶</a></h4>
+<p>The Python synapseclient is available on the <a class="reference external" href="https://pypi.org/project/synapseclient/">PyPi package repository</a>
+and can be installed through Python tools that interface with the repository, such as <strong>pip</strong>. To install synapseclient for
+use with reticulate directly into a Python environment, first ensure that the current Python interpreter is the one you
+intend to use with reticulate. This may be a particular installation of Python, or a loaded
+<a class="reference external" href="https://docs.python.org/3/tutorial/venv.html">virtual environment</a>. See reticulate’s
+<a class="reference external" href="https://rstudio.github.io/reticulate/articles/versions.html">Python version configuration documentation</a> for more
+information on how reticulate can be configured to use particular Python environments.</p>
+<p>For help installing a reticulate compatible Python, see the reticulate version of the
+<a class="reference external" href="https://github.com/Sage-Bionetworks/SynapseShinyApp/tree/reticulate">SynapseShinyApp</a>.</p>
+<p>Once you have ensured you are interacting with your intended Python interpreter, follow the standard synapseclient
+<a class="reference external" href="index.html#installation">installation instructions</a> to install synapseclient.</p>
+</div>
+<div class="section" id="installing-from-r-reticulate">
+<h4>Installing from R/Reticulate<a class="headerlink" href="#installing-from-r-reticulate" title="Permalink to this headline">¶</a></h4>
+<p>To install synapseclient from within R, first ensure that the reticulate library is loaded.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">library</span><span class="p">(</span><span class="n">reticulate</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Once loaded, ensure that reticulate will use the Python installation you intend. You may need to provide reticulate
+a hint or otherwise <a class="reference external" href="https://rstudio.github.io/reticulate/articles/versions.html">point it at the proper Python installation</a>.</p>
+<p>Next install the synapseclient using reticulate’s <a class="reference external" href="https://rstudio.github.io/reticulate/reference/py_install.html">py_install</a> command, e.g.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">py_install</span><span class="p">(</span><span class="s2">&quot;synapseclient&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>You may also want to install some of synapseclient’s optional dependencies, such as <a class="reference external" href="https://pandas.pydata.org/">Pandas</a> for table support.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">py_install</span><span class="p">(</span><span class="s2">&quot;pandas&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>See synapseclient’s <a class="reference external" href="index.html#installation">installation instructions</a> for more information on optional
+dependencies.</p>
+</div>
+</div>
+</div>
+<div class="section" id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<p>Once synapseclient is installed it can be used once it is imported through R’s <a class="reference external" href="https://rstudio.github.io/reticulate/reference/imporl.html">import</a> command:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapseclient</span> <span class="o">&lt;-</span> <span class="n">import</span><span class="p">(</span><span class="s2">&quot;synapseclient&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>If you are using synapseclient with reticulate when writing an R package, you will want to wrap
+the import in an onLoad and use the delay_load option, .e.g.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapseclient</span>  <span class="o">&lt;-</span> <span class="n">NULL</span>
+
+<span class="o">.</span><span class="n">onLoad</span> <span class="o">&lt;-</span> <span class="n">function</span><span class="p">(</span><span class="n">libname</span><span class="p">,</span> <span class="n">pkgname</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">synapseclient</span> <span class="o">&lt;&lt;-</span> <span class="n">reticulate</span><span class="p">::</span><span class="n">import</span><span class="p">(</span><span class="s2">&quot;synapseclient&quot;</span><span class="p">,</span> <span class="n">delay_load</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>This will allow users of your package to configure their reticulate usage properly regardless of when
+they load your package. More information on this technique can be found <a class="reference external" href="https://rstudio.github.io/reticulate/articles/package.html">here</a>.</p>
+<p>If you are familiar with the <strong>synapser</strong> R package, many of the commands will be similar, but unlike in synapser
+where package functions and classes are made available in the global namespace through the search path,
+when using synapseclient through reticulate, classes are accessed through the imported synapseclient module and
+functionality is provided through an instantiated Synapse instance.</p>
+<p>For example classes that were globally available are now available through the imported synapseclient module.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span># File from synapser
+synapseclient$File
+
+# Table from synapser
+synapseclient$Table
+</pre></div>
+</div>
+</div></blockquote>
+<p>And various syn functions are now methods on the Synapse object:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span># using synapseclient with reticulate we must instantiate a Synapse instance
+syn &lt;- synapseclient$Synapse()
+
+# synLogin from synapser
+syn$login()
+
+# synGet from synapser
+syn$get(identifier)
+
+# synStore from syanpser
+syn$store(entity)
+</pre></div>
+</div>
+</div></blockquote>
+<p>Each synapse object has its own state, such as configuration and login credentials.</p>
+</div>
+<div class="section" id="credentials">
+<h2>Credentials<a class="headerlink" href="#credentials" title="Permalink to this headline">¶</a></h2>
+<p>synapseclient accessed through reticulate supports the same authentication options as it does when accessed directly
+from Python, for example:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>syn &lt;- synapseclient$synapse()
+
+# one time login
+syn$login(&#39;&lt;username&#39;, &#39;&lt;password&gt;&#39;)
+
+# login and store credentials for future use
+syn$login(&#39;&lt;username&#39;, &#39;&lt;password&gt;&#39;, rememberMe=TRUE)
+</pre></div>
+</div>
+</div></blockquote>
+<p>See <a class="reference external" href="Credentials.html#manage-synapse-credentials">Managing Synapse Credentials</a> for complete documentation on how
+synapseclient handles credentials and authentication.</p>
+</div>
+<div class="section" id="accessing-data">
+<h2>Accessing Data<a class="headerlink" href="#accessing-data" title="Permalink to this headline">¶</a></h2>
+<p>The following illustrates some examples of storing and retrieving data in Synapse using
+synapseclient through reticulate.</p>
+<p>See <a class="reference external" href="index.html#accessing-data">here</a> for more details on available data access APIs.</p>
+<p>Create a project with a unique name</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span># use hex_digits to generate random string and use it to name a project
+hex_digits &lt;- c(as.character(0:9), letters[1:6])
+projectName &lt;- sprintf(&quot;My unique project %s&quot;, paste0(sample(hex_digits, 32, replace = TRUE), collapse = &quot;&quot;))
+
+project &lt;- synapseclient$Project(projectName)
+project &lt;- syn$store(project)
+</pre></div>
+</div>
+</div></blockquote>
+<p>Create, store, and retrieve a file</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>filePath &lt;- tempfile()
+connection &lt;- file(filePath)
+writeChar(&quot;a \t b \t c \n d \t e \t f \n&quot;, connection, eos = NULL)
+close(connection)
+
+file &lt;- synapseclient$File(path = filePath, parent = project)
+file &lt;- syn$store(file)
+synId &lt;- file$properties$id
+
+# download the file using its identifier to specific path
+fileEntity &lt;- syn$get(synId, downloadLocation=&quot;/path/to/folder&quot;)
+
+# view the file meta data in the console
+print(fileEntity)
+
+# view the file on the web
+syn$onweb(synId)
+</pre></div>
+</div>
+</div></blockquote>
+<p>Create folder and add files to the folder:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>dataFolder &lt;- synapseclient$Folder(&quot;Data&quot;, parent = project)
+dataFolder &lt;- syn$store(dataFolder)
+
+filePath &lt;- tempfile()
+connection &lt;- file(filePath)
+writeChar(&quot;this is the content of the file&quot;, connection, eos = NULL)
+close(connection)
+file &lt;- synapseclient$File(path = filePath, parent = dataFolder)
+file &lt;- syn$store(file)
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="annotating-synapse-entities">
+<h2>Annotating Synapse Entities<a class="headerlink" href="#annotating-synapse-entities" title="Permalink to this headline">¶</a></h2>
+<p>This illustrates adding annotations to a Synapse entity.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span># first retrieve the existing annotations object
+annotations &lt;- syn$get_annotations(project)
+
+annotations$foo &lt;- &quot;bar&quot;
+annotations$fooList &lt;- list(&quot;bar&quot;, &quot;baz&quot;)
+
+syn$set_annotations(annotations)
+</pre></div>
+</div>
+</div></blockquote>
+<p>See <a class="reference external" href="index.html#annotating-synapse-entities">here</a> for more information on annotations.</p>
+</div>
+<div class="section" id="provenance">
+<h2>Provenance<a class="headerlink" href="#provenance" title="Permalink to this headline">¶</a></h2>
+<p>This example illustrates creating an entity with associated provenance.</p>
+<p>See <a class="reference external" href="index.html#provenance">here</a> for more information on Provenance related APIs.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>act &lt;- synapseclient$Activity(
+  name = &quot;clustering&quot;,
+  description = &quot;whizzy clustering&quot;,
+  used = c(&quot;syn1234&quot;, &quot;syn1235&quot;),
+  executed = &quot;syn4567&quot;)
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>filePath &lt;- tempfile()
+connection &lt;- file(filePath)
+writeChar(&quot;some test&quot;, connection, eos = NULL)
+close(connection)
+
+file = synapseclient$File(filePath, name=&quot;provenance_file.txt&quot;, parent=project)
+file &lt;- syn$store(file, activity = act)
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="tables">
+<h2>Tables<a class="headerlink" href="#tables" title="Permalink to this headline">¶</a></h2>
+<p>These examples illustrate manipulating Synapse Tables.
+Note that you must have installed the Pandas dependency into the Python environment as described
+above in order to use this feature.</p>
+<p>See <a class="reference external" href="index.html#tables">here</a> for more information on tables.</p>
+<p>The following illustrates building a table from an R data frame. The schema will be generated
+from the data types of the values within the data frame.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span># start with an R data frame
+genes &lt;- data.frame(
+  Name = c(&quot;foo&quot;, &quot;arg&quot;, &quot;zap&quot;, &quot;bah&quot;, &quot;bnk&quot;, &quot;xyz&quot;),
+  Chromosome = c(1, 2, 2, 1, 1, 1),
+  Start = c(12345, 20001, 30033, 40444, 51234, 61234),
+  End = c(126000, 20200, 30999, 41444, 54567, 68686),
+  Strand = c(&quot;+&quot;, &quot;+&quot;, &quot;-&quot;, &quot;-&quot;, &quot;+&quot;, &quot;+&quot;),
+  TranscriptionFactor = c(F, F, F, F, T, F))
+
+# build a Synapse table from the data frame.
+# a schema is automatically generated
+# note that reticulate will automatically convert from an R data frame to Pandas
+table &lt;- synapseclient$build_table(&quot;My Favorite Genes&quot;, project, genes)
+
+table &lt;- syn$store(table)
+</pre></div>
+</div>
+</div></blockquote>
+<p>Alternately the schema can be specified. At this time when using date values it is necessary
+to use a date string formatted in “YYYY-MM-dd HH:mm:ss.mmm” format or integer unix epoch millisecond
+value and explicitly specify the type in the schema due to how dates are translated to the Python client.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>prez_birthdays &lt;- data.frame(
+  Name = c(&quot;George Washington&quot;, &quot;Thomas Jefferson&quot;, &quot;Abraham Lincoln&quot;),
+  Time = c(&quot;1732-02-22 11:23:11.024&quot;, &quot;1743-04-13 00:00:00.000&quot;, &quot;1809-02-12 01:02:03.456&quot;))
+
+cols &lt;- list(
+    synapseclient$Column(name = &quot;Name&quot;, columnType = &quot;STRING&quot;, maximumSize = 20),
+    synapseclient$Column(name = &quot;Time&quot;, columnType = &quot;DATE&quot;))
+
+schema &lt;- synapseclient$Schema(name = &quot;President Birthdays&quot;, columns = cols, parent = project)
+table &lt;- synapseclient$Table(schema, prez_birthdays)
+
+# store the table in Synapse
+table &lt;- syn$store(table)
+</pre></div>
+</div>
+</div></blockquote>
+<p>We can query a table as in the following:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>tableId &lt;- table$tableId
+
+results &lt;- syn$tableQuery(sprintf(&quot;select * from %s where Name=&#39;George Washington&#39;&quot;, tableId))
+results$asDataFrame()
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="wikis">
+<h2>Wikis<a class="headerlink" href="#wikis" title="Permalink to this headline">¶</a></h2>
+<p>This example illustrates creating a wiki.</p>
+<p>See <a class="reference external" href="index.html#wikis">here</a> for more information on wiki APIs.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>content &lt;- &quot;
+# My Wiki Page
+Here is a description of my **fantastic** project!
+&quot;
+
+# attachment
+filePath &lt;- tempfile()
+connection &lt;- file(filePath)
+writeChar(&quot;this is the content of the file&quot;, connection, eos = NULL)
+close(connection)
+wiki &lt;- synapseclient$Wiki(
+            owner = project,
+            title = &quot;My Wiki Page&quot;,
+            markdown = content,
+            attachments = list(filePath)
+)
+wiki &lt;- syn$store(wiki)
+</pre></div>
+</div>
+</div></blockquote>
+<p>An existing wiki can be updated as follows.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>wiki &lt;- syn$getWiki(project)
+wiki$markdown &lt;- &quot;
+# My Wiki Page
+Here is a description of my **fantastic** project! Let&#39;s
+*emphasize* the important stuff.
+&quot;
+wiki &lt;- syn$store(wiki)
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="evaluations">
+<h2>Evaluations<a class="headerlink" href="#evaluations" title="Permalink to this headline">¶</a></h2>
+<p>An Evaluation is a Synapse construct useful for building processing pipelines and
+for scoring predictive modeling and data analysis challenges.</p>
+<p>See <a class="reference external" href="index.html#evaluations">here</a> for more information on Evaluations.</p>
+<p>Creating an Evaluation:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>eval &lt;- synapseclient$Evaluation(
+  name = sprintf(&quot;My unique evaluation created on %s&quot;, format(Sys.time(), &quot;%a %b %d %H%M%OS4 %Y&quot;)),
+  description = &quot;testing&quot;,
+  contentSource = project,
+  submissionReceiptMessage = &quot;Thank you for your submission!&quot;,
+  submissionInstructionsMessage = &quot;This evaluation only accepts files.&quot;)
+
+eval &lt;- syn$store(eval)
+
+eval &lt;- syn$getEvaluation(eval$id)
+</pre></div>
+</div>
+</div></blockquote>
+<p>Submitting a file to an existing Evaluation:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span># first create a file to submit
+filePath &lt;- tempfile()
+connection &lt;- file(filePath)
+writeChar(&quot;this is my first submission&quot;, connection, eos = NULL)
+close(connection)
+file &lt;- synapseclient$File(path = filePath, parent = project)
+file &lt;- syn$store(file)
+# submit the created file
+submission &lt;- syn$submit(eval, file)
+</pre></div>
+</div>
+</div></blockquote>
+<p>List submissions:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>submissions &lt;- syn$getSubmissionBundles(eval)
+
+# submissions are returned as a generator
+list(iterate(submissions))
+</pre></div>
+</div>
+</div></blockquote>
+<p>Retrieving submission by id:</p>
+<blockquote>
+<div></div></blockquote>
+<p>Retrieving the submission status:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>submissionStatus &lt;- syn$getSubmissionStatus(submission)
+submissionStatus
+</pre></div>
+</div>
+</div></blockquote>
+<p>Query an evaluation:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>queryString &lt;- sprintf(&quot;query=select * from evaluation_%s LIMIT %s OFFSET %s&#39;&quot;, eval$id, 10, 0)
+syn$restGET(paste(&quot;/evaluation/submission/query?&quot;, URLencode(queryString), sep = &quot;&quot;))
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="sharing-access-to-content">
+<h2>Sharing Access to Content<a class="headerlink" href="#sharing-access-to-content" title="Permalink to this headline">¶</a></h2>
+<p>The following illustrates sharing access to a Synapse Entity.</p>
+<p>See <a class="reference external" href="index.html#access-control">here</a> for more information on Access Control including all available permissions.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span># get permissions on an entity
+# to get permissions for a user/group pass a principalId identifier,
+# otherwise the assumed permission will apply to the public
+
+# make the project publicly accessible
+acl &lt;- syn$setPermissions(project, accessType = list(&quot;READ&quot;))
+
+perms = syn$getPermissions(project)
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="views">
+<h2>Views<a class="headerlink" href="#views" title="Permalink to this headline">¶</a></h2>
+<p>A view is a view of all entities (File, Folder, Project, Table, Docker Repository, View) within one or more Projects or Folders. Views can:
+The following examples illustrate some view operations.</p>
+<p>See <a class="reference external" href="index.html#views">here</a> for more information on Views. A view is implemented as a Table,
+see <a class="reference external" href="index.html#tables">here</a> for more information on Tables.</p>
+<p>First create some files we can use in a view:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>filePath1 &lt;- tempfile()
+connection &lt;- file(filePath1)
+writeChar(&quot;this is the content of the first file&quot;, connection, eos = NULL)
+close(connection)
+file1 &lt;- synapseclient$File(path = filePath1, parent = project)
+file1 &lt;- syn$store(file1)
+filePath2 &lt;- tempfile()
+connection2 &lt;- file(filePath2)
+writeChar(&quot;this is the content of the second file&quot;, connection, eos = NULL)
+close(connection2)
+file2 &lt;- synapseclient$File(path = filePath2, parent = project)
+file2 &lt;- syn$store(file2)
+
+# add some annotations
+fileAnnotations1 &lt;- syn$get_annotations(file1)
+fileAnnotations2 &lt;- syn$get_annotations(file2)
+
+fileAnnotations1$contributor &lt;- &quot;Sage&quot;
+fileAnnotations1$class &lt;- &quot;V&quot;
+syn$set_annotations(fileAnnotations1)
+
+fileAnnotations2$contributor = &quot;UW&quot;
+fileAnnotations2$rank = &quot;X&quot;
+syn$set_annotations(fileAnnotations2)
+</pre></div>
+</div>
+</div></blockquote>
+<p>Now create a view:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>columns = c(
+  synapseclient$Column(name = &quot;contributor&quot;, columnType = &quot;STRING&quot;),
+  synapseclient$Column(name = &quot;class&quot;, columnType = &quot;STRING&quot;),
+  synapseclient$Column(name = &quot;rank&quot;, columnType = &quot;STRING&quot;)
+)
+
+view &lt;- synapseclient$EntityViewSchema(
+    name = &quot;my first file view&quot;,
+    columns = columns,
+    parent = project,
+    scopes = project,
+    includeEntityTypes = c(synapseclient$EntityViewType$FILE, synapseclient$EntityViewType$FOLDER),
+    add_default_columns = TRUE
+)
+
+view &lt;- syn$store(view)
+</pre></div>
+</div>
+</div></blockquote>
+<p>We can now see content of our view (note that views are not created synchronously it may take a few seconds
+for the view table to be queryable).</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>queryResults &lt;- syn$tableQuery(sprintf(&quot;select * from %s&quot;, view$properties$id))
+data &lt;- queryResults$asDataFrame()
+data
+</pre></div>
+</div>
+</div></blockquote>
+<p>We can update annotations using a view as follows:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>data[&quot;class&quot;] &lt;- c(&quot;V&quot;, &quot;VI&quot;)
+syn$store(synapseclient$Table(view$properties$id, data))
+
+# the change in annotations is reflected in get_annotations():
+syn$get_annotations(file2$properties$id)
+</pre></div>
+</div>
+</div></blockquote>
+<p>Update View’s Content</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>A view can contain different types of entity. To change the types of entity that will show up in a view:
+view &lt;- syn$get(view$properties$id)
+view$set_entity_types(list(synapseclient$EntityViewType$FILE))
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="using-with-a-shiny-app">
+<h2>Using with a Shiny App<a class="headerlink" href="#using-with-a-shiny-app" title="Permalink to this headline">¶</a></h2>
+<p>Reticulate and the Python synapseclient can be used to workaround an issue that exists when using
+synapser with a Shiny App. Since synapser shares a Synapse client instance within the R process,
+multiple users of a synapser integrated Shiny App may end up sharing a login if precautions aren’t
+taken. When using reticulate with synapseclient, session scoped Synapse client objects can be created
+that avoid this issue.</p>
+<p>See <a class="reference external" href="https://github.com/Sage-Bionetworks/SynapseShinyApp">SynapseShinyApp</a> for a sample application
+and a discussion of the issue, and the <a class="reference external" href="https://github.com/Sage-Bionetworks/SynapseShinyApp/tree/reticulate">reticulate</a>
+branch for an alternative implementation using reticulate with synapseclient.</p>
+</div>
+</div>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Using synapseclient with R through reticulate</a><ul>
+<li><a class="reference internal" href="#installation">Installation</a><ul>
+<li><a class="reference internal" href="#installing-reticulate">Installing reticulate</a></li>
+<li><a class="reference internal" href="#installing-synapseclient">Installing synapseclient</a><ul>
+<li><a class="reference internal" href="#installing-into-python">Installing into Python</a></li>
+<li><a class="reference internal" href="#installing-from-r-reticulate">Installing from R/Reticulate</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#usage">Usage</a></li>
+<li><a class="reference internal" href="#credentials">Credentials</a></li>
+<li><a class="reference internal" href="#accessing-data">Accessing Data</a></li>
+<li><a class="reference internal" href="#annotating-synapse-entities">Annotating Synapse Entities</a></li>
+<li><a class="reference internal" href="#provenance">Provenance</a></li>
+<li><a class="reference internal" href="#tables">Tables</a></li>
+<li><a class="reference internal" href="#wikis">Wikis</a></li>
+<li><a class="reference internal" href="#evaluations">Evaluations</a></li>
+<li><a class="reference internal" href="#sharing-access-to-content">Sharing Access to Content</a></li>
+<li><a class="reference internal" href="#views">Views</a></li>
+<li><a class="reference internal" href="#using-with-a-shiny-app">Using with a Shiny App</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="S3Storage.html"
+                        title="previous chapter">S3 Storage Features</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Client.html"
+                        title="next chapter">Synapse Client</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/reticulate.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Client.html" title="Synapse Client"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="S3Storage.html" title="S3 Storage Features"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Using synapseclient with R through reticulate</a></li> 
+      </ul>
+    </div>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Jul 08, 2021.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+  </body>
+</html>

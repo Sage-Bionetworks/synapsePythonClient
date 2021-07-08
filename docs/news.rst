@@ -9,14 +9,14 @@ Release Notes
 Highlights
 ----------
 
-- Added ability to authenticate from a :code:`SYNAPSE_AUTH_TOKEN` enviroment variable set with a valid `personal access token <https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens>`__.
+- Added ability to authenticate from a :code:`SYNAPSE_AUTH_TOKEN` environment variable set with a valid `personal access token <https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens>`__.
 
   .. code-block:: bash
 
         # e.g. set environment variable prior to invoking a Synapse command or running a program that uses synapseclient
         SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' synapse <subcommand options>
 
-  The environment variable will take priority over credentials in the user's :code:`.synapseConfig` filej
+  The environment variable will take priority over credentials in the user's :code:`.synapseConfig` file
   or any credentials saved in a prior login using the remember me option.
 
   See `here <Credentials.html#use-environment-variable>`__ for more details on usage.

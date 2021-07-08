@@ -5,23 +5,22 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synapse command line client &#8212; Synapse Python Client 2.3.1 documentation</title>
-    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Synapse command line client &#8212; Synapse Python Client 2.4.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
     <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
     <script src="_static/jquery.js"></script>
     <script src="_static/underscore.js"></script>
     <script src="_static/doctools.js"></script>
-    <script src="_static/language_data.js"></script>
     <script src="_static/bizstyle.js"></script>
     <link rel="shortcut icon" href="_static/favicon.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Tables" href="Table.html" />
     <link rel="prev" title="&lt;no title&gt;" href="Versions.html" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <!--[if lt IE 9]>
     <script src="_static/css3-mediaqueries.js"></script>
     <![endif]-->
@@ -46,7 +45,7 @@
         <li class="right" >
           <a href="Versions.html" title="&lt;no title&gt;"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse command line client</a></li> 
       </ul>
     </div>  
@@ -76,7 +75,8 @@
 </div>
 <div class="section" id="usage">
 <h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">synapse</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">version</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">u</span> <span class="n">SYNAPSEUSER</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">SYNAPSEPASSWORD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">CONFIGPATH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">debug</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">synapse</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">version</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">u</span> <span class="n">SYNAPSEUSER</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">SYNAPSEPASSWORD</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">CONFIGPATH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">debug</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">silent</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span>
                <span class="p">{</span><span class="n">get</span><span class="p">,</span><span class="n">sync</span><span class="p">,</span><span class="n">store</span><span class="p">,</span><span class="n">add</span><span class="p">,</span><span class="n">mv</span><span class="p">,</span><span class="n">cp</span><span class="p">,</span><span class="n">associate</span><span class="p">,</span><span class="n">delete</span><span class="p">,</span><span class="n">query</span><span class="p">,</span><span class="n">submit</span><span class="p">,</span><span class="n">show</span><span class="p">,</span><span class="n">cat</span><span class="p">,</span><span class="nb">list</span><span class="p">,</span><span class="nb">set</span><span class="o">-</span><span class="n">provenance</span><span class="p">,</span><span class="n">get</span><span class="o">-</span><span class="n">provenance</span><span class="p">,</span><span class="nb">set</span><span class="o">-</span><span class="n">annotations</span><span class="p">,</span><span class="n">get</span><span class="o">-</span><span class="n">annotations</span><span class="p">,</span><span class="n">create</span><span class="p">,</span><span class="n">store</span><span class="o">-</span><span class="n">table</span><span class="p">,</span><span class="n">onweb</span><span class="p">,</span><span class="n">login</span><span class="p">,</span><span class="n">test</span><span class="o">-</span><span class="n">encoding</span><span class="p">,</span><span class="n">get</span><span class="o">-</span><span class="n">sts</span><span class="o">-</span><span class="n">token</span><span class="p">,</span><span class="n">migrate</span><span class="p">}</span>
                <span class="o">...</span>
 </pre></div>
@@ -98,11 +98,26 @@
 <p>Default: “/Users/jkiang/.synapseConfig”</p>
 </dd>
 <dt><kbd>--debug</kbd></dt>
-<dd><p>Default: False</p>
+<dd><p>“Set to debug mode, additional output and error messages are printed to the console”</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--silent</kbd></dt>
+<dd><p>“Set to silent mode, console output is suppressed”</p>
+<p>Default: False</p>
 </dd>
 <dt><kbd>-s, --skip-checks</kbd></dt>
 <dd><p>suppress checking for version upgrade messages and endpoint redirection</p>
 <p>Default: False</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="commands">
+<h3>commands<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h3>
+<p>The following commands are available:</p>
+<dl class="option-list">
+<dt><kbd>subparser</kbd></dt>
+<dd><p>Possible choices: get, sync, store, add, mv, cp, associate, delete, query, submit, show, cat, list, set-provenance, get-provenance, set-annotations, get-annotations, create, store-table, onweb, login, test-encoding, get-sts-token, migrate</p>
+<p>For additional help: “synapse &lt;COMMAND&gt; -h”</p>
 </dd>
 </dl>
 </div>
@@ -111,13 +126,16 @@
 <div class="section" id="get">
 <h4>get<a class="headerlink" href="#get" title="Permalink to this headline">¶</a></h4>
 <p>downloads a file from Synapse</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">get</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">queryString</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">VERSION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">followLink</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">downloadLocation</span> <span class="n">path</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">multiThreaded</span><span class="p">]</span> <span class="p">[</span><span class="n">syn123</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">get</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">queryString</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">VERSION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">followLink</span><span class="p">]</span>
+            <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">downloadLocation</span> <span class="n">path</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">multiThreaded</span><span class="p">]</span>
+            <span class="p">[</span><span class="o">--</span><span class="n">manifest</span> <span class="p">{</span><span class="nb">all</span><span class="p">,</span><span class="n">root</span><span class="p">,</span><span class="n">suppress</span><span class="p">}]</span>
+            <span class="p">[</span><span class="n">local</span> <span class="n">path</span><span class="p">]</span>
 </pre></div>
 </div>
 <div class="section" id="Positional Arguments">
 <h5>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h5>
 <dl class="option-list">
-<dt><kbd>syn123</kbd></dt>
+<dt><kbd>local path</kbd></dt>
 <dd><p>Synapse ID of form syn123 of desired data object.</p>
 </dd>
 </dl>
@@ -149,6 +167,11 @@
 <dt><kbd>--multiThreaded</kbd></dt>
 <dd><p>Download file using a multiple threaded implementation. This flag will be removed in the future when multi-threaded download is deemed fully stable and becomes the default implementation.</p>
 <p>Default: True</p>
+</dd>
+<dt><kbd>--manifest</kbd></dt>
+<dd><p>Possible choices: all, root, suppress</p>
+<p>Determines whether creating manifest file automatically.</p>
+<p>Default: “all”</p>
 </dd>
 </dl>
 </div>
@@ -187,8 +210,12 @@
 <div class="section" id="store">
 <h4>store<a class="headerlink" href="#store" title="Permalink to this headline">¶</a></h4>
 <p>uploads and adds a file to Synapse</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">store</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">(</span><span class="o">--</span><span class="n">parentid</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">id</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">type</span> <span class="n">TYPE</span><span class="p">)</span> <span class="p">[</span><span class="o">--</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">description</span> <span class="n">DESCRIPTION</span> <span class="o">|</span> <span class="o">--</span><span class="n">descriptionFile</span> <span class="n">DESCRIPTION_FILE_PATH</span><span class="p">]</span>
-              <span class="p">[</span><span class="o">--</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">noForceVersion</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">annotations</span> <span class="n">ANNOTATIONS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">replace</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">store</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">(</span><span class="o">--</span><span class="n">parentid</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">id</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">type</span> <span class="n">TYPE</span><span class="p">)</span>
+              <span class="p">[</span><span class="o">--</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span>
+              <span class="p">[</span><span class="o">--</span><span class="n">description</span> <span class="n">DESCRIPTION</span> <span class="o">|</span> <span class="o">--</span><span class="n">descriptionFile</span> <span class="n">DESCRIPTION_FILE_PATH</span><span class="p">]</span>
+              <span class="p">[</span><span class="o">--</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span>
+              <span class="p">[</span><span class="o">--</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span>
+              <span class="p">[</span><span class="o">--</span><span class="n">noForceVersion</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">annotations</span> <span class="n">ANNOTATIONS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">replace</span><span class="p">]</span>
               <span class="p">[</span><span class="n">FILE</span><span class="p">]</span>
 </pre></div>
 </div>
@@ -248,8 +275,11 @@
 <div class="section" id="add">
 <h4>add<a class="headerlink" href="#add" title="Permalink to this headline">¶</a></h4>
 <p>uploads and adds a file to Synapse</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">add</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">(</span><span class="o">--</span><span class="n">parentid</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">id</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">type</span> <span class="n">TYPE</span><span class="p">)</span> <span class="p">[</span><span class="o">--</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">description</span> <span class="n">DESCRIPTION</span> <span class="o">|</span> <span class="o">--</span><span class="n">descriptionFile</span> <span class="n">DESCRIPTION_FILE_PATH</span><span class="p">]</span>
-            <span class="p">[</span><span class="o">--</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">noForceVersion</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">annotations</span> <span class="n">ANNOTATIONS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">replace</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">add</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">(</span><span class="o">--</span><span class="n">parentid</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">id</span> <span class="n">syn123</span> <span class="o">|</span> <span class="o">--</span><span class="nb">type</span> <span class="n">TYPE</span><span class="p">)</span> <span class="p">[</span><span class="o">--</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span>
+            <span class="p">[</span><span class="o">--</span><span class="n">description</span> <span class="n">DESCRIPTION</span> <span class="o">|</span> <span class="o">--</span><span class="n">descriptionFile</span> <span class="n">DESCRIPTION_FILE_PATH</span><span class="p">]</span>
+            <span class="p">[</span><span class="o">--</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span>
+            <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">noForceVersion</span><span class="p">]</span>
+            <span class="p">[</span><span class="o">--</span><span class="n">annotations</span> <span class="n">ANNOTATIONS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">replace</span><span class="p">]</span>
             <span class="p">[</span><span class="n">FILE</span><span class="p">]</span>
 </pre></div>
 </div>
@@ -327,7 +357,9 @@
 <div class="section" id="cp">
 <h4>cp<a class="headerlink" href="#cp" title="Permalink to this headline">¶</a></h4>
 <p>Copies specific versions of synapse content such as files, folders and projects by recursively copying all sub-content</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">cp</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">--</span><span class="n">destinationId</span> <span class="n">syn123</span> <span class="p">[</span><span class="o">--</span><span class="n">version</span> <span class="mi">1</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">setProvenance</span> <span class="n">traceback</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">updateExisting</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">skipCopyAnnotations</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">cp</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">--</span><span class="n">destinationId</span> <span class="n">syn123</span> <span class="p">[</span><span class="o">--</span><span class="n">version</span> <span class="mi">1</span><span class="p">]</span>
+           <span class="p">[</span><span class="o">--</span><span class="n">setProvenance</span> <span class="n">traceback</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">updateExisting</span><span class="p">]</span>
+           <span class="p">[</span><span class="o">--</span><span class="n">skipCopyAnnotations</span><span class="p">]</span>
            <span class="p">[</span><span class="o">--</span><span class="n">excludeTypes</span> <span class="p">[</span><span class="n">file</span> <span class="n">table</span> <span class="p">[</span><span class="n">file</span> <span class="n">table</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">skipCopyWiki</span><span class="p">]</span>
            <span class="n">syn123</span>
 </pre></div>
@@ -432,7 +464,14 @@
 <h5>Positional Arguments<a class="headerlink" href="#Positional Arguments_repeat7" title="Permalink to this headline">¶</a></h5>
 <dl class="option-list">
 <dt><kbd>string</kbd></dt>
-<dd><p>A query string, see <a class="reference external" href="https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html">https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html</a> for more information</p>
+<dd><p>A query string. Note that when using the command line query strings must be
+passed intact as a single string. In most shells this can mean wrapping the query in quotes as appropriate and escaping
+any quotes that may appear within the query string itself.
+Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">query</span> <span class="s2">&quot;select </span><span class="se">\&quot;</span><span class="s2">column has spaces</span><span class="se">\&quot;</span><span class="s2"> from syn123&quot;</span>
+</pre></div>
+</div>
+<p>See <a class="reference external" href="https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html">https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html</a>’ for more information</p>
 </dd>
 </dl>
 </div>
@@ -440,8 +479,12 @@
 <div class="section" id="submit">
 <h4>submit<a class="headerlink" href="#submit" title="Permalink to this headline">¶</a></h4>
 <p>submit an entity or a file for evaluation</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">submit</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">evaluationID</span> <span class="n">EVALUATIONID</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">evaluationName</span> <span class="n">EVALUATIONNAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">entity</span> <span class="n">ENTITY</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">file</span> <span class="n">FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">parentId</span> <span class="n">PARENTID</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span>
-               <span class="p">[</span><span class="o">--</span><span class="n">teamName</span> <span class="n">TEAMNAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">submitterAlias</span> <span class="n">ALIAS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">submit</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">evaluationID</span> <span class="n">EVALUATIONID</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">evaluationName</span> <span class="n">EVALUATIONNAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">entity</span> <span class="n">ENTITY</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">file</span> <span class="n">FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">parentId</span> <span class="n">PARENTID</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">teamName</span> <span class="n">TEAMNAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">submitterAlias</span> <span class="n">ALIAS</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">--</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span>
 </pre></div>
 </div>
 <div class="section" id="Named Arguments_repeat9">
@@ -564,8 +607,9 @@
 <div class="section" id="set-provenance">
 <h4>set-provenance<a class="headerlink" href="#set-provenance" title="Permalink to this headline">¶</a></h4>
 <p>create provenance records</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="nb">set</span><span class="o">-</span><span class="n">provenance</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">-</span><span class="nb">id</span> <span class="n">syn123</span> <span class="p">[</span><span class="o">-</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">description</span> <span class="n">DESCRIPTION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="p">[</span><span class="n">OUTPUT_FILE</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">-</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span>
-                       <span class="p">[</span><span class="o">-</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="nb">set</span><span class="o">-</span><span class="n">provenance</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">-</span><span class="nb">id</span> <span class="n">syn123</span> <span class="p">[</span><span class="o">-</span><span class="n">name</span> <span class="n">NAME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">description</span> <span class="n">DESCRIPTION</span><span class="p">]</span>
+                       <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="p">[</span><span class="n">OUTPUT_FILE</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">used</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span>
+                       <span class="p">[</span><span class="o">-</span><span class="n">executed</span> <span class="p">[</span><span class="n">target</span> <span class="p">[</span><span class="n">target</span> <span class="o">...</span><span class="p">]]]</span> <span class="p">[</span><span class="o">-</span><span class="n">limitSearch</span> <span class="n">projId</span><span class="p">]</span>
 </pre></div>
 </div>
 <div class="section" id="Named Arguments_repeat13">
@@ -659,7 +703,9 @@
 <div class="section" id="create">
 <h4>create<a class="headerlink" href="#create" title="Permalink to this headline">¶</a></h4>
 <p>Creates folders or projects on Synapse</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">create</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">parentid</span> <span class="n">syn123</span><span class="p">]</span> <span class="o">-</span><span class="n">name</span> <span class="n">NAME</span> <span class="p">[</span><span class="o">-</span><span class="n">description</span> <span class="n">DESCRIPTION</span> <span class="o">|</span> <span class="o">-</span><span class="n">descriptionFile</span> <span class="n">DESCRIPTION_FILE_PATH</span><span class="p">]</span> <span class="nb">type</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">create</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">parentid</span> <span class="n">syn123</span><span class="p">]</span> <span class="o">-</span><span class="n">name</span> <span class="n">NAME</span>
+               <span class="p">[</span><span class="o">-</span><span class="n">description</span> <span class="n">DESCRIPTION</span> <span class="o">|</span> <span class="o">-</span><span class="n">descriptionFile</span> <span class="n">DESCRIPTION_FILE_PATH</span><span class="p">]</span>
+               <span class="nb">type</span>
 </pre></div>
 </div>
 <div class="section" id="Positional Arguments_repeat11">
@@ -756,7 +802,8 @@
 <div class="section" id="get-sts-token">
 <h4>get-sts-token<a class="headerlink" href="#get-sts-token" title="Permalink to this headline">¶</a></h4>
 <p>Get an STS token for access to AWS S3 storage underlying Synapse</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">get</span><span class="o">-</span><span class="n">sts</span><span class="o">-</span><span class="n">token</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="p">{</span><span class="n">json</span><span class="p">,</span><span class="n">boto</span><span class="p">,</span><span class="n">shell</span><span class="p">,</span><span class="n">bash</span><span class="p">,</span><span class="n">cmd</span><span class="p">,</span><span class="n">powershell</span><span class="p">}]</span> <span class="nb">id</span> <span class="p">{</span><span class="n">read_write</span><span class="p">,</span><span class="n">read_only</span><span class="p">}</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">get</span><span class="o">-</span><span class="n">sts</span><span class="o">-</span><span class="n">token</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="p">{</span><span class="n">json</span><span class="p">,</span><span class="n">boto</span><span class="p">,</span><span class="n">shell</span><span class="p">,</span><span class="n">bash</span><span class="p">,</span><span class="n">cmd</span><span class="p">,</span><span class="n">powershell</span><span class="p">}]</span>
+                      <span class="nb">id</span> <span class="p">{</span><span class="n">read_write</span><span class="p">,</span><span class="n">read_only</span><span class="p">}</span>
 </pre></div>
 </div>
 <div class="section" id="Positional Arguments_repeat13">
@@ -783,8 +830,11 @@
 <div class="section" id="migrate">
 <h4>migrate<a class="headerlink" href="#migrate" title="Permalink to this headline">¶</a></h4>
 <p>Migrate Synapse entities to a different storage location</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">migrate</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">source_storage_location_ids</span> <span class="p">[</span><span class="n">SOURCE_STORAGE_LOCATION_IDS</span> <span class="p">[</span><span class="n">SOURCE_STORAGE_LOCATION_IDS</span> <span class="o">...</span><span class="p">]]]</span>
-                <span class="p">[</span><span class="o">--</span><span class="n">file_version_strategy</span> <span class="n">FILE_VERSION_STRATEGY</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">include_table_files</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">continue_on_error</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">csv_log_path</span> <span class="n">CSV_LOG_PATH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">dryRun</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">force</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">migrate</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">source_storage_location_ids</span> <span class="p">[</span><span class="n">SOURCE_STORAGE_LOCATION_IDS</span> <span class="p">[</span><span class="n">SOURCE_STORAGE_LOCATION_IDS</span> <span class="o">...</span><span class="p">]]]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">file_version_strategy</span> <span class="n">FILE_VERSION_STRATEGY</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">include_table_files</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">continue_on_error</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">csv_log_path</span> <span class="n">CSV_LOG_PATH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">dryRun</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">force</span><span class="p">]</span>
                 <span class="nb">id</span> <span class="n">dest_storage_location_id</span> <span class="n">db_path</span>
 </pre></div>
 </div>
@@ -869,6 +919,7 @@ targeting table attached files</p>
 <li><a class="reference internal" href="#help">Help</a></li>
 <li><a class="reference internal" href="#usage">Usage</a><ul>
 <li><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+<li><a class="reference internal" href="#commands">commands</a></li>
 <li><a class="reference internal" href="#Sub-commands:">Sub-commands:</a><ul>
 <li><a class="reference internal" href="#get">get</a><ul>
 <li><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
@@ -1016,14 +1067,14 @@ targeting table attached files</p>
         <li class="right" >
           <a href="Versions.html" title="&lt;no title&gt;"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse command line client</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 13, 2021.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
+      Last updated on Jul 08, 2021.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

@@ -5,23 +5,22 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synapse Client &#8212; Synapse Python Client 2.3.1 documentation</title>
-    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Synapse Client &#8212; Synapse Python Client 2.4.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
     <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
     <script src="_static/jquery.js"></script>
     <script src="_static/underscore.js"></script>
     <script src="_static/doctools.js"></script>
-    <script src="_static/language_data.js"></script>
     <script src="_static/bizstyle.js"></script>
     <link rel="shortcut icon" href="_static/favicon.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Entity" href="Entity.html" />
-    <link rel="prev" title="S3 Storage Features" href="S3Storage.html" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <link rel="prev" title="Using synapseclient with R through reticulate" href="reticulate.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <!--[if lt IE 9]>
     <script src="_static/css3-mediaqueries.js"></script>
     <![endif]-->
@@ -44,9 +43,9 @@
           <a href="Entity.html" title="Entity"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="S3Storage.html" title="S3 Storage Features"
+          <a href="reticulate.html" title="Using synapseclient with R through reticulate"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>  
@@ -64,7 +63,7 @@ retrieving data, and recording provenance of data analysis.</p>
 <h2>Login<a class="headerlink" href="#login" title="Permalink to this headline">¶</a></h2>
 <dl class="py method">
 <dt id="synapseclient.client.login">
-<code class="sig-prename descclassname">client.</code><code class="sig-name descname">login</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.client.login" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">client.</span></code><code class="sig-name descname"><span class="pre">login</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.client.login" title="Permalink to this definition">¶</a></dt>
 <dd><p>Convenience method to create a Synapse object and login.</p>
 <p>See <a class="reference internal" href="index.html#synapseclient.Synapse.login" title="synapseclient.Synapse.login"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.login()</span></code></a> for arguments and usage.</p>
 <p>Example:</p>
@@ -79,7 +78,7 @@ retrieving data, and recording provenance of data analysis.</p>
 <h2>Synapse<a class="headerlink" href="#synapse" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt id="synapseclient.Synapse">
-<em class="property">class </em><code class="sig-prename descclassname">synapseclient.</code><code class="sig-name descname">Synapse</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">repoEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">authEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fileHandleEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">portalEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">debug</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">skip_checks</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">configPath</span><span class="o">=</span><span class="default_value">'/Users/jkiang/.synapseConfig'</span></em>, <em class="sig-param"><span class="n">requests_session</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">cache_root_dir</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.</span></code><code class="sig-name descname"><span class="pre">Synapse</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">repoEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileHandleEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">portalEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_checks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configPath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/Users/jkiang/.synapseConfig'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse" title="Permalink to this definition">¶</a></dt>
 <dd><p>Constructs a Python client object for the Synapse repository service</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -112,7 +111,7 @@ defaults to ~/.synapseConfig</p></li>
 </ul>
 <dl class="py method">
 <dt id="synapseclient.Synapse.createColumns">
-<code class="sig-name descname">createColumns</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">columns</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.createColumns" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">createColumns</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.createColumns" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a batch of <a class="reference internal" href="Table.html#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Column</span></code></a> s within a single request.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -126,7 +125,7 @@ defaults to ~/.synapseConfig</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.createStorageLocationSetting">
-<code class="sig-name descname">createStorageLocationSetting</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">storage_type</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.createStorageLocationSetting" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">createStorageLocationSetting</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">storage_type</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.createStorageLocationSetting" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates an IMMUTABLE storage location based on the specified type.</p>
 <p>For each storage_type, the following kwargs should be specified:
 ExternalObjectStorage: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)
@@ -161,7 +160,7 @@ ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.create_external_s3_file_handle">
-<code class="sig-name descname">create_external_s3_file_handle</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">bucket_name</span></em>, <em class="sig-param"><span class="n">s3_file_key</span></em>, <em class="sig-param"><span class="n">file_path</span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">parent</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">storage_location_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">mimetype</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.create_external_s3_file_handle" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">create_external_s3_file_handle</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bucket_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s3_file_key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mimetype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.create_external_s3_file_handle" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create an external S3 file handle for e.g. a file that has been uploaded directly to
 an external S3 storage location.</p>
 <dl class="field-list simple">
@@ -183,7 +182,7 @@ with parent</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.create_s3_storage_location">
-<code class="sig-name descname">create_s3_storage_location</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">parent</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">folder_name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">folder</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">bucket_name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">base_key</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">sts_enabled</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.create_s3_storage_location" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">create_s3_storage_location</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bucket_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sts_enabled</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.create_s3_storage_location" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a storage location in the given parent, either in the given folder or by creating a new
 folder in that parent with the given name. This will both create a StorageLocationSetting,
 and a ProjectSetting together, optionally creating a new folder in which to locate it,
@@ -211,7 +210,7 @@ only applicable if bucket_name is passed</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.create_snapshot_version">
-<code class="sig-name descname">create_snapshot_version</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span><span class="p">:</span> <span class="n">Union<span class="p">[</span><a class="reference internal" href="Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema">synapseclient.table.EntityViewSchema</a><span class="p">, </span><a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema">synapseclient.table.Schema</a><span class="p">, </span>str<span class="p">, </span>synapseclient.table.SubmissionViewSchema<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">comment</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">label</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">activity</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">wait</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#synapseclient.Synapse.create_snapshot_version" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">create_snapshot_version</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><span class="pre">synapseclient.table.EntityViewSchema</span></a><span class="p"><span class="pre">,</span> </span><a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><span class="pre">synapseclient.table.Schema</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">synapseclient.table.SubmissionViewSchema</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comment</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Activity.html#synapseclient.activity.Activity" title="synapseclient.activity.Activity"><span class="pre">synapseclient.activity.Activity</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wait</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">int</span><a class="headerlink" href="#synapseclient.Synapse.create_snapshot_version" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new Table Version or a new View version.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -221,7 +220,7 @@ only applicable if bucket_name is passed</p></li>
 <li><p><strong>label</strong> – Optional snapshot label.</p></li>
 <li><p><strong>activity</strong> – Optional activity ID applied to snapshot version.</p></li>
 <li><p><strong>wait</strong> – True if this method should return the snapshot version after waiting for any necessary
-asynchronous table updates to complete. If False this method will return return
+asynchronous table updates to complete. If False this method will return
 as soon as any updates are initiated.</p></li>
 </ul>
 </dd>
@@ -233,7 +232,7 @@ as soon as any updates are initiated.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.delete">
-<code class="sig-name descname">delete</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span></em>, <em class="sig-param"><span class="n">version</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.delete" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">delete</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.delete" title="Permalink to this definition">¶</a></dt>
 <dd><p>Removes an object from Synapse.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -249,7 +248,7 @@ delete.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.deleteProvenance">
-<code class="sig-name descname">deleteProvenance</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.deleteProvenance" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">deleteProvenance</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.deleteProvenance" title="Permalink to this definition">¶</a></dt>
 <dd><p>Removes provenance information from an Entity and deletes the associated Activity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -260,7 +259,7 @@ delete.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.downloadTableColumns">
-<code class="sig-name descname">downloadTableColumns</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span></em>, <em class="sig-param"><span class="n">columns</span></em>, <em class="sig-param"><span class="n">downloadLocation</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.downloadTableColumns" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">downloadTableColumns</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">columns</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downloadLocation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.downloadTableColumns" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bulk download of table-associated files.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -291,7 +290,7 @@ second 100 of those rows as shown here:</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.findEntityId">
-<code class="sig-name descname">findEntityId</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">name</span></em>, <em class="sig-param"><span class="n">parent</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.findEntityId" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">findEntityId</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.findEntityId" title="Permalink to this definition">¶</a></dt>
 <dd><p>Find an Entity given its name and parent.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -308,7 +307,7 @@ second 100 of those rows as shown here:</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.get">
-<code class="sig-name descname">get</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">get</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get" title="Permalink to this definition">¶</a></dt>
 <dd><p>Gets a Synapse entity from the repository service.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -355,7 +354,7 @@ in the specified folder/project will be returned.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getAnnotations">
-<code class="sig-name descname">getAnnotations</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">version</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getAnnotations" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getAnnotations</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getAnnotations" title="Permalink to this definition">¶</a></dt>
 <dd><div class="deprecated">
 <p><span class="versionmodified deprecated">Deprecated since version 2.1.0.</span></p>
 </div>
@@ -364,7 +363,7 @@ in the specified folder/project will be returned.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getChildren">
-<code class="sig-name descname">getChildren</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">parent</span></em>, <em class="sig-param"><span class="n">includeTypes</span><span class="o">=</span><span class="default_value">['folder', 'file', 'table', 'link', 'entityview', 'dockerrepo']</span></em>, <em class="sig-param"><span class="n">sortBy</span><span class="o">=</span><span class="default_value">'NAME'</span></em>, <em class="sig-param"><span class="n">sortDirection</span><span class="o">=</span><span class="default_value">'ASC'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getChildren" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getChildren</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeTypes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['folder',</span> <span class="pre">'file',</span> <span class="pre">'table',</span> <span class="pre">'link',</span> <span class="pre">'entityview',</span> <span class="pre">'dockerrepo']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortBy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'NAME'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortDirection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ASC'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getChildren" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieves all of the entities stored within a parent such as folder or project.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -388,7 +387,7 @@ in the specified folder/project will be returned.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getColumn">
-<code class="sig-name descname">getColumn</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getColumn" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getColumn</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getColumn" title="Permalink to this definition">¶</a></dt>
 <dd><p>Gets a Column object from Synapse by ID.</p>
 <p>See: <a class="reference internal" href="Table.html#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.table.Column</span></code></a></p>
 <dl class="field-list simple">
@@ -407,7 +406,7 @@ in the specified folder/project will be returned.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getColumns">
-<code class="sig-name descname">getColumns</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">limit</span><span class="o">=</span><span class="default_value">100</span></em>, <em class="sig-param"><span class="n">offset</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getColumns" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getColumns</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getColumns" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the columns defined in Synapse either (1) corresponding to a set of column headers, (2) those for a given
 schema, or (3) those whose names start with a given prefix.</p>
 <dl class="field-list simple">
@@ -427,7 +426,7 @@ or a string prefix</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getConfigFile">
-<code class="sig-name descname">getConfigFile</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">configPath</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getConfigFile" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getConfigFile</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">configPath</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getConfigFile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieves the client configuration information.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -441,7 +440,7 @@ or a string prefix</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getEvaluation">
-<code class="sig-name descname">getEvaluation</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getEvaluation" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getEvaluation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getEvaluation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Gets an Evaluation object from Synapse.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -460,7 +459,7 @@ or a string prefix</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getEvaluationByContentSource">
-<code class="sig-name descname">getEvaluationByContentSource</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getEvaluationByContentSource" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getEvaluationByContentSource</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getEvaluationByContentSource" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a generator over evaluations that derive their content from the given entity</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -475,7 +474,7 @@ or a string prefix</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getEvaluationByName">
-<code class="sig-name descname">getEvaluationByName</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">name</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getEvaluationByName" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getEvaluationByName</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getEvaluationByName" title="Permalink to this definition">¶</a></dt>
 <dd><p>Gets an Evaluation object from Synapse.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -490,7 +489,7 @@ or a string prefix</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getMyStorageLocationSetting">
-<code class="sig-name descname">getMyStorageLocationSetting</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">storage_location_id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getMyStorageLocationSetting" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getMyStorageLocationSetting</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getMyStorageLocationSetting" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a StorageLocationSetting by its id.
 :param storage_location_id: id of the StorageLocationSetting to retrieve.</p>
 <blockquote>
@@ -505,7 +504,7 @@ or a string prefix</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getPermissions">
-<code class="sig-name descname">getPermissions</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">principalId</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getPermissions" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getPermissions</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">principalId</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getPermissions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the permissions that a user or group has on an Entity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -524,7 +523,7 @@ or an empty array</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getProjectSetting">
-<code class="sig-name descname">getProjectSetting</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">project</span></em>, <em class="sig-param"><span class="n">setting_type</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getProjectSetting" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getProjectSetting</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">setting_type</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getProjectSetting" title="Permalink to this definition">¶</a></dt>
 <dd><p>Gets the ProjectSetting for a project.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -541,7 +540,7 @@ or an empty array</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getProvenance">
-<code class="sig-name descname">getProvenance</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">version</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getProvenance" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getProvenance</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getProvenance" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieve provenance information for a Synapse Entity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -560,7 +559,7 @@ raises exception if no provenance record exists</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getSubmission">
-<code class="sig-name descname">getSubmission</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">id</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getSubmission" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getSubmission</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getSubmission" title="Permalink to this definition">¶</a></dt>
 <dd><p>Gets a <a class="reference internal" href="Evaluation.html#synapseclient.evaluation.Submission" title="synapseclient.evaluation.Submission"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.evaluation.Submission</span></code></a> object by its id.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -578,7 +577,7 @@ raises exception if no provenance record exists</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getSubmissionBundles">
-<code class="sig-name descname">getSubmissionBundles</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">evaluation</span></em>, <em class="sig-param"><span class="n">status</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">myOwn</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">limit</span><span class="o">=</span><span class="default_value">20</span></em>, <em class="sig-param"><span class="n">offset</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getSubmissionBundles" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getSubmissionBundles</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">evaluation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">myOwn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getSubmissionBundles" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieve submission bundles (submission and submissions status) for an evaluation queue, optionally filtered by
 submission status and/or owner.</p>
 <dl class="field-list simple">
@@ -615,7 +614,7 @@ and annotations should be represented in the clients.</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getSubmissionStatus">
-<code class="sig-name descname">getSubmissionStatus</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">submission</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getSubmissionStatus" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getSubmissionStatus</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">submission</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getSubmissionStatus" title="Permalink to this definition">¶</a></dt>
 <dd><p>Downloads the status of a Submission.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -629,7 +628,7 @@ and annotations should be represented in the clients.</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getSubmissions">
-<code class="sig-name descname">getSubmissions</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">evaluation</span></em>, <em class="sig-param"><span class="n">status</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">myOwn</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">limit</span><span class="o">=</span><span class="default_value">20</span></em>, <em class="sig-param"><span class="n">offset</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getSubmissions" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getSubmissions</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">evaluation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">myOwn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getSubmissions" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -662,7 +661,7 @@ submission.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getTableColumns">
-<code class="sig-name descname">getTableColumns</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getTableColumns" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getTableColumns</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getTableColumns" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieve the column models used in the given table schema.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -676,7 +675,7 @@ submission.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getTeam">
-<code class="sig-name descname">getTeam</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getTeam" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getTeam</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getTeam" title="Permalink to this definition">¶</a></dt>
 <dd><p>Finds a team with a given ID or name.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -690,7 +689,7 @@ submission.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getTeamMembers">
-<code class="sig-name descname">getTeamMembers</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">team</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getTeamMembers" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getTeamMembers</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">team</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getTeamMembers" title="Permalink to this definition">¶</a></dt>
 <dd><p>Lists the members of the given team.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -704,7 +703,7 @@ submission.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getUserProfile">
-<code class="sig-name descname">getUserProfile</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">sessionToken</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">refresh</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getUserProfile" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getUserProfile</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sessionToken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getUserProfile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the details about a Synapse user.
 Retrieves information on the current user if ‘id’ is omitted.
 :param id:           The ‘userId’ (aka ‘ownerId’) of a user or the userName
@@ -720,7 +719,7 @@ freds_profile = syn.getUserProfile(‘fredcommo’)</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getWiki">
-<code class="sig-name descname">getWiki</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">owner</span></em>, <em class="sig-param"><span class="n">subpageId</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">version</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getWiki" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getWiki</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">owner</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subpageId</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getWiki" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a <a class="reference internal" href="Wiki.html#synapseclient.wiki.Wiki" title="synapseclient.wiki.Wiki"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.wiki.Wiki</span></code></a> object from Synapse. Uses wiki2 API which supports versioning.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -738,7 +737,7 @@ freds_profile = syn.getUserProfile(‘fredcommo’)</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getWikiAttachments">
-<code class="sig-name descname">getWikiAttachments</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">wiki</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getWikiAttachments" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getWikiAttachments</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wiki</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getWikiAttachments" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieve the attachments to a wiki page.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -752,7 +751,7 @@ freds_profile = syn.getUserProfile(‘fredcommo’)</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getWikiHeaders">
-<code class="sig-name descname">getWikiHeaders</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">owner</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getWikiHeaders" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getWikiHeaders</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">owner</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getWikiHeaders" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieves the headers of all Wikis belonging to the owner (the entity to which the Wiki is attached).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -766,7 +765,7 @@ freds_profile = syn.getUserProfile(‘fredcommo’)</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.get_annotations">
-<code class="sig-name descname">get_annotations</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity">synapseclient.entity.Entity</a><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">version</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="Annotations.html#synapseclient.annotations.Annotations" title="synapseclient.annotations.Annotations">synapseclient.annotations.Annotations</a><a class="headerlink" href="#synapseclient.Synapse.get_annotations" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">get_annotations</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="Annotations.html#synapseclient.annotations.Annotations" title="synapseclient.annotations.Annotations"><span class="pre">synapseclient.annotations.Annotations</span></a><a class="headerlink" href="#synapseclient.Synapse.get_annotations" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieve annotations for an Entity from the Synapse Repository as a Python dict.</p>
 <p>Note that collapsing annotations from the native Synapse format to a Python dict may involve some loss of
 information. See <code class="xref py py-func docutils literal notranslate"><span class="pre">_getRawAnnotations()</span></code> to get annotations in the native format.</p>
@@ -788,7 +787,7 @@ information. See <code class="xref py py-func docutils literal notranslate"><spa
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.get_membership_status">
-<code class="sig-name descname">get_membership_status</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">userid</span></em>, <em class="sig-param"><span class="n">team</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_membership_status" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">get_membership_status</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">userid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">team</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_membership_status" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieve a user’s Team Membership Status bundle.
 <a class="reference external" href="https://docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html">https://docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html</a></p>
 <dl class="field-list simple">
@@ -807,7 +806,7 @@ team’s ID.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.get_sts_storage_token">
-<code class="sig-name descname">get_sts_storage_token</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">permission</span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">output_format</span><span class="o">=</span><span class="default_value">'json'</span></em>, <em class="sig-param"><span class="n">min_remaining_life</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_sts_storage_token" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">get_sts_storage_token</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">permission</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'json'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_remaining_life</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_sts_storage_token" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get STS credentials for the given entity_id and permission, outputting it in the given format</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -830,7 +829,7 @@ has left than this amount of time left a fresh token will be fetched</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.get_team_open_invitations">
-<code class="sig-name descname">get_team_open_invitations</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">team</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_team_open_invitations" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">get_team_open_invitations</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">team</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_team_open_invitations" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieve the open requests submitted to a Team
 <a class="reference external" href="https://docs.synapse.org/rest/GET/team/id/openInvitation.html">https://docs.synapse.org/rest/GET/team/id/openInvitation.html</a></p>
 <dl class="field-list simple">
@@ -846,13 +845,13 @@ team’s ID.</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.invalidateAPIKey">
-<code class="sig-name descname">invalidateAPIKey</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.invalidateAPIKey" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">invalidateAPIKey</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.invalidateAPIKey" title="Permalink to this definition">¶</a></dt>
 <dd><p>Invalidates authentication across all clients.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.invite_to_team">
-<code class="sig-name descname">invite_to_team</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">team</span></em>, <em class="sig-param"><span class="n">user</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">inviteeEmail</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">message</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">force</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.invite_to_team" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">invite_to_team</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">team</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inviteeEmail</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.invite_to_team" title="Permalink to this definition">¶</a></dt>
 <dd><p>Invite user to a Synapse team via Synapse username or email
 (choose one or the other)</p>
 <dl class="field-list simple">
@@ -877,7 +876,7 @@ the old invite will be cancelled. Default to False.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.is_certified">
-<code class="sig-name descname">is_certified</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">user</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>int<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#synapseclient.Synapse.is_certified" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">is_certified</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">bool</span><a class="headerlink" href="#synapseclient.Synapse.is_certified" title="Permalink to this definition">¶</a></dt>
 <dd><p>Determines whether a Synapse user is a certified user.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Params user</dt>
@@ -891,7 +890,7 @@ the old invite will be cancelled. Default to False.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.login">
-<code class="sig-name descname">login</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">email</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">password</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">apiKey</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">sessionToken</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rememberMe</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">silent</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">forced</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">authToken</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.login" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">login</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apiKey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sessionToken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rememberMe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forced</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authToken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.login" title="Permalink to this definition">¶</a></dt>
 <dd><p>Valid combinations of login() arguments:</p>
 <ul class="simple">
 <li><p>email/username and password</p></li>
@@ -904,6 +903,7 @@ the old invite will be cancelled. Default to False.</p></li>
 </dd>
 </dl>
 <ol class="arabic simple">
+<li><p>User’s personal access token from environment the variable: SYNAPSE_AUTH_TOKEN</p></li>
 <li><p>.synapseConfig file (in user home folder unless configured otherwise)</p></li>
 <li><p>cached credentials from previous <cite>login()</cite> where <cite>rememberMe=True</cite> was passed as a parameter</p></li>
 </ol>
@@ -967,7 +967,7 @@ used to authenticate for future logins:</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.logout">
-<code class="sig-name descname">logout</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">forgetMe</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.logout" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">logout</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">forgetMe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.logout" title="Permalink to this definition">¶</a></dt>
 <dd><p>Removes authentication information from the Synapse client.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -979,7 +979,7 @@ See the flag “rememberMe” in <a class="reference internal" href="index.html#
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.md5Query">
-<code class="sig-name descname">md5Query</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">md5</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.md5Query" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">md5Query</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">md5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.md5Query" title="Permalink to this definition">¶</a></dt>
 <dd><p>Find the Entities which have attached file(s) which have the given MD5 hash.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -993,7 +993,7 @@ See the flag “rememberMe” in <a class="reference internal" href="index.html#
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.move">
-<code class="sig-name descname">move</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">new_parent</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.move" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">move</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_parent</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.move" title="Permalink to this definition">¶</a></dt>
 <dd><p>Move a Synapse entity to a new container.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1014,7 +1014,7 @@ See the flag “rememberMe” in <a class="reference internal" href="index.html#
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.onweb">
-<code class="sig-name descname">onweb</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">subpageId</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.onweb" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">onweb</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subpageId</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.onweb" title="Permalink to this definition">¶</a></dt>
 <dd><p>Opens up a browser window to the entity page or wiki-subpage.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1028,7 +1028,7 @@ See the flag “rememberMe” in <a class="reference internal" href="index.html#
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.printEntity">
-<code class="sig-name descname">printEntity</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">ensure_ascii</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.printEntity" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">printEntity</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_ascii</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.printEntity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Pretty prints an Entity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1042,7 +1042,7 @@ See the flag “rememberMe” in <a class="reference internal" href="index.html#
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.restDELETE">
-<code class="sig-name descname">restDELETE</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">uri</span></em>, <em class="sig-param"><span class="n">endpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">headers</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">retryPolicy</span><span class="o">=</span><span class="default_value">{}</span></em>, <em class="sig-param"><span class="n">requests_session</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.restDELETE" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">restDELETE</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">retryPolicy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.restDELETE" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sends an HTTP DELETE request to the Synapse server.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1060,7 +1060,7 @@ See the flag “rememberMe” in <a class="reference internal" href="index.html#
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.restGET">
-<code class="sig-name descname">restGET</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">uri</span></em>, <em class="sig-param"><span class="n">endpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">headers</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">retryPolicy</span><span class="o">=</span><span class="default_value">{}</span></em>, <em class="sig-param"><span class="n">requests_session</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.restGET" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">restGET</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">retryPolicy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.restGET" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sends an HTTP GET request to the Synapse server.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1082,7 +1082,7 @@ See the flag “rememberMe” in <a class="reference internal" href="index.html#
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.restPOST">
-<code class="sig-name descname">restPOST</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">uri</span></em>, <em class="sig-param"><span class="n">body</span></em>, <em class="sig-param"><span class="n">endpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">headers</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">retryPolicy</span><span class="o">=</span><span class="default_value">{}</span></em>, <em class="sig-param"><span class="n">requests_session</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.restPOST" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">restPOST</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">body</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">retryPolicy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.restPOST" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sends an HTTP POST request to the Synapse server.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1105,7 +1105,7 @@ See the flag “rememberMe” in <a class="reference internal" href="index.html#
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.restPUT">
-<code class="sig-name descname">restPUT</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">uri</span></em>, <em class="sig-param"><span class="n">body</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">endpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">headers</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">retryPolicy</span><span class="o">=</span><span class="default_value">{}</span></em>, <em class="sig-param"><span class="n">requests_session</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.restPUT" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">restPUT</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">body</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">retryPolicy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.restPUT" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sends an HTTP PUT request to the Synapse server.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1128,7 +1128,7 @@ See the flag “rememberMe” in <a class="reference internal" href="index.html#
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.sendMessage">
-<code class="sig-name descname">sendMessage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">userIds</span></em>, <em class="sig-param"><span class="n">messageSubject</span></em>, <em class="sig-param"><span class="n">messageBody</span></em>, <em class="sig-param"><span class="n">contentType</span><span class="o">=</span><span class="default_value">'text/plain'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.sendMessage" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">sendMessage</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">userIds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">messageSubject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">messageBody</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">contentType</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'text/plain'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.sendMessage" title="Permalink to this definition">¶</a></dt>
 <dd><p>send a message via Synapse.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1148,7 +1148,7 @@ Should be one of “text/plain” or “text/html”</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.send_membership_invitation">
-<code class="sig-name descname">send_membership_invitation</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">teamId</span></em>, <em class="sig-param"><span class="n">inviteeId</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">inviteeEmail</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">message</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.send_membership_invitation" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">send_membership_invitation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">teamId</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inviteeId</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inviteeEmail</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.send_membership_invitation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a membership invitation and send an email notification
 to the invitee.</p>
 <dl class="field-list simple">
@@ -1169,7 +1169,7 @@ team. Default to None.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.setAnnotations">
-<code class="sig-name descname">setAnnotations</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">annotations</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setAnnotations" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">setAnnotations</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setAnnotations" title="Permalink to this definition">¶</a></dt>
 <dd><p>Store annotations for an Entity in the Synapse Repository.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1192,7 +1192,7 @@ that you have retrieved and updated the latest annotations</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.setEndpoints">
-<code class="sig-name descname">setEndpoints</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">repoEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">authEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fileHandleEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">portalEndpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">skip_checks</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setEndpoints" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">setEndpoints</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">repoEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileHandleEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">portalEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_checks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setEndpoints" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sets the locations for each of the Synapse services (mostly useful for testing).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1214,7 +1214,7 @@ that you have retrieved and updated the latest annotations</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.setPermissions">
-<code class="sig-name descname">setPermissions</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">principalId</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">accessType</span><span class="o">=</span><span class="default_value">['READ', 'DOWNLOAD']</span></em>, <em class="sig-param"><span class="n">modify_benefactor</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">warn_if_inherits</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setPermissions" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">setPermissions</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">principalId</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">accessType</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['READ',</span> <span class="pre">'DOWNLOAD']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modify_benefactor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warn_if_inherits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setPermissions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sets permission that a user or group has on an Entity.
 An Entity may have its own ACL or inherit its ACL from a benefactor.</p>
 <dl class="field-list simple">
@@ -1239,7 +1239,7 @@ Set this flag to False to add new permissions non-destructively.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.setProvenance">
-<code class="sig-name descname">setProvenance</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">activity</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setProvenance" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">setProvenance</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activity</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setProvenance" title="Permalink to this definition">¶</a></dt>
 <dd><p>Stores a record of the code and data used to derive a Synapse entity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1256,7 +1256,7 @@ Set this flag to False to add new permissions non-destructively.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.setStorageLocation">
-<code class="sig-name descname">setStorageLocation</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">storage_location_id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setStorageLocation" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">setStorageLocation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setStorageLocation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sets the storage location for a Project or Folder
 :param entity:              a Project or Folder to which the StorageLocationSetting is set
 :param storage_location_id: a StorageLocation id or a list of StorageLocation ids. Pass in None for the default</p>
@@ -1272,7 +1272,7 @@ Set this flag to False to add new permissions non-destructively.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.set_annotations">
-<code class="sig-name descname">set_annotations</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">annotations</span><span class="p">:</span> <span class="n"><a class="reference internal" href="Annotations.html#synapseclient.annotations.Annotations" title="synapseclient.annotations.Annotations">synapseclient.annotations.Annotations</a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.set_annotations" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_annotations</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="Annotations.html#synapseclient.annotations.Annotations" title="synapseclient.annotations.Annotations"><span class="pre">synapseclient.annotations.Annotations</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.set_annotations" title="Permalink to this definition">¶</a></dt>
 <dd><p>Store annotations for an Entity in the Synapse Repository.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1311,7 +1311,7 @@ with the id and etag attribute set</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.store">
-<code class="sig-name descname">store</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">createOrUpdate</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">forceVersion</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">versionLabel</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">isRestricted</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">activity</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">used</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">executed</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">activityName</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">activityDescription</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.store" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">store</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">createOrUpdate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forceVersion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versionLabel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isRestricted</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">used</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">executed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activityName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activityDescription</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.store" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a new Entity or updates an existing Entity, uploading any files in the process.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1365,7 +1365,7 @@ requirements of access.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.submit">
-<code class="sig-name descname">submit</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">evaluation</span></em>, <em class="sig-param"><span class="n">entity</span></em>, <em class="sig-param"><span class="n">name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">team</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">silent</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">submitterAlias</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">teamName</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">dockerTag</span><span class="o">=</span><span class="default_value">'latest'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.submit" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">submit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">evaluation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">team</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">submitterAlias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">teamName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dockerTag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'latest'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.submit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Submit an Entity for <a class="reference external" href="Evaluation.html">evaluation</a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1401,7 +1401,7 @@ associated. The caller must be a member of the submitting team.</p>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.tableQuery">
-<code class="sig-name descname">tableQuery</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">query</span></em>, <em class="sig-param"><span class="n">resultsAs</span><span class="o">=</span><span class="default_value">'csv'</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.tableQuery" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">tableQuery</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resultsAs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'csv'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.tableQuery" title="Permalink to this definition">¶</a></dt>
 <dd><p>Query a Synapse Table.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1459,7 +1459,7 @@ max timeout by setting the table_query_timeout variable of the Synapse object:</
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.updateActivity">
-<code class="sig-name descname">updateActivity</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">activity</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.updateActivity" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">updateActivity</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">activity</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.updateActivity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Modifies an existing Activity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1473,7 +1473,7 @@ max timeout by setting the table_query_timeout variable of the Synapse object:</
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.uploadFileHandle">
-<code class="sig-name descname">uploadFileHandle</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em>, <em class="sig-param"><span class="n">parent</span></em>, <em class="sig-param"><span class="n">synapseStore</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">mimetype</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">md5</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">file_size</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.uploadFileHandle" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">uploadFileHandle</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">synapseStore</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mimetype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">md5</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.uploadFileHandle" title="Permalink to this definition">¶</a></dt>
 <dd><p>Uploads the file in the provided path (if necessary) to a storage location based on project settings.
 Returns a new FileHandle as a dict to represent the stored file.</p>
 <dl class="field-list simple">
@@ -1537,8 +1537,8 @@ calculated automatically.</p></li>
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="S3Storage.html"
-                        title="previous chapter">S3 Storage Features</a></p>
+  <p class="topless"><a href="reticulate.html"
+                        title="previous chapter">Using synapseclient with R through reticulate</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="Entity.html"
                         title="next chapter">Entity</a></p>
@@ -1566,16 +1566,16 @@ calculated automatically.</p></li>
           <a href="Entity.html" title="Entity"
              >next</a> |</li>
         <li class="right" >
-          <a href="S3Storage.html" title="S3 Storage Features"
+          <a href="reticulate.html" title="Using synapseclient with R through reticulate"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 13, 2021.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
+      Last updated on Jul 08, 2021.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

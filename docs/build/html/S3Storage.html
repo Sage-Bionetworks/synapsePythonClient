@@ -5,23 +5,22 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S3 Storage Features &#8212; Synapse Python Client 2.3.1 documentation</title>
-    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>S3 Storage Features &#8212; Synapse Python Client 2.4.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
     <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
     <script src="_static/jquery.js"></script>
     <script src="_static/underscore.js"></script>
     <script src="_static/doctools.js"></script>
-    <script src="_static/language_data.js"></script>
     <script src="_static/bizstyle.js"></script>
     <link rel="shortcut icon" href="_static/favicon.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Synapse Client" href="Client.html" />
+    <link rel="next" title="Using synapseclient with R through reticulate" href="reticulate.html" />
     <link rel="prev" title="File Upload" href="Upload.html" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <!--[if lt IE 9]>
     <script src="_static/css3-mediaqueries.js"></script>
     <![endif]-->
@@ -41,12 +40,12 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="Client.html" title="Synapse Client"
+          <a href="reticulate.html" title="Using synapseclient with R through reticulate"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="Upload.html" title="File Upload"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">S3 Storage Features</a></li> 
       </ul>
     </div>  
@@ -149,7 +148,9 @@ Note also that STS can only be enabled on an empty folder.</p>
 <h3>Using credentials with the awscli<a class="headerlink" href="#using-credentials-with-the-awscli" title="Permalink to this headline">¶</a></h3>
 <p>This example illustrates obtaining STS credentials and using them with the awscli command line tool.
 The first command outputs the credentials as shell commands to execute which will then be picked up
-by subsequent aws cli commands.</p>
+by subsequent aws cli commands. Note that the bucket-owner-full-control ACL is required when putting
+an object via STS credentials. This ensures that the object ownership will be transferred to the
+owner of the AWS bucket.</p>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ synapse get-sts-token -o shell syn123 read_write
 
@@ -161,7 +162,7 @@ export AWS_SESSION_TOKEN=&quot;&lt;session_token&gt;
 # if the above are executed in the shell, the awscli will automatically apply them
 
 # e.g. copy a file directly to the bucket using the exported credentials
-$ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION
+$ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION --acl bucket-owner-full-control
 </pre></div>
 </div>
 </div></blockquote>
@@ -169,7 +170,9 @@ $ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION
 <div class="section" id="using-credentials-with-boto3-in-python">
 <h3>Using credentials with boto3 in python<a class="headerlink" href="#using-credentials-with-boto3-in-python" title="Permalink to this headline">¶</a></h3>
 <p>This example illustrates retrieving STS credentials and using them with boto3 within python code,
-in this case to upload a file.</p>
+in this case to upload a file.  Note that the bucket-owner-full-control ACL is required when putting
+an object via STS credentials. This ensures that the object ownership will be transferred to the
+owner of the AWS bucket.</p>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># the boto output_format is compatible with the boto3 session api.</span>
 <span class="n">credentials</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get_sts_storage_token</span><span class="p">(</span><span class="s1">&#39;syn123&#39;</span><span class="p">,</span> <span class="s1">&#39;read_write&#39;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s1">&#39;boto&#39;</span><span class="p">)</span>
@@ -179,6 +182,7 @@ in this case to upload a file.</p>
     <span class="n">Filename</span><span class="o">=</span><span class="s1">&#39;/path/to/local/file,</span>
     <span class="n">Bucket</span><span class="o">=</span><span class="s1">&#39;my-external-synapse-bucket&#39;</span><span class="p">,</span>
     <span class="n">Key</span><span class="o">=</span><span class="s1">&#39;path/within/bucket/file&#39;</span><span class="p">,</span>
+    <span class="n">ExtraArgs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;ACL&#39;</span><span class="p">:</span> <span class="s1">&#39;bucket-owner-full-control&#39;</span><span class="p">},</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -363,8 +367,8 @@ Writing csv log to /tmp/migrate.csv
   <p class="topless"><a href="Upload.html"
                         title="previous chapter">File Upload</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="Client.html"
-                        title="next chapter">Synapse Client</a></p>
+  <p class="topless"><a href="reticulate.html"
+                        title="next chapter">Using synapseclient with R through reticulate</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -386,19 +390,19 @@ Writing csv log to /tmp/migrate.csv
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="Client.html" title="Synapse Client"
+          <a href="reticulate.html" title="Using synapseclient with R through reticulate"
              >next</a> |</li>
         <li class="right" >
           <a href="Upload.html" title="File Upload"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.3.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">S3 Storage Features</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 13, 2021.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.1.2.
+      Last updated on Jul 08, 2021.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
