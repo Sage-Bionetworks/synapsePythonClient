@@ -3,24 +3,39 @@ from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Enti
 import sys
 import pandas as pd
 
-# 1: function to open csv and tsv files that returns dataframes
-# 2: function to returns summary statistics
-
 
 def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
     """
     :param syn: synapse object
     :param entity: a synapse entity to be extracted and converted into a dataframe
-    :return: a pandas DataFrame
+    :return: a pandas DataFrame if flow of execution is successful; None if not.
     """
 
-    synapse_file = syn.get(entity)
-
-    df = None
+    dataset = None
 
     try:
-        df = pd.read_csv(synapse_file.path)
-    except: # needs to be narrowed down
-        print("Please provide a valid file.")
+        entity = syn.get(entity)
+        format = entity.path.split(".")[-1]
+    except synapseclient.core.exceptions.SynapseHTTPError:
+        print(str(entity) + " is not a valid Synapse id")
+        return dataset  # its value is None here
 
-    return df
+    print(format)
+
+    if format == "csv":
+        dataset = pd.read_csv(entity.path)
+    elif format == "tsv":
+        dataset = pd.read_csv(entity.path, sep='\\t')
+    else:
+        print("File type not supported.")
+
+    return dataset
+
+
+def synapse_describe(df: pd.DataFrame, mode: str = 'string'):
+    """
+    :param df: pandas dataframe from the csv or tsv file
+    :param mode: string defining the return value.  Can be either 'object' or 'string'
+    :return: see param mode
+    """
+    pass
