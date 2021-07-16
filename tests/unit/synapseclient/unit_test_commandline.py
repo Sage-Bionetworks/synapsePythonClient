@@ -522,7 +522,7 @@ def test__replace_existing_config__prepend(syn):
     """Replace adding authentication to .synapseConfig when there is no
     authentication section
     """
-    f = tempfile.NamedTemporaryFile(mode='w')
+    f = tempfile.NamedTemporaryFile(mode='w', delete=False)
     auth_section = (
         '#[authentication]\n'
         "#username=foobar\n"
@@ -553,7 +553,7 @@ def test__replace_existing_config__prepend(syn):
 
 def test__replace_existing_config__backup(syn):
     """Replace backup files are created"""
-    f = tempfile.NamedTemporaryFile(mode='w')
+    f = tempfile.NamedTemporaryFile(mode='w', delete=False)
     auth_section = "foobar"
     with open(f.name, "w") as config_f:
         config_f.write(auth_section)
@@ -574,7 +574,7 @@ def test__replace_existing_config__backup(syn):
 def test__replace_existing_config__replace(syn):
     """Replace existing authentication to .synapseConfig
     """
-    f = tempfile.NamedTemporaryFile(mode='w')
+    f = tempfile.NamedTemporaryFile(mode='w', delete=False)
     auth_section = (
         '[authentication]\n'
         "username=foobar\n"
@@ -651,7 +651,7 @@ def test_config_replace(mock__prompt_for_credentials,
         "username=test\n"
         "password=wow\n\n"
     )
-    temp = tempfile.NamedTemporaryFile(mode='w')
+    temp = tempfile.NamedTemporaryFile(mode='w', delete=False)
     args = Mock()
     args.configPath = temp.name
     cmdline.config(args, syn)
