@@ -1,6 +1,4 @@
 import synapseclient
-from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity
-import sys
 import pandas as pd
 
 
@@ -20,8 +18,6 @@ def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
         print(str(entity) + " is not a valid Synapse id")
         return dataset  # its value is None here
 
-    print(format)
-
     if format == "csv":
         dataset = pd.read_csv(entity.path)
     elif format == "tsv":
@@ -35,7 +31,28 @@ def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
 def synapse_describe(df: pd.DataFrame, mode: str = 'string'):
     """
     :param df: pandas dataframe from the csv or tsv file
-    :param mode: string defining the return value.  Can be either 'object' or 'string'
+    :param mode: string defining the return value.  Can be either 'dict' or 'string'
     :return: see param mode
     """
-    pass
+
+    stats = {}
+    for column in df.columns:
+        stats[column] = {}
+        try:
+            if pd.api.types.is_numeric_dtype(df[column].dtype):
+                stats[column]['mode'] = df[column].mode()[0]
+                stats[column]['min'] = df[column].min()
+                stats[column]['max'] = df[column].max()
+                stats[column]['mean'] = df[column].mean()
+                stats[column]['dtype'] = df[column].dtype
+            else:
+                stats[column]['mode'] = df[column].mode()[0]
+                stats[column]['dtype'] = df[column].dtype
+
+        except TypeError:
+            print("Invalid column type.")
+
+    if mode == 'string':
+        print(stats)
+    else:
+        return stats
