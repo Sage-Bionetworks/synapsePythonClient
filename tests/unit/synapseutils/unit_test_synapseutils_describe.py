@@ -1,8 +1,11 @@
+import collections
+
 import pytest
 import synapseclient
 import pandas as pd
+from numpy import array_equal
 import tempfile
-from synapseutils.describe import _open_entity_as_df, synapse_describe
+from synapseutils.describe import _open_entity_as_df, _describe
 from unittest.mock import patch, MagicMock
 
 
@@ -40,16 +43,28 @@ class TestOpenEntityAsDf:
     def test_open_entity_as_df_csv(self, setup_csv):
         with patch.object(self.syn, "get", return_value=self.csv_ent) as mocked_get_entity:
 
-            assert type(_open_entity_as_df(self.syn, self.id)) == pd.DataFrame
+            result_csv = _open_entity_as_df(self.syn, self.id)
+            assert type(result_csv) == pd.DataFrame
+
+            result_csv = pd.DataFrame(result_csv)
+            assert array_equal(result_csv[['gene']], self.df[['gene']]) == True
+            assert array_equal(result_csv[['score']], self.df[['score']]) == True
+
             mocked_get_entity.assert_called_once()
 
     def test_open_entity_as_df_tsv(self, setup_tsv):
         with patch.object(self.syn, "get", return_value=self.tsv_ent) as mocked_get_entity:
 
-            assert type(_open_entity_as_df(self.syn, self.id)) == pd.DataFrame
+            result_tsv = _open_entity_as_df(self.syn, self.id)
+            assert type(result_tsv) == pd.DataFrame
+
+            result_tsv = pd.DataFrame(result_tsv)
+            assert array_equal(result_tsv[['gene']], self.df[['gene']]) == True
+            assert array_equal(result_tsv[['score']], self.df[['score']]) == True
+
             mocked_get_entity.assert_called_once()
 
-class TestSynapseDescribe:
+class TestDescribe:
     id = 'syn123456'
     df_mixed = pd.DataFrame(
         {'gene': ['MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'CD44'],
@@ -58,6 +73,17 @@ class TestSynapseDescribe:
          "presence_in_ad_brain": [True, False, True, False, True, False, True, False, False]
          })
 
-    def test_synapse_describe_with_mixed_series(self):
-        assert type(synapse_describe(df=self.df_mixed, mode='object')) == dict
-        assert type(synapse_describe(df=self.df_mixed, mode='string')) == type(None)
+    def test_describe_with_mixed_series(self):
+
+        result = _describe(df=self.df_mixed, mode='object')
+        assert type(result) == type(collections.defaultdict(dict))
+
+        assert result['gene']['mode'] == 'CD44'
+        assert result['score']['mode'] == 1
+        assert result['score']['min'] == 1
+        assert result['score']['max'] == 2
+        assert result['presence_in_ad_brain']['mode'] == False
+        assert result['presence_in_ad_brain']['min'] == False
+        assert result['presence_in_ad_brain']['max'] == True
+
+        assert type(_describe(df=self.df_mixed, mode='string')) == type(None)

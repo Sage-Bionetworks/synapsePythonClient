@@ -1,9 +1,12 @@
 import synapseclient
 import pandas as pd
+from os import path
+from collections import defaultdict
 
 
 def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
     """
+    Gets a csv or tsv Synapse entity and returns it as a dataframe
     :param syn: synapse object
     :param entity: a synapse entity to be extracted and converted into a dataframe
     :return: a pandas DataFrame if flow of execution is successful; None if not.
@@ -13,29 +16,31 @@ def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
 
     try:
         entity = syn.get(entity)
-        format = entity.path.split(".")[-1]
+        name, format = path.splitext(entity.path)
     except synapseclient.core.exceptions.SynapseHTTPError:
         print(str(entity) + " is not a valid Synapse id")
         return dataset  # its value is None here
 
-    if format == "csv":
+    if format == ".csv":
         dataset = pd.read_csv(entity.path)
-    elif format == "tsv":
-        dataset = pd.read_csv(entity.path, sep='\\t')
+    elif format == ".tsv":
+        dataset = pd.read_csv(entity.path, sep='\t')
     else:
         print("File type not supported.")
 
     return dataset
 
 
-def synapse_describe(df: pd.DataFrame, mode: str = 'string'):
+def _describe(df: pd.DataFrame, mode: str = 'string'):
     """
+    Returns the mode, min, max, mean, and dtype of each column in a dataframe
     :param df: pandas dataframe from the csv or tsv file
     :param mode: string defining the return value.  Can be either 'dict' or 'string'
     :return: see param mode
     """
 
-    stats = {}
+    stats = defaultdict(dict)
+
     for column in df.columns:
         stats[column] = {}
         try:
@@ -56,3 +61,18 @@ def synapse_describe(df: pd.DataFrame, mode: str = 'string'):
         print(stats)
     else:
         return stats
+
+def synapse_describe(syn, entity: str, mode: str = 'string'):
+    """
+    Synapse_describe gets a synapse entity and returns summary statistics about it
+    :param syn: synapse object
+    :param entity: synapse id of the entity to be described
+    :param mode: how it should be returned (string or object)
+    :return: if dataset is valid, returns either a string or object; otherwise None
+    """
+    df = _open_entity_as_df(syn=syn, entity=entity)
+
+    if not df:
+        return None
+
+    return _describe(df, mode)
