@@ -395,14 +395,14 @@ def as_table_columns(values):
 
     df = None
 
-    # filename of a csv file
-    # in Python 3, we can check that the values is instanceof io.IOBase
-    # for now, check if values has attr `read`
-    if isinstance(values, str) or hasattr(values, "read"):
-        df = _csv_to_pandas_df(values)
     # pandas DataFrame
     if isinstance(values, pd.DataFrame):
         df = values
+    # filename of a csv file
+    # in Python 3, we can check that the values is instanceof io.IOBase
+    # for now, check if values has attr `read`
+    elif isinstance(values, str) or hasattr(values, "read"):
+        df = _csv_to_pandas_df(values)
 
     if df is None:
         raise ValueError("Values of type %s is not yet supported." % type(values))
