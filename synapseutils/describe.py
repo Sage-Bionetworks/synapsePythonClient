@@ -2,6 +2,7 @@ import synapseclient
 import pandas as pd
 from os import path
 from collections import defaultdict
+from json import dumps
 
 
 def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
@@ -31,7 +32,7 @@ def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
     return dataset
 
 
-def _describe(df: pd.DataFrame, mode: str = 'string'):
+def _describe_wrapper(df: pd.DataFrame, mode: str = 'string'):
     """
     Returns the mode, min, max, mean, and dtype of each column in a dataframe
     :param df: pandas dataframe from the csv or tsv file
@@ -58,11 +59,11 @@ def _describe(df: pd.DataFrame, mode: str = 'string'):
             print("Invalid column type.")
 
     if mode == 'string':
-        print(stats)
+        print(dumps(stats, indent=2, default=str))
     else:
         return stats
 
-def synapse_describe(syn, entity: str, mode: str = 'string'):
+def describe(syn, entity: str, mode: str = 'string'):
     """
     Synapse_describe gets a synapse entity and returns summary statistics about it
     :param syn: synapse object
@@ -72,7 +73,7 @@ def synapse_describe(syn, entity: str, mode: str = 'string'):
     """
     df = _open_entity_as_df(syn=syn, entity=entity)
 
-    if not df:
+    if df is None:
         return None
 
-    return _describe(df, mode)
+    return _describe_wrapper(df, mode)

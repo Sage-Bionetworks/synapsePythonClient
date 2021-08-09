@@ -5,7 +5,7 @@ import synapseclient
 import pandas as pd
 from numpy import array_equal
 import tempfile
-from synapseutils.describe import _open_entity_as_df, _describe
+from synapseutils.describe import _open_entity_as_df, _describe_wrapper
 from unittest.mock import patch, MagicMock
 
 
@@ -75,7 +75,7 @@ class TestDescribe:
 
     def test_describe_with_mixed_series(self):
 
-        result = _describe(df=self.df_mixed, mode='object')
+        result = _describe_wrapper(df=self.df_mixed, mode='object')
         assert type(result) == type(collections.defaultdict(dict))
 
         assert result['gene']['mode'] == 'CD44'
@@ -86,4 +86,4 @@ class TestDescribe:
         assert result['presence_in_ad_brain']['min'] == False
         assert result['presence_in_ad_brain']['max'] == True
 
-        assert type(_describe(df=self.df_mixed, mode='string')) == type(None)
+        assert type(_describe_wrapper(df=self.df_mixed, mode='string')) == type(None)
