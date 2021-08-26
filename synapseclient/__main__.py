@@ -129,7 +129,7 @@ def _validate_id_arg(args):
 
 
 def manifest(args, syn):
-    synapseutils.generate_sync_manifest(syn, path=args.path,
+    synapseutils.generate_sync_manifest(syn, directory_path=args.path,
                                         parentid=args.parentid,
                                         manifest_path=args.manifestFile)
 
