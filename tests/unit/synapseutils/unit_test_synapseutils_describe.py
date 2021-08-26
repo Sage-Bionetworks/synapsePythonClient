@@ -1,5 +1,3 @@
-import collections
-
 import pytest
 import synapseclient
 import pandas as pd
@@ -77,14 +75,14 @@ class TestDescribe:
     def test_describe_with_mixed_series(self):
 
         result = _describe_wrapper(df=self.df_mixed, mode='object')
-        assert type(result) == isinstance(collections.defaultdict(dict))
+        assert isinstance(result, dict) is True
 
         assert result['gene']['mode'] == 'CD44'
         assert result['score']['mode'] == 1
         assert result['score']['min'] == 1
         assert result['score']['max'] == 2
-        assert result['presence_in_ad_brain']['mode'] is False
-        assert result['presence_in_ad_brain']['min'] is False
-        assert result['presence_in_ad_brain']['max'] is True
+        assert result['presence_in_ad_brain']['mode'] == False # noqa
+        assert result['presence_in_ad_brain']['min'] == False # noqa
+        assert result['presence_in_ad_brain']['max'] == True # noqa
 
-        assert type(_describe_wrapper(df=self.df_mixed, mode='string')) == isinstance(None)
+        assert isinstance(_describe_wrapper(df=self.df_mixed, mode='string'), (str, type(None)))
