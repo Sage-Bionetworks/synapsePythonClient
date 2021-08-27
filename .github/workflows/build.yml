@@ -135,6 +135,20 @@ jobs:
              # use loadscope to avoid issues running tests concurrently that share scoped fixtures
             pytest -sv tests/integration -n auto --dist loadscope
           fi
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@1.1.3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  finish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@1.1.3
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
