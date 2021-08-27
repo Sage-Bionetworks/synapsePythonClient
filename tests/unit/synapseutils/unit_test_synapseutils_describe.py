@@ -3,7 +3,7 @@ import synapseclient
 import pandas as pd
 from numpy import array_equal
 import tempfile
-from synapseutils.describe import _open_entity_as_df, _describe_wrapper
+from synapseutils.describe_functions import _open_entity_as_df, _describe_wrapper
 from unittest.mock import patch
 
 

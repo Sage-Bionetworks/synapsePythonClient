@@ -22,4 +22,4 @@ from .walk import walk
 from .sync import syncFromSynapse, syncToSynapse
 from .migrate_functions import index_files_for_migration, migrate_indexed_files
 from .monitor import notifyMe, with_progress_bar
-from .describe import describe
+from .describe_functions import describe
