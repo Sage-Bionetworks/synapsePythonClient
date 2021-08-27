@@ -24,7 +24,7 @@ class TestOpenEntityAsDf:
 
     @pytest.fixture
     def setup_csv(self):
-        self.df.to_csv(self.csv_path)
+        self.df.to_csv(self.csv_path.name)
         self.csv_ent = synapseclient.File(name='file.csv',
                                           id=self.id,
                                           path=self.csv_path.name,
@@ -32,7 +32,7 @@ class TestOpenEntityAsDf:
 
     @pytest.fixture
     def setup_tsv(self):
-        self.df.to_csv(self.tsv_path, sep='\t')
+        self.df.to_csv(self.tsv_path.name, sep='\t')
         self.tsv_ent = synapseclient.File(name='file.tsv',
                                           id=self.id,
                                           path=self.tsv_path.name,
