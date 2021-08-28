@@ -1,8 +1,9 @@
-import synapseclient
-import pandas as pd
-from os import path
 from collections import defaultdict
 from json import dumps
+from os import path
+
+import synapseclient
+import pandas as pd
 
 
 def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
