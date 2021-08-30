@@ -4,6 +4,7 @@ import os
 import json
 from collections import defaultdict
 
+
 def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
     """
     Gets a csv or tsv Synapse entity and returns it as a dataframe
