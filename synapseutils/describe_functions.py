@@ -1,9 +1,8 @@
 import synapseclient
 import pandas as pd
-from os import path
+import os
+import json
 from collections import defaultdict
-from json import dumps
-
 
 def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
     """
@@ -17,7 +16,7 @@ def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
 
     try:
         entity = syn.get(entity)
-        name, format = path.splitext(entity.path)
+        name, format = os.path.splitext(entity.path)
     except synapseclient.core.exceptions.SynapseHTTPError:
         print(str(entity) + " is not a valid Synapse id")
         return dataset  # its value is None here
@@ -59,7 +58,7 @@ def _describe_wrapper(df: pd.DataFrame, mode: str = 'string'):
             print("Invalid column type.")
 
     if mode == 'string':
-        print(dumps(stats, indent=2, default=str))
+        print(json.dumps(stats, indent=2, default=str))
     else:
         return stats
 
