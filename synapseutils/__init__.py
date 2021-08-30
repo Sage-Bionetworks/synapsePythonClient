@@ -14,7 +14,7 @@ The ``synapseutils`` package provides both higher level functions as well as uti
 - :py:func:`monitor.notifyMe`
 - :py:func:`migrate_functions.index_files_for_migration`
 - :py:func:`migrate_functions.migrate_indexed_files`
-- :py:func:`describe.describe`
+- :py:func:`describe_functions.describe`
 """
 # flake8: noqa F401 unclear who is using these
 from .copy_functions import copy, copyWiki, copyFileHandles, changeFileMetaData

@@ -1,10 +1,11 @@
+import tempfile
+from unittest.mock import patch
+
+from numpy import array_equal
+import pandas as pd
 import pytest
 import synapseclient
-import pandas as pd
-from numpy import array_equal
-import tempfile
 from synapseutils.describe_functions import _open_entity_as_df, _describe_wrapper
-from unittest.mock import patch
 
 
 class TestOpenEntityAsDf:
