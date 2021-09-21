@@ -11,7 +11,7 @@ Use :code:`username` and :code:`password` to login as follows::
     import synapseclient
     syn = synapseclient.login("username", "password")
 
-Alternately you can login using a personal access token obtained from synapse.org under your Settings. Note that a token must minimally have the *view* scope to be used with the Synapse Python Client.
+Alternately you can login using a `personal access token <https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens>`__ token obtained from synapse.org under your Settings. Note that a token must minimally have the *view* scope to be used with the Synapse Python Client.
 
 ::
 
@@ -21,7 +21,7 @@ Use Environment Variable
 =========================
 
 Setting the :code:`SYNAPSE_AUTH_TOKEN` environment variable will allow you to login
-to Synapse with a personal access token.
+to Synapse with a `personal access token <https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens>`__
 
 The environment variable will take priority over credentials in the user's :code:`.synapseConfig` file
 or any credentials saved in a prior login using :code:`syn.login(rememberMe=True)`.

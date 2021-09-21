@@ -178,16 +178,50 @@ class TestSynapseCredentialProvider(object):
         creds = self.provider._create_synapse_credential(self.syn, self.username, None, self.api_key, self.auth_token)
         assert creds is mock_creds
 
+    @pytest.mark.parametrize(
+        'login_username,profile_username,profile_emails',
+        (
+            ('foo', 'foo', ['foo@bar.com']),  # username matches
+            ('foo@bar.com', 'foo', ['1@2.com', 'foo@bar.com', '3@4.com'])  # email matches
+        )
+    )
+    def test_create_synapse_credential__username_auth_token_match(
+            self,
+            mocker,
+            login_username,
+            profile_username,
+            profile_emails,
+    ):
+        """Verify that if both a username/email and a auth token are provided, the login is successful
+        if the token matches either the username or a profile email address."""
+
+        mock_rest_get = mocker.patch.object(self.syn, 'restGET')
+        mock_rest_get.return_value = {
+            'userName': profile_username,
+            'emails': profile_emails,
+        }
+
+        cred = self.provider._create_synapse_credential(self.syn, login_username, None, self.api_key, self.auth_token)
+        assert cred.secret == self.auth_token
+        assert cred.username == profile_username
+
     def test_create_synapse_credential__username_auth_token_mismatch(self, mocker):
-        """Verify that if both a username and a auth token are provided, and error is raised
+        """Verify that if both a username/email and a auth token are provided, and error is raised
         if they do not correspond"""
 
         mock_rest_get = mocker.patch.object(self.syn, 'restGET')
-        mock_rest_get.return_value = {'userName': "otherUserName"}
+        login_username = 'blatherskite'
+        mock_rest_get.return_value = {
+            'userName': 'foo',
+            'emails': ['foo@bar.com', 'bar@baz.com'],
+        }
 
         with pytest.raises(SynapseAuthenticationError) as ex:
-            self.provider._create_synapse_credential(self.syn, self.username, None, self.api_key, self.auth_token)
-            assert str(ex.value) == 'username and auth_token both provided but username does not match token profile'
+            self.provider._create_synapse_credential(self.syn, login_username, None, self.api_key, self.auth_token)
+        assert (
+            str(ex.value) ==
+            'username/email and auth_token both provided but username does not match token profile'
+        )
 
 
 class TestUserArgsSessionTokenCredentialsProvider(object):
