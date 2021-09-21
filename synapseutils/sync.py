@@ -21,7 +21,7 @@ from synapseclient.core.multithread_download.download_threads import shared_exec
 from synapseclient.core.upload.multipart_upload import shared_executor as upload_shared_executor
 
 REQUIRED_FIELDS = ['path', 'parent']
-FILE_CONSTRUCTOR_FIELDS = ['name', 'synapseStore', 'contentType']
+FILE_CONSTRUCTOR_FIELDS = ['name', 'id', 'synapseStore', 'contentType']
 STORE_FUNCTION_FIELDS = ['activityName', 'activityDescription', 'forceVersion']
 PROVENANCE_FIELDS = ['used', 'executed']
 MAX_RETRIES = 4
