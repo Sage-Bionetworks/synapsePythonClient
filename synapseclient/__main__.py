@@ -613,7 +613,7 @@ def build_parser():
         'path', metavar='PATH', type=str,
         help='A path to a file or folder whose manifest will be generated.')
     parser_manifest.add_argument(
-        '--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str,
+        '--parentid', '--parentId', metavar='syn123', type=str,
         required=True, dest='parentid',
         help='Synapse ID of project or folder where to upload data.')
     parser_manifest.add_argument(
