@@ -1015,6 +1015,7 @@ def _walk_directory_tree(syn, path, parent_id):
             # Add file to manifest if non-zero size
             filepath = os.path.join(dirpath, filename)
             print(dirpath)
+            print(parents)
             manifest_row = {
                 "path": filepath,
                 "parent": parents[dirpath],
