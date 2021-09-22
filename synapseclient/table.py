@@ -300,6 +300,7 @@ import abc
 import enum
 import json
 from builtins import zip
+from pandas.api.types import infer_dtype
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -309,13 +310,16 @@ from synapseclient.core.constants import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
 
-DTYPE_2_TABLETYPE = {'?': 'BOOLEAN',
-                     'd': 'DOUBLE', 'g': 'DOUBLE', 'e': 'DOUBLE', 'f': 'DOUBLE',
-                     'b': 'INTEGER', 'B': 'INTEGER', 'h': 'INTEGER', 'H': 'INTEGER',
-                     'i': 'INTEGER', 'I': 'INTEGER', 'l': 'INTEGER', 'L': 'INTEGER',
-                     'm': 'INTEGER', 'q': 'INTEGER', 'Q': 'INTEGER',
-                     'S': 'STRING', 'U': 'STRING', 'O': 'STRING',
-                     'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
+# default is STRING, only need to put the non-STRING keys in here
+PANDAS_TABLE_TYPE = {
+    'floating': 'DOUBLE',
+    'decimal': 'DOUBLE',
+    'integer': 'INTEGER',
+    'boolean': 'BOOLEAN',
+    'datetime64': 'DATE',
+    'datetime': 'DATE',
+    'date': 'DATE',
+}
 
 MAX_NUM_TABLE_COLUMNS = 152
 
@@ -395,21 +399,22 @@ def as_table_columns(values):
 
     df = None
 
-    # filename of a csv file
-    # in Python 3, we can check that the values is instanceof io.IOBase
-    # for now, check if values has attr `read`
-    if isinstance(values, str) or hasattr(values, "read"):
-        df = _csv_to_pandas_df(values)
     # pandas DataFrame
     if isinstance(values, pd.DataFrame):
         df = values
+    # filename of a csv file
+    # in Python 3, we can check that the values is instanceof io.IOBase
+    # for now, check if values has attr `read`
+    elif isinstance(values, str) or hasattr(values, "read"):
+        df = _csv_to_pandas_df(values)
 
     if df is None:
         raise ValueError("Values of type %s is not yet supported." % type(values))
 
     cols = list()
     for col in df:
-        columnType = DTYPE_2_TABLETYPE[df[col].dtype.char]
+        inferred_type = infer_dtype(df[col], skipna=True)
+        columnType = PANDAS_TABLE_TYPE.get(inferred_type, 'STRING')
         if columnType == 'STRING':
             maxStrLen = df[col].str.len().max()
             if maxStrLen > 1000:

@@ -3,31 +3,95 @@ Release Notes
 =============
 
 
-2.4.0 (2021-05-XX)
+2.4.0 (2021-07-08)
 ==================
 
 Highlights
 ----------
 
-- Added ability to :code:`syn.login()` without arguments if the :code:`SYNAPSE_AUTH_TOKEN` enviroment variable is set with a valid personal access token
+- Added ability to authenticate from a :code:`SYNAPSE_AUTH_TOKEN` environment variable set with a valid `personal access token <https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens>`__.
 
   .. code-block:: bash
 
-        # set environment variable for python
-        SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' python3
+        # e.g. set environment variable prior to invoking a Synapse command or running a program that uses synapseclient
+        SYNAPSE_AUTH_TOKEN='<my_personal_access_token>' synapse <subcommand options>
+
+  The environment variable will take priority over credentials in the user's :code:`.synapseConfig` file
+  or any credentials saved in a prior login using the remember me option.
+
+  See `here <Credentials.html#use-environment-variable>`__ for more details on usage.
+
+- Added ability to silence all console output.
+
+  .. code-block:: bash
+
+        # from the command line, use the --silent option with any synapse subcommand, here it will suppress the download progress indicator
+        synapse --silent get <synid>
 
   .. code-block:: python3
 
+        # from code using synapseclient, pass the silent option to the Synapse constructor
         import synapseclient
-        # login() will retrieve the personal access token from environment variable
-        syn = synapseclient.login()
-  The environment variable will take priority over credentials in the user's :code:`.synapseConfig` file
-  or any credentials saved in a prior login using :code:`syn.login(rememberMe=True)`.
-New Features
-------------
 
+        syn = synapseclient.Synapse(silent=True)
+        syn.login()
+        syn.get(<synid>)
+
+- Improved robustness during downloads with unstable connections. Specifically the client will automatically recover
+  when encoutering some types of network errors that previously would have caused a download to start over as indicated by a
+  reset progress bar.
+
+
+Bug Fixes
+---------
+-  [`SYNPY-198 <https://sagebionetworks.jira.com/browse/SYNPY-198>`__] -
+   get: Unmet access requirement should not raise error if entity not downloadable
+-  [`SYNPY-959 <https://sagebionetworks.jira.com/browse/SYNPY-959>`__] -
+   FileEntity 'path' property has wrong separator in Windows
+-  [`SYNPY-1113 <https://sagebionetworks.jira.com/browse/SYNPY-1113>`__] -
+   Confusing error when putting the positional FILE at the end of the synapse store command with an optional n-arg
+-  [`SYNPY-1128 <https://sagebionetworks.jira.com/browse/SYNPY-1128>`__] -
+   failures downloading 14G vcf file
+-  [`SYNPY-1130 <https://sagebionetworks.jira.com/browse/SYNPY-1130>`__] -
+   Migration tool trying to move URL-linked data
+-  [`SYNPY-1134 <https://sagebionetworks.jira.com/browse/SYNPY-1134>`__] -
+   500 error during part copy to AWS presigned url
+-  [`SYNPY-1135 <https://sagebionetworks.jira.com/browse/SYNPY-1135>`__] -
+   Exceeding part limit during AD Migration
+-  [`SYNPY-1136 <https://sagebionetworks.jira.com/browse/SYNPY-1136>`__] -
+   Connection aborted to AWS part copy to presigned  url during AD Migration
+-  [`SYNPY-1141 <https://sagebionetworks.jira.com/browse/SYNPY-1141>`__] -
+   synapse get command line nargs usage/error
+-  [`SYNPY-1150 <https://sagebionetworks.jira.com/browse/SYNPY-1150>`__] -
+   Boolean-like string columns being reformatted (TRUE/FALSE to True/False)
+-  [`SYNPY-1158 <https://sagebionetworks.jira.com/browse/SYNPY-1158>`__] -
+   race condition in test_caching.py#test_threaded_access
+-  [`SYNPY-1159 <https://sagebionetworks.jira.com/browse/SYNPY-1159>`__] -
+   logging in with an email address and an authToken gives spurious error
+-  [`SYNPY-1161 <https://sagebionetworks.jira.com/browse/SYNPY-1161>`__] -
+   ChunkEncodingError encountered from external collaborator during a synapseclient download
+
+Improvements
+------------
+-  [`SYNPY-638 <https://sagebionetworks.jira.com/browse/SYNPY-638>`__] -
+   add after date to cache purge
+-  [`SYNPY-929 <https://sagebionetworks.jira.com/browse/SYNPY-929>`__] -
+   silent parameter for all functions which default to writing to stdout
+-  [`SYNPY-1068 <https://sagebionetworks.jira.com/browse/SYNPY-1068>`__] -
+   Should show some progress indicator during upload md5 calculation
 -  [`SYNPY-1125 <https://sagebionetworks.jira.com/browse/SYNPY-1125>`__] -
    Allow login with environment variables
+-  [`SYNPY-1138 <https://sagebionetworks.jira.com/browse/SYNPY-1138>`__] -
+   When using boto3 client to upload a file, also include ACL to give bucket owner full access
+
+Tasks
+-----
+-  [`SYNPY-948 <https://sagebionetworks.jira.com/browse/SYNPY-948>`__] -
+   command line client set-annotations does not return proper error code when there's a problem
+-  [`SYNPY-1024 <https://sagebionetworks.jira.com/browse/SYNPY-1024>`__] -
+   remove reference to deprecated 'status' field from Evaluation
+-  [`SYNPY-1143 <https://sagebionetworks.jira.com/browse/SYNPY-1143>`__] -
+   indicate in CLI doc's that select statement requires double quotes
 
 
 2.3.1 (2021-04-13)

@@ -21,12 +21,12 @@ from synapseclient.core.multithread_download.download_threads import shared_exec
 from synapseclient.core.upload.multipart_upload import shared_executor as upload_shared_executor
 
 REQUIRED_FIELDS = ['path', 'parent']
-FILE_CONSTRUCTOR_FIELDS = ['name', 'synapseStore', 'contentType']
+FILE_CONSTRUCTOR_FIELDS = ['name', 'id', 'synapseStore', 'contentType']
 STORE_FUNCTION_FIELDS = ['activityName', 'activityDescription', 'forceVersion']
 PROVENANCE_FIELDS = ['used', 'executed']
 MAX_RETRIES = 4
 MANIFEST_FILENAME = 'SYNAPSE_METADATA_MANIFEST.tsv'
-DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'synapseStore', 'contentType', 'used', 'executed',
+DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'id', 'synapseStore', 'contentType', 'used', 'executed',
                                    'activityName', 'activityDescription']
 
 
@@ -636,7 +636,7 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     annotKeys = set()
     data = []
     for entity in allFiles:
-        row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name,
+        row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name, 'id': entity.id,
                'synapseStore': entity.synapseStore, 'contentType': entity['contentType']}
         row.update({key: (val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
 

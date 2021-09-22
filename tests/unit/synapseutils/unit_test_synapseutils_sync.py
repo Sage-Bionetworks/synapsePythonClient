@@ -389,14 +389,14 @@ def test_syncFromSynase__manifest(syn):
         return provenance[id_of(entity)]
 
     expected_project_manifest = \
-        f"""path\tparent\tname\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-{path1}\tsyn123\tfile1\tTrue\t\t\t\t\t
-{path2}\tsyn098\tfile2\tTrue\t\t\t\tfoo\tbar
+        f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+{path1}\tsyn123\tfile1\tsyn456\tTrue\t\t\t\t\t
+{path2}\tsyn098\tfile2\tsyn789\tTrue\t\t\t\tfoo\tbar
 """
 
     expected_folder_manifest = \
-        f"""path\tparent\tname\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-{path2}\tsyn098\tfile2\tTrue\t\t\t\tfoo\tbar
+        f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+{path2}\tsyn098\tfile2\tsyn789\tTrue\t\t\t\tfoo\tbar
 """
 
     expected_synced_files = [file2, file1]
