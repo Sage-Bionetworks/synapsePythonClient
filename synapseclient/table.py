@@ -1763,6 +1763,16 @@ class CsvFileTable(TableAbstractBaseClass):
 
             f = io.open(filepath, mode='w', encoding='utf-8', newline='')
 
+            test_import_pandas()
+            import pandas as pd
+            for col in schema.columns_to_store:
+                if col['columnType'] == 'DATE':
+                    def _trailing_date_time_millisecond(t):
+                        if isinstance(t, str):
+                            return t[:-3]
+                    df[col.name] = pd.to_datetime(df[col.name], errors='coerce').dt.strftime('%s%f')
+                    df[col.name] = df[col.name].apply(lambda x: _trailing_date_time_millisecond(x))
+
             df.to_csv(f,
                       index=False,
                       sep=separator,
