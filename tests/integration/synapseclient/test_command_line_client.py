@@ -879,7 +879,7 @@ def test_create__with_description(test_state):
                  'Folder',
                  '--name',
                  str(uuid.uuid4()),
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--description',
                  test_state.description_text
