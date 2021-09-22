@@ -1756,7 +1756,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
             f = io.open(filepath, mode='w', encoding='utf-8', newline='')
 
-            import pandas as pd
+            test_import_pandas()
             for col in schema.columns_to_store:
                 if col['columnType'] == 'DATE':
                     def _trailing_date_time_millisecond(t):
