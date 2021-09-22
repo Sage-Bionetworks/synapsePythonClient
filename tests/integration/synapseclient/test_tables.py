@@ -233,6 +233,7 @@ def test_tables_pandas(syn, project):
     df['string_'] = df['string_'].transform(str)
 
     # SYNPY-717
+# This is a check for windows
     if os.name == 'nt':
         df['datetime64'] = pd.to_datetime(df['datetime64'], utc=True)
     else:
