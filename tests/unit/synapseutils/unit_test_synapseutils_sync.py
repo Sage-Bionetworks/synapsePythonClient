@@ -1150,7 +1150,7 @@ def test__walk_directory_tree(mock_os, syn):
     parent_id = 'syn123'
     mock_os.walk.return_value = [
         (folder_name, [subfolder_name], ['TestFile.txt']),
-        ('%s/%s' % (folder_name, subfolder_name), [], ['TestSubfile.txt'])
+        (os.path.join(folder_name, subfolder_name), [], ['TestSubfile.txt'])
     ]
     mock_os.stat.return_value.st_size = 1
     mock_os.path.join.side_effect = os.path.join
