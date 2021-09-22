@@ -320,6 +320,9 @@ PANDAS_TABLE_TYPE = {
     'datetime': 'DATE',
     'date': 'DATE',
 }
+# These are all the synapse columns that are lists
+# Be sure to edit the values in the `cast_values` function as well
+# when lists column types are added
 LIST_COLUMN_TYPES = {
     'STRING_LIST',
     'INTEGER_LIST',
