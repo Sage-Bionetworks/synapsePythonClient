@@ -92,14 +92,25 @@ def test_cast_values__list_type():
                      {'id': '357',
                       'name': 'bonk',
                       'columnType': 'BOOLEAN_LIST'},
+                     {'id': '357',
+                      'name': 'bar',
+                      'columnType': 'ENTITYID_LIST'},
+                     {'id': '357',
+                      'name': 'bam',
+                      'columnType': 'USERID_LIST'},
                      {'id': '358',
                       'name': 'boom',
                       'columnType': 'DATE_LIST'}]
     now_millis = int(round(time.time() * 1000))
-    row = ('["foo", "bar"]', '[1,2,3]', '[true, false]', '[' + str(now_millis) + ']')
+    row = ('["foo", "bar"]', '[1,2,3]', '[true, false]',
+           '["syn1234", "syn3333"]',
+           '[23444, 23123]',
+           '[' + str(now_millis) + ']')
     assert (
         cast_values(row, selectColumns) ==
-        [["foo", "bar"], [1, 2, 3], [True, False], [from_unix_epoch_time(now_millis)]]
+        [["foo", "bar"], [1, 2, 3], [True, False],
+         ["syn1234", "syn3333"], [23444, 23123],
+         [from_unix_epoch_time(now_millis)]]
     )
 
 
@@ -1211,6 +1222,9 @@ class TestCsvFileTable:
             'string_list': ['["foo", "bar"]', '["wizzle", "wozzle"]'],
             'integer_list': ['[1, 5]', '[2, 1]'],
             'boolean_list': ['[true, false]', '[false, true]'],
+            'date_list': ['[1622614955000, 1622614955000]', '[1622614955000, 1622614955000]'],
+            'entityid_list': ['["syn1235", "syn1236"]', '["syn1235", "syn1234"]'],
+            'userid_list': ['[1111235, 1111233]', '[1111232, 1111234]'],
             'fill': [None, None],
         }
         pd_df = pd.DataFrame(data)
@@ -1219,6 +1233,9 @@ class TestCsvFileTable:
             'string_list': [['foo', 'bar'], ['wizzle', 'wozzle']],
             'integer_list': [[1, 5], [2, 1]],
             'boolean_list': [[True, False], [False, True]],
+            'date_list': [[1622614955000, 1622614955000], [1622614955000, 1622614955000]],
+            'entityid_list': [['syn1235', 'syn1236'], ['syn1235', 'syn1234']],
+            'userid_list': [[1111235, 1111233], [1111232, 1111234]],
             'fill': [[], []],
         })
 
@@ -1226,6 +1243,9 @@ class TestCsvFileTable:
             SelectColumn(name='string_list', columnType='STRING_LIST'),
             SelectColumn(name='integer_list', columnType='INTEGER_LIST'),
             SelectColumn(name='boolean_list', columnType='BOOLEAN_LIST'),
+            SelectColumn(name='date_list', columnType='DATE_LIST'),
+            SelectColumn(name='entityid_list', columnType='ENTITYID_LIST'),
+            SelectColumn(name='userid_list', columnType='USERID_LIST'),
             SelectColumn(name='fill', columnType='STRING_LIST'),
         ]
 
