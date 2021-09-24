@@ -615,7 +615,7 @@ def build_parser():
     parser_store = subparsers.add_parser('store',  # Python 3.2+ would support alias=['store']
                                          help='uploads and adds a file to Synapse')
     parent_id_group = parser_store.add_mutually_exclusive_group(required=True)
-    parent_id_group.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str,
+    parent_id_group.add_argument('--parentid', '--parentId', metavar='syn123', type=str,
                                  required=False, dest='parentid',
                                  help='Synapse ID of project or folder where to upload data '
                                       '(must be specified if --id is not used.')
@@ -625,17 +625,17 @@ def build_parser():
                                  help='Type of object, such as "File", "Folder", or '
                                       '"Project", to create in Synapse. Defaults to "File"')
 
-    parser_store.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
+    parser_store.add_argument('--name', metavar='NAME', type=str, required=False,
                               help='Name of data object in Synapse')
     description_group_store = parser_store.add_mutually_exclusive_group()
-    description_group_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
+    description_group_store.add_argument('--description', metavar='DESCRIPTION', type=str,
                                          help='Description of data object in Synapse.')
-    description_group_store.add_argument('--descriptionFile', '-descriptionFile', metavar='DESCRIPTION_FILE_PATH',
+    description_group_store.add_argument('--descriptionFile', metavar='DESCRIPTION_FILE_PATH',
                                          type=str,
                                          help='Path to a markdown file containing description of project/folder')
-    parser_store.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
+    parser_store.add_argument('--used', metavar='target', type=str, nargs='*',
                               help=USED_HELP)
-    parser_store.add_argument('--executed', '-executed', metavar='target', type=str, nargs='*',
+    parser_store.add_argument('--executed', metavar='target', type=str, nargs='*',
                               help=EXECUTED_HELP)
     parser_store.add_argument('--limitSearch', metavar='projId', type=str,
                               help='Synapse ID of a container such as project or folder to limit search for provenance '
@@ -656,7 +656,7 @@ def build_parser():
     parser_add = subparsers.add_parser('add',  # Python 3.2+ would support alias=['store']
                                        help='uploads and adds a file to Synapse')
     parent_id_group = parser_add.add_mutually_exclusive_group(required=True)
-    parent_id_group.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str,
+    parent_id_group.add_argument('--parentid', '--parentId', metavar='syn123', type=str,
                                  required=False, dest='parentid',
                                  help='Synapse ID of project or folder where to upload data (must be specified if --id '
                                       'is not used.')
@@ -666,18 +666,17 @@ def build_parser():
                                  help='Type of object, such as "File", "Folder", or '
                                       '"Project", to create in Synapse. Defaults to "File"')
 
-    parser_add.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
+    parser_add.add_argument('--name', metavar='NAME', type=str, required=False,
                             help='Name of data object in Synapse')
     description_group_add = parser_add.add_mutually_exclusive_group()
-    description_group_add.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
+    description_group_add.add_argument('--description', metavar='DESCRIPTION', type=str,
                                        help='Description of data object in Synapse.')
-    description_group_add.add_argument('--descriptionFile', '-descriptionFile', metavar='DESCRIPTION_FILE_PATH',
+    description_group_add.add_argument('--descriptionFile', metavar='DESCRIPTION_FILE_PATH',
                                        type=str,
                                        help='Path to a markdown file containing description of project/folder')
-    parser_add.add_argument('-type', type=str, default='File', help=argparse.SUPPRESS)
-    parser_add.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
+    parser_add.add_argument('--used', metavar='target', type=str, nargs='*',
                             help=USED_HELP)
-    parser_add.add_argument('--executed', '-executed', metavar='target', type=str, nargs='*',
+    parser_add.add_argument('--executed', metavar='target', type=str, nargs='*',
                             help=EXECUTED_HELP)
     parser_add.add_argument('--limitSearch', metavar='projId', type=str,
                             help='Synapse ID of a container such as project or folder to limit search for provenance '
@@ -698,7 +697,7 @@ def build_parser():
                                       help='Moves a file/folder in Synapse')
     parser_mv.add_argument('--id', metavar='syn123', type=str, required=True,
                            help='Id of entity in Synapse to be moved.')
-    parser_mv.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str,
+    parser_mv.add_argument('--parentid', '--parentId', metavar='syn123', type=str,
                            required=True, dest='parentid',
                            help='Synapse ID of project or folder where file/folder will be moved ')
     parser_mv.set_defaults(func=move)
@@ -823,33 +822,33 @@ See https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableE
 
     parser_set_provenance = subparsers.add_parser('set-provenance',
                                                   help='create provenance records')
-    parser_set_provenance.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
+    parser_set_provenance.add_argument('--id', metavar='syn123', type=str, required=True,
                                        help='Synapse ID of entity whose provenance we are accessing.')
-    parser_set_provenance.add_argument('-name', '--name', metavar='NAME', type=str, required=False,
+    parser_set_provenance.add_argument('--name', metavar='NAME', type=str, required=False,
                                        help='Name of the activity that generated the entity')
-    parser_set_provenance.add_argument('-description', '--description',
+    parser_set_provenance.add_argument('--description',
                                        metavar='DESCRIPTION', type=str, required=False,
                                        help='Description of the activity that generated the entity')
-    parser_set_provenance.add_argument('-o', '-output', '--output', metavar='OUTPUT_FILE', dest='output',
+    parser_set_provenance.add_argument('-o', '--output', metavar='OUTPUT_FILE', dest='output',
                                        const='STDOUT', nargs='?', type=str,
                                        help='Output the provenance record in JSON format')
-    parser_set_provenance.add_argument('-used', '--used', metavar='target', type=str, nargs='*',
+    parser_set_provenance.add_argument('--used', metavar='target', type=str, nargs='*',
                                        help=USED_HELP)
-    parser_set_provenance.add_argument('-executed', '--executed', metavar='target', type=str, nargs='*',
+    parser_set_provenance.add_argument('--executed', metavar='target', type=str, nargs='*',
                                        help=EXECUTED_HELP)
-    parser_set_provenance.add_argument('-limitSearch', '--limitSearch', metavar='projId', type=str,
+    parser_set_provenance.add_argument('--limitSearch', metavar='projId', type=str,
                                        help='Synapse ID of a container such as project or folder to limit search for '
                                             'provenance files.')
     parser_set_provenance.set_defaults(func=setProvenance)
 
     parser_get_provenance = subparsers.add_parser('get-provenance',
                                                   help='show provenance records')
-    parser_get_provenance.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
+    parser_get_provenance.add_argument('--id', metavar='syn123', type=str, required=True,
                                        help='Synapse ID of entity whose provenance we are accessing.')
     parser_get_provenance.add_argument('--version', metavar='version', type=int, required=False,
                                        help='version of Synapse entity whose provenance we are accessing.')
 
-    parser_get_provenance.add_argument('-o', '-output', '--output', metavar='OUTPUT_FILE', dest='output',
+    parser_get_provenance.add_argument('-o', '--output', metavar='OUTPUT_FILE', dest='output',
                                        const='STDOUT', nargs='?', type=str,
                                        help='Output the provenance record in JSON format')
     parser_get_provenance.set_defaults(func=getProvenance)
@@ -876,15 +875,15 @@ See https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableE
 
     parser_create = subparsers.add_parser('create',
                                           help='Creates folders or projects on Synapse')
-    parser_create.add_argument('-parentid', '-parentId', '--parentid', '--parentId', metavar='syn123', type=str,
+    parser_create.add_argument('--parentid', '--parentId', metavar='syn123', type=str,
                                dest='parentid', required=False,
                                help='Synapse ID of project or folder where to place folder [not used with project]')
-    parser_create.add_argument('-name', '--name', metavar='NAME', type=str, required=True,
+    parser_create.add_argument('--name', metavar='NAME', type=str, required=True,
                                help='Name of folder/project.')
     description_group_create = parser_create.add_mutually_exclusive_group()
-    description_group_create.add_argument('-description', '--description', metavar='DESCRIPTION', type=str,
+    description_group_create.add_argument('--description', metavar='DESCRIPTION', type=str,
                                           help='Description of project/folder')
-    description_group_create.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH',
+    description_group_create.add_argument('--descriptionFile', metavar='DESCRIPTION_FILE_PATH',
                                           type=str,
                                           help='Path to a markdown file containing description of project/folder')
     parser_create.add_argument('type', type=str,
@@ -893,7 +892,7 @@ See https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableE
 
     # parser_update = subparsers.add_parser('update',
     #         help='uploads a new file to an existing Synapse Entity')
-    # parser_update.add_argument('-id', metavar='syn123', type=str, required=True,
+    # parser_update.add_argument('--id', metavar='syn123', type=str, required=True,
     #         help='Synapse ID of entity to be updated')
     # parser_update.add_argument('file', type=str,
     #         help='file to be added to synapse.')

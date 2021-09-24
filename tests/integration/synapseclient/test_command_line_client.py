@@ -82,9 +82,9 @@ def test_command_line_client(test_state):
                  'synapse',
                  '--skip-checks',
                  'create',
-                 '-name',
+                 '--name',
                  str(uuid.uuid4()),
-                 '-description',
+                 '--description',
                  'test of command line client',
                  'Project')
     project_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
@@ -97,11 +97,11 @@ def test_command_line_client(test_state):
                  'synapse',
                  '--skip-checks',
                  'add',
-                 '-name',
+                 '--name',
                  'BogusFileEntity',
-                 '-description',
+                 '--description',
                  'Bogus data to test file upload',
-                 '-parentid',
+                 '--parentid',
                  project_id,
                  filename)
     file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
@@ -183,15 +183,15 @@ def test_command_line_client(test_state):
                  'synapse',
                  '--skip-checks',
                  'set-provenance',
-                 '-id',
+                 '--id',
                  file_entity_id,
-                 '-name',
+                 '--name',
                  'TestActivity',
-                 '-description',
+                 '--description',
                  'A very excellent provenance',
-                 '-used',
+                 '--used',
                  file_entity_id,
-                 '-executed',
+                 '--executed',
                  repo_url)
 
     output = run(test_state,
@@ -223,11 +223,11 @@ def test_command_line_client(test_state):
                  'synapse',
                  '--skip-checks',
                  'add',
-                 '-name',
+                 '--name',
                  'Singapore',
-                 '-description',
+                 '--description',
                  'A nice picture of Singapore',
-                 '-parentid',
+                 '--parentid',
                  project_id,
                  singapore_url)
     exteral_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
@@ -258,9 +258,9 @@ def test_command_line_client_annotations(test_state):
                  'synapse',
                  '--skip-checks',
                  'create',
-                 '-name',
+                 '--name',
                  str(uuid.uuid4()),
-                 '-description',
+                 '--description',
                  'test of command line client',
                  'Project')
     project_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
@@ -273,11 +273,11 @@ def test_command_line_client_annotations(test_state):
                  'synapse',
                  '--skip-checks',
                  'add',
-                 '-name',
+                 '--name',
                  'BogusFileEntity',
-                 '-description',
+                 '--description',
                  'Bogus data to test file upload',
-                 '-parentid',
+                 '--parentid',
                  project_id,
                  filename)
     file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
@@ -346,11 +346,11 @@ def test_command_line_client_annotations(test_state):
                  'synapse'
                  '--skip-checks',
                  'add',
-                 '-name',
+                 '--name',
                  'BogusData2',
-                 '-description',
+                 '--description',
                  'Bogus data to test file upload with add and add annotations',
-                 '-parentid',
+                 '--parentid',
                  project_id,
                  '--annotations',
                  '{"foo": 123}',
@@ -719,18 +719,18 @@ def test_command_line_using_paths(test_state):
     output = run(test_state,
                  'synapse'
                  '--skip-checks', 'set-provenance',
-                 '-id', file_entity2.id,
-                 '-name', 'TestActivity',
-                 '-description', 'A very excellent provenance',
-                 '-used', filename,
-                 '-executed', repo_url,
-                 '-limitSearch', folder_entity.id)
+                 '--id', file_entity2.id,
+                 '--name', 'TestActivity',
+                 '--description', 'A very excellent provenance',
+                 '--used', filename,
+                 '--executed', repo_url,
+                 '--limitSearch', folder_entity.id)
     parse(r'Set provenance record (\d+) on entity syn\d+', output)
 
     output = run(test_state,
                  'synapse'
                  '--skip-checks', 'get-provenance',
-                 '-id', file_entity2.id)
+                 '--id', file_entity2.id)
     activity = json.loads(output)
     assert activity['name'] == 'TestActivity'
     assert activity['description'] == 'A very excellent provenance'
@@ -742,14 +742,14 @@ def test_command_line_using_paths(test_state):
     output = run(test_state,
                  'synapse'
                  '--skip-checks', 'add', filename2,
-                 '-parentid', project_entity.id,
-                 '-used', filename,
-                 '-executed', '%s %s' % (repo_url, filename))
+                 '--parentid', project_entity.id,
+                 '--used', filename,
+                 '--executed', '%s %s' % (repo_url, filename))
     entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
     output = run(test_state,
                  'synapse'
                  '--skip-checks', 'get-provenance',
-                 '-id', entity_id)
+                 '--id', entity_id)
     activity = json.loads(output)
     a = [a for a in activity['used'] if not a['wasExecuted']]
     assert a[0]['reference']['targetId'] in [file_entity.id, file_entity2.id]
@@ -840,11 +840,11 @@ def test_configPath(test_state):
                  '--configPath',
                  tmp_config_file.name,
                  'add',
-                 '-name',
+                 '--name',
                  'BogusFileEntityTwo',
-                 '-description',
+                 '--description',
                  'Bogus data to test file upload',
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  filename)
     file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
@@ -877,9 +877,9 @@ def test_create__with_description(test_state):
                  'synapse',
                  'create',
                  'Folder',
-                 '-name',
+                 '--name',
                  str(uuid.uuid4()),
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--description',
                  test_state.description_text
@@ -892,9 +892,9 @@ def test_store__with_description(test_state):
                  'synapse',
                  'store',
                  test_state.upload_filename,
-                 '-name',
+                 '--name',
                  str(uuid.uuid4()),
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--description',
                  test_state.description_text
@@ -907,9 +907,9 @@ def test_add__with_description(test_state):
                  'synapse',
                  'add',
                  test_state.upload_filename,
-                 '-name',
+                 '--name',
                  str(uuid.uuid4()),
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--description',
                  test_state.description_text
@@ -922,9 +922,9 @@ def test_create__with_descriptionFile(test_state):
                  'synapse',
                  'create',
                  'Folder',
-                 '-name',
+                 '--name',
                  str(uuid.uuid4()),
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--descriptionFile',
                  test_state.desc_filename
@@ -937,9 +937,9 @@ def test_store__with_descriptionFile(test_state):
                  'synapse',
                  'store',
                  test_state.upload_filename,
-                 '-name',
+                 '--name',
                  str(uuid.uuid4()),
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--descriptionFile',
                  test_state.desc_filename
@@ -952,9 +952,9 @@ def test_add__with_descriptionFile(test_state):
                  'synapse',
                  'add',
                  test_state.upload_filename,
-                 '-name',
+                 '--name',
                  str(uuid.uuid4()),
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--descriptionFile',
                  test_state.desc_filename
@@ -968,9 +968,9 @@ def test_create__update_description(test_state):
                  'synapse',
                  'create',
                  'Folder',
-                 '-name',
+                 '--name',
                  name,
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--descriptionFile',
                  test_state.desc_filename
@@ -980,9 +980,9 @@ def test_create__update_description(test_state):
                  'synapse',
                  'create',
                  'Folder',
-                 '-name',
+                 '--name',
                  name,
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--description',
                  test_state.update_description_text
@@ -996,9 +996,9 @@ def test_store__update_description(test_state):
                  'synapse',
                  'store',
                  test_state.upload_filename,
-                 '-name',
+                 '--name',
                  name,
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--descriptionFile',
                  test_state.desc_filename
@@ -1008,9 +1008,9 @@ def test_store__update_description(test_state):
                  'synapse',
                  'store',
                  test_state.upload_filename,
-                 '-name',
+                 '--name',
                  name,
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--description',
                  test_state.update_description_text
@@ -1024,9 +1024,9 @@ def test_add__update_description(test_state):
                  'synapse',
                  'add',
                  test_state.upload_filename,
-                 '-name',
+                 '--name',
                  name,
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--descriptionFile',
                  test_state.desc_filename
@@ -1036,9 +1036,9 @@ def test_add__update_description(test_state):
                  'synapse',
                  'add',
                  test_state.upload_filename,
-                 '-name',
+                 '--name',
                  name,
-                 '-parentid',
+                 '--parentid',
                  test_state.project.id,
                  '--description',
                  test_state.update_description_text
