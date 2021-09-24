@@ -975,3 +975,49 @@ def _check_size_each_file(df):
             single_file_size = os.stat(os.path.expandvars(os.path.expanduser(file_path))).st_size
             if single_file_size == 0:
                 raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))
+
+
+def generate_sync_manifest(syn, directory_path, parent_id, manifest_path):
+    """Generate manifest for syncToSynapse() from a local directory."""
+    manifest_cols = ["path", "parent"]
+    manifest_rows = _walk_directory_tree(syn, directory_path, parent_id)
+    _write_manifest_data(manifest_path, manifest_cols, manifest_rows)
+
+
+def _create_folder(syn, name, parent_id):
+    """Create Synapse folder."""
+    entity = {
+        'name': name,
+        'concreteType': 'org.sagebionetworks.repo.model.Folder',
+        'parentId': parent_id
+    }
+    entity = syn.store(entity)
+    return entity
+
+
+def _walk_directory_tree(syn, path, parent_id):
+    """Replicate folder structure on Synapse and generate manifest
+    rows for files using corresponding Synapse folders as parents.
+    """
+    rows = list()
+    parents = {path: parent_id}
+    for dirpath, dirnames, filenames in os.walk(path):
+        # Replicate the folders on Synapse
+        for dirname in dirnames:
+            name = dirname
+            folder_path = os.path.join(dirpath, dirname)
+            parent_id = parents[dirpath]
+            folder = _create_folder(syn, name, parent_id)
+            # Store Synapse ID for sub-folders/files
+            parents[folder_path] = folder['id']
+        # Generate rows per file for the manifest
+        for filename in filenames:
+            # Add file to manifest if non-zero size
+            filepath = os.path.join(dirpath, filename)
+            manifest_row = {
+                "path": filepath,
+                "parent": parents[dirpath],
+            }
+            if os.stat(filepath).st_size > 0:
+                rows.append(manifest_row)
+    return rows
