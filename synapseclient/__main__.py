@@ -128,6 +128,12 @@ def _validate_id_arg(args):
         raise ValueError(f'Missing expected id argument for use with the {args.subparser} command')
 
 
+def manifest(args, syn):
+    synapseutils.generate_sync_manifest(syn, directory_path=args.path,
+                                        parent_id=args.parentid,
+                                        manifest_path=args.manifestFile)
+
+
 def sync(args, syn):
     synapseutils.syncToSynapse(syn, manifestFile=args.manifestFile,
                                dryRun=args.dryRun, sendMessages=args.sendMessages,
@@ -599,6 +605,21 @@ def build_parser():
     parser_get.add_argument('--manifest', type=str, choices=['all', 'root', 'suppress'],
                             default='all', help='Determines whether creating manifest file automatically.')
     parser_get.set_defaults(func=get)
+
+    parser_manifest = subparsers.add_parser(
+        'manifest',
+        help='Generate manifest for uploading directory tree to Synapse.')
+    parser_manifest.add_argument(
+        'path', metavar='PATH', type=str,
+        help='A path to a file or folder whose manifest will be generated.')
+    parser_manifest.add_argument(
+        '--parentid', '--parentId', metavar='syn123', type=str,
+        required=True, dest='parentid',
+        help='Synapse ID of project or folder where to upload data.')
+    parser_manifest.add_argument(
+        '--manifestFile', metavar='OUTPUT',
+        help='A TSV output file path where the generated manifest is stored.')
+    parser_manifest.set_defaults(func=manifest)
 
     parser_sync = subparsers.add_parser('sync',
                                         help='Synchronize files described in a manifest to Synapse')

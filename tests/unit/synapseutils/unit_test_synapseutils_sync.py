@@ -1123,3 +1123,58 @@ def test_check_file_name_with_too_long_filename(mock_os, syn):
     assert str(ve.value) == "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, " \
                             "underscores, hyphens, periods, plus signs, apostrophes, " \
                             "and parentheses".format(long_file_name)
+
+
+def test__create_folder(syn):
+    folder_name = 'TestName'
+    parent_id = 'syn123'
+    with patch.object(syn, "store") as patch_syn_store:
+        sync._create_folder(syn, folder_name, parent_id)
+        patch_syn_store.assert_called_once_with({
+            'name': folder_name,
+            'concreteType': 'org.sagebionetworks.repo.model.Folder',
+            'parentId': parent_id
+        })
+        sync._create_folder(syn, folder_name * 2, parent_id * 2)
+        patch_syn_store.assert_called_with({
+            'name': folder_name * 2,
+            'concreteType': 'org.sagebionetworks.repo.model.Folder',
+            'parentId': parent_id * 2
+        })
+
+
+@patch.object(sync, 'os')
+def test__walk_directory_tree(mock_os, syn):
+    folder_name = 'TestFolder'
+    subfolder_name = 'TestSubfolder'
+    parent_id = 'syn123'
+    mock_os.walk.return_value = [
+        (folder_name, [subfolder_name], ['TestFile.txt']),
+        (os.path.join(folder_name, subfolder_name), [], ['TestSubfile.txt'])
+    ]
+    mock_os.stat.return_value.st_size = 1
+    mock_os.path.join.side_effect = os.path.join
+    with patch.object(sync, "_create_folder") as mock_create_folder:
+        mock_create_folder.return_value = {"id": "syn456"}
+        rows = sync._walk_directory_tree(syn, folder_name, parent_id)
+        mock_os.walk.assert_called_once_with(folder_name)
+        mock_create_folder.assert_called_once_with(
+            syn, subfolder_name, parent_id
+        )
+        assert mock_os.stat.call_count == 2
+        assert len(rows) == 2
+
+
+def test_generate_sync_manifest(syn):
+    folder_name = 'TestName'
+    parent_id = 'syn123'
+    manifest_path = "TestFolder"
+    with patch.object(sync, "_walk_directory_tree") as patch_walk_directory_tree, \
+         patch.object(sync, "_write_manifest_data") as patch_write_manifest_data:
+        sync.generate_sync_manifest(syn, folder_name, parent_id, manifest_path)
+        patch_walk_directory_tree.assert_called_once_with(
+            syn, folder_name, parent_id
+        )
+        patch_write_manifest_data.assert_called_with(
+            manifest_path, ["path", "parent"], patch_walk_directory_tree.return_value
+        )
