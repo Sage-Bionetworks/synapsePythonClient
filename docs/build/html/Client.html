@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Synapse Client &#8212; Synapse Python Client 2.4.0 documentation</title>
+    <title>Synapse Client &#8212; Synapse Python Client 2.5.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="reticulate.html" title="Using synapseclient with R through reticulate"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>  
@@ -78,7 +78,7 @@ retrieving data, and recording provenance of data analysis.</p>
 <h2>Synapse<a class="headerlink" href="#synapse" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt id="synapseclient.Synapse">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.</span></code><code class="sig-name descname"><span class="pre">Synapse</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">repoEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileHandleEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">portalEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_checks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configPath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/Users/jkiang/.synapseConfig'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.</span></code><code class="sig-name descname"><span class="pre">Synapse</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">repoEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileHandleEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">portalEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_checks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configPath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/Users/tyu/.synapseConfig'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse" title="Permalink to this definition">¶</a></dt>
 <dd><p>Constructs a Python client object for the Synapse repository service</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1568,13 +1568,13 @@ calculated automatically.</p></li>
         <li class="right" >
           <a href="reticulate.html" title="Using synapseclient with R through reticulate"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jul 08, 2021.
+      Last updated on Oct 05, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Synapse Python Client Documentation &#8212; Synapse Python Client 2.4.0 documentation</title>
+    <title>Synapse Python Client Documentation &#8212; Synapse Python Client 2.5.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -41,7 +41,7 @@
         <li class="right" >
           <a href="Credentials.html" title="Manage Synapse Credentials"
              accesskey="N">next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.5.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Python Client Documentation</a></li> 
       </ul>
     </div>  
@@ -898,7 +898,7 @@ schema = syn.store(SubmissionViewSchema(name=’My Submission View’, parent=pr
 
 <dl class="py class">
 <dt id="synapseclient.Synapse">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.</span></code><code class="sig-name descname"><span class="pre">Synapse</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">repoEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileHandleEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">portalEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_checks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configPath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/Users/jkiang/.synapseConfig'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.</span></code><code class="sig-name descname"><span class="pre">Synapse</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">repoEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileHandleEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">portalEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_checks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configPath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/Users/tyu/.synapseConfig'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse" title="Permalink to this definition">¶</a></dt>
 <dd><p>Constructs a Python client object for the Synapse repository service</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -2626,27 +2626,28 @@ is supplied.</p>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="news.html">Release Notes</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id1">2.4.0 (2021-07-08)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id2">2.3.1 (2021-04-13)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id6">2.3.0 (2021-03-03)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id10">2.2.2 (2020-10-18)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id15">2.2.0 (2020-08-31)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id20">2.1.1 (2020-07-10)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id24">2.1.0 (2020-06-16)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id29">2.0.0 (2020-03-23)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id33">1.9.4 (2019-06-28)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id37">1.9.3 (2019-06-28)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id39">1.9.2 (2019-02-15)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id43">1.9.1 (2019-01-20)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id48">1.9.0 (2018-09-28)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id53">1.8.2 (2018-08-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id58">1.8.1 (2018-05-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id60">1.8.0 (2018-05-07)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id64">1.7.5 (2018-01-31)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id65">1.7.4 (2018-01-29)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id70">1.7.3 (2017-12-08)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id78">1.7.1 (2017-11-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id83">1.6.1 (2016-11-02)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id1">2.5.0 (2021-10-05)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id2">2.4.0 (2021-07-08)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id6">2.3.1 (2021-04-13)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id10">2.3.0 (2021-03-03)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id14">2.2.2 (2020-10-18)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id19">2.2.0 (2020-08-31)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id24">2.1.1 (2020-07-10)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id28">2.1.0 (2020-06-16)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id33">2.0.0 (2020-03-23)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id37">1.9.4 (2019-06-28)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id41">1.9.3 (2019-06-28)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id43">1.9.2 (2019-02-15)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id47">1.9.1 (2019-01-20)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id52">1.9.0 (2018-09-28)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id57">1.8.2 (2018-08-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id62">1.8.1 (2018-05-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id64">1.8.0 (2018-05-07)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id68">1.7.5 (2018-01-31)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id69">1.7.4 (2018-01-29)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id74">1.7.3 (2017-12-08)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id82">1.7.1 (2017-11-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id87">1.6.1 (2016-11-02)</a></li>
 </ul>
 </li>
 </ul>
@@ -2727,13 +2728,13 @@ is supplied.</p>
         <li class="right" >
           <a href="Credentials.html" title="Manage Synapse Credentials"
              >next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.5.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Python Client Documentation</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jul 08, 2021.
+      Last updated on Oct 05, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
