@@ -8,7 +8,9 @@ Release Notes
 Highlights
 ----------
 
-- Next major release (3.0) will remove all non-standard single dash long parameter cli parameter
+- Next major release (3.0.0) will remove all non-standard single dash long parameter
+  cli parameter. Example: command line arguments like `-parent` will be removed as
+  it should be `--parent`.
 
 - Added ability generate manifest file from local directory structure
 
