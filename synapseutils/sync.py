@@ -677,10 +677,10 @@ def _get_file_entity_provenance_dict(syn, entity):
 
 def _write_manifest_data(filename, keys, data):
     with io.open(filename, 'w', encoding='utf8') as fp:
-        csvWriter = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
-        csvWriter.writeheader()
+        csv_writer = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
+        csv_writer.writeheader()
         for row in data:
-            csvWriter.writerow(row)
+            csv_writer.writerow(row)
 
 
 def _sortAndFixProvenance(syn, df):
@@ -977,11 +977,25 @@ def _check_size_each_file(df):
                 raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))
 
 
-def generate_sync_manifest(syn, directory_path, parent_id, manifest_path):
+def _generate_manifest_str(keys: typing.List[str], data: typing.List[dict]):
+    """Creates the manifest in string"""
+    si = io.StringIO()
+    csv_writer = csv.DictWriter(si, keys, restval='', extrasaction='ignore', delimiter='\t')
+    csv_writer.writeheader()
+    for row in data:
+        csv_writer.writerow(row)
+    return(si.getvalue())
+
+
+def generate_sync_manifest(syn, directory_path, parent_id, manifest_path=None):
     """Generate manifest for syncToSynapse() from a local directory."""
     manifest_cols = ["path", "parent"]
     manifest_rows = _walk_directory_tree(syn, directory_path, parent_id)
-    _write_manifest_data(manifest_path, manifest_cols, manifest_rows)
+    if manifest_path is not None:
+        _write_manifest_data(manifest_path, manifest_cols, manifest_rows)
+    else:
+        manifest_str = _generate_manifest_str(manifest_cols, manifest_rows)
+        syn.logger.info(manifest_str)
 
 
 def _create_folder(syn, name, parent_id):
