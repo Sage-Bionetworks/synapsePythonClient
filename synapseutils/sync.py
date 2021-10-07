@@ -995,7 +995,7 @@ def generate_sync_manifest(syn, directory_path, parent_id, manifest_path=None):
         _write_manifest_data(manifest_path, manifest_cols, manifest_rows)
     else:
         manifest_str = _generate_manifest_str(manifest_cols, manifest_rows)
-        syn.logger.warning(manifest_str)
+        sys.stderr.write(manifest_str)
 
 
 def _create_folder(syn, name, parent_id):
