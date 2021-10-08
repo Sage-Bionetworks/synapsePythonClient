@@ -1,8 +1,10 @@
+from collections import defaultdict
+import json
+import os
+import sys
+
 import synapseclient
 import pandas as pd
-import os
-import json
-from collections import defaultdict
 
 
 def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
@@ -32,11 +34,10 @@ def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
     return dataset
 
 
-def _describe_wrapper(df: pd.DataFrame, mode: str = 'string'):
+def _describe_wrapper(df: pd.DataFrame):
     """
     Returns the mode, min, max, mean, and dtype of each column in a dataframe
     :param df: pandas dataframe from the csv or tsv file
-    :param mode: string defining the return value.  Can be either 'dict' or 'string'
     :return: see param mode
     """
 
@@ -58,18 +59,15 @@ def _describe_wrapper(df: pd.DataFrame, mode: str = 'string'):
         except TypeError:
             print("Invalid column type.")
 
-    if mode == 'string':
-        print(json.dumps(stats, indent=2, default=str))
-    else:
-        return stats
+    sys.stderr.write(json.dumps(stats, indent=2, default=str))
+    return stats
 
 
-def describe(syn, entity: str, mode: str = 'string'):
+def describe(syn, entity: str):
     """
     Synapse_describe gets a synapse entity and returns summary statistics about it
     :param syn: synapse object
     :param entity: synapse id of the entity to be described
-    :param mode: how it should be returned (string or object)
     :return: if dataset is valid, returns either a string or object; otherwise None
     """
     df = _open_entity_as_df(syn=syn, entity=entity)
@@ -77,4 +75,4 @@ def describe(syn, entity: str, mode: str = 'string'):
     if df is None:
         return None
 
-    return _describe_wrapper(df, mode)
+    return _describe_wrapper(df)
