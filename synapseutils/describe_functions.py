@@ -34,7 +34,7 @@ def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
     return dataset
 
 
-def _describe_wrapper(df: pd.DataFrame):
+def _describe_wrapper(df: pd.DataFrame) -> dict:
     """
     Returns the mode, min, max, mean, and dtype of each column in a dataframe
     :param df: pandas dataframe from the csv or tsv file
@@ -59,11 +59,10 @@ def _describe_wrapper(df: pd.DataFrame):
         except TypeError:
             print("Invalid column type.")
 
-    sys.stderr.write(json.dumps(stats, indent=2, default=str))
     return stats
 
 
-def describe(syn, entity: str):
+def describe(syn, entity: str) -> dict:
     """
     Synapse_describe gets a synapse entity and returns summary statistics about it
     :param syn: synapse object
@@ -75,4 +74,6 @@ def describe(syn, entity: str):
     if df is None:
         return None
 
-    return _describe_wrapper(df)
+    stats = _describe_wrapper(df)
+    sys.stderr.write(json.dumps(stats, indent=2, default=str))
+    return stats

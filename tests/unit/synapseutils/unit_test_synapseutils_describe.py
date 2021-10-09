@@ -75,7 +75,7 @@ class TestDescribe:
 
     def test_describe_with_mixed_series(self):
 
-        result = _describe_wrapper(df=self.df_mixed, mode='object')
+        result = _describe_wrapper(df=self.df_mixed)
         assert isinstance(result, dict) is True
 
         assert result['gene']['mode'] == 'CD44'
@@ -85,5 +85,3 @@ class TestDescribe:
         assert result['presence_in_ad_brain']['mode'] == False # noqa
         assert result['presence_in_ad_brain']['min'] == False # noqa
         assert result['presence_in_ad_brain']['max'] == True # noqa
-
-        assert isinstance(_describe_wrapper(df=self.df_mixed, mode='string'), (str, type(None)))
