@@ -1,10 +1,11 @@
 import tempfile
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from numpy import array_equal
 import pandas as pd
 import pytest
 import synapseclient
+from synapseutils import describe_functions
 from synapseutils.describe_functions import _open_entity_as_df, _describe_wrapper
 
 
@@ -67,21 +68,47 @@ class TestOpenEntityAsDf:
 class TestDescribe:
     id = 'syn123456'
     df_mixed = pd.DataFrame(
-        {'gene': ['MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'CD44'],
-         "score": [1, 2, 1, 2, 1, 2, 1, 2, 1],
-         "related": [['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44']],
-         "presence_in_ad_brain": [True, False, True, False, True, False, True, False, False]
+        {'gene': ['MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'CD44', 'CD44'],
+         "score": [1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+         "related": [['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44']],
+         "presence_in_ad_brain": [True, False, True, False, True, False, True, False, False, True]
          })
+    expected_results = {
+        'gene': {
+            'dtype': 'object',
+            'mode': "CD44"
+        },
+        "score": {
+            'dtype': 'int64',
+            "mode": 1,
+            "min": 1,
+            "max": 2,
+            'mean': 1.4
+        },
+        'related': {
+            'dtype': 'object',
+            'mode': ['CD44']
+        },
+        "presence_in_ad_brain": {
+            'dtype': 'bool',
+            "mode": False,
+            "min": False,
+            "max": True,
+            'mean': 0.5
+        }
+    }
 
     def test_describe_with_mixed_series(self):
 
         result = _describe_wrapper(df=self.df_mixed)
-        assert isinstance(result, dict) is True
+        assert result == self.expected_results
 
-        assert result['gene']['mode'] == 'CD44'
-        assert result['score']['mode'] == 1
-        assert result['score']['min'] == 1
-        assert result['score']['max'] == 2
-        assert result['presence_in_ad_brain']['mode'] == False # noqa
-        assert result['presence_in_ad_brain']['min'] == False # noqa
-        assert result['presence_in_ad_brain']['max'] == True # noqa
+    # def test_describe(self):
+    #     syn = Mock()
+    #     with patch.object(describe_functions, "_open_entity_as_df",
+    #                       return_value=self.df_mixed) as mock_open_entity,\
+    #          patch.object(describe_functions, "_describe_wrapper",
+    #                       return_value=):
+    #         result = describe_functions.describe(syn=syn, entity="syn1234")
+    #         mock_open_entity.assert_called_once_with(syn=syn, entity="syn1234")
+    #         assert result is None

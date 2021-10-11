@@ -51,10 +51,10 @@ def _describe_wrapper(df: pd.DataFrame) -> dict:
                 stats[column]['min'] = df[column].min()
                 stats[column]['max'] = df[column].max()
                 stats[column]['mean'] = df[column].mean()
-                stats[column]['dtype'] = df[column].dtype
+                stats[column]['dtype'] = df[column].dtype.name
             else:
                 stats[column]['mode'] = df[column].mode()[0]
-                stats[column]['dtype'] = df[column].dtype
+                stats[column]['dtype'] = df[column].dtype.name
 
         except TypeError:
             print("Invalid column type.")
@@ -62,7 +62,7 @@ def _describe_wrapper(df: pd.DataFrame) -> dict:
     return stats
 
 
-def describe(syn, entity: str) -> dict:
+def describe(syn, entity: str):
     """
     Synapse_describe gets a synapse entity and returns summary statistics about it
     :param syn: synapse object
