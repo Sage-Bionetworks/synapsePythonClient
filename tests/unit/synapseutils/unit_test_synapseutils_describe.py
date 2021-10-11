@@ -70,9 +70,11 @@ class TestDescribe:
     df_mixed = pd.DataFrame(
         {'gene': ['MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'CD44', 'CD44'],
          "score": [1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-         "related": [['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44']],
+         "related": [['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'],
+                     ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44']],
          "presence_in_ad_brain": [True, False, True, False, True, False, True, False, False, True]
-         })
+        }
+    )
     expected_results = {
         'gene': {
             'dtype': 'object',
