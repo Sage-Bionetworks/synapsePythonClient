@@ -68,11 +68,12 @@ class TestOpenEntityAsDf:
 class TestDescribe:
     id = 'syn123456'
     df_mixed = pd.DataFrame(
-        {'gene': ['MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'CD44', 'CD44'],
-         "score": [1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-         "related": [['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'],
-                     ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44']],
-         "presence_in_ad_brain": [True, False, True, False, True, False, True, False, False, True]
+        {
+            'gene': ['MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'MSN', 'CD44', 'CD44', 'CD44'],
+            "score": [1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+            "related": [['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44'],
+                        ['CD44'], ['CD44'], ['CD44'], ['CD44'], ['CD44']],
+            "presence_in_ad_brain": [True, False, True, False, True, False, True, False, False, True]
         }
     )
     expected_results = {
@@ -121,7 +122,7 @@ class TestDescribe:
         """Test if data type is not supported"""
         syn = Mock()
         with patch.object(describe_functions, "_open_entity_as_df",
-                          return_value=None) as mock_open_entity,\
+                          return_value=None),\
              patch.object(describe_functions,
                           "_describe_wrapper") as mock_describe:
             result = describe_functions.describe(syn=syn, entity="syn1234")
