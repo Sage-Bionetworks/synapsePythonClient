@@ -613,12 +613,12 @@ def build_parser():
         'path', metavar='PATH', type=str,
         help='A path to a file or folder whose manifest will be generated.')
     parser_manifest.add_argument(
-        '--parentid', '--parentId', metavar='syn123', type=str,
+        '--parent-id', metavar='syn123', type=str,
         required=True, dest='parentid',
         help='Synapse ID of project or folder where to upload data.')
     parser_manifest.add_argument(
-        '--manifest-file', metavar='OUTPUT', default="SYNAPSE_METADATA_MANIFEST.tsv",
-        help='A TSV output file path where the generated manifest is stored. (default: %(default)s)')
+        '--manifest-file', metavar='OUTPUT',
+        help='A TSV output file path where the generated manifest is stored. (default: stdout)')
     parser_manifest.set_defaults(func=manifest)
 
     parser_sync = subparsers.add_parser('sync',
@@ -629,7 +629,7 @@ def build_parser():
                              help='Send notifications via Synapse messaging (email) at specific intervals, '
                                   'on errors and on completion.')
     parser_sync.add_argument('--retries', metavar='INT', type=int, default=4)
-    parser_sync.add_argument('manifestFile', metavar='FILE', type=str,
+    parser_sync.add_argument('manifestFile', metavar='FILE', type=argparse.FileType("r"),
                              help='A tsv file with file locations and metadata to be pushed to Synapse.')
     parser_sync.set_defaults(func=sync)
 
