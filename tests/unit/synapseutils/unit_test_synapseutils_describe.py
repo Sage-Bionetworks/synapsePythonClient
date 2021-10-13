@@ -77,7 +77,7 @@ class TestDescribe:
             "presence_in_ad_brain": [True, False, True, False, True, False, True, False, False, True]
         }
     )
-    if sys.version_info < (3,7,0):
+    if sys.version_info < (3, 7, 0):
         expected_results = {
             'gene': {
                 'dtype': 'object',
@@ -124,6 +124,7 @@ class TestDescribe:
                 'mean': 0.5
             }
         }
+
     def test_describe_with_mixed_series(self):
 
         result = _describe_wrapper(df=self.df_mixed)
