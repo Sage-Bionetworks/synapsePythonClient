@@ -58,23 +58,28 @@
 <div class="section" id="highlights">
 <h3>Highlights<a class="headerlink" href="#highlights" title="Permalink to this headline">¶</a></h3>
 <ul>
-<li><p>Next major release (3.0) will remove all non-standard single dash long parameter cli parameter</p></li>
+<li><p>Next major release (3.0.0) will remove all non-standard single dash long parameter
+cli parameter. There might also be big cosmetic changes to the cli such as getting rid
+of all camel case parameters.
+Example: command line arguments like <cite>-parent</cite> will be removed as
+it should be <cite>–parent</cite>.  <cite>–parentId</cite> might be changed to <cite>–parent-id</cite>.</p></li>
 <li><p>Added ability generate manifest file from local directory structure</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from the command line</span>
-synapse manifest ./ --parentId syn123 --manifestFile ./manifest.tsv
+synapse manifest --parent-id syn123 --manifest-file ./manifest.tsv ./
 </pre></div>
 </div>
 </li>
-<li><p>Added ability to generate manifest file from local directory structure</p>
+<li><p>Added ability to pipe generate manifest stdout into sync function</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from the command line</span>
-synapse manifest ./ --parentId syn123 --manifestFile ./manifest.tsv
+synapse manifest --parent-id syn123 ./docs/ <span class="p">|</span> synapse sync -
+<span class="c1"># Pip</span>
 </pre></div>
 </div>
 </li>
 <li><p>Added ability to describe csv and tsv files stored in Synapse.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from python</span>
 import synapseutils
-synapseutils.describe<span class="o">(</span><span class="nv">syn</span><span class="o">=</span>syn, <span class="nv">entity</span><span class="o">=</span><span class="s2">&quot;syn12345&quot;</span>, <span class="nv">mode</span><span class="o">=</span><span class="s2">&quot;string&quot;</span><span class="o">)</span>
+synapseutils.describe<span class="o">(</span><span class="nv">syn</span><span class="o">=</span>syn, <span class="nv">entity</span><span class="o">=</span><span class="s2">&quot;syn12345&quot;</span><span class="o">)</span>
 </pre></div>
 </div>
 </li>
@@ -117,6 +122,8 @@ Integration tests failures in develop branch against stack-371</p></li>
 Passing a pandas dataframe with a column called “read” breaks the type parsing in as_table_columns()</p></li>
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1173">SYNPY-1173</a>] -
 Support DATE_LIST, ENTITYID_LIST, USERID_LIST table columns</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1188">SYNPY-1188</a>] -
+Support piping of <cite>synapse manifest</cite> stdout in <cite>synapse sync</cite> function</p></li>
 </ul>
 </div>
 </div>
@@ -1454,7 +1461,7 @@ provide convenience functions for more complicated operations in Synapse such as
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 05, 2021.
+      Last updated on Oct 13, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

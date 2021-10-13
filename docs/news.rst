@@ -9,22 +9,25 @@ Highlights
 ----------
 
 - Next major release (3.0.0) will remove all non-standard single dash long parameter
-  cli parameter. Example: command line arguments like `-parent` will be removed as
-  it should be `--parent`.
+  cli parameter. There might also be big cosmetic changes to the cli such as getting rid
+  of all camel case parameters.
+  Example: command line arguments like `-parent` will be removed as
+  it should be `--parent`.  `--parentId` might be changed to `--parent-id`.
 
 - Added ability generate manifest file from local directory structure
 
   .. code-block:: bash
 
         # from the command line
-        synapse manifest ./ --parentId syn123 --manifestFile ./manifest.tsv
+        synapse manifest --parent-id syn123 --manifest-file ./manifest.tsv ./
 
-- Added ability to generate manifest file from local directory structure
+- Added ability to pipe generate manifest stdout into sync function
 
   .. code-block:: bash
 
         # from the command line
-        synapse manifest ./ --parentId syn123 --manifestFile ./manifest.tsv
+        synapse manifest --parent-id syn123 ./docs/ | synapse sync -
+        # Pip
 
 - Added ability to describe csv and tsv files stored in Synapse.
 
@@ -32,7 +35,7 @@ Highlights
 
         # from python
         import synapseutils
-        synapseutils.describe(syn=syn, entity="syn12345", mode="string")
+        synapseutils.describe(syn=syn, entity="syn12345")
 
 Bug Fixes
 ---------
@@ -52,7 +55,7 @@ Stories
 -  [`SYNPY-726 <https://sagebionetworks.jira.com/browse/SYNPY-726>`__] -
    mirror local folder structure for bulk upload
 -  [`SYNPY-1163 <https://sagebionetworks.jira.com/browse/SYNPY-1163>`__] -
-   Expose synId with syn get -r
+   Expose synId with syn get -r 
 -  [`SYNPY-1165 <https://sagebionetworks.jira.com/browse/SYNPY-1165>`__] -
    Generate manifest template from local folder structure
 -  [`SYNPY-1167 <https://sagebionetworks.jira.com/browse/SYNPY-1167>`__] -
@@ -66,6 +69,9 @@ Tasks
    Passing a pandas dataframe with a column called "read" breaks the type parsing in as_table_columns()
 -  [`SYNPY-1173 <https://sagebionetworks.jira.com/browse/SYNPY-1173>`__] -
    Support DATE_LIST, ENTITYID_LIST, USERID_LIST table columns
+-  [`SYNPY-1188 <https://sagebionetworks.jira.com/browse/SYNPY-1188>`__] -
+   Support piping of `synapse manifest` stdout in `synapse sync` function
+
 
 2.4.0 (2021-07-08)
 ==================
