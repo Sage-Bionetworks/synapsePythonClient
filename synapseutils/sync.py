@@ -676,7 +676,7 @@ def _get_file_entity_provenance_dict(syn, entity):
 
 
 def _write_manifest_data(filename, keys, data):
-    with io.open(filename, 'w', encoding='utf8') as fp:
+    with io.open(filename, 'w', encoding='utf8') if filename else sys.stdout as fp:
         csv_writer = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
         csv_writer.writeheader()
         for row in data:
@@ -761,7 +761,10 @@ def readManifestFile(syn, manifestFile):
     table.test_import_pandas()
     import pandas as pd
 
-    sys.stdout.write('Validation and upload of: %s\n' % manifestFile)
+    if manifestFile is sys.stdin:
+        sys.stdout.write('Validation and upload of: <stdin>\n')
+    else:
+        sys.stdout.write('Validation and upload of: %s\n' % manifestFile)
     # Read manifest file into pandas dataframe
     df = pd.read_csv(manifestFile, sep='\t')
     if 'synapseStore' not in df:
@@ -977,14 +980,11 @@ def _check_size_each_file(df):
                 raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))
 
 
-def generate_sync_manifest(syn, directory_path, parent_id,
-                           manifest_path="SYNAPSE_METADATA_MANIFEST.tsv"):
+def generate_sync_manifest(syn, directory_path, parent_id, manifest_path):
     """Generate manifest for syncToSynapse() from a local directory."""
     manifest_cols = ["path", "parent"]
     manifest_rows = _walk_directory_tree(syn, directory_path, parent_id)
     _write_manifest_data(manifest_path, manifest_cols, manifest_rows)
-    print(manifest_path)
-    return(manifest_path)
 
 
 def _create_folder(syn, name, parent_id):
