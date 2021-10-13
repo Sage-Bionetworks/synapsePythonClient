@@ -676,11 +676,11 @@ def _get_file_entity_provenance_dict(syn, entity):
 
 
 def _write_manifest_data(filename, keys, data):
-    with io.open(filename, 'w', encoding='utf8') as fp:
-        csvWriter = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
-        csvWriter.writeheader()
+    with io.open(filename, 'w', encoding='utf8') if filename else sys.stdout as fp:
+        csv_writer = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
+        csv_writer.writeheader()
         for row in data:
-            csvWriter.writerow(row)
+            csv_writer.writerow(row)
 
 
 def _sortAndFixProvenance(syn, df):
@@ -761,7 +761,10 @@ def readManifestFile(syn, manifestFile):
     table.test_import_pandas()
     import pandas as pd
 
-    sys.stdout.write('Validation and upload of: %s\n' % manifestFile)
+    if manifestFile is sys.stdin:
+        sys.stdout.write('Validation and upload of: <stdin>\n')
+    else:
+        sys.stdout.write('Validation and upload of: %s\n' % manifestFile)
     # Read manifest file into pandas dataframe
     df = pd.read_csv(manifestFile, sep='\t')
     if 'synapseStore' not in df:

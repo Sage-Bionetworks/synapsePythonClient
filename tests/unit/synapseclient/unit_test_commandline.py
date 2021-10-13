@@ -22,11 +22,13 @@ def test_command_sync(syn):
     the command line arguments provided and that the function is called once.
 
     """
+    mockFileOpener = MagicMock()
+    with patch("argparse.FileType", return_value=mockFileOpener):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['sync', '/tmp/foobarbaz.tsv'])
+        mockFileOpener.assert_called_once_with('/tmp/foobarbaz.tsv')
 
-    parser = cmdline.build_parser()
-    args = parser.parse_args(['sync', '/tmp/foobarbaz.tsv'])
-
-    assert args.manifestFile == '/tmp/foobarbaz.tsv'
+    assert args.manifestFile is mockFileOpener.return_value
     assert args.dryRun is False
     assert args.sendMessages is False
     assert args.retries == 4
