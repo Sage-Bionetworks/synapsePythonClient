@@ -15,7 +15,7 @@ Highlights
  `--parent`.  Commands that support camel case like `--parentId`
   might be changed to `--parent-id`.
 
-- Added ability generate manifest file from local directory structure
+- Added ability to generate a manifest file from your local directory structure.
 
   .. code-block:: bash
 
