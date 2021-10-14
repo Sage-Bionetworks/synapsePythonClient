@@ -8,11 +8,11 @@ Release Notes
 Highlights
 ----------
 
-- Next major release (3.0.0) will remove all non-standard single dash long parameter
-  cli parameter. There might also be big cosmetic changes to the cli such as getting rid
-  of all camel case parameters.
-  Example: command line arguments like `-parent` will be removed as
-  it should be `--parent`.  Commands that support camel case like `--parentId`
+- Next major release (3.0.0) will remove all non-standard single dash long
+  command line interface (cli) parameters. Therefore, there will be cosmetic changes to the cli, such as removing
+  all camel case parameters.
+  Example: command line arguments like `-parent` will become
+ `--parent`.  Commands that support camel case like `--parentId`
   might be changed to `--parent-id`.
 
 - Added ability generate manifest file from local directory structure
