@@ -22,7 +22,7 @@ Highlights
         # from the command line
         synapse manifest --parent-id syn123 --manifest-file ./manifest.tsv ./
 
-- Added ability to pipe generate manifest stdout into sync function
+- Added ability to pipe manifest stdout into sync function.
 
   .. code-block:: bash
 
