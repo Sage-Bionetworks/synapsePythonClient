@@ -12,7 +12,8 @@ Highlights
   cli parameter. There might also be big cosmetic changes to the cli such as getting rid
   of all camel case parameters.
   Example: command line arguments like `-parent` will be removed as
-  it should be `--parent`.  `--parentId` might be changed to `--parent-id`.
+  it should be `--parent`.  Commands that support camel case like `--parentId`
+  might be changed to `--parent-id`.
 
 - Added ability generate manifest file from local directory structure
 
