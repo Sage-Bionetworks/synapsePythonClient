@@ -33,12 +33,12 @@ Highlights
         import synapseutils
         synapseutils.describe(syn=syn, entity="syn12345")
 
-- Next major release (3.0.0) will remove all non-standard single dash long
-  command line interface (cli) parameters. Therefore, there will be cosmetic changes to the cli, such as removing
-  all camel case parameters.
+- Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+  removing all camel case or non-standard single dash long command line interface (cli)
+  parameters.
   Example: command line arguments like `-parent` will become
- `--parent`.  Commands that support camel case like `--parentId`
-  might be changed to `--parent-id`.
+  `--parent`.  Commands that support camel case like `--parentId`
+  will be changed to `--parent-id`.
 
 
 Bug Fixes
