@@ -1,7 +1,6 @@
 from collections import defaultdict
 import json
 import os
-import sys
 
 import synapseclient
 from synapseclient import table
