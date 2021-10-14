@@ -68,7 +68,7 @@ def _describe_wrapper(df) -> dict:
 
 def describe(syn, entity: str):
     """
-    Synapse_describe gets a synapse entity and returns summary statistics about it
+    Gets a synapse entity and returns summary statistics about it
     :param syn: synapse object
     :param entity: synapse id of the entity to be described
     :return: if dataset is valid, returns either a string or object; otherwise None
@@ -79,5 +79,5 @@ def describe(syn, entity: str):
         return None
 
     stats = _describe_wrapper(df)
-    sys.stderr.write(json.dumps(stats, indent=2, default=str))
+    print(json.dumps(stats, indent=2, default=str))
     return stats
