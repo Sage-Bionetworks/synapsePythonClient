@@ -300,7 +300,6 @@ import abc
 import enum
 import json
 from builtins import zip
-from pandas.api.types import infer_dtype
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -406,6 +405,7 @@ def as_table_columns(values):
     """
     test_import_pandas()
     import pandas as pd
+    from pandas.api.types import infer_dtype
 
     df = None
 
