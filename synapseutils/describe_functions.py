@@ -4,16 +4,18 @@ import os
 import sys
 
 import synapseclient
-import pandas as pd
+from synapseclient import table
 
 
-def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
+def _open_entity_as_df(syn, entity: str):
     """
     Gets a csv or tsv Synapse entity and returns it as a dataframe
     :param syn: synapse object
     :param entity: a synapse entity to be extracted and converted into a dataframe
     :return: a pandas DataFrame if flow of execution is successful; None if not.
     """
+    table.test_import_pandas()
+    import pandas as pd
 
     dataset = None
 
@@ -34,12 +36,14 @@ def _open_entity_as_df(syn, entity: str) -> pd.DataFrame:
     return dataset
 
 
-def _describe_wrapper(df: pd.DataFrame) -> dict:
+def _describe_wrapper(df) -> dict:
     """
     Returns the mode, min, max, mean, and dtype of each column in a dataframe
     :param df: pandas dataframe from the csv or tsv file
     :return: see param mode
     """
+    table.test_import_pandas()
+    import pandas as pd
 
     stats = defaultdict(dict)
 
