@@ -8,13 +8,6 @@ Release Notes
 Highlights
 ----------
 
-- Next major release (3.0.0) will remove all non-standard single dash long
-  command line interface (cli) parameters. Therefore, there will be cosmetic changes to the cli, such as removing
-  all camel case parameters.
-  Example: command line arguments like `-parent` will become
- `--parent`.  Commands that support camel case like `--parentId`
-  might be changed to `--parent-id`.
-
 - Added ability to generate a manifest file from your local directory structure.
 
   .. code-block:: bash
@@ -36,6 +29,14 @@ Highlights
         # from python
         import synapseutils
         synapseutils.describe(syn=syn, entity="syn12345")
+
+- Next major release (3.0.0) will remove all non-standard single dash long
+  command line interface (cli) parameters. Therefore, there will be cosmetic changes to the cli, such as removing
+  all camel case parameters.
+  Example: command line arguments like `-parent` will become
+ `--parent`.  Commands that support camel case like `--parentId`
+  might be changed to `--parent-id`.
+
 
 Bug Fixes
 ---------
