@@ -12,9 +12,10 @@ Highlights
 
   .. code-block:: bash
 
-        # from the command line, write the manifest to manifest.tsv
+        # from the command line
+        # write the manifest to manifest.tsv
         synapse manifest --parent-id syn123 --manifest-file ./manifest.tsv /path/to/local/directory
-        # from the command line, stdout
+        # stdout
         synapse manifest --parent-id syn123 /path/to/local/directory
 
 - Added ability to pipe manifest stdout into sync function.
