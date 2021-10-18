@@ -30,8 +30,31 @@ Highlights
   .. code-block:: bash
 
         # from python
+        import synapseclient
         import synapseutils
-        synapseutils.describe(syn=syn, entity="syn12345")
+        syn = synapseclient.login()
+        statistics = synapseutils.describe(syn=syn, entity="syn12345")
+        print(statistics)
+        {
+            "column1": {
+                "dtype": "object",
+                "mode": "FOOBAR"
+            },
+            "column2": {
+                "dtype": "int64",
+                "mode": 1,
+                "min": 1,
+                "max": 2,
+                "mean": 1.4
+            },
+            "column3": {
+                "dtype": "bool",
+                "mode": false,
+                "min": false,
+                "max": true,
+                "mean": 0.5
+            }
+        }
 
 - Next major release (3.0.0) there will be major cosmetic changes to the cli such as
   removing all camel case or non-standard single dash long command line interface (cli)

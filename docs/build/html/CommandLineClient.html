@@ -179,7 +179,7 @@
 <div class="section" id="manifest">
 <h4>manifest<a class="headerlink" href="#manifest" title="Permalink to this headline">¶</a></h4>
 <p>Generate manifest for uploading directory tree to Synapse.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">manifest</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">--</span><span class="n">parentid</span> <span class="n">syn123</span> <span class="p">[</span><span class="o">--</span><span class="n">manifestFile</span> <span class="n">OUTPUT</span><span class="p">]</span> <span class="n">PATH</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapse</span> <span class="n">manifest</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="o">--</span><span class="n">parent</span><span class="o">-</span><span class="nb">id</span> <span class="n">syn123</span> <span class="p">[</span><span class="o">--</span><span class="n">manifest</span><span class="o">-</span><span class="n">file</span> <span class="n">OUTPUT</span><span class="p">]</span> <span class="n">PATH</span>
 </pre></div>
 </div>
 <div class="section" id="Positional Arguments_repeat1">
@@ -193,11 +193,11 @@
 <div class="section" id="Named Arguments_repeat2">
 <h5>Named Arguments<a class="headerlink" href="#Named Arguments_repeat2" title="Permalink to this headline">¶</a></h5>
 <dl class="option-list">
-<dt><kbd>--parentid, --parentId</kbd></dt>
+<dt><kbd>--parent-id</kbd></dt>
 <dd><p>Synapse ID of project or folder where to upload data.</p>
 </dd>
-<dt><kbd>--manifestFile</kbd></dt>
-<dd><p>A TSV output file path where the generated manifest is stored.</p>
+<dt><kbd>--manifest-file</kbd></dt>
+<dd><p>A TSV output file path where the generated manifest is stored. (default: stdout)</p>
 </dd>
 </dl>
 </div>
@@ -1104,7 +1104,7 @@ targeting table attached files</p>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 05, 2021.
+      Last updated on Oct 14, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

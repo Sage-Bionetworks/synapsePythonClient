@@ -58,31 +58,57 @@
 <div class="section" id="highlights">
 <h3>Highlights<a class="headerlink" href="#highlights" title="Permalink to this headline">¶</a></h3>
 <ul>
-<li><p>Next major release (3.0.0) will remove all non-standard single dash long parameter
-cli parameter. There might also be big cosmetic changes to the cli such as getting rid
-of all camel case parameters.
-Example: command line arguments like <cite>-parent</cite> will be removed as
-it should be <cite>–parent</cite>.  <cite>–parentId</cite> might be changed to <cite>–parent-id</cite>.</p></li>
-<li><p>Added ability generate manifest file from local directory structure</p>
+<li><p>Added ability to generate a manifest file from your local directory structure.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from the command line</span>
-synapse manifest --parent-id syn123 --manifest-file ./manifest.tsv ./
+<span class="c1"># write the manifest to manifest.tsv</span>
+synapse manifest --parent-id syn123 --manifest-file ./manifest.tsv /path/to/local/directory
+<span class="c1"># stdout</span>
+synapse manifest --parent-id syn123 /path/to/local/directory
 </pre></div>
 </div>
 </li>
-<li><p>Added ability to pipe generate manifest stdout into sync function</p>
+<li><p>Added ability to pipe manifest stdout into sync function.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from the command line</span>
 synapse manifest --parent-id syn123 ./docs/ <span class="p">|</span> synapse sync -
-<span class="c1"># Pip</span>
 </pre></div>
 </div>
 </li>
-<li><p>Added ability to describe csv and tsv files stored in Synapse.</p>
+<li><p>Added ability to return summary statistics of csv and tsv files stored in Synapse.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from python</span>
+import synapseclient
 import synapseutils
-synapseutils.describe<span class="o">(</span><span class="nv">syn</span><span class="o">=</span>syn, <span class="nv">entity</span><span class="o">=</span><span class="s2">&quot;syn12345&quot;</span><span class="o">)</span>
+<span class="nv">syn</span> <span class="o">=</span> synapseclient.login<span class="o">()</span>
+<span class="nv">statistics</span> <span class="o">=</span> synapseutils.describe<span class="o">(</span><span class="nv">syn</span><span class="o">=</span>syn, <span class="nv">entity</span><span class="o">=</span><span class="s2">&quot;syn12345&quot;</span><span class="o">)</span>
+print<span class="o">(</span>statistics<span class="o">)</span>
+<span class="o">{</span>
+    <span class="s2">&quot;column1&quot;</span>: <span class="o">{</span>
+        <span class="s2">&quot;dtype&quot;</span>: <span class="s2">&quot;object&quot;</span>,
+        <span class="s2">&quot;mode&quot;</span>: <span class="s2">&quot;FOOBAR&quot;</span>
+    <span class="o">}</span>,
+    <span class="s2">&quot;column2&quot;</span>: <span class="o">{</span>
+        <span class="s2">&quot;dtype&quot;</span>: <span class="s2">&quot;int64&quot;</span>,
+        <span class="s2">&quot;mode&quot;</span>: <span class="m">1</span>,
+        <span class="s2">&quot;min&quot;</span>: <span class="m">1</span>,
+        <span class="s2">&quot;max&quot;</span>: <span class="m">2</span>,
+        <span class="s2">&quot;mean&quot;</span>: <span class="m">1</span>.4
+    <span class="o">}</span>,
+    <span class="s2">&quot;column3&quot;</span>: <span class="o">{</span>
+        <span class="s2">&quot;dtype&quot;</span>: <span class="s2">&quot;bool&quot;</span>,
+        <span class="s2">&quot;mode&quot;</span>: false,
+        <span class="s2">&quot;min&quot;</span>: false,
+        <span class="s2">&quot;max&quot;</span>: true,
+        <span class="s2">&quot;mean&quot;</span>: <span class="m">0</span>.5
+    <span class="o">}</span>
+<span class="o">}</span>
 </pre></div>
 </div>
 </li>
+<li><p>Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+removing all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
 </ul>
 </div>
 <div class="section" id="bug-fixes">
@@ -1461,7 +1487,7 @@ provide convenience functions for more complicated operations in Synapse such as
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 13, 2021.
+      Last updated on Oct 18, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
