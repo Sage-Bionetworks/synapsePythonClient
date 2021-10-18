@@ -1,7 +1,6 @@
 from collections import defaultdict
 import json
 import os
-import sys
 
 import synapseclient
 from synapseclient import table
@@ -10,8 +9,10 @@ from synapseclient import table
 def _open_entity_as_df(syn, entity: str):
     """
     Gets a csv or tsv Synapse entity and returns it as a dataframe
+
     :param syn: synapse object
     :param entity: a synapse entity to be extracted and converted into a dataframe
+
     :return: a pandas DataFrame if flow of execution is successful; None if not.
     """
     table.test_import_pandas()
@@ -39,7 +40,9 @@ def _open_entity_as_df(syn, entity: str):
 def _describe_wrapper(df) -> dict:
     """
     Returns the mode, min, max, mean, and dtype of each column in a dataframe
+
     :param df: pandas dataframe from the csv or tsv file
+
     :return: see param mode
     """
     table.test_import_pandas()
@@ -68,10 +71,39 @@ def _describe_wrapper(df) -> dict:
 
 def describe(syn, entity: str):
     """
-    Synapse_describe gets a synapse entity and returns summary statistics about it
+    Gets a synapse entity and returns summary statistics about it.
+
     :param syn: synapse object
     :param entity: synapse id of the entity to be described
-    :return: if dataset is valid, returns either a string or object; otherwise None
+
+    Example::
+
+        import synapseclient
+        import synapseutils
+        syn = synapseclient.login()
+        statistics = synapseutils(syn, entity="syn123")
+        print(statistics)
+        {
+            "column1": {
+                "dtype": "object",
+                "mode": "FOOBAR"
+            },
+            "column2": {
+                "dtype": "int64",
+                "mode": 1,
+                "min": 1,
+                "max": 2,
+                "mean": 1.4
+            },
+            "column3": {
+                "dtype": "bool",
+                "mode": false,
+                "min": false,
+                "max": true,
+                "mean": 0.5
+            }
+        }
+    :return: if dataset is valid, returns a dict; otherwise None
     """
     df = _open_entity_as_df(syn=syn, entity=entity)
 
@@ -79,5 +111,5 @@ def describe(syn, entity: str):
         return None
 
     stats = _describe_wrapper(df)
-    sys.stderr.write(json.dumps(stats, indent=2, default=str))
+    print(json.dumps(stats, indent=2, default=str))
     return stats

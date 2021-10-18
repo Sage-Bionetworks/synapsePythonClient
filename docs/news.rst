@@ -2,6 +2,103 @@
 Release Notes
 =============
 
+2.5.0 (2021-10-05)
+==================
+
+Highlights
+----------
+
+- Added ability to generate a manifest file from your local directory structure.
+
+  .. code-block:: bash
+
+        # from the command line
+        # write the manifest to manifest.tsv
+        synapse manifest --parent-id syn123 --manifest-file ./manifest.tsv /path/to/local/directory
+        # stdout
+        synapse manifest --parent-id syn123 /path/to/local/directory
+
+- Added ability to pipe manifest stdout into sync function.
+
+  .. code-block:: bash
+
+        # from the command line
+        synapse manifest --parent-id syn123 ./docs/ | synapse sync -
+
+- Added ability to return summary statistics of csv and tsv files stored in Synapse.
+
+  .. code-block:: bash
+
+        # from python
+        import synapseclient
+        import synapseutils
+        syn = synapseclient.login()
+        statistics = synapseutils.describe(syn=syn, entity="syn12345")
+        print(statistics)
+        {
+            "column1": {
+                "dtype": "object",
+                "mode": "FOOBAR"
+            },
+            "column2": {
+                "dtype": "int64",
+                "mode": 1,
+                "min": 1,
+                "max": 2,
+                "mean": 1.4
+            },
+            "column3": {
+                "dtype": "bool",
+                "mode": false,
+                "min": false,
+                "max": true,
+                "mean": 0.5
+            }
+        }
+
+- Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+  removing all camel case or non-standard single dash long command line interface (cli)
+  parameters.
+  Example: command line arguments like `-parent` will become
+  `--parent`.  Commands that support camel case like `--parentId`
+  will be changed to `--parent-id`.
+
+
+Bug Fixes
+---------
+-  [`SYNPY-669 <https://sagebionetworks.jira.com/browse/SYNPY-669>`__] -
+   Signing of Synapse authentication header does not correctly URL encode the URL path
+-  [`SYNPY-770 <https://sagebionetworks.jira.com/browse/SYNPY-770>`__] -
+   Files failing to upload using syncToSynapse
+-  [`SYNPY-1123 <https://sagebionetworks.jira.com/browse/SYNPY-1123>`__] -
+   All tables erroring when indexing
+-  [`SYNPY-1146 <https://sagebionetworks.jira.com/browse/SYNPY-1146>`__] -
+   Error writing Booleans from Python dataframes into Boolean columns in a Synapse table
+-  [`SYNPY-1156 <https://sagebionetworks.jira.com/browse/SYNPY-1156>`__] -
+   datetimes in a Pandas dataframe are not properly stored to Synapse
+
+Stories
+-------
+-  [`SYNPY-726 <https://sagebionetworks.jira.com/browse/SYNPY-726>`__] -
+   mirror local folder structure for bulk upload
+-  [`SYNPY-1163 <https://sagebionetworks.jira.com/browse/SYNPY-1163>`__] -
+   Expose synId with syn get -r
+-  [`SYNPY-1165 <https://sagebionetworks.jira.com/browse/SYNPY-1165>`__] -
+   Generate manifest template from local folder structure
+-  [`SYNPY-1167 <https://sagebionetworks.jira.com/browse/SYNPY-1167>`__] -
+   Support for Quick Summary Statistics on CSV and TSV files
+
+Tasks
+-----
+-  [`SYNPY-1169 <https://sagebionetworks.jira.com/browse/SYNPY-1169>`__] -
+   Integration tests failures in develop branch against stack-371
+-  [`SYNPY-1172 <https://sagebionetworks.jira.com/browse/SYNPY-1172>`__] -
+   Passing a pandas dataframe with a column called "read" breaks the type parsing in as_table_columns()
+-  [`SYNPY-1173 <https://sagebionetworks.jira.com/browse/SYNPY-1173>`__] -
+   Support DATE_LIST, ENTITYID_LIST, USERID_LIST table columns
+-  [`SYNPY-1188 <https://sagebionetworks.jira.com/browse/SYNPY-1188>`__] -
+   Support piping of `synapse manifest` stdout in `synapse sync` function
+
 2.4.0 (2021-07-08)
 ==================
 
