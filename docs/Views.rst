@@ -44,7 +44,7 @@ To create a view, defines its name, columns, parent, scope, and the type of the 
                             parent=project['id'],
                             scopes=project['id'],
                             includeEntityTypes=[EntityViewType.FILE, EntityViewType.FOLDER],
-                            add_default_columns=True)
+                            addDefaultViewColumns=True)
     view = syn.store(view)
 
 
