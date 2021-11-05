@@ -497,7 +497,7 @@ Now create a view:
         parent = project,
         scopes = project,
         includeEntityTypes = c(synapseclient$EntityViewType$FILE, synapseclient$EntityViewType$FOLDER),
-        add_default_columns = TRUE
+        addDefaultViewColumns = TRUE
     )
 
     view <- syn$store(view)
