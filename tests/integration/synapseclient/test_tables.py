@@ -226,6 +226,7 @@ def test_tables_pandas(syn, project):
     # retrieve the table and verify
     results = syn.tableQuery('select * from %s' % table.schema.id, resultsAs='csv')
     df2 = results.asDataFrame(convert_to_datetime=True)
+    df1 = results.asDataFrame()
 
     # simulate rowId-version rownames for comparison
     df.index = ['%s_1' % i for i in range(1, 6)]
@@ -243,6 +244,8 @@ def test_tables_pandas(syn, project):
     # second .all() gives a bool that is ANDed value of that Series
 
     assert_frame_equal(df2, df)
+    # Test if string as schema can be passed in.
+    syn.store(Table(table.tableId, df1))
 
 
 def dontruntest_big_tables(syn, project):
