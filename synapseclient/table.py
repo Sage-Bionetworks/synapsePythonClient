@@ -1336,7 +1336,7 @@ def Table(schema, values, **kwargs):
     Combine a table schema and a set of values into some type of Table object
     depending on what type of values are given.
 
-    :param schema: a table :py:class:`Schema` object
+    :param schema: a table :py:class:`Schema` object or Synapse Id of Table.
     :param values: an object that holds the content of the tables
                       - a :py:class:`RowSet`
                       - a list of lists (or tuples) where each element is a row
