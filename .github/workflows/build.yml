@@ -99,7 +99,7 @@ jobs:
         shell: bash
 
         # keep versions consistent with the first and last from the strategy matrix
-        if: ${{ contains(fromJSON('[3.6, '3.9.9']'), matrix.python) }}
+        if: ${{ contains(fromJSON('[3.6, 3.9.9]'), matrix.python) }}
         run: |
           if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_key }}" ]; then
             echo "No test configuration decryption keys available, skipping integration tests"
