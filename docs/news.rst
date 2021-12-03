@@ -2,6 +2,32 @@
 Release Notes
 =============
 
+
+2.5.1 (2021-12-02)
+==================
+
+Highlights
+----------
+- Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+  removing all camel case or non-standard single dash long command line interface (cli)
+  parameters.
+  Example: command line arguments like `-parent` will become
+  `--parent`.  Commands that support camel case like `--parentId`
+  will be changed to `--parent-id`.
+
+Bug Fixes
+---------
+-  [`SYNPY-1197 <https://sagebionetworks.jira.com/browse/SYNPY-1197>`__] -
+   Schema is a string and strings don't have columns_to_store attributes
+
+Stories
+-------
+-  [`SYNPY-772 <https://sagebionetworks.jira.com/browse/SYNPY-772>`__] -
+   update statement that appears on PyPi about Synapse to be consistent
+-  [`SYNPY-997 <https://sagebionetworks.jira.com/browse/SYNPY-997>`__] -
+   Typos in Views documentation
+
+
 2.5.0 (2021-10-05)
 ==================
 

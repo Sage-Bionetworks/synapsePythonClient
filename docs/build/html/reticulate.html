@@ -507,7 +507,7 @@ view &lt;- synapseclient$EntityViewSchema(
     parent = project,
     scopes = project,
     includeEntityTypes = c(synapseclient$EntityViewType$FILE, synapseclient$EntityViewType$FOLDER),
-    add_default_columns = TRUE
+    addDefaultViewColumns = TRUE
 )
 
 view &lt;- syn$store(view)
@@ -637,7 +637,7 @@ branch for an alternative implementation using reticulate with synapseclient.</p
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 14, 2021.
+      Last updated on Dec 02, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

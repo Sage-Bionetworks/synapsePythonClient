@@ -55,8 +55,9 @@
 <span id="synapse-python-client-documentation"></span><h1>Synapse Python Client Documentation<a class="headerlink" href="#module-synapseclient" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">synapseclient</span></code> package provides an interface to <a class="reference external" href="http://www.synapse.org">Synapse</a>, a collaborative workspace
-for reproducible data intensive research projects, providing support for:</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">synapseclient</span></code> package provides an interface to <a class="reference external" href="http://www.synapse.org">Synapse</a>, a collaborative,
+open-source research platform that allows teams to share data, track analyses,
+and collaborate, providing support for:</p>
 <ul class="simple">
 <li><p>integrated presentation of data, code and text</p></li>
 <li><p>fine grained access control</p></li>
@@ -2330,7 +2331,7 @@ depending on what type of values are given.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>schema</strong> – a table <a class="reference internal" href="#synapseclient.Schema" title="synapseclient.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object</p></li>
+<li><p><strong>schema</strong> – a table <a class="reference internal" href="#synapseclient.Schema" title="synapseclient.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object or or the Synapse Id of an existing table.</p></li>
 <li><p><strong>values</strong> – <p>an object that holds the content of the tables
 - a <a class="reference internal" href="#synapseclient.RowSet" title="synapseclient.RowSet"><code class="xref py py-class docutils literal notranslate"><span class="pre">RowSet</span></code></a>
 - a list of lists (or tuples) where each element is a row
@@ -2734,7 +2735,7 @@ is supplied.</p>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 18, 2021.
+      Last updated on Dec 02, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
