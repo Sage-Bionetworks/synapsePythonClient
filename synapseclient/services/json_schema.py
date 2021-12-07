@@ -5,12 +5,16 @@ JSON Schema
 """
 
 from __future__ import annotations
-from typing import Sequence, Mapping, Union
+from typing import Sequence, Mapping, Union, TYPE_CHECKING
 
 import json
 
 from synapseclient.core.utils import id_of
 from synapseclient.core.exceptions import SynapseHTTPError
+
+if TYPE_CHECKING:
+    from synapseclient.client import Synapse
+    from synapseclient.entity import Entity
 
 
 DEFAULT_ACCESS = ("CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE")
@@ -401,11 +405,6 @@ class JsonSchemaService:
         instance.set_service(self)
         return instance
 
-    def AnnotatableEntity(self, *args, **kwargs):
-        instance = AnnotatableEntity(*args, **kwargs)
-        instance.set_service(self)
-        return instance
-
     def JsonSchema(self, *args, **kwargs):
         instance = JsonSchema(*args, **kwargs)
         instance.set_service(self)
@@ -583,7 +582,7 @@ class JsonSchemaService:
         response = self.get_json_schema_from_entity(synapse_id)
         return response
 
-    def delete_json_schema(self, entity: Union[str, Entity]):
+    def unbind_json_schema(self, entity: Union[str, Entity]):
         synapse_id = id_of(entity)
         response = self.delete_json_schema_from_entity(synapse_id)
         return response
