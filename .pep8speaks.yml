@@ -2,4 +2,11 @@ scanner:
     diff_only: True  # If False, the entire file touched by the Pull Request is scanned for errors. If True, only the diff is scanned.
     linter: flake8
 
+# Configure to support black code formatting
+flake8:
+    max-line-length: 88
+    ignore:
+        - E203  # whitespace before ','
+        - W503  # line break before binary operator
+
 no_blank_comment: False  # If True, no comment is made on PR without any errors.
