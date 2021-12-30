@@ -615,7 +615,7 @@ class _SyncUploader:
 def generateManifest(syn, allFiles, filename, provenance_cache=None):
     """Generates a manifest file based on a list of entities objects.
     :param syn:   A synapse object as obtained with syn = synapseclient.login()
-    :param allFiles:   A list of File Entity objects on Synapse (can't be Synapse ids)
+    :param allFiles:   A list of File Entity objects on Synapse (can't be SynapseIDs)
     :param filename: file where manifest will be written
     :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
     """
