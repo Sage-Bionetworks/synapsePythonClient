@@ -7,8 +7,8 @@ import setuptools
 import json
 
 # check Python version, before we do anything
-if sys.version_info.major < 3 and sys.version_info.minor < 7 and sys.version_info.minor > 9:
-    sys.stderr.write("The Synapse Client for Python requires Python 3.7+ and <3.10\n")
+if sys.version_info.major < 3 and sys.version_info.minor < 7:
+    sys.stderr.write("The Synapse Client for Python requires Python 3.7+\n")
     sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % sys.version_info[:3])
     sys.exit(-1)
 
@@ -65,7 +65,7 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=["tests", "tests.*"]),
 
     # requirements
-    python_requires='>=3.6.*',
+    python_requires='>=3.7.*',
     install_requires=install_requires,
     extras_require={
         'pandas': ["pandas>=0.25.0,<2.0"],
@@ -108,6 +108,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         'Operating System :: MacOS',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: Unix',
