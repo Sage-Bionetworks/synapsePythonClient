@@ -34,7 +34,7 @@ jobs:
         os: [ubuntu-18.04, macos-10.15, windows-2019]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
-        python: [3.7, 3.8, '3.9.9']
+        python: [3.7, 3.8, '3.9.9', 3.10]
 
     runs-on: ${{ matrix.os }}
 
@@ -319,7 +319,7 @@ jobs:
         os: [ubuntu-18.04, macos-10.15, windows-2019]
 
         # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
-        python: [3.7, 3.8, '3.9.9']
+        python: [3.7, 3.8, '3.9.9', 3.10]
 
     runs-on: ${{ matrix.os }}
 
