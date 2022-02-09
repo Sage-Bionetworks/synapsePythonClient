@@ -508,6 +508,8 @@ class Synapse(object):
                 if user['displayName'] == 'Anonymous':
                     return False
                 return user['displayName']
+            elif 'userName' in user:
+                return user['userName']
         except SynapseHTTPError as err:
             if err.response.status_code == 401:
                 return False
