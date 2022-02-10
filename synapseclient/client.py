@@ -106,8 +106,6 @@ from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFT
 from synapseclient.core.upload.upload_functions import upload_file_handle, upload_synapse_s3
 from synapseclient.core.dozer import doze
 
-from synapseclient.services import json_schema
-
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint': 'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint': 'https://auth-prod.prod.sagebase.org/auth/v1',
@@ -667,7 +665,7 @@ class Synapse(object):
     ############################################################
 
     _services = {
-        "json_schema": json_schema.JsonSchemaService,
+        "json_schema": "JsonSchemaService",
     }
 
     def get_available_services(self):
@@ -675,13 +673,15 @@ class Synapse(object):
         return list(services)
 
     def service(self, service_name: str):
+        import synapseclient.services
         assert isinstance(service_name, str)
         service_name = service_name.lower().replace(" ", "_")
         assert service_name in self._services, (
             f"Unrecognized service ({service_name}). Run the 'get_available_"
             "services()' method to get a list of available services."
         )
-        service_cls = self._services[service_name]
+        service_attr = self._services[service_name]
+        service_cls  = getattr(synapseclient.services, service_attr)
         service = service_cls(self)
         return service
 

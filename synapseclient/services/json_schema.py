@@ -9,12 +9,10 @@ from typing import Sequence, Mapping, Union, TYPE_CHECKING
 
 import json
 
+from synapseclient.client import Synapse
+from synapseclient.entity import Entity
 from synapseclient.core.utils import id_of
-from synapseclient.core.exceptions import SynapseHTTPError
-
-if TYPE_CHECKING:
-    from synapseclient.client import Synapse
-    from synapseclient.entity import Entity
+from synapseclient.core.exceptions import SynapseHTTPError, SynapseAuthenticationError
 
 
 DEFAULT_ACCESS = ("CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE")
