@@ -5,6 +5,7 @@ JSON Schema
 """
 
 from __future__ import annotations
+from functools import wraps
 from typing import Sequence, Mapping, Union, TYPE_CHECKING
 
 import json
@@ -390,33 +391,44 @@ class JsonSchemaService:
     def __init__(self, synapse: Synapse = None) -> None:
         self.synapse = synapse
 
-    def set_synapse(self, synapse: Synapse):
+    @wraps(Synapse.login)
+    def login(self, *args, **kwargs):
+        synapse = Synapse()
+        synapse.login(*args, **kwargs)
         self.synapse = synapse
 
+    @wraps(JsonSchemaOrganization)
     def JsonSchemaOrganization(self, *args, **kwargs):
         instance = JsonSchemaOrganization(*args, **kwargs)
         instance.set_service(self)
         return instance
 
+    @wraps(JsonSchemaVersion)
     def JsonSchemaVersion(self, *args, **kwargs):
         instance = JsonSchemaVersion(*args, **kwargs)
         instance.set_service(self)
         return instance
 
+    @wraps(JsonSchema)
     def JsonSchema(self, *args, **kwargs):
         instance = JsonSchema(*args, **kwargs)
         instance.set_service(self)
         return instance
 
     def authentication_required(func):
+        @wraps(func)
         def wrapper(self, *args, **kwargs):
-            assert self.synapse is not None and self.synapse._loggedIn(), (
-                "This request needs to be authenticated. Please provide a 'logged in' "
-                "Synapse object (e.g., using 'synapseclient.login()') to the "
-                "'set_synapse()' instance method."
+            msg = (
+                f"`JsonSchemaService.{func.__name__}()` requests must be authenticated."
+                " Login using the `login()` method on the existing `JsonSchemaService`"
+                " instance (e.g., `js.login()` or `js.login(authToken=...)`)."
             )
-            return func(self, *args, **kwargs)
-
+            assert self.synapse is not None, msg
+            try:
+                result = func(self, *args, **kwargs)
+            except SynapseAuthenticationError as e:
+                raise SynapseAuthenticationError(msg).with_traceback(e.__traceback__)
+            return result
         return wrapper
 
     @authentication_required
