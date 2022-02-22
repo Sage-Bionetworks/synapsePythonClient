@@ -943,7 +943,8 @@ def test_getChildren__nextPageToken(syn):
         # genrates JSOn for the expected request body
         def expected_request_JSON(token):
             return json.dumps({'parentId': 'syn' + str(parent_project_id_int),
-                               'includeTypes': ["folder", "file", "table", "link", "entityview", "dockerrepo"],
+                               'includeTypes': ["folder", "file", "table", "link", "entityview", "dockerrepo",
+                                                "submissionview", "dataset", "materializedview"],
                                'sortBy': 'NAME', 'sortDirection': 'ASC', 'nextPageToken': token})
         expected_POST_url = '/entity/children'
         mocked_POST.assert_has_calls([call(expected_POST_url, body=expected_request_JSON(None)),
