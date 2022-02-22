@@ -176,7 +176,7 @@ class _FolderSync:
         )
 
     def _generate_folder_manifest(self):
-        # when a folder is complete we write a manifest file iff we are downloading to a path outside
+        # when a folder is complete we write a manifest file if we are downloading to a path outside
         # the Synapse cache and there are actually some files in this folder.
         if self._path and self._files:
             generateManifest(self._syn, self._files, self._manifest_filename(), provenance_cache=self._provenance)
@@ -614,8 +614,8 @@ class _SyncUploader:
 
 def generateManifest(syn, allFiles, filename, provenance_cache=None):
     """Generates a manifest file based on a list of entities objects.
-
-    :param allFiles:   A list of File Entities
+    :param syn:   A synapse object as obtained with syn = synapseclient.login()
+    :param allFiles:   A list of File Entity objects on Synapse (can't be Synapse IDs)
     :param filename: file where manifest will be written
     :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
     """
