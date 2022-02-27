@@ -30,6 +30,7 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 import collections
 import collections.abc
 import configparser
+import csv
 import deprecated
 import errno
 import functools
@@ -1353,6 +1354,56 @@ class Synapse(object):
         :returns: a dict of a new FileHandle as a dict that represents the uploaded file
         """
         return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
+
+    ############################################################
+    #                  Download List                           #
+    ############################################################
+    def clear_download_list(self):
+        """Clear all files from download list"""
+        self.syn.restDELETE("/download/list")
+
+    def _generate_manifest_from_download_list(self, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep,
+                                              separator=",", header=True):
+        request_body = {
+            "concreteType": "org.sagebionetworks.repo.model.download.DownloadListManifestRequest",
+            "csvTableDescriptor": {
+                "separator": separator,
+                "quoteCharacter": quoteCharacter,
+                "escapeCharacter": escapeCharacter,
+                "lineEnd": lineEnd,
+                "isFirstLineHeader": header
+            }
+        }
+        return self._waitForAsync(uri="/download/list/manifest/async", request=request_body)
+
+    def get_download_list_manifest(self):
+        manifest = self._generate_manifest_from_download_list()
+        file_result = self._getFileHandleDownload(
+            fileHandleId=manifest['resultFileHandleId'],
+            objectId=manifest['resultFileHandleId'],
+            objectType="FileEntity"
+        )
+        downloaded_path = self._download_from_URL(
+            url=file_result['preSignedURL'],
+            destination="./",
+            fileHandleId=file_result['fileHandleId'],
+            expected_md5=file_result['fileHandle'].get('contentMd5')
+        )
+        return downloaded_path
+
+    def get_download_list(self) -> typing.List:
+        """Download all files from your Synapse download list
+
+        Returns:
+            list: Returns a list of Synapse Entities
+        """
+        dl_list_path = self.get_download_list_manifest()
+        downloaded_files = []
+        with open(dl_list_path) as manifest_f:
+            reader = csv.DictReader(manifest_f)
+            for row in reader:
+                downloaded_files.append(self.get(row['ID']))
+        return downloaded_files
 
     ############################################################
     #                  Get / Set Annotations                   #
