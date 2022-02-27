@@ -1360,7 +1360,7 @@ class Synapse(object):
     ############################################################
     def clear_download_list(self):
         """Clear all files from download list"""
-        self.syn.restDELETE("/download/list")
+        self.restDELETE("/download/list")
 
     def _generate_manifest_from_download_list(self, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep,
                                               separator=",", header=True):
@@ -1403,6 +1403,7 @@ class Synapse(object):
             reader = csv.DictReader(manifest_f)
             for row in reader:
                 downloaded_files.append(self.get(row['ID']))
+        self.clear_download_list()
         return downloaded_files
 
     ############################################################
