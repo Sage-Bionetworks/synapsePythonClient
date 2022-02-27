@@ -1362,6 +1362,15 @@ class Synapse(object):
         """Clear all files from download list"""
         self.restDELETE("/download/list")
 
+    def remove_from_download_list(self, list_of_files: typing.List):
+        """Remove a batch of files from download list"""
+        request_body = {"batchToRemove": list_of_files}
+        remove_from_list = self.restPOST(
+            "/download/list/remove",
+            body=json.dumps(request_body)
+        )
+        return remove_from_list
+
     def _generate_manifest_from_download_list(self, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep,
                                               separator=",", header=True):
         request_body = {
@@ -1402,8 +1411,23 @@ class Synapse(object):
         with open(dl_list_path) as manifest_f:
             reader = csv.DictReader(manifest_f)
             for row in reader:
-                downloaded_files.append(self.get(row['ID']))
-        self.clear_download_list()
+                # You can add things to the download list that you don't have access to
+                # So there must be a try catch here
+                try:
+                    entity = self.get(row['ID'])
+                    downloaded_files.append(entity)
+                except Exception:
+                    print("Unable to download file")
+                # TODO: should the file be removed from the download list if it fails download
+                # Must include version number because you can have multiple versions of a
+                # file in the download list
+                self.remove_from_download_list(list_of_files=[
+                    {"fileEntityId": row['ID'], "versionNumber": row['versionNumber']}
+                ])
+        # TODO: add ability to remove manifest file if user doesn't want it returned
+        # Don't want to clear all the download list because you can add things
+        # to the download list after initiating this command
+        # self.clear_download_list()
         return downloaded_files
 
     ############################################################
