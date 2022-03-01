@@ -747,6 +747,24 @@ class Schema(SchemaBase):
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
+class MaterializedViewSchema(SchemaBase):
+    """_summary_
+
+    Args:
+        SchemaBase (_type_): _description_
+    """
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.MaterializedView'
+    _property_keys = SchemaBase._property_keys + ['definingSQL']
+    def __init__(self, name=None, columns=None, parent=None, definingSQL=None, properties=None, annotations=None, local_state=None,
+                 **kwargs):
+        if definingSQL is not None:
+            kwargs['definingSQL'] = definingSQL
+        super(MaterializedViewSchema, self).__init__(
+            name=name, columns=columns, properties=properties,
+            annotations=annotations, local_state=local_state, parent=parent, **kwargs
+        )
+
+
 class ViewBase(SchemaBase):
     """
     This is a helper class for EntityViewSchema and SubmissionViewSchema
