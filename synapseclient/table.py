@@ -1043,6 +1043,7 @@ class Column(DictObject):
 
     :type id: string
     :type maximumSize: integer
+    :type maximumListLength: integer
     :type columnType: string
     :type name: string
     :type enumValues: array of strings
