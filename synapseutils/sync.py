@@ -782,14 +782,21 @@ def readManifestFile(syn, manifestFile):
             raise ValueError("Manifest must contain a column of %s" % field)
     sys.stdout.write('OK\n')
 
-    sys.stdout.write('Validating that all paths exist')
+    sys.stdout.write('Validating that all paths exist...')
     df.path = df.path.apply(_check_path_and_normalize)
 
     sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating that all files are unique...')
+    # Create entity name column from basename
+    if df.get('name') is None:
+        filenames = [os.path.basename(path) for path in df['path']]
+        df['name'] = filenames
+    # Both the path and the combination of entity name and parent must be unique
     if len(df.path) != len(set(df.path)):
         raise ValueError("All rows in manifest must contain a unique file to upload")
+    if df[['name', 'parent']].duplicated().any():
+        raise ValueError("All rows in manifest must contain a unique entity name and parent to upload")
     sys.stdout.write('OK\n')
 
     # Check each size of uploaded file
