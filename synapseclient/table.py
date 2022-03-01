@@ -1315,14 +1315,9 @@ def build_table(name, parent, values):
         table = build_table("simple_table", "syn123", df)
         table = syn.store(table)
     """
-    try:
-        import pandas as pd
-        pandas_available = True
-    except:  # noqa
-        pandas_available = False
+    test_import_pandas()
+    import pandas as pd
 
-    if not pandas_available:
-        raise ValueError("pandas package is required.")
     if not isinstance(values, pd.DataFrame) and not isinstance(values, str):
         raise ValueError("Values of type %s is not yet supported." % type(values))
     cols = as_table_columns(values)
