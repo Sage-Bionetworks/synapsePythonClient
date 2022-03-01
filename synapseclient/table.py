@@ -1038,8 +1038,8 @@ class Column(DictObject):
                               values that will appear in that list. Value range 1-100 inclusive. Default 100
     :param name:              The display name of the column
     :param enumValues:        Columns type of STRING can be constrained to an enumeration values set on this list.
-    :param defaultValue:      The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not allowed
-                              to have default values.
+    :param defaultValue:      The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not
+                              allowed to have default values.
 
     :type id: string
     :type maximumSize: integer
