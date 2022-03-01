@@ -1006,6 +1006,7 @@ class SubmissionViewSchema(ViewBase):
 entity_type_to_class[Schema._synapse_entity_type] = Schema
 entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 entity_type_to_class[SubmissionViewSchema._synapse_entity_type] = SubmissionViewSchema
+entity_type_to_class[MaterializedViewSchema._synapse_entity_type] = MaterializedViewSchema
 
 
 class SelectColumn(DictObject):
