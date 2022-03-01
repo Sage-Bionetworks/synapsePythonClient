@@ -1371,8 +1371,26 @@ class Synapse(object):
         )
         return remove_from_list
 
-    def _generate_manifest_from_download_list(self, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep,
-                                              separator=",", header=True):
+    def _generate_manifest_from_download_list(
+            self,
+            quoteCharacter: str = '"',
+            escapeCharacter: str = "\\",
+            lineEnd: str = os.linesep,
+            separator: str = ",",
+            header: bool = True
+        ):
+        """Creates a download list manifest generation request
+
+        Args:
+            quoteCharacter (str, optional): _description_. Defaults to '"'.
+            escapeCharacter (str, optional): _description_. Defaults to "\".
+            lineEnd (str, optional): _description_. Defaults to os.linesep.
+            separator (str, optional): _description_. Defaults to ",".
+            header (bool, optional): _description_. Defaults to True.
+
+        Returns:
+            _type_: _description_
+        """
         request_body = {
             "concreteType": "org.sagebionetworks.repo.model.download.DownloadListManifestRequest",
             "csvTableDescriptor": {
