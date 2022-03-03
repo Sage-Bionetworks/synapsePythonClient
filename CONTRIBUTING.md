@@ -49,7 +49,7 @@ git pull upstream develop
 ### The development life cycle
 
 1. Pull the latest content from the `develop` branch of this central repository (not your fork).
-1. Create a feature branch which off the `develop` branch. The branch should be named the same as the JIRA issue you are working on (e.g., `SYNPY-1234`).
+1. Create a feature branch which off the `develop` branch. The branch should be named the same as the JIRA issue you are working on (e.g., `SYNPY-1234-{feature-here}`). I recommend adding details of the actual feature in the branch name so that you don't need to go back and forth between JIRA and GitHub.
 1. After completing work and testing locally (see below), push to your fork.
 1. In Github, create a pull request from the feature branch of your fork to the `develop` branch of the central repository.
 
