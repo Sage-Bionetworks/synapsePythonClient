@@ -53,7 +53,7 @@ git pull upstream develop
 1. After completing work and testing locally (see below), push to your fork.
 1. In Github, create a pull request from the feature branch of your fork to the `develop` branch of the central repository.
 
-> *A Sage Bionetworks engineer must review and accept your pull request.* A code review (which happens with both the contributor and the reviewer present) is required for contributing. This can be performed remotely (e.g., Skype, Hangout, or other video or phone conference).
+> *A Sage Bionetworks engineer must review and accept your pull request.* A code review is required for contributing. This can be performed remotely (e.g., Zoom, Hangout, or other video or phone conference) with both the reviewer and contributor or asyncronously through the pull request on GitHub.
 
 The status of an issue can be tracked in JIRA. Once an issue has passed a code review with a Sage Bionetworks engineer, he/she will update it's status in JIRA appropriately.
 
