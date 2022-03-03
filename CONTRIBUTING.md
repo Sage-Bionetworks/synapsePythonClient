@@ -94,3 +94,7 @@ pip install flake8
 
 flake8
 ```
+
+### Repository Admins
+
+- [Release process](https://sagebionetworks.jira.com/wiki/spaces/SYNPY/pages/643498030/Synapse+Python+Client+Staging+Validation+Production)
