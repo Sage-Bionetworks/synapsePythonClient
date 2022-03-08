@@ -755,8 +755,8 @@ class MaterializedViewSchema(SchemaBase):
     """
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.MaterializedView'
     _property_keys = SchemaBase._property_keys + ['definingSQL']
-    def __init__(self, name=None, columns=None, parent=None, definingSQL=None, properties=None, annotations=None, local_state=None,
-                 **kwargs):
+    def __init__(self, name=None, columns=None, parent=None, definingSQL=None, properties=None, annotations=None,
+                 local_state=None, **kwargs):
         if definingSQL is not None:
             kwargs['definingSQL'] = definingSQL
         super(MaterializedViewSchema, self).__init__(
