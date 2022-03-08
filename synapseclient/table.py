@@ -748,10 +748,25 @@ class Schema(SchemaBase):
 
 
 class MaterializedViewSchema(SchemaBase):
-    """_summary_
+    """
+    A MaterializedViewSchema is an :py:class:`synapseclient.entity.Entity` that defines a set of columns in a
+    materialized view along with the SQL statement.
 
-    Args:
-        SchemaBase (_type_): _description_
+    :param name:            the name for the Materialized View Schema object
+    :param description:     User readable description of the schema
+    :param definingSQL:     The synapse SQL statement that defines the data in the materialized view. The SQL may
+                            contain JOIN clauses on multiple tables.
+    :param columns:         a list of :py:class:`Column` objects or their IDs
+    :param parent:          the project in Synapse to which this Materialized View belongs
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Internal use only
+
+    Example::
+
+        defining_sql = "SELECT * FROM syn111 F JOIN syn2222 P on (F.patient_id = P.patient_id)"
+
+        schema = syn.store(MaterializedViewSchema(name='MyTable', parent=project, definingSQL=defining_sql))
     """
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.MaterializedView'
     _property_keys = SchemaBase._property_keys + ['definingSQL']
