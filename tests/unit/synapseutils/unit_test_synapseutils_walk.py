@@ -1,10 +1,5 @@
-import json
-import uuid
+from unittest.mock import patch
 
-import pytest
-from unittest.mock import patch, call
-
-import synapseclient
 import synapseutils.walk_functions
 
 
@@ -75,3 +70,13 @@ def test_helpWalk_newpath(syn):
         mock_syn_get.assert_called_once_with("syn123", downloadFile=False)
         mock_get_child.assert_called_once_with("syn123", ["folder", "file"])
     assert gen_result == expected
+
+
+def test_walk_include_types(syn):
+    """Test that "folder" is added to include types"""
+    with patch.object(synapseutils.walk_functions, "_helpWalk", return_value="test") as mock_helpwalk:
+        results = synapseutils.walk(syn=syn, synId="syn123", includeTypes=["file"])
+        # Execute generator
+        mock_helpwalk.assert_called_once_with(syn, "syn123", ["file", "folder"])
+        # Make sure correct value is returned
+        assert results == "test"
