@@ -300,7 +300,6 @@ import abc
 import enum
 import json
 from builtins import zip
-from pandas.api.types import infer_dtype
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -406,6 +405,7 @@ def as_table_columns(values):
     """
     test_import_pandas()
     import pandas as pd
+    from pandas.api.types import infer_dtype
 
     df = None
 
@@ -1336,7 +1336,7 @@ def Table(schema, values, **kwargs):
     Combine a table schema and a set of values into some type of Table object
     depending on what type of values are given.
 
-    :param schema: a table :py:class:`Schema` object
+    :param schema: a table :py:class:`Schema` object or Synapse Id of Table.
     :param values: an object that holds the content of the tables
                       - a :py:class:`RowSet`
                       - a list of lists (or tuples) where each element is a row
@@ -1776,13 +1776,14 @@ class CsvFileTable(TableAbstractBaseClass):
 
             test_import_pandas()
             import pandas as pd
-            for col in schema.columns_to_store:
-                if col['columnType'] == 'DATE':
-                    def _trailing_date_time_millisecond(t):
-                        if isinstance(t, str):
-                            return t[:-3]
-                    df[col.name] = pd.to_datetime(df[col.name], errors='coerce').dt.strftime('%s%f')
-                    df[col.name] = df[col.name].apply(lambda x: _trailing_date_time_millisecond(x))
+            if isinstance(schema, Schema):
+                for col in schema.columns_to_store:
+                    if col['columnType'] == 'DATE':
+                        def _trailing_date_time_millisecond(t):
+                            if isinstance(t, str):
+                                return t[:-3]
+                        df[col.name] = pd.to_datetime(df[col.name], errors='coerce').dt.strftime('%s%f')
+                        df[col.name] = df[col.name].apply(lambda x: _trailing_date_time_millisecond(x))
 
             df.to_csv(f,
                       index=False,

@@ -3,8 +3,9 @@
 Overview
 ********
 
-The ``synapseclient`` package provides an interface to `Synapse <http://www.synapse.org>`_, a collaborative workspace
-for reproducible data intensive research projects, providing support for:
+The ``synapseclient`` package provides an interface to `Synapse <http://www.synapse.org>`_, a collaborative,
+open-source research platform that allows teams to share data, track analyses,
+and collaborate, providing support for:
 
 - integrated presentation of data, code and text
 - fine grained access control
