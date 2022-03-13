@@ -1269,74 +1269,6 @@ class TestCreateStorageLocationSetting:
         self.mock_restPOST.assert_called_once_with('/storageLocation', body=json.dumps(expected))
 
 
-class TestDownloadList:
-
-    @pytest.fixture(autouse=True, scope='function')
-    def init_syn(self, syn):
-        self.syn = syn
-
-    def setup(self):
-        # self.entity = "syn123"
-        # self.expected_location = {
-        #     'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
-        #     'settingsType': 'upload',
-        #     'locations': [DEFAULT_STORAGE_LOCATION_ID],
-        #     'projectId': self.entity
-        # }
-        self.patch__waitForAsync = patch.object(self.syn, '_waitForAsync')
-        self.mock__waitForAsync = self.patch__waitForAsync.start()
-        self.patch_restPOST = patch.object(self.syn, 'restPOST')
-        self.mock_restPOST = self.patch_restPOST.start()
-        self.patch_restPUT = patch.object(self.syn, 'restPUT')
-        self.mock_restPUT = self.patch_restPUT.start()
-        self.patch_restDELETE = patch.object(self.syn, 'restDELETE')
-        self.mock_restDELETE = self.patch_restDELETE.start()
-
-    def teardown(self):
-        self.patch__waitForAsync.stop()
-        self.patch_restPOST.stop()
-        self.patch_restPUT.stop()
-        self.patch_restDELETE.stop()
-
-    def test_clear_download_list(self):
-        self.syn.clear_download_list()
-        self.mock_restDELETE.assert_called_once_with("/download/list")
-
-    def test_remove_from_download_list(self):
-        list_of_files = {
-            "fileEntityId": "syn222",
-            'versionNumber': 3
-        }
-        self.syn.remove_from_download_list(list_of_files=list_of_files)
-        self.mock_restPOST.assert_called_once_with(
-            "/download/list/remove",
-            body='{"batchToRemove": {"fileEntityId": "syn222", "versionNumber": 3}}'
-        )
-
-    def test_generate_manifest_from_download_list(self):
-        request_body = {
-            "concreteType": "org.sagebionetworks.repo.model.download.DownloadListManifestRequest",
-            "csvTableDescriptor": {
-                "separator": "\t",
-                "quoteCharacter": "'",
-                "escapeCharacter": "\\",
-                "lineEnd": '\n',
-                "isFirstLineHeader": False
-            }
-        }
-        self.syn._generate_manifest_from_download_list(
-            quoteCharacter="'",
-            escapeCharacter= "\\",
-            lineEnd="\n",
-            header=False,
-            separator="\t"
-        )
-        self.mock__waitForAsync.assert_called_once_with(
-            uri="/download/list/manifest/async",
-            request=request_body
-        )
-
-
 class TestSetStorageLocation:
 
     @pytest.fixture(autouse=True, scope='function')
@@ -1783,6 +1715,64 @@ class TestMembershipInvitation:
             patch_delete.assert_called_once_with(open_invitations['id'])
             assert invite == self.response
             patch_invitation.assert_called_once()
+
+
+class TestDownloadListServices:
+
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
+    def setup(self):
+        self.patch__waitForAsync = patch.object(self.syn, '_waitForAsync')
+        self.mock__waitForAsync = self.patch__waitForAsync.start()
+        self.patch_restPOST = patch.object(self.syn, 'restPOST')
+        self.mock_restPOST = self.patch_restPOST.start()
+        self.patch_restDELETE = patch.object(self.syn, 'restDELETE')
+        self.mock_restDELETE = self.patch_restDELETE.start()
+
+    def teardown(self):
+        self.patch__waitForAsync.stop()
+        self.patch_restPOST.stop()
+        self.patch_restDELETE.stop()
+
+    def test_clear_download_list(self):
+        self.syn.clear_download_list()
+        self.mock_restDELETE.assert_called_once_with("/download/list")
+
+    def test_remove_from_download_list(self):
+        list_of_files = {
+            "fileEntityId": "syn222",
+            'versionNumber': 3
+        }
+        self.syn.remove_from_download_list(list_of_files=list_of_files)
+        self.mock_restPOST.assert_called_once_with(
+            "/download/list/remove",
+            body='{"batchToRemove": {"fileEntityId": "syn222", "versionNumber": 3}}'
+        )
+
+    def test_generate_manifest_from_download_list(self):
+        request_body = {
+            "concreteType": "org.sagebionetworks.repo.model.download.DownloadListManifestRequest",
+            "csvTableDescriptor": {
+                "separator": "\t",
+                "quoteCharacter": "'",
+                "escapeCharacter": "\\",
+                "lineEnd": '\n',
+                "isFirstLineHeader": False
+            }
+        }
+        self.syn._generate_manifest_from_download_list(
+            quoteCharacter="'",
+            escapeCharacter= "\\",
+            lineEnd="\n",
+            header=False,
+            separator="\t"
+        )
+        self.mock__waitForAsync.assert_called_once_with(
+            uri="/download/list/manifest/async",
+            request=request_body
+        )
 
 
 class TestRestCalls:
