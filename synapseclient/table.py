@@ -1026,21 +1026,24 @@ class Column(DictObject):
     Defines a column to be used in a table :py:class:`synapseclient.table.Schema`
     :py:class:`synapseclient.table.EntityViewSchema`.
 
-    :var id:                An immutable ID issued by the platform
-    :param columnType:      The column type determines the type of data that can be stored in a column. It can be any
-                            of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
-                            "LARGETEXT", "USERID". For more information, please see:
-                            https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
-    :param maximumSize:     A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
-                            default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
-                            characters.
-    :param name:            The display name of the column
-    :param enumValues:      Columns type of STRING can be constrained to an enumeration values set on this list.
-    :param defaultValue:    The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not allowed
-                            to have default values.
+    :var id:                  An immutable ID issued by the platform
+    :param columnType:        The column type determines the type of data that can be stored in a column. It can be any
+                              of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
+                              "LARGETEXT", "USERID". For more information, please see:
+                              https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
+    :param maximumSize:       A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
+                              default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
+                              characters.
+    :param maximumListLength: Required if using a columnType with a "_LIST" suffix. Describes the maximum number of
+                              values that will appear in that list. Value range 1-100 inclusive. Default 100
+    :param name:              The display name of the column
+    :param enumValues:        Columns type of STRING can be constrained to an enumeration values set on this list.
+    :param defaultValue:      The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not
+                              allowed to have default values.
 
     :type id: string
     :type maximumSize: integer
+    :type maximumListLength: integer
     :type columnType: string
     :type name: string
     :type enumValues: array of strings
@@ -1315,14 +1318,9 @@ def build_table(name, parent, values):
         table = build_table("simple_table", "syn123", df)
         table = syn.store(table)
     """
-    try:
-        import pandas as pd
-        pandas_available = True
-    except:  # noqa
-        pandas_available = False
+    test_import_pandas()
+    import pandas as pd
 
-    if not pandas_available:
-        raise ValueError("pandas package is required.")
     if not isinstance(values, pd.DataFrame) and not isinstance(values, str):
         raise ValueError("Values of type %s is not yet supported." % type(values))
     cols = as_table_columns(values)
