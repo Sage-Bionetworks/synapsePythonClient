@@ -1372,13 +1372,12 @@ class Synapse(object):
         return remove_from_list
 
     def _generate_manifest_from_download_list(
-            self,
-            quoteCharacter: str = '"',
-            escapeCharacter: str = "\\",
-            lineEnd: str = os.linesep,
-            separator: str = ",",
-            header: bool = True
-        ):
+        self, quoteCharacter: str = '"',
+        escapeCharacter: str = "\\",
+        lineEnd: str = os.linesep,
+        separator: str = ",",
+        header: bool = True
+    ):
         """Creates a download list manifest generation request
 
         Args:
