@@ -35,7 +35,7 @@ def test_helpWalk_one_child_file(syn):
     assert gen_result == expected
 
 
-def test_helpWalk_directory(syn):
+def test_helpWalk_recursive(syn):
     """Test recursive functionality"""
     entity_list = [
         {"id": "syn123", "concreteType": "org.sagebionetworks.repo.model.Project", "name": "parent_folder"},
@@ -55,4 +55,23 @@ def test_helpWalk_directory(syn):
         result = synapseutils.walk_functions._helpWalk(syn=syn, synId="syn123", includeTypes=["folder", "file"])
         # Execute generator
         gen_result = list(result)
+    assert gen_result == expected
+
+
+def test_helpWalk_newpath(syn):
+    """Test new path is utilized correctly"""
+    entity = {"id": "syn123", "concreteType": "org.sagebionetworks.repo.model.Project", "name": "parent_folder"}
+    child = [{"id": "syn2222", "conreteType": "File", "name": "test_file"}]
+    expected = [
+        (('testpathnow', 'syn123'), [], [('test_file', 'syn2222')])
+    ]
+    with patch.object(syn, "get", return_value=entity) as mock_syn_get,\
+         patch.object(syn, "getChildren", return_value=child) as mock_get_child:
+        result = synapseutils.walk_functions._helpWalk(
+            syn=syn, synId="syn123", includeTypes=["folder", "file"], newpath="testpathnow"
+        )
+        # Execute generator
+        gen_result = list(result)
+        mock_syn_get.assert_called_once_with("syn123", downloadFile=False)
+        mock_get_child.assert_called_once_with("syn123", ["folder", "file"])
     assert gen_result == expected
