@@ -1764,7 +1764,7 @@ class TestDownloadListServices:
         }
         self.syn._generate_manifest_from_download_list(
             quoteCharacter="'",
-            escapeCharacter= "\\",
+            escapeCharacter="\\",
             lineEnd="\n",
             header=False,
             separator="\t"
