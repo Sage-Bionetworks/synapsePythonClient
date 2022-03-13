@@ -9,6 +9,7 @@ import synapseutils.walk_functions
 
 
 def test_helpWalk_not_container(syn):
+    """Test if entry entity isn't a container"""
     entity = {"id": "syn123", "concreteType": "File"}
     with patch.object(syn, "get", return_value=entity):
         result = synapseutils.walk_functions._helpWalk(syn=syn, synId="syn123", includeTypes=["folder", "file"])
@@ -17,12 +18,38 @@ def test_helpWalk_not_container(syn):
     assert gen_result == []
 
 
-def test_helpWalk_get_children(syn):
+def test_helpWalk_one_child_file(syn):
+    """Test if there is one file in parent directory"""
     entity = {"id": "syn123", "concreteType": "org.sagebionetworks.repo.model.Project", "name": "parent_folder"}
     child = [{"id": "syn2222", "conreteType": "File", "name": "test_file"}]
-    expected = [(('parent_folder', 'syn123'), [], [('test_file', 'syn2222')])]
+    expected = [
+        (('parent_folder', 'syn123'), [], [('test_file', 'syn2222')])
+    ]
     with patch.object(syn, "get", return_value=entity),\
          patch.object(syn, "getChildren", return_value=child):
+        result = synapseutils.walk_functions._helpWalk(syn=syn, synId="syn123", includeTypes=["folder", "file"])
+        # Execute generator
+        gen_result = list(result)
+    assert gen_result == expected
+
+
+def test_helpWalk_directory(syn):
+    """Test recursive functionality"""
+    entity_list = [
+        {"id": "syn123", "concreteType": "org.sagebionetworks.repo.model.Project", "name": "parent_folder"},
+        {"id": "syn124", "concreteType": "org.sagebionetworks.repo.model.Folder", "name": "test_folder"}
+    ]
+    child_list = [
+        [{"id": "syn2222", "concreteType": "File", "name": "test_file"},
+         {"id": "syn124", "concreteType": "org.sagebionetworks.repo.model.Folder", "name": "test_folder"}],
+        [{"id": "syn22223", "conreteType": "File", "name": "test_file_2"}]
+    ]
+    expected = [
+        (('parent_folder', 'syn123'), [('test_folder', 'syn124')], [('test_file', 'syn2222')]),
+        (('parent_folder/test_folder', 'syn124'), [], [('test_file_2', 'syn22223')])
+    ]
+    with patch.object(syn, "get", side_effect=entity_list),\
+         patch.object(syn, "getChildren", side_effect=child_list):
         result = synapseutils.walk_functions._helpWalk(syn=syn, synId="syn123", includeTypes=["folder", "file"])
         # Execute generator
         gen_result = list(result)
