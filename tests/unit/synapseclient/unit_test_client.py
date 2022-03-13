@@ -1283,8 +1283,8 @@ class TestDownloadList:
         #     'locations': [DEFAULT_STORAGE_LOCATION_ID],
         #     'projectId': self.entity
         # }
-        #self.patch_getProjectSetting = patch.object(self.syn, 'getProjectSetting', return_value=None)
-        #self.mock_getProjectSetting = self.patch_getProjectSetting.start()
+        self.patch__waitForAsync = patch.object(self.syn, '_waitForAsync')
+        self.mock__waitForAsync = self.patch__waitForAsync.start()
         self.patch_restPOST = patch.object(self.syn, 'restPOST')
         self.mock_restPOST = self.patch_restPOST.start()
         self.patch_restPUT = patch.object(self.syn, 'restPUT')
@@ -1293,7 +1293,7 @@ class TestDownloadList:
         self.mock_restDELETE = self.patch_restDELETE.start()
 
     def teardown(self):
-        # self.patch_getProjectSetting.stop()
+        self.patch__waitForAsync.stop()
         self.patch_restPOST.stop()
         self.patch_restPUT.stop()
         self.patch_restDELETE.stop()
@@ -1311,6 +1311,29 @@ class TestDownloadList:
         self.mock_restPOST.assert_called_once_with(
             "/download/list/remove",
             body='{"batchToRemove": {"fileEntityId": "syn222", "versionNumber": 3}}'
+        )
+
+    def test_generate_manifest_from_download_list(self):
+        request_body = {
+            "concreteType": "org.sagebionetworks.repo.model.download.DownloadListManifestRequest",
+            "csvTableDescriptor": {
+                "separator": "\t",
+                "quoteCharacter": "'",
+                "escapeCharacter": "\\",
+                "lineEnd": '\n',
+                "isFirstLineHeader": False
+            }
+        }
+        self.syn._generate_manifest_from_download_list(
+            quoteCharacter="'",
+            escapeCharacter= "\\",
+            lineEnd="\n",
+            header=False,
+            separator="\t"
+        )
+        self.mock__waitForAsync.assert_called_once_with(
+            uri="/download/list/manifest/async",
+            request=request_body
         )
 
 
