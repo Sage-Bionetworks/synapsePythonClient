@@ -49,7 +49,7 @@ def _helpWalk(syn, synId, includeTypes, newpath=None):
     if newpath is None and not is_container(starting):
         return
     elif newpath is None:
-        dirpath = (starting.name, synId)
+        dirpath = (starting['name'], synId)
     else:
         dirpath = (newpath, synId)
     dirs = []
