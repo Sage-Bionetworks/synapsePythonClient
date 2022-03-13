@@ -297,6 +297,7 @@ __all__ = [
     'Synapse', 'Activity', 'Entity', 'Project', 'Folder', 'File', 'Link', 'DockerRepository', 'Evaluation',
     'Submission', 'SubmissionStatus', 'Schema', 'EntityViewSchema', 'Column', 'Row', 'RowSet', 'Table', 'PartialRowset',
     'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki', 'Annotations', 'SubmissionViewSchema',
+    'MaterializedViewSchema',
     # functions
     'login', 'build_table', 'as_table_columns', 'check_for_updates', 'release_notes',
     # enum
