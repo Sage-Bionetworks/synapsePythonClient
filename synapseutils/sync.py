@@ -808,8 +808,6 @@ def readManifestFile(syn, manifestFile):
     sys.stdout.write('Validating file names... \n')
     _check_file_name(df)
     sys.stdout.write('OK\n')
-    print(df)
-
 
     sys.stdout.write('Validating provenance...')
     df = _sortAndFixProvenance(syn, df)
@@ -977,6 +975,7 @@ def _check_file_name(df):
                              "and parentheses".format(file_name))
     if df[['name', 'parent']].duplicated().any():
         raise ValueError("All rows in manifest must contain a unique entity name and parent to upload")
+
 
 def _check_size_each_file(df):
     for idx, row in df.iterrows():

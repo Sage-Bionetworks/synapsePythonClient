@@ -1126,7 +1126,6 @@ def test_check_file_name_duplicated(mock_os, syn):
     assert str(ve.value) == "All rows in manifest must contain a unique entity name and parent to upload"
 
 
-
 @patch.object(sync, 'os')
 def test_check_file_name_with_too_long_filename(mock_os, syn):
     """
