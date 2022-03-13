@@ -1403,17 +1403,18 @@ class Synapse(object):
         return self._waitForAsync(uri="/download/list/manifest/async", request=request_body)
 
     def get_download_list_manifest(self):
-        """_summary_
+        """Get the path of the download list manifest file
 
-        Returns:
-            _type_: _description_
+        :returns: path of download list manifest file
         """
         manifest = self._generate_manifest_from_download_list()
+        # Get file handle download link
         file_result = self._getFileHandleDownload(
             fileHandleId=manifest['resultFileHandleId'],
             objectId=manifest['resultFileHandleId'],
             objectType="FileEntity"
         )
+        # Download the manifest
         downloaded_path = self._download_from_URL(
             url=file_result['preSignedURL'],
             destination="./",
@@ -1425,8 +1426,7 @@ class Synapse(object):
     def get_download_list(self) -> typing.List:
         """Download all files from your Synapse download list
 
-        Returns:
-            list: Returns a list of Synapse Entities
+        :returns: A list of Synapse Entities
         """
         dl_list_path = self.get_download_list_manifest()
         downloaded_files = []
