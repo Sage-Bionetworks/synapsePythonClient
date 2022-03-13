@@ -1429,8 +1429,10 @@ class Synapse(object):
         )
         return downloaded_path
 
-    def get_download_list(self) -> typing.List:
+    def get_download_list(self, manifest=True) -> typing.List:
         """Download all files from your Synapse download list
+
+        :param manifest: Whether to keep the manifest file for the download list. Defaults to True.
 
         :returns: A list of Synapse Entities
         """
@@ -1452,7 +1454,11 @@ class Synapse(object):
                 self.remove_from_download_list(list_of_files=[
                     {"fileEntityId": row['ID'], "versionNumber": row['versionNumber']}
                 ])
-        # TODO: add ability to remove manifest file if user doesn't want it returned
+        # add ability to remove manifest file if user doesn't want it returned
+        if manifest:
+            downloaded_files.append(dl_list_path)
+        else:
+            os.remove(dl_list_path)
         # Don't want to clear all the download list because you can add things
         # to the download list after initiating this command
         # self.clear_download_list()
