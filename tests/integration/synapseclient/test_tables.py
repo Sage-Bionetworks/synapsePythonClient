@@ -227,7 +227,6 @@ def test_materialized_view(syn, project):
     assert all(view_df.columns == ["F.Name", "F.Born", "F.Hipness", "F.Living", "P.Name", "P.Age"])
 
 
-
 def test_tables_csv(syn, project):
 
     # Define schema
