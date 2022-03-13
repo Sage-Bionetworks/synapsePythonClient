@@ -25,11 +25,13 @@ def test_helpWalk_one_child_file(syn):
     expected = [
         (('parent_folder', 'syn123'), [], [('test_file', 'syn2222')])
     ]
-    with patch.object(syn, "get", return_value=entity),\
-         patch.object(syn, "getChildren", return_value=child):
+    with patch.object(syn, "get", return_value=entity) as mock_syn_get,\
+         patch.object(syn, "getChildren", return_value=child) as mock_get_child:
         result = synapseutils.walk_functions._helpWalk(syn=syn, synId="syn123", includeTypes=["folder", "file"])
         # Execute generator
         gen_result = list(result)
+        mock_syn_get.assert_called_once_with("syn123", downloadFile=False)
+        mock_get_child.assert_called_once_with("syn123", ["folder", "file"])
     assert gen_result == expected
 
 
@@ -54,8 +56,3 @@ def test_helpWalk_directory(syn):
         # Execute generator
         gen_result = list(result)
     assert gen_result == expected
-# def test_helpWalk_not_container(syn):
-#     entity = {"id": "syn123", "concreteType": "File"}
-#     with patch.object(syn, "get", return_value=entity),\
-#          patch.object(syn, "getChildren", return_value=None):
-#         synapseutils.walk._helpWalk(syn, "syn123", "syn456", updateLinks=False)
