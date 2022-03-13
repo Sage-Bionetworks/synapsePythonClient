@@ -20,6 +20,7 @@ from synapseclient import (
     EntityViewType,
     File,
     Folder,
+    MaterializedViewSchema,
     PartialRowset,
     Row,
     RowSet,
@@ -171,6 +172,60 @@ def test_rowset_tables(syn, project):
     row_reference_set1 = syn.store(
         RowSet(schema=schema1, rows=[Row(r) for r in data1]))
     assert len(row_reference_set1['rows']) == 4
+
+
+def test_materialized_view(syn, project):
+    """Test creation of materialized view"""
+    # Define schema
+    cols = [Column(name='Name', columnType='STRING'),
+            Column(name='Born', columnType='INTEGER'),
+            Column(name='Hipness', columnType='DOUBLE'),
+            Column(name='Living', columnType='BOOLEAN')]
+
+    schema = Schema(name='Jazz Guys', columns=cols, parent=project)
+
+    data = [["John Coltrane",  1926, 8.65, False],
+            ["Miles Davis",    1926, 9.87, False],
+            ["Bill Evans",     1929, 7.65, False],
+            ["Paul Chambers",  1935, 5.14, False],
+            ["Jimmy Cobb",     1929, 5.78, True],
+            ["Scott LaFaro",   1936, 4.21, False],
+            ["Sonny Rollins",  1930, 8.99, True],
+            ["Kenny Burrel",   1931, 4.37, True]]
+
+    # the following creates a CSV file and uploads it to create a new table
+    table = syn.store(Table(schema, data))
+    # Create second table
+    cols_2 = [Column(name='Name', columnType='STRING'),
+              Column(name='Age', columnType='INTEGER')]
+
+    schema_2 = Schema(name='Jazz Guys Age', columns=cols_2, parent=project)
+
+    data_2 = [["John Coltrane",  30],
+              ["Miles Davis",    40],
+              ["Bill Evans",     60],
+              ["Paul Chambers",  39],
+              ["Jimmy Cobb",     22],
+              ["Scott LaFaro",   55],
+              ["Sonny Rollins",  32],
+              ["Kenny Burrel",   45]]
+
+    # the following creates a CSV file and uploads it to create a new table
+    table_2 = syn.store(Table(schema_2, data_2))
+
+    # create a materialized view by joining the above 2 tables
+    mat_view = MaterializedViewSchema(
+        name="Test Mat View", parent=project,
+        definingSQL=f"select * from {table.tableId} F JOIN {table_2.tableId} P on (F.Name = P.Name)"
+    )
+    mat_view_ent = syn.store(mat_view)
+    view = syn.tableQuery(f"select * from {mat_view_ent.id}")
+    view_df = view.asDataFrame()
+    # Won't test if the join was done appropriately because that is expected to have been tested
+    # in the Synapse API
+    assert all(view_df['F.Name'] == view_df['P.Name'])
+    assert all(view_df.columns == ["F.Name", "F.Born", "F.Hipness", "F.Living", "P.Name", "P.Age"])
+
 
 
 def test_tables_csv(syn, project):

@@ -281,7 +281,7 @@ from .core.version_check import check_for_updates, release_notes
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, \
-    EntityViewType, build_table, SubmissionViewSchema
+    EntityViewType, build_table, SubmissionViewSchema, MaterializedViewSchema
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
