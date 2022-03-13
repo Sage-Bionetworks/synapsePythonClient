@@ -1269,6 +1269,40 @@ class TestCreateStorageLocationSetting:
         self.mock_restPOST.assert_called_once_with('/storageLocation', body=json.dumps(expected))
 
 
+class TestDownloadList:
+
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
+    def setup(self):
+        # self.entity = "syn123"
+        # self.expected_location = {
+        #     'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
+        #     'settingsType': 'upload',
+        #     'locations': [DEFAULT_STORAGE_LOCATION_ID],
+        #     'projectId': self.entity
+        # }
+        #self.patch_getProjectSetting = patch.object(self.syn, 'getProjectSetting', return_value=None)
+        #self.mock_getProjectSetting = self.patch_getProjectSetting.start()
+        self.patch_restPOST = patch.object(self.syn, 'restPOST')
+        self.mock_restPOST = self.patch_restPOST.start()
+        self.patch_restPUT = patch.object(self.syn, 'restPUT')
+        self.mock_restPUT = self.patch_restPUT.start()
+        self.patch_restDELETE = patch.object(self.syn, 'restDELETE')
+        self.mock_restDELETE = self.patch_restDELETE.start()
+
+    def teardown(self):
+        # self.patch_getProjectSetting.stop()
+        self.patch_restPOST.stop()
+        self.patch_restPUT.stop()
+        self.patch_restDELETE.stop()
+
+    def test_clear_download_list(self):
+        self.syn.clear_download_list()
+        self.mock_restDELETE.assert_called_once_with("/download/list")
+
+
 class TestSetStorageLocation:
 
     @pytest.fixture(autouse=True, scope='function')
