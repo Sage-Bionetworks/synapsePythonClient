@@ -1362,14 +1362,20 @@ class Synapse(object):
         """Clear all files from download list"""
         self.restDELETE("/download/list")
 
-    def remove_from_download_list(self, list_of_files: typing.List):
-        """Remove a batch of files from download list"""
+    def remove_from_download_list(self, list_of_files: typing.List[typing.Dict]) -> int:
+        """Remove a batch of files from download list
+
+        :param: array of files in the format of a mapping
+                {fileEntityId: synid, versionNumber: version}
+
+        :returns: Number of files removed from download list
+        """
         request_body = {"batchToRemove": list_of_files}
-        remove_from_list = self.restPOST(
+        num_files_removed = self.restPOST(
             "/download/list/remove",
             body=json.dumps(request_body)
         )
-        return remove_from_list
+        return num_files_removed
 
     def _generate_manifest_from_download_list(
         self, quoteCharacter: str = '"',

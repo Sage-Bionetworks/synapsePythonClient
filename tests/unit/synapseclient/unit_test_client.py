@@ -1302,6 +1302,17 @@ class TestDownloadList:
         self.syn.clear_download_list()
         self.mock_restDELETE.assert_called_once_with("/download/list")
 
+    def test_remove_from_download_list(self):
+        list_of_files = {
+            "fileEntityId": "syn222",
+            'versionNumber': 3
+        }
+        self.syn.remove_from_download_list(list_of_files=list_of_files)
+        self.mock_restPOST.assert_called_once_with(
+            "/download/list/remove",
+            body='{"batchToRemove": {"fileEntityId": "syn222", "versionNumber": 3}}'
+        )
+
 
 class TestSetStorageLocation:
 
