@@ -1099,6 +1099,35 @@ def test_check_file_name_with_illegal_char(mock_os, syn):
 
 
 @patch.object(sync, 'os')
+def test_check_file_name_duplicated(mock_os, syn):
+    """
+    Verify the check_file_name method raises the ValueError when the file name is duplicated
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\tname\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = os.path.abspath(os.path.expanduser('~/file4.txt'))
+
+    row1 = f"{path1}\t{project_id}\tfoo\n"
+    row2 = f"{path2}\t{project_id}\tfoo\n"
+    row3 = f"{path3}\t{project_id}\tfoo\n"
+    row4 = f"{path4}\t{project_id}\tfoo\n"
+
+    manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.isfile.return_value = True
+    mock_os.path.abspath.side_effect = [path1, path2, path3, path4]
+    mock_os.path.basename.return_value = 'file3.txt'
+
+    with pytest.raises(ValueError) as ve:
+        sync.readManifestFile(syn, manifest)
+    assert str(ve.value) == "All rows in manifest must contain a unique entity name and parent to upload"
+
+
+
+@patch.object(sync, 'os')
 def test_check_file_name_with_too_long_filename(mock_os, syn):
     """
     Verify the check_file_name method raises the ValueError when the file name is too long

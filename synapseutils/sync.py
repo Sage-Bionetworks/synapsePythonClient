@@ -807,8 +807,6 @@ def readManifestFile(syn, manifestFile):
 
     sys.stdout.write('Validating file names... \n')
     _check_file_name(df)
-    if df[['name', 'parent']].duplicated().any():
-        raise ValueError("All rows in manifest must contain a unique entity name and parent to upload")
     sys.stdout.write('OK\n')
     print(df)
 
@@ -977,7 +975,8 @@ def _check_file_name(df):
             raise ValueError("File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
                              "underscores, hyphens, periods, plus signs, apostrophes, "
                              "and parentheses".format(file_name))
-
+    if df[['name', 'parent']].duplicated().any():
+        raise ValueError("All rows in manifest must contain a unique entity name and parent to upload")
 
 def _check_size_each_file(df):
     for idx, row in df.iterrows():
