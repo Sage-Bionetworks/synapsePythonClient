@@ -991,8 +991,14 @@ def test_check_size_each_file(mock_os, syn):
     row4 = f'{path4}\t{project_id}\n'
 
     manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.basename.side_effect = [
+        "file1.txt", "www.synapse.org", "file3.txt", "www.github.com",
+        "file1.txt", "www.synapse.org", "file3.txt", "www.github.com",
+        "file1.txt", "www.synapse.org", "file3.txt", "www.github.com"
+    ]
     mock_os.path.isfile.side_effect = [True, True, True, False]
     mock_os.path.abspath.side_effect = [path1, path3]
+    # mock_os.path.basename.return_value = 'file1.txt'
     mock_stat = MagicMock(spec='st_size')
     mock_os.stat.return_value = mock_stat
     mock_stat.st_size = 5
@@ -1022,6 +1028,7 @@ def test_check_size_each_file_raise_error(mock_os, syn):
     row4 = f'{path4}\t{project_id}\n'
 
     manifest = StringIO(header + row1 + row2 + row3 + row4)
+    # mock_os.path.basename.side_effect = ["file1.txt", "www.synapse.org", "file3.txt", "www.github.com"]
     mock_os.path.isfile.side_effect = [True, True, True, False]
     mock_os.path.abspath.side_effect = [path1, path3]
     mock_os.path.basename.return_value = 'file1.txt'

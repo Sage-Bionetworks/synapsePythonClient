@@ -788,15 +788,9 @@ def readManifestFile(syn, manifestFile):
     sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating that all files are unique...')
-    # Create entity name column from basename
-    if df.get('name') is None:
-        filenames = [os.path.basename(path) for path in df['path']]
-        df['name'] = filenames
     # Both the path and the combination of entity name and parent must be unique
     if len(df.path) != len(set(df.path)):
         raise ValueError("All rows in manifest must contain a unique file to upload")
-    if df[['name', 'parent']].duplicated().any():
-        raise ValueError("All rows in manifest must contain a unique entity name and parent to upload")
     sys.stdout.write('OK\n')
 
     # Check each size of uploaded file
@@ -806,10 +800,18 @@ def readManifestFile(syn, manifestFile):
 
     # check the name of each file should be store on Synapse
     name_column = 'name'
-    if name_column in df.columns:
-        sys.stdout.write('Validating file names... \n')
-        _check_file_name(df)
-        sys.stdout.write('OK\n')
+    # Create entity name column from basename
+    if name_column not in df.columns:
+        filenames = [os.path.basename(path) for path in df['path']]
+        df['name'] = filenames
+
+    sys.stdout.write('Validating file names... \n')
+    _check_file_name(df)
+    if df[['name', 'parent']].duplicated().any():
+        raise ValueError("All rows in manifest must contain a unique entity name and parent to upload")
+    sys.stdout.write('OK\n')
+    print(df)
+
 
     sys.stdout.write('Validating provenance...')
     df = _sortAndFixProvenance(syn, df)
