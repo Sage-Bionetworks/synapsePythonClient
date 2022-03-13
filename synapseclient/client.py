@@ -1380,15 +1380,15 @@ class Synapse(object):
     ):
         """Creates a download list manifest generation request
 
-        Args:
-            quoteCharacter (str, optional): _description_. Defaults to '"'.
-            escapeCharacter (str, optional): _description_. Defaults to "\".
-            lineEnd (str, optional): _description_. Defaults to os.linesep.
-            separator (str, optional): _description_. Defaults to ",".
-            header (bool, optional): _description_. Defaults to True.
+        :param quoteCharacter:  The character to be used for quoted elements in the resulting file.
+                                Defaults to '"'.
+        :param escapeCharacter: The escape character to be used for escaping a separator or quote in the resulting
+                                file. Defaults to "\".
+        :param lineEnd:         The line feed terminator to be used for the resulting file. Defaults to os.linesep.
+        :param separator:       The delimiter to be used for separating entries in the resulting file. Defaults to ",".
+        :param header:          Is the first line a header? Defaults to True.
 
-        Returns:
-            _type_: _description_
+        :returns: Filehandle of download list manifest
         """
         request_body = {
             "concreteType": "org.sagebionetworks.repo.model.download.DownloadListManifestRequest",
@@ -1403,6 +1403,11 @@ class Synapse(object):
         return self._waitForAsync(uri="/download/list/manifest/async", request=request_body)
 
     def get_download_list_manifest(self):
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """
         manifest = self._generate_manifest_from_download_list()
         file_result = self._getFileHandleDownload(
             fileHandleId=manifest['resultFileHandleId'],
