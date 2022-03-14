@@ -1470,7 +1470,8 @@ class Synapse(object):
     #                         Querying                         #
     ############################################################
 
-    def getChildren(self, parent, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo"],
+    def getChildren(self, parent, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo",
+                                                "submissionview", "dataset", "materializedview"],
                     sortBy="NAME", sortDirection="ASC"):
         """
         Retrieves all of the entities stored within a parent such as folder or project.
