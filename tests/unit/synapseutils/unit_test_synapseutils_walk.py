@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 import synapseutils.walk_functions
 
 
@@ -13,7 +14,8 @@ def test_helpWalk_not_container(syn):
     assert gen_result == []
 
 
-def test_helpWalk_one_child_file(syn):
+@pytest.mark.parametrize("include_types", [["folder", "file"], ["file", "folder", "dockerrepo", "table"]])
+def test_helpWalk_one_child_file(syn, include_types):
     """Test if there is one file in parent directory"""
     entity = {"id": "syn123", "concreteType": "org.sagebionetworks.repo.model.Project", "name": "parent_folder"}
     child = [{"id": "syn2222", "conreteType": "File", "name": "test_file"}]
@@ -22,11 +24,12 @@ def test_helpWalk_one_child_file(syn):
     ]
     with patch.object(syn, "get", return_value=entity) as mock_syn_get,\
          patch.object(syn, "getChildren", return_value=child) as mock_get_child:
-        result = synapseutils.walk_functions._helpWalk(syn=syn, synId="syn123", includeTypes=["folder", "file"])
+        result = synapseutils.walk_functions._helpWalk(syn=syn, synId="syn123", includeTypes=include_types)
         # Execute generator
         gen_result = list(result)
         mock_syn_get.assert_called_once_with("syn123", downloadFile=False)
-        mock_get_child.assert_called_once_with("syn123", ["folder", "file"])
+        # Make sure the correct include types is passed into the code
+        mock_get_child.assert_called_once_with("syn123", include_types)
     assert gen_result == expected
 
 
