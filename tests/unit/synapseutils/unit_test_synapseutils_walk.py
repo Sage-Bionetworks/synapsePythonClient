@@ -47,7 +47,7 @@ def test_helpWalk_recursive(syn):
     ]
     expected = [
         (('parent_folder', 'syn123'), [('test_folder', 'syn124')], [('test_file', 'syn2222')]),
-        (('parent_folder/test_folder', 'syn124'), [], [('test_file_2', 'syn22223')])
+        ((os.path.join('parent_folder', 'test_folder'), 'syn124'), [], [('test_file_2', 'syn22223')])
     ]
     with patch.object(syn, "get", side_effect=entity_list),\
          patch.object(syn, "getChildren", side_effect=child_list):
