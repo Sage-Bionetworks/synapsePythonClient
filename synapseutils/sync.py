@@ -176,7 +176,7 @@ class _FolderSync:
         )
 
     def _generate_folder_manifest(self):
-        # when a folder is complete we write a manifest file iff we are downloading to a path outside
+        # when a folder is complete we write a manifest file if we are downloading to a path outside
         # the Synapse cache and there are actually some files in this folder.
         if self._path and self._files:
             generateManifest(self._syn, self._files, self._manifest_filename(), provenance_cache=self._provenance)
@@ -614,8 +614,8 @@ class _SyncUploader:
 
 def generateManifest(syn, allFiles, filename, provenance_cache=None):
     """Generates a manifest file based on a list of entities objects.
-
-    :param allFiles:   A list of File Entities
+    :param syn:   A synapse object as obtained with syn = synapseclient.login()
+    :param allFiles:   A list of File Entity objects on Synapse (can't be Synapse IDs)
     :param filename: file where manifest will be written
     :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
     """
@@ -676,11 +676,11 @@ def _get_file_entity_provenance_dict(syn, entity):
 
 
 def _write_manifest_data(filename, keys, data):
-    with io.open(filename, 'w', encoding='utf8') as fp:
-        csvWriter = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
-        csvWriter.writeheader()
+    with io.open(filename, 'w', encoding='utf8') if filename else sys.stdout as fp:
+        csv_writer = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
+        csv_writer.writeheader()
         for row in data:
-            csvWriter.writerow(row)
+            csv_writer.writerow(row)
 
 
 def _sortAndFixProvenance(syn, df):
@@ -761,7 +761,10 @@ def readManifestFile(syn, manifestFile):
     table.test_import_pandas()
     import pandas as pd
 
-    sys.stdout.write('Validation and upload of: %s\n' % manifestFile)
+    if manifestFile is sys.stdin:
+        sys.stdout.write('Validation and upload of: <stdin>\n')
+    else:
+        sys.stdout.write('Validation and upload of: %s\n' % manifestFile)
     # Read manifest file into pandas dataframe
     df = pd.read_csv(manifestFile, sep='\t')
     if 'synapseStore' not in df:
@@ -779,12 +782,13 @@ def readManifestFile(syn, manifestFile):
             raise ValueError("Manifest must contain a column of %s" % field)
     sys.stdout.write('OK\n')
 
-    sys.stdout.write('Validating that all paths exist')
+    sys.stdout.write('Validating that all paths exist...')
     df.path = df.path.apply(_check_path_and_normalize)
 
     sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating that all files are unique...')
+    # Both the path and the combination of entity name and parent must be unique
     if len(df.path) != len(set(df.path)):
         raise ValueError("All rows in manifest must contain a unique file to upload")
     sys.stdout.write('OK\n')
@@ -796,10 +800,14 @@ def readManifestFile(syn, manifestFile):
 
     # check the name of each file should be store on Synapse
     name_column = 'name'
-    if name_column in df.columns:
-        sys.stdout.write('Validating file names... \n')
-        _check_file_name(df)
-        sys.stdout.write('OK\n')
+    # Create entity name column from basename
+    if name_column not in df.columns:
+        filenames = [os.path.basename(path) for path in df['path']]
+        df['name'] = filenames
+
+    sys.stdout.write('Validating file names... \n')
+    _check_file_name(df)
+    sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating provenance...')
     df = _sortAndFixProvenance(syn, df)
@@ -965,6 +973,9 @@ def _check_file_name(df):
             raise ValueError("File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
                              "underscores, hyphens, periods, plus signs, apostrophes, "
                              "and parentheses".format(file_name))
+    if df[['name', 'parent']].duplicated().any():
+        raise ValueError("All rows in manifest must contain a path with a unique file name and parent to upload. "
+                         "Files uploaded to the same folder/project (parent) must have unique file names.")
 
 
 def _check_size_each_file(df):

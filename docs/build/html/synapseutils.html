@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Overview &#8212; Synapse Python Client 2.4.0 documentation</title>
+    <title>Overview &#8212; Synapse Python Client 2.5.1 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -37,7 +37,7 @@
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.1 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Overview</a></li> 
       </ul>
     </div>  
@@ -60,6 +60,7 @@
 <li><p><a class="reference internal" href="#synapseutils.monitor.notifyMe" title="synapseutils.monitor.notifyMe"><code class="xref py py-func docutils literal notranslate"><span class="pre">monitor.notifyMe()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#synapseutils.migrate_functions.index_files_for_migration" title="synapseutils.migrate_functions.index_files_for_migration"><code class="xref py py-func docutils literal notranslate"><span class="pre">migrate_functions.index_files_for_migration()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#synapseutils.migrate_functions.migrate_indexed_files" title="synapseutils.migrate_functions.migrate_indexed_files"><code class="xref py py-func docutils literal notranslate"><span class="pre">migrate_functions.migrate_indexed_files()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#synapseutils.describe_functions.describe" title="synapseutils.describe_functions.describe"><code class="xref py py-func docutils literal notranslate"><span class="pre">describe_functions.describe()</span></code></a></p></li>
 </ul>
 </div>
 <div class="section" id="module-synapseutils.copy_functions">
@@ -260,6 +261,12 @@ Defaults to None</p></li>
 </ul>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseutils.sync.generate_sync_manifest">
+<code class="sig-prename descclassname"><span class="pre">synapseutils.sync.</span></code><code class="sig-name descname"><span class="pre">generate_sync_manifest</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">directory_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.generate_sync_manifest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate manifest for syncToSynapse() from a local directory.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -705,6 +712,56 @@ This can be bypassed by using the force=True option.</p></li>
 </dd></dl>
 
 </div>
+<div class="section" id="describe">
+<h1>describe<a class="headerlink" href="#describe" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-synapseutils.describe_functions"></span><dl class="py function">
+<dt id="synapseutils.describe_functions.describe">
+<code class="sig-prename descclassname"><span class="pre">synapseutils.describe_functions.</span></code><code class="sig-name descname"><span class="pre">describe</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.describe_functions.describe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets a synapse entity and returns summary statistics about it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – synapse object</p></li>
+<li><p><strong>entity</strong> – synapse id of the entity to be described</p></li>
+</ul>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">import</span> <span class="nn">synapseutils</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">statistics</span> <span class="o">=</span> <span class="n">synapseutils</span><span class="p">(</span><span class="n">syn</span><span class="p">,</span> <span class="n">entity</span><span class="o">=</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">statistics</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="s2">&quot;column1&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;dtype&quot;</span><span class="p">:</span> <span class="s2">&quot;object&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;mode&quot;</span><span class="p">:</span> <span class="s2">&quot;FOOBAR&quot;</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;column2&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;dtype&quot;</span><span class="p">:</span> <span class="s2">&quot;int64&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;mode&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="s2">&quot;mean&quot;</span><span class="p">:</span> <span class="mf">1.4</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;column3&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;dtype&quot;</span><span class="p">:</span> <span class="s2">&quot;bool&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;mode&quot;</span><span class="p">:</span> <span class="n">false</span><span class="p">,</span>
+        <span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="n">false</span><span class="p">,</span>
+        <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="n">true</span><span class="p">,</span>
+        <span class="s2">&quot;mean&quot;</span><span class="p">:</span> <span class="mf">0.5</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>if dataset is valid, returns a dict; otherwise None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
 
 
             <div class="clearer"></div>
@@ -731,6 +788,7 @@ This can be bypassed by using the force=True option.</p></li>
 <li><a class="reference internal" href="#module-synapseutils.sync">sync</a></li>
 <li><a class="reference internal" href="#module-synapseutils.monitor">monitor</a></li>
 <li><a class="reference internal" href="#migrate">migrate</a></li>
+<li><a class="reference internal" href="#describe">describe</a></li>
 </ul>
 
   <div role="note" aria-label="source link">
@@ -753,13 +811,13 @@ This can be bypassed by using the force=True option.</p></li>
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.1 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Overview</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jul 08, 2021.
+      Last updated on Dec 29, 2021.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

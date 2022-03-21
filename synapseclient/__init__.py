@@ -3,8 +3,9 @@
 Overview
 ********
 
-The ``synapseclient`` package provides an interface to `Synapse <http://www.synapse.org>`_, a collaborative workspace
-for reproducible data intensive research projects, providing support for:
+The ``synapseclient`` package provides an interface to `Synapse <http://www.synapse.org>`_, a collaborative,
+open-source research platform that allows teams to share data, track analyses,
+and collaborate, providing support for:
 
 - integrated presentation of data, code and text
 - fine grained access control
@@ -280,7 +281,7 @@ from .core.version_check import check_for_updates, release_notes
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, \
-    EntityViewType, build_table, SubmissionViewSchema
+    EntityViewType, build_table, SubmissionViewSchema, MaterializedViewSchema
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
@@ -296,6 +297,7 @@ __all__ = [
     'Synapse', 'Activity', 'Entity', 'Project', 'Folder', 'File', 'Link', 'DockerRepository', 'Evaluation',
     'Submission', 'SubmissionStatus', 'Schema', 'EntityViewSchema', 'Column', 'Row', 'RowSet', 'Table', 'PartialRowset',
     'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki', 'Annotations', 'SubmissionViewSchema',
+    'MaterializedViewSchema',
     # functions
     'login', 'build_table', 'as_table_columns', 'check_for_updates', 'release_notes',
     # enum
