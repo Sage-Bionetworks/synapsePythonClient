@@ -974,7 +974,8 @@ def _check_file_name(df):
                              "underscores, hyphens, periods, plus signs, apostrophes, "
                              "and parentheses".format(file_name))
     if df[['name', 'parent']].duplicated().any():
-        raise ValueError("All rows in manifest must contain a unique entity name and parent to upload")
+        raise ValueError("All rows in manifest must contain a path with a unique file name and parent to upload. "
+                         "Files uploaded to the same folder/project (parent) must have unique file names.")
 
 
 def _check_size_each_file(df):

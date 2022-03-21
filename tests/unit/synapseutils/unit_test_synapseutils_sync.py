@@ -1123,7 +1123,10 @@ def test_check_file_name_duplicated(mock_os, syn):
 
     with pytest.raises(ValueError) as ve:
         sync.readManifestFile(syn, manifest)
-    assert str(ve.value) == "All rows in manifest must contain a unique entity name and parent to upload"
+    assert str(ve.value) == (
+        "All rows in manifest must contain a path with a unique file name and parent to upload. "
+        "Files uploaded to the same folder/project (parent) must have unique file names."
+    )
 
 
 @patch.object(sync, 'os')
