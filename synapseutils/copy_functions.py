@@ -173,13 +173,16 @@ def _copy_cached_file_handles(cache, copiedFileHandles):
                 cache.add(copy_result['newFileHandle']['id'], original_cache_path)
 
 
-def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
+def changeFileMetaData(syn, entity, downloadAs=None, contentType=None, forceVersion=True):
     """
     :param entity:        Synapse entity Id or object
 
     :param contentType:   Specify content type to change the content type of a filehandle
 
     :param downloadAs:    Specify filename to change the filename of a filehandle
+
+    :param forceVersion:  Indicates whether the method should increment the version of
+                          the object even if nothing has changed.  Defaults to True.
 
     :return:              Synapse Entity
 
@@ -199,7 +202,7 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
     if copyResult.get("failureCode") is not None:
         raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"], copyResult['originalFileHandleId']))
     ent.dataFileHandleId = copyResult['newFileHandle']['id']
-    ent = syn.store(ent)
+    ent = syn.store(ent, forceVersion=forceVersion)
     return ent
 
 
