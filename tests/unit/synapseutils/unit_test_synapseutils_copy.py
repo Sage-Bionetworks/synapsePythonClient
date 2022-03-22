@@ -2,7 +2,7 @@ import json
 import uuid
 
 import pytest
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 import synapseclient
 import synapseutils
@@ -296,6 +296,22 @@ class TestProtectedBatchIteratorGenerator:
         expected_result_list = [[[1, 2], [4, 5]], [[3], [6]]]
         result_list = list(_batch_iterator_generator(iterables, batch_size))
         assert expected_result_list == result_list
+
+
+@pytest.mark.parametrize("forceVersionToggle", [True, False])
+def test_change_file_metadata(syn, forceVersionToggle):
+    with patch.object(syn, "get") as get_mock, \
+            patch.object(syn, "_getFileHandleDownload") as fh_mock, \
+            patch("synapseutils.copy_functions.copyFileHandles") as copy_mock, \
+            patch.object(syn, "store") as store_mock:
+        copy_result = {"failureCode": None, "newFileHandle": {'id': 123}}
+        copy_mock.return_value = [copy_result]
+        synapseutils.changeFileMetaData(syn, "syn123", forceVersion=forceVersionToggle)
+        get_mock.assert_called_once()
+        fh_mock.assert_called_once()
+        copy_mock.assert_called_once()
+        store_mock.assert_called_once_with(get_mock.return_value,
+                                           forceVersion=forceVersionToggle)
 
 
 class TestCopyPermissions:
