@@ -2,7 +2,7 @@ import json
 import uuid
 
 import pytest
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import patch, call
 
 import synapseclient
 import synapseutils
