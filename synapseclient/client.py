@@ -1429,25 +1429,36 @@ class Synapse(object):
         )
         return downloaded_path
 
-    def get_download_list(self, manifest=True) -> typing.List:
+    def get_download_list(self, manifest=True, downloadLocation=None) -> typing.List:
         """Download all files from your Synapse download list
 
         :param manifest: Whether to keep the manifest file for the download list. Defaults to True.
 
-        :returns: A list of Synapse Entities
+        :returns: A list of file paths
         """
         dl_list_path = self.get_download_list_manifest()
         downloaded_files = []
-        with open(dl_list_path) as manifest_f:
+        with open(dl_list_path) as manifest_f, \
+             open('new_manifest.csv', 'w') as write_obj:
+
             reader = csv.DictReader(manifest_f)
+            columns = reader.fieldnames
+            columns.append("path")
+            # Write the downloaded paths to a new manifest file
+            writer = csv.DictWriter(write_obj, fieldnames=columns)
+            writer.writeheader()
+
             for row in reader:
                 # You can add things to the download list that you don't have access to
                 # So there must be a try catch here
                 try:
-                    entity = self.get(row['ID'])
-                    downloaded_files.append(entity)
+                    entity = self.get(row['ID'], downloadLocation=downloadLocation)
+                    downloaded_files.append(entity.path)
+                    row['path'] = entity.path
+                    writer.writerow(row)
                 except Exception:
                     print("Unable to download file")
+
                 # TODO: should the file be removed from the download list if it fails download
                 # Must include version number because you can have multiple versions of a
                 # file in the download list
