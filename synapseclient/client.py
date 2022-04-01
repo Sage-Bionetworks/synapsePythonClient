@@ -1429,23 +1429,24 @@ class Synapse(object):
         )
         return downloaded_path
 
-    def get_download_list(self, manifest=True, downloadLocation=None) -> typing.List:
+    def get_download_list(self, manifest=True, downloadLocation=None) -> str:
         """Download all files from your Synapse download list
 
         :param manifest: Whether to keep the manifest file for the download list. Defaults to True.
+        :param downloadLocation: Directory to download files to.
 
-        :returns: A list of file paths
+        :returns: manifest file with file paths
         """
         dl_list_path = self.get_download_list_manifest()
         downloaded_files = []
         with open(dl_list_path) as manifest_f, \
-             open('new_manifest.csv', 'w') as write_obj:
+             open('SYNAPSE_METADATA_MANIFEST.tsv', 'w') as write_obj:
 
             reader = csv.DictReader(manifest_f)
             columns = reader.fieldnames
             columns.append("path")
             # Write the downloaded paths to a new manifest file
-            writer = csv.DictWriter(write_obj, fieldnames=columns)
+            writer = csv.DictWriter(write_obj, fieldnames=columns, delimiter='\t')
             writer.writeheader()
 
             for row in reader:
@@ -1465,15 +1466,18 @@ class Synapse(object):
                 self.remove_from_download_list(list_of_files=[
                     {"fileEntityId": row['ID'], "versionNumber": row['versionNumber']}
                 ])
+        # TODO: discuss what to return.  Should we always just return the manifest file?
         # add ability to remove manifest file if user doesn't want it returned
-        if manifest:
-            downloaded_files.append(dl_list_path)
-        else:
-            os.remove(dl_list_path)
+        # if manifest:
+        #     downloaded_files.append(dl_list_path)
+        # else:
+        #     os.remove(dl_list_path)
+        # Always remove original manifest file
+        os.remove(dl_list_path)
         # Don't want to clear all the download list because you can add things
         # to the download list after initiating this command
         # self.clear_download_list()
-        return downloaded_files
+        return "SYNAPSE_METADATA_MANIFEST.tsv"
 
     ############################################################
     #                  Get / Set Annotations                   #
