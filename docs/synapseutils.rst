@@ -9,7 +9,7 @@ copy
 ****
 walk
 ****
-.. automodule:: synapseutils.walk
+.. automodule:: synapseutils.walk_functions
    :members:
 
 ****

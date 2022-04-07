@@ -222,20 +222,21 @@ Defaults to None</p></li>
 </dd></dl>
 
 </div>
-<div class="section" id="module-synapseutils.walk">
-<span id="walk"></span><h1>walk<a class="headerlink" href="#module-synapseutils.walk" title="Permalink to this headline">¶</a></h1>
-<p>Traverse through the hierarchy of files and folders stored under the synId. Has the same behavior as os.walk()</p>
+<div class="section" id="module-synapseutils.walk_functions">
+<span id="walk"></span><h1>walk<a class="headerlink" href="#module-synapseutils.walk_functions" title="Permalink to this headline">¶</a></h1>
+<dl class="py function">
+<dt id="synapseutils.walk_functions.walk">
+<code class="sig-prename descclassname"><span class="pre">synapseutils.walk_functions.</span></code><code class="sig-name descname"><span class="pre">walk</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">synId</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeTypes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['folder',</span> <span class="pre">'file',</span> <span class="pre">'table',</span> <span class="pre">'link',</span> <span class="pre">'entityview',</span> <span class="pre">'dockerrepo',</span> <span class="pre">'submissionview',</span> <span class="pre">'dataset',</span> <span class="pre">'materializedview']</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.walk_functions.walk" title="Permalink to this definition">¶</a></dt>
+<dd><p>Traverse through the hierarchy of files and folders stored under the synId. Has the same behavior as os.walk()</p>
 <dl class="field-list simple">
-<dt class="field-odd">param syn</dt>
-<dd class="field-odd"><p>A synapse object: syn = synapseclient.login()- Must be logged into synapse</p>
-</dd>
-<dt class="field-even">param synId</dt>
-<dd class="field-even"><p>A synapse ID of a folder or project</p>
-</dd>
-<dt class="field-odd">param includeTypes</dt>
-<dd class="field-odd"><p>Must be a list of entity types (ie. [“file”, “table”]) which can be found here:
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – A synapse object: syn = synapseclient.login()- Must be logged into synapse</p></li>
+<li><p><strong>synId</strong> – A synapse ID of a folder or project</p></li>
+<li><p><strong>includeTypes</strong> – Must be a list of entity types (ie. [“file”, “table”]) which can be found here:
 <a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html">http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html</a>
-The “folder” type is always included so the hierarchy can be traversed</p>
+The “folder” type is always included so the hierarchy can be traversed</p></li>
+</ul>
 </dd>
 </dl>
 <p>Example:</p>
@@ -247,17 +248,25 @@ The “folder” type is always included so the hierarchy can be traversed</p>
     <span class="nb">print</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="c1">#All the files in the directory path</span>
 </pre></div>
 </div>
+</dd></dl>
+
 </div>
 <div class="section" id="module-synapseutils.sync">
 <span id="sync"></span><h1>sync<a class="headerlink" href="#module-synapseutils.sync" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="synapseutils.sync.generateManifest">
 <code class="sig-prename descclassname"><span class="pre">synapseutils.sync.</span></code><code class="sig-name descname"><span class="pre">generateManifest</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allFiles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">provenance_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.generateManifest" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generates a manifest file based on a list of entities objects.
-:param syn:   A synapse object as obtained with syn = synapseclient.login()
-:param allFiles:   A list of File Entity objects on Synapse (can’t be Synapse IDs)
-:param filename: file where manifest will be written
-:param provenance_cache: an optional dict of known provenance dicts keyed by entity ids</p>
+<dd><p>Generates a manifest file based on a list of entities objects.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – A synapse object as obtained with syn = synapseclient.login()</p></li>
+<li><p><strong>allFiles</strong> – A list of File Entity objects on Synapse (can’t be Synapse IDs)</p></li>
+<li><p><strong>filename</strong> – file where manifest will be written</p></li>
+<li><p><strong>provenance_cache</strong> – an optional dict of known provenance dicts keyed by entity ids</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -781,7 +790,7 @@ This can be bypassed by using the force=True option.</p></li>
   <ul>
 <li><a class="reference internal" href="#">Overview</a></li>
 <li><a class="reference internal" href="#module-synapseutils.copy_functions">copy</a></li>
-<li><a class="reference internal" href="#module-synapseutils.walk">walk</a></li>
+<li><a class="reference internal" href="#module-synapseutils.walk_functions">walk</a></li>
 <li><a class="reference internal" href="#module-synapseutils.sync">sync</a></li>
 <li><a class="reference internal" href="#module-synapseutils.monitor">monitor</a></li>
 <li><a class="reference internal" href="#migrate">migrate</a></li>
