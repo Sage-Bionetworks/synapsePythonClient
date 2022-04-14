@@ -377,11 +377,10 @@ def test_import_pandas():
         import pandas as pd  # noqa F401
     # used to catch ImportError, but other errors can happen (see SYNPY-177)
     except:  # noqa
-        sys.stderr.write("""\n\nPandas not installed!\n
-        The synapseclient package recommends but doesn't require the
-        installation of Pandas. If you'd like to use Pandas DataFrames,
-        refer to the installation instructions at:
-          http://pandas.pydata.org/.
+        sys.stderr.write("""\n\nThe pandas package is required for this function!\n
+        Most functions in the synapseclient package don't require the
+        installation of pandas, but some do. Please refer to the installation
+        instructions at: http://pandas.pydata.org/.
         \n\n\n""")
         raise
 
