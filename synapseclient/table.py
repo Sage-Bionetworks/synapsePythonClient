@@ -812,6 +812,37 @@ class Dataset(SchemaBase):
             name=name, columns=columns, properties=properties,
             annotations=annotations, local_state=local_state, parent=parent, **kwargs
         )
+        if datasetItems:
+            self.addItems(datasetItems)
+
+    def addItem(self, dataset_item):
+        """
+        :param dataset_item: a single dataset item
+        """
+        if isinstance(dataset_item, dict):
+            required_keys = {'entityId', 'versionNumber'}
+            if required_keys == dataset_item.keys():
+                self.properties.items.append(dataset_item)  # FIXME: once model updates
+            elif required_keys - dataset_item.keys():
+                raise LookupError("DatasetItem missing a required property: %s" %
+                                  str(required_keys - dataset_item.keys()))
+
+            # FIXME? Having other key-value pair in the dict doesn't throw any
+            # errors upon syn.store, nor do they persist after Dataset refreshes
+            else:
+                raise LookupError("Extra properties found for DatasetItem: %s" %
+                                  str(dataset_item.keys() - required_keys))
+        else:
+            raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
+
+    def addItems(self, dataset_items):
+        """
+        :param dataset_items: a list of dataset items
+        """
+        for dataset_item in dataset_items:
+            self.addItem(dataset_item)
+
+
 class ViewBase(SchemaBase):
     """
     This is a helper class for EntityViewSchema and SubmissionViewSchema
