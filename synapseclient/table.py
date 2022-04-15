@@ -375,13 +375,15 @@ def _get_view_type_mask_for_deprecated_type(type):
 def test_import_pandas():
     try:
         import pandas as pd  # noqa F401
-    # used to catch ImportError, but other errors can happen (see SYNPY-177)
-    except:  # noqa
-        sys.stderr.write("""\n\nThe pandas package is required for this function!\n
+    # used to catch when pandas isn't installed
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError("""\n\nThe pandas package is required for this function!\n
         Most functions in the synapseclient package don't require the
         installation of pandas, but some do. Please refer to the installation
         instructions at: http://pandas.pydata.org/.
         \n\n\n""")
+    # catch other errors (see SYNPY-177)
+    except:  # noqa
         raise
 
 
