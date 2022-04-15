@@ -842,6 +842,18 @@ class Dataset(SchemaBase):
         for dataset_item in dataset_items:
             self.addItem(dataset_item)
 
+    def removeItem(self, item_id):
+        """
+        :param item_id: a single dataset item Synapse ID
+        """
+        if isinstance(item_id, str) and item_id.startswith("syn"):
+            for i, curr_item in enumerate(self.properties.items):
+                if curr_item.get('entityId') == item_id:
+                    del self.properties.items[i]
+                    break
+        else:
+            raise ValueError("Not a synapse ID: %s" % str(item_id))
+
 
 class ViewBase(SchemaBase):
     """
@@ -1085,6 +1097,7 @@ entity_type_to_class[Schema._synapse_entity_type] = Schema
 entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 entity_type_to_class[SubmissionViewSchema._synapse_entity_type] = SubmissionViewSchema
 entity_type_to_class[MaterializedViewSchema._synapse_entity_type] = MaterializedViewSchema
+entity_type_to_class[Dataset._synapse_entity_type] = Dataset
 
 
 class SelectColumn(DictObject):
@@ -1099,6 +1112,7 @@ class SelectColumn(DictObject):
     :type columnType:   string
     :type name:         string
     """
+
     def __init__(self, id=None, columnType=None, name=None, **kwargs):
         super(SelectColumn, self).__init__()
         if id:
@@ -1327,6 +1341,7 @@ class Row(DictObject):
     :param versionNumber:   The version number of this row. Each row version is immutable, so when a row is updated a
                             new version is created.
     """
+
     def __init__(self, values, rowId=None, versionNumber=None, etag=None, **kwargs):
         super(Row, self).__init__()
         self.values = values
@@ -1549,6 +1564,7 @@ class RowSetTable(TableAbstractBaseClass):
     """
     A Table object that wraps a RowSet.
     """
+
     def __init__(self, schema, rowset):
         super(RowSetTable, self).__init__(schema, etag=rowset.get('etag', None))
         self.rowset = rowset
@@ -1608,6 +1624,7 @@ class TableQueryResult(TableAbstractBaseClass):
         for row in results:
             print(row)
     """
+
     def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True):
         self.syn = synapse
 
