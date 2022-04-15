@@ -20,7 +20,8 @@ import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
     PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask, \
-    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema, escape_column_name, join_column_names, MaterializedViewSchema
+    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema, escape_column_name, join_column_names, MaterializedViewSchema, \
+    Dataset
 
 from synapseclient.core.utils import from_unix_epoch_time
 from unittest.mock import patch
@@ -170,6 +171,15 @@ def test_materialized_view():
     assert not mat_view.has_columns()
     assert mat_view.properties.columnIds == []
 
+def test_dataset():
+    dataset = Dataset(
+        name="Pokedex",
+        parent="syn123",
+        datasetItems=[{'entityId': "syn20685093", 'versionNumber': 1}]
+    )
+    dataset._synapse_entity_type == "org.sagebionetworks.repo.model.table.Dataset"
+
+    assert not dataset.has_columns()
 
 def test_RowSetTable():
     row_set_json = {
