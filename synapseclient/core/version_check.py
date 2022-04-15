@@ -107,8 +107,10 @@ def release_notes(version_url=None):
     is supplied.
 
     :param version_url: Defaults to None, meaning release notes for the installed version. Alternatives are:
+
                             - synapseclient.version_check._VERSION_URL
                             - synapseclient.version_check._DEV_VERSION_URL
+
     """
     version_info = _get_version_info(version_url)
     sys.stderr.write('Python Synapse Client version %s release notes\n\n' % version_info['latestVersion'])
