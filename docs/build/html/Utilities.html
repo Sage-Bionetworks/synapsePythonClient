@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>&lt;no title&gt; &#8212; Synapse Python Client 2.5.1 documentation</title>
+    <title>Utility Functions &#8212; Synapse Python Client 2.6.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -45,8 +45,8 @@
         <li class="right" >
           <a href="Wiki.html" title="Wiki"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.1 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">&lt;no title&gt;</a></li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Utility Functions</a></li> 
       </ul>
     </div>  
 
@@ -55,7 +55,436 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  
+  <span class="target" id="module-synapseclient.core.utils"></span><div class="section" id="utility-functions">
+<h1>Utility Functions<a class="headerlink" href="#utility-functions" title="Permalink to this headline">¶</a></h1>
+<p>Utility functions useful in the implementation and testing of the Synapse client.</p>
+<dl class="py function">
+<dt id="synapseclient.core.utils.as_url">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">as_url</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.as_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tries to convert the input into a proper URL.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.caller_module_name">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">caller_module_name</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">current_frame</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.caller_module_name" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>current_frame</strong> – use inspect.currentframe().</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the name of the module calling the function, foo(), in which this calling_module() is invoked.
+Ignores callers that belong in the same module as foo()</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.concrete_type_of">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">concrete_type_of</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">collections.abc.Mapping</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.concrete_type_of" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the concrete type of an object representing a Synapse entity.
+This is meant to operate either against an actual Entity object, or the lighter
+weight dictionary returned by Synapse#getChildren, both of which are Mappings.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="synapseclient.core.utils.deprecated_keyword_param">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">deprecated_keyword_param</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keywords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reason</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.deprecated_keyword_param" title="Permalink to this definition">¶</a></dt>
+<dd><p>A decorator to use to warn when a keyword parameter from a function has been deprecated
+and is intended for future removal. Will emit a warning such a keyword is passed.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.download_file">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">download_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">localFilepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.download_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Downloads a remote file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>localFilePath</strong> – May be None, in which case a temporary file is created</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>localFilePath</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.equal_paths">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">equal_paths</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.equal_paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compare file paths in a platform neutral way</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.extract_filename">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">extract_filename</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">content_disposition_header</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.extract_filename" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract a filename from an HTTP content-disposition header field.</p>
+<p>See <a class="reference external" href="http://tools.ietf.org/html/rfc6266">this memo</a> and <a class="reference external" href="http://pypi.python.org/pypi/rfc6266">this package</a>
+for cryptic details.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.extract_prefix">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">extract_prefix</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keys</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.extract_prefix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes a list of strings and extracts a common prefix delimited by a dot,
+for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">extract_prefix</span><span class="p">([</span><span class="s2">&quot;entity.bang&quot;</span><span class="p">,</span> <span class="s2">&quot;entity.bar&quot;</span><span class="p">,</span> <span class="s2">&quot;entity.bat&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>entity.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.extract_synapse_id_from_query">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">extract_synapse_id_from_query</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.extract_synapse_id_from_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>An unfortunate hack to pull the synapse ID out of a table query of the form “select column1, column2 from syn12345
+where….” needed to build URLs for table services.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.extract_user_name">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">extract_user_name</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">profile</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.extract_user_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract a displayable user name from a user’s profile</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.extract_zip_file_to_directory">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">extract_zip_file_to_directory</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">zip_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zip_entry_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.extract_zip_file_to_directory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extracts a specified file in a zip to the specified directory
+:param zip_file:        an opened zip file. e.g. “with zipfile.ZipFile(zipfilepath) as zip_file:”
+:param zip_entry_name:  the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
+:param target_dir:      the directory to which the file will be extracted</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>full path to the extracted file</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.file_url_to_path">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">file_url_to_path</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verify_exists</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.file_url_to_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a file URL to a path, handling some odd cases around Windows paths.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> – a file URL</p></li>
+<li><p><strong>verify_exists</strong> – If true, return an populated dict only if the resulting file path exists on the local file
+system.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a path or None if the URL is not a file URL.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.find_data_file_handle">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">find_data_file_handle</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bundle</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.find_data_file_handle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the fileHandle whose ID matches the dataFileHandleId in an entity bundle</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.format_time_interval">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">format_time_interval</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seconds</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.format_time_interval" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format a time interval given in seconds to a readable value, e.g. “5 minutes, 37 seconds”.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.from_unix_epoch_time">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">from_unix_epoch_time</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ms</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.from_unix_epoch_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Datetime object given milliseconds since midnight Jan 1, 1970.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.from_unix_epoch_time_secs">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">from_unix_epoch_time_secs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">secs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.from_unix_epoch_time_secs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Datetime object given milliseconds since midnight Jan 1, 1970.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.get_properties">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">get_properties</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.get_properties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the dictionary of properties of the given Entity.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.guess_file_name">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">guess_file_name</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.guess_file_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tries to derive a filename from an arbitrary string.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.id_of">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">id_of</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.id_of" title="Permalink to this definition">¶</a></dt>
+<dd><p>Try to figure out the Synapse ID of the given object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>obj</strong> – May be a string, Entity object, or dictionary</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The ID or throws an exception</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.is_base64_encoded">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">is_base64_encoded</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.is_base64_encoded" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return whether the given input string appears to be base64 encoded</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.is_date">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">is_date</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dt</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.is_date" title="Permalink to this definition">¶</a></dt>
+<dd><p>Objects of class datetime.date and datetime.datetime will be recognized as dates</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.is_in_path">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">is_in_path</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.is_in_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines whether id is in the path as returned from /entity/{id}/path</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> – synapse id string</p></li>
+<li><p><strong>path</strong> – object as returned from ‘/entity/{id}/path’</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True or False</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.is_json">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">is_json</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">content_type</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.is_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>detect if a content-type is JSON</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.is_same_base_url">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">is_same_base_url</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.is_same_base_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compares two urls to see if they are the same excluding up to the base path</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url1</strong> – a URL</p></li>
+<li><p><strong>url2</strong> – a second URL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Boolean</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.is_synapse_id">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">is_synapse_id</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.is_synapse_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>If the input is a Synapse ID return it, otherwise return None</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.is_url">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">is_url</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.is_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if the string appears to be a valid URL.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.itersubclasses">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">itersubclasses</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_seen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.itersubclasses" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference external" href="http://code.activestate.com/recipes/576949/">http://code.activestate.com/recipes/576949/</a> (r3)</p>
+<p>itersubclasses(cls)</p>
+<p>Generator over all subclasses of a given class, in depth first order.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">itersubclasses</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span> <span class="o">==</span> <span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">A</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span> <span class="k">pass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">B</span><span class="p">(</span><span class="n">A</span><span class="p">):</span> <span class="k">pass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">C</span><span class="p">(</span><span class="n">A</span><span class="p">):</span> <span class="k">pass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">D</span><span class="p">(</span><span class="n">B</span><span class="p">,</span><span class="n">C</span><span class="p">):</span> <span class="k">pass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">E</span><span class="p">(</span><span class="n">D</span><span class="p">):</span> <span class="k">pass</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">itersubclasses</span><span class="p">(</span><span class="n">A</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="go">B</span>
+<span class="go">D</span>
+<span class="go">E</span>
+<span class="go">C</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># get ALL (new-style) classes currently defined</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">itersubclasses</span><span class="p">(</span><span class="nb">object</span><span class="p">)]</span> 
+<span class="go">[&#39;type&#39;, ...&#39;tuple&#39;, ...]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.make_bogus_binary_file">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">make_bogus_binary_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1048576</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">printprogress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.make_bogus_binary_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a bogus binary data file for testing. It is the caller’s responsibility to clean up the file when finished.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>n</strong> – How many bytes to write</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The name of the file</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.make_bogus_data_file">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">make_bogus_data_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.make_bogus_data_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a bogus data file for testing. It is the caller’s responsibility to clean up the file when finished.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n</strong> – How many random floating point numbers to be written into the file, separated by commas</p></li>
+<li><p><strong>seed</strong> – Random seed for the random numbers</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The name of the file</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.md5_for_file">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">md5_for_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2097152</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.md5_for_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the MD5 of the given file.
+See <a class="reference external" href="http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python">source</a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> – The file to read in</p></li>
+<li><p><strong>block_size</strong> – How much of the file to read in at once (bytes).
+Defaults to 2 MB</p></li>
+<li><p><strong>callback</strong> – The callback function that help us show loading spinner on terminal.
+Defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The MD5</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.normalize_path">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">normalize_path</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.normalize_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transforms a path into an absolute path with forward slashes only.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.normalize_whitespace">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">normalize_whitespace</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.normalize_whitespace" title="Permalink to this definition">¶</a></dt>
+<dd><p>Strips the string and replace all whitespace sequences and other non-printable characters with a single space.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.printTransferProgress">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">printTransferProgress</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">transferred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">toBeTransferred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">postfix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isBytes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">previouslyTransferred</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.printTransferProgress" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prints a progress bar</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>transferred</strong> – a number of items/bytes completed</p></li>
+<li><p><strong>toBeTransferred</strong> – total number of items/bytes when completed</p></li>
+<li><p><strong>prefix</strong> – String printed before progress bar</p></li>
+<li><p><strong>postfix</strong> – String printed after progress bar</p></li>
+<li><p><strong>isBytes</strong> – A boolean indicating whether to convert bytes to kB, MB, GB etc.</p></li>
+<li><p><strong>dt</strong> – The time in seconds that has passed since transfer started is used to calculate rate</p></li>
+<li><p><strong>previouslyTransferred</strong> – the number of bytes that were already transferred before this transfer began
+(e.g. someone ctrl+c’d out of an upload and restarted it later)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.query_limit_and_offset">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">query_limit_and_offset</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hard_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.query_limit_and_offset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract limit and offset from the end of a query string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A triple containing the query with limit and offset removed, the limit at most equal to the hard_limit,
+and the offset which
+defaults to 1</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.snake_case">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">snake_case</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.snake_case" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert the given string from CamelCase to snake_case</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.threadsafe_generator">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">threadsafe_generator</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.threadsafe_generator" title="Permalink to this definition">¶</a></dt>
+<dd><p>A decorator that takes a generator function and makes it thread-safe.
+See: <a class="reference external" href="http://anandology.com/blog/using-iterators-and-generators/">http://anandology.com/blog/using-iterators-and-generators/</a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="synapseclient.core.utils.threadsafe_iter">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">threadsafe_iter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">it</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.threadsafe_iter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes an iterator/generator and makes it thread-safe by serializing call to the <cite>next</cite> method of given
+iterator/generator.
+See: <a class="reference external" href="http://anandology.com/blog/using-iterators-and-generators/">http://anandology.com/blog/using-iterators-and-generators/</a></p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.to_list">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">to_list</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.to_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert the value (an iterable or a scalar value) to a list.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.to_unix_epoch_time">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">to_unix_epoch_time</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dt</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.to_unix_epoch_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert either <a class="reference external" href="http://docs.python.org/2/library/datetime.html">datetime.date or datetime.datetime objects</a>
+to UNIX time.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.to_unix_epoch_time_secs">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">to_unix_epoch_time_secs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dt</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.to_unix_epoch_time_secs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert either <a class="reference external" href="http://docs.python.org/2/library/datetime.html">datetime.date or datetime.datetime objects</a>
+to UNIX time.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.topolgical_sort">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">topolgical_sort</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.topolgical_sort" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a graph in the form of a dictionary returns a sorted list</p>
+<p>Adapted from: <a class="reference external" href="http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/">http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>graph</strong> – a dictionary with values containing lists of keys referencing back into the dictionary</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>sorted list of items</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.touch">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">touch</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">times</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.touch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make sure a file exists. Update its access and modified times.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.utils.unique_filename">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.utils.</span></code><code class="sig-name descname"><span class="pre">unique_filename</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.utils.unique_filename" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a unique path by appending (n) for some number n to the end of the filename.</p>
+</dd></dl>
+
+</div>
+
 
             <div class="clearer"></div>
           </div>
@@ -105,13 +534,13 @@
         <li class="right" >
           <a href="Wiki.html" title="Wiki"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.1 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">&lt;no title&gt;</a></li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Utility Functions</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 07, 2022.
+      Last updated on Apr 15, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

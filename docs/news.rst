@@ -312,7 +312,7 @@ Improvements
    Support boolean annotations in Python client
 
 2.3.0 (2021-03-03)
-================
+==================
 
 Highlights
 ----------
@@ -366,6 +366,7 @@ Bug Fixes
    Mitigate new Rust compiler dependency on Linux via transitive cryptography dependency
 -  [`SYNPY-1118 <https://sagebionetworks.jira.com/browse/SYNPY-1118>`__] -
    Migration tool erroring when it shouldn't
+
 New Features
 ------------
 

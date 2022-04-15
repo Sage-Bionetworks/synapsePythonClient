@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Synapse Python Client Documentation &#8212; Synapse Python Client 2.5.1 documentation</title>
+    <title>Synapse Python Client Documentation &#8212; Synapse Python Client 2.6.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -41,7 +41,7 @@
         <li class="right" >
           <a href="Credentials.html" title="Manage Synapse Credentials"
              accesskey="N">next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.5.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Python Client Documentation</a></li> 
       </ul>
     </div>  
@@ -683,6 +683,34 @@ the Link object is returned. If the target is desired, specify followLink=True i
 </dd></dl>
 
 <dl class="py class">
+<dt id="synapseclient.MaterializedViewSchema">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.</span></code><code class="sig-name descname"><span class="pre">MaterializedViewSchema</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.MaterializedViewSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>A MaterializedViewSchema is an <a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a> that defines a set of columns in a
+materialized view along with the SQL statement.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – the name for the Materialized View Schema object</p></li>
+<li><p><strong>description</strong> – User readable description of the schema</p></li>
+<li><p><strong>definingSQL</strong> – The synapse SQL statement that defines the data in the materialized view. The SQL may
+contain JOIN clauses on multiple tables.</p></li>
+<li><p><strong>columns</strong> – a list of <a class="reference internal" href="#synapseclient.Column" title="synapseclient.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects or their IDs</p></li>
+<li><p><strong>parent</strong> – the project in Synapse to which this Materialized View belongs</p></li>
+<li><p><strong>properties</strong> – A map of Synapse properties</p></li>
+<li><p><strong>annotations</strong> – A map of user defined annotations</p></li>
+<li><p><strong>local_state</strong> – Internal use only</p></li>
+</ul>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">defining_sql</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM syn111 F JOIN syn2222 P on (F.patient_id = P.patient_id)&quot;</span>
+
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">MaterializedViewSchema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MyTable&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span> <span class="n">definingSQL</span><span class="o">=</span><span class="n">defining_sql</span><span class="p">))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py class">
 <dt id="synapseclient.PartialRowset">
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.</span></code><code class="sig-name descname"><span class="pre">PartialRowset</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rows</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.PartialRowset" title="Permalink to this definition">¶</a></dt>
 <dd><p>A set of Partial Rows used for updating cells of a table.
@@ -932,12 +960,6 @@ defaults to ~/.synapseConfig</p></li>
 <li><p><a class="reference internal" href="#synapseclient.Synapse.login" title="synapseclient.Synapse.login"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.login()</span></code></a></p></li>
 <li><p><a class="reference internal" href="#synapseclient.Synapse.setEndpoints" title="synapseclient.Synapse.setEndpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.setEndpoints()</span></code></a></p></li>
 </ul>
-<dl class="py method">
-<dt id="synapseclient.Synapse.clear_download_list">
-<code class="sig-name descname"><span class="pre">clear_download_list</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.clear_download_list" title="Permalink to this definition">¶</a></dt>
-<dd><p>Clear all files from download list</p>
-</dd></dl>
-
 <dl class="py method">
 <dt id="synapseclient.Synapse.createColumns">
 <code class="sig-name descname"><span class="pre">createColumns</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.createColumns" title="Permalink to this definition">¶</a></dt>
@@ -1615,34 +1637,6 @@ information. See <code class="xref py py-func docutils literal notranslate"><spa
 </dd></dl>
 
 <dl class="py method">
-<dt id="synapseclient.Synapse.get_download_list">
-<code class="sig-name descname"><span class="pre">get_download_list</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downloadLocation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">str</span><a class="headerlink" href="#synapseclient.Synapse.get_download_list" title="Permalink to this definition">¶</a></dt>
-<dd><p>Download all files from your Synapse download list</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>manifest</strong> – Whether to keep the manifest file for the download list. Defaults to True.</p></li>
-<li><p><strong>downloadLocation</strong> – Directory to download files to.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>manifest file with file paths</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="synapseclient.Synapse.get_download_list_manifest">
-<code class="sig-name descname"><span class="pre">get_download_list_manifest</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_download_list_manifest" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get the path of the download list manifest file</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>path of download list manifest file</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
 <dt id="synapseclient.Synapse.get_membership_status">
 <code class="sig-name descname"><span class="pre">get_membership_status</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">userid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">team</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_membership_status" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieve a user’s Team Membership Status bundle.
@@ -1893,21 +1887,6 @@ See the flag “rememberMe” in <a class="reference internal" href="#synapsecli
 <li><p><strong>entity</strong> – The entity to be printed.</p></li>
 <li><p><strong>ensure_ascii</strong> – If True, escapes all non-ASCII characters</p></li>
 </ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="synapseclient.Synapse.remove_from_download_list">
-<code class="sig-name descname"><span class="pre">remove_from_download_list</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list_of_files</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">int</span><a class="headerlink" href="#synapseclient.Synapse.remove_from_download_list" title="Permalink to this definition">¶</a></dt>
-<dd><p>Remove a batch of files from download list</p>
-<dl class="field-list simple">
-<dt class="field-odd">Param</dt>
-<dd class="field-odd"><p>array of files in the format of a mapping
-{fileEntityId: synid, versionNumber: version}</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Number of files removed from download list</p>
 </dd>
 </dl>
 </dd></dl>
@@ -2667,6 +2646,7 @@ is supplied.</p>
 <li class="toctree-l1"><a class="reference internal" href="Activity.html">Provenance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Annotations.html">Annotations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Wiki.html">Wiki</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Utilities.html">Utility Functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html">Synapse command line client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Table.html">Tables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
@@ -2782,13 +2762,13 @@ is supplied.</p>
         <li class="right" >
           <a href="Credentials.html" title="Manage Synapse Credentials"
              >next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.5.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Python Client Documentation</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 07, 2022.
+      Last updated on Apr 15, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

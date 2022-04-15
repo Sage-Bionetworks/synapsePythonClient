@@ -11,8 +11,8 @@ Print release notes for installed version of client::
 
     synapseclient.release_notes()
 
-.. automethod:: synapseclient.version_check.check_for_updates
-.. automethod:: synapseclient.version_check.release_notes
+.. automethod:: synapseclient.core.version_check.check_for_updates
+.. automethod:: synapseclient.core.version_check.release_notes
 
 """
 

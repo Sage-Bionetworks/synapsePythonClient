@@ -24,15 +24,15 @@ monitor
 .. automodule:: synapseutils.monitor
    :members:
 
-******
+*******
 migrate
-******
+*******
 .. automodule:: synapseutils.migrate_functions
    :members:
 
 
-******
+********
 describe
-******
+********
 .. automodule:: synapseutils.describe_functions
    :members:
