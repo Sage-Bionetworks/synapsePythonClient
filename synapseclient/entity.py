@@ -731,7 +731,8 @@ ENTITY_TYPES = [
     'org.sagebionetworks.repo.model.Folder',
     'org.sagebionetworks.repo.model.Link',
     'org.sagebionetworks.repo.model.Project',
-    'org.sagebionetworks.repo.model.table.TableEntity'
+    'org.sagebionetworks.repo.model.table.TableEntity',
+    'org.sagebionetworks.repo.model.table.Dataset'
 ]
 
 

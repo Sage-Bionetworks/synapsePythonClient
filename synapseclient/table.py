@@ -780,6 +780,38 @@ class MaterializedViewSchema(SchemaBase):
         )
 
 
+class Dataset(SchemaBase):
+    """
+    A Dataset is an :py:class:`synapseclient.entity.Entity` that defines a group of files in a table.
+
+    :param name:            The name for the Dataset object
+    :param description:     User readable description of the schema
+    :param columns:         A list of :py:class:`Column` objects or their IDs
+    :param parent:          The project in Synapse to which this Dataset belongs
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param datasetItems:    A list of items characterized by entityId and versionNumber
+    :param local_state:     Internal use only
+
+    Example::
+
+        datasetItems = [
+            {'entityId': "syn123",
+             'versionNumber: 1},
+            {...},
+        ]
+        dataset = syn.store(Dataset(name="My Dataset", parent=project, datasetItems=datasetItems))
+    """
+    _synapse_entity_type = "org.sagebionetworks.repo.model.table.Dataset"
+    _property_keys = SchemaBase._property_keys + ['items']  # FIXME: once model updates
+
+    def __init__(self, name=None, columns=None, parent=None, properties=None,
+                 annotations=None, local_state=None, datasetItems=None, **kwargs):
+        self.properties.setdefault('items', [])
+        super(Dataset, self).__init__(
+            name=name, columns=columns, properties=properties,
+            annotations=annotations, local_state=local_state, parent=parent, **kwargs
+        )
 class ViewBase(SchemaBase):
     """
     This is a helper class for EntityViewSchema and SubmissionViewSchema
