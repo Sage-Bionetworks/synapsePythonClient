@@ -291,7 +291,6 @@ import csv
 import io
 import os
 import re
-import sys
 import tempfile
 import copy
 import itertools
