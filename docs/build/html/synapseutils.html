@@ -594,20 +594,25 @@ migrating a huge project of hundreds of thousands/millions of entities.</p>
 <dl class="py method">
 <dt id="synapseutils.migrate_functions.MigrationResult.as_csv">
 <code class="sig-name descname"><span class="pre">as_csv</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.MigrationResult.as_csv" title="Permalink to this definition">¶</a></dt>
-<dd><p>Output a flat csv file of the contents of the Migration index.
-Its columns are as follows:</p>
-<blockquote>
-<div><p>id - the Synapse id
-type - the concrete type of the entity
-version - the verson of the file entity (if applicable)
-row_id - the row of the table attached file (if applicable)
-col_name - the column name of the column the table attached file resides in (if applicable)
-from_storage_location_id - the previous storage location id where the file/version was stored
-from_file_handle_id - the id file handle of the existing file/version
-to_file_handle_id - if migrated, the new file handle id
-status - one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
-exception - if an error was encountered indexing/migrating the file/version its stack is here</p>
-</div></blockquote>
+<dd><p>Output a flat csv file of the contents of the Migration index.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><p>csv file with columns as follows:</p>
+<ul class="simple">
+<li><p>id - the Synapse id</p></li>
+<li><p>type - the concrete type of the entity</p></li>
+<li><p>version - the verson of the file entity (if applicable)</p></li>
+<li><p>row_id - the row of the table attached file (if applicable)</p></li>
+<li><p>col_name - the column name of the column the table attached file resides in (if applicable)</p></li>
+<li><p>from_storage_location_id - the previous storage location id where the file/version was stored</p></li>
+<li><p>from_file_handle_id - the id file handle of the existing file/version</p></li>
+<li><p>to_file_handle_id - if migrated, the new file handle id</p></li>
+<li><p>status - one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version</p></li>
+<li><p>exception - if an error was encountered indexing/migrating the file/version its stack is here</p></li>
+</ul>
+</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -628,20 +633,24 @@ Keys are as follows:</p>
 <dl class="py method">
 <dt id="synapseutils.migrate_functions.MigrationResult.get_migrations">
 <code class="sig-name descname"><span class="pre">get_migrations</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.MigrationResult.get_migrations" title="Permalink to this definition">¶</a></dt>
-<dd><p>A generator yielding each file/version in the migration index.
-A dictionary of the properties of the migration row is yielded as follows:</p>
-<blockquote>
-<div><p>id - the Synapse id
-type - the concrete type of the entity
-version - the verson of the file entity (if applicable)
-row_id - the row of the table attached file (if applicable)
-col_id - the column id of the table attached file (if applicable)
-from_storage_location_id - the previous storage location id where the file/version was stored
-from_file_handle_id - the id file handle of the existing file/version
-to_file_handle_id - if migrated, the new file handle id
-status - one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
-exception - if an error was encountered indexing/migrating the file/version its stack is here</p>
-</div></blockquote>
+<dd><p>A generator yielding each file/version in the migration index.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yeild</dt>
+<dd class="field-odd"><p>A dictionary of the properties of the migration row is yielded as follows:</p>
+<ul class="simple">
+<li><p>id: the Synapse id</p></li>
+<li><p>type: the concrete type of the entity</p></li>
+<li><p>version: the verson of the file entity (if applicable)</p></li>
+<li><p>row_id: the row of the table attached file (if applicable)</p></li>
+<li><p>col_id: the column id of the table attached file (if applicable)</p></li>
+<li><p>from_storage_location_id: - the previous storage location id where the file/version was stored</p></li>
+<li><p>from_file_handle_id: the id file handle of the existing file/version</p></li>
+<li><p>to_file_handle_id: if migrated, the new file handle id</p></li>
+<li><p>status: one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version</p></li>
+<li><p>exception: if an error was encountered indexing/migrating the file/version its stack is here</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 </dd></dl>

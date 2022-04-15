@@ -284,15 +284,14 @@ of the defined scopes.</p></li>
 </ul>
 </dd>
 </dl>
-<dl>
-<dt>Example::</dt><dd><p>from synapseclient import EntityViewType</p>
-<p>project_or_folder = syn.get(“syn123”)
-schema = syn.store(EntityViewSchema(name=’MyTable’, parent=project, scopes=[project_or_folder_id, ‘syn123’],</p>
-<blockquote>
-<div><p>includeEntityTypes=[EntityViewType.FILE]))</p>
-</div></blockquote>
-</dd>
-</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">EntityViewType</span>
+
+<span class="n">project_or_folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">EntityViewSchema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MyTable&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="n">project_or_folder_id</span><span class="p">,</span> <span class="s1">&#39;syn123&#39;</span><span class="p">],</span>
+ <span class="n">includeEntityTypes</span><span class="o">=</span><span class="p">[</span><span class="n">EntityViewType</span><span class="o">.</span><span class="n">FILE</span><span class="p">]))</span>
+</pre></div>
+</div>
 </dd></dl>
 
 </div>
