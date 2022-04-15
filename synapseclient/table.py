@@ -854,6 +854,24 @@ class Dataset(SchemaBase):
         else:
             raise ValueError("Not a synapse ID: %s" % str(item_id))
 
+    def addFolderToDataset(self, folder_id, recursive=False):
+        """
+        :param folder_id:   Synapse Folder ID
+        :param recursive:   Recursively add files (False by default)
+        """
+        if recursive:
+            pass
+        else:
+            pass
+
+    def addFoldersToDataset(self, folder_ids, recursive=False):
+        """
+        :param folder_id:   List of Synapse Folder ID
+        :param recursive:   Recursively add files (False by default)
+        """
+        for folder_id in folder_ids:
+            self.addFolderToDataset(folder_id, recursive=recursive)
+
 
 class ViewBase(SchemaBase):
     """
