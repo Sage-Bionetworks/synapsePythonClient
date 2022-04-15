@@ -171,6 +171,7 @@ def test_materialized_view():
     assert not mat_view.has_columns()
     assert mat_view.properties.columnIds == []
 
+
 def test_dataset():
     dataset = Dataset(
         name="Pokedex",
@@ -180,6 +181,7 @@ def test_dataset():
     dataset._synapse_entity_type == "org.sagebionetworks.repo.model.table.Dataset"
 
     assert not dataset.has_columns()
+
 
 def test_RowSetTable():
     row_set_json = {
