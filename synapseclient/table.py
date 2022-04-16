@@ -300,6 +300,7 @@ import abc
 import enum
 import json
 from builtins import zip
+from typing import List, Dict
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -821,8 +822,8 @@ class Dataset(SchemaBase):
         # Add all Files (recursively) within a Folder to the Dataset
         dataset.addFolder("syn789", recursive=True)
     """
-    _synapse_entity_type = "org.sagebionetworks.repo.model.table.Dataset"
-    _property_keys = SchemaBase._property_keys + ['items']  # FIXME: once model updates
+    _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
+    _property_keys: List[str] = SchemaBase._property_keys + ['items']
 
     def __init__(self, name=None, columns=None, parent=None, properties=None,
                  annotations=None, local_state=None, datasetItems=None, **kwargs):
@@ -834,7 +835,7 @@ class Dataset(SchemaBase):
         if datasetItems:
             self.addItems(datasetItems)
 
-    def addItem(self, dataset_item):
+    def addItem(self, dataset_item: Dict[str, str]):
         """
         :param dataset_item: a single dataset item
         """
@@ -854,14 +855,14 @@ class Dataset(SchemaBase):
         else:
             raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
 
-    def addItems(self, dataset_items):
+    def addItems(self, dataset_items: List[Dict[str, str]]):
         """
         :param dataset_items: a list of dataset items
         """
         for dataset_item in dataset_items:
             self.addItem(dataset_item)
 
-    def removeItem(self, item_id):
+    def removeItem(self, item_id: str):
         """
         :param item_id: a single dataset item Synapse ID
         """
@@ -873,8 +874,7 @@ class Dataset(SchemaBase):
         else:
             raise ValueError("Not a synapse ID: %s" % str(item_id))
 
-    def addFolderToDataset(self, folder_id, recursive=False):
-        """
+    def addFolderToDataset(self, folder_id: str, recursive: bool = False):
         :param folder_id:   Synapse Folder ID
         :param recursive:   Recursively add files (False by default)
         """
@@ -883,9 +883,7 @@ class Dataset(SchemaBase):
         else:
             pass
 
-    def addFoldersToDataset(self, folder_ids, recursive=False):
-        """
-        :param folder_id:   List of Synapse Folder ID
+    def addFoldersToDataset(self, folder_ids: List[str], recursive: bool = False):
         :param recursive:   Recursively add files (False by default)
         """
         for folder_id in folder_ids:
