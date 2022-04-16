@@ -65,7 +65,8 @@ from .entity import Entity, File, Folder, Versionable,\
     split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, EntityViewSchema, SubmissionViewSchema, Dataset
+from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, \
+    EntityViewSchema, SubmissionViewSchema, Dataset
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions, utils
@@ -1058,7 +1059,7 @@ class Synapse(object):
                     # modified, we want to upload the new version.
                     # If synapeStore is false then we must upload a ExternalFileHandle
                     needs_upload = not entity['synapseStore'] \
-                                   or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
+                        or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
             elif entity.get('dataFileHandleId', None) is not None:
                 needs_upload = False
             else:
@@ -2955,9 +2956,9 @@ class Synapse(object):
                 entityBundleJSON['annotations'] = convert_old_annotation_json(annotations)
 
             related = self._getWithEntityBundle(
-                                entityBundle=entityBundleJSON,
-                                entity=submission['entityId'],
-                                submission=submission_id, **kwargs)
+                entityBundle=entityBundleJSON,
+                entity=submission['entityId'],
+                submission=submission_id, **kwargs)
             submission.entity = related
             submission.filePath = related.get('path', None)
 

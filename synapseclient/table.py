@@ -822,14 +822,14 @@ class Dataset(SchemaBase):
         # Add all Files within a Folder to the Dataset (recursive=True)
         dataset.addFolder("syn789", recursive=True)
 
-    To create a snapshot of the Dataset, use 
+    To create a snapshot of the Dataset, use
     :py:classmethod:`synapseclient.client.create_snapshot_version`.
 
     Example::
         syn = synapseclient.login()
         syn.create_snapshot_version(
-            dataset.id, 
-            label="v1.0", 
+            dataset.id,
+            label="v1.0",
             comment="This is version 1")
     """
     _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
@@ -886,13 +886,17 @@ class Dataset(SchemaBase):
             raise ValueError("Not a synapse ID: %s" % str(item_id))
 
     def addFolderToDataset(self, folder_id: str, recursive: bool = False):
+        """Adds all File entities from a Folder Synapse ID.
+
+        Files added will default to the latest version. If specific version
+        is desired, use :py:classmethod::`Dataset.addItem` instead.
+
         :param folder_id:   Synapse Folder ID
         :param recursive:   Recursively add files (False by default)
         """
-        if recursive:
-            pass
-        else:
-            pass
+        items_to_add = []
+
+        self.addItems(items_to_add)
 
     def addFoldersToDataset(self, folder_ids: List[str], recursive: bool = False):
         """Adds all File entities from a list of Folder Synapse IDs.
