@@ -866,7 +866,8 @@ class Dataset(SchemaBase):
         """
         :param item_id: a single dataset item Synapse ID
         """
-        if isinstance(item_id, str) and item_id.startswith("syn"):
+        item_id = id_of(item_id)
+        if item_id.startswith("syn"):
             for i, curr_item in enumerate(self.properties.items):
                 if curr_item.get('entityId') == item_id:
                     del self.properties.items[i]
@@ -884,6 +885,12 @@ class Dataset(SchemaBase):
             pass
 
     def addFoldersToDataset(self, folder_ids: List[str], recursive: bool = False):
+        """Adds all File entities from a list of Folder Synapse IDs.
+
+        Files added will default to the latest version. If specific version
+        is desired, use :py:classmethod::`Dataset.addItem` instead.
+
+        :param folder_id:   List of Synapse Folder IDs
         :param recursive:   Recursively add files (False by default)
         """
         for folder_id in folder_ids:
