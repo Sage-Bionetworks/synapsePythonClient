@@ -782,12 +782,13 @@ class MaterializedViewSchema(SchemaBase):
 
 class Dataset(SchemaBase):
     """
-    A Dataset is an :py:class:`synapseclient.entity.Entity` that defines a group of files in a table.
+    A Dataset is an :py:class:`synapseclient.entity.Entity` that defines a
+    collection of files into a table (a "dataset").
 
     :param name:            The name for the Dataset object
     :param description:     User readable description of the schema
     :param columns:         A list of :py:class:`Column` objects or their IDs
-    :param parent:          The project in Synapse to which this Dataset belongs
+    :param parent:          The Synapse Project to which this Dataset belongs
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param datasetItems:    A list of items characterized by entityId and versionNumber
@@ -795,12 +796,30 @@ class Dataset(SchemaBase):
 
     Example::
 
+        # Create a Dataset with pre-defined DatasetItems
         datasetItems = [
-            {'entityId': "syn123",
+            {'entityId': "syn000",
              'versionNumber: 1},
             {...},
         ]
-        dataset = syn.store(Dataset(name="My Dataset", parent=project, datasetItems=datasetItems))
+        dataset = syn.store(Dataset(
+            name="My Dataset",
+            parent=project,
+            datasetItems=datasetItems))
+
+        # Add/remove specific Synapse IDs to the Dataset
+        dataset.addItem({'entityId': "syn111", 'versionNumber': 1})
+        dataset.addItems([
+            {'entityId': "syn222", 'versionNumber': 2},
+            {'entityId': "syn333", 'versionNumber': 1}])
+        dataset.removeItem("syn000")
+
+        # Add all top-level Files within a Folder to the Dataset
+        folder_ids = ["syn123", "syn456"]
+        dataset.addFolders(folder_ids)
+
+        # Add all Files (recursively) within a Folder to the Dataset
+        dataset.addFolder("syn789", recursive=True)
     """
     _synapse_entity_type = "org.sagebionetworks.repo.model.table.Dataset"
     _property_keys = SchemaBase._property_keys + ['items']  # FIXME: once model updates
@@ -822,7 +841,7 @@ class Dataset(SchemaBase):
         if isinstance(dataset_item, dict):
             required_keys = {'entityId', 'versionNumber'}
             if required_keys == dataset_item.keys():
-                self.properties.items.append(dataset_item)  # FIXME: once model updates
+                self.properties.items.append(dataset_item)
             elif required_keys - dataset_item.keys():
                 raise LookupError("DatasetItem missing a required property: %s" %
                                   str(required_keys - dataset_item.keys()))
