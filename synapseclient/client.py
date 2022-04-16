@@ -65,7 +65,7 @@ from .entity import Entity, File, Folder, Versionable,\
     split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, EntityViewSchema, SubmissionViewSchema
+from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, EntityViewSchema, SubmissionViewSchema, Dataset
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions, utils
@@ -3181,7 +3181,7 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
-    def create_snapshot_version(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
+    def create_snapshot_version(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema, Dataset],
                                 comment: str = None, label: str = None, activity: typing.Union[Activity, str] = None,
                                 wait: bool = True) -> int:
         """Create a new Table Version or a new View version.
@@ -3196,7 +3196,7 @@ class Synapse(object):
         :return: the snapshot version number if wait=True, None if wait=False
         """
         ent = self.get(id_of(table), downloadFile=False)
-        if isinstance(ent, (EntityViewSchema, SubmissionViewSchema)):
+        if isinstance(ent, (EntityViewSchema, SubmissionViewSchema, Dataset)):
             result = self._async_table_update(
                 table,
                 create_snapshot=True,

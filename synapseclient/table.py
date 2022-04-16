@@ -815,12 +815,22 @@ class Dataset(SchemaBase):
             {'entityId': "syn333", 'versionNumber': 1}])
         dataset.removeItem("syn000")
 
-        # Add all top-level Files within a Folder to the Dataset
+        # Add only top-level Files within a Folder to the Dataset (recursive=False (default))
         folder_ids = ["syn123", "syn456"]
-        dataset.addFolders(folder_ids)
+        dataset.addFolders(folder_ids, recursive=False)
 
-        # Add all Files (recursively) within a Folder to the Dataset
+        # Add all Files within a Folder to the Dataset (recursive=True)
         dataset.addFolder("syn789", recursive=True)
+
+    To create a snapshot of the Dataset, use 
+    :py:classmethod:`synapseclient.client.create_snapshot_version`.
+
+    Example::
+        syn = synapseclient.login()
+        syn.create_snapshot_version(
+            dataset.id, 
+            label="v1.0", 
+            comment="This is version 1")
     """
     _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
     _property_keys: List[str] = SchemaBase._property_keys + ['items']
