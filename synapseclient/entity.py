@@ -139,7 +139,6 @@ See also:
 """
 
 import collections.abc
-import itertools
 import io
 import os
 import inspect
@@ -427,12 +426,15 @@ class Entity(collections.abc.MutableMapping):
         f.write(self.__class__.__name__)
         f.write("(")
         f.write(", ".join(
-            {"%s=%s" % (str(key), value.__repr__(),) for key, value in
-                itertools.chain(
-                    list([k_v for k_v in self.__dict__.items()
-                          if not (k_v[0] in ['properties', 'annotations'] or k_v[0].startswith('__'))]),
-                    self.properties.items(),
-                    self.annotations.items())}))
+            {"%s=%s" % (str(key), value.__repr__(),)
+             for key, value in list([k_v for k_v in self.__dict__.items()
+                                     if not (k_v[0] in ['properties', 'annotations'] or k_v[0].startswith('__'))])}))
+        f.write(", ")
+        f.write(", ".join(
+            {"%s=%s" % (str(key), self.properties[key].__repr__(),) for key in self.properties}))
+        f.write(", ")
+        f.write(", ".join(
+            {"%s=%s" % (str(key), value.__repr__(),) for key, value in self.annotations.items()}))
         f.write(")")
         return f.getvalue()
 
