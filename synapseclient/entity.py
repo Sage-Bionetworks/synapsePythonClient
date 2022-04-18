@@ -239,6 +239,9 @@ class Entity(collections.abc.MutableMapping):
                 if 'annotations' in properties and isinstance(properties['annotations'], collections.abc.Mapping):
                     annotations.update(properties['annotations'])
                     del properties['annotations']
+                if 'items' in properties:
+                    properties['datasetItems'] = properties['items']
+                    del properties['items']
                 self.__dict__['properties'].update(properties)
             else:
                 raise SynapseMalformedEntityError(
