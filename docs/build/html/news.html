@@ -18,7 +18,7 @@
     <link rel="shortcut icon" href="_static/favicon.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="Using the Synapse Python Client with SFTP data storage" href="sftp.html" />
+    <link rel="prev" title="Teams" href="Team.html" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <!--[if lt IE 9]>
     <script src="_static/css3-mediaqueries.js"></script>
@@ -39,7 +39,7 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="sftp.html" title="Using the Synapse Python Client with SFTP data storage"
+          <a href="Team.html" title="Teams"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Release Notes</a></li> 
@@ -69,6 +69,12 @@ will be changed to <cite>–parent-id</cite>.</p></li>
 import synapseclient
 import synapseutils
 <span class="nv">syn</span> <span class="o">=</span> synapseclient.login<span class="o">()</span>
+<span class="nv">view</span> <span class="o">=</span> MaterializedViewSchema<span class="o">(</span>
+    <span class="nv">name</span><span class="o">=</span><span class="s2">&quot;test-material-view&quot;</span>,
+    <span class="nv">parent</span><span class="o">=</span><span class="s2">&quot;syn34234&quot;</span>,
+    <span class="nv">definingSQL</span><span class="o">=</span><span class="s2">&quot;SELECT * FROM syn111 F JOIN syn2222 P on (F.PATIENT_ID = P.PATIENT_ID)&quot;</span>
+<span class="o">)</span>
+<span class="nv">view_ent</span> <span class="o">=</span> syn.store<span class="o">(</span>view<span class="o">)</span>
 </pre></div>
 </div>
 </li>
@@ -1565,8 +1571,8 @@ provide convenience functions for more complicated operations in Synapse such as
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="sftp.html"
-                        title="previous chapter">Using the Synapse Python Client with SFTP data storage</a></p>
+  <p class="topless"><a href="Team.html"
+                        title="previous chapter">Teams</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -1588,7 +1594,7 @@ provide convenience functions for more complicated operations in Synapse such as
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="sftp.html" title="Using the Synapse Python Client with SFTP data storage"
+          <a href="Team.html" title="Teams"
              >previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Release Notes</a></li> 
@@ -1596,7 +1602,7 @@ provide convenience functions for more complicated operations in Synapse such as
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 15, 2022.
+      Last updated on Apr 19, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
