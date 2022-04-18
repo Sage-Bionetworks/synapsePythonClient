@@ -834,11 +834,11 @@ class Dataset(SchemaBase):
             comment="This is version 1")
     """
     _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
-    _property_keys: List[str] = SchemaBase._property_keys + ['items']
+    _property_keys: List[str] = SchemaBase._property_keys + ['datasetItems']
 
     def __init__(self, name=None, columns=None, parent=None, properties=None,
                  annotations=None, local_state=None, datasetItems=None, **kwargs):
-        self.properties.setdefault('items', [])
+        self.properties.setdefault('datasetItems', [])
         super(Dataset, self).__init__(
             name=name, columns=columns, properties=properties,
             annotations=annotations, local_state=local_state, parent=parent, **kwargs
@@ -853,7 +853,7 @@ class Dataset(SchemaBase):
         if isinstance(dataset_item, dict):
             required_keys = {'entityId', 'versionNumber'}
             if required_keys == dataset_item.keys():
-                self.properties.items.append(dataset_item)
+                self.properties.datasetItems.append(dataset_item)
             elif required_keys - dataset_item.keys():
                 raise LookupError("DatasetItem missing a required property: %s" %
                                   str(required_keys - dataset_item.keys()))
@@ -879,9 +879,9 @@ class Dataset(SchemaBase):
         """
         item_id = id_of(item_id)
         if item_id.startswith("syn"):
-            for i, curr_item in enumerate(self.properties.items):
+            for i, curr_item in enumerate(self.properties.datasetItems):
                 if curr_item.get('entityId') == item_id:
-                    del self.properties.items[i]
+                    del self.properties.datasetItems[i]
                     break
         else:
             raise ValueError("Not a Synapse ID: %s" % str(item_id))
