@@ -24,6 +24,12 @@ Highlights
         import synapseclient
         import synapseutils
         syn = synapseclient.login()
+        view = MaterializedViewSchema(
+            name="test-material-view",
+            parent="syn34234",
+            definingSQL="SELECT * FROM syn111 F JOIN syn2222 P on (F.PATIENT_ID = P.PATIENT_ID)"
+        )
+        view_ent = syn.store(view)
 
 - Removed support for Python 3.6 and added support for Python 3.10
 
