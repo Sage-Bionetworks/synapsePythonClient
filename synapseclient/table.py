@@ -797,6 +797,7 @@ class Dataset(SchemaBase):
 
     Example::
 
+        from synapseclient import Dataset
         # Create a Dataset with pre-defined DatasetItems
         datasetItems = [
             {'entityId': "syn000",
@@ -822,7 +823,7 @@ class Dataset(SchemaBase):
         # Add all Files within a Folder to the Dataset (recursive=True)
         dataset.addFolder("syn789", recursive=True)
 
-    To create a snapshot of the Dataset, use
+    To create a snapshot version of the Dataset, use
     :py:classmethod:`synapseclient.client.create_snapshot_version`.
 
     Example::
@@ -883,32 +884,7 @@ class Dataset(SchemaBase):
                     del self.properties.items[i]
                     break
         else:
-            raise ValueError("Not a synapse ID: %s" % str(item_id))
-
-    def addFolderToDataset(self, folder_id: str, recursive: bool = False):
-        """Adds all File entities from a Folder Synapse ID.
-
-        Files added will default to the latest version. If specific version
-        is desired, use :py:classmethod::`Dataset.addItem` instead.
-
-        :param folder_id:   Synapse Folder ID
-        :param recursive:   Recursively add files (False by default)
-        """
-        items_to_add = []
-
-        self.addItems(items_to_add)
-
-    def addFoldersToDataset(self, folder_ids: List[str], recursive: bool = False):
-        """Adds all File entities from a list of Folder Synapse IDs.
-
-        Files added will default to the latest version. If specific version
-        is desired, use :py:classmethod::`Dataset.addItem` instead.
-
-        :param folder_id:   List of Synapse Folder IDs
-        :param recursive:   Recursively add files (False by default)
-        """
-        for folder_id in folder_ids:
-            self.addFolderToDataset(folder_id, recursive=recursive)
+            raise ValueError("Not a Synapse ID: %s" % str(item_id))
 
 
 class ViewBase(SchemaBase):
