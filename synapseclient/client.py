@@ -1430,10 +1430,9 @@ class Synapse(object):
         )
         return downloaded_path
 
-    def get_download_list(self, manifest=True, downloadLocation=None) -> str:
+    def get_download_list(self, downloadLocation: str = None) -> str:
         """Download all files from your Synapse download list
 
-        :param manifest: Whether to keep the manifest file for the download list. Defaults to True.
         :param downloadLocation: Directory to download files to.
 
         :returns: manifest file with file paths
@@ -1446,7 +1445,7 @@ class Synapse(object):
 
             reader = csv.DictReader(manifest_f)
             columns = reader.fieldnames
-            columns.append("path")
+            columns.extend(["path", "error"])
             # Write the downloaded paths to a new manifest file
             writer = csv.DictWriter(write_obj, fieldnames=columns)
             writer.writeheader()
@@ -1462,10 +1461,15 @@ class Synapse(object):
                         {"fileEntityId": row['ID'], "versionNumber": row['versionNumber']}
                     )
                     row['path'] = entity.path
-                    writer.writerow(row)
-                except Exception:
+                    row['error'] = ''
+                except Exception as e:
+                    row['path'] = ''
+                    row['error'] = 'DOWNLOAD FAILED'
                     print("Unable to download file")
+                writer.writerow(row)
 
+        # Don't want to clear all the download list because you can add things
+        # to the download list after initiating this command.
         # Files that failed to download should not be removed from download list
         # Remove all files from download list after the entire download is complete.
         # This is because if download fails midway, we want to return the full manifest
@@ -1473,9 +1477,7 @@ class Synapse(object):
 
         # Always remove original manifest file
         os.remove(dl_list_path)
-        # Don't want to clear all the download list because you can add things
-        # to the download list after initiating this command
-        # self.clear_download_list()
+
         return new_manifest_path
 
     ############################################################
