@@ -1462,7 +1462,7 @@ class Synapse(object):
                     )
                     row['path'] = entity.path
                     row['error'] = ''
-                except Exception as e:
+                except Exception:
                     row['path'] = ''
                     row['error'] = 'DOWNLOAD FAILED'
                     print("Unable to download file")
