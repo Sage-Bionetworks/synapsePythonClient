@@ -614,10 +614,12 @@ class _SyncUploader:
 
 def generateManifest(syn, allFiles, filename, provenance_cache=None):
     """Generates a manifest file based on a list of entities objects.
+
     :param syn:   A synapse object as obtained with syn = synapseclient.login()
     :param allFiles:   A list of File Entity objects on Synapse (can't be Synapse IDs)
     :param filename: file where manifest will be written
     :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
+
     """
     keys, data = _extract_file_entity_metadata(syn, allFiles, provenance_cache=provenance_cache)
     _write_manifest_data(filename, keys, data)
@@ -626,6 +628,7 @@ def generateManifest(syn, allFiles, filename, provenance_cache=None):
 def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     """
     Extracts metadata from the list of File Entities and returns them in a form usable by csv.DictWriter
+
     :param syn:         instance of the Synapse client
     :param allFiles:    an iterable that provides File entities
     :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
@@ -782,12 +785,13 @@ def readManifestFile(syn, manifestFile):
             raise ValueError("Manifest must contain a column of %s" % field)
     sys.stdout.write('OK\n')
 
-    sys.stdout.write('Validating that all paths exist')
+    sys.stdout.write('Validating that all paths exist...')
     df.path = df.path.apply(_check_path_and_normalize)
 
     sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating that all files are unique...')
+    # Both the path and the combination of entity name and parent must be unique
     if len(df.path) != len(set(df.path)):
         raise ValueError("All rows in manifest must contain a unique file to upload")
     sys.stdout.write('OK\n')
@@ -799,10 +803,14 @@ def readManifestFile(syn, manifestFile):
 
     # check the name of each file should be store on Synapse
     name_column = 'name'
-    if name_column in df.columns:
-        sys.stdout.write('Validating file names... \n')
-        _check_file_name(df)
-        sys.stdout.write('OK\n')
+    # Create entity name column from basename
+    if name_column not in df.columns:
+        filenames = [os.path.basename(path) for path in df['path']]
+        df['name'] = filenames
+
+    sys.stdout.write('Validating file names... \n')
+    _check_file_name(df)
+    sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating provenance...')
     df = _sortAndFixProvenance(syn, df)
@@ -968,6 +976,9 @@ def _check_file_name(df):
             raise ValueError("File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
                              "underscores, hyphens, periods, plus signs, apostrophes, "
                              "and parentheses".format(file_name))
+    if df[['name', 'parent']].duplicated().any():
+        raise ValueError("All rows in manifest must contain a path with a unique file name and parent to upload. "
+                         "Files uploaded to the same folder/project (parent) must have unique file names.")
 
 
 def _check_size_each_file(df):

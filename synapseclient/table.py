@@ -291,7 +291,6 @@ import csv
 import io
 import os
 import re
-import sys
 import tempfile
 import copy
 import itertools
@@ -375,14 +374,15 @@ def _get_view_type_mask_for_deprecated_type(type):
 def test_import_pandas():
     try:
         import pandas as pd  # noqa F401
-    # used to catch ImportError, but other errors can happen (see SYNPY-177)
-    except:  # noqa
-        sys.stderr.write("""\n\nPandas not installed!\n
-        The synapseclient package recommends but doesn't require the
-        installation of Pandas. If you'd like to use Pandas DataFrames,
-        refer to the installation instructions at:
-          http://pandas.pydata.org/.
+    # used to catch when pandas isn't installed
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError("""\n\nThe pandas package is required for this function!\n
+        Most functions in the synapseclient package don't require the
+        installation of pandas, but some do. Please refer to the installation
+        instructions at: http://pandas.pydata.org/.
         \n\n\n""")
+    # catch other errors (see SYNPY-177)
+    except:  # noqa
         raise
 
 
@@ -747,6 +747,39 @@ class Schema(SchemaBase):
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
+class MaterializedViewSchema(SchemaBase):
+    """
+    A MaterializedViewSchema is an :py:class:`synapseclient.entity.Entity` that defines a set of columns in a
+    materialized view along with the SQL statement.
+
+    :param name:            the name for the Materialized View Schema object
+    :param description:     User readable description of the schema
+    :param definingSQL:     The synapse SQL statement that defines the data in the materialized view. The SQL may
+                            contain JOIN clauses on multiple tables.
+    :param columns:         a list of :py:class:`Column` objects or their IDs
+    :param parent:          the project in Synapse to which this Materialized View belongs
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Internal use only
+
+    Example::
+
+        defining_sql = "SELECT * FROM syn111 F JOIN syn2222 P on (F.patient_id = P.patient_id)"
+
+        schema = syn.store(MaterializedViewSchema(name='MyTable', parent=project, definingSQL=defining_sql))
+    """
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.MaterializedView'
+    _property_keys = SchemaBase._property_keys + ['definingSQL']
+    def __init__(self, name=None, columns=None, parent=None, definingSQL=None, properties=None, annotations=None,
+                 local_state=None, **kwargs):
+        if definingSQL is not None:
+            kwargs['definingSQL'] = definingSQL
+        super(MaterializedViewSchema, self).__init__(
+            name=name, columns=columns, properties=properties,
+            annotations=annotations, local_state=local_state, parent=parent, **kwargs
+        )
+
+
 class ViewBase(SchemaBase):
     """
     This is a helper class for EntityViewSchema and SubmissionViewSchema
@@ -869,11 +902,13 @@ class EntityViewSchema(ViewBase):
     :param local_state:                     Internal use only
 
     Example::
+
         from synapseclient import EntityViewType
 
         project_or_folder = syn.get("syn123")
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
          includeEntityTypes=[EntityViewType.FILE]))
+
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
@@ -988,6 +1023,7 @@ class SubmissionViewSchema(ViewBase):
 entity_type_to_class[Schema._synapse_entity_type] = Schema
 entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 entity_type_to_class[SubmissionViewSchema._synapse_entity_type] = SubmissionViewSchema
+entity_type_to_class[MaterializedViewSchema._synapse_entity_type] = MaterializedViewSchema
 
 
 class SelectColumn(DictObject):

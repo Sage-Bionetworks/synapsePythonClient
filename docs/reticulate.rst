@@ -407,6 +407,7 @@ List submissions:
 Retrieving submission by id:
 
   .. code-block::
+
     submission <- syn$getSubmission(submission$id)
 
 Retrieving the submission status:

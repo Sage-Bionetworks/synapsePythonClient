@@ -198,6 +198,7 @@ class Synapse(object):
 
     - :py:func:`synapseclient.Synapse.login`
     - :py:func:`synapseclient.Synapse.setEndpoints`
+
     """
 
     # TODO: add additional boolean for write to disk?
@@ -2352,23 +2353,26 @@ class Synapse(object):
         Creates an IMMUTABLE storage location based on the specified type.
 
         For each storage_type, the following kwargs should be specified:
+
         ExternalObjectStorage: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)
-        - endpointUrl: endpoint URL of the S3 service (for example: 'https://s3.amazonaws.com')
-        - bucket: the name of the bucket to use
+            - endpointUrl: endpoint URL of the S3 service (for example: 'https://s3.amazonaws.com')
+            - bucket: the name of the bucket to use
+
         ExternalS3Storage: (Amazon S3 bucket accessed by Synapse)
-        - bucket: the name of the bucket to use
+            - bucket: the name of the bucket to use
+
         ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)
-        - url: the base URL for uploading to the external destination
-        - supportsSubfolders(optional): does the destination support creating subfolders under the base url
-         (default: false)
+            - url: the base URL for uploading to the external destination
+            - supportsSubfolders(optional): does the destination support creating subfolders under the base url
+              (default: false)
+
         ProxyStorage: (a proxy server that controls access to a storage)
-        - secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
-        - proxyUrl: The HTTPS URL of the proxy used for upload and download.
+            - secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
+            - proxyUrl: The HTTPS URL of the proxy used for upload and download.
 
         Optional kwargs for ALL types:
-        - banner: The optional banner to show every time a file is uploaded
-        - description: The description to show the user when the user has to choose which upload destination to use
-
+            - banner: The optional banner to show every time a file is uploaded
+            - description: The description to show the user when the user has to choose which upload destination to use
 
         :param storage_type:    the type of the StorageLocationSetting to create
         :param kwargs:          fields necessary for creation of the specified storage_type
@@ -2393,8 +2397,10 @@ class Synapse(object):
     def getMyStorageLocationSetting(self, storage_location_id):
         """
         Get a StorageLocationSetting by its id.
+
         :param storage_location_id: id of the StorageLocationSetting to retrieve.
                                     The corresponding StorageLocationSetting must have been created by this user.
+
         :return: a dict describing the StorageLocationSetting retrieved by its id
         """
         return self.restGET('/storageLocation/%s' % storage_location_id)
@@ -2402,9 +2408,11 @@ class Synapse(object):
     def setStorageLocation(self, entity, storage_location_id):
         """
         Sets the storage location for a Project or Folder
+
         :param entity:              a Project or Folder to which the StorageLocationSetting is set
         :param storage_location_id: a StorageLocation id or a list of StorageLocation ids. Pass in None for the default
                                     Synapse storage.
+
         :return: The created or updated settings as a dict
         """
         if storage_location_id is None:

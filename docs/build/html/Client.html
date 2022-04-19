@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Synapse Client &#8212; Synapse Python Client 2.5.1 documentation</title>
+    <title>Synapse Client &#8212; Synapse Python Client 2.6.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="reticulate.html" title="Using synapseclient with R through reticulate"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>  
@@ -127,24 +127,34 @@ defaults to ~/.synapseConfig</p></li>
 <dt id="synapseclient.Synapse.createStorageLocationSetting">
 <code class="sig-name descname"><span class="pre">createStorageLocationSetting</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">storage_type</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.createStorageLocationSetting" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates an IMMUTABLE storage location based on the specified type.</p>
-<p>For each storage_type, the following kwargs should be specified:
-ExternalObjectStorage: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)
-- endpointUrl: endpoint URL of the S3 service (for example: ‘<a class="reference external" href="https://s3.amazonaws.com">https://s3.amazonaws.com</a>’)
-- bucket: the name of the bucket to use
-ExternalS3Storage: (Amazon S3 bucket accessed by Synapse)
-- bucket: the name of the bucket to use
-ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)
-- url: the base URL for uploading to the external destination
-- supportsSubfolders(optional): does the destination support creating subfolders under the base url</p>
-<blockquote>
-<div><p>(default: false)</p>
-</div></blockquote>
-<p>ProxyStorage: (a proxy server that controls access to a storage)
-- secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
-- proxyUrl: The HTTPS URL of the proxy used for upload and download.</p>
-<p>Optional kwargs for ALL types:
-- banner: The optional banner to show every time a file is uploaded
-- description: The description to show the user when the user has to choose which upload destination to use</p>
+<p>For each storage_type, the following kwargs should be specified:</p>
+<dl class="simple">
+<dt>ExternalObjectStorage: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)</dt><dd><ul class="simple">
+<li><p>endpointUrl: endpoint URL of the S3 service (for example: ‘<a class="reference external" href="https://s3.amazonaws.com">https://s3.amazonaws.com</a>’)</p></li>
+<li><p>bucket: the name of the bucket to use</p></li>
+</ul>
+</dd>
+<dt>ExternalS3Storage: (Amazon S3 bucket accessed by Synapse)</dt><dd><ul class="simple">
+<li><p>bucket: the name of the bucket to use</p></li>
+</ul>
+</dd>
+<dt>ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)</dt><dd><ul class="simple">
+<li><p>url: the base URL for uploading to the external destination</p></li>
+<li><p>supportsSubfolders(optional): does the destination support creating subfolders under the base url
+(default: false)</p></li>
+</ul>
+</dd>
+<dt>ProxyStorage: (a proxy server that controls access to a storage)</dt><dd><ul class="simple">
+<li><p>secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.</p></li>
+<li><p>proxyUrl: The HTTPS URL of the proxy used for upload and download.</p></li>
+</ul>
+</dd>
+<dt>Optional kwargs for ALL types:</dt><dd><ul class="simple">
+<li><p>banner: The optional banner to show every time a file is uploaded</p></li>
+<li><p>description: The description to show the user when the user has to choose which upload destination to use</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -363,7 +373,7 @@ in the specified folder/project will be returned.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getChildren">
-<code class="sig-name descname"><span class="pre">getChildren</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeTypes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['folder',</span> <span class="pre">'file',</span> <span class="pre">'table',</span> <span class="pre">'link',</span> <span class="pre">'entityview',</span> <span class="pre">'dockerrepo']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortBy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'NAME'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortDirection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ASC'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getChildren" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getChildren</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeTypes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['folder',</span> <span class="pre">'file',</span> <span class="pre">'table',</span> <span class="pre">'link',</span> <span class="pre">'entityview',</span> <span class="pre">'dockerrepo',</span> <span class="pre">'submissionview',</span> <span class="pre">'dataset',</span> <span class="pre">'materializedview']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortBy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'NAME'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortDirection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ASC'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getChildren" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieves all of the entities stored within a parent such as folder or project.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -381,7 +391,7 @@ in the specified folder/project will be returned.</p></li>
 </dl>
 <p>Also see:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="synapseutils.html#module-synapseutils.walk" title="synapseutils.walk"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseutils.walk()</span></code></a></p></li>
+<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseutils.walk()</span></code></p></li>
 </ul>
 </dd></dl>
 
@@ -490,14 +500,14 @@ or a string prefix</p></li>
 <dl class="py method">
 <dt id="synapseclient.Synapse.getMyStorageLocationSetting">
 <code class="sig-name descname"><span class="pre">getMyStorageLocationSetting</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getMyStorageLocationSetting" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get a StorageLocationSetting by its id.
-:param storage_location_id: id of the StorageLocationSetting to retrieve.</p>
-<blockquote>
-<div><p>The corresponding StorageLocationSetting must have been created by this user.</p>
-</div></blockquote>
+<dd><p>Get a StorageLocationSetting by its id.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>a dict describing the StorageLocationSetting retrieved by its id</p>
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>storage_location_id</strong> – id of the StorageLocationSetting to retrieve.
+The corresponding StorageLocationSetting must have been created by this user.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a dict describing the StorageLocationSetting retrieved by its id</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1257,15 +1267,17 @@ Set this flag to False to add new permissions non-destructively.</p></li>
 <dl class="py method">
 <dt id="synapseclient.Synapse.setStorageLocation">
 <code class="sig-name descname"><span class="pre">setStorageLocation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setStorageLocation" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sets the storage location for a Project or Folder
-:param entity:              a Project or Folder to which the StorageLocationSetting is set
-:param storage_location_id: a StorageLocation id or a list of StorageLocation ids. Pass in None for the default</p>
-<blockquote>
-<div><p>Synapse storage.</p>
-</div></blockquote>
+<dd><p>Sets the storage location for a Project or Folder</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>The created or updated settings as a dict</p>
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>entity</strong> – a Project or Folder to which the StorageLocationSetting is set</p></li>
+<li><p><strong>storage_location_id</strong> – a StorageLocation id or a list of StorageLocation ids. Pass in None for the default
+Synapse storage.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The created or updated settings as a dict</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1568,13 +1580,13 @@ calculated automatically.</p></li>
         <li class="right" >
           <a href="reticulate.html" title="Using synapseclient with R through reticulate"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Dec 29, 2021.
+      Last updated on Apr 19, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
