@@ -1440,14 +1440,15 @@ class Synapse(object):
         """
         dl_list_path = self.get_download_list_manifest()
         downloaded_files = []
+        new_manifest_path = f'manifest_{time.time_ns()}.csv'
         with open(dl_list_path) as manifest_f, \
-             open('SYNAPSE_METADATA_MANIFEST.tsv', 'w') as write_obj:
+             open(new_manifest_path, 'w') as write_obj:
 
             reader = csv.DictReader(manifest_f)
             columns = reader.fieldnames
             columns.append("path")
             # Write the downloaded paths to a new manifest file
-            writer = csv.DictWriter(write_obj, fieldnames=columns, delimiter='\t')
+            writer = csv.DictWriter(write_obj, fieldnames=columns)
             writer.writeheader()
 
             for row in reader:
@@ -1455,30 +1456,27 @@ class Synapse(object):
                 # So there must be a try catch here
                 try:
                     entity = self.get(row['ID'], downloadLocation=downloadLocation)
-                    downloaded_files.append(entity.path)
+                    # Must include version number because you can have multiple versions of a
+                    # file in the download list
+                    downloaded_files.append(
+                        {"fileEntityId": row['ID'], "versionNumber": row['versionNumber']}
+                    )
                     row['path'] = entity.path
                     writer.writerow(row)
                 except Exception:
                     print("Unable to download file")
 
-                # TODO: should the file be removed from the download list if it fails download
-                # Must include version number because you can have multiple versions of a
-                # file in the download list
-                self.remove_from_download_list(list_of_files=[
-                    {"fileEntityId": row['ID'], "versionNumber": row['versionNumber']}
-                ])
-        # TODO: discuss what to return.  Should we always just return the manifest file?
-        # add ability to remove manifest file if user doesn't want it returned
-        # if manifest:
-        #     downloaded_files.append(dl_list_path)
-        # else:
-        #     os.remove(dl_list_path)
+        # Files that failed to download should not be removed from download list
+        # Remove all files from download list after the entire download is complete.
+        # This is because if download fails midway, we want to return the full manifest
+        self.remove_from_download_list(list_of_files=downloaded_files)
+
         # Always remove original manifest file
         os.remove(dl_list_path)
         # Don't want to clear all the download list because you can add things
         # to the download list after initiating this command
         # self.clear_download_list()
-        return "SYNAPSE_METADATA_MANIFEST.tsv"
+        return new_manifest_path
 
     ############################################################
     #                  Get / Set Annotations                   #
