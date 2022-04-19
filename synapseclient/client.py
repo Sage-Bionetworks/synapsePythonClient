@@ -3185,7 +3185,7 @@ class Synapse(object):
     def create_snapshot_version(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema, Dataset],
                                 comment: str = None, label: str = None, activity: typing.Union[Activity, str] = None,
                                 wait: bool = True) -> int:
-        """Create a new Table Version or a new View version.
+        """Create a new Table Version, new View version, or new Dataset version.
 
         :param table:  The schema of the Table/View, or its ID.
         :param comment:  Optional snapshot comment.
