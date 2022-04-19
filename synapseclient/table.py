@@ -784,7 +784,7 @@ class MaterializedViewSchema(SchemaBase):
 class Dataset(SchemaBase):
     """
     A Dataset is an :py:class:`synapseclient.entity.Entity` that defines a
-    collection of files into a table (a "dataset").
+    flat list of entities as a tableview (a.k.a. a "dataset").
 
     :param name:            The name for the Dataset object
     :param description:     User readable description of the schema
@@ -800,8 +800,7 @@ class Dataset(SchemaBase):
         from synapseclient import Dataset
         # Create a Dataset with pre-defined DatasetItems
         datasetItems = [
-            {'entityId': "syn000",
-             'versionNumber: 1},
+            {'entityId': "syn000", 'versionNumber: 1},
             {...},
         ]
         dataset = syn.store(Dataset(
@@ -809,19 +808,16 @@ class Dataset(SchemaBase):
             parent=project,
             datasetItems=datasetItems))
 
-        # Add/remove specific Synapse IDs to the Dataset
+        # Add/remove specific Synapse IDs to/from the Dataset
         dataset.addItem({'entityId': "syn111", 'versionNumber': 1})
-        dataset.addItems([
-            {'entityId': "syn222", 'versionNumber': 2},
-            {'entityId': "syn333", 'versionNumber': 1}])
         dataset.removeItem("syn000")
 
-        # Add only top-level Files within a Folder to the Dataset (recursive=False (default))
-        folder_ids = ["syn123", "syn456"]
-        dataset.addFolders(folder_ids, recursive=False)
-
-        # Add all Files within a Folder to the Dataset (recursive=True)
-        dataset.addFolder("syn789", recursive=True)
+        # Add a list of Synapse IDs to the Dataset
+        new_items = [
+            {'entityId': "syn222", 'versionNumber': 2},
+            {'entityId': "syn333", 'versionNumber': 1}
+        ]
+        dataset.addItems(new_items)
 
     To create a snapshot version of the Dataset, use
     :py:classmethod:`synapseclient.client.create_snapshot_version`.
@@ -885,6 +881,11 @@ class Dataset(SchemaBase):
                     break
         else:
             raise ValueError("Not a Synapse ID: %s" % str(item_id))
+
+    def _before_synapse_store(self, syn):
+        # Remap `datasetItems` back to `items` before storing (since `items`
+        # is the accepted field name in the API, not `datasetItems`).
+        self.properties.items = self.properties.datasetItems
 
 
 class ViewBase(SchemaBase):
