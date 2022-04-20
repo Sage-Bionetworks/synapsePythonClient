@@ -842,7 +842,7 @@ class Dataset(SchemaBase):
         )
         if dataset_items:
             self.add_items(dataset_items)
-   
+
     def __len__(self):
         return len(self.properties.dataset_items)
 
