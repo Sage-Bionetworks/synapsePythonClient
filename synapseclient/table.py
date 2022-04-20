@@ -792,32 +792,32 @@ class Dataset(SchemaBase):
     :param parent:          The Synapse Project to which this Dataset belongs
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
-    :param datasetItems:    A list of items characterized by entityId and versionNumber
+    :param dataset_items:    A list of items characterized by entityId and versionNumber
     :param local_state:     Internal use only
 
     Example::
 
         from synapseclient import Dataset
         # Create a Dataset with pre-defined DatasetItems
-        datasetItems = [
+        dataset_items = [
             {'entityId': "syn000", 'versionNumber: 1},
             {...},
         ]
         dataset = syn.store(Dataset(
             name="My Dataset",
             parent=project,
-            datasetItems=datasetItems))
+            dataset_items=dataset_items))
 
         # Add/remove specific Synapse IDs to/from the Dataset
-        dataset.addItem({'entityId': "syn111", 'versionNumber': 1})
-        dataset.removeItem("syn000")
+        dataset.add_item({'entityId': "syn111", 'versionNumber': 1})
+        dataset.remove_item("syn000")
 
         # Add a list of Synapse IDs to the Dataset
         new_items = [
             {'entityId': "syn222", 'versionNumber': 2},
             {'entityId': "syn333", 'versionNumber': 1}
         ]
-        dataset.addItems(new_items)
+        dataset.add_items(new_items)
 
     To create a snapshot version of the Dataset, use
     :py:classmethod:`synapseclient.client.create_snapshot_version`.
@@ -830,26 +830,27 @@ class Dataset(SchemaBase):
             comment="This is version 1")
     """
     _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
-    _property_keys: List[str] = SchemaBase._property_keys + ['datasetItems']
+    _property_keys: List[str] = SchemaBase._property_keys + ['dataset_items']
 
     def __init__(self, name=None, columns=None, parent=None, properties=None,
-                 annotations=None, local_state=None, datasetItems=None, **kwargs):
-        self.properties.setdefault('datasetItems', [])
+                 annotations=None, local_state=None, dataset_items=None, **kwargs):
+        self.properties.setdefault('dataset_items', [])
         super(Dataset, self).__init__(
             name=name, columns=columns, properties=properties,
-            annotations=annotations, local_state=local_state, parent=parent, **kwargs
+            annotations=annotations, local_state=local_state, parent=parent,
+            **kwargs
         )
-        if datasetItems:
-            self.addItems(datasetItems)
+        if dataset_items:
+            self.add_items(dataset_items)
 
-    def addItem(self, dataset_item: Dict[str, str]):
+    def add_item(self, dataset_item: Dict[str, str]):
         """
         :param dataset_item: a single dataset item
         """
         if isinstance(dataset_item, dict):
             required_keys = {'entityId', 'versionNumber'}
             if required_keys == dataset_item.keys():
-                self.properties.datasetItems.append(dataset_item)
+                self.properties.dataset_items.append(dataset_item)
             elif required_keys - dataset_item.keys():
                 raise LookupError("DatasetItem missing a required property: %s" %
                                   str(required_keys - dataset_item.keys()))
@@ -862,30 +863,30 @@ class Dataset(SchemaBase):
         else:
             raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
 
-    def addItems(self, dataset_items: List[Dict[str, str]]):
+    def add_items(self, dataset_items: List[Dict[str, str]]):
         """
         :param dataset_items: a list of dataset items
         """
         for dataset_item in dataset_items:
-            self.addItem(dataset_item)
+            self.add_item(dataset_item)
 
-    def removeItem(self, item_id: str):
+    def remove_item(self, item_id: str):
         """
         :param item_id: a single dataset item Synapse ID
         """
         item_id = id_of(item_id)
         if item_id.startswith("syn"):
-            for i, curr_item in enumerate(self.properties.datasetItems):
+            for i, curr_item in enumerate(self.properties.dataset_items):
                 if curr_item.get('entityId') == item_id:
-                    del self.properties.datasetItems[i]
+                    del self.properties.dataset_items[i]
                     break
         else:
             raise ValueError("Not a Synapse ID: %s" % str(item_id))
 
     def _before_synapse_store(self, syn):
-        # Remap `datasetItems` back to `items` before storing (since `items`
-        # is the accepted field name in the API, not `datasetItems`).
-        self.properties.items = self.properties.datasetItems
+        # Remap `dataset_items` back to `items` before storing (since `items`
+        # is the accepted field name in the API, not `dataset_items`).
+        self.properties.items = self.properties.dataset_items
 
 
 class ViewBase(SchemaBase):
