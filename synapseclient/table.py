@@ -842,6 +842,9 @@ class Dataset(SchemaBase):
         )
         if dataset_items:
             self.add_items(dataset_items)
+    
+    def __len__(self):
+        return len(self.properties.dataset_items)
 
     def add_item(self, dataset_item: Dict[str, str]):
         """
@@ -882,6 +885,12 @@ class Dataset(SchemaBase):
                     break
         else:
             raise ValueError("Not a Synapse ID: %s" % str(item_id))
+
+    def has_item(self, item_id):
+        """
+        :param item_id: a single dataset item Synapse ID
+        """
+        return any(item['entityId'] == item_id for item in self.properties.dataset_items)
 
     def _before_synapse_store(self, syn):
         # Remap `dataset_items` back to `items` before storing (since `items`
