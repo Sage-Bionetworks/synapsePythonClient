@@ -176,11 +176,28 @@ def test_dataset():
     dataset = Dataset(
         name="Pokedex",
         parent="syn123",
-        datasetItems=[{'entityId': "syn20685093", 'versionNumber': 1}]
+        dataset_items=[{'entityId': "syn111", 'versionNumber': 1}]
     )
     dataset._synapse_entity_type == "org.sagebionetworks.repo.model.table.Dataset"
 
     assert not dataset.has_columns()
+    assert dataset.has_item("syn111") is True
+    assert dataset.has_item("syn222") is False
+    assert len(dataset) == 1
+
+    # added item must be a dictionary with two keys: entityId, versionNumber
+    with pytest.raises(ValueError):
+        dataset.add_item("syn222")
+    with pytest.raises(LookupError):
+        dataset.add_item({'entityId': '222'})
+
+    dataset.add_item({'entityId': 'syn222', 'versionNumber': 1})
+    assert dataset.has_item("syn222") is True
+    assert len(dataset) == 2
+
+    dataset.remove_item("syn222")
+    assert dataset.has_item("syn222") is False
+    assert len(dataset) == 1
 
 
 def test_RowSetTable():

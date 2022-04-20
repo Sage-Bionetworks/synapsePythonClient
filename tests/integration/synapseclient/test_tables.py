@@ -26,9 +26,9 @@ from synapseclient import (
     RowSet,
     Schema,
     Table,
+    Dataset
 )
 import synapseclient.core.utils as utils
-from synapseclient.table import Dataset
 
 from tests.integration import QUERY_TIMEOUT_SEC
 
@@ -233,13 +233,13 @@ def test_dataset(syn, project):
             Column(name='name', columnType='STRING')]
 
     dataset = Dataset(
-        name="Pokedex",
+        name="Test Pokedex",
         parent=project,
-        datasetItems=[{'entityId': "syn20685093", 'versionNumber': 1}],
+        dataset_items=[{'entityId': "syn20685093", 'versionNumber': 1}],
         columns=cols
     )
-    dataset_ent = syn.store(dataset)
-    dataset_df = syn.tableQuery(f"SELECT * FROM {dataset_ent.id}").asDataFrame()
+    dataset = syn.store(dataset)
+    dataset_df = syn.tableQuery(f"SELECT * FROM {dataset.id}").asDataFrame()
     assert all(dataset_df.columns == ['id', 'name'])
 
 
