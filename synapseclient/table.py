@@ -893,6 +893,8 @@ class Dataset(SchemaBase):
         return any(item['entityId'] == item_id for item in self.properties.dataset_items)
 
     def _before_synapse_store(self, syn):
+        super()._before_synapse_store(syn)
+
         # Remap `dataset_items` back to `items` before storing (since `items`
         # is the accepted field name in the API, not `dataset_items`).
         self.properties.items = self.properties.dataset_items
