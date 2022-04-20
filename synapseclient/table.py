@@ -857,12 +857,6 @@ class Dataset(SchemaBase):
             elif required_keys - dataset_item.keys():
                 raise LookupError("DatasetItem missing a required property: %s" %
                                   str(required_keys - dataset_item.keys()))
-
-            # FIXME? Having other key-value pair in the dict doesn't throw any
-            # errors upon syn.store, nor do they persist after Dataset refreshes
-            else:
-                raise LookupError("Extra properties found for DatasetItem: %s" %
-                                  str(dataset_item.keys() - required_keys))
         else:
             raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
 
