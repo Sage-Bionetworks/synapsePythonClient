@@ -792,7 +792,7 @@ class Dataset(SchemaBase):
     :param parent:          The Synapse Project to which this Dataset belongs
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
-    :param dataset_items:    A list of items characterized by entityId and versionNumber
+    :param dataset_items:   A list of items characterized by entityId and versionNumber
     :param local_state:     Internal use only
 
     Example::
@@ -818,6 +818,12 @@ class Dataset(SchemaBase):
             {'entityId': "syn333", 'versionNumber': 1}
         ]
         dataset.add_items(new_items)
+
+    To get the number of entities in the dataset, use len().
+
+    Example::
+
+        print(f"{dataset.name} has {len(dataset)} items.")
 
     To create a snapshot version of the Dataset, use
     :py:classmethod:`synapseclient.client.create_snapshot_version`.
