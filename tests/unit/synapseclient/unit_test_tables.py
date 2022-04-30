@@ -199,6 +199,14 @@ def test_dataset():
     assert dataset.has_item("syn222") is False
     assert len(dataset) == 1
 
+    with pytest.raises(ValueError):
+        dataset.add_item({'entityId': "syn111", 'versionNumber': 2})
+    dataset.add_item({'entityId': "syn111", 'versionNumber': 2}, force=True)
+    assert len(dataset) == 1
+
+    dataset.empty()
+    assert len(dataset) == 0
+
 
 def test_RowSetTable():
     row_set_json = {
