@@ -837,18 +837,21 @@ class Dataset(SchemaBase):
     """
     _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
     _property_keys: List[str] = SchemaBase._property_keys + ['dataset_items']
-    _local_keys: List[str] = SchemaBase._local_keys + ['folders_to_add']
+    _local_keys: List[str] = SchemaBase._local_keys + ['folders_to_add', 'force']
 
     def __init__(self, name=None, columns=None, parent=None, properties=None,
                  annotations=None, local_state=None, dataset_items=None,
-                 folder_ids=None, **kwargs):
+                 folder_ids=None, force=None, **kwargs):
         self.properties.setdefault('dataset_items', [])
         self.__dict__.setdefault('folders_to_add', set())
+        self.__dict__.setdefault('force', False)
         super(Dataset, self).__init__(
             name=name, columns=columns, properties=properties,
             annotations=annotations, local_state=local_state, parent=parent,
             **kwargs
         )
+        if force:
+            self.force = True
         if dataset_items:
             self.add_items(dataset_items, force)
         if folder_ids:
@@ -857,26 +860,40 @@ class Dataset(SchemaBase):
     def __len__(self):
         return len(self.properties.dataset_items)
 
-    def add_item(self, dataset_item: Dict[str, str]):
+    def _check_needed_keys(syn, keys: List[str]):
+        required_keys = {'entityId', 'versionNumber'}
+        if required_keys - keys:
+            raise LookupError("DatasetItem missing a required property: %s" %
+                              str(required_keys - keys))
+        return True
+
+    def add_item(self, dataset_item: Dict[str, str], force: bool = False):
         """
-        :param dataset_item: a single dataset item
+        :param dataset_item:    a single dataset item
+        :param force:           force add item
         """
-        if isinstance(dataset_item, dict):
-            required_keys = {'entityId', 'versionNumber'}
-            if required_keys == dataset_item.keys():
+
+        if isinstance(dataset_item, dict) and self._check_needed_keys(dataset_item.keys()):
+            if not self.has_item(dataset_item.get('entityId')):
                 self.properties.dataset_items.append(dataset_item)
-            elif required_keys - dataset_item.keys():
-                raise LookupError("DatasetItem missing a required property: %s" %
-                                  str(required_keys - dataset_item.keys()))
+            else:
+                if force:
+                    self.remove_item(dataset_item.get('entityId'))
+                    self.properties.dataset_items.append(dataset_item)
+                else:
+                    raise ValueError(
+                        f"Duplicate item found: {dataset_item.get('entityId')}. "
+                        "Set force=True to overwrite the existing item.")
         else:
             raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
 
-    def add_items(self, dataset_items: List[Dict[str, str]]):
+    def add_items(self, dataset_items: List[Dict[str, str]], force: bool = False):
         """
-        :param dataset_items: a list of dataset items
+        :param dataset_items:   a list of dataset items
+        :param force:           force add items
         """
         for dataset_item in dataset_items:
-            self.add_item(dataset_item)
+            self.add_item(dataset_item, force)
 
     def remove_item(self, item_id: str):
         """
@@ -897,21 +914,27 @@ class Dataset(SchemaBase):
         """
         return any(item['entityId'] == item_id for item in self.properties.dataset_items)
 
-    def add_folder(self, folder_id: str):
+    def add_folder(self, folder_id: str, force: bool = False):
         """
-        :param folder_id: a single Synapse Folder ID
+        :param folder_id:   a single Synapse Folder ID
+        :param force:       force add items from folder
         """
         if not self.__dict__.get('folders_to_add', None):
             self.__dict__['folders_to_add'] = set()
         self.__dict__['folders_to_add'].add(folder_id)
+        if self.force != force:
+            self.force = force
 
-    def add_folders(self, folder_ids: List[str]):
+    def add_folders(self, folder_ids: List[str], force: bool = False):
         """
-        :param folder_ids: a list of Synapse Folder IDs
+        :param folder_ids:  a list of Synapse Folder IDs
+        :param force:       force add items from folders
         """
-        if isinstance(folder_ids, list) or isinstance(folder_ids, set) or isinstance(folder_ids, tuple):
+        if isinstance(folder_ids, list) or isinstance(folder_ids, set) or \
+                isinstance(folder_ids, tuple):
+            self.force = force
             for folder_id in folder_ids:
-                self.add_folder(folder_id)
+                self.add_folder(folder_id, force)
         else:
             raise ValueError(f"Not a list of Folder IDs: {folder_ids}")
 
@@ -939,7 +962,10 @@ class Dataset(SchemaBase):
                 items_to_add = self._add_folder_files(syn, folder)
                 self.add_items(items_to_add, self.force)
             self.folders_to_add = set()
-        
+
+        # Reset attribute to force-add items from folders.
+        self.force = False
+
         # Remap `dataset_items` back to `items` before storing (since `items`
         # is the accepted field name in the API, not `dataset_items`).
         self.properties.items = self.properties.dataset_items
