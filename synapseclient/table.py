@@ -837,17 +837,22 @@ class Dataset(SchemaBase):
     """
     _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
     _property_keys: List[str] = SchemaBase._property_keys + ['dataset_items']
+    _local_keys: List[str] = SchemaBase._local_keys + ['folders_to_add']
 
     def __init__(self, name=None, columns=None, parent=None, properties=None,
-                 annotations=None, local_state=None, dataset_items=None, **kwargs):
+                 annotations=None, local_state=None, dataset_items=None,
+                 folder_ids=None, **kwargs):
         self.properties.setdefault('dataset_items', [])
+        self.__dict__.setdefault('folders_to_add', set())
         super(Dataset, self).__init__(
             name=name, columns=columns, properties=properties,
             annotations=annotations, local_state=local_state, parent=parent,
             **kwargs
         )
         if dataset_items:
-            self.add_items(dataset_items)
+            self.add_items(dataset_items, force)
+        if folder_ids:
+            self.add_folders(folder_ids, force)
 
     def __len__(self):
         return len(self.properties.dataset_items)
@@ -892,9 +897,49 @@ class Dataset(SchemaBase):
         """
         return any(item['entityId'] == item_id for item in self.properties.dataset_items)
 
+    def add_folder(self, folder_id: str):
+        """
+        :param folder_id: a single Synapse Folder ID
+        """
+        if not self.__dict__.get('folders_to_add', None):
+            self.__dict__['folders_to_add'] = set()
+        self.__dict__['folders_to_add'].add(folder_id)
+
+    def add_folders(self, folder_ids: List[str]):
+        """
+        :param folder_ids: a list of Synapse Folder IDs
+        """
+        if isinstance(folder_ids, list) or isinstance(folder_ids, set) or isinstance(folder_ids, tuple):
+            for folder_id in folder_ids:
+                self.add_folder(folder_id)
+        else:
+            raise ValueError(f"Not a list of Folder IDs: {folder_ids}")
+
+    def _add_folder_files(self, syn, folder_id):
+        files = []
+        children = syn.getChildren(folder_id)
+        for child in children:
+            if child.get("type") == "org.sagebionetworks.repo.model.Folder":
+                return self._add_folder_files(syn, child.get("id"))
+            elif child.get("type") == "org.sagebionetworks.repo.model.FileEntity":
+                files.append({
+                    'entityId': child.get("id"),
+                    'versionNumber': child.get('versionNumber')
+                })
+            else:
+                raise ValueError(f"Not a Folder?: {folder_id}")
+        return files
+
     def _before_synapse_store(self, syn):
         super()._before_synapse_store(syn)
 
+        # Add files from folders (if any) before storing dataset.
+        if self.folders_to_add:
+            for folder in self.folders_to_add:
+                items_to_add = self._add_folder_files(syn, folder)
+                self.add_items(items_to_add, self.force)
+            self.folders_to_add = set()
+        
         # Remap `dataset_items` back to `items` before storing (since `items`
         # is the accepted field name in the API, not `dataset_items`).
         self.properties.items = self.properties.dataset_items
