@@ -908,6 +908,9 @@ class Dataset(SchemaBase):
         else:
             raise ValueError("Not a Synapse ID: %s" % str(item_id))
 
+    def empty(self):
+        self.properties.dataset_items = []
+
     def has_item(self, item_id):
         """
         :param item_id: a single dataset item Synapse ID
