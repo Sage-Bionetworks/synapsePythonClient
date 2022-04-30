@@ -798,6 +798,7 @@ class Dataset(SchemaBase):
     Example::
 
         from synapseclient import Dataset
+
         # Create a Dataset with pre-defined DatasetItems
         dataset_items = [
             {'entityId': "syn000", 'versionNumber: 1},
@@ -811,6 +812,7 @@ class Dataset(SchemaBase):
         # Add/remove specific Synapse IDs to/from the Dataset
         dataset.add_item({'entityId': "syn111", 'versionNumber': 1})
         dataset.remove_item("syn000")
+        dataset = syn.store(dataset)
 
         # Add a list of Synapse IDs to the Dataset
         new_items = [
@@ -818,6 +820,31 @@ class Dataset(SchemaBase):
             {'entityId': "syn333", 'versionNumber': 1}
         ]
         dataset.add_items(new_items)
+        dataset = syn.store(dataset)
+
+    Folders can easily be added recursively to a dataset, that is, all files
+    within the folder (including sub-folders) will be added.  Note that using
+    the following methods will add files with the latest version number ONLY.
+    If another version number is desired, use :py:classmethod:`synapseclient.table.add_item`
+    or :py:classmethod:`synapseclient.table.add_items`.
+
+    Example::
+
+        # Add a single Folder to the Dataset
+        dataset.add_folder("syn123")
+
+        # Add a list of Folders, overwriting any existing files in the dataset
+        dataset.add_folders(["syn456", "syn789"], force=True)
+
+        dataset = syn.store(dataset)
+
+    empty() can be used to truncate a dataset, that is, remove all current
+    items in the set.
+
+    Example::
+
+        dataset.empty()
+        dataset = syn.store(dataset)
 
     To get the number of entities in the dataset, use len().
 
