@@ -839,7 +839,7 @@ class Dataset(SchemaBase):
         dataset = syn.store(dataset)
 
     empty() can be used to truncate a dataset, that is, remove all current
-    items in the set.
+    items from the set.
 
     Example::
 
@@ -856,6 +856,7 @@ class Dataset(SchemaBase):
     :py:classmethod:`synapseclient.client.create_snapshot_version`.
 
     Example::
+
         syn = synapseclient.login()
         syn.create_snapshot_version(
             dataset.id,
@@ -899,7 +900,6 @@ class Dataset(SchemaBase):
         :param dataset_item:    a single dataset item
         :param force:           force add item
         """
-
         if isinstance(dataset_item, dict) and self._check_needed_keys(dataset_item.keys()):
             if not self.has_item(dataset_item.get('entityId')):
                 self.properties.dataset_items.append(dataset_item)
