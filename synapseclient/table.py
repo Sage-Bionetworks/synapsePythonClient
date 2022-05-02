@@ -973,7 +973,7 @@ class Dataset(SchemaBase):
         children = syn.getChildren(folder_id)
         for child in children:
             if child.get("type") == "org.sagebionetworks.repo.model.Folder":
-                return self._add_folder_files(syn, child.get("id"))
+                files.extend(self._add_folder_files(syn, child.get("id")))
             elif child.get("type") == "org.sagebionetworks.repo.model.FileEntity":
                 files.append({
                     'entityId': child.get("id"),
