@@ -799,7 +799,8 @@ class Dataset(SchemaBase):
 
         from synapseclient import Dataset
 
-        # Create a Dataset with pre-defined DatasetItems
+        # Create a Dataset with pre-defined DatasetItems. Default Dataset columns
+        # are used if no schema is provided.
         dataset_items = [
             {'entityId': "syn000", 'versionNumber: 1},
             {...},
@@ -878,6 +879,12 @@ class Dataset(SchemaBase):
             annotations=annotations, local_state=local_state, parent=parent,
             **kwargs
         )
+
+        # Add default Dataset columns if schema is not provided.
+        if columns is None:
+            self.addColumns(['81721', '81722', '81723', '81724', '81725',
+                             '81728', '81729', '81730', '81731', '81732',
+                             '81726', '81727', '81733', '112368', '112369'])
         if force:
             self.force = True
         if dataset_items:
