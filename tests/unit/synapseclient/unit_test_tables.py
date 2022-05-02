@@ -20,7 +20,8 @@ import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
     PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask, \
-    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema, escape_column_name, join_column_names, MaterializedViewSchema
+    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema, escape_column_name, join_column_names, MaterializedViewSchema, \
+    Dataset
 
 from synapseclient.core.utils import from_unix_epoch_time
 from unittest.mock import patch
@@ -169,6 +170,34 @@ def test_materialized_view():
     mat_view.removeColumn('1')
     assert not mat_view.has_columns()
     assert mat_view.properties.columnIds == []
+
+
+def test_dataset():
+    dataset = Dataset(
+        name="Pokedex",
+        parent="syn123",
+        dataset_items=[{'entityId': "syn111", 'versionNumber': 1}]
+    )
+    dataset._synapse_entity_type == "org.sagebionetworks.repo.model.table.Dataset"
+
+    assert not dataset.has_columns()
+    assert dataset.has_item("syn111") is True
+    assert dataset.has_item("syn222") is False
+    assert len(dataset) == 1
+
+    # added item must be a dictionary with two keys: entityId, versionNumber
+    with pytest.raises(ValueError):
+        dataset.add_item("syn222")
+    with pytest.raises(LookupError):
+        dataset.add_item({'entityId': '222'})
+
+    dataset.add_item({'entityId': 'syn222', 'versionNumber': 1})
+    assert dataset.has_item("syn222") is True
+    assert len(dataset) == 2
+
+    dataset.remove_item("syn222")
+    assert dataset.has_item("syn222") is False
+    assert len(dataset) == 1
 
 
 def test_RowSetTable():

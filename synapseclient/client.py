@@ -65,7 +65,8 @@ from .entity import Entity, File, Folder, Versionable,\
     split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, EntityViewSchema, SubmissionViewSchema
+from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, \
+    EntityViewSchema, SubmissionViewSchema, Dataset
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions, utils
@@ -1059,7 +1060,7 @@ class Synapse(object):
                     # modified, we want to upload the new version.
                     # If synapeStore is false then we must upload a ExternalFileHandle
                     needs_upload = not entity['synapseStore'] \
-                                   or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
+                        or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
             elif entity.get('dataFileHandleId', None) is not None:
                 needs_upload = False
             else:
@@ -2963,9 +2964,9 @@ class Synapse(object):
                 entityBundleJSON['annotations'] = convert_old_annotation_json(annotations)
 
             related = self._getWithEntityBundle(
-                                entityBundle=entityBundleJSON,
-                                entity=submission['entityId'],
-                                submission=submission_id, **kwargs)
+                entityBundle=entityBundleJSON,
+                entity=submission['entityId'],
+                submission=submission_id, **kwargs)
             submission.entity = related
             submission.filePath = related.get('path', None)
 
@@ -3189,10 +3190,10 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
-    def create_snapshot_version(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
+    def create_snapshot_version(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema, Dataset],
                                 comment: str = None, label: str = None, activity: typing.Union[Activity, str] = None,
                                 wait: bool = True) -> int:
-        """Create a new Table Version or a new View version.
+        """Create a new Table Version, new View version, or new Dataset version.
 
         :param table:  The schema of the Table/View, or its ID.
         :param comment:  Optional snapshot comment.
@@ -3204,7 +3205,7 @@ class Synapse(object):
         :return: the snapshot version number if wait=True, None if wait=False
         """
         ent = self.get(id_of(table), downloadFile=False)
-        if isinstance(ent, (EntityViewSchema, SubmissionViewSchema)):
+        if isinstance(ent, (EntityViewSchema, SubmissionViewSchema, Dataset)):
             result = self._async_table_update(
                 table,
                 create_snapshot=True,

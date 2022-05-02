@@ -299,6 +299,7 @@ import abc
 import enum
 import json
 from builtins import zip
+from typing import List, Dict
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -780,6 +781,125 @@ class MaterializedViewSchema(SchemaBase):
         )
 
 
+class Dataset(SchemaBase):
+    """
+    A Dataset is an :py:class:`synapseclient.entity.Entity` that defines a
+    flat list of entities as a tableview (a.k.a. a "dataset").
+
+    :param name:            The name for the Dataset object
+    :param description:     User readable description of the schema
+    :param columns:         A list of :py:class:`Column` objects or their IDs
+    :param parent:          The Synapse Project to which this Dataset belongs
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param dataset_items:   A list of items characterized by entityId and versionNumber
+    :param local_state:     Internal use only
+
+    Example::
+
+        from synapseclient import Dataset
+        # Create a Dataset with pre-defined DatasetItems
+        dataset_items = [
+            {'entityId': "syn000", 'versionNumber: 1},
+            {...},
+        ]
+        dataset = syn.store(Dataset(
+            name="My Dataset",
+            parent=project,
+            dataset_items=dataset_items))
+
+        # Add/remove specific Synapse IDs to/from the Dataset
+        dataset.add_item({'entityId': "syn111", 'versionNumber': 1})
+        dataset.remove_item("syn000")
+
+        # Add a list of Synapse IDs to the Dataset
+        new_items = [
+            {'entityId': "syn222", 'versionNumber': 2},
+            {'entityId': "syn333", 'versionNumber': 1}
+        ]
+        dataset.add_items(new_items)
+
+    To get the number of entities in the dataset, use len().
+
+    Example::
+
+        print(f"{dataset.name} has {len(dataset)} items.")
+
+    To create a snapshot version of the Dataset, use
+    :py:classmethod:`synapseclient.client.create_snapshot_version`.
+
+    Example::
+        syn = synapseclient.login()
+        syn.create_snapshot_version(
+            dataset.id,
+            label="v1.0",
+            comment="This is version 1")
+    """
+    _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
+    _property_keys: List[str] = SchemaBase._property_keys + ['dataset_items']
+
+    def __init__(self, name=None, columns=None, parent=None, properties=None,
+                 annotations=None, local_state=None, dataset_items=None, **kwargs):
+        self.properties.setdefault('dataset_items', [])
+        super(Dataset, self).__init__(
+            name=name, columns=columns, properties=properties,
+            annotations=annotations, local_state=local_state, parent=parent,
+            **kwargs
+        )
+        if dataset_items:
+            self.add_items(dataset_items)
+
+    def __len__(self):
+        return len(self.properties.dataset_items)
+
+    def add_item(self, dataset_item: Dict[str, str]):
+        """
+        :param dataset_item: a single dataset item
+        """
+        if isinstance(dataset_item, dict):
+            required_keys = {'entityId', 'versionNumber'}
+            if required_keys == dataset_item.keys():
+                self.properties.dataset_items.append(dataset_item)
+            elif required_keys - dataset_item.keys():
+                raise LookupError("DatasetItem missing a required property: %s" %
+                                  str(required_keys - dataset_item.keys()))
+        else:
+            raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
+
+    def add_items(self, dataset_items: List[Dict[str, str]]):
+        """
+        :param dataset_items: a list of dataset items
+        """
+        for dataset_item in dataset_items:
+            self.add_item(dataset_item)
+
+    def remove_item(self, item_id: str):
+        """
+        :param item_id: a single dataset item Synapse ID
+        """
+        item_id = id_of(item_id)
+        if item_id.startswith("syn"):
+            for i, curr_item in enumerate(self.properties.dataset_items):
+                if curr_item.get('entityId') == item_id:
+                    del self.properties.dataset_items[i]
+                    break
+        else:
+            raise ValueError("Not a Synapse ID: %s" % str(item_id))
+
+    def has_item(self, item_id):
+        """
+        :param item_id: a single dataset item Synapse ID
+        """
+        return any(item['entityId'] == item_id for item in self.properties.dataset_items)
+
+    def _before_synapse_store(self, syn):
+        super()._before_synapse_store(syn)
+
+        # Remap `dataset_items` back to `items` before storing (since `items`
+        # is the accepted field name in the API, not `dataset_items`).
+        self.properties.items = self.properties.dataset_items
+
+
 class ViewBase(SchemaBase):
     """
     This is a helper class for EntityViewSchema and SubmissionViewSchema
@@ -1024,6 +1144,7 @@ entity_type_to_class[Schema._synapse_entity_type] = Schema
 entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 entity_type_to_class[SubmissionViewSchema._synapse_entity_type] = SubmissionViewSchema
 entity_type_to_class[MaterializedViewSchema._synapse_entity_type] = MaterializedViewSchema
+entity_type_to_class[Dataset._synapse_entity_type] = Dataset
 
 
 class SelectColumn(DictObject):
@@ -1038,6 +1159,7 @@ class SelectColumn(DictObject):
     :type columnType:   string
     :type name:         string
     """
+
     def __init__(self, id=None, columnType=None, name=None, **kwargs):
         super(SelectColumn, self).__init__()
         if id:
@@ -1266,6 +1388,7 @@ class Row(DictObject):
     :param versionNumber:   The version number of this row. Each row version is immutable, so when a row is updated a
                             new version is created.
     """
+
     def __init__(self, values, rowId=None, versionNumber=None, etag=None, **kwargs):
         super(Row, self).__init__()
         self.values = values
@@ -1488,6 +1611,7 @@ class RowSetTable(TableAbstractBaseClass):
     """
     A Table object that wraps a RowSet.
     """
+
     def __init__(self, schema, rowset):
         super(RowSetTable, self).__init__(schema, etag=rowset.get('etag', None))
         self.rowset = rowset
@@ -1547,6 +1671,7 @@ class TableQueryResult(TableAbstractBaseClass):
         for row in results:
             print(row)
     """
+
     def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True):
         self.syn = synapse
 

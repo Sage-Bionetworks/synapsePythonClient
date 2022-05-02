@@ -26,6 +26,7 @@ from synapseclient import (
     RowSet,
     Schema,
     Table,
+    Dataset
 )
 import synapseclient.core.utils as utils
 
@@ -225,6 +226,21 @@ def test_materialized_view(syn, project):
     # in the Synapse API
     assert all(view_df['F.Name'] == view_df['P.Name'])
     assert all(view_df.columns == ["F.Name", "F.Born", "F.Hipness", "F.Living", "P.Name", "P.Age"])
+
+
+def test_dataset(syn, project):
+    cols = [Column(name='id', columnType='ENTITYID'),
+            Column(name='name', columnType='STRING')]
+
+    dataset = Dataset(
+        name="Test Pokedex",
+        parent=project,
+        dataset_items=[{'entityId': "syn20685093", 'versionNumber': 1}],
+        columns=cols
+    )
+    dataset = syn.store(dataset)
+    dataset_df = syn.tableQuery(f"SELECT * FROM {dataset.id}").asDataFrame()
+    assert all(dataset_df.columns == ['id', 'name'])
 
 
 def test_tables_csv(syn, project):
