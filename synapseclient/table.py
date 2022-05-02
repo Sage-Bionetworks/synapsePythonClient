@@ -291,7 +291,6 @@ import csv
 import io
 import os
 import re
-import sys
 import tempfile
 import copy
 import itertools
@@ -376,14 +375,15 @@ def _get_view_type_mask_for_deprecated_type(type):
 def test_import_pandas():
     try:
         import pandas as pd  # noqa F401
-    # used to catch ImportError, but other errors can happen (see SYNPY-177)
-    except:  # noqa
-        sys.stderr.write("""\n\nPandas not installed!\n
-        The synapseclient package recommends but doesn't require the
-        installation of Pandas. If you'd like to use Pandas DataFrames,
-        refer to the installation instructions at:
-          http://pandas.pydata.org/.
+    # used to catch when pandas isn't installed
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError("""\n\nThe pandas package is required for this function!\n
+        Most functions in the synapseclient package don't require the
+        installation of pandas, but some do. Please refer to the installation
+        instructions at: http://pandas.pydata.org/.
         \n\n\n""")
+    # catch other errors (see SYNPY-177)
+    except:  # noqa
         raise
 
 
@@ -1130,11 +1130,13 @@ class EntityViewSchema(ViewBase):
     :param local_state:                     Internal use only
 
     Example::
+
         from synapseclient import EntityViewType
 
         project_or_folder = syn.get("syn123")
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
          includeEntityTypes=[EntityViewType.FILE]))
+
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'

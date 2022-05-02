@@ -1,6 +1,4 @@
-.. automodule:: synapseclient.multipart_upload
+.. automodule:: synapseclient.core.upload.multipart_upload
    :members:
 
-.. autofunction:: synapseclient.multipart_upload._multipart_upload
-
-.. autofunction:: synapseclient.multipart_upload._start_multipart_upload
+.. autofunction:: synapseclient.core.upload.multipart_upload._multipart_upload

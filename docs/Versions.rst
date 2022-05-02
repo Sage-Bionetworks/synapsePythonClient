@@ -1,1 +1,1 @@
-.. automodule:: synapseclient.version_check
+.. automodule:: synapseclient.core.version_check

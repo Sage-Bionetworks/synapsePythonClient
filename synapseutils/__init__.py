@@ -8,7 +8,7 @@ The ``synapseutils`` package provides both higher level functions as well as uti
 
 - :py:func:`copy_functions.copy`
 - :py:func:`copy_functions.copyWiki`
-- :py:func:`walk.walk`
+- :py:func:`walk_functions.walk`
 - :py:func:`sync.syncFromSynapse`
 - :py:func:`sync.syncToSynapse`
 - :py:func:`monitor.notifyMe`

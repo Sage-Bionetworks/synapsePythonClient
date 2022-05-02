@@ -614,10 +614,12 @@ class _SyncUploader:
 
 def generateManifest(syn, allFiles, filename, provenance_cache=None):
     """Generates a manifest file based on a list of entities objects.
+
     :param syn:   A synapse object as obtained with syn = synapseclient.login()
     :param allFiles:   A list of File Entity objects on Synapse (can't be Synapse IDs)
     :param filename: file where manifest will be written
     :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
+
     """
     keys, data = _extract_file_entity_metadata(syn, allFiles, provenance_cache=provenance_cache)
     _write_manifest_data(filename, keys, data)
@@ -626,6 +628,7 @@ def generateManifest(syn, allFiles, filename, provenance_cache=None):
 def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     """
     Extracts metadata from the list of File Entities and returns them in a form usable by csv.DictWriter
+
     :param syn:         instance of the Synapse client
     :param allFiles:    an iterable that provides File entities
     :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
