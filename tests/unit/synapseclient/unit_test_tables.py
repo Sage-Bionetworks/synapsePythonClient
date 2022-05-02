@@ -180,7 +180,8 @@ def test_dataset():
     )
     dataset._synapse_entity_type == "org.sagebionetworks.repo.model.table.Dataset"
 
-    assert not dataset.has_columns()
+    # Default column IDs are used when schema is not specified.
+    assert dataset.has_columns()
     assert dataset.has_item("syn111") is True
     assert dataset.has_item("syn222") is False
     assert len(dataset) == 1
