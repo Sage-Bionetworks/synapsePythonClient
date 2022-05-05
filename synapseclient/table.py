@@ -899,7 +899,7 @@ class Dataset(SchemaBase):
                               str(required_keys - keys))
         return True
 
-    def add_item(self, dataset_item: Dict[str, str], force: bool = False):
+    def add_item(self, dataset_item: Dict[str, str], force: bool = True):
         """
         :param dataset_item:    a single dataset item
         :param force:           force add item
@@ -918,7 +918,7 @@ class Dataset(SchemaBase):
         else:
             raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
 
-    def add_items(self, dataset_items: List[Dict[str, str]], force: bool = False):
+    def add_items(self, dataset_items: List[Dict[str, str]], force: bool = True):
         """
         :param dataset_items:   a list of dataset items
         :param force:           force add items
@@ -948,7 +948,7 @@ class Dataset(SchemaBase):
         """
         return any(item['entityId'] == item_id for item in self.properties.dataset_items)
 
-    def add_folder(self, folder: str, force: bool = False):
+    def add_folder(self, folder: str, force: bool = True):
         """
         :param folder:  a single Synapse Folder ID
         :param force:   force add items from folder
@@ -959,7 +959,7 @@ class Dataset(SchemaBase):
         if self.force != force:
             self.force = force
 
-    def add_folders(self, folders: List[str], force: bool = False):
+    def add_folders(self, folders: List[str], force: bool = True):
         """
         :param folders: a list of Synapse Folder IDs
         :param force:   force add items from folders
@@ -1002,7 +1002,7 @@ class Dataset(SchemaBase):
             self.folders_to_add = set()
 
         # Reset attribute to force-add items from folders.
-        self.force = False
+        self.force = True
 
         # Remap `dataset_items` back to `items` before storing (since `items`
         # is the accepted field name in the API, not `dataset_items`).
