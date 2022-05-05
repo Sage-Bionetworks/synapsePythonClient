@@ -733,9 +733,9 @@ class Synapse(object):
         restrictionInformation = bundle['restrictionInformation']
         if restrictionInformation['hasUnmetAccessRequirement']:
             warning_message = ("\nThis entity has access restrictions. Please visit the web page for this entity "
-                               "(syn.onweb(\"%s\")). Look for the 'Access' label and the lock icon underneath the "
-                               "file name. Click 'Request Access', and then review and fulfill the file download "
-                               "requirement(s).\n" % id_of(entity))
+                               "(syn.onweb(\"%s\")). Look for the 'Access' label and the lock icon underneath "
+                               "the file name. Click 'Request Access', and then review and fulfill the file "
+                               "download requirement(s).\n") % id_of(entity))
             if downloadFile and bundle.get('entityType') not in ('project', 'folder'):
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
