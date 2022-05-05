@@ -25,7 +25,7 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
 
 from synapseclient.core.utils import from_unix_epoch_time
 from unittest.mock import patch
-from collections import OrderedDict
+from collections import OrderedDict, abc
 
 
 def test_cast_values():
@@ -179,6 +179,12 @@ def test_dataset():
         dataset_items=[{'entityId': "syn111", 'versionNumber': 1}]
     )
     dataset._synapse_entity_type == "org.sagebionetworks.repo.model.table.Dataset"
+
+    # Items in the dataset should be captured in the `dataset_items` property,
+    # not `items`. e.items should continue to be an ItemsView().
+    assert hasattr(dataset, 'dataset_items')
+    assert isinstance(dataset.dataset_items, list)
+    assert isinstance(dataset.items(), abc.ItemsView)
 
     # Default column IDs are used when schema is not specified.
     assert dataset.has_columns()
