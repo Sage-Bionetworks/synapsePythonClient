@@ -187,7 +187,7 @@ def test_dataset():
     assert isinstance(dataset.items(), abc.ItemsView)
 
     # Default column IDs are used when schema is not specified.
-    assert dataset.has_columns()
+    assert not dataset.has_columns()
     assert dataset.has_item("syn111") is True
     assert dataset.has_item("syn222") is False
     assert len(dataset) == 1
@@ -207,8 +207,8 @@ def test_dataset():
     assert len(dataset) == 1
 
     with pytest.raises(ValueError):
-        dataset.add_item({'entityId': "syn111", 'versionNumber': 2})
-    dataset.add_item({'entityId': "syn111", 'versionNumber': 2}, force=True)
+        dataset.add_item({'entityId': "syn111", 'versionNumber': 2}, force=False)
+    dataset.add_item({'entityId': "syn111", 'versionNumber': 2})
     assert len(dataset) == 1
 
     dataset.empty()
