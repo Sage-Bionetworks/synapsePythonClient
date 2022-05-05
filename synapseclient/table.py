@@ -880,11 +880,6 @@ class Dataset(SchemaBase):
             **kwargs
         )
 
-        # Add default Dataset columns if schema is not provided.
-        if not self.properties.columnIds and columns is None:
-            self.addColumns(['81721', '81722', '81723', '81724', '81725',
-                             '81728', '81729', '81730', '81731', '81732',
-                             '81726', '81727', '81733', '112368', '112369'])
         if force:
             self.force = True
         if dataset_items:
@@ -992,6 +987,10 @@ class Dataset(SchemaBase):
         return files
 
     def _before_synapse_store(self, syn):
+        # Add default Dataset columns if schema is not provided.
+        if not self.properties.columnIds and not self.columns_to_store:
+            self.addColumns(syn._get_default_view_columns("dataset"))
+
         super()._before_synapse_store(syn)
 
         # Add files from folders (if any) before storing dataset.
