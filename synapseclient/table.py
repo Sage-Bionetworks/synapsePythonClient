@@ -895,7 +895,8 @@ class Dataset(SchemaBase):
     def __len__(self):
         return len(self.properties.dataset_items)
 
-    def _check_needed_keys(syn, keys: List[str]):
+    @staticmethod
+    def _check_needed_keys(keys: List[str]):
         required_keys = {'entityId', 'versionNumber'}
         if required_keys - keys:
             raise LookupError("DatasetItem missing a required property: %s" %
