@@ -793,6 +793,7 @@ class Dataset(SchemaBase):
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param dataset_items:   A list of items characterized by entityId and versionNumber
+    :param folder:          A list of Folder IDs
     :param local_state:     Internal use only
 
     Example::
@@ -870,7 +871,7 @@ class Dataset(SchemaBase):
 
     def __init__(self, name=None, columns=None, parent=None, properties=None,
                  annotations=None, local_state=None, dataset_items=None,
-                 folder_ids=None, force=None, **kwargs):
+                 folders=None, force=None, **kwargs):
         self.properties.setdefault('dataset_items', [])
         self.__dict__.setdefault('folders_to_add', set())
         self.__dict__.setdefault('force', False)
@@ -884,8 +885,8 @@ class Dataset(SchemaBase):
             self.force = True
         if dataset_items:
             self.add_items(dataset_items, force)
-        if folder_ids:
-            self.add_folders(folder_ids, force)
+        if folders:
+            self.add_folders(folders, force)
 
     def __len__(self):
         return len(self.properties.dataset_items)
@@ -947,33 +948,33 @@ class Dataset(SchemaBase):
         """
         return any(item['entityId'] == item_id for item in self.properties.dataset_items)
 
-    def add_folder(self, folder_id: str, force: bool = False):
+    def add_folder(self, folder: str, force: bool = False):
         """
-        :param folder_id:   a single Synapse Folder ID
-        :param force:       force add items from folder
+        :param folder:  a single Synapse Folder ID
+        :param force:   force add items from folder
         """
         if not self.__dict__.get('folders_to_add', None):
             self.__dict__['folders_to_add'] = set()
-        self.__dict__['folders_to_add'].add(folder_id)
+        self.__dict__['folders_to_add'].add(folder)
         if self.force != force:
             self.force = force
 
-    def add_folders(self, folder_ids: List[str], force: bool = False):
+    def add_folders(self, folders: List[str], force: bool = False):
         """
-        :param folder_ids:  a list of Synapse Folder IDs
-        :param force:       force add items from folders
+        :param folders: a list of Synapse Folder IDs
+        :param force:   force add items from folders
         """
-        if isinstance(folder_ids, list) or isinstance(folder_ids, set) or \
-                isinstance(folder_ids, tuple):
+        if isinstance(folders, list) or isinstance(folders, set) or \
+                isinstance(folders, tuple):
             self.force = force
-            for folder_id in folder_ids:
-                self.add_folder(folder_id, force)
+            for folder in folders:
+                self.add_folder(folder, force)
         else:
-            raise ValueError(f"Not a list of Folder IDs: {folder_ids}")
+            raise ValueError(f"Not a list of Folder IDs: {folders}")
 
-    def _add_folder_files(self, syn, folder_id):
+    def _add_folder_files(self, syn, folder):
         files = []
-        children = syn.getChildren(folder_id)
+        children = syn.getChildren(folder)
         for child in children:
             if child.get("type") == "org.sagebionetworks.repo.model.Folder":
                 files.extend(self._add_folder_files(syn, child.get("id")))
@@ -983,7 +984,7 @@ class Dataset(SchemaBase):
                     'versionNumber': child.get('versionNumber')
                 })
             else:
-                raise ValueError(f"Not a Folder?: {folder_id}")
+                raise ValueError(f"Not a Folder?: {folder}")
         return files
 
     def _before_synapse_store(self, syn):
