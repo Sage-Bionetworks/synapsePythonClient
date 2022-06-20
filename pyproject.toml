@@ -98,7 +98,6 @@ extend-exclude = '''
     |/tests/unit/synapseutils/unit_test_synapseutils_copy.py
     |/tests/unit/synapseutils/unit_test_synapseutils_sync.py
     |/tests/unit/synapseutils/unit_test_synapseutils_walk.py
-    |/tests/unit/test_utils/__init__.py
     |/tests/unit/test_utils/unit_utils.py
 )
 '''
