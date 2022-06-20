@@ -9,7 +9,6 @@ extend-exclude = '''
     |/synapseclient/annotations.py
     |/synapseclient/core/cache.py
     |/synapseclient/core/config.py
-    |/synapseclient/core/constants/__init__.py
     |/synapseclient/core/constants/concrete_types.py
     |/synapseclient/core/constants/config_file_constants.py
     |/synapseclient/core/constants/limits.py
