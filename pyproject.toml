@@ -81,7 +81,6 @@ extend-exclude = '''
     |/tests/unit/synapseclient/core/unit_test_retry.py
     |/tests/unit/synapseclient/core/unit_test_sts_transfer.py
     |/tests/unit/synapseclient/core/unit_test_utils.py
-    |/tests/unit/synapseclient/core/upload/__init__.py
     |/tests/unit/synapseclient/core/upload/unit_test_multipart_upload.py
     |/tests/unit/synapseclient/core/upload/unit_test_upload_functions.py
     |/tests/unit/synapseclient/unit_test_Entity.py
