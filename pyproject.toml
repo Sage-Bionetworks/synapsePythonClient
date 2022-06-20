@@ -47,8 +47,6 @@ extend-exclude = '''
     |/synapseutils/sync.py
     |/synapseutils/walk_functions.py
     |/tests/integration/conftest.py
-    |/tests/integration/synapseclient/__init__.py
-    |/tests/integration/synapseclient/core/__init__.py
     |/tests/integration/synapseclient/core/test_REST_request_helpers.py
     |/tests/integration/synapseclient/core/test_caching.py
     |/tests/integration/synapseclient/core/test_download.py
