@@ -59,7 +59,6 @@ extend-exclude = '''
     |/tests/integration/synapseclient/core/test_caching.py
     |/tests/integration/synapseclient/core/test_download.py
     |/tests/integration/synapseclient/core/test_external_storage.py
-    |/tests/integration/synapseclient/core/upload/__init__.py
     |/tests/integration/synapseclient/core/upload/test_multipart_upload.py
     |/tests/integration/synapseclient/core/upload/test_sftp_upload.py
     |/tests/integration/synapseclient/integration_test.py
