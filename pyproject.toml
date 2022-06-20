@@ -7,7 +7,6 @@ extend-exclude = '''
     /docs/conf.py
     |/docs/scripts/print_release_issues.py
     |/synapseclient/annotations.py
-    |/synapseclient/core/__init__.py
     |/synapseclient/core/cache.py
     |/synapseclient/core/config.py
     |/synapseclient/core/constants/__init__.py
