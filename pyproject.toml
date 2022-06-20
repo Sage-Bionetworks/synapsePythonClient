@@ -21,7 +21,6 @@ extend-exclude = '''
     |/synapseclient/core/exceptions.py
     |/synapseclient/core/lock.py
     |/synapseclient/core/logging_setup.py
-    |/synapseclient/core/models/__init__.py
     |/synapseclient/core/models/custom_json.py
     |/synapseclient/core/models/dict_object.py
     |/synapseclient/core/multithread_download/__init__.py
