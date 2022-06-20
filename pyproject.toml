@@ -12,7 +12,6 @@ extend-exclude = '''
     |/synapseclient/core/constants/concrete_types.py
     |/synapseclient/core/constants/config_file_constants.py
     |/synapseclient/core/constants/limits.py
-    |/synapseclient/core/credentials/__init__.py
     |/synapseclient/core/credentials/cached_sessions.py
     |/synapseclient/core/credentials/cred_data.py
     |/synapseclient/core/credentials/credential_provider.py
