@@ -80,7 +80,6 @@ extend-exclude = '''
     |/tests/unit/synapseclient/core/credentials/unit_test_cached_sessions.py
     |/tests/unit/synapseclient/core/credentials/unit_test_cred_data.py
     |/tests/unit/synapseclient/core/credentials/unit_test_cred_provider.py
-    |/tests/unit/synapseclient/core/models/__init__.py
     |/tests/unit/synapseclient/core/models/unit_test_DictObject.py
     |/tests/unit/synapseclient/core/models/unit_test_custom_json.py
     |/tests/unit/synapseclient/core/multithread_download/__init__.py
