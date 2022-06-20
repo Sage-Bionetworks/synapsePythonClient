@@ -34,7 +34,6 @@ extend-exclude = '''
     |/synapseclient/evaluation.py
     |/synapseclient/team.py
     |/synapseclient/wiki.py
-    |/synapseclient/__init__.py
     |/synapseclient/__main__.py
     |/synapseclient/activity.py
     |/synapseclient/client.py
