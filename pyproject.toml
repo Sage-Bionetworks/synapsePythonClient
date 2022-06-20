@@ -92,7 +92,6 @@ extend-exclude = '''
     |/tests/unit/synapseclient/unit_test_client.py
     |/tests/unit/synapseclient/unit_test_commandline.py
     |/tests/unit/synapseclient/unit_test_tables.py
-    |/tests/unit/synapseutils/__init__.py
     |/tests/unit/synapseutils/unit_test_synapseutils_describe.py
     |/tests/unit/synapseutils/unit_test_synapseutils_migrate.py
     |/tests/unit/synapseutils/unit_test_synapseutils_monitor.py
