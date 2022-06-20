@@ -73,7 +73,6 @@ extend-exclude = '''
     |/tests/integration/synapseutils/test_synapseutils_migrate.py
     |/tests/integration/synapseutils/test_synapseutils_sync.py
     |/tests/integration/synapseutils/test_synapseutils_walk.py
-    |/tests/unit/synapseclient/core/credentials/__init__.py
     |/tests/unit/synapseclient/core/credentials/unit_test_cached_sessions.py
     |/tests/unit/synapseclient/core/credentials/unit_test_cred_data.py
     |/tests/unit/synapseclient/core/credentials/unit_test_cred_provider.py
