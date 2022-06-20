@@ -27,7 +27,6 @@ extend-exclude = '''
     |/synapseclient/core/remote_file_storage_wrappers.py
     |/synapseclient/core/retry.py
     |/synapseclient/core/sts_transfer.py
-    |/synapseclient/core/upload/__init__.py
     |/synapseclient/core/upload/upload_functions.py
     |/synapseclient/core/upload/multipart_upload.py
     |/synapseclient/core/utils.py
