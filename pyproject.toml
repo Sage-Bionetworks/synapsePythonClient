@@ -52,8 +52,6 @@ extend-exclude = '''
     |/synapseutils/migrate_functions.py
     |/synapseutils/sync.py
     |/synapseutils/walk_functions.py
-    |/tests/__init__.py
-    |/tests/integration/__init__.py
     |/tests/integration/conftest.py
     |/tests/integration/synapseclient/__init__.py
     |/tests/integration/synapseclient/core/__init__.py
