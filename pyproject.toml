@@ -22,7 +22,6 @@ extend-exclude = '''
     |/synapseclient/core/logging_setup.py
     |/synapseclient/core/models/custom_json.py
     |/synapseclient/core/models/dict_object.py
-    |/synapseclient/core/multithread_download/__init__.py
     |/synapseclient/core/multithread_download/download_threads.py
     |/synapseclient/core/pool_provider.py
     |/synapseclient/core/remote_file_storage_wrappers.py
