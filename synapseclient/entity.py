@@ -244,7 +244,7 @@ class Entity(collections.abc.MutableMapping):
                 # Re-map `items` to `datasetItems` to avoid namespace conflicts
                 # between Dataset schema and the items() builtin method.
                 if 'items' in properties:
-                    properties['datasetItems'] = properties['items']
+                    properties['dataset_items'] = properties['items']
                     del properties['items']
                 self.__dict__['properties'].update(properties)
             else:
