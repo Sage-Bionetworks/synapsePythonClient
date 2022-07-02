@@ -525,6 +525,12 @@ def submit(args, syn):
                      % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId']))
 
 
+def get_download_list(args, syn):
+    """Download files from the Synapse download cart"""
+    manifest_path = syn.get_download_list(downloadLocation=args.downloadLocation)
+    syn.logger.info(f"Manifest file: {manifest_path}")
+
+
 def login(args, syn):
     """Log in to Synapse, optionally caching credentials"""
     login_with_prompt(syn, args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe, forced=True)
@@ -833,6 +839,12 @@ def build_parser():
     parser_cp.add_argument('--skipCopyWiki', action='store_true',
                            help='Do not copy the wiki pages')
     parser_cp.set_defaults(func=copy)
+
+    parser_get_dl_list = subparsers.add_parser('get-download-list',
+                                               help='Download files from the Synapse download cart')
+    parser_get_dl_list.add_argument('--downloadLocation', metavar='path', type=str, default="./",
+                                    help='Directory to download file to [default: %(default)s].')
+    parser_get_dl_list.set_defaults(func=get_download_list)
 
     parser_associate = subparsers.add_parser('associate',
                                              help=(

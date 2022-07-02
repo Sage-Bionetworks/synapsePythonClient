@@ -30,6 +30,7 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 import collections
 import collections.abc
 import configparser
+import csv
 import deprecated
 import errno
 import functools
@@ -1355,6 +1356,130 @@ class Synapse(object):
         :returns: a dict of a new FileHandle as a dict that represents the uploaded file
         """
         return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
+
+    ############################################################
+    #                  Download List                           #
+    ############################################################
+    def clear_download_list(self):
+        """Clear all files from download list"""
+        self.restDELETE("/download/list")
+
+    def remove_from_download_list(self, list_of_files: typing.List[typing.Dict]) -> int:
+        """Remove a batch of files from download list
+
+        :param: array of files in the format of a mapping
+                {fileEntityId: synid, versionNumber: version}
+
+        :returns: Number of files removed from download list
+        """
+        request_body = {"batchToRemove": list_of_files}
+        num_files_removed = self.restPOST(
+            "/download/list/remove",
+            body=json.dumps(request_body)
+        )
+        return num_files_removed
+
+    def _generate_manifest_from_download_list(
+        self, quoteCharacter: str = '"',
+        escapeCharacter: str = "\\",
+        lineEnd: str = os.linesep,
+        separator: str = ",",
+        header: bool = True
+    ):
+        """Creates a download list manifest generation request
+
+        :param quoteCharacter:  The character to be used for quoted elements in the resulting file.
+                                Defaults to '"'.
+        :param escapeCharacter: The escape character to be used for escaping a separator or quote in the resulting
+                                file. Defaults to "\".
+        :param lineEnd:         The line feed terminator to be used for the resulting file. Defaults to os.linesep.
+        :param separator:       The delimiter to be used for separating entries in the resulting file. Defaults to ",".
+        :param header:          Is the first line a header? Defaults to True.
+
+        :returns: Filehandle of download list manifest
+        """
+        request_body = {
+            "concreteType": "org.sagebionetworks.repo.model.download.DownloadListManifestRequest",
+            "csvTableDescriptor": {
+                "separator": separator,
+                "quoteCharacter": quoteCharacter,
+                "escapeCharacter": escapeCharacter,
+                "lineEnd": lineEnd,
+                "isFirstLineHeader": header
+            }
+        }
+        return self._waitForAsync(uri="/download/list/manifest/async", request=request_body)
+
+    def get_download_list_manifest(self):
+        """Get the path of the download list manifest file
+
+        :returns: path of download list manifest file
+        """
+        manifest = self._generate_manifest_from_download_list()
+        # Get file handle download link
+        file_result = self._getFileHandleDownload(
+            fileHandleId=manifest['resultFileHandleId'],
+            objectId=manifest['resultFileHandleId'],
+            objectType="FileEntity"
+        )
+        # Download the manifest
+        downloaded_path = self._download_from_URL(
+            url=file_result['preSignedURL'],
+            destination="./",
+            fileHandleId=file_result['fileHandleId'],
+            expected_md5=file_result['fileHandle'].get('contentMd5')
+        )
+        return downloaded_path
+
+    def get_download_list(self, downloadLocation: str = None) -> str:
+        """Download all files from your Synapse download list
+
+        :param downloadLocation: Directory to download files to.
+
+        :returns: manifest file with file paths
+        """
+        dl_list_path = self.get_download_list_manifest()
+        downloaded_files = []
+        new_manifest_path = f'manifest_{time.time_ns()}.csv'
+        with open(dl_list_path) as manifest_f, \
+             open(new_manifest_path, 'w') as write_obj:
+
+            reader = csv.DictReader(manifest_f)
+            columns = reader.fieldnames
+            columns.extend(["path", "error"])
+            # Write the downloaded paths to a new manifest file
+            writer = csv.DictWriter(write_obj, fieldnames=columns)
+            writer.writeheader()
+
+            for row in reader:
+                # You can add things to the download list that you don't have access to
+                # So there must be a try catch here
+                try:
+                    entity = self.get(row['ID'], downloadLocation=downloadLocation)
+                    # Must include version number because you can have multiple versions of a
+                    # file in the download list
+                    downloaded_files.append(
+                        {"fileEntityId": row['ID'], "versionNumber": row['versionNumber']}
+                    )
+                    row['path'] = entity.path
+                    row['error'] = ''
+                except Exception:
+                    row['path'] = ''
+                    row['error'] = 'DOWNLOAD FAILED'
+                    self.logger.error("Unable to download file")
+                writer.writerow(row)
+
+        # Don't want to clear all the download list because you can add things
+        # to the download list after initiating this command.
+        # Files that failed to download should not be removed from download list
+        # Remove all files from download list after the entire download is complete.
+        # This is because if download fails midway, we want to return the full manifest
+        self.remove_from_download_list(list_of_files=downloaded_files)
+
+        # Always remove original manifest file
+        os.remove(dl_list_path)
+
+        return new_manifest_path
 
     ############################################################
     #                  Get / Set Annotations                   #
