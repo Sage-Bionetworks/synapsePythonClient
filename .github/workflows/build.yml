@@ -143,7 +143,7 @@ jobs:
       - uses: psf/black@stable
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
-    needs: test
+    needs: [test,lint]
 
     runs-on: ubuntu-18.04
 
