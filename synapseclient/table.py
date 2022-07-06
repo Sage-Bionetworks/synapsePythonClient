@@ -793,6 +793,7 @@ class Dataset(SchemaBase):
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
     :param dataset_items:   A list of items characterized by entityId and versionNumber
+    :param folder:          A list of Folder IDs
     :param local_state:     Internal use only
 
     Example::
@@ -880,29 +881,25 @@ class Dataset(SchemaBase):
             **kwargs
         )
 
-        # Add default Dataset columns if schema is not provided.
-        if not self.properties.columnIds and columns is None:
-            self.addColumns(['81721', '81722', '81723', '81724', '81725',
-                             '81728', '81729', '81730', '81731', '81732',
-                             '81726', '81727', '81733', '112368', '112369'])
         if force:
             self.force = True
         if dataset_items:
             self.add_items(dataset_items, force)
-        if folder_ids:
-            self.add_folders(folder_ids, force)
+        if folders:
+            self.add_folders(folders, force)
 
     def __len__(self):
         return len(self.properties.datasetItems)
 
-    def _check_needed_keys(syn, keys: List[str]):
+    @staticmethod
+    def _check_needed_keys(keys: List[str]):
         required_keys = {'entityId', 'versionNumber'}
         if required_keys - keys:
             raise LookupError("DatasetItem missing a required property: %s" %
                               str(required_keys - keys))
         return True
 
-    def add_item(self, dataset_item: Dict[str, str], force: bool = False):
+    def add_item(self, dataset_item: Dict[str, str], force: bool = True):
         """
         :param dataset_item:    a single dataset item
         :param force:           force add item
@@ -921,7 +918,7 @@ class Dataset(SchemaBase):
         else:
             raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
 
-    def add_items(self, dataset_items: List[Dict[str, str]], force: bool = False):
+    def add_items(self, dataset_items: List[Dict[str, str]], force: bool = True):
         """
         :param dataset_items:   a list of dataset items
         :param force:           force add items
@@ -951,33 +948,33 @@ class Dataset(SchemaBase):
         """
         return any(item['entityId'] == item_id for item in self.properties.datasetItems)
 
-    def add_folder(self, folder_id: str, force: bool = False):
+    def add_folder(self, folder: str, force: bool = True):
         """
-        :param folder_id:   a single Synapse Folder ID
-        :param force:       force add items from folder
+        :param folder:  a single Synapse Folder ID
+        :param force:   force add items from folder
         """
         if not self.__dict__.get('folders_to_add', None):
             self.__dict__['folders_to_add'] = set()
-        self.__dict__['folders_to_add'].add(folder_id)
+        self.__dict__['folders_to_add'].add(folder)
         if self.force != force:
             self.force = force
 
-    def add_folders(self, folder_ids: List[str], force: bool = False):
+    def add_folders(self, folders: List[str], force: bool = True):
         """
-        :param folder_ids:  a list of Synapse Folder IDs
-        :param force:       force add items from folders
+        :param folders: a list of Synapse Folder IDs
+        :param force:   force add items from folders
         """
-        if isinstance(folder_ids, list) or isinstance(folder_ids, set) or \
-                isinstance(folder_ids, tuple):
+        if isinstance(folders, list) or isinstance(folders, set) or \
+                isinstance(folders, tuple):
             self.force = force
-            for folder_id in folder_ids:
-                self.add_folder(folder_id, force)
+            for folder in folders:
+                self.add_folder(folder, force)
         else:
-            raise ValueError(f"Not a list of Folder IDs: {folder_ids}")
+            raise ValueError(f"Not a list of Folder IDs: {folders}")
 
-    def _add_folder_files(self, syn, folder_id):
+    def _add_folder_files(self, syn, folder):
         files = []
-        children = syn.getChildren(folder_id)
+        children = syn.getChildren(folder)
         for child in children:
             if child.get("type") == "org.sagebionetworks.repo.model.Folder":
                 files.extend(self._add_folder_files(syn, child.get("id")))
@@ -987,10 +984,14 @@ class Dataset(SchemaBase):
                     'versionNumber': child.get('versionNumber')
                 })
             else:
-                raise ValueError(f"Not a Folder?: {folder_id}")
+                raise ValueError(f"Not a Folder?: {folder}")
         return files
 
     def _before_synapse_store(self, syn):
+        # Add default Dataset columns if schema is not provided.
+        if not self.properties.columnIds and not self.columns_to_store:
+            self.addColumns(syn._get_default_view_columns("dataset"))
+
         super()._before_synapse_store(syn)
 
         # Add files from folders (if any) before storing dataset.
@@ -1001,7 +1002,7 @@ class Dataset(SchemaBase):
             self.folders_to_add = set()
 
         # Reset attribute to force-add items from folders.
-        self.force = False
+        self.force = True
 
         # Remap `datasetItems` back to `items` before storing (since `items`
         # is the accepted field name in the API, not `datasetItems`).

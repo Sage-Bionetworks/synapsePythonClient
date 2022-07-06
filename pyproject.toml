@@ -1,0 +1,14 @@
+[tool.black]
+line-length = 88
+target-version = ['py37']
+include = '\.pyi?$'
+extend-exclude = '''
+(
+    /docs
+    |/synapseclient
+    |/synapseclient/core
+    |/synapseutils
+    |/tests/integration
+    |/tests/unit
+)
+'''

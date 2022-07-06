@@ -25,7 +25,7 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
 
 from synapseclient.core.utils import from_unix_epoch_time
 from unittest.mock import patch
-from collections import OrderedDict
+from collections import OrderedDict, abc
 
 
 def test_cast_values():
@@ -180,8 +180,14 @@ def test_dataset():
     )
     dataset._synapse_entity_type == "org.sagebionetworks.repo.model.table.Dataset"
 
+    # Items in the dataset should be captured in the `dataset_items` property,
+    # not `items`. e.items should continue to be an ItemsView().
+    assert hasattr(dataset, 'dataset_items')
+    assert isinstance(dataset.dataset_items, list)
+    assert isinstance(dataset.items(), abc.ItemsView)
+
     # Default column IDs are used when schema is not specified.
-    assert dataset.has_columns()
+    assert not dataset.has_columns()
     assert dataset.has_item("syn111") is True
     assert dataset.has_item("syn222") is False
     assert len(dataset) == 1
@@ -201,8 +207,8 @@ def test_dataset():
     assert len(dataset) == 1
 
     with pytest.raises(ValueError):
-        dataset.add_item({'entityId': "syn111", 'versionNumber': 2})
-    dataset.add_item({'entityId': "syn111", 'versionNumber': 2}, force=True)
+        dataset.add_item({'entityId': "syn111", 'versionNumber': 2}, force=False)
+    dataset.add_item({'entityId': "syn111", 'versionNumber': 2})
     assert len(dataset) == 1
 
     dataset.empty()
