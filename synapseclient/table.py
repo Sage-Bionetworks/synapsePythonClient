@@ -871,7 +871,7 @@ class Dataset(SchemaBase):
 
     def __init__(self, name=None, columns=None, parent=None, properties=None,
                  annotations=None, local_state=None, dataset_items=None,
-                 folder=None, force=None, **kwargs):
+                 folders=None, force=None, **kwargs):
         self.properties.setdefault('datasetItems', [])
         self.__dict__.setdefault('folders_to_add', set())
         self.__dict__.setdefault('force', False)
