@@ -347,6 +347,10 @@ class EntityViewType(enum.Enum):
     FOLDER = 0x08
     VIEW = 0x10
     DOCKER = 0x20
+    SUBMISSION_VIEW = 0x40
+    DATASET = 0x80
+    DATASET_COLLECTION = 0x100
+    MATERIALIZED_VIEW = 0x200
 
 
 def _get_view_type_mask(types_to_include):
@@ -1042,7 +1046,7 @@ class Dataset(ViewBase):
         # Create a Dataset with pre-defined DatasetItems. Default Dataset columns
         # are used if no schema is provided.
         dataset_items = [
-            {'entityId': "syn000", 'versionNumber: 1},
+            {'entityId': "syn000", 'versionNumber': 1},
             {...},
         ]
         dataset = syn.store(Dataset(
@@ -1105,27 +1109,34 @@ class Dataset(ViewBase):
             comment="This is version 1")
     """
     _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
-    _property_keys: List[str] = SchemaBase._property_keys + ['datasetItems']
-    _local_keys: List[str] = SchemaBase._local_keys + ['folders_to_add', 'force']
+    _property_keys: List[str] = ViewBase._property_keys + ['datasetItems']
+    _local_keys: List[str] = ViewBase._local_keys + ['folders_to_add', 'force']
 
     def __init__(self, name=None, columns=None, parent=None, properties=None,
+                 addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[],
                  annotations=None, local_state=None, dataset_items=None,
-                 folders=None, force=None, **kwargs):
+                 folders=None, force=False, **kwargs):
         self.properties.setdefault('datasetItems', [])
         self.__dict__.setdefault('folders_to_add', set())
-        self.__dict__.setdefault('force', False)
+        self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
+        self.viewTypeMask = EntityViewType.DATASET.value
         super(Dataset, self).__init__(
             name=name, columns=columns, properties=properties,
             annotations=annotations, local_state=local_state, parent=parent,
             **kwargs
         )
 
-        if force:
-            self.force = True
+        self.force = force
         if dataset_items:
             self.add_items(dataset_items, force)
         if folders:
             self.add_folders(folders, force)
+
+        # HACK: make sure we don't try to add columns to schemas that we retrieve from synapse
+        is_from_normal_constructor = not (properties or local_state)
+        # allowing annotations because user might want to update annotations all at once
+        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor
+        self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
 
     def __len__(self):
         return len(self.properties.datasetItems)
@@ -1195,8 +1206,8 @@ class Dataset(ViewBase):
         if not self.__dict__.get('folders_to_add', None):
             self.__dict__['folders_to_add'] = set()
         self.__dict__['folders_to_add'].add(folder)
-        if self.force != force:
-            self.force = force
+        # if self.force != force:
+        self.force = force
 
     def add_folders(self, folders: List[str], force: bool = True):
         """
@@ -1227,18 +1238,15 @@ class Dataset(ViewBase):
         return files
 
     def _before_synapse_store(self, syn):
-        # Add default Dataset columns if schema is not provided.
-        if not self.properties.columnIds and not self.columns_to_store:
-            self.addColumns(syn._get_default_view_columns("dataset"))
-
-        super()._before_synapse_store(syn)
-
         # Add files from folders (if any) before storing dataset.
         if self.folders_to_add:
             for folder in self.folders_to_add:
                 items_to_add = self._add_folder_files(syn, folder)
                 self.add_items(items_to_add, self.force)
             self.folders_to_add = set()
+
+        self.scopeIds = [item['entityId'] for item in self.properties.datasetItems]
+        super()._before_synapse_store(syn)
 
         # Reset attribute to force-add items from folders.
         self.force = True
