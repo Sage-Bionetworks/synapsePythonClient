@@ -182,8 +182,8 @@ def test_dataset():
 
     # Items in the dataset should be captured in the `dataset_items` property,
     # not `items`. e.items should continue to be an ItemsView().
-    assert hasattr(dataset, 'dataset_items')
-    assert isinstance(dataset.dataset_items, list)
+    assert hasattr(dataset, 'datasetItems')
+    assert isinstance(dataset.datasetItems, list)
     assert isinstance(dataset.items(), abc.ItemsView)
 
     # Default column IDs are used when schema is not specified.

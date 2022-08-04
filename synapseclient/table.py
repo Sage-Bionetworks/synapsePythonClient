@@ -866,13 +866,13 @@ class Dataset(SchemaBase):
             comment="This is version 1")
     """
     _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
-    _property_keys: List[str] = SchemaBase._property_keys + ['dataset_items']
+    _property_keys: List[str] = SchemaBase._property_keys + ['datasetItems']
     _local_keys: List[str] = SchemaBase._local_keys + ['folders_to_add', 'force']
 
     def __init__(self, name=None, columns=None, parent=None, properties=None,
                  annotations=None, local_state=None, dataset_items=None,
                  folders=None, force=None, **kwargs):
-        self.properties.setdefault('dataset_items', [])
+        self.properties.setdefault('datasetItems', [])
         self.__dict__.setdefault('folders_to_add', set())
         self.__dict__.setdefault('force', False)
         super(Dataset, self).__init__(
@@ -889,7 +889,7 @@ class Dataset(SchemaBase):
             self.add_folders(folders, force)
 
     def __len__(self):
-        return len(self.properties.dataset_items)
+        return len(self.properties.datasetItems)
 
     @staticmethod
     def _check_needed_keys(keys: List[str]):
@@ -906,11 +906,11 @@ class Dataset(SchemaBase):
         """
         if isinstance(dataset_item, dict) and self._check_needed_keys(dataset_item.keys()):
             if not self.has_item(dataset_item.get('entityId')):
-                self.properties.dataset_items.append(dataset_item)
+                self.properties.datasetItems.append(dataset_item)
             else:
                 if force:
                     self.remove_item(dataset_item.get('entityId'))
-                    self.properties.dataset_items.append(dataset_item)
+                    self.properties.datasetItems.append(dataset_item)
                 else:
                     raise ValueError(
                         f"Duplicate item found: {dataset_item.get('entityId')}. "
@@ -932,21 +932,21 @@ class Dataset(SchemaBase):
         """
         item_id = id_of(item_id)
         if item_id.startswith("syn"):
-            for i, curr_item in enumerate(self.properties.dataset_items):
+            for i, curr_item in enumerate(self.properties.datasetItems):
                 if curr_item.get('entityId') == item_id:
-                    del self.properties.dataset_items[i]
+                    del self.properties.datasetItems[i]
                     break
         else:
             raise ValueError("Not a Synapse ID: %s" % str(item_id))
 
     def empty(self):
-        self.properties.dataset_items = []
+        self.properties.datasetItems = []
 
     def has_item(self, item_id):
         """
         :param item_id: a single dataset item Synapse ID
         """
-        return any(item['entityId'] == item_id for item in self.properties.dataset_items)
+        return any(item['entityId'] == item_id for item in self.properties.datasetItems)
 
     def add_folder(self, folder: str, force: bool = True):
         """
@@ -1004,9 +1004,9 @@ class Dataset(SchemaBase):
         # Reset attribute to force-add items from folders.
         self.force = True
 
-        # Remap `dataset_items` back to `items` before storing (since `items`
-        # is the accepted field name in the API, not `dataset_items`).
-        self.properties.items = self.properties.dataset_items
+        # Remap `datasetItems` back to `items` before storing (since `items`
+        # is the accepted field name in the API, not `datasetItems`).
+        self.properties.items = self.properties.datasetItems
 
 
 class ViewBase(SchemaBase):
