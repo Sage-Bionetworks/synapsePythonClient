@@ -240,6 +240,12 @@ class Entity(collections.abc.MutableMapping):
                 if 'annotations' in properties and isinstance(properties['annotations'], collections.abc.Mapping):
                     annotations.update(properties['annotations'])
                     del properties['annotations']
+
+                # Re-map `items` to `datasetItems` to avoid namespace conflicts
+                # between Dataset schema and the items() builtin method.
+                if 'items' in properties:
+                    properties['datasetItems'] = properties['items']
+                    del properties['items']
                 self.__dict__['properties'].update(properties)
             else:
                 raise SynapseMalformedEntityError(
@@ -685,7 +691,8 @@ entity_type_to_class = {}
 for cls in itersubclasses(Entity):
     entity_type_to_class[cls._synapse_entity_type] = cls
 
-_entity_types = ["project", "folder", "file", "table", "link", "entityview", "dockerrepo"]
+_entity_types = ["folder", "file", "table", "link", "entityview", "dockerrepo",
+                 "submissionview", "dataset", "materializedview"]
 
 
 def split_entity_namespaces(entity):
@@ -730,7 +737,8 @@ ENTITY_TYPES = [
     'org.sagebionetworks.repo.model.Folder',
     'org.sagebionetworks.repo.model.Link',
     'org.sagebionetworks.repo.model.Project',
-    'org.sagebionetworks.repo.model.table.TableEntity'
+    'org.sagebionetworks.repo.model.table.TableEntity',
+    'org.sagebionetworks.repo.model.table.Dataset'
 ]
 
 

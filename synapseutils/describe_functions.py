@@ -103,6 +103,7 @@ def describe(syn, entity: str):
                 "mean": 0.5
             }
         }
+
     :return: if dataset is valid, returns a dict; otherwise None
     """
     df = _open_entity_as_df(syn=syn, entity=entity)

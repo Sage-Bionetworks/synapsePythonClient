@@ -135,10 +135,15 @@ jobs:
              # use loadscope to avoid issues running tests concurrently that share scoped fixtures
             pytest -sv tests/integration -n auto --dist loadscope
           fi
-
+  # enforce the code matches the Black code style
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: psf/black@stable
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
-    needs: test
+    needs: [test,lint]
 
     runs-on: ubuntu-18.04
 

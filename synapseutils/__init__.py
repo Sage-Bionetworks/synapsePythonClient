@@ -8,7 +8,7 @@ The ``synapseutils`` package provides both higher level functions as well as uti
 
 - :py:func:`copy_functions.copy`
 - :py:func:`copy_functions.copyWiki`
-- :py:func:`walk.walk`
+- :py:func:`walk_functions.walk`
 - :py:func:`sync.syncFromSynapse`
 - :py:func:`sync.syncToSynapse`
 - :py:func:`monitor.notifyMe`
@@ -18,7 +18,7 @@ The ``synapseutils`` package provides both higher level functions as well as uti
 """
 # flake8: noqa F401 unclear who is using these
 from .copy_functions import copy, copyWiki, copyFileHandles, changeFileMetaData
-from .walk import walk
+from .walk_functions import walk
 from .sync import syncFromSynapse, syncToSynapse, generate_sync_manifest
 from .migrate_functions import index_files_for_migration, migrate_indexed_files
 from .monitor import notifyMe, with_progress_bar

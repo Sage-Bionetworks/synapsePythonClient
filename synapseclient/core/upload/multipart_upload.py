@@ -455,6 +455,7 @@ def multipart_upload_file(
 
     .. _contentType:
      https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
+
     """
 
     if not os.path.exists(file_path):

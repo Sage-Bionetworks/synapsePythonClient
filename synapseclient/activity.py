@@ -138,16 +138,19 @@ class Activity(dict):
     :param name:        name of the Activity
     :param description: a short text description of the Activity
     :param used:        Either a list of:
+
                             - `reference objects \
                               <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Reference.html>`_
                               (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``)
                             - a list of Synapse Entities or Entity IDs
                             - a list of URL's
+
     :param executed:    A code resource that was executed to generate the Entity.
     :param data:        A dictionary representation of an Activity, with fields 'name', 'description' and 'used'
                         (a list of reference objects)
 
     See also: The `W3C's provenance ontology <http://www.w3.org/TR/prov-o/>`_
+
     """
 
     # TODO: make constructors from JSON consistent across objects

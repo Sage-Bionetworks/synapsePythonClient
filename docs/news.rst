@@ -3,6 +3,75 @@ Release Notes
 =============
 
 
+2.6.0 (2022-04-19)
+==================
+
+Highlights
+----------
+
+- Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+  removing all camel case or non-standard single dash long command line interface (cli)
+  parameters.
+  Example: command line arguments like `-parent` will become
+  `--parent`.  Commands that support camel case like `--parentId`
+  will be changed to `--parent-id`.
+
+- Added support for materialized views
+
+  .. code-block:: bash
+
+        # from python
+        import synapseclient
+        import synapseutils
+        syn = synapseclient.login()
+        view = MaterializedViewSchema(
+            name="test-material-view",
+            parent="syn34234",
+            definingSQL="SELECT * FROM syn111 F JOIN syn2222 P on (F.PATIENT_ID = P.PATIENT_ID)"
+        )
+        view_ent = syn.store(view)
+
+- Removed support for Python 3.6 and added support for Python 3.10
+
+- Add function to create Synapse config file
+
+  .. code-block:: bash
+
+        # from the command line
+        synapse config
+
+Bug Fixes
+---------
+-  [`SYNPY-1204 <https://sagebionetworks.jira.com/browse/SYNPY-1204>`__] -
+   Python 3.10 compatibility
+
+Stories
+-------
+-  [`SYNPY-728 <https://sagebionetworks.jira.com/browse/SYNPY-728>`__] -
+   Improve error message when pandas is not available
+-  [`SYNPY-974 <https://sagebionetworks.jira.com/browse/SYNPY-974>`__] -
+   Documentation for generateManifest
+-  [`SYNPY-1209 <https://sagebionetworks.jira.com/browse/SYNPY-1209>`__] -
+   Support for MaterializedViews in Py Client
+
+Tasks
+-----
+-  [`SYNPY-1174 <https://sagebionetworks.jira.com/browse/SYNPY-1174>`__] -
+   Add function to create Synapse config file
+-  [`SYNPY-1176 <https://sagebionetworks.jira.com/browse/SYNPY-1176>`__] -
+   syncToSynapse aborted + silent failure of file upload
+-  [`SYNPY-1184 <https://sagebionetworks.jira.com/browse/SYNPY-1184>`__] -
+   Add `includeTypes` to `synapseutils.walk()`
+-  [`SYNPY-1189 <https://sagebionetworks.jira.com/browse/SYNPY-1189>`__] -
+   Document "maximumListLength" parameter for Column
+-  [`SYNPY-1196 <https://sagebionetworks.jira.com/browse/SYNPY-1196>`__] -
+   Expose `forceVersion` on `changeFileMetadata`
+-  [`SYNPY-1205 <https://sagebionetworks.jira.com/browse/SYNPY-1205>`__] -
+   Python 3.6 EOL - Remove support for 3.6
+-  [`SYNPY-1212 <https://sagebionetworks.jira.com/browse/SYNPY-1212>`__] -
+   Include `dataset` as an entity type to return in getChildren()
+
+
 2.5.1 (2021-12-02)
 ==================
 
@@ -249,7 +318,7 @@ Improvements
    Support boolean annotations in Python client
 
 2.3.0 (2021-03-03)
-================
+==================
 
 Highlights
 ----------
@@ -303,6 +372,7 @@ Bug Fixes
    Mitigate new Rust compiler dependency on Linux via transitive cryptography dependency
 -  [`SYNPY-1118 <https://sagebionetworks.jira.com/browse/SYNPY-1118>`__] -
    Migration tool erroring when it shouldn't
+
 New Features
 ------------
 
