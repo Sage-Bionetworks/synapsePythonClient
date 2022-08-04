@@ -852,7 +852,8 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     of the parameters to the File constructor (**name**, **synapseStore**, **contentType**) as well as parameters to the
     syn.store command (**used**, **executed**, **activityName**, **activityDescription**, **forceVersion**).
     Used and executed can be semi-colon (";") separated lists of Synapse ids, urls and/or local filepaths of files
-    already stored in Synapse (or being stored in Synapse by the manifest).
+    already stored in Synapse (or being stored in Synapse by the manifest).  If you leave a space, like
+    "syn1234; syn2345" the white space from " syn2345" will be stripped.
     Any additional columns will be added as annotations.
 
     **Required fields:**
@@ -875,14 +876,19 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     **Provenance fields:**
 
-    ====================   =====================================  ==========================================
+    Each of these are individual examples and is what you would find in a row in each of these columns. To
+    clarify, "syn1235;/path/to_local/file.txt" below states that you would like both
+    "syn1234" and "/path/to_local/file.txt" added as items used to generate a file. You can also specify one item
+    by specifying "syn1234"
+
+    ====================   =====================================  ============================================
     Field                  Meaning                                Example
-    ====================   =====================================  ==========================================
-    used                   List of items used to generate file    syn1235; /path/to_local/file.txt
-    executed               List of items exectued                 https://github.org/; /path/to_local/code.py
+    ====================   =====================================  ============================================
+    used                   List of items used to generate file    "syn1235;/path/to_local/file.txt"
+    executed               List of items exectued                 "https://github.org/;/path/to_local/code.py"
     activityName           Name of activity in provenance         "Ran normalization"
     activityDescription    Text description on what was done      "Ran algorithm xyx with parameters..."
-    ====================   =====================================  ==========================================
+    ====================   =====================================  ============================================
 
     Annotations:
 
@@ -905,7 +911,7 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     ===============   ========    =======   =======   ===========================    ============================
     path              parent      annot1    annot2    used                           executed
     ===============   ========    =======   =======   ===========================    ============================
-    /path/file1.txt   syn1243     "bar"     3.1415    "syn124; /path/file2.txt"      "https://github.org/foo/bar"
+    /path/file1.txt   syn1243     "bar"     3.1415    "syn124;/path/file2.txt"       "https://github.org/foo/bar"
     /path/file2.txt   syn12433    "baz"     2.71      ""                             "https://github.org/foo/baz"
     ===============   ========    =======   =======   ===========================    ============================
 
