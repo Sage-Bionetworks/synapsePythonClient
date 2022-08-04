@@ -437,7 +437,7 @@ class TestDownloadFileHandle:
         """Verify we pass along Synapse auth headers when downloading from a Synapse repo hosted url"""
 
         uri = f"{self.syn.repoEndpoint}/repo/v1/entity/syn1234567/file"
-        with tempfile.NamedTemporaryFile(mode="w+", delete=False) as in_destination:
+        with tempfile.NamedTemporaryFile(mode="w+") as in_destination:
             mock_credentials = mocker.patch.object(self.syn, 'credentials')
 
             response = MagicMock(spec=requests.Response)
@@ -446,15 +446,15 @@ class TestDownloadFileHandle:
             mock_get = mocker.patch.object(self.syn._requests_session, 'get')
             mock_get.return_value = response
 
-            out_destination = self.syn._download_from_URL(uri, in_destination)
+            out_destination = self.syn._download_from_URL(uri, in_destination.name)
             assert mock_get.call_args[1]['auth'] is mock_credentials
-            assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
+            assert os.path.normpath(out_destination) == os.path.normpath(in_destination.name)
 
     def test_download_from_url__external(self, mocker):
         """Verify we do not pass along Synapse auth headers to a file download that is a not Synapse repo hosted"""
 
         uri = "https://not-synapse.org/foo/bar/baz"
-        with tempfile.NamedTemporaryFile(mode="w+", delete=False) as in_destination:
+        with tempfile.NamedTemporaryFile(mode="w+") as in_destination:
             mocker.patch.object(self.syn, 'credentials')
 
             response = MagicMock(spec=requests.Response)
@@ -463,9 +463,9 @@ class TestDownloadFileHandle:
             mock_get = mocker.patch.object(self.syn._requests_session, 'get')
             mock_get.return_value = response
 
-            out_destination = self.syn._download_from_URL(uri, in_destination)
+            out_destination = self.syn._download_from_URL(uri, in_destination.name)
             assert mock_get.call_args[1]['auth'] is None
-            assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
+            assert os.path.normpath(out_destination) == os.path.normpath(in_destination.name)
 
     @patch.object(Synapse, '_getFileHandleDownload')
     def test_downloadFileHandle_preserve_exception_info(self, mock_getFileHandleDownload):
