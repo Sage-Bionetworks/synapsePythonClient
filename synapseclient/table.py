@@ -1092,7 +1092,8 @@ class Dataset(ViewBase):
                 items_to_add = self._add_folder_files(syn, folder)
                 self.add_items(items_to_add, self.force)
             self.folders_to_add = set()
-
+        # Must set this scopeIds is used to get all annotations from the
+        # entities
         self.scopeIds = [item['entityId'] for item in self.properties.datasetItems]
         super()._before_synapse_store(syn)
         # Reset attribute to force-add items from folders.
