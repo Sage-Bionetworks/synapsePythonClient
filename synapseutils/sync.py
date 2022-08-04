@@ -850,7 +850,9 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     file. The minimum required columns are **path** and **parent** where path is the local file path and parent is the
     Synapse Id of the project or folder where the file is uploaded to. In addition to these columns you can specify any
     of the parameters to the File constructor (**name**, **synapseStore**, **contentType**) as well as parameters to the
-    syn.store command (**used**, **executed**, **activityName**, **activityDescription**, **forceVersion**).
+    syn.store command (**used**, **executed**, **activityName**, **activityDescription**, **forceVersion**).  For only
+    updating annotations without uploading new versions of unchanged files, the syn.store parameter forceVersion
+    should be included in the manifest with the value set to False.
     Used and executed can be semi-colon (";") separated lists of Synapse ids, urls and/or local filepaths of files
     already stored in Synapse (or being stored in Synapse by the manifest).  If you leave a space, like
     "syn1234; syn2345" the white space from " syn2345" will be stripped.
