@@ -723,12 +723,12 @@ def _sortAndFixProvenance(syn, df):
         allRefs = []
         if 'used' in row:
             used = row['used'].split(';') if (row['used'].strip() != '') else []  # Get None or split if string
-            df.at[path, 'used'] = [_checkProvenace(item, path) for item in used]
+            df.at[path, 'used'] = [_checkProvenace(item.strip(), path) for item in used]
             allRefs.extend(df.loc[path, 'used'])
         if 'executed' in row:
             # Get None or split if string
             executed = row['executed'].split(';') if (row['executed'].strip() != '') else []
-            df.at[path, 'executed'] = [_checkProvenace(item, path) for item in executed]
+            df.at[path, 'executed'] = [_checkProvenace(item.strip(), path) for item in executed]
             allRefs.extend(df.loc[path, 'executed'])
         uploadOrder[path] = allRefs
 
