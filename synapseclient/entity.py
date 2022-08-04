@@ -178,9 +178,8 @@ class Entity(collections.abc.MutableMapping):
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Entity'
     _property_keys = ['id', 'name', 'description', 'parentId',
-                      'entityType', 'concreteType',
-                      'uri', 'etag', 'annotations', 'accessControlList',
-                      'createdOn', 'createdBy', 'modifiedOn', 'modifiedBy']
+                      'concreteType', 'etag', 'createdOn', 'createdBy',
+                      'modifiedOn', 'modifiedBy']
     _local_keys = []
 
     @classmethod
