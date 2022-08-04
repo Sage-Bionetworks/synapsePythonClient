@@ -717,8 +717,13 @@ def build_parser():
                              help='Send notifications via Synapse messaging (email) at specific intervals, '
                                   'on errors and on completion.')
     parser_sync.add_argument('--retries', metavar='INT', type=int, default=4)
-    parser_sync.add_argument('manifestFile', metavar='FILE', type=argparse.FileType("r"),
-                             help='A tsv file with file locations and metadata to be pushed to Synapse.')
+    parser_sync.add_argument(
+        'manifestFile', metavar='FILE', type=argparse.FileType("r"),
+        help=(
+            'A tsv file with file locations and metadata to be pushed to Synapse. '
+            'See https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncToSynapse '
+            'for details on the format of a manifest.'
+        )
     parser_sync.set_defaults(func=sync)
 
     parser_store = subparsers.add_parser('store',  # Python 3.2+ would support alias=['store']
