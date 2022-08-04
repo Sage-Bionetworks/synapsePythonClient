@@ -724,6 +724,7 @@ def build_parser():
             'See https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncToSynapse '
             'for details on the format of a manifest.'
         )
+    )
     parser_sync.set_defaults(func=sync)
 
     parser_store = subparsers.add_parser('store',  # Python 3.2+ would support alias=['store']
