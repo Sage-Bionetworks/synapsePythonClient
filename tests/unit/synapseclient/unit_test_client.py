@@ -999,7 +999,7 @@ def test_check_entity_restrictions__unmet_restriction_entity_project_with_downlo
         entity = 'syn123'
         syn._check_entity_restrictions(bundle, entity, True)
     mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
-                                   '(syn.onweb("syn123")).  Look for the "Access" label and the lock icon underneath '
+                                   '(syn.onweb("syn123")). Look for the "Access" label and the lock icon underneath '
                                    'the file name. Click "Request Access", and then review and fulfill the file '
                                    'download requirement(s).\n')
 
@@ -1019,7 +1019,7 @@ def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloa
         entity = 'syn123'
         syn._check_entity_restrictions(bundle, entity, True)
     mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
-                                   '(syn.onweb("syn123")).  Look for the "Access" label and the lock icon underneath '
+                                   '(syn.onweb("syn123")). Look for the "Access" label and the lock icon underneath '
                                    'the file name. Click "Request Access", and then review and fulfill the file '
                                    'download requirement(s).\n')
 
