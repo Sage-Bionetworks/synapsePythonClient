@@ -785,6 +785,93 @@ class MaterializedViewSchema(SchemaBase):
         )
 
 
+class ViewBase(SchemaBase):
+    """
+    This is a helper class for EntityViewSchema and SubmissionViewSchema
+    containing the common methods for both.
+    """
+    _synapse_entity_type = ""
+    _property_keys = SchemaBase._property_keys + ['viewTypeMask', 'scopeIds']
+    _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns',
+                                            'ignoredAnnotationColumnNames']
+
+    def add_scope(self, entities):
+        """
+        :param entities: a Project, Folder, Evaluation object or its ID, can also be a list of them
+        """
+        if isinstance(entities, list):
+            # add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
+            temp_list = [id_of(entity) for entity in entities]
+            self.scopeIds.extend(temp_list)
+        else:
+            self.scopeIds.append(id_of(entities))
+
+    def _filter_duplicate_columns(self, syn, columns_to_add):
+        """
+        If a column to be added has the same name and same type as an existing column, it will be considered a duplicate
+         and not added.
+        :param syn:             a :py:class:`synapseclient.client.Synapse` object that is logged in
+        :param columns_to_add:  iterable collection of type :py:class:`synapseclient.table.Column` objects
+        :return: a filtered list of columns to add
+        """
+
+        # no point in making HTTP calls to retrieve existing Columns if we not adding any new columns
+        if not columns_to_add:
+            return columns_to_add
+
+        # set up Column name/type tracking
+        # map of str -> set(str), where str is the column type as a string and set is a set of column name strings
+        column_type_to_annotation_names = {}
+
+        # add to existing columns the columns that user has added but not yet created in synapse
+        column_generator = itertools.chain(syn.getColumns(self.columnIds),
+                                           self.columns_to_store) if self.columns_to_store \
+            else syn.getColumns(self.columnIds)
+
+        for column in column_generator:
+            column_name = column['name']
+            column_type = column['columnType']
+
+            column_type_to_annotation_names.setdefault(column_type, set()).add(column_name)
+
+        valid_columns = []
+        for column in columns_to_add:
+            new_col_name = column['name']
+            new_col_type = column['columnType']
+
+            typed_col_name_set = column_type_to_annotation_names.setdefault(new_col_type, set())
+            if new_col_name not in typed_col_name_set:
+                typed_col_name_set.add(new_col_name)
+                valid_columns.append(column)
+        return valid_columns
+
+    def _before_synapse_store(self, syn):
+        # get the default EntityView columns from Synapse and add them to the columns list
+        additional_columns = []
+        view_type = self._synapse_entity_type.split(".")[-1].lower()
+        mask = self.get("viewTypeMask")
+
+        if self.addDefaultViewColumns:
+            additional_columns.extend(
+                syn._get_default_view_columns(view_type, view_type_mask=mask)
+            )
+
+        # get default annotations
+        if self.addAnnotationColumns:
+            anno_columns = [x for x in syn._get_annotation_view_columns(self.scopeIds, view_type,
+                                                                        view_type_mask=mask)
+                            if x['name'] not in self.ignoredAnnotationColumnNames]
+            additional_columns.extend(anno_columns)
+
+        self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
+
+        # set these boolean flags to false so they are not repeated.
+        self.addDefaultViewColumns = False
+        self.addAnnotationColumns = False
+
+        super(ViewBase, self)._before_synapse_store(syn)
+
+
 class Dataset(ViewBase):
     """
     A Dataset is an :py:class:`synapseclient.entity.Entity` that defines a
@@ -1013,93 +1100,6 @@ class Dataset(ViewBase):
         # Remap `datasetItems` back to `items` before storing (since `items`
         # is the accepted field name in the API, not `datasetItems`).
         self.properties.items = self.properties.datasetItems
-
-
-class ViewBase(SchemaBase):
-    """
-    This is a helper class for EntityViewSchema and SubmissionViewSchema
-    containing the common methods for both.
-    """
-    _synapse_entity_type = ""
-    _property_keys = SchemaBase._property_keys + ['viewTypeMask', 'scopeIds']
-    _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns',
-                                            'ignoredAnnotationColumnNames']
-
-    def add_scope(self, entities):
-        """
-        :param entities: a Project, Folder, Evaluation object or its ID, can also be a list of them
-        """
-        if isinstance(entities, list):
-            # add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
-            temp_list = [id_of(entity) for entity in entities]
-            self.scopeIds.extend(temp_list)
-        else:
-            self.scopeIds.append(id_of(entities))
-
-    def _filter_duplicate_columns(self, syn, columns_to_add):
-        """
-        If a column to be added has the same name and same type as an existing column, it will be considered a duplicate
-         and not added.
-        :param syn:             a :py:class:`synapseclient.client.Synapse` object that is logged in
-        :param columns_to_add:  iterable collection of type :py:class:`synapseclient.table.Column` objects
-        :return: a filtered list of columns to add
-        """
-
-        # no point in making HTTP calls to retrieve existing Columns if we not adding any new columns
-        if not columns_to_add:
-            return columns_to_add
-
-        # set up Column name/type tracking
-        # map of str -> set(str), where str is the column type as a string and set is a set of column name strings
-        column_type_to_annotation_names = {}
-
-        # add to existing columns the columns that user has added but not yet created in synapse
-        column_generator = itertools.chain(syn.getColumns(self.columnIds),
-                                           self.columns_to_store) if self.columns_to_store \
-            else syn.getColumns(self.columnIds)
-
-        for column in column_generator:
-            column_name = column['name']
-            column_type = column['columnType']
-
-            column_type_to_annotation_names.setdefault(column_type, set()).add(column_name)
-
-        valid_columns = []
-        for column in columns_to_add:
-            new_col_name = column['name']
-            new_col_type = column['columnType']
-
-            typed_col_name_set = column_type_to_annotation_names.setdefault(new_col_type, set())
-            if new_col_name not in typed_col_name_set:
-                typed_col_name_set.add(new_col_name)
-                valid_columns.append(column)
-        return valid_columns
-
-    def _before_synapse_store(self, syn):
-        # get the default EntityView columns from Synapse and add them to the columns list
-        additional_columns = []
-        view_type = self._synapse_entity_type.split(".")[-1].lower()
-        mask = self.get("viewTypeMask")
-
-        if self.addDefaultViewColumns:
-            additional_columns.extend(
-                syn._get_default_view_columns(view_type, view_type_mask=mask)
-            )
-
-        # get default annotations
-        if self.addAnnotationColumns:
-            anno_columns = [x for x in syn._get_annotation_view_columns(self.scopeIds, view_type,
-                                                                        view_type_mask=mask)
-                            if x['name'] not in self.ignoredAnnotationColumnNames]
-            additional_columns.extend(anno_columns)
-
-        self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
-
-        # set these boolean flags to false so they are not repeated.
-        self.addDefaultViewColumns = False
-        self.addAnnotationColumns = False
-
-        super(ViewBase, self)._before_synapse_store(syn)
 
 
 class EntityViewSchema(ViewBase):
