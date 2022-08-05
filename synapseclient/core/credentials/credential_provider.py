@@ -1,8 +1,6 @@
 import abc
 import os
 
-import deprecated.sphinx
-
 from synapseclient.core.credentials import cached_sessions
 from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials, SynapseAuthTokenCredentials
 from synapseclient.core.exceptions import SynapseAuthenticationError
@@ -40,13 +38,9 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
         """
         return self._create_synapse_credential(syn, *self._get_auth_info(syn, user_login_args))
 
-    def _create_synapse_credential(self, syn, username, password, api_key, auth_token):
+    def _create_synapse_credential(self, syn, username, api_key, auth_token):
         if username is not None:
-            if password is not None:
-                retrieved_session_token = syn._getSessionToken(email=username, password=password)
-                return SynapseApiKeyCredentials(syn._getAPIKey(retrieved_session_token), username)
-
-            elif auth_token is None and api_key is not None:
+            if auth_token is None and api_key is not None:
                 # auth token takes precedence over api key
                 return SynapseApiKeyCredentials(api_key, username)
 
@@ -77,31 +71,9 @@ class UserArgsCredentialsProvider(SynapseCredentialsProvider):
     def _get_auth_info(self, syn, user_login_args):
         return (
             user_login_args.username,
-            user_login_args.password,
             user_login_args.api_key,
             user_login_args.auth_token,
         )
-
-
-@deprecated.sphinx.deprecated(version='1.9.0', action='ignore',
-                              reason="This will be removed in 2.0. Please use username and password or apiKey instead.")
-class UserArgsSessionTokenCredentialsProvider(SynapseCredentialsProvider):
-    """
-    This is a special case where we are not given context as to what the username is. We are only given a session token
-    and must retrieve the username and api key from Synapse
-    """
-
-    def _get_auth_info(self, syn, user_login_args):
-        username = None
-        password = None
-        api_key = None
-        auth_token = None
-
-        if user_login_args.session_token:
-            username = syn.getUserProfile(sessionToken=user_login_args.session_token)['userName']
-            api_key = syn._getAPIKey(user_login_args.session_token)
-
-        return username, password, api_key, auth_token
 
 
 class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
@@ -114,7 +86,6 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
         # check to make sure we didn't accidentally provide the wrong user
 
         username = config_dict.get('username')
-        password = config_dict.get('password')
         api_key = config_dict.get('apikey')
         token = config_dict.get('authtoken')
 
@@ -122,11 +93,10 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
             # if the username is provided and there is a config file username but they don't match
             # then we don't use any of the values from the config to prevent ambiguity
             username = None
-            password = None
             api_key = None
             token = None
 
-        return username, password, api_key, token
+        return username, api_key, token
 
 
 class CachedCredentialsProvider(SynapseCredentialsProvider):
@@ -136,7 +106,6 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
 
     def _get_auth_info(self, syn, user_login_args):
         username = None
-        password = None
         api_key = None
         auth_token = None
 
@@ -149,7 +118,7 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
                 api_key = api_creds.secret if api_creds else None
                 auth_token = auth_token_creds.secret if auth_token_creds else None
 
-        return username, password, api_key, auth_token
+        return username, api_key, auth_token
 
 
 class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
@@ -230,7 +199,6 @@ class SynapseCredentialsProviderChain(object):
 # order
 
 DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([
-    UserArgsSessionTokenCredentialsProvider(),  # This provider is DEPRECATED
     UserArgsCredentialsProvider(),
     EnvironmentVariableCredentialsProvider(),
     ConfigFileCredentialsProvider(),

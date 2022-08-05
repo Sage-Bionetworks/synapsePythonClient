@@ -332,18 +332,14 @@ class Synapse(object):
         self.fileHandleEndpoint = endpoints['fileHandleEndpoint']
         self.portalEndpoint = endpoints['portalEndpoint']
 
-    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False,
+    def login(self, email=None, apiKey=None, rememberMe=False, silent=False,
               forced=False, authToken=None):
         """
         Valid combinations of login() arguments:
 
-        - email/username and password  (**DEPRECATED**)
-
         - email/username and apiKey (Base64 encoded string)
 
         - authToken
-
-        - sessionToken (**DEPRECATED**)
 
         If no login arguments are provided or only username is provided, login() will attempt to log in using
          information from these sources (in order of preference):
@@ -355,10 +351,7 @@ class Synapse(object):
         #. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
 
         :param email:        Synapse user name (or an email address associated with a Synapse account)
-        :param password:     **!!DEPRECATED FIELD!!** password. Please use authToken (Synapse personal access token)
         :param apiKey:       Base64 encoded Synapse API key
-        :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the
-                             following fields: email, password, apiKey
         :param rememberMe:   Whether the authentication information should be cached in your operating system's
                              credential storage.
         :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
@@ -415,10 +408,8 @@ class Synapse(object):
             self,
             UserLoginArgs(
                 email,
-                password,
                 apiKey,
                 forced,
-                sessionToken,
                 authToken,
             )
         )
