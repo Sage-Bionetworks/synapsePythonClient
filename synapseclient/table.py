@@ -1081,6 +1081,12 @@ class Dataset(ViewBase):
                     'entityId': child.get("id"),
                     'versionNumber': child.get('versionNumber')
                 })
+            elif child.get("type") == "org.sagebionetworks.repo.model.Link":
+                ent = syn.get(child['id'], downloadFile=False)
+                files.append({
+                    'entityId': ent.linksTo['targetId'],
+                    'versionNumber': ent.linksTo['targetVersionNumber']
+                })
             else:
                 raise ValueError(f"Not a Folder?: {folder}")
         return files
