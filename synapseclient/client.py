@@ -851,9 +851,6 @@ class Synapse(object):
                                       "permission. The file has NOT been downloaded."
                     self.logger.warning('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'
                                         + '!'*len(warning_message)+'\n')
-            else:
-                cached_file_path = self.cache.get(entity.dataFileHandleId, downloadLocation)
-                entity.path = os.path.normpath(cached_file_path)
 
         return entity
 
