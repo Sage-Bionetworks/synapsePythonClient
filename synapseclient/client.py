@@ -994,7 +994,10 @@ class Synapse(object):
             test_entity = syn.store(test_entity, activity=activity)
 
         """
-
+        # SYNPY-1031: activity must be Activity object or code will fail later
+        if activity:
+            if not isinstance(activity, synapseclient.Activity):
+                raise ValueError("activity should be synapseclient.Activity object")
         # _before_store hook
         # give objects a chance to do something before being stored
         if hasattr(obj, '_before_synapse_store'):
