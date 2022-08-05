@@ -1249,7 +1249,6 @@ class SubmissionViewSchema(ViewBase):
 
 
 # add Schema to the map of synapse entity types to their Python representations
-entity_type_to_class = {}
 for cls in itersubclasses(SchemaBase):
     entity_type_to_class[cls._synapse_entity_type] = cls
 #HACK: viewbase extends schema base, so need to remove ViewBase
