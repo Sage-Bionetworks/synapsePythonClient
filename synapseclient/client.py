@@ -1774,28 +1774,35 @@ class Synapse(object):
 
         acl = self._getACL(entity)
 
-        principalId = self._getUserbyPrincipalIdOrName(principalId)
-
-        # Find existing permissions
-        permissions_to_update = None
-        for permissions in acl['resourceAccess']:
-            if 'principalId' in permissions and permissions['principalId'] == principalId:
-                permissions_to_update = permissions
-                break
-
-        if accessType is None or accessType == []:
-            # remove permissions
-            if permissions_to_update and overwrite:
-                acl['resourceAccess'].remove(permissions_to_update)
+        if isinstance(principalId, list):
+            principal_ids = [
+                self._getUserbyPrincipalIdOrName(pId)
+                for pId in principalId
+            ]
         else:
-            # add a 'resourceAccess' entry, if necessary
-            if not permissions_to_update:
-                permissions_to_update = {u'accessType': [], u'principalId': principalId}
-                acl['resourceAccess'].append(permissions_to_update)
-            if overwrite:
-                permissions_to_update['accessType'] = accessType
+            principal_ids = [principalId]
+
+        for p_id in principal_ids:
+            # Find existing permissions
+            permissions_to_update = None
+            for permissions in acl['resourceAccess']:
+                if 'principalId' in permissions and permissions['principalId'] == p_id:
+                    permissions_to_update = permissions
+                    break
+
+            if accessType is None or accessType == []:
+                # remove permissions
+                if permissions_to_update and overwrite:
+                    acl['resourceAccess'].remove(permissions_to_update)
             else:
-                permissions_to_update['accessType'] = list(set(permissions_to_update['accessType']) | set(accessType))
+                # add a 'resourceAccess' entry, if necessary
+                if not permissions_to_update:
+                    permissions_to_update = {u'accessType': [], u'principalId': principalId}
+                    acl['resourceAccess'].append(permissions_to_update)
+                if overwrite:
+                    permissions_to_update['accessType'] = accessType
+                else:
+                    permissions_to_update['accessType'] = list(set(permissions_to_update['accessType']) | set(accessType))
         return self._storeACL(entity, acl)
 
     ############################################################
