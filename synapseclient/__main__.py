@@ -1136,7 +1136,7 @@ def _prompt_for_credentials(user=None):
         user = input("Synapse username (leave blank if using an auth token): ")
 
     # if no username was provided then prompt for auth token, since no other secret will suffice without a user
-    secret_prompt = f"Password, api key, or auth token for user {user}:" if user else "Auth token:"
+    secret_prompt = f"Api key, or auth token for user {user}:" if user else "Auth token:"
 
     passwd = None
     while not passwd:
@@ -1161,9 +1161,6 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
     # for the user (e.g. first ask them to specify which type of secret they have rather than just an input prompt)
 
     login_attempts = (
-        # a username is required when attempting a password login
-        ('password', lambda user, secret: user is not None and secret is not None),
-
         # auth token login can be attempted without a username.
         # although tokens are technically encoded, the client treats them as opaque so we don't do an encoding check
         # on the secret itself
