@@ -301,7 +301,7 @@ import json
 from builtins import zip
 from typing import List, Dict
 
-from synapseclient.core.utils import id_of, from_unix_epoch_time
+from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, entity_type_to_class
@@ -1249,11 +1249,11 @@ class SubmissionViewSchema(ViewBase):
 
 
 # add Schema to the map of synapse entity types to their Python representations
-entity_type_to_class[Schema._synapse_entity_type] = Schema
-entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
-entity_type_to_class[SubmissionViewSchema._synapse_entity_type] = SubmissionViewSchema
-entity_type_to_class[MaterializedViewSchema._synapse_entity_type] = MaterializedViewSchema
-entity_type_to_class[Dataset._synapse_entity_type] = Dataset
+entity_type_to_class = {}
+for cls in itersubclasses(SchemaBase):
+    entity_type_to_class[cls._synapse_entity_type] = cls
+#HACK: viewbase extends schema base, so need to remove ViewBase
+entity_type_to_class.pop('')
 
 
 class SelectColumn(DictObject):
