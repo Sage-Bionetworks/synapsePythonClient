@@ -3477,6 +3477,10 @@ class Synapse(object):
         if resultsAs.lower() == "rowset":
             return TableQueryResult(self, query, **kwargs)
         elif resultsAs.lower() == "csv":
+            # remove isConsistent as a parameter because CsvFileTable.from_table_query doesn't
+            # take it
+            if kwargs.get("isConsistent") is not None:
+                kwargs.pop('isConsistent')
             return CsvFileTable.from_table_query(self, query, **kwargs)
         else:
             raise ValueError("Unknown return type requested from tableQuery: " + str(resultsAs))
