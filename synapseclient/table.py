@@ -347,6 +347,10 @@ class EntityViewType(enum.Enum):
     FOLDER = 0x08
     VIEW = 0x10
     DOCKER = 0x20
+    SUBMISSION_VIEW = 0x40
+    DATASET = 0x80
+    DATASET_COLLECTION = 0x100
+    MATERIALIZED_VIEW = 0x200
 
 
 def _get_view_type_mask(types_to_include):
@@ -781,234 +785,6 @@ class MaterializedViewSchema(SchemaBase):
         )
 
 
-class Dataset(SchemaBase):
-    """
-    A Dataset is an :py:class:`synapseclient.entity.Entity` that defines a
-    flat list of entities as a tableview (a.k.a. a "dataset").
-
-    :param name:            The name for the Dataset object
-    :param description:     User readable description of the schema
-    :param columns:         A list of :py:class:`Column` objects or their IDs
-    :param parent:          The Synapse Project to which this Dataset belongs
-    :param properties:      A map of Synapse properties
-    :param annotations:     A map of user defined annotations
-    :param dataset_items:   A list of items characterized by entityId and versionNumber
-    :param folder:          A list of Folder IDs
-    :param local_state:     Internal use only
-
-    Example::
-
-        from synapseclient import Dataset
-
-        # Create a Dataset with pre-defined DatasetItems. Default Dataset columns
-        # are used if no schema is provided.
-        dataset_items = [
-            {'entityId': "syn000", 'versionNumber: 1},
-            {...},
-        ]
-        dataset = syn.store(Dataset(
-            name="My Dataset",
-            parent=project,
-            dataset_items=dataset_items))
-
-        # Add/remove specific Synapse IDs to/from the Dataset
-        dataset.add_item({'entityId': "syn111", 'versionNumber': 1})
-        dataset.remove_item("syn000")
-        dataset = syn.store(dataset)
-
-        # Add a list of Synapse IDs to the Dataset
-        new_items = [
-            {'entityId': "syn222", 'versionNumber': 2},
-            {'entityId': "syn333", 'versionNumber': 1}
-        ]
-        dataset.add_items(new_items)
-        dataset = syn.store(dataset)
-
-    Folders can easily be added recursively to a dataset, that is, all files
-    within the folder (including sub-folders) will be added.  Note that using
-    the following methods will add files with the latest version number ONLY.
-    If another version number is desired, use :py:classmethod:`synapseclient.table.add_item`
-    or :py:classmethod:`synapseclient.table.add_items`.
-
-    Example::
-
-        # Add a single Folder to the Dataset
-        dataset.add_folder("syn123")
-
-        # Add a list of Folders, overwriting any existing files in the dataset
-        dataset.add_folders(["syn456", "syn789"], force=True)
-
-        dataset = syn.store(dataset)
-
-    empty() can be used to truncate a dataset, that is, remove all current
-    items from the set.
-
-    Example::
-
-        dataset.empty()
-        dataset = syn.store(dataset)
-
-    To get the number of entities in the dataset, use len().
-
-    Example::
-
-        print(f"{dataset.name} has {len(dataset)} items.")
-
-    To create a snapshot version of the Dataset, use
-    :py:classmethod:`synapseclient.client.create_snapshot_version`.
-
-    Example::
-
-        syn = synapseclient.login()
-        syn.create_snapshot_version(
-            dataset.id,
-            label="v1.0",
-            comment="This is version 1")
-    """
-    _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
-    _property_keys: List[str] = SchemaBase._property_keys + ['datasetItems']
-    _local_keys: List[str] = SchemaBase._local_keys + ['folders_to_add', 'force']
-
-    def __init__(self, name=None, columns=None, parent=None, properties=None,
-                 annotations=None, local_state=None, dataset_items=None,
-                 folders=None, force=None, **kwargs):
-        self.properties.setdefault('datasetItems', [])
-        self.__dict__.setdefault('folders_to_add', set())
-        self.__dict__.setdefault('force', False)
-        super(Dataset, self).__init__(
-            name=name, columns=columns, properties=properties,
-            annotations=annotations, local_state=local_state, parent=parent,
-            **kwargs
-        )
-
-        if force:
-            self.force = True
-        if dataset_items:
-            self.add_items(dataset_items, force)
-        if folders:
-            self.add_folders(folders, force)
-
-    def __len__(self):
-        return len(self.properties.datasetItems)
-
-    @staticmethod
-    def _check_needed_keys(keys: List[str]):
-        required_keys = {'entityId', 'versionNumber'}
-        if required_keys - keys:
-            raise LookupError("DatasetItem missing a required property: %s" %
-                              str(required_keys - keys))
-        return True
-
-    def add_item(self, dataset_item: Dict[str, str], force: bool = True):
-        """
-        :param dataset_item:    a single dataset item
-        :param force:           force add item
-        """
-        if isinstance(dataset_item, dict) and self._check_needed_keys(dataset_item.keys()):
-            if not self.has_item(dataset_item.get('entityId')):
-                self.properties.datasetItems.append(dataset_item)
-            else:
-                if force:
-                    self.remove_item(dataset_item.get('entityId'))
-                    self.properties.datasetItems.append(dataset_item)
-                else:
-                    raise ValueError(
-                        f"Duplicate item found: {dataset_item.get('entityId')}. "
-                        "Set force=True to overwrite the existing item.")
-        else:
-            raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
-
-    def add_items(self, dataset_items: List[Dict[str, str]], force: bool = True):
-        """
-        :param dataset_items:   a list of dataset items
-        :param force:           force add items
-        """
-        for dataset_item in dataset_items:
-            self.add_item(dataset_item, force)
-
-    def remove_item(self, item_id: str):
-        """
-        :param item_id: a single dataset item Synapse ID
-        """
-        item_id = id_of(item_id)
-        if item_id.startswith("syn"):
-            for i, curr_item in enumerate(self.properties.datasetItems):
-                if curr_item.get('entityId') == item_id:
-                    del self.properties.datasetItems[i]
-                    break
-        else:
-            raise ValueError("Not a Synapse ID: %s" % str(item_id))
-
-    def empty(self):
-        self.properties.datasetItems = []
-
-    def has_item(self, item_id):
-        """
-        :param item_id: a single dataset item Synapse ID
-        """
-        return any(item['entityId'] == item_id for item in self.properties.datasetItems)
-
-    def add_folder(self, folder: str, force: bool = True):
-        """
-        :param folder:  a single Synapse Folder ID
-        :param force:   force add items from folder
-        """
-        if not self.__dict__.get('folders_to_add', None):
-            self.__dict__['folders_to_add'] = set()
-        self.__dict__['folders_to_add'].add(folder)
-        if self.force != force:
-            self.force = force
-
-    def add_folders(self, folders: List[str], force: bool = True):
-        """
-        :param folders: a list of Synapse Folder IDs
-        :param force:   force add items from folders
-        """
-        if isinstance(folders, list) or isinstance(folders, set) or \
-                isinstance(folders, tuple):
-            self.force = force
-            for folder in folders:
-                self.add_folder(folder, force)
-        else:
-            raise ValueError(f"Not a list of Folder IDs: {folders}")
-
-    def _add_folder_files(self, syn, folder):
-        files = []
-        children = syn.getChildren(folder)
-        for child in children:
-            if child.get("type") == "org.sagebionetworks.repo.model.Folder":
-                files.extend(self._add_folder_files(syn, child.get("id")))
-            elif child.get("type") == "org.sagebionetworks.repo.model.FileEntity":
-                files.append({
-                    'entityId': child.get("id"),
-                    'versionNumber': child.get('versionNumber')
-                })
-            else:
-                raise ValueError(f"Not a Folder?: {folder}")
-        return files
-
-    def _before_synapse_store(self, syn):
-        # Add default Dataset columns if schema is not provided.
-        if not self.properties.columnIds and not self.columns_to_store:
-            self.addColumns(syn._get_default_view_columns("dataset"))
-
-        super()._before_synapse_store(syn)
-
-        # Add files from folders (if any) before storing dataset.
-        if self.folders_to_add:
-            for folder in self.folders_to_add:
-                items_to_add = self._add_folder_files(syn, folder)
-                self.add_items(items_to_add, self.force)
-            self.folders_to_add = set()
-
-        # Reset attribute to force-add items from folders.
-        self.force = True
-
-        # Remap `datasetItems` back to `items` before storing (since `items`
-        # is the accepted field name in the API, not `datasetItems`).
-        self.properties.items = self.properties.datasetItems
-
-
 class ViewBase(SchemaBase):
     """
     This is a helper class for EntityViewSchema and SubmissionViewSchema
@@ -1094,6 +870,237 @@ class ViewBase(SchemaBase):
         self.addAnnotationColumns = False
 
         super(ViewBase, self)._before_synapse_store(syn)
+
+
+class Dataset(ViewBase):
+    """
+    A Dataset is an :py:class:`synapseclient.entity.Entity` that defines a
+    flat list of entities as a tableview (a.k.a. a "dataset").
+
+    :param name:            The name for the Dataset object
+    :param description:     User readable description of the schema
+    :param columns:         A list of :py:class:`Column` objects or their IDs
+    :param parent:          The Synapse Project to which this Dataset belongs
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param dataset_items:   A list of items characterized by entityId and versionNumber
+    :param folder:          A list of Folder IDs
+    :param local_state:     Internal use only
+
+    Example::
+
+        from synapseclient import Dataset
+
+        # Create a Dataset with pre-defined DatasetItems. Default Dataset columns
+        # are used if no schema is provided.
+        dataset_items = [
+            {'entityId': "syn000", 'versionNumber': 1},
+            {...},
+        ]
+        dataset = syn.store(Dataset(
+            name="My Dataset",
+            parent=project,
+            dataset_items=dataset_items))
+
+        # Add/remove specific Synapse IDs to/from the Dataset
+        dataset.add_item({'entityId': "syn111", 'versionNumber': 1})
+        dataset.remove_item("syn000")
+        dataset = syn.store(dataset)
+
+        # Add a list of Synapse IDs to the Dataset
+        new_items = [
+            {'entityId': "syn222", 'versionNumber': 2},
+            {'entityId': "syn333", 'versionNumber': 1}
+        ]
+        dataset.add_items(new_items)
+        dataset = syn.store(dataset)
+
+    Folders can easily be added recursively to a dataset, that is, all files
+    within the folder (including sub-folders) will be added.  Note that using
+    the following methods will add files with the latest version number ONLY.
+    If another version number is desired, use :py:classmethod:`synapseclient.table.add_item`
+    or :py:classmethod:`synapseclient.table.add_items`.
+
+    Example::
+
+        # Add a single Folder to the Dataset
+        dataset.add_folder("syn123")
+
+        # Add a list of Folders, overwriting any existing files in the dataset
+        dataset.add_folders(["syn456", "syn789"], force=True)
+
+        dataset = syn.store(dataset)
+
+    empty() can be used to truncate a dataset, that is, remove all current
+    items from the set.
+
+    Example::
+
+        dataset.empty()
+        dataset = syn.store(dataset)
+
+    To get the number of entities in the dataset, use len().
+
+    Example::
+
+        print(f"{dataset.name} has {len(dataset)} items.")
+
+    To create a snapshot version of the Dataset, use
+    :py:classmethod:`synapseclient.client.create_snapshot_version`.
+
+    Example::
+
+        syn = synapseclient.login()
+        syn.create_snapshot_version(
+            dataset.id,
+            label="v1.0",
+            comment="This is version 1")
+    """
+    _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
+    _property_keys: List[str] = ViewBase._property_keys + ['datasetItems']
+    _local_keys: List[str] = ViewBase._local_keys + ['folders_to_add', 'force']
+
+    def __init__(self, name=None, columns=None, parent=None, properties=None,
+                 addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[],
+                 annotations=None, local_state=None, dataset_items=None,
+                 folders=None, force=False, **kwargs):
+        self.properties.setdefault('datasetItems', [])
+        self.__dict__.setdefault('folders_to_add', set())
+        self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
+        self.viewTypeMask = EntityViewType.DATASET.value
+        super(Dataset, self).__init__(
+            name=name, columns=columns, properties=properties,
+            annotations=annotations, local_state=local_state, parent=parent,
+            **kwargs
+        )
+
+        self.force = force
+        if dataset_items:
+            self.add_items(dataset_items, force)
+        if folders:
+            self.add_folders(folders, force)
+
+        # HACK: make sure we don't try to add columns to schemas that we retrieve from synapse
+        is_from_normal_constructor = not (properties or local_state)
+        # allowing annotations because user might want to update annotations all at once
+        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor
+        self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
+
+    def __len__(self):
+        return len(self.properties.datasetItems)
+
+    @staticmethod
+    def _check_needed_keys(keys: List[str]):
+        required_keys = {'entityId', 'versionNumber'}
+        if required_keys - keys:
+            raise LookupError("DatasetItem missing a required property: %s" %
+                              str(required_keys - keys))
+        return True
+
+    def add_item(self, dataset_item: Dict[str, str], force: bool = True):
+        """
+        :param dataset_item:    a single dataset item
+        :param force:           force add item
+        """
+        if isinstance(dataset_item, dict) and self._check_needed_keys(dataset_item.keys()):
+            if not self.has_item(dataset_item.get('entityId')):
+                self.properties.datasetItems.append(dataset_item)
+            else:
+                if force:
+                    self.remove_item(dataset_item.get('entityId'))
+                    self.properties.datasetItems.append(dataset_item)
+                else:
+                    raise ValueError(
+                        f"Duplicate item found: {dataset_item.get('entityId')}. "
+                        "Set force=True to overwrite the existing item.")
+        else:
+            raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
+
+    def add_items(self, dataset_items: List[Dict[str, str]], force: bool = True):
+        """
+        :param dataset_items:   a list of dataset items
+        :param force:           force add items
+        """
+        for dataset_item in dataset_items:
+            self.add_item(dataset_item, force)
+
+    def remove_item(self, item_id: str):
+        """
+        :param item_id: a single dataset item Synapse ID
+        """
+        item_id = id_of(item_id)
+        if item_id.startswith("syn"):
+            for i, curr_item in enumerate(self.properties.datasetItems):
+                if curr_item.get('entityId') == item_id:
+                    del self.properties.datasetItems[i]
+                    break
+        else:
+            raise ValueError("Not a Synapse ID: %s" % str(item_id))
+
+    def empty(self):
+        self.properties.datasetItems = []
+
+    def has_item(self, item_id):
+        """
+        :param item_id: a single dataset item Synapse ID
+        """
+        return any(item['entityId'] == item_id for item in self.properties.datasetItems)
+
+    def add_folder(self, folder: str, force: bool = True):
+        """
+        :param folder:  a single Synapse Folder ID
+        :param force:   force add items from folder
+        """
+        if not self.__dict__.get('folders_to_add', None):
+            self.__dict__['folders_to_add'] = set()
+        self.__dict__['folders_to_add'].add(folder)
+        # if self.force != force:
+        self.force = force
+
+    def add_folders(self, folders: List[str], force: bool = True):
+        """
+        :param folders: a list of Synapse Folder IDs
+        :param force:   force add items from folders
+        """
+        if isinstance(folders, list) or isinstance(folders, set) or \
+                isinstance(folders, tuple):
+            self.force = force
+            for folder in folders:
+                self.add_folder(folder, force)
+        else:
+            raise ValueError(f"Not a list of Folder IDs: {folders}")
+
+    def _add_folder_files(self, syn, folder):
+        files = []
+        children = syn.getChildren(folder)
+        for child in children:
+            if child.get("type") == "org.sagebionetworks.repo.model.Folder":
+                files.extend(self._add_folder_files(syn, child.get("id")))
+            elif child.get("type") == "org.sagebionetworks.repo.model.FileEntity":
+                files.append({
+                    'entityId': child.get("id"),
+                    'versionNumber': child.get('versionNumber')
+                })
+            else:
+                raise ValueError(f"Not a Folder?: {folder}")
+        return files
+
+    def _before_synapse_store(self, syn):
+        # Add files from folders (if any) before storing dataset.
+        if self.folders_to_add:
+            for folder in self.folders_to_add:
+                items_to_add = self._add_folder_files(syn, folder)
+                self.add_items(items_to_add, self.force)
+            self.folders_to_add = set()
+        # Must set this scopeIds is used to get all annotations from the
+        # entities
+        self.scopeIds = [item['entityId'] for item in self.properties.datasetItems]
+        super()._before_synapse_store(syn)
+        # Reset attribute to force-add items from folders.
+        self.force = True
+        # Remap `datasetItems` back to `items` before storing (since `items`
+        # is the accepted field name in the API, not `datasetItems`).
+        self.properties.items = self.properties.datasetItems
 
 
 class EntityViewSchema(ViewBase):
