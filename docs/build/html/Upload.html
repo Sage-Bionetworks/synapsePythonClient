@@ -1,60 +1,97 @@
-
-
-<!doctype html>
-
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>File Upload &#8212; Synapse Python Client 2.6.0 documentation</title>
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
-    
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/bizstyle.js"></script>
-    <link rel="shortcut icon" href="_static/favicon.png"/>
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File Upload &mdash; Synapse Python Client 2.6.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" /><link rel="shortcut icon" href="_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="S3 Storage Features" href="S3Storage.html" />
-    <link rel="prev" title="Views" href="Views.html" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <!--[if lt IE 9]>
-    <script src="_static/css3-mediaqueries.js"></script>
-    <![endif]-->
-  </head><body>
-<div class="header">
-  <a href="https://www.synapse.org/"><img src="_static/synapse_logo.png" alt='Synapse' style="object-fit: scale-down; height:100%"/></a>
-  <h1>Synapse Python Client API</h1>
+    <link rel="prev" title="Views" href="Views.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Synapse Python Client
+          </a>
+              <div class="version">
+                2.6.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
 </div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Credentials.html">Manage Synapse Credentials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Views.html">Views</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">File Upload</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#uploading-a-new-version">Uploading a New Version</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#updating-annotations-or-provenance-without-changing-versions">Updating Annotations or Provenance without Changing Versions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setting-provenance-without-changing-version">Setting Provenance without Changing Version</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#downloading-a-specific-version">Downloading a Specific Version</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="S3Storage.html">S3 Storage Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reticulate.html">Using synapseclient with R through reticulate</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Client.html">Synapse Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Entity.html">Entity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Evaluation.html">Evaluations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Activity.html">Provenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Annotations.html">Annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Wiki.html">Wiki</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Utilities.html">Utility Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Versions.html">Version Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html">Synapse command line client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Table.html">Tables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Team.html">Teams</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="news.html">Release Notes</a></li>
+</ul>
 
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
-          <a href="S3Storage.html" title="S3 Storage Features"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="Views.html" title="Views"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">File Upload</a></li> 
-      </ul>
-    </div>  
+        </div>
+      </div>
+    </nav>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Synapse Python Client</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>File Upload</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Upload.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
   <div class="section" id="file-upload">
 <h1>File Upload<a class="headerlink" href="#file-upload" title="Permalink to this headline">¶</a></h1>
 <p>Files in Synapse are versionable. Please see <a class="reference external" href="https://docs.synapse.org/articles/files_and_versioning.html">Files and Versioning</a> for more information about how versions in Files works.</p>
@@ -126,72 +163,39 @@
 </div>
 
 
-            <div class="clearer"></div>
+           </div>
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Views.html" class="btn btn-neutral float-left" title="Views" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="S3Storage.html" class="btn btn-neutral float-right" title="S3 Storage Features" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-</div>
-<script>$('#searchbox').show(0);</script>
-  <h3><a href="index.html">Table of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">File Upload</a><ul>
-<li><a class="reference internal" href="#uploading-a-new-version">Uploading a New Version</a></li>
-<li><a class="reference internal" href="#updating-annotations-or-provenance-without-changing-versions">Updating Annotations or Provenance without Changing Versions</a></li>
-<li><a class="reference internal" href="#setting-provenance-without-changing-version">Setting Provenance without Changing Version</a></li>
-<li><a class="reference internal" href="#downloading-a-specific-version">Downloading a Specific Version</a></li>
-</ul>
-</li>
-</ul>
 
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="Views.html"
-                        title="previous chapter">Views</a></p>
-  <h4>Next topic</h4>
-  <p class="topless"><a href="S3Storage.html"
-                        title="next chapter">S3 Storage Features</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/Upload.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2018, Sage Bionetworks.
+      <span class="lastupdated">Last updated on Aug 07, 2022.
+      </span></p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
-          <a href="S3Storage.html" title="S3 Storage Features"
-             >next</a> |</li>
-        <li class="right" >
-          <a href="Views.html" title="Views"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">File Upload</a></li> 
-      </ul>
-    </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 15, 2022.
+      Last updated on Aug 07, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
@@ -202,5 +206,6 @@
       ga('create', 'UA-44781812-1', 'synapse.org');
       ga('send', 'pageview');
     </script>
-  </body>
+
+</body>
 </html>

@@ -78,7 +78,7 @@ setuptools.setup(
         "pandas": ["pandas>=0.25.0,<2.0"],
         "pysftp": ["pysftp>=0.2.8,<0.3"],
         "boto3": ["boto3>=1.7.0,<2.0"],
-        "docs": ["sphinx>=3.0,<4.0", "sphinx-argparse>=0.2,<0.3"],
+        "docs": ["sphinx>=3.0,<4.0", "sphinx-argparse>=0.2,<0.3", "sphinx_rtd_theme"],
         "tests": test_deps,
         ':sys_platform=="linux"': ["keyrings.alt==3.1"],
     },

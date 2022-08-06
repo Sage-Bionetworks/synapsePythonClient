@@ -1,56 +1,242 @@
-
-
-<!doctype html>
-
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Release Notes &#8212; Synapse Python Client 2.6.0 documentation</title>
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
-    
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/bizstyle.js"></script>
-    <link rel="shortcut icon" href="_static/favicon.png"/>
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Release Notes &mdash; Synapse Python Client 2.6.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" /><link rel="shortcut icon" href="_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="Teams" href="Team.html" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <!--[if lt IE 9]>
-    <script src="_static/css3-mediaqueries.js"></script>
-    <![endif]-->
-  </head><body>
-<div class="header">
-  <a href="https://www.synapse.org/"><img src="_static/synapse_logo.png" alt='Synapse' style="object-fit: scale-down; height:100%"/></a>
-  <h1>Synapse Python Client API</h1>
+    <link rel="prev" title="Teams" href="Team.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Synapse Python Client
+          </a>
+              <div class="version">
+                2.6.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
 </div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="Credentials.html">Manage Synapse Credentials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Views.html">Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Upload.html">File Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="S3Storage.html">S3 Storage Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reticulate.html">Using synapseclient with R through reticulate</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Client.html">Synapse Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Entity.html">Entity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Evaluation.html">Evaluations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Activity.html">Provenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Annotations.html">Annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Wiki.html">Wiki</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Utilities.html">Utility Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Versions.html">Version Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html">Synapse command line client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Table.html">Tables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Team.html">Teams</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Release Notes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id1">2.6.0 (2022-04-19)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#highlights">Highlights</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#stories">Stories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tasks">Tasks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">2.5.1 (2021-12-02)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id3">Highlights</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">Stories</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id6">2.5.0 (2021-10-05)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id7">Highlights</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id8">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id9">Stories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id10">Tasks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id11">2.4.0 (2021-07-08)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id12">Highlights</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id13">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#improvements">Improvements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id14">Tasks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id15">2.3.1 (2021-04-13)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id16">Highlights</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id17">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id18">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id19">2.3.0 (2021-03-03)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id20">Highlights</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id21">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#new-features">New Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id22">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id23">2.2.2 (2020-10-18)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id24">Highlights</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id25">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id26">New Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id27">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id28">2.2.0 (2020-08-31)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id29">Highlights</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id30">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id31">Improvements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id32">Tasks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id33">2.1.1 (2020-07-10)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id34">Highlights</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id35">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id36">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id37">2.1.0 (2020-06-16)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id38">Highlights</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id39">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id40">Improvements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id41">Tasks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id42">2.0.0 (2020-03-23)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id43">Highlights:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bugs-fixes">Bugs Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id44">Tasks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id45">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id46">1.9.4 (2019-06-28)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id47">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id48">New Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id49">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id50">1.9.3 (2019-06-28)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id51">Bug Fixes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id52">1.9.2 (2019-02-15)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#features">Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id53">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id54">Tasks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id55">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id56">1.9.1 (2019-01-20)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id57">Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id58">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id59">Tasks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id60">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id61">1.9.0 (2018-09-28)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id62">Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id63">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id64">Tasks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id65">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id66">1.8.2 (2018-08-17)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id67">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id68">Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id69">Tasks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id70">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id71">1.8.1 (2018-05-17)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id72">Bug Fixes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id73">1.8.0 (2018-05-07)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id74">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id75">Tasks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id76">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id77">1.7.5 (2018-01-31)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id78">1.7.4 (2018-01-29)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id79">Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id80">Improvements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id81">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id82">Tasks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id83">1.7.3 (2017-12-08)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id84">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id85">Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id87">Tasks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id88">Improvements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id91">1.7.1 (2017-11-17)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id92">Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id93">Improvements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id94">Bug Fixes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id95">Tasks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id96">1.6.1 (2016-11-02)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#what-is-new">What is New</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id97">Improvements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id98">Bug Fixes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
-          <a href="Team.html" title="Teams"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Release Notes</a></li> 
-      </ul>
-    </div>  
+        </div>
+      </div>
+    </nav>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Synapse Python Client</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Release Notes</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/news.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
   <div class="section" id="release-notes">
 <h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="id1">
@@ -1397,212 +1583,38 @@ provide convenience functions for more complicated operations in Synapse such as
 </div>
 
 
-            <div class="clearer"></div>
+           </div>
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Team.html" class="btn btn-neutral float-left" title="Teams" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-</div>
-<script>$('#searchbox').show(0);</script>
-  <h3><a href="index.html">Table of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">Release Notes</a><ul>
-<li><a class="reference internal" href="#id1">2.6.0 (2022-04-19)</a><ul>
-<li><a class="reference internal" href="#highlights">Highlights</a></li>
-<li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
-<li><a class="reference internal" href="#stories">Stories</a></li>
-<li><a class="reference internal" href="#tasks">Tasks</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id2">2.5.1 (2021-12-02)</a><ul>
-<li><a class="reference internal" href="#id3">Highlights</a></li>
-<li><a class="reference internal" href="#id4">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id5">Stories</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id6">2.5.0 (2021-10-05)</a><ul>
-<li><a class="reference internal" href="#id7">Highlights</a></li>
-<li><a class="reference internal" href="#id8">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id9">Stories</a></li>
-<li><a class="reference internal" href="#id10">Tasks</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id11">2.4.0 (2021-07-08)</a><ul>
-<li><a class="reference internal" href="#id12">Highlights</a></li>
-<li><a class="reference internal" href="#id13">Bug Fixes</a></li>
-<li><a class="reference internal" href="#improvements">Improvements</a></li>
-<li><a class="reference internal" href="#id14">Tasks</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id15">2.3.1 (2021-04-13)</a><ul>
-<li><a class="reference internal" href="#id16">Highlights</a></li>
-<li><a class="reference internal" href="#id17">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id18">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id19">2.3.0 (2021-03-03)</a><ul>
-<li><a class="reference internal" href="#id20">Highlights</a></li>
-<li><a class="reference internal" href="#id21">Bug Fixes</a></li>
-<li><a class="reference internal" href="#new-features">New Features</a></li>
-<li><a class="reference internal" href="#id22">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id23">2.2.2 (2020-10-18)</a><ul>
-<li><a class="reference internal" href="#id24">Highlights</a></li>
-<li><a class="reference internal" href="#id25">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id26">New Features</a></li>
-<li><a class="reference internal" href="#id27">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id28">2.2.0 (2020-08-31)</a><ul>
-<li><a class="reference internal" href="#id29">Highlights</a></li>
-<li><a class="reference internal" href="#id30">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id31">Improvements</a></li>
-<li><a class="reference internal" href="#id32">Tasks</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id33">2.1.1 (2020-07-10)</a><ul>
-<li><a class="reference internal" href="#id34">Highlights</a></li>
-<li><a class="reference internal" href="#id35">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id36">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id37">2.1.0 (2020-06-16)</a><ul>
-<li><a class="reference internal" href="#id38">Highlights</a></li>
-<li><a class="reference internal" href="#id39">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id40">Improvements</a></li>
-<li><a class="reference internal" href="#id41">Tasks</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id42">2.0.0 (2020-03-23)</a><ul>
-<li><a class="reference internal" href="#id43">Highlights:</a></li>
-<li><a class="reference internal" href="#bugs-fixes">Bugs Fixes</a></li>
-<li><a class="reference internal" href="#id44">Tasks</a></li>
-<li><a class="reference internal" href="#id45">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id46">1.9.4 (2019-06-28)</a><ul>
-<li><a class="reference internal" href="#id47">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id48">New Features</a></li>
-<li><a class="reference internal" href="#id49">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id50">1.9.3 (2019-06-28)</a><ul>
-<li><a class="reference internal" href="#id51">Bug Fixes</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id52">1.9.2 (2019-02-15)</a><ul>
-<li><a class="reference internal" href="#features">Features</a></li>
-<li><a class="reference internal" href="#id53">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id54">Tasks</a></li>
-<li><a class="reference internal" href="#id55">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id56">1.9.1 (2019-01-20)</a><ul>
-<li><a class="reference internal" href="#id57">Features</a></li>
-<li><a class="reference internal" href="#id58">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id59">Tasks</a></li>
-<li><a class="reference internal" href="#id60">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id61">1.9.0 (2018-09-28)</a><ul>
-<li><a class="reference internal" href="#id62">Features</a></li>
-<li><a class="reference internal" href="#id63">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id64">Tasks</a></li>
-<li><a class="reference internal" href="#id65">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id66">1.8.2 (2018-08-17)</a><ul>
-<li><a class="reference internal" href="#id67">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id68">Features</a></li>
-<li><a class="reference internal" href="#id69">Tasks</a></li>
-<li><a class="reference internal" href="#id70">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id71">1.8.1 (2018-05-17)</a><ul>
-<li><a class="reference internal" href="#id72">Bug Fixes</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id73">1.8.0 (2018-05-07)</a><ul>
-<li><a class="reference internal" href="#id74">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id75">Tasks</a></li>
-<li><a class="reference internal" href="#id76">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id77">1.7.5 (2018-01-31)</a></li>
-<li><a class="reference internal" href="#id78">1.7.4 (2018-01-29)</a><ul>
-<li><a class="reference internal" href="#id79">Features</a></li>
-<li><a class="reference internal" href="#id80">Improvements</a></li>
-<li><a class="reference internal" href="#id81">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id82">Tasks</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id83">1.7.3 (2017-12-08)</a><ul>
-<li><a class="reference internal" href="#id84">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id85">Features</a></li>
-<li><a class="reference internal" href="#id87">Tasks</a></li>
-<li><a class="reference internal" href="#id88">Improvements</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id91">1.7.1 (2017-11-17)</a><ul>
-<li><a class="reference internal" href="#id92">Features</a></li>
-<li><a class="reference internal" href="#id93">Improvements</a></li>
-<li><a class="reference internal" href="#id94">Bug Fixes</a></li>
-<li><a class="reference internal" href="#id95">Tasks</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id96">1.6.1 (2016-11-02)</a><ul>
-<li><a class="reference internal" href="#what-is-new">What is New</a></li>
-<li><a class="reference internal" href="#id97">Improvements</a></li>
-<li><a class="reference internal" href="#id98">Bug Fixes</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
 
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="Team.html"
-                        title="previous chapter">Teams</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/news.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2018, Sage Bionetworks.
+      <span class="lastupdated">Last updated on Aug 07, 2022.
+      </span></p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
-          <a href="Team.html" title="Teams"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Release Notes</a></li> 
-      </ul>
-    </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 19, 2022.
+      Last updated on Aug 07, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
@@ -1613,5 +1625,6 @@ provide convenience functions for more complicated operations in Synapse such as
       ga('create', 'UA-44781812-1', 'synapse.org');
       ga('send', 'pageview');
     </script>
-  </body>
+
+</body>
 </html>
