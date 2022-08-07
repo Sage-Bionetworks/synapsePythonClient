@@ -268,6 +268,14 @@ Table
 .. autoclass:: synapseclient.table.CsvFileTable
    :members:
 
+~~~~~~~
+Dataset
+~~~~~~~
+
+.. autoclass:: synapseclient.table.Dataset
+   :members:
+   :noindex:
+
 ~~~~~~~~~~~~~~~~~~~~
 Module level methods
 ~~~~~~~~~~~~~~~~~~~~
@@ -918,8 +926,8 @@ class Dataset(ViewBase):
     Folders can easily be added recursively to a dataset, that is, all files
     within the folder (including sub-folders) will be added.  Note that using
     the following methods will add files with the latest version number ONLY.
-    If another version number is desired, use :py:classmethod:`synapseclient.table.add_item`
-    or :py:classmethod:`synapseclient.table.add_items`.
+    If another version number is desired, use :py:meth:`synapseclient.table.add_item`
+    or :py:meth:`synapseclient.table.add_items`.
 
     Example::
 
@@ -946,7 +954,7 @@ class Dataset(ViewBase):
         print(f"{dataset.name} has {len(dataset)} items.")
 
     To create a snapshot version of the Dataset, use
-    :py:classmethod:`synapseclient.client.create_snapshot_version`.
+    :py:meth:`synapseclient.client.create_snapshot_version`.
 
     Example::
 
@@ -1114,12 +1122,14 @@ class EntityViewSchema(ViewBase):
     :param scopes:                          a list of Projects/Folders or their ids
     :param type:                            This field is deprecated. Please use `includeEntityTypes`
     :param includeEntityTypes:              a list of entity types to include in the view. Supported entity types are:
-                                                EntityViewType.FILE,
-                                                EntityViewType.PROJECT,
-                                                EntityViewType.TABLE,
-                                                EntityViewType.FOLDER,
-                                                EntityViewType.VIEW,
-                                                EntityViewType.DOCKER
+
+                                                - EntityViewType.FILE,
+                                                - EntityViewType.PROJECT,
+                                                - EntityViewType.TABLE,
+                                                - EntityViewType.FOLDER,
+                                                - EntityViewType.VIEW,
+                                                - EntityViewType.DOCKER
+
                                             If none is provided, the view will default to include EntityViewType.FILE.
     :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
                                             Defaults to True.
@@ -1186,12 +1196,14 @@ class EntityViewSchema(ViewBase):
         """
         :param includeEntityTypes: a list of entity types to include in the view. This list will replace the previous
                                    settings. Supported entity types are:
-                                        EntityViewType.FILE,
-                                        EntityViewType.PROJECT,
-                                        EntityViewType.TABLE,
-                                        EntityViewType.FOLDER,
-                                        EntityViewType.VIEW,
-                                        EntityViewType.DOCKER
+
+                                        - EntityViewType.FILE,
+                                        - EntityViewType.PROJECT,
+                                        - EntityViewType.TABLE,
+                                        - EntityViewType.FOLDER,
+                                        - EntityViewType.VIEW,
+                                        - EntityViewType.DOCKER
+
         """
         self.viewTypeMask = _get_view_type_mask(includeEntityTypes)
 
@@ -1824,8 +1836,10 @@ class TableQueryResult(TableAbstractBaseClass):
     def asDataFrame(self, rowIdAndVersionInIndex=True):
         """
         Convert query result to a Pandas DataFrame.
+
         :param rowIdAndVersionInIndex:  Make the dataframe index consist of the row_id and row_version (and row_etag
                                         if it exists)
+
         """
         test_import_pandas()
         import pandas as pd
@@ -2211,11 +2225,13 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime=False):
         """Convert query result to a Pandas DataFrame.
+
         :param rowIdAndVersionInIndex:  Make the dataframe index consist of the row_id and row_version
                                         (and row_etag if it exists)
         :param convert_to_datetime:     If set to True, will convert all Synapse DATE columns from UNIX timestamp
                                         integers into UTC datetime objects
-        :return:
+
+        :return: Pandas dataframe with results
         """
         test_import_pandas()
         import pandas as pd

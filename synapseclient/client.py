@@ -187,7 +187,7 @@ class Synapse(object):
     :param skip_checks:           Skip version and endpoint checks
     :param configPath:            Path to config File with setting for Synapse
                                   defaults to ~/.synapseConfig
-    :param requests_session       a custom requests.Session object that this Synapse instance will use
+    :param requests_session:      a custom requests.Session object that this Synapse instance will use
                                   when making http requests
 
     Typically, no parameters are needed::
@@ -337,13 +337,10 @@ class Synapse(object):
         """
         Valid combinations of login() arguments:
 
-        - email/username and password
-
-        - email/username and apiKey (Base64 encoded string)
-
-        - authToken
-
-        - sessionToken (**DEPRECATED**)
+            - email/username and password
+            - email/username and apiKey (Base64 encoded string)
+            - authToken
+            - sessionToken (**DEPRECATED**)
 
         If no login arguments are provided or only username is provided, login() will attempt to log in using
          information from these sources (in order of preference):
@@ -362,7 +359,7 @@ class Synapse(object):
         :param rememberMe:   Whether the authentication information should be cached in your operating system's
                              credential storage.
         :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
-                                password or apiKey
+                             password or apiKey
 
         **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
         **Linux** systems.
@@ -379,6 +376,7 @@ class Synapse(object):
             OR
             sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python or vitualenv)
             sudo pip install dbus-python #(may take a while to compile C code)
+
         If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before
         running your Python session::
 
@@ -1501,6 +1499,7 @@ class Synapse(object):
 
     @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`get_annotations`')
     def getAnnotations(self, entity, version=None):
+        """deprecated and replaced with :py:meth:`get_annotations`"""
         return self.get_annotations(entity, version=version)
 
     def get_annotations(self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None) -> Annotations:

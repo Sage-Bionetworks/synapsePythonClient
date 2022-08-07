@@ -3,7 +3,7 @@
 Overview
 ********
 
-The ``synapseclient`` package provides an interface to `Synapse <http://www.synapse.org>`_, a collaborative,
+The ``synapseclient`` package provides an interface to `Synapse <http://www.synapse.org>`__, a collaborative,
 open-source research platform that allows teams to share data, track analyses,
 and collaborate, providing support for:
 
@@ -19,7 +19,7 @@ the `web <https://www.synapse.org/>`_. The Python client can also be used from t
 `command line <CommandLineClient.html>`_.
 
 If you're just getting started with Synapse, have a look at the Getting Started guides for
-`Synapse <https://docs.synapse.org/articles/getting_started.html>`_.
+`Synapse <https://docs.synapse.org/articles/getting_started.html>`__.
 
 Installation
 ============

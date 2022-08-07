@@ -3,6 +3,7 @@ Synapse Python Client Documentation
 ===================================
 .. automodule:: synapseclient
    :members:
+   :noindex:
 
 .. Hidden TOCs
 
