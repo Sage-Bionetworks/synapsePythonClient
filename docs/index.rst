@@ -1,6 +1,6 @@
-===================================
-Synapse Python Client Documentation
-===================================
+================================================
+Synapse Python/Command Line Client Documentation
+================================================
 .. automodule:: synapseclient
    :members:
    :noindex:
