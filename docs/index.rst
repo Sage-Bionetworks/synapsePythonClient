@@ -4,12 +4,12 @@ Synapse Python Client Documentation
 .. automodule:: synapseclient
    :members:
 
-========
-Articles
-========
+.. Hidden TOCs
 
 .. toctree::
+   :caption: Articles
    :maxdepth: 1
+   :hidden:
 
    Credentials
    Views
@@ -17,12 +17,10 @@ Articles
    S3Storage
    reticulate
 
-=========
-Reference
-=========
-
 .. toctree::
    :maxdepth: 1
+   :caption: Reference
+   :hidden:
 
    Client
    Entity
@@ -37,12 +35,9 @@ Reference
    sftp
    Team
 
-
-=============
-Release Notes
-=============
-
 .. toctree::
    :maxdepth: 2
+   :caption: Release Notes
+   :hidden:
 
    news
