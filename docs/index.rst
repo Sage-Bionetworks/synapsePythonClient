@@ -17,9 +17,10 @@ Synapse Python Client Documentation
    S3Storage
    reticulate
 
+
 .. toctree::
-   :maxdepth: 1
    :caption: Reference
+   :maxdepth: 1
    :hidden:
 
    Client
@@ -34,10 +35,13 @@ Synapse Python Client Documentation
    Table
    sftp
    Team
+   synapseutils
+   Multipart_upload
+
 
 .. toctree::
-   :maxdepth: 2
    :caption: Release Notes
+   :maxdepth: 2
    :hidden:
 
    news
