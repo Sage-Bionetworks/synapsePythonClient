@@ -153,8 +153,8 @@ See:
 More Information
 ================
 
-For more information see the `Synapse User Guide <https://docs.synapse.org/articles/>`_. These Python API
-docs are browsable online at `https://python-docs.synapse.org/ <https://python-docs.synapse.org/>`_.
+For more information see the `Synapse User Guide <https://docs.synapse.org/articles/>`_. More detailed Python API
+docs are available under the pages in "PYTHON API".
 
 Getting Updates
 ===============
