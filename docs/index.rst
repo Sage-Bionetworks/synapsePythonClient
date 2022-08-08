@@ -12,7 +12,7 @@ and collaborate, providing support for:
 
 - integrated presentation of data, code and text
 - fine grained access control
-- provenance_ tracking
+- provenance tracking
 
 The ``synapseclient`` package lets you communicate with the cloud-hosted Synapse service to access data and create
 shared data analysis projects from within Python scripts or at the interactive Python console. Other Synapse clients
@@ -23,6 +23,7 @@ the `web <https://www.synapse.org/>`_. The Python client can also be used from t
 
 If you're just getting started with Synapse, have a look at the Getting Started guides for
 `Synapse <https://docs.synapse.org/articles/getting_started.html>`__.
+
 
 .. Hidden TOCs
 

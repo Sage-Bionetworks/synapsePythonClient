@@ -3,8 +3,8 @@ The Synapse Python Client can be used from the command line via the **synapse** 
 Installation
 ============
 
-The command line client is installed along with `installation of the Synapse Python client \
-<http://python-docs.synapse.org/build/html/index.html#installation>`_.
+The command line client is installed along with :doc:`getting_started/installation` of the Synapse Python client.
+
 
 Help
 ====
