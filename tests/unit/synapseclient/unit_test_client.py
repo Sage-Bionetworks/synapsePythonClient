@@ -1024,7 +1024,6 @@ def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloa
                                    'download requirement(s).\n')
 
 
-
 def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(syn):
     with patch("warnings.warn") as mocked_warn:
         bundle = {'entity': {
