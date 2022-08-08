@@ -1,7 +1,3 @@
-***************************
-Synapse command line client
-***************************
-
 The Synapse Python Client can be used from the command line via the **synapse** command.
 
 Installation
