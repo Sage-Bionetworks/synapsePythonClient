@@ -550,12 +550,10 @@ def _getSubWikiHeaders(wikiHeaders, subPageId, mapping=None):
 
 
 def _updateSynIds(newWikis, wikiIdMap, entityMap):
-    syn.logger.info("Updating Synapse references:\n")
     for oldWikiId in wikiIdMap.keys():
         # go through each wiki page once more:
         newWikiId = wikiIdMap[oldWikiId]
         newWiki = newWikis[newWikiId]
-        syn.logger.info('Updated Synapse references for Page: %s\n' % newWikiId)
         s = newWiki.markdown
 
         for oldSynId in entityMap.keys():
@@ -563,18 +561,15 @@ def _updateSynIds(newWikis, wikiIdMap, entityMap):
             newSynId = entityMap[oldSynId]
             oldSynId = oldSynId + "\\b"
             s = re.sub(oldSynId, newSynId, s)
-        syn.logger.info("Done updating Synapse IDs.\n")
         newWikis[newWikiId].markdown = s
     return newWikis
 
 
 def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
-    syn.logger.info("Updating internal links:\n")
     for oldWikiId in wikiIdMap.keys():
         # go through each wiki page once more:
         newWikiId = wikiIdMap[oldWikiId]
         newWiki = newWikis[newWikiId]
-        syn.logger.info("\tUpdating internal links for Page: %s\n" % newWikiId)
         s = newWiki["markdown"]
         # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
         # where wikiIdMap maps abc->xyz
@@ -699,10 +694,14 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         wikiIdMap[wiki['id']] = newWikiPage['id']
 
     if updateLinks:
+        syn.logger.info("Updating internal links:\n")
         newWikis = _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId)
+        syn.logger.info("Done updating internal links.\n")
 
     if updateSynIds and entityMap is not None:
+        syn.logger.info("Updating Synapse references:\n")
         newWikis = _updateSynIds(newWikis, wikiIdMap, entityMap)
+        syn.logger.info("Done updating Synapse IDs.\n")
 
     syn.logger.info("Storing new Wikis\n")
     for oldWikiId in wikiIdMap.keys():
