@@ -315,13 +315,13 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     permissions = syn.restGET("/entity/{}/permissions".format(ent.id))
     # Don't copy entities without DOWNLOAD permissions
     if not permissions['canDownload']:
-        print("%s not copied - this file lacks download permission" % ent.id)
+        syn.logger.warning("%s not copied - this file lacks download permission" % ent.id)
         return mapping
 
     access_requirements = syn.restGET('/entity/{}/accessRequirement'.format(ent.id))
     # If there are any access requirements, don't copy files
     if access_requirements['results']:
-        print("{} not copied - this file has access restrictions".format(ent.id))
+        syn.logger.warning("{} not copied - this file has access restrictions".format(ent.id))
         return mapping
     copiedId = None
 
@@ -350,9 +350,9 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     # This is currently done because copyLink returns None sometimes
     if copiedId is not None:
         mapping[ent.id] = copiedId
-        print("Copied %s to %s" % (ent.id, copiedId))
+        syn.logger.info("Copied %s to %s" % (ent.id, copiedId))
     else:
-        print("%s not copied" % ent.id)
+        syn.logger.info("%s not copied" % ent.id)
     return mapping
 
 
@@ -479,7 +479,7 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
                             Default to False
     """
 
-    print("Getting table %s" % entity)
+    syn.logger.info("Getting table %s" % entity)
     myTableSchema = syn.get(entity)
     # CHECK: If Table name already exists, raise value error
     existingEntity = syn.findEntityId(myTableSchema.name, parent=destinationId)
@@ -493,7 +493,7 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
 
     newTableSchema = Schema(name=myTableSchema.name, parent=destinationId, columns=colIds)
 
-    print("Created new table using schema %s" % newTableSchema.name)
+    syn.logger.info("Created new table using schema %s" % newTableSchema.name)
     newTable = Table(schema=newTableSchema, values=d.filepath)
     newTable = syn.store(newTable)
     return newTable.schema.id
@@ -524,7 +524,7 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
         return newLink.id
     except SynapseHTTPError as e:
         if e.response.status_code == 404:
-            print("WARNING: The target of this link %s no longer exists" % ent.id)
+            syn.logger.warning("The target of this link %s no longer exists" % ent.id)
             return None
         else:
             raise e
@@ -550,12 +550,12 @@ def _getSubWikiHeaders(wikiHeaders, subPageId, mapping=None):
 
 
 def _updateSynIds(newWikis, wikiIdMap, entityMap):
-    print("Updating Synapse references:\n")
+    syn.logger.info("Updating Synapse references:\n")
     for oldWikiId in wikiIdMap.keys():
         # go through each wiki page once more:
         newWikiId = wikiIdMap[oldWikiId]
         newWiki = newWikis[newWikiId]
-        print('Updated Synapse references for Page: %s\n' % newWikiId)
+        syn.logger.info('Updated Synapse references for Page: %s\n' % newWikiId)
         s = newWiki.markdown
 
         for oldSynId in entityMap.keys():
@@ -563,18 +563,18 @@ def _updateSynIds(newWikis, wikiIdMap, entityMap):
             newSynId = entityMap[oldSynId]
             oldSynId = oldSynId + "\\b"
             s = re.sub(oldSynId, newSynId, s)
-        print("Done updating Synapse IDs.\n")
+        syn.logger.info("Done updating Synapse IDs.\n")
         newWikis[newWikiId].markdown = s
     return newWikis
 
 
 def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
-    print("Updating internal links:\n")
+    syn.logger.info("Updating internal links:\n")
     for oldWikiId in wikiIdMap.keys():
         # go through each wiki page once more:
         newWikiId = wikiIdMap[oldWikiId]
         newWiki = newWikis[newWikiId]
-        print("\tUpdating internal links for Page: %s\n" % newWikiId)
+        syn.logger.info("\tUpdating internal links for Page: %s\n" % newWikiId)
         s = newWiki["markdown"]
         # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
         # where wikiIdMap maps abc->xyz
@@ -660,7 +660,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
 
     for wikiHeader in oldWikiHeaders:
         wiki = syn.getWiki(oldOwn, wikiHeader['id'])
-        print('Got wiki %s' % wikiHeader['id'])
+        syn.logger.info('Got wiki %s' % wikiHeader['id'])
         if not wiki.get('attachmentFileHandleIds'):
             new_file_handles = []
         else:
@@ -704,9 +704,9 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     if updateSynIds and entityMap is not None:
         newWikis = _updateSynIds(newWikis, wikiIdMap, entityMap)
 
-    print("Storing new Wikis\n")
+    syn.logger.info("Storing new Wikis\n")
     for oldWikiId in wikiIdMap.keys():
         newWikiId = wikiIdMap[oldWikiId]
         newWikis[newWikiId] = syn.store(newWikis[newWikiId])
-        print("\tStored: %s\n" % newWikiId)
+        syn.logger.info("\tStored: %s\n" % newWikiId)
     return syn.getWikiHeaders(newOwn)
