@@ -743,7 +743,7 @@ def _check_path_and_normalize(f):
         return f
     path_normalized = os.path.abspath(os.path.expandvars(os.path.expanduser(f)))
     if not os.path.isfile(path_normalized):
-        print('\nThe specified path "%s" is either not a file path or does not exist.', f)
+        print(f'\nThe specified path "{f}" is either not a file path or does not exist.', file=sys.stderr)
         raise IOError('The path %s is not a file or does not exist' % f)
     return path_normalized
 
