@@ -193,7 +193,7 @@ later::
     row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
 
     # Later, we'll want to query the table and download our album covers
-    results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'Sonny Rollins'" \
+    results = syn.tableQuery("select artist, album, 'year', catalog, cover from %s where artist = 'Sonny Rollins'" \
                              % schema.id)
     cover_files = syn.downloadTableColumns(results, ['cover'])
 
