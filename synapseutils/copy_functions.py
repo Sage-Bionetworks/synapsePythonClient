@@ -175,6 +175,10 @@ def _copy_cached_file_handles(cache, copiedFileHandles):
 
 def changeFileMetaData(syn, entity, downloadAs=None, contentType=None, forceVersion=True):
     """
+    Change File Entity metadata like the download as name.
+
+    :param syn:           Synapse connection
+
     :param entity:        Synapse entity Id or object
 
     :param contentType:   Specify content type to change the content type of a filehandle
