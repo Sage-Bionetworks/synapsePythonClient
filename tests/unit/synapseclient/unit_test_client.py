@@ -2505,6 +2505,14 @@ def test_store__existing_no_update(syn):
         assert not mock_updatentity.called
 
 
+def test_store__wrong_activity(syn):
+    """Test that if function fails if activity object isn't passed in"""
+    ent = synapseclient.File("test", parentId="syn123")
+    with pytest.raises(ValueError) as ex_cm:
+        syn.store(ent, activity="foo")
+        assert "activity should be synapseclient.Activity object" ==  str(ex_cm.value)
+
+
 def test_get_submission_with_annotations(syn):
     """Verify a getSubmission with annotation entityBundleJSON that
     uses the old style annotations is converted to bundle v2 style
