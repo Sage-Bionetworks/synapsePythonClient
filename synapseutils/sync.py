@@ -723,12 +723,12 @@ def _sortAndFixProvenance(syn, df):
         allRefs = []
         if 'used' in row:
             used = row['used'].split(';') if (row['used'].strip() != '') else []  # Get None or split if string
-            df.at[path, 'used'] = [_checkProvenace(item, path) for item in used]
+            df.at[path, 'used'] = [_checkProvenace(item.strip(), path) for item in used]
             allRefs.extend(df.loc[path, 'used'])
         if 'executed' in row:
             # Get None or split if string
             executed = row['executed'].split(';') if (row['executed'].strip() != '') else []
-            df.at[path, 'executed'] = [_checkProvenace(item, path) for item in executed]
+            df.at[path, 'executed'] = [_checkProvenace(item.strip(), path) for item in executed]
             allRefs.extend(df.loc[path, 'executed'])
         uploadOrder[path] = allRefs
 
@@ -850,9 +850,12 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     file. The minimum required columns are **path** and **parent** where path is the local file path and parent is the
     Synapse Id of the project or folder where the file is uploaded to. In addition to these columns you can specify any
     of the parameters to the File constructor (**name**, **synapseStore**, **contentType**) as well as parameters to the
-    syn.store command (**used**, **executed**, **activityName**, **activityDescription**, **forceVersion**).
+    syn.store command (**used**, **executed**, **activityName**, **activityDescription**, **forceVersion**).  For only
+    updating annotations without uploading new versions of unchanged files, the syn.store parameter forceVersion
+    should be included in the manifest with the value set to False.
     Used and executed can be semi-colon (";") separated lists of Synapse ids, urls and/or local filepaths of files
-    already stored in Synapse (or being stored in Synapse by the manifest).
+    already stored in Synapse (or being stored in Synapse by the manifest).  If you leave a space, like
+    "syn1234; syn2345" the white space from " syn2345" will be stripped.
     Any additional columns will be added as annotations.
 
     **Required fields:**
@@ -875,14 +878,19 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     **Provenance fields:**
 
-    ====================   =====================================  ==========================================
+    Each of these are individual examples and is what you would find in a row in each of these columns. To
+    clarify, "syn1235;/path/to_local/file.txt" below states that you would like both
+    "syn1234" and "/path/to_local/file.txt" added as items used to generate a file. You can also specify one item
+    by specifying "syn1234"
+
+    ====================   =====================================  ============================================
     Field                  Meaning                                Example
-    ====================   =====================================  ==========================================
-    used                   List of items used to generate file    syn1235; /path/to_local/file.txt
-    executed               List of items exectued                 https://github.org/; /path/to_local/code.py
+    ====================   =====================================  ============================================
+    used                   List of items used to generate file    "syn1235;/path/to_local/file.txt"
+    executed               List of items exectued                 "https://github.org/;/path/to_local/code.py"
     activityName           Name of activity in provenance         "Ran normalization"
     activityDescription    Text description on what was done      "Ran algorithm xyx with parameters..."
-    ====================   =====================================  ==========================================
+    ====================   =====================================  ============================================
 
     Annotations:
 
@@ -905,7 +913,7 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     ===============   ========    =======   =======   ===========================    ============================
     path              parent      annot1    annot2    used                           executed
     ===============   ========    =======   =======   ===========================    ============================
-    /path/file1.txt   syn1243     "bar"     3.1415    "syn124; /path/file2.txt"      "https://github.org/foo/bar"
+    /path/file1.txt   syn1243     "bar"     3.1415    "syn124;/path/file2.txt"       "https://github.org/foo/bar"
     /path/file2.txt   syn12433    "baz"     2.71      ""                             "https://github.org/foo/baz"
     ===============   ========    =======   =======   ===========================    ============================
 
