@@ -8,7 +8,7 @@ master  | [![Build Status master branch](https://github.com/Sage-Bionetworks/syn
 
 [![Get the synapseclient from PyPI](https://img.shields.io/pypi/v/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Supported Python Versions](https://img.shields.io/pypi/pyversions/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) 
 
-A Python client for [Sage Bionetworks'](https://www.sagebase.org) [Synapse](https://www.synapse.org/), a collaborative compute space that allows scientists to share and analyze data together. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
+A Python client for [Sage Bionetworks'](https://www.sagebase.org) [Synapse](https://www.synapse.org/), a collaborative, open-source research platform that allows teams to share data, track analyses, and collaborate. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
 
 There is also a [Synapse client for R](https://github.com/Sage-Bionetworks/synapser/).
 
@@ -67,11 +67,11 @@ Clone the [source code repository](https://github.com/Sage-Bionetworks/synapsePy
 Command line usage
 ------------------
 
-The synapse client can be used from the shell command prompt. Valid commands
+The Synapse client can be used from the shell command prompt. Valid commands
 include: query, get, cat, add, update, delete, and onweb. A few examples are
 shown.
 
-### downloading test data from synapse
+### downloading test data from Synapse
 
     synapse -u my_username -p my_password get syn1528299
 
@@ -79,13 +79,13 @@ shown.
 
     synapse -h
 
-Note that a [synapse account](https://www.synapse.org/#RegisterAccount:0) is required.
+Note that a [Synapse account](https://www.synapse.org/#RegisterAccount:0) is required.
 
 
 Usage as a library
 ------------------
 
-The synapse client can be used to write software that interacts with the Sage Synapse repository.
+The Synapse client can be used to write software that interacts with the Sage Bionetworks Synapse repository.
 
 ### Example
 
@@ -120,7 +120,7 @@ The synapse client can be used to write software that interacts with the Sage Sy
 
 Authentication
 --------------
-Authentication toward [synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished in a few different ways. One is by passing username and password to the `syn.login` function.
+Authentication toward [Synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished in a few different ways. One is by passing username and password to the `syn.login` function.
 
     import synapseclient
     syn = synapseclient.Synapse()
@@ -155,14 +155,14 @@ The purpose of synapseutils is to create a space filled with convenience functio
     import synapseclient
     syn = synapseclient.login()
     
-    #COPY: copies all synapse entities to a destination location
+    #COPY: copies all Synapse entities to a destination location
     synapseutils.copy(syn, "syn1234", destinationId = "syn2345")
     
     #COPY WIKI: copies the wiki from the entity to a destination entity. Only a project can have sub wiki pages.
     synapseutils.copyWiki(syn, "syn1234", destinationId = "syn2345")
 
 
-    #WALK: Traverses through synapse directories, behaves exactly like os.walk()
+    #WALK: Traverses through Synapse directories, behaves exactly like os.walk()
     walkedPath = synapseutils.walk(syn, "syn1234")
 
     for dirpath, dirname, filename in walkedPath:

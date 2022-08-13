@@ -193,7 +193,7 @@ later::
     row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
 
     # Later, we'll want to query the table and download our album covers
-    results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'Sonny Rollins'" \
+    results = syn.tableQuery("select artist, album, 'year', catalog, cover from %s where artist = 'Sonny Rollins'" \
                              % schema.id)
     cover_files = syn.downloadTableColumns(results, ['cover'])
 
@@ -291,7 +291,6 @@ import csv
 import io
 import os
 import re
-import sys
 import tempfile
 import copy
 import itertools
@@ -300,9 +299,9 @@ import abc
 import enum
 import json
 from builtins import zip
-from pandas.api.types import infer_dtype
+from typing import List, Dict
 
-from synapseclient.core.utils import id_of, from_unix_epoch_time
+from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, entity_type_to_class
@@ -320,7 +319,17 @@ PANDAS_TABLE_TYPE = {
     'datetime': 'DATE',
     'date': 'DATE',
 }
-
+# These are all the synapse columns that are lists
+# Be sure to edit the values in the `cast_values` function as well
+# when lists column types are added
+LIST_COLUMN_TYPES = {
+    'STRING_LIST',
+    'INTEGER_LIST',
+    'BOOLEAN_LIST',
+    'DATE_LIST',
+    'ENTITYID_LIST',
+    'USERID_LIST'
+}
 MAX_NUM_TABLE_COLUMNS = 152
 
 
@@ -338,6 +347,10 @@ class EntityViewType(enum.Enum):
     FOLDER = 0x08
     VIEW = 0x10
     DOCKER = 0x20
+    SUBMISSION_VIEW = 0x40
+    DATASET = 0x80
+    DATASET_COLLECTION = 0x100
+    MATERIALIZED_VIEW = 0x200
 
 
 def _get_view_type_mask(types_to_include):
@@ -366,14 +379,15 @@ def _get_view_type_mask_for_deprecated_type(type):
 def test_import_pandas():
     try:
         import pandas as pd  # noqa F401
-    # used to catch ImportError, but other errors can happen (see SYNPY-177)
-    except:  # noqa
-        sys.stderr.write("""\n\nPandas not installed!\n
-        The synapseclient package recommends but doesn't require the
-        installation of Pandas. If you'd like to use Pandas DataFrames,
-        refer to the installation instructions at:
-          http://pandas.pydata.org/.
+    # used to catch when pandas isn't installed
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError("""\n\nThe pandas package is required for this function!\n
+        Most functions in the synapseclient package don't require the
+        installation of pandas, but some do. Please refer to the installation
+        instructions at: http://pandas.pydata.org/.
         \n\n\n""")
+    # catch other errors (see SYNPY-177)
+    except:  # noqa
         raise
 
 
@@ -396,6 +410,7 @@ def as_table_columns(values):
     """
     test_import_pandas()
     import pandas as pd
+    from pandas.api.types import infer_dtype
 
     df = None
 
@@ -514,7 +529,8 @@ def cast_values(values, headers):
             result.append(to_boolean(field))
         elif columnType == 'DATE':
             result.append(from_unix_epoch_time(field))
-        elif columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST'}:
+        elif columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST',
+                            'ENTITYID_LIST', 'USERID_LIST'}:
             result.append(json.loads(field))
         elif columnType == 'DATE_LIST':
             result.append(json.loads(field, parse_int=from_unix_epoch_time))
@@ -736,6 +752,39 @@ class Schema(SchemaBase):
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
+class MaterializedViewSchema(SchemaBase):
+    """
+    A MaterializedViewSchema is an :py:class:`synapseclient.entity.Entity` that defines a set of columns in a
+    materialized view along with the SQL statement.
+
+    :param name:            the name for the Materialized View Schema object
+    :param description:     User readable description of the schema
+    :param definingSQL:     The synapse SQL statement that defines the data in the materialized view. The SQL may
+                            contain JOIN clauses on multiple tables.
+    :param columns:         a list of :py:class:`Column` objects or their IDs
+    :param parent:          the project in Synapse to which this Materialized View belongs
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Internal use only
+
+    Example::
+
+        defining_sql = "SELECT * FROM syn111 F JOIN syn2222 P on (F.patient_id = P.patient_id)"
+
+        schema = syn.store(MaterializedViewSchema(name='MyTable', parent=project, definingSQL=defining_sql))
+    """
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.MaterializedView'
+    _property_keys = SchemaBase._property_keys + ['definingSQL']
+    def __init__(self, name=None, columns=None, parent=None, definingSQL=None, properties=None, annotations=None,
+                 local_state=None, **kwargs):
+        if definingSQL is not None:
+            kwargs['definingSQL'] = definingSQL
+        super(MaterializedViewSchema, self).__init__(
+            name=name, columns=columns, properties=properties,
+            annotations=annotations, local_state=local_state, parent=parent, **kwargs
+        )
+
+
 class ViewBase(SchemaBase):
     """
     This is a helper class for EntityViewSchema and SubmissionViewSchema
@@ -823,6 +872,237 @@ class ViewBase(SchemaBase):
         super(ViewBase, self)._before_synapse_store(syn)
 
 
+class Dataset(ViewBase):
+    """
+    A Dataset is an :py:class:`synapseclient.entity.Entity` that defines a
+    flat list of entities as a tableview (a.k.a. a "dataset").
+
+    :param name:            The name for the Dataset object
+    :param description:     User readable description of the schema
+    :param columns:         A list of :py:class:`Column` objects or their IDs
+    :param parent:          The Synapse Project to which this Dataset belongs
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param dataset_items:   A list of items characterized by entityId and versionNumber
+    :param folder:          A list of Folder IDs
+    :param local_state:     Internal use only
+
+    Example::
+
+        from synapseclient import Dataset
+
+        # Create a Dataset with pre-defined DatasetItems. Default Dataset columns
+        # are used if no schema is provided.
+        dataset_items = [
+            {'entityId': "syn000", 'versionNumber': 1},
+            {...},
+        ]
+        dataset = syn.store(Dataset(
+            name="My Dataset",
+            parent=project,
+            dataset_items=dataset_items))
+
+        # Add/remove specific Synapse IDs to/from the Dataset
+        dataset.add_item({'entityId': "syn111", 'versionNumber': 1})
+        dataset.remove_item("syn000")
+        dataset = syn.store(dataset)
+
+        # Add a list of Synapse IDs to the Dataset
+        new_items = [
+            {'entityId': "syn222", 'versionNumber': 2},
+            {'entityId': "syn333", 'versionNumber': 1}
+        ]
+        dataset.add_items(new_items)
+        dataset = syn.store(dataset)
+
+    Folders can easily be added recursively to a dataset, that is, all files
+    within the folder (including sub-folders) will be added.  Note that using
+    the following methods will add files with the latest version number ONLY.
+    If another version number is desired, use :py:classmethod:`synapseclient.table.add_item`
+    or :py:classmethod:`synapseclient.table.add_items`.
+
+    Example::
+
+        # Add a single Folder to the Dataset
+        dataset.add_folder("syn123")
+
+        # Add a list of Folders, overwriting any existing files in the dataset
+        dataset.add_folders(["syn456", "syn789"], force=True)
+
+        dataset = syn.store(dataset)
+
+    empty() can be used to truncate a dataset, that is, remove all current
+    items from the set.
+
+    Example::
+
+        dataset.empty()
+        dataset = syn.store(dataset)
+
+    To get the number of entities in the dataset, use len().
+
+    Example::
+
+        print(f"{dataset.name} has {len(dataset)} items.")
+
+    To create a snapshot version of the Dataset, use
+    :py:classmethod:`synapseclient.client.create_snapshot_version`.
+
+    Example::
+
+        syn = synapseclient.login()
+        syn.create_snapshot_version(
+            dataset.id,
+            label="v1.0",
+            comment="This is version 1")
+    """
+    _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
+    _property_keys: List[str] = ViewBase._property_keys + ['datasetItems']
+    _local_keys: List[str] = ViewBase._local_keys + ['folders_to_add', 'force']
+
+    def __init__(self, name=None, columns=None, parent=None, properties=None,
+                 addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[],
+                 annotations=None, local_state=None, dataset_items=None,
+                 folders=None, force=False, **kwargs):
+        self.properties.setdefault('datasetItems', [])
+        self.__dict__.setdefault('folders_to_add', set())
+        self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
+        self.viewTypeMask = EntityViewType.DATASET.value
+        super(Dataset, self).__init__(
+            name=name, columns=columns, properties=properties,
+            annotations=annotations, local_state=local_state, parent=parent,
+            **kwargs
+        )
+
+        self.force = force
+        if dataset_items:
+            self.add_items(dataset_items, force)
+        if folders:
+            self.add_folders(folders, force)
+
+        # HACK: make sure we don't try to add columns to schemas that we retrieve from synapse
+        is_from_normal_constructor = not (properties or local_state)
+        # allowing annotations because user might want to update annotations all at once
+        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor
+        self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
+
+    def __len__(self):
+        return len(self.properties.datasetItems)
+
+    @staticmethod
+    def _check_needed_keys(keys: List[str]):
+        required_keys = {'entityId', 'versionNumber'}
+        if required_keys - keys:
+            raise LookupError("DatasetItem missing a required property: %s" %
+                              str(required_keys - keys))
+        return True
+
+    def add_item(self, dataset_item: Dict[str, str], force: bool = True):
+        """
+        :param dataset_item:    a single dataset item
+        :param force:           force add item
+        """
+        if isinstance(dataset_item, dict) and self._check_needed_keys(dataset_item.keys()):
+            if not self.has_item(dataset_item.get('entityId')):
+                self.properties.datasetItems.append(dataset_item)
+            else:
+                if force:
+                    self.remove_item(dataset_item.get('entityId'))
+                    self.properties.datasetItems.append(dataset_item)
+                else:
+                    raise ValueError(
+                        f"Duplicate item found: {dataset_item.get('entityId')}. "
+                        "Set force=True to overwrite the existing item.")
+        else:
+            raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
+
+    def add_items(self, dataset_items: List[Dict[str, str]], force: bool = True):
+        """
+        :param dataset_items:   a list of dataset items
+        :param force:           force add items
+        """
+        for dataset_item in dataset_items:
+            self.add_item(dataset_item, force)
+
+    def remove_item(self, item_id: str):
+        """
+        :param item_id: a single dataset item Synapse ID
+        """
+        item_id = id_of(item_id)
+        if item_id.startswith("syn"):
+            for i, curr_item in enumerate(self.properties.datasetItems):
+                if curr_item.get('entityId') == item_id:
+                    del self.properties.datasetItems[i]
+                    break
+        else:
+            raise ValueError("Not a Synapse ID: %s" % str(item_id))
+
+    def empty(self):
+        self.properties.datasetItems = []
+
+    def has_item(self, item_id):
+        """
+        :param item_id: a single dataset item Synapse ID
+        """
+        return any(item['entityId'] == item_id for item in self.properties.datasetItems)
+
+    def add_folder(self, folder: str, force: bool = True):
+        """
+        :param folder:  a single Synapse Folder ID
+        :param force:   force add items from folder
+        """
+        if not self.__dict__.get('folders_to_add', None):
+            self.__dict__['folders_to_add'] = set()
+        self.__dict__['folders_to_add'].add(folder)
+        # if self.force != force:
+        self.force = force
+
+    def add_folders(self, folders: List[str], force: bool = True):
+        """
+        :param folders: a list of Synapse Folder IDs
+        :param force:   force add items from folders
+        """
+        if isinstance(folders, list) or isinstance(folders, set) or \
+                isinstance(folders, tuple):
+            self.force = force
+            for folder in folders:
+                self.add_folder(folder, force)
+        else:
+            raise ValueError(f"Not a list of Folder IDs: {folders}")
+
+    def _add_folder_files(self, syn, folder):
+        files = []
+        children = syn.getChildren(folder)
+        for child in children:
+            if child.get("type") == "org.sagebionetworks.repo.model.Folder":
+                files.extend(self._add_folder_files(syn, child.get("id")))
+            elif child.get("type") == "org.sagebionetworks.repo.model.FileEntity":
+                files.append({
+                    'entityId': child.get("id"),
+                    'versionNumber': child.get('versionNumber')
+                })
+            else:
+                raise ValueError(f"Not a Folder?: {folder}")
+        return files
+
+    def _before_synapse_store(self, syn):
+        # Add files from folders (if any) before storing dataset.
+        if self.folders_to_add:
+            for folder in self.folders_to_add:
+                items_to_add = self._add_folder_files(syn, folder)
+                self.add_items(items_to_add, self.force)
+            self.folders_to_add = set()
+        # Must set this scopeIds is used to get all annotations from the
+        # entities
+        self.scopeIds = [item['entityId'] for item in self.properties.datasetItems]
+        super()._before_synapse_store(syn)
+        # Reset attribute to force-add items from folders.
+        self.force = True
+        # Remap `datasetItems` back to `items` before storing (since `items`
+        # is the accepted field name in the API, not `datasetItems`).
+        self.properties.items = self.properties.datasetItems
+
+
 class EntityViewSchema(ViewBase):
     """
     A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects
@@ -858,11 +1138,13 @@ class EntityViewSchema(ViewBase):
     :param local_state:                     Internal use only
 
     Example::
+
         from synapseclient import EntityViewType
 
         project_or_folder = syn.get("syn123")
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
          includeEntityTypes=[EntityViewType.FILE]))
+
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
@@ -974,9 +1256,10 @@ class SubmissionViewSchema(ViewBase):
 
 
 # add Schema to the map of synapse entity types to their Python representations
-entity_type_to_class[Schema._synapse_entity_type] = Schema
-entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
-entity_type_to_class[SubmissionViewSchema._synapse_entity_type] = SubmissionViewSchema
+for cls in itersubclasses(SchemaBase):
+    entity_type_to_class[cls._synapse_entity_type] = cls
+# HACK: viewbase extends schema base, so need to remove ViewBase
+entity_type_to_class.pop('')
 
 
 class SelectColumn(DictObject):
@@ -991,6 +1274,7 @@ class SelectColumn(DictObject):
     :type columnType:   string
     :type name:         string
     """
+
     def __init__(self, id=None, columnType=None, name=None, **kwargs):
         super(SelectColumn, self).__init__()
         if id:
@@ -1015,21 +1299,24 @@ class Column(DictObject):
     Defines a column to be used in a table :py:class:`synapseclient.table.Schema`
     :py:class:`synapseclient.table.EntityViewSchema`.
 
-    :var id:                An immutable ID issued by the platform
-    :param columnType:      The column type determines the type of data that can be stored in a column. It can be any
-                            of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
-                            "LARGETEXT", "USERID". For more information, please see:
-                            https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
-    :param maximumSize:     A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
-                            default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
-                            characters.
-    :param name:            The display name of the column
-    :param enumValues:      Columns type of STRING can be constrained to an enumeration values set on this list.
-    :param defaultValue:    The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not allowed
-                            to have default values.
+    :var id:                  An immutable ID issued by the platform
+    :param columnType:        The column type determines the type of data that can be stored in a column. It can be any
+                              of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
+                              "LARGETEXT", "USERID". For more information, please see:
+                              https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
+    :param maximumSize:       A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
+                              default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
+                              characters.
+    :param maximumListLength: Required if using a columnType with a "_LIST" suffix. Describes the maximum number of
+                              values that will appear in that list. Value range 1-100 inclusive. Default 100
+    :param name:              The display name of the column
+    :param enumValues:        Columns type of STRING can be constrained to an enumeration values set on this list.
+    :param defaultValue:      The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not
+                              allowed to have default values.
 
     :type id: string
     :type maximumSize: integer
+    :type maximumListLength: integer
     :type columnType: string
     :type name: string
     :type enumValues: array of strings
@@ -1216,6 +1503,7 @@ class Row(DictObject):
     :param versionNumber:   The version number of this row. Each row version is immutable, so when a row is updated a
                             new version is created.
     """
+
     def __init__(self, values, rowId=None, versionNumber=None, etag=None, **kwargs):
         super(Row, self).__init__()
         self.values = values
@@ -1304,14 +1592,9 @@ def build_table(name, parent, values):
         table = build_table("simple_table", "syn123", df)
         table = syn.store(table)
     """
-    try:
-        import pandas as pd
-        pandas_available = True
-    except:  # noqa
-        pandas_available = False
+    test_import_pandas()
+    import pandas as pd
 
-    if not pandas_available:
-        raise ValueError("pandas package is required.")
     if not isinstance(values, pd.DataFrame) and not isinstance(values, str):
         raise ValueError("Values of type %s is not yet supported." % type(values))
     cols = as_table_columns(values)
@@ -1325,7 +1608,7 @@ def Table(schema, values, **kwargs):
     Combine a table schema and a set of values into some type of Table object
     depending on what type of values are given.
 
-    :param schema: a table :py:class:`Schema` object
+    :param schema: a table :py:class:`Schema` object or Synapse Id of Table.
     :param values: an object that holds the content of the tables
                       - a :py:class:`RowSet`
                       - a list of lists (or tuples) where each element is a row
@@ -1443,6 +1726,7 @@ class RowSetTable(TableAbstractBaseClass):
     """
     A Table object that wraps a RowSet.
     """
+
     def __init__(self, schema, rowset):
         super(RowSetTable, self).__init__(schema, etag=rowset.get('etag', None))
         self.rowset = rowset
@@ -1502,6 +1786,7 @@ class TableQueryResult(TableAbstractBaseClass):
         for row in results:
             print(row)
     """
+
     def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True):
         self.syn = synapse
 
@@ -1763,6 +2048,17 @@ class CsvFileTable(TableAbstractBaseClass):
 
             f = io.open(filepath, mode='w', encoding='utf-8', newline='')
 
+            test_import_pandas()
+            import pandas as pd
+            if isinstance(schema, Schema):
+                for col in schema.columns_to_store:
+                    if col['columnType'] == 'DATE':
+                        def _trailing_date_time_millisecond(t):
+                            if isinstance(t, str):
+                                return t[:-3]
+                        df[col.name] = pd.to_datetime(df[col.name], errors='coerce').dt.strftime('%s%f')
+                        df[col.name] = df[col.name].apply(lambda x: _trailing_date_time_millisecond(x))
+
             df.to_csv(f,
                       index=False,
                       sep=separator,
@@ -1938,7 +2234,7 @@ class CsvFileTable(TableAbstractBaseClass):
                         # we want to identify string columns so that pandas doesn't try to
                         # automatically parse strings in a string column to other data types
                         dtype[select_column.name] = str
-                    elif select_column.columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST'}:
+                    elif select_column.columnType in LIST_COLUMN_TYPES:
                         list_columns.append(select_column.name)
                     elif select_column.columnType == "DATE" and convert_to_datetime:
                         date_columns.append(select_column.name)

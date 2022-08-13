@@ -6,7 +6,8 @@ import base64
 import os
 
 import pytest
-from unittest.mock import call, Mock, patch, MagicMock
+import tempfile
+from unittest.mock import call, MagicMock, Mock, patch
 
 import synapseclient.__main__ as cmdline
 from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseNoCredentialsError
@@ -22,11 +23,13 @@ def test_command_sync(syn):
     the command line arguments provided and that the function is called once.
 
     """
+    mockFileOpener = MagicMock()
+    with patch("argparse.FileType", return_value=mockFileOpener):
+        parser = cmdline.build_parser()
+        args = parser.parse_args(['sync', '/tmp/foobarbaz.tsv'])
+        mockFileOpener.assert_called_once_with('/tmp/foobarbaz.tsv')
 
-    parser = cmdline.build_parser()
-    args = parser.parse_args(['sync', '/tmp/foobarbaz.tsv'])
-
-    assert args.manifestFile == '/tmp/foobarbaz.tsv'
+    assert args.manifestFile is mockFileOpener.return_value
     assert args.dryRun is False
     assert args.sendMessages is False
     assert args.retries == 4
@@ -515,6 +518,149 @@ def test_command_auto_login(mock_login_with_prompt, mock_sys_exit, syn):
 
     mock_login_with_prompt.assert_called_once_with(syn, 'test_user', None, silent=True)
     mock_sys_exit.assert_called_once_with(1)
+
+
+def test__replace_existing_config__prepend(syn):
+    """Replace adding authentication to .synapseConfig when there is no
+    authentication section
+    """
+    f = tempfile.NamedTemporaryFile(mode='w', delete=False)
+    auth_section = (
+        '#[authentication]\n'
+        "#username=foobar\n"
+        "#password=testingtestingtesting\n\n"
+    )
+    with open(f.name, "w") as config_f:
+        config_f.write(auth_section)
+
+    new_auth_section = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "apikey=testingtesting\n\n"
+    )
+    new_config_text = cmdline._replace_existing_config(f.name, new_auth_section)
+
+    expected_text = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "apikey=testingtesting\n\n\n\n"
+        '#[authentication]\n'
+        "#username=foobar\n"
+        "#password=testingtestingtesting\n\n"
+    )
+
+    assert new_config_text == expected_text
+    f.close()
+
+
+def test__replace_existing_config__backup(syn):
+    """Replace backup files are created"""
+    f = tempfile.NamedTemporaryFile(mode='w', delete=False)
+    auth_section = "foobar"
+    with open(f.name, "w") as config_f:
+        config_f.write(auth_section)
+    new_auth_section = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "apikey=foobar\n\n"
+    )
+    cmdline._replace_existing_config(f.name, new_auth_section)
+    # If command is run again, it will make sure to save existing
+    # backup files
+    cmdline._replace_existing_config(f.name, new_auth_section)
+    assert os.path.exists(f.name + ".backup")
+    assert os.path.exists(f.name + ".backup2")
+    f.close()
+
+
+def test__replace_existing_config__replace(syn):
+    """Replace existing authentication to .synapseConfig
+    """
+    f = tempfile.NamedTemporaryFile(mode='w', delete=False)
+    auth_section = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "password=testingtestingtesting\n\n"
+    )
+    with open(f.name, "w") as config_f:
+        config_f.write(auth_section)
+
+    new_auth_section = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "apikey=testingtesting\n\n"
+    )
+    new_config_text = cmdline._replace_existing_config(f.name, new_auth_section)
+
+    expected_text = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "apikey=testingtesting\n\n"
+    )
+    assert new_config_text == expected_text
+    f.close()
+
+
+def test__generate_new_config(syn):
+    """Generate new configuration file"""
+    new_auth_section = (
+        '[authentication]\n'
+        "username=foobar\n"
+        "apikey=testingtesting\n\n"
+    )
+    new_config_text = cmdline._generate_new_config(new_auth_section)
+    assert new_auth_section in new_config_text
+
+
+@patch.object(cmdline, '_generate_new_config')
+@patch.object(cmdline, '_authenticate_login')
+@patch.object(cmdline, '_prompt_for_credentials')
+def test_config_generate(mock__prompt_for_credentials,
+                         mock__authenticate_login,
+                         mock__generate_new_config, syn):
+    """Config when generating new configuration"""
+    mock__prompt_for_credentials.return_value = ("test", "wow")
+    mock__authenticate_login.return_value = "password"
+    mock__generate_new_config.return_value = "test"
+
+    expected_auth_section = (
+        '[authentication]\n'
+        "username=test\n"
+        "password=wow\n\n"
+    )
+    args = Mock()
+    args.configPath = "foo"
+    cmdline.config(args, syn)
+    os.unlink("foo")
+    mock__generate_new_config.assert_called_once_with(
+        expected_auth_section
+    )
+
+
+@patch.object(cmdline, '_replace_existing_config')
+@patch.object(cmdline, '_authenticate_login')
+@patch.object(cmdline, '_prompt_for_credentials')
+def test_config_replace(mock__prompt_for_credentials,
+                        mock__authenticate_login,
+                        mock__replace_existing_config, syn):
+    """Config when replacing configuration"""
+    mock__prompt_for_credentials.return_value = ("test", "wow")
+    mock__authenticate_login.return_value = "password"
+    mock__replace_existing_config.return_value = "test"
+
+    expected_auth_section = (
+        '[authentication]\n'
+        "username=test\n"
+        "password=wow\n\n"
+    )
+    temp = tempfile.NamedTemporaryFile(mode='w', delete=False)
+    args = Mock()
+    args.configPath = temp.name
+    cmdline.config(args, syn)
+    mock__replace_existing_config.assert_called_once_with(
+        temp.name, expected_auth_section
+    )
+    temp.close()
 
 
 class TestGetFunction:

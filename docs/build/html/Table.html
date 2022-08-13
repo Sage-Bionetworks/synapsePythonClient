@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tables &#8212; Synapse Python Client 2.4.0 documentation</title>
+    <title>Tables &#8212; Synapse Python Client 2.6.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="CommandLineClient.html" title="Synapse command line client"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Tables</a></li> 
       </ul>
     </div>  
@@ -331,15 +331,14 @@ of the defined scopes.</p></li>
 </ul>
 </dd>
 </dl>
-<dl>
-<dt>Example::</dt><dd><p>from synapseclient import EntityViewType</p>
-<p>project_or_folder = syn.get(“syn123”)
-schema = syn.store(EntityViewSchema(name=’MyTable’, parent=project, scopes=[project_or_folder_id, ‘syn123’],</p>
-<blockquote>
-<div><p>includeEntityTypes=[EntityViewType.FILE]))</p>
-</div></blockquote>
-</dd>
-</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">EntityViewType</span>
+
+<span class="n">project_or_folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">EntityViewSchema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MyTable&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="n">project_or_folder_id</span><span class="p">,</span> <span class="s1">&#39;syn123&#39;</span><span class="p">],</span>
+ <span class="n">includeEntityTypes</span><span class="o">=</span><span class="p">[</span><span class="n">EntityViewType</span><span class="o">.</span><span class="n">FILE</span><span class="p">]))</span>
+</pre></div>
+</div>
 <dl class="py method">
 <dt>
 <code class="sig-name descname"><span class="pre">set_entity_types</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">includeEntityTypes</span></span></em><span class="sig-paren">)</span></dt>
@@ -383,10 +382,12 @@ of: “STRING”, “DOUBLE”, “INTEGER”, “BOOLEAN”, “DATE”, “FIL
 <li><p><strong>maximumSize</strong> (<em>integer</em>) – A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
 default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
 characters.</p></li>
+<li><p><strong>maximumListLength</strong> (<em>integer</em>) – Required if using a columnType with a “_LIST” suffix. Describes the maximum number of
+values that will appear in that list. Value range 1-100 inclusive. Default 100</p></li>
 <li><p><strong>name</strong> (<em>string</em>) – The display name of the column</p></li>
 <li><p><strong>enumValues</strong> (<em>array of strings</em>) – Columns type of STRING can be constrained to an enumeration values set on this list.</p></li>
-<li><p><strong>defaultValue</strong> (<em>string</em>) – The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not allowed
-to have default values.</p></li>
+<li><p><strong>defaultValue</strong> (<em>string</em>) – The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not
+allowed to have default values.</p></li>
 </ul>
 </dd>
 </dl>
@@ -677,7 +678,7 @@ depending on what type of values are given.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>schema</strong> – a table <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object</p></li>
+<li><p><strong>schema</strong> – a table <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object or Synapse Id of Table.</p></li>
 <li><p><strong>values</strong> – <p>an object that holds the content of the tables
 - a <a class="reference internal" href="#synapseclient.table.RowSet" title="synapseclient.table.RowSet"><code class="xref py py-class docutils literal notranslate"><span class="pre">RowSet</span></code></a>
 - a list of lists (or tuples) where each element is a row
@@ -792,13 +793,13 @@ depending on what type of values are given.</p>
         <li class="right" >
           <a href="CommandLineClient.html" title="Synapse command line client"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Tables</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jul 08, 2021.
+      Last updated on Apr 19, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

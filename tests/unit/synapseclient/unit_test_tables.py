@@ -20,11 +20,12 @@ import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
     PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask, \
-    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema, escape_column_name, join_column_names
+    MAX_NUM_TABLE_COLUMNS, SubmissionViewSchema, escape_column_name, join_column_names, MaterializedViewSchema, \
+    Dataset
 
 from synapseclient.core.utils import from_unix_epoch_time
 from unittest.mock import patch
-from collections import OrderedDict
+from collections import OrderedDict, abc
 
 
 def test_cast_values():
@@ -92,14 +93,25 @@ def test_cast_values__list_type():
                      {'id': '357',
                       'name': 'bonk',
                       'columnType': 'BOOLEAN_LIST'},
+                     {'id': '357',
+                      'name': 'bar',
+                      'columnType': 'ENTITYID_LIST'},
+                     {'id': '357',
+                      'name': 'bam',
+                      'columnType': 'USERID_LIST'},
                      {'id': '358',
                       'name': 'boom',
                       'columnType': 'DATE_LIST'}]
     now_millis = int(round(time.time() * 1000))
-    row = ('["foo", "bar"]', '[1,2,3]', '[true, false]', '[' + str(now_millis) + ']')
+    row = ('["foo", "bar"]', '[1,2,3]', '[true, false]',
+           '["syn1234", "syn3333"]',
+           '[23444, 23123]',
+           '[' + str(now_millis) + ']')
     assert (
         cast_values(row, selectColumns) ==
-        [["foo", "bar"], [1, 2, 3], [True, False], [from_unix_epoch_time(now_millis)]]
+        [["foo", "bar"], [1, 2, 3], [True, False],
+         ["syn1234", "syn3333"], [23444, 23123],
+         [from_unix_epoch_time(now_millis)]]
     )
 
 
@@ -136,6 +148,71 @@ def test_schema():
     assert len(schema.columns_to_store) == 3
     assert Column(name='Living', columnType='BOOLEAN') not in schema.columns_to_store
     assert Column(name='Hipness', columnType='DOUBLE') in schema.columns_to_store
+
+
+def test_materialized_view():
+    """Test creation of materialized view
+    """
+    mat_view = MaterializedViewSchema(
+        name='My Table',
+        parent="syn1000001",
+        definingSQL="SELECT * FROM syn111 F JOIN syn2222 P on (F.patient_id = P.patient_id)"
+    )
+    mat_view._synapse_entity_type == "org.sagebionetworks.repo.model.table.MaterializedView"
+
+    assert not mat_view.has_columns()
+
+    mat_view.addColumn(Column(id='1', name='Name', columnType='STRING'))
+
+    assert mat_view.has_columns()
+    assert mat_view.properties.columnIds == ['1']
+
+    mat_view.removeColumn('1')
+    assert not mat_view.has_columns()
+    assert mat_view.properties.columnIds == []
+
+
+def test_dataset():
+    dataset = Dataset(
+        name="Pokedex",
+        parent="syn123",
+        dataset_items=[{'entityId': "syn111", 'versionNumber': 1}]
+    )
+    dataset._synapse_entity_type == "org.sagebionetworks.repo.model.table.Dataset"
+
+    # Items in the dataset should be captured in the `dataset_items` property,
+    # not `items`. e.items should continue to be an ItemsView().
+    assert hasattr(dataset, 'datasetItems')
+    assert isinstance(dataset.datasetItems, list)
+    assert isinstance(dataset.items(), abc.ItemsView)
+
+    # Default column IDs are used when schema is not specified.
+    assert not dataset.has_columns()
+    assert dataset.has_item("syn111") is True
+    assert dataset.has_item("syn222") is False
+    assert len(dataset) == 1
+
+    # added item must be a dictionary with two keys: entityId, versionNumber
+    with pytest.raises(ValueError):
+        dataset.add_item("syn222")
+    with pytest.raises(LookupError):
+        dataset.add_item({'entityId': '222'})
+
+    dataset.add_item({'entityId': 'syn222', 'versionNumber': 1})
+    assert dataset.has_item("syn222") is True
+    assert len(dataset) == 2
+
+    dataset.remove_item("syn222")
+    assert dataset.has_item("syn222") is False
+    assert len(dataset) == 1
+
+    with pytest.raises(ValueError):
+        dataset.add_item({'entityId': "syn111", 'versionNumber': 2}, force=False)
+    dataset.add_item({'entityId': "syn111", 'versionNumber': 2})
+    assert len(dataset) == 1
+
+    dataset.empty()
+    assert len(dataset) == 0
 
 
 def test_RowSetTable():
@@ -1211,6 +1288,9 @@ class TestCsvFileTable:
             'string_list': ['["foo", "bar"]', '["wizzle", "wozzle"]'],
             'integer_list': ['[1, 5]', '[2, 1]'],
             'boolean_list': ['[true, false]', '[false, true]'],
+            'date_list': ['[1622614955000, 1622614955000]', '[1622614955000, 1622614955000]'],
+            'entityid_list': ['["syn1235", "syn1236"]', '["syn1235", "syn1234"]'],
+            'userid_list': ['[1111235, 1111233]', '[1111232, 1111234]'],
             'fill': [None, None],
         }
         pd_df = pd.DataFrame(data)
@@ -1219,6 +1299,9 @@ class TestCsvFileTable:
             'string_list': [['foo', 'bar'], ['wizzle', 'wozzle']],
             'integer_list': [[1, 5], [2, 1]],
             'boolean_list': [[True, False], [False, True]],
+            'date_list': [[1622614955000, 1622614955000], [1622614955000, 1622614955000]],
+            'entityid_list': [['syn1235', 'syn1236'], ['syn1235', 'syn1234']],
+            'userid_list': [[1111235, 1111233], [1111232, 1111234]],
             'fill': [[], []],
         })
 
@@ -1226,6 +1309,9 @@ class TestCsvFileTable:
             SelectColumn(name='string_list', columnType='STRING_LIST'),
             SelectColumn(name='integer_list', columnType='INTEGER_LIST'),
             SelectColumn(name='boolean_list', columnType='BOOLEAN_LIST'),
+            SelectColumn(name='date_list', columnType='DATE_LIST'),
+            SelectColumn(name='entityid_list', columnType='ENTITYID_LIST'),
+            SelectColumn(name='userid_list', columnType='USERID_LIST'),
             SelectColumn(name='fill', columnType='STRING_LIST'),
         ]
 

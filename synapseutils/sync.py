@@ -21,12 +21,12 @@ from synapseclient.core.multithread_download.download_threads import shared_exec
 from synapseclient.core.upload.multipart_upload import shared_executor as upload_shared_executor
 
 REQUIRED_FIELDS = ['path', 'parent']
-FILE_CONSTRUCTOR_FIELDS = ['name', 'synapseStore', 'contentType']
+FILE_CONSTRUCTOR_FIELDS = ['name', 'id', 'synapseStore', 'contentType']
 STORE_FUNCTION_FIELDS = ['activityName', 'activityDescription', 'forceVersion']
 PROVENANCE_FIELDS = ['used', 'executed']
 MAX_RETRIES = 4
 MANIFEST_FILENAME = 'SYNAPSE_METADATA_MANIFEST.tsv'
-DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'synapseStore', 'contentType', 'used', 'executed',
+DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'id', 'synapseStore', 'contentType', 'used', 'executed',
                                    'activityName', 'activityDescription']
 
 
@@ -176,7 +176,7 @@ class _FolderSync:
         )
 
     def _generate_folder_manifest(self):
-        # when a folder is complete we write a manifest file iff we are downloading to a path outside
+        # when a folder is complete we write a manifest file if we are downloading to a path outside
         # the Synapse cache and there are actually some files in this folder.
         if self._path and self._files:
             generateManifest(self._syn, self._files, self._manifest_filename(), provenance_cache=self._provenance)
@@ -615,9 +615,11 @@ class _SyncUploader:
 def generateManifest(syn, allFiles, filename, provenance_cache=None):
     """Generates a manifest file based on a list of entities objects.
 
-    :param allFiles:   A list of File Entities
+    :param syn:   A synapse object as obtained with syn = synapseclient.login()
+    :param allFiles:   A list of File Entity objects on Synapse (can't be Synapse IDs)
     :param filename: file where manifest will be written
     :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
+
     """
     keys, data = _extract_file_entity_metadata(syn, allFiles, provenance_cache=provenance_cache)
     _write_manifest_data(filename, keys, data)
@@ -626,6 +628,7 @@ def generateManifest(syn, allFiles, filename, provenance_cache=None):
 def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     """
     Extracts metadata from the list of File Entities and returns them in a form usable by csv.DictWriter
+
     :param syn:         instance of the Synapse client
     :param allFiles:    an iterable that provides File entities
     :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
@@ -636,7 +639,7 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     annotKeys = set()
     data = []
     for entity in allFiles:
-        row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name,
+        row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name, 'id': entity.id,
                'synapseStore': entity.synapseStore, 'contentType': entity['contentType']}
         row.update({key: (val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
 
@@ -676,11 +679,11 @@ def _get_file_entity_provenance_dict(syn, entity):
 
 
 def _write_manifest_data(filename, keys, data):
-    with io.open(filename, 'w', encoding='utf8') as fp:
-        csvWriter = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
-        csvWriter.writeheader()
+    with io.open(filename, 'w', encoding='utf8') if filename else sys.stdout as fp:
+        csv_writer = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
+        csv_writer.writeheader()
         for row in data:
-            csvWriter.writerow(row)
+            csv_writer.writerow(row)
 
 
 def _sortAndFixProvenance(syn, df):
@@ -720,12 +723,12 @@ def _sortAndFixProvenance(syn, df):
         allRefs = []
         if 'used' in row:
             used = row['used'].split(';') if (row['used'].strip() != '') else []  # Get None or split if string
-            df.at[path, 'used'] = [_checkProvenace(item, path) for item in used]
+            df.at[path, 'used'] = [_checkProvenace(item.strip(), path) for item in used]
             allRefs.extend(df.loc[path, 'used'])
         if 'executed' in row:
             # Get None or split if string
             executed = row['executed'].split(';') if (row['executed'].strip() != '') else []
-            df.at[path, 'executed'] = [_checkProvenace(item, path) for item in executed]
+            df.at[path, 'executed'] = [_checkProvenace(item.strip(), path) for item in executed]
             allRefs.extend(df.loc[path, 'executed'])
         uploadOrder[path] = allRefs
 
@@ -740,7 +743,7 @@ def _check_path_and_normalize(f):
         return f
     path_normalized = os.path.abspath(os.path.expandvars(os.path.expanduser(f)))
     if not os.path.isfile(path_normalized):
-        print('\nThe specified path "%s" is either not a file path or does not exist.', f)
+        print(f'\nThe specified path "{f}" is either not a file path or does not exist.', file=sys.stderr)
         raise IOError('The path %s is not a file or does not exist' % f)
     return path_normalized
 
@@ -761,7 +764,10 @@ def readManifestFile(syn, manifestFile):
     table.test_import_pandas()
     import pandas as pd
 
-    sys.stdout.write('Validation and upload of: %s\n' % manifestFile)
+    if manifestFile is sys.stdin:
+        sys.stdout.write('Validation and upload of: <stdin>\n')
+    else:
+        sys.stdout.write('Validation and upload of: %s\n' % manifestFile)
     # Read manifest file into pandas dataframe
     df = pd.read_csv(manifestFile, sep='\t')
     if 'synapseStore' not in df:
@@ -779,12 +785,13 @@ def readManifestFile(syn, manifestFile):
             raise ValueError("Manifest must contain a column of %s" % field)
     sys.stdout.write('OK\n')
 
-    sys.stdout.write('Validating that all paths exist')
+    sys.stdout.write('Validating that all paths exist...')
     df.path = df.path.apply(_check_path_and_normalize)
 
     sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating that all files are unique...')
+    # Both the path and the combination of entity name and parent must be unique
     if len(df.path) != len(set(df.path)):
         raise ValueError("All rows in manifest must contain a unique file to upload")
     sys.stdout.write('OK\n')
@@ -796,10 +803,14 @@ def readManifestFile(syn, manifestFile):
 
     # check the name of each file should be store on Synapse
     name_column = 'name'
-    if name_column in df.columns:
-        sys.stdout.write('Validating file names... \n')
-        _check_file_name(df)
-        sys.stdout.write('OK\n')
+    # Create entity name column from basename
+    if name_column not in df.columns:
+        filenames = [os.path.basename(path) for path in df['path']]
+        df['name'] = filenames
+
+    sys.stdout.write('Validating file names... \n')
+    _check_file_name(df)
+    sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating provenance...')
     df = _sortAndFixProvenance(syn, df)
@@ -839,9 +850,12 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     file. The minimum required columns are **path** and **parent** where path is the local file path and parent is the
     Synapse Id of the project or folder where the file is uploaded to. In addition to these columns you can specify any
     of the parameters to the File constructor (**name**, **synapseStore**, **contentType**) as well as parameters to the
-    syn.store command (**used**, **executed**, **activityName**, **activityDescription**, **forceVersion**).
+    syn.store command (**used**, **executed**, **activityName**, **activityDescription**, **forceVersion**).  For only
+    updating annotations without uploading new versions of unchanged files, the syn.store parameter forceVersion
+    should be included in the manifest with the value set to False.
     Used and executed can be semi-colon (";") separated lists of Synapse ids, urls and/or local filepaths of files
-    already stored in Synapse (or being stored in Synapse by the manifest).
+    already stored in Synapse (or being stored in Synapse by the manifest).  If you leave a space, like
+    "syn1234; syn2345" the white space from " syn2345" will be stripped.
     Any additional columns will be added as annotations.
 
     **Required fields:**
@@ -864,14 +878,19 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     **Provenance fields:**
 
-    ====================   =====================================  ==========================================
+    Each of these are individual examples and is what you would find in a row in each of these columns. To
+    clarify, "syn1235;/path/to_local/file.txt" below states that you would like both
+    "syn1234" and "/path/to_local/file.txt" added as items used to generate a file. You can also specify one item
+    by specifying "syn1234"
+
+    ====================   =====================================  ============================================
     Field                  Meaning                                Example
-    ====================   =====================================  ==========================================
-    used                   List of items used to generate file    syn1235; /path/to_local/file.txt
-    executed               List of items exectued                 https://github.org/; /path/to_local/code.py
+    ====================   =====================================  ============================================
+    used                   List of items used to generate file    "syn1235;/path/to_local/file.txt"
+    executed               List of items exectued                 "https://github.org/;/path/to_local/code.py"
     activityName           Name of activity in provenance         "Ran normalization"
     activityDescription    Text description on what was done      "Ran algorithm xyx with parameters..."
-    ====================   =====================================  ==========================================
+    ====================   =====================================  ============================================
 
     Annotations:
 
@@ -894,7 +913,7 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     ===============   ========    =======   =======   ===========================    ============================
     path              parent      annot1    annot2    used                           executed
     ===============   ========    =======   =======   ===========================    ============================
-    /path/file1.txt   syn1243     "bar"     3.1415    "syn124; /path/file2.txt"      "https://github.org/foo/bar"
+    /path/file1.txt   syn1243     "bar"     3.1415    "syn124;/path/file2.txt"       "https://github.org/foo/bar"
     /path/file2.txt   syn12433    "baz"     2.71      ""                             "https://github.org/foo/baz"
     ===============   ========    =======   =======   ===========================    ============================
 
@@ -965,6 +984,9 @@ def _check_file_name(df):
             raise ValueError("File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
                              "underscores, hyphens, periods, plus signs, apostrophes, "
                              "and parentheses".format(file_name))
+    if df[['name', 'parent']].duplicated().any():
+        raise ValueError("All rows in manifest must contain a path with a unique file name and parent to upload. "
+                         "Files uploaded to the same folder/project (parent) must have unique file names.")
 
 
 def _check_size_each_file(df):
@@ -975,3 +997,49 @@ def _check_size_each_file(df):
             single_file_size = os.stat(os.path.expandvars(os.path.expanduser(file_path))).st_size
             if single_file_size == 0:
                 raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))
+
+
+def generate_sync_manifest(syn, directory_path, parent_id, manifest_path):
+    """Generate manifest for syncToSynapse() from a local directory."""
+    manifest_cols = ["path", "parent"]
+    manifest_rows = _walk_directory_tree(syn, directory_path, parent_id)
+    _write_manifest_data(manifest_path, manifest_cols, manifest_rows)
+
+
+def _create_folder(syn, name, parent_id):
+    """Create Synapse folder."""
+    entity = {
+        'name': name,
+        'concreteType': 'org.sagebionetworks.repo.model.Folder',
+        'parentId': parent_id
+    }
+    entity = syn.store(entity)
+    return entity
+
+
+def _walk_directory_tree(syn, path, parent_id):
+    """Replicate folder structure on Synapse and generate manifest
+    rows for files using corresponding Synapse folders as parents.
+    """
+    rows = list()
+    parents = {path: parent_id}
+    for dirpath, dirnames, filenames in os.walk(path):
+        # Replicate the folders on Synapse
+        for dirname in dirnames:
+            name = dirname
+            folder_path = os.path.join(dirpath, dirname)
+            parent_id = parents[dirpath]
+            folder = _create_folder(syn, name, parent_id)
+            # Store Synapse ID for sub-folders/files
+            parents[folder_path] = folder['id']
+        # Generate rows per file for the manifest
+        for filename in filenames:
+            # Add file to manifest if non-zero size
+            filepath = os.path.join(dirpath, filename)
+            manifest_row = {
+                "path": filepath,
+                "parent": parents[dirpath],
+            }
+            if os.stat(filepath).st_size > 0:
+                rows.append(manifest_row)
+    return rows

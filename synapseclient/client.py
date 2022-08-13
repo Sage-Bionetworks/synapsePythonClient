@@ -30,6 +30,7 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 import collections
 import collections.abc
 import configparser
+import csv
 import deprecated
 import errno
 import functools
@@ -65,7 +66,8 @@ from .entity import Entity, File, Folder, Versionable,\
     split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, EntityViewSchema, SubmissionViewSchema
+from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, \
+    EntityViewSchema, SubmissionViewSchema, Dataset
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions, utils
@@ -197,6 +199,7 @@ class Synapse(object):
 
     - :py:func:`synapseclient.Synapse.login`
     - :py:func:`synapseclient.Synapse.setEndpoints`
+
     """
 
     # TODO: add additional boolean for write to disk?
@@ -730,9 +733,12 @@ class Synapse(object):
     def _check_entity_restrictions(self, bundle, entity, downloadFile):
         restrictionInformation = bundle['restrictionInformation']
         if restrictionInformation['hasUnmetAccessRequirement']:
-            warning_message = ("\nThis entity has access restrictions. Please visit the web page for this entity "
-                               "(syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to "
-                               "review and fulfill its download requirement(s).\n" % id_of(entity))
+            warning_message = (
+                '\nThis entity has access restrictions. Please visit the web page for this entity '
+                f'(syn.onweb(\"{id_of(entity)}\")). Look for the "Access" label and the lock icon underneath '
+                'the file name. Click "Request Access", and then review and fulfill the file '
+                'download requirement(s).\n'
+            )
             if downloadFile and bundle.get('entityType') not in ('project', 'folder'):
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
@@ -990,7 +996,10 @@ class Synapse(object):
             test_entity = syn.store(test_entity, activity=activity)
 
         """
-
+        # SYNPY-1031: activity must be Activity object or code will fail later
+        if activity:
+            if not isinstance(activity, synapseclient.Activity):
+                raise ValueError("activity should be synapseclient.Activity object")
         # _before_store hook
         # give objects a chance to do something before being stored
         if hasattr(obj, '_before_synapse_store'):
@@ -1058,7 +1067,7 @@ class Synapse(object):
                     # modified, we want to upload the new version.
                     # If synapeStore is false then we must upload a ExternalFileHandle
                     needs_upload = not entity['synapseStore'] \
-                                   or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
+                        or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
             elif entity.get('dataFileHandleId', None) is not None:
                 needs_upload = False
             else:
@@ -1355,6 +1364,130 @@ class Synapse(object):
         return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
 
     ############################################################
+    #                  Download List                           #
+    ############################################################
+    def clear_download_list(self):
+        """Clear all files from download list"""
+        self.restDELETE("/download/list")
+
+    def remove_from_download_list(self, list_of_files: typing.List[typing.Dict]) -> int:
+        """Remove a batch of files from download list
+
+        :param: array of files in the format of a mapping
+                {fileEntityId: synid, versionNumber: version}
+
+        :returns: Number of files removed from download list
+        """
+        request_body = {"batchToRemove": list_of_files}
+        num_files_removed = self.restPOST(
+            "/download/list/remove",
+            body=json.dumps(request_body)
+        )
+        return num_files_removed
+
+    def _generate_manifest_from_download_list(
+        self, quoteCharacter: str = '"',
+        escapeCharacter: str = "\\",
+        lineEnd: str = os.linesep,
+        separator: str = ",",
+        header: bool = True
+    ):
+        """Creates a download list manifest generation request
+
+        :param quoteCharacter:  The character to be used for quoted elements in the resulting file.
+                                Defaults to '"'.
+        :param escapeCharacter: The escape character to be used for escaping a separator or quote in the resulting
+                                file. Defaults to "\".
+        :param lineEnd:         The line feed terminator to be used for the resulting file. Defaults to os.linesep.
+        :param separator:       The delimiter to be used for separating entries in the resulting file. Defaults to ",".
+        :param header:          Is the first line a header? Defaults to True.
+
+        :returns: Filehandle of download list manifest
+        """
+        request_body = {
+            "concreteType": "org.sagebionetworks.repo.model.download.DownloadListManifestRequest",
+            "csvTableDescriptor": {
+                "separator": separator,
+                "quoteCharacter": quoteCharacter,
+                "escapeCharacter": escapeCharacter,
+                "lineEnd": lineEnd,
+                "isFirstLineHeader": header
+            }
+        }
+        return self._waitForAsync(uri="/download/list/manifest/async", request=request_body)
+
+    def get_download_list_manifest(self):
+        """Get the path of the download list manifest file
+
+        :returns: path of download list manifest file
+        """
+        manifest = self._generate_manifest_from_download_list()
+        # Get file handle download link
+        file_result = self._getFileHandleDownload(
+            fileHandleId=manifest['resultFileHandleId'],
+            objectId=manifest['resultFileHandleId'],
+            objectType="FileEntity"
+        )
+        # Download the manifest
+        downloaded_path = self._download_from_URL(
+            url=file_result['preSignedURL'],
+            destination="./",
+            fileHandleId=file_result['fileHandleId'],
+            expected_md5=file_result['fileHandle'].get('contentMd5')
+        )
+        return downloaded_path
+
+    def get_download_list(self, downloadLocation: str = None) -> str:
+        """Download all files from your Synapse download list
+
+        :param downloadLocation: Directory to download files to.
+
+        :returns: manifest file with file paths
+        """
+        dl_list_path = self.get_download_list_manifest()
+        downloaded_files = []
+        new_manifest_path = f'manifest_{time.time_ns()}.csv'
+        with open(dl_list_path) as manifest_f, \
+             open(new_manifest_path, 'w') as write_obj:
+
+            reader = csv.DictReader(manifest_f)
+            columns = reader.fieldnames
+            columns.extend(["path", "error"])
+            # Write the downloaded paths to a new manifest file
+            writer = csv.DictWriter(write_obj, fieldnames=columns)
+            writer.writeheader()
+
+            for row in reader:
+                # You can add things to the download list that you don't have access to
+                # So there must be a try catch here
+                try:
+                    entity = self.get(row['ID'], downloadLocation=downloadLocation)
+                    # Must include version number because you can have multiple versions of a
+                    # file in the download list
+                    downloaded_files.append(
+                        {"fileEntityId": row['ID'], "versionNumber": row['versionNumber']}
+                    )
+                    row['path'] = entity.path
+                    row['error'] = ''
+                except Exception:
+                    row['path'] = ''
+                    row['error'] = 'DOWNLOAD FAILED'
+                    self.logger.error("Unable to download file")
+                writer.writerow(row)
+
+        # Don't want to clear all the download list because you can add things
+        # to the download list after initiating this command.
+        # Files that failed to download should not be removed from download list
+        # Remove all files from download list after the entire download is complete.
+        # This is because if download fails midway, we want to return the full manifest
+        self.remove_from_download_list(list_of_files=downloaded_files)
+
+        # Always remove original manifest file
+        os.remove(dl_list_path)
+
+        return new_manifest_path
+
+    ############################################################
     #                  Get / Set Annotations                   #
     ############################################################
 
@@ -1470,7 +1603,8 @@ class Synapse(object):
     #                         Querying                         #
     ############################################################
 
-    def getChildren(self, parent, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo"],
+    def getChildren(self, parent, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo",
+                                                "submissionview", "dataset", "materializedview"],
                     sortBy="NAME", sortDirection="ASC"):
         """
         Retrieves all of the entities stored within a parent such as folder or project.
@@ -2226,23 +2360,26 @@ class Synapse(object):
         Creates an IMMUTABLE storage location based on the specified type.
 
         For each storage_type, the following kwargs should be specified:
+
         ExternalObjectStorage: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)
-        - endpointUrl: endpoint URL of the S3 service (for example: 'https://s3.amazonaws.com')
-        - bucket: the name of the bucket to use
+            - endpointUrl: endpoint URL of the S3 service (for example: 'https://s3.amazonaws.com')
+            - bucket: the name of the bucket to use
+
         ExternalS3Storage: (Amazon S3 bucket accessed by Synapse)
-        - bucket: the name of the bucket to use
+            - bucket: the name of the bucket to use
+
         ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)
-        - url: the base URL for uploading to the external destination
-        - supportsSubfolders(optional): does the destination support creating subfolders under the base url
-         (default: false)
+            - url: the base URL for uploading to the external destination
+            - supportsSubfolders(optional): does the destination support creating subfolders under the base url
+              (default: false)
+
         ProxyStorage: (a proxy server that controls access to a storage)
-        - secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
-        - proxyUrl: The HTTPS URL of the proxy used for upload and download.
+            - secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
+            - proxyUrl: The HTTPS URL of the proxy used for upload and download.
 
         Optional kwargs for ALL types:
-        - banner: The optional banner to show every time a file is uploaded
-        - description: The description to show the user when the user has to choose which upload destination to use
-
+            - banner: The optional banner to show every time a file is uploaded
+            - description: The description to show the user when the user has to choose which upload destination to use
 
         :param storage_type:    the type of the StorageLocationSetting to create
         :param kwargs:          fields necessary for creation of the specified storage_type
@@ -2267,8 +2404,10 @@ class Synapse(object):
     def getMyStorageLocationSetting(self, storage_location_id):
         """
         Get a StorageLocationSetting by its id.
+
         :param storage_location_id: id of the StorageLocationSetting to retrieve.
                                     The corresponding StorageLocationSetting must have been created by this user.
+
         :return: a dict describing the StorageLocationSetting retrieved by its id
         """
         return self.restGET('/storageLocation/%s' % storage_location_id)
@@ -2276,9 +2415,11 @@ class Synapse(object):
     def setStorageLocation(self, entity, storage_location_id):
         """
         Sets the storage location for a Project or Folder
+
         :param entity:              a Project or Folder to which the StorageLocationSetting is set
         :param storage_location_id: a StorageLocation id or a list of StorageLocation ids. Pass in None for the default
                                     Synapse storage.
+
         :return: The created or updated settings as a dict
         """
         if storage_location_id is None:
@@ -2426,7 +2567,7 @@ class Synapse(object):
 
         See: :py:mod:`synapseclient.evaluation`
         """
-        uri = Evaluation.getByNameURI(urllib_urlparse.quote(name))
+        uri = Evaluation.getByNameURI(name)
         return Evaluation(**self.restGET(uri))
 
     def getEvaluationByContentSource(self, entity):
@@ -2954,9 +3095,9 @@ class Synapse(object):
                 entityBundleJSON['annotations'] = convert_old_annotation_json(annotations)
 
             related = self._getWithEntityBundle(
-                                entityBundle=entityBundleJSON,
-                                entity=submission['entityId'],
-                                submission=submission_id, **kwargs)
+                entityBundle=entityBundleJSON,
+                entity=submission['entityId'],
+                submission=submission_id, **kwargs)
             submission.entity = related
             submission.filePath = related.get('path', None)
 
@@ -3180,10 +3321,10 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
-    def create_snapshot_version(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
+    def create_snapshot_version(self, table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema, Dataset],
                                 comment: str = None, label: str = None, activity: typing.Union[Activity, str] = None,
                                 wait: bool = True) -> int:
-        """Create a new Table Version or a new View version.
+        """Create a new Table Version, new View version, or new Dataset version.
 
         :param table:  The schema of the Table/View, or its ID.
         :param comment:  Optional snapshot comment.
@@ -3195,7 +3336,7 @@ class Synapse(object):
         :return: the snapshot version number if wait=True, None if wait=False
         """
         ent = self.get(id_of(table), downloadFile=False)
-        if isinstance(ent, (EntityViewSchema, SubmissionViewSchema)):
+        if isinstance(ent, (EntityViewSchema, SubmissionViewSchema, Dataset)):
             result = self._async_table_update(
                 table,
                 create_snapshot=True,

@@ -35,6 +35,8 @@ Reference
    CommandLineClient
    Table
    sftp
+   Team
+
 
 =============
 Release Notes

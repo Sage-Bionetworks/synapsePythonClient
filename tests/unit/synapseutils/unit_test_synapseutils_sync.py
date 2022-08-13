@@ -389,14 +389,14 @@ def test_syncFromSynase__manifest(syn):
         return provenance[id_of(entity)]
 
     expected_project_manifest = \
-        f"""path\tparent\tname\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-{path1}\tsyn123\tfile1\tTrue\t\t\t\t\t
-{path2}\tsyn098\tfile2\tTrue\t\t\t\tfoo\tbar
+        f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+{path1}\tsyn123\tfile1\tsyn456\tTrue\t\t\t\t\t
+{path2}\tsyn098\tfile2\tsyn789\tTrue\t\t\t\tfoo\tbar
 """
 
     expected_folder_manifest = \
-        f"""path\tparent\tname\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-{path2}\tsyn098\tfile2\tTrue\t\t\t\tfoo\tbar
+        f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+{path2}\tsyn098\tfile2\tsyn789\tTrue\t\t\t\tfoo\tbar
 """
 
     expected_synced_files = [file2, file1]
@@ -991,6 +991,13 @@ def test_check_size_each_file(mock_os, syn):
     row4 = f'{path4}\t{project_id}\n'
 
     manifest = StringIO(header + row1 + row2 + row3 + row4)
+    # HACK: This is repeated because of os.path.basename is called once for every file
+    # for 3 separate functions.
+    mock_os.path.basename.side_effect = [
+        "file1.txt", "www.synapse.org", "file3.txt", "www.github.com",
+        "file1.txt", "www.synapse.org", "file3.txt", "www.github.com",
+        "file1.txt", "www.synapse.org", "file3.txt", "www.github.com"
+    ]
     mock_os.path.isfile.side_effect = [True, True, True, False]
     mock_os.path.abspath.side_effect = [path1, path3]
     mock_stat = MagicMock(spec='st_size')
@@ -1092,6 +1099,37 @@ def test_check_file_name_with_illegal_char(mock_os, syn):
 
 
 @patch.object(sync, 'os')
+def test_check_file_name_duplicated(mock_os, syn):
+    """
+    Verify the check_file_name method raises the ValueError when the file name is duplicated
+    """
+
+    project_id = "syn123"
+    header = 'path\tparent\tname\n'
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = os.path.abspath(os.path.expanduser('~/file2.txt'))
+    path3 = os.path.abspath(os.path.expanduser('~/file3.txt'))
+    path4 = os.path.abspath(os.path.expanduser('~/file4.txt'))
+
+    row1 = f"{path1}\t{project_id}\tfoo\n"
+    row2 = f"{path2}\t{project_id}\tfoo\n"
+    row3 = f"{path3}\t{project_id}\tfoo\n"
+    row4 = f"{path4}\t{project_id}\tfoo\n"
+
+    manifest = StringIO(header + row1 + row2 + row3 + row4)
+    mock_os.path.isfile.return_value = True
+    mock_os.path.abspath.side_effect = [path1, path2, path3, path4]
+    mock_os.path.basename.return_value = 'file3.txt'
+
+    with pytest.raises(ValueError) as ve:
+        sync.readManifestFile(syn, manifest)
+    assert str(ve.value) == (
+        "All rows in manifest must contain a path with a unique file name and parent to upload. "
+        "Files uploaded to the same folder/project (parent) must have unique file names."
+    )
+
+
+@patch.object(sync, 'os')
 def test_check_file_name_with_too_long_filename(mock_os, syn):
     """
     Verify the check_file_name method raises the ValueError when the file name is too long
@@ -1123,3 +1161,58 @@ def test_check_file_name_with_too_long_filename(mock_os, syn):
     assert str(ve.value) == "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, " \
                             "underscores, hyphens, periods, plus signs, apostrophes, " \
                             "and parentheses".format(long_file_name)
+
+
+def test__create_folder(syn):
+    folder_name = 'TestName'
+    parent_id = 'syn123'
+    with patch.object(syn, "store") as patch_syn_store:
+        sync._create_folder(syn, folder_name, parent_id)
+        patch_syn_store.assert_called_once_with({
+            'name': folder_name,
+            'concreteType': 'org.sagebionetworks.repo.model.Folder',
+            'parentId': parent_id
+        })
+        sync._create_folder(syn, folder_name * 2, parent_id * 2)
+        patch_syn_store.assert_called_with({
+            'name': folder_name * 2,
+            'concreteType': 'org.sagebionetworks.repo.model.Folder',
+            'parentId': parent_id * 2
+        })
+
+
+@patch.object(sync, 'os')
+def test__walk_directory_tree(mock_os, syn):
+    folder_name = 'TestFolder'
+    subfolder_name = 'TestSubfolder'
+    parent_id = 'syn123'
+    mock_os.walk.return_value = [
+        (folder_name, [subfolder_name], ['TestFile.txt']),
+        (os.path.join(folder_name, subfolder_name), [], ['TestSubfile.txt'])
+    ]
+    mock_os.stat.return_value.st_size = 1
+    mock_os.path.join.side_effect = os.path.join
+    with patch.object(sync, "_create_folder") as mock_create_folder:
+        mock_create_folder.return_value = {"id": "syn456"}
+        rows = sync._walk_directory_tree(syn, folder_name, parent_id)
+        mock_os.walk.assert_called_once_with(folder_name)
+        mock_create_folder.assert_called_once_with(
+            syn, subfolder_name, parent_id
+        )
+        assert mock_os.stat.call_count == 2
+        assert len(rows) == 2
+
+
+def test_generate_sync_manifest(syn):
+    folder_name = 'TestName'
+    parent_id = 'syn123'
+    manifest_path = "TestFolder"
+    with patch.object(sync, "_walk_directory_tree") as patch_walk_directory_tree, \
+         patch.object(sync, "_write_manifest_data") as patch_write_manifest_data:
+        sync.generate_sync_manifest(syn, folder_name, parent_id, manifest_path)
+        patch_walk_directory_tree.assert_called_once_with(
+            syn, folder_name, parent_id
+        )
+        patch_write_manifest_data.assert_called_with(
+            manifest_path, ["path", "parent"], patch_walk_directory_tree.return_value
+        )
