@@ -3449,9 +3449,7 @@ class Synapse(object):
 
         :param  limit:          specify the maximum number of rows to be returned, defaults to None
         :param offset:          don't return the first n rows, defaults to None
-        :param isConsistent:    defaults to True. If set to False, return results based on current state of the index
-                                without waiting for pending writes to complete.
-                                Only use this if you know what you're doing.
+        :param isConsistent:    (**DEPRECATED**)
 
         For CSV files, there are several parameters to control the format of the resulting file:
 
@@ -3477,8 +3475,8 @@ class Synapse(object):
         if resultsAs.lower() == "rowset":
             return TableQueryResult(self, query, **kwargs)
         elif resultsAs.lower() == "csv":
-            # remove isConsistent as a parameter because CsvFileTable.from_table_query doesn't
-            # take it
+            # TODO: remove isConsistent because it has now been deprecated
+            # from the backend
             if kwargs.get("isConsistent") is not None:
                 kwargs.pop('isConsistent')
             return CsvFileTable.from_table_query(self, query, **kwargs)
