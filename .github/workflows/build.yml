@@ -136,20 +136,29 @@ jobs:
             pytest -sv tests/integration -n auto --dist loadscope
           fi
 
+      - name: Prepare environment for coveralls
+        run: |
+          echo "PYTHON_ENV=$(echo py${{ matrix.python-version }} | tr -d .)" >> $GITHUB_ENV
       - name: Coveralls Parallel
-        uses: coverallsapp/github-action@1.1.3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          COVERALLS_FLAG_NAME: ${{ env.PYTHON_ENV }}
+          COVERALLS_PARALLEL: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          coverage run --source=challengeutils --omit=challengeutils/__main__.py -m pytest tests/
+          coveralls --service=github
 
-  finish:
-    needs: test
+  finish-coveralls:
+    needs: build
     runs-on: ubuntu-latest
+    container: python:3-slim
     steps:
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@1.1.3
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        parallel-finished: true
+    - name: Finish Coveralls Parallel
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        pip3 install --upgrade coveralls
+        coveralls --finish
 
   # enforce the code matches the Black code style
   lint:
