@@ -1044,7 +1044,7 @@ See https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableE
     parser_login.add_argument('-u', '--username', dest='synapseUser',
                               help='Username used to connect to Synapse')
     parser_login.add_argument('-p', '--password', dest='synapsePassword',
-                              help='Password or api key used to connect to Synapse. (This parameter will be deprecated)')
+                              help='This will be deprecated. Password or api key used to connect to Synapse.')
     parser_login.add_argument('--rememberMe', '--remember-me', dest='rememberMe', action='store_true', default=False,
                               help='Cache credentials for automatic authentication on future interactions with Synapse')
     parser_login.set_defaults(func=login)
