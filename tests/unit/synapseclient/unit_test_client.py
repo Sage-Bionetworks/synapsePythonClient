@@ -2510,7 +2510,7 @@ def test_store__wrong_activity(syn):
     ent = synapseclient.File("test", parentId="syn123")
     with pytest.raises(ValueError) as ex_cm:
         syn.store(ent, activity="foo")
-        assert "activity should be synapseclient.Activity object" ==  str(ex_cm.value)
+        assert "activity should be synapseclient.Activity objec" ==  str(ex_cm.value)
 
 
 def test_get_submission_with_annotations(syn):
