@@ -851,7 +851,6 @@ class Synapse(object):
                                       "permission. The file has NOT been downloaded."
                     self.logger.warning('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'
                                         + '!'*len(warning_message)+'\n')
-
         return entity
 
     def _ensure_download_location_is_directory(self, downloadLocation):
