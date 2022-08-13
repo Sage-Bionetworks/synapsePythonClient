@@ -145,7 +145,8 @@ jobs:
           COVERALLS_PARALLEL: true
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          coverage run --source=challengeutils --omit=challengeutils/__main__.py -m pytest tests/
+          pip3 install coverage
+          coverage run -m pytest tests/
           coveralls --service=github
 
   finish-coveralls:
