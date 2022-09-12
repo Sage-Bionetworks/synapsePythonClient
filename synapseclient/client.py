@@ -337,9 +337,9 @@ class Synapse(object):
         """
         Valid combinations of login() arguments:
 
-        - email/username and password
+        - email/username and password (**WILL BE DEPRECATED**)
 
-        - email/username and apiKey (Base64 encoded string)
+        - email/username and apiKey (Base64 encoded string) (**WILL BE DEPRECATED**)
 
         - authToken
 
@@ -355,14 +355,14 @@ class Synapse(object):
         #. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
 
         :param email:        Synapse user name (or an email address associated with a Synapse account)
-        :param password:     password
-        :param apiKey:       Base64 encoded Synapse API key
+        :param password:     **!!WILL BE DEPRECATED!!** password. Please use authToken (Synapse personal access token)
+        :param apiKey:       **!!WILL BE DEPRECATED!!** Base64 encoded Synapse API key
         :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the
                              following fields: email, password, apiKey
         :param rememberMe:   Whether the authentication information should be cached in your operating system's
                              credential storage.
         :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
-                                password or apiKey
+                             password or apiKey
 
         **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
         **Linux** systems.
