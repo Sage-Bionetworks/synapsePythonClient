@@ -337,7 +337,7 @@ class Synapse(object):
         """
         Valid combinations of login() arguments:
 
-        - email/username and password  (**WILL BE DEPRECATED**)
+        - email/username and password (**WILL BE DEPRECATED**)
 
         - email/username and apiKey (Base64 encoded string) (**WILL BE DEPRECATED**)
 
