@@ -314,6 +314,7 @@ PANDAS_TABLE_TYPE = {
     'floating': 'DOUBLE',
     'decimal': 'DOUBLE',
     'integer': 'INTEGER',
+    'mixed-integer-float': 'DOUBLE',
     'boolean': 'BOOLEAN',
     'datetime64': 'DATE',
     'datetime': 'DATE',
