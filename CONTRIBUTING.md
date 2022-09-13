@@ -29,7 +29,7 @@ After a bug report is received, expect a Sage Bionetworks staff member to contac
 
 ### The development life cycle
 
-Developing on the Python client starts with picking a issue to work on in JIRA! The open work items (bugs and new features) are tracked in JIRA in the [SYNPY Project](https://sagebionetworks.jira.com/projects/SYNPY/issues). Issues marked as `Open` are ready for your contributions!  Please make sure your assign yourself the ticket and check with the maintainers if the issue you picked is suitable.
+Developing on the Python client starts with picking a issue to work on in JIRA! The open work items (bugs and new features) are tracked in JIRA in the [SYNPY Project](https://sagebionetworks.jira.com/projects/SYNPY/issues). Issues marked as `Open` are ready for your contributions! Please make sure your assign yourself the ticket and check with the maintainers if the issue you picked is suitable.
 
 #### Fork and clone this repository
 
