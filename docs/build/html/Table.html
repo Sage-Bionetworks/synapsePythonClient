@@ -235,7 +235,7 @@ later:</p>
 <span class="n">row_reference_set</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">RowSet</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span> <span class="n">rows</span><span class="o">=</span><span class="p">[</span><span class="n">Row</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]))</span>
 
 <span class="c1"># Later, we&#39;ll want to query the table and download our album covers</span>
-<span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select artist, album, year, catalog, cover from </span><span class="si">%s</span><span class="s2"> where artist = &#39;Sonny Rollins&#39;&quot;</span>                              <span class="o">%</span> <span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select artist, album, &#39;year&#39;, catalog, cover from </span><span class="si">%s</span><span class="s2"> where artist = &#39;Sonny Rollins&#39;&quot;</span>                              <span class="o">%</span> <span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 <span class="n">cover_files</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">downloadTableColumns</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;cover&#39;</span><span class="p">])</span>
 </pre></div>
 </div>
@@ -799,7 +799,7 @@ depending on what type of values are given.</p>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 19, 2022.
+      Last updated on Sep 13, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

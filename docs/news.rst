@@ -3,6 +3,102 @@ Release Notes
 =============
 
 
+
+2.7.0 (2022-04-19)
+==================
+
+Highlights
+----------
+
+- Added support for Datasets
+
+  .. code-block:: python
+
+        # from python
+        import synapseclient
+        import synapseutils
+        syn = synapseclient.login()
+        dataset_items = [
+            {'entityId': "syn000", 'versionNumber': 1},
+            {...},
+        ]
+        dataset = synapseclient.Dataset(
+            name="My Dataset",
+            parent=project,
+            dataset_items=dataset_items
+        )
+        dataset = syn.store(dataset)
+        # Add/remove specific Synapse IDs to/from the Dataset
+        dataset.add_item({'entityId': "syn111", 'versionNumber': 1})
+        dataset.remove_item("syn000")
+        dataset = syn.store(dataset)
+        # Add a single Folder to the Dataset
+        # this will recursively add all the files in the folder
+        dataset.add_folder("syn123")
+        # Add a list of Folders, overwriting any existing files in the dataset
+        dataset.add_folders(["syn456", "syn789"], force=True)
+        dataset = syn.store(dataset)
+        # Create snapshot version of dataset
+        syn.create_snapshot_version(
+            dataset.id,
+            label="v1.0",
+            comment="This is version 1"
+        )
+
+- Added support for downloading from download cart
+
+  .. code-block:: python
+
+        # from python
+        import synapseclient
+        import synapseutils
+        syn = synapseclient.login()
+        manifest_path = syn.get_download_list()
+
+Bug Fixes
+---------
+-  [`SYNPY-226 <https://sagebionetworks.jira.com/browse/SYNPY-226>`__] -
+   isConsistent fails as parameter for table query
+-  [`SYNPY-562 <https://sagebionetworks.jira.com/browse/SYNPY-562>`__] -
+   Make sure SQL functions, including "year", are quoted correctly
+-  [`SYNPY-1031 <https://sagebionetworks.jira.com/browse/SYNPY-1031>`__] -
+   File version increments with 400 client error
+-  [`SYNPY-1219 <https://sagebionetworks.jira.com/browse/SYNPY-1219>`__] -
+   Update Entity class to be compatible with the new Dataset entity
+-  [`SYNPY-1224 <https://sagebionetworks.jira.com/browse/SYNPY-1224>`__] -
+   Correct SynapseUnmetAccessRestrictions message
+-  [`SYNPY-1237 <https://sagebionetworks.jira.com/browse/SYNPY-1237>`__] -
+   as_table_columns function is mishandling mixed data types
+
+Stories
+-------
+-  [`SYNPY-63 <https://sagebionetworks.jira.com/browse/SYNPY-63>`__] -
+   py: use metaclass to replace the _entity_type_to_class hack
+-  [`SYNPY-992 <https://sagebionetworks.jira.com/browse/SYNPY-992>`__] -
+   synapseutils changeFileMetadata missing syn parameter docstring
+-  [`SYNPY-1175 <https://sagebionetworks.jira.com/browse/SYNPY-1175>`__] -
+   Programmatic Support for Download V2 via Py Client
+-  [`SYNPY-1193 <https://sagebionetworks.jira.com/browse/SYNPY-1193>`__] -
+   Support Datasets functionality
+-  [`SYNPY-1221 <https://sagebionetworks.jira.com/browse/SYNPY-1221>`__] -
+   Set up gh-action: black, the python auto formatter on the python client
+
+Tasks
+-----
+-  [`SYNPY-566 <https://sagebionetworks.jira.com/browse/SYNPY-566>`__] -
+   Clarify expected list format for sync manifest
+-  [`SYNPY-1053 <https://sagebionetworks.jira.com/browse/SYNPY-1053>`__] -
+   Increase documentation of forceVersion in syncToSynapse
+-  [`SYNPY-1145 <https://sagebionetworks.jira.com/browse/SYNPY-1145>`__] -
+   Link to manifest format in CLI sync command usage help
+-  [`SYNPY-1226 <https://sagebionetworks.jira.com/browse/SYNPY-1226>`__] -
+   Leverage `ViewBase` for Datasets instead of `SchemaBase`
+-  [`SYNPY-1235 <https://sagebionetworks.jira.com/browse/SYNPY-1235>`__] -
+   Create codeql scanning workflow
+-  [`SYNPY-1207 <https://sagebionetworks.jira.com/browse/SYNPY-1207>`__] -
+   Support syn.get() on a dataset
+
+
 2.6.0 (2022-04-19)
 ==================
 
@@ -18,13 +114,13 @@ Highlights
 
 - Added support for materialized views
 
-  .. code-block:: bash
+  .. code-block:: python
 
         # from python
         import synapseclient
         import synapseutils
         syn = synapseclient.login()
-        view = MaterializedViewSchema(
+        view = synapseclient.MaterializedViewSchema(
             name="test-material-view",
             parent="syn34234",
             definingSQL="SELECT * FROM syn111 F JOIN syn2222 P on (F.PATIENT_ID = P.PATIENT_ID)"

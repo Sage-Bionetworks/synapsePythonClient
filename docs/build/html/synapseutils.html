@@ -68,9 +68,11 @@
 <dl class="py function">
 <dt id="synapseutils.copy_functions.changeFileMetaData">
 <code class="sig-prename descclassname"><span class="pre">synapseutils.copy_functions.</span></code><code class="sig-name descname"><span class="pre">changeFileMetaData</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downloadAs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">contentType</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forceVersion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.copy_functions.changeFileMetaData" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
+<dd><p>Change File Entity metadata like the download as name.</p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – Synapse connection</p></li>
 <li><p><strong>entity</strong> – Synapse entity Id or object</p></li>
 <li><p><strong>contentType</strong> – Specify content type to change the content type of a filehandle</p></li>
 <li><p><strong>downloadAs</strong> – Specify filename to change the filename of a filehandle</p></li>
@@ -365,9 +367,12 @@ messagging (email) at specific intervals, on errors and on completion.</p>
 file. The minimum required columns are <strong>path</strong> and <strong>parent</strong> where path is the local file path and parent is the
 Synapse Id of the project or folder where the file is uploaded to. In addition to these columns you can specify any
 of the parameters to the File constructor (<strong>name</strong>, <strong>synapseStore</strong>, <strong>contentType</strong>) as well as parameters to the
-syn.store command (<strong>used</strong>, <strong>executed</strong>, <strong>activityName</strong>, <strong>activityDescription</strong>, <strong>forceVersion</strong>).
+syn.store command (<strong>used</strong>, <strong>executed</strong>, <strong>activityName</strong>, <strong>activityDescription</strong>, <strong>forceVersion</strong>).  For only
+updating annotations without uploading new versions of unchanged files, the syn.store parameter forceVersion
+should be included in the manifest with the value set to False.
 Used and executed can be semi-colon (“;”) separated lists of Synapse ids, urls and/or local filepaths of files
-already stored in Synapse (or being stored in Synapse by the manifest).
+already stored in Synapse (or being stored in Synapse by the manifest).  If you leave a space, like
+“syn1234; syn2345” the white space from ” syn2345” will be stripped.
 Any additional columns will be added as annotations.</p>
 <p><strong>Required fields:</strong></p>
 <table class="docutils align-default">
@@ -418,11 +423,15 @@ Any additional columns will be added as annotations.</p>
 </tbody>
 </table>
 <p><strong>Provenance fields:</strong></p>
+<p>Each of these are individual examples and is what you would find in a row in each of these columns. To
+clarify, “syn1235;/path/to_local/file.txt” below states that you would like both
+“syn1234” and “/path/to_local/file.txt” added as items used to generate a file. You can also specify one item
+by specifying “syn1234”</p>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 20%" />
 <col style="width: 37%" />
-<col style="width: 43%" />
+<col style="width: 44%" />
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
@@ -433,11 +442,11 @@ Any additional columns will be added as annotations.</p>
 <tbody>
 <tr class="row-even"><td><p>used</p></td>
 <td><p>List of items used to generate file</p></td>
-<td><p>syn1235; /path/to_local/file.txt</p></td>
+<td><p>“syn1235;/path/to_local/file.txt”</p></td>
 </tr>
 <tr class="row-odd"><td><p>executed</p></td>
 <td><p>List of items exectued</p></td>
-<td><p><a class="reference external" href="https://github.org/">https://github.org/</a>; /path/to_local/code.py</p></td>
+<td><p>“<a class="reference external" href="https://github.org/;/path/to_local/code.py">https://github.org/;/path/to_local/code.py</a>”</p></td>
 </tr>
 <tr class="row-even"><td><p>activityName</p></td>
 <td><p>Name of activity in provenance</p></td>
@@ -500,7 +509,7 @@ Any additional columns will be added as annotations.</p>
 <td><p>syn1243</p></td>
 <td><p>“bar”</p></td>
 <td><p>3.1415</p></td>
-<td><p>“syn124; /path/file2.txt”</p></td>
+<td><p>“syn124;/path/file2.txt”</p></td>
 <td><p>“<a class="reference external" href="https://github.org/foo/bar">https://github.org/foo/bar</a>”</p></td>
 </tr>
 <tr class="row-odd"><td><p>/path/file2.txt</p></td>
@@ -832,7 +841,7 @@ This can be bypassed by using the force=True option.</p></li>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 19, 2022.
+      Last updated on Sep 13, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
