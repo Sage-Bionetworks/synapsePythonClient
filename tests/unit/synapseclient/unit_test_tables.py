@@ -414,6 +414,8 @@ def test_pandas_to_table_convert__integer_data_type():
 def test_pandas_to_table_convert__mixed_int_float_data_type():
     test_df = pd.DataFrame({'int1': [1, 2, 990]})
     schema = Schema(name="Foo", parent="syn12345")
+    # Since I can't seem to define the "mixed-integer-float" type, I force `infer_dtype`
+    # to return "mixed-integer-float" to test this feature.
     with patch.object(pd.api.types, "infer_dtype", return_value="mixed-integer-float"):
         test_table = Table(schema, test_df)
         for col in test_table.headers:
