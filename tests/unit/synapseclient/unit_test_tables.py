@@ -411,6 +411,15 @@ def test_pandas_to_table_convert__integer_data_type():
         assert col.columnType == "INTEGER"
 
 
+def test_pandas_to_table_convert__mixed_int_float_data_type():
+    test_df = pd.DataFrame({'int1': [1, 2, 990]})
+    schema = Schema(name="Foo", parent="syn12345")
+    with patch.object(pd.api.types, "infer_dtype", return_value="mixed-integer-float"):
+        test_table = Table(schema, test_df)
+        for col in test_table.headers:
+            assert col.columnType == "DOUBLE"
+
+
 def test_pandas_to_table_convert__boolean_data_type():
     test_df = pd.DataFrame({'bool1': (False, True, False),
                             'bool2': (False, True, None)})
