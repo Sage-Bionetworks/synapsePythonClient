@@ -45,7 +45,8 @@ Highlights
             comment="This is version 1"
         )
 
-- Added support for downloading from download cart
+- Added support for downloading from download cart.
+  You can use this feature by first adding items to your download cart on Synapse.
 
   .. code-block:: python
 
@@ -54,6 +55,18 @@ Highlights
         import synapseutils
         syn = synapseclient.login()
         manifest_path = syn.get_download_list()
+
+  .. code-block:: bash
+        # from command line
+        synapse get-download-list
+
+- Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+  removing all camel case or non-standard single dash long command line interface (cli)
+  parameters.
+  Example: command line arguments like `-parent` will become
+  `--parent`.  Commands that support camel case like `--parentId`
+  will be changed to `--parent-id`.
+
 
 Bug Fixes
 ---------

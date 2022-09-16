@@ -92,7 +92,8 @@
 </pre></div>
 </div>
 </li>
-<li><p>Added support for downloading from download cart</p>
+<li><p>Added support for downloading from download cart.
+You can use this feature by first adding items to your download cart on Synapse.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># from python</span>
 <span class="kn">import</span> <span class="nn">synapseclient</span>
 <span class="kn">import</span> <span class="nn">synapseutils</span>
@@ -101,6 +102,12 @@
 </pre></div>
 </div>
 </li>
+<li><p>Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+removing all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
 </ul>
 </div>
 <div class="section" id="bug-fixes">
@@ -1709,7 +1716,7 @@ provide convenience functions for more complicated operations in Synapse such as
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Sep 14, 2022.
+      Last updated on Sep 16, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
