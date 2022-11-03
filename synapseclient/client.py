@@ -1480,7 +1480,12 @@ class Synapse(object):
         # Files that failed to download should not be removed from download list
         # Remove all files from download list after the entire download is complete.
         # This is because if download fails midway, we want to return the full manifest
-        self.remove_from_download_list(list_of_files=downloaded_files)
+        if downloaded_files:
+            # Only want to invoke this if there is a list of files to remove
+            # or the API call will error
+            self.remove_from_download_list(list_of_files=downloaded_files)
+        else:
+            self.logger.warning("A manifest was created, but no files were downloaded")
 
         # Always remove original manifest file
         os.remove(dl_list_path)
