@@ -505,10 +505,10 @@ class Synapse(object):
 
         try:
             user = self.restGET('/userProfile')
-            if 'displayName' in user:
-                if user['displayName'] == 'Anonymous':
+            if 'userName' in user:
+                if user['userName'] == 'anonymous':
                     return False
-                return user['displayName']
+                return user['userName']
         except SynapseHTTPError as err:
             if err.response.status_code == 401:
                 return False
