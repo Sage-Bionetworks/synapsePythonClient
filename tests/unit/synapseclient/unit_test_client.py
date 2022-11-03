@@ -437,8 +437,7 @@ class TestDownloadFileHandle:
         """Verify we pass along Synapse auth headers when downloading from a Synapse repo hosted url"""
 
         uri = f"{self.syn.repoEndpoint}/repo/v1/entity/syn1234567/file"
-        in_destination = tempfile.mktemp()
-
+        in_destination = tempfile.NamedTemporaryFile(mode="w+", delete=False)
         mock_credentials = mocker.patch.object(self.syn, 'credentials')
 
         response = MagicMock(spec=requests.Response)
@@ -447,16 +446,17 @@ class TestDownloadFileHandle:
         mock_get = mocker.patch.object(self.syn._requests_session, 'get')
         mock_get.return_value = response
 
-        out_destination = self.syn._download_from_URL(uri, in_destination)
+        out_destination = self.syn._download_from_URL(uri, in_destination.name)
         assert mock_get.call_args[1]['auth'] is mock_credentials
-        assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
+        assert os.path.normpath(out_destination) == os.path.normpath(in_destination.name)
+        in_destination.close()
+        os.unlink(in_destination.name)
 
     def test_download_from_url__external(self, mocker):
         """Verify we do not pass along Synapse auth headers to a file download that is a not Synapse repo hosted"""
 
         uri = "https://not-synapse.org/foo/bar/baz"
-        in_destination = tempfile.mktemp()
-
+        in_destination = tempfile.NamedTemporaryFile(mode="w+", delete=False)
         mocker.patch.object(self.syn, 'credentials')
 
         response = MagicMock(spec=requests.Response)
@@ -465,9 +465,11 @@ class TestDownloadFileHandle:
         mock_get = mocker.patch.object(self.syn._requests_session, 'get')
         mock_get.return_value = response
 
-        out_destination = self.syn._download_from_URL(uri, in_destination)
+        out_destination = self.syn._download_from_URL(uri, in_destination.name)
         assert mock_get.call_args[1]['auth'] is None
-        assert os.path.normpath(out_destination) == os.path.normpath(in_destination)
+        assert os.path.normpath(out_destination) == os.path.normpath(in_destination.name)
+        in_destination.close()
+        os.unlink(in_destination.name)
 
     @patch.object(Synapse, '_getFileHandleDownload')
     def test_downloadFileHandle_preserve_exception_info(self, mock_getFileHandleDownload):
@@ -943,7 +945,8 @@ def test_getChildren__nextPageToken(syn):
         # genrates JSOn for the expected request body
         def expected_request_JSON(token):
             return json.dumps({'parentId': 'syn' + str(parent_project_id_int),
-                               'includeTypes': ["folder", "file", "table", "link", "entityview", "dockerrepo"],
+                               'includeTypes': ["folder", "file", "table", "link", "entityview", "dockerrepo",
+                                                "submissionview", "dataset", "materializedview"],
                                'sortBy': 'NAME', 'sortDirection': 'ASC', 'nextPageToken': token})
         expected_POST_url = '/entity/children'
         mocked_POST.assert_has_calls([call(expected_POST_url, body=expected_request_JSON(None)),
@@ -998,8 +1001,9 @@ def test_check_entity_restrictions__unmet_restriction_entity_project_with_downlo
         entity = 'syn123'
         syn._check_entity_restrictions(bundle, entity, True)
     mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
-                                   '(syn.onweb("syn123")). Click the downward pointing arrow next to the file\'s name '
-                                   'to review and fulfill its download requirement(s).\n')
+                                   '(syn.onweb("syn123")). Look for the "Access" label and the lock icon underneath '
+                                   'the file name. Click "Request Access", and then review and fulfill the file '
+                                   'download requirement(s).\n')
 
 
 def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloadFile_is_True(syn):
@@ -1017,8 +1021,9 @@ def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloa
         entity = 'syn123'
         syn._check_entity_restrictions(bundle, entity, True)
     mocked_warn.assert_called_with('\nThis entity has access restrictions. Please visit the web page for this entity '
-                                   '(syn.onweb("syn123")). Click the downward pointing arrow next to the file\'s name '
-                                   'to review and fulfill its download requirement(s).\n')
+                                   '(syn.onweb("syn123")). Look for the "Access" label and the lock icon underneath '
+                                   'the file name. Click "Request Access", and then review and fulfill the file '
+                                   'download requirement(s).\n')
 
 
 def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(syn):
@@ -1714,6 +1719,64 @@ class TestMembershipInvitation:
             patch_delete.assert_called_once_with(open_invitations['id'])
             assert invite == self.response
             patch_invitation.assert_called_once()
+
+
+class TestDownloadListServices:
+
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
+    def setup(self):
+        self.patch__waitForAsync = patch.object(self.syn, '_waitForAsync')
+        self.mock__waitForAsync = self.patch__waitForAsync.start()
+        self.patch_restPOST = patch.object(self.syn, 'restPOST')
+        self.mock_restPOST = self.patch_restPOST.start()
+        self.patch_restDELETE = patch.object(self.syn, 'restDELETE')
+        self.mock_restDELETE = self.patch_restDELETE.start()
+
+    def teardown(self):
+        self.patch__waitForAsync.stop()
+        self.patch_restPOST.stop()
+        self.patch_restDELETE.stop()
+
+    def test_clear_download_list(self):
+        self.syn.clear_download_list()
+        self.mock_restDELETE.assert_called_once_with("/download/list")
+
+    def test_remove_from_download_list(self):
+        list_of_files = {
+            "fileEntityId": "syn222",
+            'versionNumber': 3
+        }
+        self.syn.remove_from_download_list(list_of_files=list_of_files)
+        self.mock_restPOST.assert_called_once_with(
+            "/download/list/remove",
+            body='{"batchToRemove": {"fileEntityId": "syn222", "versionNumber": 3}}'
+        )
+
+    def test_generate_manifest_from_download_list(self):
+        request_body = {
+            "concreteType": "org.sagebionetworks.repo.model.download.DownloadListManifestRequest",
+            "csvTableDescriptor": {
+                "separator": "\t",
+                "quoteCharacter": "'",
+                "escapeCharacter": "\\",
+                "lineEnd": '\n',
+                "isFirstLineHeader": False
+            }
+        }
+        self.syn._generate_manifest_from_download_list(
+            quoteCharacter="'",
+            escapeCharacter="\\",
+            lineEnd="\n",
+            header=False,
+            separator="\t"
+        )
+        self.mock__waitForAsync.assert_called_once_with(
+            uri="/download/list/manifest/async",
+            request=request_body
+        )
 
 
 class TestRestCalls:
@@ -2442,6 +2505,14 @@ def test_store__existing_no_update(syn):
 
         # should not have attempted an update
         assert not mock_updatentity.called
+
+
+def test_store__wrong_activity(syn):
+    """Test that if function fails if activity object isn't passed in"""
+    ent = synapseclient.File("test", parentId="syn123")
+    with pytest.raises(ValueError) as ex_cm:
+        syn.store(ent, activity="foo")
+    assert "activity should be synapseclient.Activity object" == str(ex_cm.value)
 
 
 def test_get_submission_with_annotations(syn):

@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>&lt;no title&gt; &#8212; Synapse Python Client 2.5.0 documentation</title>
+    <title>Version Functions &#8212; Synapse Python Client 2.7.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -19,7 +19,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Synapse command line client" href="CommandLineClient.html" />
-    <link rel="prev" title="&lt;no title&gt;" href="Utilities.html" />
+    <link rel="prev" title="Utility Functions" href="Utilities.html" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <!--[if lt IE 9]>
     <script src="_static/css3-mediaqueries.js"></script>
@@ -43,10 +43,10 @@
           <a href="CommandLineClient.html" title="Synapse command line client"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="Utilities.html" title="&lt;no title&gt;"
+          <a href="Utilities.html" title="Utility Functions"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.0 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">&lt;no title&gt;</a></li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.7.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Version Functions</a></li> 
       </ul>
     </div>  
 
@@ -55,7 +55,44 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  
+  <span class="target" id="module-synapseclient.core.version_check"></span><div class="section" id="version-functions">
+<h1>Version Functions<a class="headerlink" href="#version-functions" title="Permalink to this headline">¶</a></h1>
+<p>Check for latest version and recommend upgrade:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapseclient</span><span class="o">.</span><span class="n">check_for_updates</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Print release notes for installed version of client:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapseclient</span><span class="o">.</span><span class="n">release_notes</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt id="synapseclient.core.version_check.check_for_updates">
+<code class="sig-prename descclassname"><span class="pre">version_check.</span></code><code class="sig-name descname"><span class="pre">check_for_updates</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.version_check.check_for_updates" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check for the existence of newer versions of the client, reporting both current release version and development
+version.</p>
+<p>For help installing development versions of the client, see the docs for
+<a class="reference internal" href="index.html#module-synapseclient" title="synapseclient"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient</span></code></a> or the <a class="reference external" href="https://github.com/Sage-Bionetworks/synapsePythonClient">README.md</a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.core.version_check.release_notes">
+<code class="sig-prename descclassname"><span class="pre">version_check.</span></code><code class="sig-name descname"><span class="pre">release_notes</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.version_check.release_notes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print release notes for the installed version of the client or latest release or development version if version_url
+is supplied.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>version_url</strong> – <p>Defaults to None, meaning release notes for the installed version. Alternatives are:</p>
+<ul class="simple">
+<li><p>synapseclient.version_check._VERSION_URL</p></li>
+<li><p>synapseclient.version_check._DEV_VERSION_URL</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
 
             <div class="clearer"></div>
           </div>
@@ -75,7 +112,7 @@
 <script>$('#searchbox').show(0);</script>
   <h4>Previous topic</h4>
   <p class="topless"><a href="Utilities.html"
-                        title="previous chapter">&lt;no title&gt;</a></p>
+                        title="previous chapter">Utility Functions</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="CommandLineClient.html"
                         title="next chapter">Synapse command line client</a></p>
@@ -103,15 +140,15 @@
           <a href="CommandLineClient.html" title="Synapse command line client"
              >next</a> |</li>
         <li class="right" >
-          <a href="Utilities.html" title="&lt;no title&gt;"
+          <a href="Utilities.html" title="Utility Functions"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.0 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">&lt;no title&gt;</a></li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.7.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Version Functions</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 18, 2021.
+      Last updated on Sep 13, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

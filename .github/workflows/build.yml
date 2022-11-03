@@ -31,10 +31,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-18.04, macos-10.15, windows-2019]
+        os: [ubuntu-20.04, macos-11, windows-2019]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
-        python: [3.6, 3.7, 3.8, 3.9]
+        python: [3.7, 3.8, '3.9.9', '3.10']
 
     runs-on: ${{ matrix.os }}
 
@@ -99,7 +99,7 @@ jobs:
         shell: bash
 
         # keep versions consistent with the first and last from the strategy matrix
-        if: ${{ contains(fromJSON('[3.6, 3.9]'), matrix.python) }}
+        if: ${{ contains(fromJSON('["3.9.9"]'), matrix.python) }}
         run: |
           if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_key }}" ]; then
             echo "No test configuration decryption keys available, skipping integration tests"
@@ -135,12 +135,17 @@ jobs:
              # use loadscope to avoid issues running tests concurrently that share scoped fixtures
             pytest -sv tests/integration -n auto --dist loadscope
           fi
-
+  # enforce the code matches the Black code style
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: psf/black@stable
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
-    needs: test
+    needs: [test,lint]
 
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     if: github.event_name == 'release'
 
@@ -153,7 +158,7 @@ jobs:
 
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: 3.8
 
       - name: set-release-env
         shell: bash
@@ -261,7 +266,7 @@ jobs:
 
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: 3.8
 
       - name: download-sdist
         uses: actions/download-artifact@v2
@@ -316,10 +321,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-18.04, macos-10.15, windows-2019]
+        os: [ubuntu-20.04, macos-11, windows-2019]
 
         # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
-        python: [3.6, 3.7, 3.8, 3.9]
+        python: [3.7, 3.8, '3.9.9', '3.10']
 
     runs-on: ${{ matrix.os }}
 

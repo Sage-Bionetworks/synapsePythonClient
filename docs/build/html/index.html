@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Synapse Python Client Documentation &#8212; Synapse Python Client 2.5.0 documentation</title>
+    <title>Synapse Python Client Documentation &#8212; Synapse Python Client 2.7.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -41,7 +41,7 @@
         <li class="right" >
           <a href="Credentials.html" title="Manage Synapse Credentials"
              accesskey="N">next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.5.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.7.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Python Client Documentation</a></li> 
       </ul>
     </div>  
@@ -55,8 +55,9 @@
 <span id="synapse-python-client-documentation"></span><h1>Synapse Python Client Documentation<a class="headerlink" href="#module-synapseclient" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">synapseclient</span></code> package provides an interface to <a class="reference external" href="http://www.synapse.org">Synapse</a>, a collaborative workspace
-for reproducible data intensive research projects, providing support for:</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">synapseclient</span></code> package provides an interface to <a class="reference external" href="http://www.synapse.org">Synapse</a>, a collaborative,
+open-source research platform that allows teams to share data, track analyses,
+and collaborate, providing support for:</p>
 <ul class="simple">
 <li><p>integrated presentation of data, code and text</p></li>
 <li><p>fine grained access control</p></li>
@@ -304,12 +305,10 @@ docs are browsable online at <a class="reference external" href="https://python-
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>name</strong> – name of the Activity</p></li>
 <li><p><strong>description</strong> – a short text description of the Activity</p></li>
-<li><p><strong>used</strong> – <p>Either a list of:
-- <a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Reference.html">reference objects</a></p>
-<blockquote>
-<div><p>(e.g. <code class="docutils literal notranslate"><span class="pre">[{'targetId':'syn123456',</span> <span class="pre">'targetVersionNumber':1}]</span></code>)</p>
-</div></blockquote>
+<li><p><strong>used</strong> – <p>Either a list of:</p>
 <ul>
+<li><p><a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Reference.html">reference objects</a>
+(e.g. <code class="docutils literal notranslate"><span class="pre">[{'targetId':'syn123456',</span> <span class="pre">'targetVersionNumber':1}]</span></code>)</p></li>
 <li><p>a list of Synapse Entities or Entity IDs</p></li>
 <li><p>a list of URL’s</p></li>
 </ul>
@@ -392,13 +391,174 @@ of: “STRING”, “DOUBLE”, “INTEGER”, “BOOLEAN”, “DATE”, “FIL
 <li><p><strong>maximumSize</strong> (<em>integer</em>) – A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
 default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
 characters.</p></li>
+<li><p><strong>maximumListLength</strong> (<em>integer</em>) – Required if using a columnType with a “_LIST” suffix. Describes the maximum number of
+values that will appear in that list. Value range 1-100 inclusive. Default 100</p></li>
 <li><p><strong>name</strong> (<em>string</em>) – The display name of the column</p></li>
 <li><p><strong>enumValues</strong> (<em>array of strings</em>) – Columns type of STRING can be constrained to an enumeration values set on this list.</p></li>
-<li><p><strong>defaultValue</strong> (<em>string</em>) – The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not allowed
-to have default values.</p></li>
+<li><p><strong>defaultValue</strong> (<em>string</em>) – The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not
+allowed to have default values.</p></li>
 </ul>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="synapseclient.Dataset">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.</span></code><code class="sig-name descname"><span class="pre">Dataset</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Dataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Dataset is an <a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a> that defines a
+flat list of entities as a tableview (a.k.a. a “dataset”).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – The name for the Dataset object</p></li>
+<li><p><strong>description</strong> – User readable description of the schema</p></li>
+<li><p><strong>columns</strong> – A list of <a class="reference internal" href="#synapseclient.Column" title="synapseclient.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects or their IDs</p></li>
+<li><p><strong>parent</strong> – The Synapse Project to which this Dataset belongs</p></li>
+<li><p><strong>properties</strong> – A map of Synapse properties</p></li>
+<li><p><strong>annotations</strong> – A map of user defined annotations</p></li>
+<li><p><strong>dataset_items</strong> – A list of items characterized by entityId and versionNumber</p></li>
+<li><p><strong>folder</strong> – A list of Folder IDs</p></li>
+<li><p><strong>local_state</strong> – Internal use only</p></li>
+</ul>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">Dataset</span>
+
+<span class="c1"># Create a Dataset with pre-defined DatasetItems. Default Dataset columns</span>
+<span class="c1"># are used if no schema is provided.</span>
+<span class="n">dataset_items</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn000&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="p">{</span><span class="o">...</span><span class="p">},</span>
+<span class="p">]</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Dataset</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My Dataset&quot;</span><span class="p">,</span>
+    <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span>
+    <span class="n">dataset_items</span><span class="o">=</span><span class="n">dataset_items</span><span class="p">))</span>
+
+<span class="c1"># Add/remove specific Synapse IDs to/from the Dataset</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_item</span><span class="p">({</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn111&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">remove_item</span><span class="p">(</span><span class="s2">&quot;syn000&quot;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+<span class="c1"># Add a list of Synapse IDs to the Dataset</span>
+<span class="n">new_items</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn222&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn333&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+<span class="p">]</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_items</span><span class="p">(</span><span class="n">new_items</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Folders can easily be added recursively to a dataset, that is, all files
+within the folder (including sub-folders) will be added.  Note that using
+the following methods will add files with the latest version number ONLY.
+If another version number is desired, use <a href="#id2"><span class="problematic" id="id3">:py:classmethod:`synapseclient.table.add_item`</span></a>
+or <a href="#id4"><span class="problematic" id="id5">:py:classmethod:`synapseclient.table.add_items`</span></a>.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Add a single Folder to the Dataset</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_folder</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+
+<span class="c1"># Add a list of Folders, overwriting any existing files in the dataset</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_folders</span><span class="p">([</span><span class="s2">&quot;syn456&quot;</span><span class="p">,</span> <span class="s2">&quot;syn789&quot;</span><span class="p">],</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>empty() can be used to truncate a dataset, that is, remove all current
+items from the set.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="o">.</span><span class="n">empty</span><span class="p">()</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To get the number of entities in the dataset, use len().</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">dataset</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> has </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span><span class="si">}</span><span class="s2"> items.&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To create a snapshot version of the Dataset, use
+<a href="#id6"><span class="problematic" id="id7">:py:classmethod:`synapseclient.client.create_snapshot_version`</span></a>.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">create_snapshot_version</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;v1.0&quot;</span><span class="p">,</span>
+    <span class="n">comment</span><span class="o">=</span><span class="s2">&quot;This is version 1&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt id="synapseclient.Dataset.add_folder">
+<code class="sig-name descname"><span class="pre">add_folder</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Dataset.add_folder" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder</strong> – a single Synapse Folder ID</p></li>
+<li><p><strong>force</strong> – force add items from folder</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.Dataset.add_folders">
+<code class="sig-name descname"><span class="pre">add_folders</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folders</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Dataset.add_folders" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folders</strong> – a list of Synapse Folder IDs</p></li>
+<li><p><strong>force</strong> – force add items from folders</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.Dataset.add_item">
+<code class="sig-name descname"><span class="pre">add_item</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_item</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Dataset.add_item" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset_item</strong> – a single dataset item</p></li>
+<li><p><strong>force</strong> – force add item</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.Dataset.add_items">
+<code class="sig-name descname"><span class="pre">add_items</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_items</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Dataset.add_items" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset_items</strong> – a list of dataset items</p></li>
+<li><p><strong>force</strong> – force add items</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.Dataset.has_item">
+<code class="sig-name descname"><span class="pre">has_item</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">item_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Dataset.has_item" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>item_id</strong> – a single dataset item Synapse ID</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.Dataset.remove_item">
+<code class="sig-name descname"><span class="pre">remove_item</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">item_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Dataset.remove_item" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>item_id</strong> – a single dataset item Synapse ID</p>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -521,15 +681,14 @@ of the defined scopes.</p></li>
 </ul>
 </dd>
 </dl>
-<dl>
-<dt>Example::</dt><dd><p>from synapseclient import EntityViewType</p>
-<p>project_or_folder = syn.get(“syn123”)
-schema = syn.store(EntityViewSchema(name=’MyTable’, parent=project, scopes=[project_or_folder_id, ‘syn123’],</p>
-<blockquote>
-<div><p>includeEntityTypes=[EntityViewType.FILE]))</p>
-</div></blockquote>
-</dd>
-</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">EntityViewType</span>
+
+<span class="n">project_or_folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">EntityViewSchema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MyTable&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="n">project_or_folder_id</span><span class="p">,</span> <span class="s1">&#39;syn123&#39;</span><span class="p">],</span>
+ <span class="n">includeEntityTypes</span><span class="o">=</span><span class="p">[</span><span class="n">EntityViewType</span><span class="o">.</span><span class="n">FILE</span><span class="p">]))</span>
+</pre></div>
+</div>
 <dl class="py method">
 <dt id="synapseclient.EntityViewSchema.set_entity_types">
 <code class="sig-name descname"><span class="pre">set_entity_types</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">includeEntityTypes</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.EntityViewSchema.set_entity_types" title="Permalink to this definition">¶</a></dt>
@@ -675,6 +834,34 @@ the Link object is returned. If the target is desired, specify followLink=True i
 <p>Example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">link</span> <span class="o">=</span> <span class="n">Link</span><span class="p">(</span><span class="s1">&#39;targetID&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
 <span class="n">link</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">link</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py class">
+<dt id="synapseclient.MaterializedViewSchema">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.</span></code><code class="sig-name descname"><span class="pre">MaterializedViewSchema</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.MaterializedViewSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>A MaterializedViewSchema is an <a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a> that defines a set of columns in a
+materialized view along with the SQL statement.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – the name for the Materialized View Schema object</p></li>
+<li><p><strong>description</strong> – User readable description of the schema</p></li>
+<li><p><strong>definingSQL</strong> – The synapse SQL statement that defines the data in the materialized view. The SQL may
+contain JOIN clauses on multiple tables.</p></li>
+<li><p><strong>columns</strong> – a list of <a class="reference internal" href="#synapseclient.Column" title="synapseclient.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects or their IDs</p></li>
+<li><p><strong>parent</strong> – the project in Synapse to which this Materialized View belongs</p></li>
+<li><p><strong>properties</strong> – A map of Synapse properties</p></li>
+<li><p><strong>annotations</strong> – A map of user defined annotations</p></li>
+<li><p><strong>local_state</strong> – Internal use only</p></li>
+</ul>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">defining_sql</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM syn111 F JOIN syn2222 P on (F.patient_id = P.patient_id)&quot;</span>
+
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">MaterializedViewSchema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MyTable&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span> <span class="n">definingSQL</span><span class="o">=</span><span class="n">defining_sql</span><span class="p">))</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -930,6 +1117,12 @@ defaults to ~/.synapseConfig</p></li>
 <li><p><a class="reference internal" href="#synapseclient.Synapse.setEndpoints" title="synapseclient.Synapse.setEndpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.setEndpoints()</span></code></a></p></li>
 </ul>
 <dl class="py method">
+<dt id="synapseclient.Synapse.clear_download_list">
+<code class="sig-name descname"><span class="pre">clear_download_list</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.clear_download_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear all files from download list</p>
+</dd></dl>
+
+<dl class="py method">
 <dt id="synapseclient.Synapse.createColumns">
 <code class="sig-name descname"><span class="pre">createColumns</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.createColumns" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a batch of <a class="reference internal" href="Table.html#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Column</span></code></a> s within a single request.</p>
@@ -947,24 +1140,34 @@ defaults to ~/.synapseConfig</p></li>
 <dt id="synapseclient.Synapse.createStorageLocationSetting">
 <code class="sig-name descname"><span class="pre">createStorageLocationSetting</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">storage_type</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.createStorageLocationSetting" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates an IMMUTABLE storage location based on the specified type.</p>
-<p>For each storage_type, the following kwargs should be specified:
-ExternalObjectStorage: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)
-- endpointUrl: endpoint URL of the S3 service (for example: ‘<a class="reference external" href="https://s3.amazonaws.com">https://s3.amazonaws.com</a>’)
-- bucket: the name of the bucket to use
-ExternalS3Storage: (Amazon S3 bucket accessed by Synapse)
-- bucket: the name of the bucket to use
-ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)
-- url: the base URL for uploading to the external destination
-- supportsSubfolders(optional): does the destination support creating subfolders under the base url</p>
-<blockquote>
-<div><p>(default: false)</p>
-</div></blockquote>
-<p>ProxyStorage: (a proxy server that controls access to a storage)
-- secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
-- proxyUrl: The HTTPS URL of the proxy used for upload and download.</p>
-<p>Optional kwargs for ALL types:
-- banner: The optional banner to show every time a file is uploaded
-- description: The description to show the user when the user has to choose which upload destination to use</p>
+<p>For each storage_type, the following kwargs should be specified:</p>
+<dl class="simple">
+<dt>ExternalObjectStorage: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)</dt><dd><ul class="simple">
+<li><p>endpointUrl: endpoint URL of the S3 service (for example: ‘<a class="reference external" href="https://s3.amazonaws.com">https://s3.amazonaws.com</a>’)</p></li>
+<li><p>bucket: the name of the bucket to use</p></li>
+</ul>
+</dd>
+<dt>ExternalS3Storage: (Amazon S3 bucket accessed by Synapse)</dt><dd><ul class="simple">
+<li><p>bucket: the name of the bucket to use</p></li>
+</ul>
+</dd>
+<dt>ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)</dt><dd><ul class="simple">
+<li><p>url: the base URL for uploading to the external destination</p></li>
+<li><p>supportsSubfolders(optional): does the destination support creating subfolders under the base url
+(default: false)</p></li>
+</ul>
+</dd>
+<dt>ProxyStorage: (a proxy server that controls access to a storage)</dt><dd><ul class="simple">
+<li><p>secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.</p></li>
+<li><p>proxyUrl: The HTTPS URL of the proxy used for upload and download.</p></li>
+</ul>
+</dd>
+<dt>Optional kwargs for ALL types:</dt><dd><ul class="simple">
+<li><p>banner: The optional banner to show every time a file is uploaded</p></li>
+<li><p>description: The description to show the user when the user has to choose which upload destination to use</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -1030,8 +1233,8 @@ only applicable if bucket_name is passed</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.create_snapshot_version">
-<code class="sig-name descname"><span class="pre">create_snapshot_version</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><span class="pre">synapseclient.table.EntityViewSchema</span></a><span class="p"><span class="pre">,</span> </span><a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><span class="pre">synapseclient.table.Schema</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">synapseclient.table.SubmissionViewSchema</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comment</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Activity.html#synapseclient.activity.Activity" title="synapseclient.activity.Activity"><span class="pre">synapseclient.activity.Activity</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wait</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">int</span><a class="headerlink" href="#synapseclient.Synapse.create_snapshot_version" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create a new Table Version or a new View version.</p>
+<code class="sig-name descname"><span class="pre">create_snapshot_version</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><span class="pre">synapseclient.table.EntityViewSchema</span></a><span class="p"><span class="pre">,</span> </span><a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><span class="pre">synapseclient.table.Schema</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">synapseclient.table.SubmissionViewSchema</span><span class="p"><span class="pre">,</span> </span><span class="pre">synapseclient.table.Dataset</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comment</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Activity.html#synapseclient.activity.Activity" title="synapseclient.activity.Activity"><span class="pre">synapseclient.activity.Activity</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wait</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">int</span><a class="headerlink" href="#synapseclient.Synapse.create_snapshot_version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new Table Version, new View version, or new Dataset version.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -1183,7 +1386,7 @@ in the specified folder/project will be returned.</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.getChildren">
-<code class="sig-name descname"><span class="pre">getChildren</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeTypes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['folder',</span> <span class="pre">'file',</span> <span class="pre">'table',</span> <span class="pre">'link',</span> <span class="pre">'entityview',</span> <span class="pre">'dockerrepo']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortBy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'NAME'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortDirection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ASC'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getChildren" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">getChildren</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeTypes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['folder',</span> <span class="pre">'file',</span> <span class="pre">'table',</span> <span class="pre">'link',</span> <span class="pre">'entityview',</span> <span class="pre">'dockerrepo',</span> <span class="pre">'submissionview',</span> <span class="pre">'dataset',</span> <span class="pre">'materializedview']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortBy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'NAME'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortDirection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ASC'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getChildren" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieves all of the entities stored within a parent such as folder or project.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1201,7 +1404,7 @@ in the specified folder/project will be returned.</p></li>
 </dl>
 <p>Also see:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="synapseutils.html#module-synapseutils.walk" title="synapseutils.walk"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseutils.walk()</span></code></a></p></li>
+<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseutils.walk()</span></code></p></li>
 </ul>
 </dd></dl>
 
@@ -1310,14 +1513,14 @@ or a string prefix</p></li>
 <dl class="py method">
 <dt id="synapseclient.Synapse.getMyStorageLocationSetting">
 <code class="sig-name descname"><span class="pre">getMyStorageLocationSetting</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.getMyStorageLocationSetting" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get a StorageLocationSetting by its id.
-:param storage_location_id: id of the StorageLocationSetting to retrieve.</p>
-<blockquote>
-<div><p>The corresponding StorageLocationSetting must have been created by this user.</p>
-</div></blockquote>
+<dd><p>Get a StorageLocationSetting by its id.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>a dict describing the StorageLocationSetting retrieved by its id</p>
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>storage_location_id</strong> – id of the StorageLocationSetting to retrieve.
+The corresponding StorageLocationSetting must have been created by this user.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a dict describing the StorageLocationSetting retrieved by its id</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1606,6 +1809,31 @@ information. See <code class="xref py py-func docutils literal notranslate"><spa
 </dd></dl>
 
 <dl class="py method">
+<dt id="synapseclient.Synapse.get_download_list">
+<code class="sig-name descname"><span class="pre">get_download_list</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">downloadLocation</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">str</span><a class="headerlink" href="#synapseclient.Synapse.get_download_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Download all files from your Synapse download list</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>downloadLocation</strong> – Directory to download files to.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>manifest file with file paths</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.Synapse.get_download_list_manifest">
+<code class="sig-name descname"><span class="pre">get_download_list_manifest</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_download_list_manifest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the path of the download list manifest file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>path of download list manifest file</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt id="synapseclient.Synapse.get_membership_status">
 <code class="sig-name descname"><span class="pre">get_membership_status</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">userid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">team</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_membership_status" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieve a user’s Team Membership Status bundle.
@@ -1713,8 +1941,8 @@ the old invite will be cancelled. Default to False.</p></li>
 <code class="sig-name descname"><span class="pre">login</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apiKey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sessionToken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rememberMe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forced</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authToken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.login" title="Permalink to this definition">¶</a></dt>
 <dd><p>Valid combinations of login() arguments:</p>
 <ul class="simple">
-<li><p>email/username and password</p></li>
-<li><p>email/username and apiKey (Base64 encoded string)</p></li>
+<li><p>email/username and password (<strong>WILL BE DEPRECATED</strong>)</p></li>
+<li><p>email/username and apiKey (Base64 encoded string) (<strong>WILL BE DEPRECATED</strong>)</p></li>
 <li><p>authToken</p></li>
 <li><p>sessionToken (<strong>DEPRECATED</strong>)</p></li>
 </ul>
@@ -1731,8 +1959,8 @@ the old invite will be cancelled. Default to False.</p></li>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>email</strong> – Synapse user name (or an email address associated with a Synapse account)</p></li>
-<li><p><strong>password</strong> – password</p></li>
-<li><p><strong>apiKey</strong> – Base64 encoded Synapse API key</p></li>
+<li><p><strong>password</strong> – <strong>!!WILL BE DEPRECATED!!</strong> password. Please use authToken (Synapse personal access token)</p></li>
+<li><p><strong>apiKey</strong> – <strong>!!WILL BE DEPRECATED!!</strong> Base64 encoded Synapse API key</p></li>
 <li><p><strong>sessionToken</strong> – <strong>!!DEPRECATED FIELD!!</strong> User’s current session token. Using this field will ignore the
 following fields: email, password, apiKey</p></li>
 <li><p><strong>rememberMe</strong> – Whether the authentication information should be cached in your operating system’s
@@ -1856,6 +2084,21 @@ See the flag “rememberMe” in <a class="reference internal" href="#synapsecli
 <li><p><strong>entity</strong> – The entity to be printed.</p></li>
 <li><p><strong>ensure_ascii</strong> – If True, escapes all non-ASCII characters</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.Synapse.remove_from_download_list">
+<code class="sig-name descname"><span class="pre">remove_from_download_list</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list_of_files</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">int</span><a class="headerlink" href="#synapseclient.Synapse.remove_from_download_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a batch of files from download list</p>
+<dl class="field-list simple">
+<dt class="field-odd">Param</dt>
+<dd class="field-odd"><p>array of files in the format of a mapping
+{fileEntityId: synid, versionNumber: version}</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Number of files removed from download list</p>
 </dd>
 </dl>
 </dd></dl>
@@ -2077,15 +2320,17 @@ Set this flag to False to add new permissions non-destructively.</p></li>
 <dl class="py method">
 <dt id="synapseclient.Synapse.setStorageLocation">
 <code class="sig-name descname"><span class="pre">setStorageLocation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setStorageLocation" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sets the storage location for a Project or Folder
-:param entity:              a Project or Folder to which the StorageLocationSetting is set
-:param storage_location_id: a StorageLocation id or a list of StorageLocation ids. Pass in None for the default</p>
-<blockquote>
-<div><p>Synapse storage.</p>
-</div></blockquote>
+<dd><p>Sets the storage location for a Project or Folder</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>The created or updated settings as a dict</p>
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>entity</strong> – a Project or Folder to which the StorageLocationSetting is set</p></li>
+<li><p><strong>storage_location_id</strong> – a StorageLocation id or a list of StorageLocation ids. Pass in None for the default
+Synapse storage.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The created or updated settings as a dict</p>
 </dd>
 </dl>
 </dd></dl>
@@ -2242,9 +2487,7 @@ processing may be stopped before downloading the entire table.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>limit</strong> – specify the maximum number of rows to be returned, defaults to None</p></li>
 <li><p><strong>offset</strong> – don’t return the first n rows, defaults to None</p></li>
-<li><p><strong>isConsistent</strong> – defaults to True. If set to False, return results based on current state of the index
-without waiting for pending writes to complete.
-Only use this if you know what you’re doing.</p></li>
+<li><p><strong>isConsistent</strong> – (<strong>DEPRECATED</strong>)</p></li>
 </ul>
 </dd>
 </dl>
@@ -2330,7 +2573,7 @@ depending on what type of values are given.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>schema</strong> – a table <a class="reference internal" href="#synapseclient.Schema" title="synapseclient.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object</p></li>
+<li><p><strong>schema</strong> – a table <a class="reference internal" href="#synapseclient.Schema" title="synapseclient.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object or Synapse Id of Table.</p></li>
 <li><p><strong>values</strong> – <p>an object that holds the content of the tables
 - a <a class="reference internal" href="#synapseclient.RowSet" title="synapseclient.RowSet"><code class="xref py py-class docutils literal notranslate"><span class="pre">RowSet</span></code></a>
 - a list of lists (or tuples) where each element is a row
@@ -2583,9 +2826,12 @@ version.</p>
 is supplied.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>version_url</strong> – Defaults to None, meaning release notes for the installed version. Alternatives are:
-- synapseclient.version_check._VERSION_URL
-- synapseclient.version_check._DEV_VERSION_URL</p>
+<dd class="field-odd"><p><strong>version_url</strong> – <p>Defaults to None, meaning release notes for the installed version. Alternatives are:</p>
+<ul class="simple">
+<li><p>synapseclient.version_check._VERSION_URL</p></li>
+<li><p>synapseclient.version_check._DEV_VERSION_URL</p></li>
+</ul>
+</p>
 </dd>
 </dl>
 </dd></dl>
@@ -2615,9 +2861,12 @@ is supplied.</p>
 <li class="toctree-l1"><a class="reference internal" href="Activity.html">Provenance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Annotations.html">Annotations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Wiki.html">Wiki</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Utilities.html">Utility Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Versions.html">Version Functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html">Synapse command line client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Table.html">Tables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Team.html">Teams</a></li>
 </ul>
 </div>
 </div>
@@ -2626,28 +2875,31 @@ is supplied.</p>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="news.html">Release Notes</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id1">2.5.0 (2021-10-05)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id2">2.4.0 (2021-07-08)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id6">2.3.1 (2021-04-13)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id10">2.3.0 (2021-03-03)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id14">2.2.2 (2020-10-18)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id19">2.2.0 (2020-08-31)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id24">2.1.1 (2020-07-10)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id28">2.1.0 (2020-06-16)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id33">2.0.0 (2020-03-23)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id37">1.9.4 (2019-06-28)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id41">1.9.3 (2019-06-28)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id43">1.9.2 (2019-02-15)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id47">1.9.1 (2019-01-20)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id52">1.9.0 (2018-09-28)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id57">1.8.2 (2018-08-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id62">1.8.1 (2018-05-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id64">1.8.0 (2018-05-07)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id68">1.7.5 (2018-01-31)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id69">1.7.4 (2018-01-29)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id74">1.7.3 (2017-12-08)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id82">1.7.1 (2017-11-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id87">1.6.1 (2016-11-02)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id1">2.7.0 (2022-09-16)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id2">2.6.0 (2022-04-19)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id7">2.5.1 (2021-12-02)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id11">2.5.0 (2021-10-05)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id16">2.4.0 (2021-07-08)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id20">2.3.1 (2021-04-13)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id24">2.3.0 (2021-03-03)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id28">2.2.2 (2020-10-18)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id33">2.2.0 (2020-08-31)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id38">2.1.1 (2020-07-10)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id42">2.1.0 (2020-06-16)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id47">2.0.0 (2020-03-23)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id51">1.9.4 (2019-06-28)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id55">1.9.3 (2019-06-28)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id57">1.9.2 (2019-02-15)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id61">1.9.1 (2019-01-20)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id66">1.9.0 (2018-09-28)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id71">1.8.2 (2018-08-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id76">1.8.1 (2018-05-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id78">1.8.0 (2018-05-07)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id82">1.7.5 (2018-01-31)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id83">1.7.4 (2018-01-29)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id88">1.7.3 (2017-12-08)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id96">1.7.1 (2017-11-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id101">1.6.1 (2016-11-02)</a></li>
 </ul>
 </li>
 </ul>
@@ -2728,13 +2980,13 @@ is supplied.</p>
         <li class="right" >
           <a href="Credentials.html" title="Manage Synapse Credentials"
              >next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.5.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.7.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Python Client Documentation</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 18, 2021.
+      Last updated on Sep 16, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

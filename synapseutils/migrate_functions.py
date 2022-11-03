@@ -146,17 +146,19 @@ class MigrationResult:
     def get_migrations(self):
         """
         A generator yielding each file/version in the migration index.
-        A dictionary of the properties of the migration row is yielded as follows:
-            id - the Synapse id
-            type - the concrete type of the entity
-            version - the verson of the file entity (if applicable)
-            row_id - the row of the table attached file (if applicable)
-            col_id - the column id of the table attached file (if applicable)
-            from_storage_location_id - the previous storage location id where the file/version was stored
-            from_file_handle_id - the id file handle of the existing file/version
-            to_file_handle_id - if migrated, the new file handle id
-            status - one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
-            exception - if an error was encountered indexing/migrating the file/version its stack is here
+
+        :yeild: A dictionary of the properties of the migration row is yielded as follows:
+
+            - id: the Synapse id
+            - type: the concrete type of the entity
+            - version: the verson of the file entity (if applicable)
+            - row_id: the row of the table attached file (if applicable)
+            - col_id: the column id of the table attached file (if applicable)
+            - from_storage_location_id: - the previous storage location id where the file/version was stored
+            - from_file_handle_id: the id file handle of the existing file/version
+            - to_file_handle_id: if migrated, the new file handle id
+            - status: one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
+            - exception: if an error was encountered indexing/migrating the file/version its stack is here
         """
         import sqlite3
         with sqlite3.connect(self.db_path) as conn:
@@ -252,17 +254,19 @@ class MigrationResult:
     def as_csv(self, path):
         """
         Output a flat csv file of the contents of the Migration index.
-        Its columns are as follows:
-            id - the Synapse id
-            type - the concrete type of the entity
-            version - the verson of the file entity (if applicable)
-            row_id - the row of the table attached file (if applicable)
-            col_name - the column name of the column the table attached file resides in (if applicable)
-            from_storage_location_id - the previous storage location id where the file/version was stored
-            from_file_handle_id - the id file handle of the existing file/version
-            to_file_handle_id - if migrated, the new file handle id
-            status - one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
-            exception - if an error was encountered indexing/migrating the file/version its stack is here
+
+        :return: csv file with columns as follows:
+
+            - id - the Synapse id
+            - type - the concrete type of the entity
+            - version - the verson of the file entity (if applicable)
+            - row_id - the row of the table attached file (if applicable)
+            - col_name - the column name of the column the table attached file resides in (if applicable)
+            - from_storage_location_id - the previous storage location id where the file/version was stored
+            - from_file_handle_id - the id file handle of the existing file/version
+            - to_file_handle_id - if migrated, the new file handle id
+            - status - one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
+            - exception - if an error was encountered indexing/migrating the file/version its stack is here
 
         """
 

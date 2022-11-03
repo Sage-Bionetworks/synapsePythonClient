@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>&lt;no title&gt; &#8212; Synapse Python Client 2.5.0 documentation</title>
+    <title>Synapse Multipart Upload &#8212; Synapse Python Client 2.7.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -37,8 +37,8 @@
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.0 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">&lt;no title&gt;</a></li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.7.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Synapse Multipart Upload</a></li> 
       </ul>
     </div>  
 
@@ -47,7 +47,93 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  
+  <span class="target" id="module-synapseclient.core.upload.multipart_upload"></span><div class="section" id="synapse-multipart-upload">
+<h1>Synapse Multipart Upload<a class="headerlink" href="#synapse-multipart-upload" title="Permalink to this headline">¶</a></h1>
+<p>Implements the client side of <a class="reference external" href="http://docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController">Synapse multipart upload</a>, which provides a
+robust means of uploading large files (into the 10s of GB). End users should
+not need to call any of these functions directly.</p>
+<dl class="py function">
+<dt id="synapseclient.core.upload.multipart_upload.multipart_upload_file">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></code><code class="sig-name descname"><span class="pre">multipart_upload_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preview</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">str</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.multipart_upload_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Upload a file to a Synapse upload destination in chunks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – a Synapse object</p></li>
+<li><p><strong>file_path</strong> – the file to upload</p></li>
+<li><p><strong>dest_file_name</strong> – upload as a different filename</p></li>
+<li><p><strong>content_type</strong> – contentType`_</p></li>
+<li><p><strong>part_size</strong> – number of bytes per part. Minimum 5MB.</p></li>
+<li><p><strong>storage_location_id</strong> – an id indicating where the file should be
+stored. Retrieved from Synapse’s
+UploadDestination</p></li>
+<li><p><strong>preview</strong> – True to generate a preview</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>:param force_restart        True to restart a previously initiated upload</dt><dd><p>from scratch, False to try to resume</p>
+</dd>
+<dt>:param max_threads          number of concurrent threads to devote</dt><dd><p>to upload</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>a File Handle ID</p>
+</dd>
+</dl>
+<p>Keyword arguments are passed down to
+<a class="reference internal" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="synapseclient.core.upload.multipart_upload._multipart_upload"><code class="xref py py-func docutils literal notranslate"><span class="pre">_multipart_upload()</span></code></a> and <code class="xref py py-func docutils literal notranslate"><span class="pre">_start_multipart_upload()</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.upload.multipart_upload.multipart_upload_string">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></code><code class="sig-name descname"><span class="pre">multipart_upload_string</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preview</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.multipart_upload_string" title="Permalink to this definition">¶</a></dt>
+<dd><p>Upload a file to a Synapse upload destination in chunks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – a Synapse object</p></li>
+<li><p><strong>text</strong> – a string to upload as a file.</p></li>
+<li><p><strong>dest_file_name</strong> – upload as a different filename</p></li>
+<li><p><strong>content_type</strong> – contentType`_</p></li>
+<li><p><strong>part_size</strong> – number of bytes per part. Minimum 5MB.</p></li>
+<li><p><strong>storage_location_id</strong> – an id indicating where the file should be
+stored. Retrieved from Synapse’s
+UploadDestination</p></li>
+<li><p><strong>preview</strong> – True to generate a preview</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>:param force_restart        True to restart a previously initiated upload</dt><dd><p>from scratch, False to try to resume</p>
+</dd>
+<dt>:param max_threads          number of concurrent threads to devote</dt><dd><p>to upload</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>a File Handle ID</p>
+</dd>
+</dl>
+<p>Keyword arguments are passed down to
+<a class="reference internal" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="synapseclient.core.upload.multipart_upload._multipart_upload"><code class="xref py py-func docutils literal notranslate"><span class="pre">_multipart_upload()</span></code></a> and <code class="xref py py-func docutils literal notranslate"><span class="pre">_start_multipart_upload()</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="synapseclient.core.upload.multipart_upload.shared_executor">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></code><code class="sig-name descname"><span class="pre">shared_executor</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">executor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.shared_executor" title="Permalink to this definition">¶</a></dt>
+<dd><p>An outside process that will eventually trigger an upload through the this module
+can configure a shared Executor by running its code within this context manager.</p>
+</dd></dl>
+
+</div>
+<dl class="py function">
+<dt id="synapseclient.core.upload.multipart_upload._multipart_upload">
+<code class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></code><code class="sig-name descname"><span class="pre">_multipart_upload</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upload_request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">md5_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+
 
             <div class="clearer"></div>
           </div>
@@ -85,13 +171,13 @@
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.5.0 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">&lt;no title&gt;</a></li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.7.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Synapse Multipart Upload</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 18, 2021.
+      Last updated on Sep 13, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

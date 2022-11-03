@@ -2,6 +2,210 @@
 Release Notes
 =============
 
+
+
+2.7.0 (2022-09-16)
+==================
+
+Highlights
+----------
+
+- Added support for Datasets
+
+  .. code-block:: python
+
+        # from python
+        import synapseclient
+        import synapseutils
+        syn = synapseclient.login()
+        dataset_items = [
+            {'entityId': "syn000", 'versionNumber': 1},
+            {...},
+        ]
+        dataset = synapseclient.Dataset(
+            name="My Dataset",
+            parent=project,
+            dataset_items=dataset_items
+        )
+        dataset = syn.store(dataset)
+        # Add/remove specific Synapse IDs to/from the Dataset
+        dataset.add_item({'entityId': "syn111", 'versionNumber': 1})
+        dataset.remove_item("syn000")
+        dataset = syn.store(dataset)
+        # Add a single Folder to the Dataset
+        # this will recursively add all the files in the folder
+        dataset.add_folder("syn123")
+        # Add a list of Folders, overwriting any existing files in the dataset
+        dataset.add_folders(["syn456", "syn789"], force=True)
+        dataset = syn.store(dataset)
+        # Create snapshot version of dataset
+        syn.create_snapshot_version(
+            dataset.id,
+            label="v1.0",
+            comment="This is version 1"
+        )
+
+- Added support for downloading from download cart.
+  You can use this feature by first adding items to your download cart on Synapse.
+
+  .. code-block:: python
+
+        # from python
+        import synapseclient
+        import synapseutils
+        syn = synapseclient.login()
+        manifest_path = syn.get_download_list()
+
+  .. code-block:: bash
+        # from command line
+        synapse get-download-list
+
+- Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+  removing all camel case or non-standard single dash long command line interface (cli)
+  parameters.
+  Example: command line arguments like `-parent` will become
+  `--parent`.  Commands that support camel case like `--parentId`
+  will be changed to `--parent-id`.
+
+
+Bug Fixes
+---------
+-  [`SYNPY-226 <https://sagebionetworks.jira.com/browse/SYNPY-226>`__] -
+   isConsistent fails as parameter for table query
+-  [`SYNPY-562 <https://sagebionetworks.jira.com/browse/SYNPY-562>`__] -
+   Make sure SQL functions, including "year", are quoted correctly
+-  [`SYNPY-1031 <https://sagebionetworks.jira.com/browse/SYNPY-1031>`__] -
+   File version increments with 400 client error
+-  [`SYNPY-1219 <https://sagebionetworks.jira.com/browse/SYNPY-1219>`__] -
+   Update Entity class to be compatible with the new Dataset entity
+-  [`SYNPY-1224 <https://sagebionetworks.jira.com/browse/SYNPY-1224>`__] -
+   Correct SynapseUnmetAccessRestrictions message
+-  [`SYNPY-1237 <https://sagebionetworks.jira.com/browse/SYNPY-1237>`__] -
+   as_table_columns function is mishandling mixed data types
+
+Stories
+-------
+-  [`SYNPY-63 <https://sagebionetworks.jira.com/browse/SYNPY-63>`__] -
+   py: use metaclass to replace the _entity_type_to_class hack
+-  [`SYNPY-992 <https://sagebionetworks.jira.com/browse/SYNPY-992>`__] -
+   synapseutils changeFileMetadata missing syn parameter docstring
+-  [`SYNPY-1175 <https://sagebionetworks.jira.com/browse/SYNPY-1175>`__] -
+   Programmatic Support for Download V2 via Py Client
+-  [`SYNPY-1193 <https://sagebionetworks.jira.com/browse/SYNPY-1193>`__] -
+   Support Datasets functionality
+-  [`SYNPY-1221 <https://sagebionetworks.jira.com/browse/SYNPY-1221>`__] -
+   Set up gh-action: black, the python auto formatter on the python client
+
+Tasks
+-----
+-  [`SYNPY-566 <https://sagebionetworks.jira.com/browse/SYNPY-566>`__] -
+   Clarify expected list format for sync manifest
+-  [`SYNPY-1053 <https://sagebionetworks.jira.com/browse/SYNPY-1053>`__] -
+   Increase documentation of forceVersion in syncToSynapse
+-  [`SYNPY-1145 <https://sagebionetworks.jira.com/browse/SYNPY-1145>`__] -
+   Link to manifest format in CLI sync command usage help
+-  [`SYNPY-1226 <https://sagebionetworks.jira.com/browse/SYNPY-1226>`__] -
+   Leverage `ViewBase` for Datasets instead of `SchemaBase`
+-  [`SYNPY-1235 <https://sagebionetworks.jira.com/browse/SYNPY-1235>`__] -
+   Create codeql scanning workflow
+-  [`SYNPY-1207 <https://sagebionetworks.jira.com/browse/SYNPY-1207>`__] -
+   Support syn.get() on a dataset
+
+
+2.6.0 (2022-04-19)
+==================
+
+Highlights
+----------
+
+- Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+  removing all camel case or non-standard single dash long command line interface (cli)
+  parameters.
+  Example: command line arguments like `-parent` will become
+  `--parent`.  Commands that support camel case like `--parentId`
+  will be changed to `--parent-id`.
+
+- Added support for materialized views
+
+  .. code-block:: python
+
+        # from python
+        import synapseclient
+        import synapseutils
+        syn = synapseclient.login()
+        view = synapseclient.MaterializedViewSchema(
+            name="test-material-view",
+            parent="syn34234",
+            definingSQL="SELECT * FROM syn111 F JOIN syn2222 P on (F.PATIENT_ID = P.PATIENT_ID)"
+        )
+        view_ent = syn.store(view)
+
+- Removed support for Python 3.6 and added support for Python 3.10
+
+- Add function to create Synapse config file
+
+  .. code-block:: bash
+
+        # from the command line
+        synapse config
+
+Bug Fixes
+---------
+-  [`SYNPY-1204 <https://sagebionetworks.jira.com/browse/SYNPY-1204>`__] -
+   Python 3.10 compatibility
+
+Stories
+-------
+-  [`SYNPY-728 <https://sagebionetworks.jira.com/browse/SYNPY-728>`__] -
+   Improve error message when pandas is not available
+-  [`SYNPY-974 <https://sagebionetworks.jira.com/browse/SYNPY-974>`__] -
+   Documentation for generateManifest
+-  [`SYNPY-1209 <https://sagebionetworks.jira.com/browse/SYNPY-1209>`__] -
+   Support for MaterializedViews in Py Client
+
+Tasks
+-----
+-  [`SYNPY-1174 <https://sagebionetworks.jira.com/browse/SYNPY-1174>`__] -
+   Add function to create Synapse config file
+-  [`SYNPY-1176 <https://sagebionetworks.jira.com/browse/SYNPY-1176>`__] -
+   syncToSynapse aborted + silent failure of file upload
+-  [`SYNPY-1184 <https://sagebionetworks.jira.com/browse/SYNPY-1184>`__] -
+   Add `includeTypes` to `synapseutils.walk()`
+-  [`SYNPY-1189 <https://sagebionetworks.jira.com/browse/SYNPY-1189>`__] -
+   Document "maximumListLength" parameter for Column
+-  [`SYNPY-1196 <https://sagebionetworks.jira.com/browse/SYNPY-1196>`__] -
+   Expose `forceVersion` on `changeFileMetadata`
+-  [`SYNPY-1205 <https://sagebionetworks.jira.com/browse/SYNPY-1205>`__] -
+   Python 3.6 EOL - Remove support for 3.6
+-  [`SYNPY-1212 <https://sagebionetworks.jira.com/browse/SYNPY-1212>`__] -
+   Include `dataset` as an entity type to return in getChildren()
+
+
+2.5.1 (2021-12-02)
+==================
+
+Highlights
+----------
+- Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+  removing all camel case or non-standard single dash long command line interface (cli)
+  parameters.
+  Example: command line arguments like `-parent` will become
+  `--parent`.  Commands that support camel case like `--parentId`
+  will be changed to `--parent-id`.
+
+Bug Fixes
+---------
+-  [`SYNPY-1197 <https://sagebionetworks.jira.com/browse/SYNPY-1197>`__] -
+   Schema is a string and strings don't have columns_to_store attributes
+
+Stories
+-------
+-  [`SYNPY-772 <https://sagebionetworks.jira.com/browse/SYNPY-772>`__] -
+   update statement that appears on PyPi about Synapse to be consistent
+-  [`SYNPY-997 <https://sagebionetworks.jira.com/browse/SYNPY-997>`__] -
+   Typos in Views documentation
+
+
 2.5.0 (2021-10-05)
 ==================
 
@@ -223,7 +427,7 @@ Improvements
    Support boolean annotations in Python client
 
 2.3.0 (2021-03-03)
-================
+==================
 
 Highlights
 ----------
@@ -277,6 +481,7 @@ Bug Fixes
    Mitigate new Rust compiler dependency on Linux via transitive cryptography dependency
 -  [`SYNPY-1118 <https://sagebionetworks.jira.com/browse/SYNPY-1118>`__] -
    Migration tool erroring when it shouldn't
+
 New Features
 ------------
 

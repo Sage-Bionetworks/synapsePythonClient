@@ -173,13 +173,20 @@ def _copy_cached_file_handles(cache, copiedFileHandles):
                 cache.add(copy_result['newFileHandle']['id'], original_cache_path)
 
 
-def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
+def changeFileMetaData(syn, entity, downloadAs=None, contentType=None, forceVersion=True):
     """
+    Change File Entity metadata like the download as name.
+
+    :param syn:           Synapse connection
+
     :param entity:        Synapse entity Id or object
 
     :param contentType:   Specify content type to change the content type of a filehandle
 
     :param downloadAs:    Specify filename to change the filename of a filehandle
+
+    :param forceVersion:  Indicates whether the method should increment the version of
+                          the object even if nothing has changed.  Defaults to True.
 
     :return:              Synapse Entity
 
@@ -199,7 +206,7 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
     if copyResult.get("failureCode") is not None:
         raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"], copyResult['originalFileHandleId']))
     ent.dataFileHandleId = copyResult['newFileHandle']['id']
-    ent = syn.store(ent)
+    ent = syn.store(ent, forceVersion=forceVersion)
     return ent
 
 
@@ -312,13 +319,13 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     permissions = syn.restGET("/entity/{}/permissions".format(ent.id))
     # Don't copy entities without DOWNLOAD permissions
     if not permissions['canDownload']:
-        print("%s not copied - this file lacks download permission" % ent.id)
+        syn.logger.warning("%s not copied - this file lacks download permission" % ent.id)
         return mapping
 
     access_requirements = syn.restGET('/entity/{}/accessRequirement'.format(ent.id))
     # If there are any access requirements, don't copy files
     if access_requirements['results']:
-        print("{} not copied - this file has access restrictions".format(ent.id))
+        syn.logger.warning("{} not copied - this file has access restrictions".format(ent.id))
         return mapping
     copiedId = None
 
@@ -347,9 +354,9 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     # This is currently done because copyLink returns None sometimes
     if copiedId is not None:
         mapping[ent.id] = copiedId
-        print("Copied %s to %s" % (ent.id, copiedId))
+        syn.logger.info("Copied %s to %s" % (ent.id, copiedId))
     else:
-        print("%s not copied" % ent.id)
+        syn.logger.info("%s not copied" % ent.id)
     return mapping
 
 
@@ -476,7 +483,7 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
                             Default to False
     """
 
-    print("Getting table %s" % entity)
+    syn.logger.info("Getting table %s" % entity)
     myTableSchema = syn.get(entity)
     # CHECK: If Table name already exists, raise value error
     existingEntity = syn.findEntityId(myTableSchema.name, parent=destinationId)
@@ -490,7 +497,7 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
 
     newTableSchema = Schema(name=myTableSchema.name, parent=destinationId, columns=colIds)
 
-    print("Created new table using schema %s" % newTableSchema.name)
+    syn.logger.info("Created new table using schema %s" % newTableSchema.name)
     newTable = Table(schema=newTableSchema, values=d.filepath)
     newTable = syn.store(newTable)
     return newTable.schema.id
@@ -521,7 +528,7 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
         return newLink.id
     except SynapseHTTPError as e:
         if e.response.status_code == 404:
-            print("WARNING: The target of this link %s no longer exists" % ent.id)
+            syn.logger.warning("The target of this link %s no longer exists" % ent.id)
             return None
         else:
             raise e
@@ -547,12 +554,10 @@ def _getSubWikiHeaders(wikiHeaders, subPageId, mapping=None):
 
 
 def _updateSynIds(newWikis, wikiIdMap, entityMap):
-    print("Updating Synapse references:\n")
     for oldWikiId in wikiIdMap.keys():
         # go through each wiki page once more:
         newWikiId = wikiIdMap[oldWikiId]
         newWiki = newWikis[newWikiId]
-        print('Updated Synapse references for Page: %s\n' % newWikiId)
         s = newWiki.markdown
 
         for oldSynId in entityMap.keys():
@@ -560,18 +565,15 @@ def _updateSynIds(newWikis, wikiIdMap, entityMap):
             newSynId = entityMap[oldSynId]
             oldSynId = oldSynId + "\\b"
             s = re.sub(oldSynId, newSynId, s)
-        print("Done updating Synapse IDs.\n")
         newWikis[newWikiId].markdown = s
     return newWikis
 
 
 def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
-    print("Updating internal links:\n")
     for oldWikiId in wikiIdMap.keys():
         # go through each wiki page once more:
         newWikiId = wikiIdMap[oldWikiId]
         newWiki = newWikis[newWikiId]
-        print("\tUpdating internal links for Page: %s\n" % newWikiId)
         s = newWiki["markdown"]
         # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
         # where wikiIdMap maps abc->xyz
@@ -657,7 +659,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
 
     for wikiHeader in oldWikiHeaders:
         wiki = syn.getWiki(oldOwn, wikiHeader['id'])
-        print('Got wiki %s' % wikiHeader['id'])
+        syn.logger.info('Got wiki %s' % wikiHeader['id'])
         if not wiki.get('attachmentFileHandleIds'):
             new_file_handles = []
         else:
@@ -696,14 +698,18 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         wikiIdMap[wiki['id']] = newWikiPage['id']
 
     if updateLinks:
+        syn.logger.info("Updating internal links:\n")
         newWikis = _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId)
+        syn.logger.info("Done updating internal links.\n")
 
     if updateSynIds and entityMap is not None:
+        syn.logger.info("Updating Synapse references:\n")
         newWikis = _updateSynIds(newWikis, wikiIdMap, entityMap)
+        syn.logger.info("Done updating Synapse IDs.\n")
 
-    print("Storing new Wikis\n")
+    syn.logger.info("Storing new Wikis\n")
     for oldWikiId in wikiIdMap.keys():
         newWikiId = wikiIdMap[oldWikiId]
         newWikis[newWikiId] = syn.store(newWikis[newWikiId])
-        print("\tStored: %s\n" % newWikiId)
+        syn.logger.info("\tStored: %s\n" % newWikiId)
     return syn.getWikiHeaders(newOwn)
