@@ -682,7 +682,7 @@ class Synapse(object):
             "services()' method to get a list of available services."
         )
         service_attr = self._services[service_name]
-        service_cls  = getattr(synapseclient.services, service_attr)
+        service_cls = getattr(synapseclient.services, service_attr)
         service = service_cls(self)
         return service
 
