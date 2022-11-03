@@ -1,4 +1,4 @@
-import pytest
+# import pytest
 
 from synapseclient.services import json_schema
 
