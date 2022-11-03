@@ -6,7 +6,7 @@ JSON Schema
 
 from __future__ import annotations
 from functools import wraps
-from typing import Sequence, Mapping, Union, TYPE_CHECKING
+from typing import Sequence, Mapping, Union
 
 import json
 
