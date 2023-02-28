@@ -45,6 +45,7 @@ install_requires = [
     "requests>=2.22.0,<3.0",
     "keyring>=15,<23.5",
     "deprecated>=1.2.4,<2.0",
+    "importlib-metadata<5.0",
 ]
 
 # on Linux specify a cryptography dependency that will not
