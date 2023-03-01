@@ -300,10 +300,10 @@ def is_same_base_url(url1, url2):
             url1.hostname == url2.hostname)
 
 
-def is_synapse_id(obj):
+def is_synapse_id_str(obj):
     """If the input is a Synapse ID return it, otherwise return None"""
     if isinstance(obj, str):
-        m = re.match(r'(syn\d+)', obj)
+        m = re.match(r'(syn\d+$)', obj)
         if m:
             return m.group(1)
     return None
