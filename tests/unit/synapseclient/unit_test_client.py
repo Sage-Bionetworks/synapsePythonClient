@@ -962,7 +962,7 @@ def test_check_entity_restrictions__no_unmet_restriction(syn):
             'parentId': 'syn12345'},
             'restrictionInformation': {
                 'hasUnmetAccessRequirement': False
-            }
+        }
         }
         entity = 'syn123'
         syn._check_entity_restrictions(bundle, entity, True)
@@ -979,7 +979,7 @@ def test_check_entity_restrictions__unmet_restriction_entity_file_with_downloadF
             'entityType': 'file',
             'restrictionInformation': {
                 'hasUnmetAccessRequirement': True
-            }
+        }
         }
         entity = 'syn123'
         pytest.raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, bundle, entity, True)
@@ -996,7 +996,7 @@ def test_check_entity_restrictions__unmet_restriction_entity_project_with_downlo
             'entityType': 'project',
             'restrictionInformation': {
                 'hasUnmetAccessRequirement': True
-            }
+        }
         }
         entity = 'syn123'
         syn._check_entity_restrictions(bundle, entity, True)
@@ -1016,7 +1016,7 @@ def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloa
             'entityType': 'folder',
             'restrictionInformation': {
                 'hasUnmetAccessRequirement': True
-            }
+        }
         }
         entity = 'syn123'
         syn._check_entity_restrictions(bundle, entity, True)
@@ -2056,12 +2056,12 @@ def test_store__needsUploadFalse__fileHandleId_not_in_local_state(syn):
                        'annotations': {'id': synapse_id, 'etag': etag, 'annotations': {}},
                        }
     with patch.object(syn, '_getEntityBundle', return_value=returned_bundle), \
-         patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
-         patch.object(syn.cache, 'contains', return_value=True), \
-         patch.object(syn, '_updateEntity'), \
-         patch.object(syn, 'set_annotations'), \
-         patch.object(Entity, 'create'), \
-         patch.object(syn, 'get'):
+            patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
+            patch.object(syn.cache, 'contains', return_value=True), \
+            patch.object(syn, '_updateEntity'), \
+            patch.object(syn, 'set_annotations'), \
+            patch.object(Entity, 'create'), \
+            patch.object(syn, 'get'):
 
         f = File('/fake_file.txt', parent=parent_id)
         syn.store(f)
@@ -2136,14 +2136,14 @@ def test_store__existing_processed_as_update(syn):
     }
 
     with patch.object(syn, '_getEntityBundle') as mock_get_entity_bundle, \
-         patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
-         patch.object(syn.cache, 'contains', return_value=True), \
-         patch.object(syn, '_createEntity') as mock_createEntity, \
-         patch.object(syn, '_updateEntity') as mock_updateEntity, \
-         patch.object(syn, 'findEntityId') as mock_findEntityId, \
-         patch.object(syn, 'set_annotations') as mock_set_annotations, \
-         patch.object(Entity, 'create'), \
-         patch.object(syn, 'get'):
+            patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
+            patch.object(syn.cache, 'contains', return_value=True), \
+            patch.object(syn, '_createEntity') as mock_createEntity, \
+            patch.object(syn, '_updateEntity') as mock_updateEntity, \
+            patch.object(syn, 'findEntityId') as mock_findEntityId, \
+            patch.object(syn, 'set_annotations') as mock_set_annotations, \
+            patch.object(Entity, 'create'), \
+            patch.object(syn, 'get'):
 
         mock_get_entity_bundle.return_value = returned_bundle
 
@@ -2233,14 +2233,14 @@ def test_store__409_processed_as_update(syn):
     }
 
     with patch.object(syn, '_getEntityBundle') as mock_get_entity_bundle, \
-         patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
-         patch.object(syn.cache, 'contains', return_value=True), \
-         patch.object(syn, '_createEntity') as mock_createEntity, \
-         patch.object(syn, '_updateEntity') as mock_updateEntity, \
-         patch.object(syn, 'findEntityId') as mock_findEntityId, \
-         patch.object(syn, 'set_annotations') as mock_set_annotations, \
-         patch.object(Entity, 'create'), \
-         patch.object(syn, 'get'):
+            patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
+            patch.object(syn.cache, 'contains', return_value=True), \
+            patch.object(syn, '_createEntity') as mock_createEntity, \
+            patch.object(syn, '_updateEntity') as mock_updateEntity, \
+            patch.object(syn, 'findEntityId') as mock_findEntityId, \
+            patch.object(syn, 'set_annotations') as mock_set_annotations, \
+            patch.object(Entity, 'create'), \
+            patch.object(syn, 'get'):
 
         mock_get_entity_bundle.side_effect = [None, returned_bundle]
         mock_createEntity.side_effect = SynapseHTTPError(response=DictObject({'status_code': 409}))
@@ -2487,11 +2487,11 @@ def test_store__existing_no_update(syn):
     }
 
     with patch.object(syn, '_getEntityBundle') as mock_get_entity_bundle, \
-         patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
-         patch.object(syn.cache, 'contains', return_value=True), \
-         patch.object(syn, '_createEntity') as mock_createEntity, \
-         patch.object(syn, '_updateEntity') as mock_updatentity, \
-         patch.object(syn, 'get'):
+            patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
+            patch.object(syn.cache, 'contains', return_value=True), \
+            patch.object(syn, '_createEntity') as mock_createEntity, \
+            patch.object(syn, '_updateEntity') as mock_updatentity, \
+            patch.object(syn, 'get'):
 
         mock_get_entity_bundle.return_value = returned_bundle
         mock_createEntity.side_effect = SynapseHTTPError(response=DictObject({'status_code': 409}))
@@ -2713,7 +2713,7 @@ class TestTableSnapshot:
         """Raise error if entity view or table not passed in"""
         wrong_type = Mock()
         with patch.object(syn, 'get', return_value=wrong_type),\
-             pytest.raises(ValueError, match="This function only accepts Synapse ids of Tables or Views"):
+                pytest.raises(ValueError, match="This function only accepts Synapse ids of Tables or Views"):
             syn.create_snapshot_version("syn1234")
 
 
@@ -2983,9 +2983,9 @@ def test__get_certified_passing_record(userid, syn):
 def test_is_certified(response, syn):
     with patch.object(syn, "getUserProfile",
                       return_value={"ownerId": "foobar"}) as patch_get_user,\
-         patch.object(syn,
-                      "_get_certified_passing_record",
-                      return_value={'passed': response}) as patch_get_cert:
+        patch.object(syn,
+                     "_get_certified_passing_record",
+                     return_value={'passed': response}) as patch_get_cert:
         is_certified = syn.is_certified("test")
         patch_get_user.assert_called_once_with("test")
         patch_get_cert.assert_called_once_with("foobar")
@@ -2999,13 +2999,24 @@ def test_is_certified__no_quiz_results(syn):
     response.status_code = 404
     with patch.object(syn, "getUserProfile",
                       return_value={"ownerId": "foobar"}) as patch_get_user,\
-         patch.object(syn,
-                      "_get_certified_passing_record",
-                      side_effect=SynapseHTTPError(response=response)) as patch_get_cert:
+        patch.object(syn,
+                     "_get_certified_passing_record",
+                     side_effect=SynapseHTTPError(response=response)) as patch_get_cert:
         is_certified = syn.is_certified("test")
     patch_get_user.assert_called_once_with("test")
     patch_get_cert.assert_called_once_with("foobar")
     assert is_certified is False
+
+
+def test_is_synapse_id(syn):
+    # Invalid IDs
+    assert syn.is_synapse_id("test") is False
+    assert syn.is_synapse_id("123") is False
+
+    # Valid ID; must use Mock call to test
+    with patch.object(syn, 'get'):
+        assert syn.is_synapse_id("syn28590455") is True
+
 
 
 def test_init_change_cache_path():
