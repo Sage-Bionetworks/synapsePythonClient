@@ -3018,7 +3018,6 @@ def test_is_synapse_id(syn):
         assert syn.is_synapse_id("syn28590455") is True
 
 
-
 def test_init_change_cache_path():
     """
     Verify that the user can customize the cache path.
