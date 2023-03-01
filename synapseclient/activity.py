@@ -72,7 +72,7 @@ Activity
 import collections.abc
 
 from synapseclient.core.exceptions import SynapseError, SynapseMalformedEntityError
-from synapseclient.core.utils import is_url, is_synapse_id
+from synapseclient.core.utils import is_url, is_synapse_id_str
 from synapseclient.entity import is_synapse_entity
 
 
@@ -267,7 +267,7 @@ class Activity(dict):
             badargs = _get_any_bad_args(['url', 'name'], locals())
             _raise_incorrect_used_usage(badargs, 'Synapse entity')
             vals = target.split('.')  # Handle synapseIds of from syn234.4
-            if not is_synapse_id(vals[0]):
+            if not is_synapse_id_str(vals[0]):
                 raise ValueError('%s is not a valid Synapse id' % target)
             if len(vals) == 2:
                 if targetVersion and int(targetVersion) != int(vals[1]):
