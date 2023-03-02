@@ -628,22 +628,24 @@ class Synapse(object):
 
     def is_synapse_id(self, syn_id):
         """Checks if given synID is valid (attached to actual entity?)"""
-        try:
+        if isinstance(syn_id, str):
             try:
-                self.get(syn_id, downloadFile=False)
-            except SynapseFileNotFoundError:
-                return False
-            except SynapseHTTPError as err:
-                if err.response.status_code in (400, 404):
+                try:
+                    self.get(syn_id, downloadFile=False)
+                except SynapseFileNotFoundError:
                     return False
-                # Valid ID but user lacks permission
-                elif err.response.status_code == 403:
+                except SynapseHTTPError as err:
+                    if err.response.status_code in (400, 404):
+                        return False
+                    # Valid ID but user lacks permission
+                    elif err.response.status_code == 403:
+                        return True
+            except SynapseAuthenticationError as err:
+                # Valid ID but user is not logged in
+                if err.__context__.response.status_code == 403:
                     return True
-        except SynapseAuthenticationError as err:
-            # Valid ID but user is not logged in
-            if err.__context__.response.status_code == 403:
-                return True
-        return True
+            return True
+        self.logger.warn("synID must be a string")
 
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
