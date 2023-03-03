@@ -633,15 +633,12 @@ class Synapse(object):
                 self.get(syn_id, downloadFile=False)
             except SynapseFileNotFoundError:
                 return False
-            except SynapseHTTPError as err:
-                if err.response.status_code in (400, 404):
+            except (SynapseHTTPError, SynapseAuthenticationError, ) as err:
+                status = err.__context__.response.status_code or err.response.status_code
+                if status in (400, 404):
                     return False
-                # Valid ID but user lacks permission
-                elif err.response.status_code == 403:
-                    return True
-            except SynapseAuthenticationError as err:
-                # Valid ID but user is not logged in
-                if err.__context__.response.status_code == 403:
+                # Valid ID but user lacks permission or is not logged in
+                elif status == 403:
                     return True
             return True
         self.logger.warn("synID must be a string")
