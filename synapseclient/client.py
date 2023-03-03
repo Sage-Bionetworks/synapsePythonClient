@@ -645,6 +645,7 @@ class Synapse(object):
                     return True
             return True
         self.logger.warn("synID must be a string")
+        return False
 
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
