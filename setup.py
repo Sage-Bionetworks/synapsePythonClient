@@ -73,7 +73,7 @@ setuptools.setup(
     version=__version__,
     packages=setuptools.find_packages(exclude=["tests", "tests.*"]),
     # requirements
-    python_requires=">=3.7.*",
+    python_requires=">=3.7",
     install_requires=install_requires,
     extras_require={
         "pandas": ["pandas>=0.25.0,<2.0"],

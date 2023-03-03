@@ -11,7 +11,7 @@ import typing
 from .monitor import notifyMe
 from synapseclient.entity import is_container
 from synapseclient.core import config
-from synapseclient.core.utils import id_of, is_url, is_synapse_id
+from synapseclient.core.utils import id_of, is_url, is_synapse_id_str
 from synapseclient import File, table
 from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core import utils
@@ -228,7 +228,7 @@ class _SyncDownloader:
     def sync(self, entity, path, ifcollision, followLink, downloadFile=True, manifest="all"):
         progress = CumulativeTransferProgress('Downloaded')
 
-        if is_synapse_id(entity):
+        if is_synapse_id_str(entity):
             # ensure that we seed with an actual entity
             entity = self._syn.get(
                 entity,
@@ -712,7 +712,7 @@ def _sortAndFixProvenance(syn, df):
                          )
                     )
 
-        elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
+        elif not utils.is_url(item) and (utils.is_synapse_id_str(item) is None):
             raise SynapseProvenanceError(
                 ("The provenance record for file: %s is incorrect.\n"
                  "Specifically %s, is neither a valid URL or synapseId.") % (path, item)
