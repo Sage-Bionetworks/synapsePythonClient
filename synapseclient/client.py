@@ -626,7 +626,7 @@ class Synapse(object):
                 return False
             raise
 
-    def is_synapse_id(self, syn_id):
+    def is_synapse_id(self, syn_id: str) -> bool:
         """Checks if given synID is valid (attached to actual entity?)"""
         if isinstance(syn_id, str):
             try:
