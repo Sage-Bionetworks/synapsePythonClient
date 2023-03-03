@@ -45,7 +45,7 @@ install_requires = [
     "requests>=2.22.0,<3.0",
     "keyring>=15,<23.5",
     "deprecated>=1.2.4,<2.0",
-    "importlib_metadata<5",
+    "importlib-metadata<5.0",
 ]
 
 # on Linux specify a cryptography dependency that will not
@@ -73,7 +73,7 @@ setuptools.setup(
     version=__version__,
     packages=setuptools.find_packages(exclude=["tests", "tests.*"]),
     # requirements
-    python_requires=">=3.7.*",
+    python_requires=">=3.7",
     install_requires=install_requires,
     extras_require={
         "pandas": ["pandas>=0.25.0,<2.0"],

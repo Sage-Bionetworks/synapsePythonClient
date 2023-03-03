@@ -337,9 +337,9 @@ class Synapse(object):
         """
         Valid combinations of login() arguments:
 
-        - email/username and password
+        - email/username and password (**WILL BE DEPRECATED**)
 
-        - email/username and apiKey (Base64 encoded string)
+        - email/username and apiKey (Base64 encoded string) (**WILL BE DEPRECATED**)
 
         - authToken
 
@@ -355,14 +355,14 @@ class Synapse(object):
         #. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
 
         :param email:        Synapse user name (or an email address associated with a Synapse account)
-        :param password:     password
-        :param apiKey:       Base64 encoded Synapse API key
+        :param password:     **!!WILL BE DEPRECATED!!** password. Please use authToken (Synapse personal access token)
+        :param apiKey:       **!!WILL BE DEPRECATED!!** Base64 encoded Synapse API key
         :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the
                              following fields: email, password, apiKey
         :param rememberMe:   Whether the authentication information should be cached in your operating system's
                              credential storage.
         :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
-                                password or apiKey
+                             password or apiKey
 
         **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
         **Linux** systems.
@@ -648,7 +648,7 @@ class Synapse(object):
         :param ensure_ascii:  If True, escapes all non-ASCII characters
         """
 
-        if utils.is_synapse_id(entity):
+        if utils.is_synapse_id_str(entity):
             entity = self._getEntity(entity)
         try:
             self.logger.info(json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii))
@@ -711,7 +711,7 @@ class Synapse(object):
             kwargs['downloadFile'] = False
             kwargs['path'] = entity
 
-        elif isinstance(entity, str) and not utils.is_synapse_id(entity):
+        elif isinstance(entity, str) and not utils.is_synapse_id_str(entity):
             raise SynapseFileNotFoundError(
                 ('The parameter %s is neither a local file path '
                  ' or a valid entity id' % entity)
@@ -1661,7 +1661,7 @@ class Synapse(object):
     def _getBenefactor(self, entity):
         """An Entity gets its ACL from its benefactor."""
 
-        if utils.is_synapse_id(entity) or is_synapse_entity(entity):
+        if utils.is_synapse_id_str(entity) or is_synapse_entity(entity):
             return self.restGET('/entity/%s/benefactor' % id_of(entity))
         return entity
 
@@ -3316,7 +3316,7 @@ class Synapse(object):
                 except ValueError:
                     # ignore aggregate column
                     pass
-        elif isinstance(x, SchemaBase) or utils.is_synapse_id(x):
+        elif isinstance(x, SchemaBase) or utils.is_synapse_id_str(x):
             for col in self.getTableColumns(x):
                 yield col
         elif isinstance(x, str):

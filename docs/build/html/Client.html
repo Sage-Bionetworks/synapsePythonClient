@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Synapse Client &#8212; Synapse Python Client 2.6.0 documentation</title>
+    <title>Synapse Client &#8212; Synapse Python Client 2.7.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="reticulate.html" title="Using synapseclient with R through reticulate"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.7.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>  
@@ -109,6 +109,12 @@ defaults to ~/.synapseConfig</p></li>
 <li><p><a class="reference internal" href="index.html#synapseclient.Synapse.login" title="synapseclient.Synapse.login"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.login()</span></code></a></p></li>
 <li><p><a class="reference internal" href="index.html#synapseclient.Synapse.setEndpoints" title="synapseclient.Synapse.setEndpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.setEndpoints()</span></code></a></p></li>
 </ul>
+<dl class="py method">
+<dt id="synapseclient.Synapse.clear_download_list">
+<code class="sig-name descname"><span class="pre">clear_download_list</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.clear_download_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear all files from download list</p>
+</dd></dl>
+
 <dl class="py method">
 <dt id="synapseclient.Synapse.createColumns">
 <code class="sig-name descname"><span class="pre">createColumns</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.createColumns" title="Permalink to this definition">¶</a></dt>
@@ -220,8 +226,8 @@ only applicable if bucket_name is passed</p></li>
 
 <dl class="py method">
 <dt id="synapseclient.Synapse.create_snapshot_version">
-<code class="sig-name descname"><span class="pre">create_snapshot_version</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><span class="pre">synapseclient.table.EntityViewSchema</span></a><span class="p"><span class="pre">,</span> </span><a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><span class="pre">synapseclient.table.Schema</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">synapseclient.table.SubmissionViewSchema</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comment</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Activity.html#synapseclient.activity.Activity" title="synapseclient.activity.Activity"><span class="pre">synapseclient.activity.Activity</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wait</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">int</span><a class="headerlink" href="#synapseclient.Synapse.create_snapshot_version" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create a new Table Version or a new View version.</p>
+<code class="sig-name descname"><span class="pre">create_snapshot_version</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><span class="pre">synapseclient.table.EntityViewSchema</span></a><span class="p"><span class="pre">,</span> </span><a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><span class="pre">synapseclient.table.Schema</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">synapseclient.table.SubmissionViewSchema</span><span class="p"><span class="pre">,</span> </span><span class="pre">synapseclient.table.Dataset</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comment</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Activity.html#synapseclient.activity.Activity" title="synapseclient.activity.Activity"><span class="pre">synapseclient.activity.Activity</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wait</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">int</span><a class="headerlink" href="#synapseclient.Synapse.create_snapshot_version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new Table Version, new View version, or new Dataset version.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -796,6 +802,31 @@ information. See <code class="xref py py-func docutils literal notranslate"><spa
 </dd></dl>
 
 <dl class="py method">
+<dt id="synapseclient.Synapse.get_download_list">
+<code class="sig-name descname"><span class="pre">get_download_list</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">downloadLocation</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">str</span><a class="headerlink" href="#synapseclient.Synapse.get_download_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Download all files from your Synapse download list</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>downloadLocation</strong> – Directory to download files to.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>manifest file with file paths</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.Synapse.get_download_list_manifest">
+<code class="sig-name descname"><span class="pre">get_download_list_manifest</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_download_list_manifest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the path of the download list manifest file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>path of download list manifest file</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt id="synapseclient.Synapse.get_membership_status">
 <code class="sig-name descname"><span class="pre">get_membership_status</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">userid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">team</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_membership_status" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieve a user’s Team Membership Status bundle.
@@ -903,8 +934,8 @@ the old invite will be cancelled. Default to False.</p></li>
 <code class="sig-name descname"><span class="pre">login</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apiKey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sessionToken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rememberMe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forced</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authToken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.login" title="Permalink to this definition">¶</a></dt>
 <dd><p>Valid combinations of login() arguments:</p>
 <ul class="simple">
-<li><p>email/username and password</p></li>
-<li><p>email/username and apiKey (Base64 encoded string)</p></li>
+<li><p>email/username and password (<strong>WILL BE DEPRECATED</strong>)</p></li>
+<li><p>email/username and apiKey (Base64 encoded string) (<strong>WILL BE DEPRECATED</strong>)</p></li>
 <li><p>authToken</p></li>
 <li><p>sessionToken (<strong>DEPRECATED</strong>)</p></li>
 </ul>
@@ -921,8 +952,8 @@ the old invite will be cancelled. Default to False.</p></li>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>email</strong> – Synapse user name (or an email address associated with a Synapse account)</p></li>
-<li><p><strong>password</strong> – password</p></li>
-<li><p><strong>apiKey</strong> – Base64 encoded Synapse API key</p></li>
+<li><p><strong>password</strong> – <strong>!!WILL BE DEPRECATED!!</strong> password. Please use authToken (Synapse personal access token)</p></li>
+<li><p><strong>apiKey</strong> – <strong>!!WILL BE DEPRECATED!!</strong> Base64 encoded Synapse API key</p></li>
 <li><p><strong>sessionToken</strong> – <strong>!!DEPRECATED FIELD!!</strong> User’s current session token. Using this field will ignore the
 following fields: email, password, apiKey</p></li>
 <li><p><strong>rememberMe</strong> – Whether the authentication information should be cached in your operating system’s
@@ -1046,6 +1077,21 @@ See the flag “rememberMe” in <a class="reference internal" href="index.html#
 <li><p><strong>entity</strong> – The entity to be printed.</p></li>
 <li><p><strong>ensure_ascii</strong> – If True, escapes all non-ASCII characters</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="synapseclient.Synapse.remove_from_download_list">
+<code class="sig-name descname"><span class="pre">remove_from_download_list</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list_of_files</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">int</span><a class="headerlink" href="#synapseclient.Synapse.remove_from_download_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a batch of files from download list</p>
+<dl class="field-list simple">
+<dt class="field-odd">Param</dt>
+<dd class="field-odd"><p>array of files in the format of a mapping
+{fileEntityId: synid, versionNumber: version}</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Number of files removed from download list</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1434,9 +1480,7 @@ processing may be stopped before downloading the entire table.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>limit</strong> – specify the maximum number of rows to be returned, defaults to None</p></li>
 <li><p><strong>offset</strong> – don’t return the first n rows, defaults to None</p></li>
-<li><p><strong>isConsistent</strong> – defaults to True. If set to False, return results based on current state of the index
-without waiting for pending writes to complete.
-Only use this if you know what you’re doing.</p></li>
+<li><p><strong>isConsistent</strong> – (<strong>DEPRECATED</strong>)</p></li>
 </ul>
 </dd>
 </dl>
@@ -1580,13 +1624,13 @@ calculated automatically.</p></li>
         <li class="right" >
           <a href="reticulate.html" title="Using synapseclient with R through reticulate"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.6.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 2.7.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Client</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Apr 19, 2022.
+      Last updated on Sep 16, 2022.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">

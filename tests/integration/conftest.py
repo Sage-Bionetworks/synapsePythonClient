@@ -79,7 +79,7 @@ def schedule_for_cleanup(request, syn):
 def _cleanup(syn, items):
     """cleanup junk created during testing"""
     for item in reversed(items):
-        if isinstance(item, Entity) or utils.is_synapse_id(item) or hasattr(item, 'deleteURI'):
+        if isinstance(item, Entity) or utils.is_synapse_id_str(item) or hasattr(item, 'deleteURI'):
             try:
                 syn.delete(item)
             except Exception as ex:

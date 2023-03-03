@@ -717,8 +717,14 @@ def build_parser():
                              help='Send notifications via Synapse messaging (email) at specific intervals, '
                                   'on errors and on completion.')
     parser_sync.add_argument('--retries', metavar='INT', type=int, default=4)
-    parser_sync.add_argument('manifestFile', metavar='FILE', type=argparse.FileType("r"),
-                             help='A tsv file with file locations and metadata to be pushed to Synapse.')
+    parser_sync.add_argument(
+        'manifestFile', metavar='FILE', type=argparse.FileType("r"),
+        help=(
+            'A tsv file with file locations and metadata to be pushed to Synapse. '
+            'See https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncToSynapse '
+            'for details on the format of a manifest.'
+        )
+    )
     parser_sync.set_defaults(func=sync)
 
     parser_store = subparsers.add_parser('store',  # Python 3.2+ would support alias=['store']
@@ -1044,7 +1050,7 @@ See https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableE
     parser_login.add_argument('-u', '--username', dest='synapseUser',
                               help='Username used to connect to Synapse')
     parser_login.add_argument('-p', '--password', dest='synapsePassword',
-                              help='Password or api key used to connect to Synapse')
+                              help='This will be deprecated. Password or api key used to connect to Synapse.')
     parser_login.add_argument('--rememberMe', '--remember-me', dest='rememberMe', action='store_true', default=False,
                               help='Cache credentials for automatic authentication on future interactions with Synapse')
     parser_login.set_defaults(func=login)
