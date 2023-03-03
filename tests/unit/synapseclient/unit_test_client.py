@@ -3010,12 +3010,12 @@ def test_is_certified__no_quiz_results(syn):
 
 def test_is_synapse_id(syn):
     # Invalid IDs
-    assert syn.is_synapse_id("test") is False
-    assert syn.is_synapse_id("123") is False
+    assert not syn.is_synapse_id("test")
+    assert not syn.is_synapse_id("123")
 
     # Valid ID; must use Mock call to test
     with patch.object(syn, 'get'):
-        assert syn.is_synapse_id("syn28590455") is True
+        assert syn.is_synapse_id("syn28590455")
 
 
 def test_init_change_cache_path():
