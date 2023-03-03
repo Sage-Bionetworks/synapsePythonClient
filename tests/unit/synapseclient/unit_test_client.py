@@ -3012,6 +3012,8 @@ def test_is_synapse_id(syn):
     # Invalid IDs
     assert not syn.is_synapse_id("test")
     assert not syn.is_synapse_id("123")
+    assert not syn.is_synapse_id([])
+    assert not syn.is_synapse_id(["syn123"])
 
     # Valid ID; must use Mock call to test
     with patch.object(syn, 'get'):
