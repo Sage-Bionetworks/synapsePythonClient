@@ -630,16 +630,15 @@ class Synapse(object):
         """Checks if given synID is valid (attached to actual entity?)"""
         if isinstance(syn_id, str):
             try:
-                try:
-                    self.get(syn_id, downloadFile=False)
-                except SynapseFileNotFoundError:
+                self.get(syn_id, downloadFile=False)
+            except SynapseFileNotFoundError:
+                return False
+            except SynapseHTTPError as err:
+                if err.response.status_code in (400, 404):
                     return False
-                except SynapseHTTPError as err:
-                    if err.response.status_code in (400, 404):
-                        return False
-                    # Valid ID but user lacks permission
-                    elif err.response.status_code == 403:
-                        return True
+                # Valid ID but user lacks permission
+                elif err.response.status_code == 403:
+                    return True
             except SynapseAuthenticationError as err:
                 # Valid ID but user is not logged in
                 if err.__context__.response.status_code == 403:
