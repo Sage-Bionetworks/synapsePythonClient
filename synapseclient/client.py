@@ -626,6 +626,24 @@ class Synapse(object):
                 return False
             raise
 
+    def is_synapse_id(self, syn_id: str) -> bool:
+        """Checks if given synID is valid (attached to actual entity?)"""
+        if isinstance(syn_id, str):
+            try:
+                self.get(syn_id, downloadFile=False)
+            except SynapseFileNotFoundError:
+                return False
+            except (SynapseHTTPError, SynapseAuthenticationError, ) as err:
+                status = err.__context__.response.status_code or err.response.status_code
+                if status in (400, 404):
+                    return False
+                # Valid ID but user lacks permission or is not logged in
+                elif status == 403:
+                    return True
+            return True
+        self.logger.warn("synID must be a string")
+        return False
+
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
 
@@ -1448,7 +1466,7 @@ class Synapse(object):
         downloaded_files = []
         new_manifest_path = f'manifest_{time.time_ns()}.csv'
         with open(dl_list_path) as manifest_f, \
-             open(new_manifest_path, 'w') as write_obj:
+                open(new_manifest_path, 'w') as write_obj:
 
             reader = csv.DictReader(manifest_f)
             columns = reader.fieldnames
