@@ -1786,7 +1786,7 @@ class TestDownloadList():
         self.syn = syn
 
     def setup(self):
-        self.manifest = tempfile.NamedTemporaryFile(delete=False)
+        self.manifest = tempfile.NamedTemporaryFile(mode="w+", delete=False)
         self.patch_get_dl_manifest = patch.object(self.syn, 'get_download_list_manifest')
         self.patch_get_dl_manifest = self.patch_get_dl_manifest.start()
         self.patch_get = patch.object(self.syn, 'get')
