@@ -1779,6 +1779,61 @@ class TestDownloadListServices:
         )
 
 
+class TestDownloadList():
+
+    @pytest.fixture(autouse=True, scope='function')
+    def init_syn(self, syn):
+        self.syn = syn
+
+    def setup(self):
+        self.manifest = tempfile.NamedTemporaryFile()
+        self.patch_get_dl_manifest = patch.object(self.syn, 'get_download_list_manifest')
+        self.patch_get_dl_manifest = self.patch_get_dl_manifest.start()
+        self.patch_get = patch.object(self.syn, 'get')
+        self.patch_get = self.patch_get.start()
+        self.patch_remove_dl_list = patch.object(self.syn, 'remove_from_download_list')
+        self.patch_remove_dl_list = self.patch_remove_dl_list.start()
+
+    def teardown(self):
+        self.patch_get_dl_manifest.stop()
+        self.patch_remove_dl_list.stop()
+        self.patch_get.stop()
+
+    def test_get_download_list_no_removal(self, syn):
+        """No files should be removed if the download list is empty"""
+        with open(self.manifest.name, "w") as temp:
+            temp.write("ID,versionNumber")
+        self.patch_get_dl_manifest.return_value = self.manifest.name
+        syn.get_download_list()
+        self.patch_get_dl_manifest.assert_called_once()
+        self.patch_remove_dl_list.assert_not_called()
+
+    def test_get_download_list(self, syn):
+        """Test download list"""
+        with open(self.manifest.name, "w") as temp:
+            temp.write("ID,versionNumber\n")
+            temp.write("syn123,2")
+        test_ent = File("/test/path", parentId="syn123")
+        self.patch_get_dl_manifest.return_value = self.manifest.name
+        self.patch_get.return_value = test_ent
+        syn.get_download_list()
+        self.patch_get_dl_manifest.assert_called_once()
+        self.patch_remove_dl_list.assert_called_once_with(
+            list_of_files=[{"fileEntityId": "syn123", "versionNumber": "2"}]
+        )
+
+    def test_get_download_list_invalid_download(self, syn):
+        """If the file can't be downloaded, download list won't be cleared"""
+        with open(self.manifest.name, "w") as temp:
+            temp.write("ID,versionNumber\n")
+            temp.write("syn123,2")
+        self.patch_get_dl_manifest.return_value = self.manifest.name
+        self.patch_get.side_effect = Exception
+        syn.get_download_list()
+        self.patch_get_dl_manifest.assert_called_once()
+        self.patch_remove_dl_list.assert_not_called()
+
+
 class TestRestCalls:
     """Verifies the behavior of the rest[METHOD] functions on the synapse client."""
 
