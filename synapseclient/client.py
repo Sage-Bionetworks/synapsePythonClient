@@ -641,7 +641,7 @@ class Synapse(object):
                 elif status == 403:
                     return True
             return True
-        self.logger.warn("synID must be a string")
+        self.logger.warning("synID must be a string")
         return False
 
     def onweb(self, entity, subpageId=None):
