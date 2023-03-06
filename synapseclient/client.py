@@ -352,8 +352,8 @@ class Synapse(object):
         #. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
 
         :param email:        Synapse user name (or an email address associated with a Synapse account)
-        :param password:     password
-        :param apiKey:       Base64 encoded Synapse API key
+        :param password:     **!!WILL BE DEPRECATED!!** password. Please use authToken (Synapse personal access token)
+        :param apiKey:       **!!WILL BE DEPRECATED!!** Base64 encoded Synapse API key
         :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the
                              following fields: email, password, apiKey
         :param rememberMe:   Whether the authentication information should be cached in your operating system's
@@ -495,22 +495,17 @@ class Synapse(object):
         secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
         return secret['secretKey']
 
-    def _loggedIn(self):
+    def _is_logged_in(self) -> bool:
         """Test whether the user is logged in to Synapse."""
-
+        # This is a quick sanity check to see if credentials have been
+        # configured on the client
         if self.credentials is None:
             return False
-
-        try:
-            user = self.restGET('/userProfile')
-            if 'displayName' in user:
-                if user['displayName'] == 'Anonymous':
-                    return False
-                return user['displayName']
-        except SynapseHTTPError as err:
-            if err.response.status_code == 401:
-                return False
-            raise
+        # The public can query this command so there is no need to try catch.
+        user = self.restGET('/userProfile')
+        if user.get("userName") == "anonymous":
+            return False
+        return True
 
     def logout(self, forgetMe=False):
         """
@@ -529,7 +524,7 @@ class Synapse(object):
         """Invalidates authentication across all clients."""
 
         # Logout globally
-        if self._loggedIn():
+        if self._is_logged_in():
             self.restDELETE('/secretKey', endpoint=self.authEndpoint)
 
     @memoize
@@ -624,6 +619,24 @@ class Synapse(object):
                 return False
             raise
 
+    def is_synapse_id(self, syn_id: str) -> bool:
+        """Checks if given synID is valid (attached to actual entity?)"""
+        if isinstance(syn_id, str):
+            try:
+                self.get(syn_id, downloadFile=False)
+            except SynapseFileNotFoundError:
+                return False
+            except (SynapseHTTPError, SynapseAuthenticationError, ) as err:
+                status = err.__context__.response.status_code or err.response.status_code
+                if status in (400, 404):
+                    return False
+                # Valid ID but user lacks permission or is not logged in
+                elif status == 403:
+                    return True
+            return True
+        self.logger.warning("synID must be a string")
+        return False
+
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
 
@@ -646,7 +659,7 @@ class Synapse(object):
         :param ensure_ascii:  If True, escapes all non-ASCII characters
         """
 
-        if utils.is_synapse_id(entity):
+        if utils.is_synapse_id_str(entity):
             entity = self._getEntity(entity)
         try:
             self.logger.info(json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii))
@@ -709,7 +722,7 @@ class Synapse(object):
             kwargs['downloadFile'] = False
             kwargs['path'] = entity
 
-        elif isinstance(entity, str) and not utils.is_synapse_id(entity):
+        elif isinstance(entity, str) and not utils.is_synapse_id_str(entity):
             raise SynapseFileNotFoundError(
                 ('The parameter %s is neither a local file path '
                  ' or a valid entity id' % entity)
@@ -731,9 +744,12 @@ class Synapse(object):
     def _check_entity_restrictions(self, bundle, entity, downloadFile):
         restrictionInformation = bundle['restrictionInformation']
         if restrictionInformation['hasUnmetAccessRequirement']:
-            warning_message = ("\nThis entity has access restrictions. Please visit the web page for this entity "
-                               "(syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to "
-                               "review and fulfill its download requirement(s).\n" % id_of(entity))
+            warning_message = (
+                '\nThis entity has access restrictions. Please visit the web page for this entity '
+                f'(syn.onweb(\"{id_of(entity)}\")). Look for the "Access" label and the lock icon underneath '
+                'the file name. Click "Request Access", and then review and fulfill the file '
+                'download requirement(s).\n'
+            )
             if downloadFile and bundle.get('entityType') not in ('project', 'folder'):
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
@@ -849,7 +865,6 @@ class Synapse(object):
                                       "permission. The file has NOT been downloaded."
                     self.logger.warning('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'
                                         + '!'*len(warning_message)+'\n')
-
         return entity
 
     def _ensure_download_location_is_directory(self, downloadLocation):
@@ -992,7 +1007,10 @@ class Synapse(object):
             test_entity = syn.store(test_entity, activity=activity)
 
         """
-
+        # SYNPY-1031: activity must be Activity object or code will fail later
+        if activity:
+            if not isinstance(activity, synapseclient.Activity):
+                raise ValueError("activity should be synapseclient.Activity object")
         # _before_store hook
         # give objects a chance to do something before being stored
         if hasattr(obj, '_before_synapse_store'):
@@ -1441,7 +1459,7 @@ class Synapse(object):
         downloaded_files = []
         new_manifest_path = f'manifest_{time.time_ns()}.csv'
         with open(dl_list_path) as manifest_f, \
-             open(new_manifest_path, 'w') as write_obj:
+                open(new_manifest_path, 'w') as write_obj:
 
             reader = csv.DictReader(manifest_f)
             columns = reader.fieldnames
@@ -1473,7 +1491,12 @@ class Synapse(object):
         # Files that failed to download should not be removed from download list
         # Remove all files from download list after the entire download is complete.
         # This is because if download fails midway, we want to return the full manifest
-        self.remove_from_download_list(list_of_files=downloaded_files)
+        if downloaded_files:
+            # Only want to invoke this if there is a list of files to remove
+            # or the API call will error
+            self.remove_from_download_list(list_of_files=downloaded_files)
+        else:
+            self.logger.warning("A manifest was created, but no files were downloaded")
 
         # Always remove original manifest file
         os.remove(dl_list_path)
@@ -1650,7 +1673,7 @@ class Synapse(object):
     def _getBenefactor(self, entity):
         """An Entity gets its ACL from its benefactor."""
 
-        if utils.is_synapse_id(entity) or is_synapse_entity(entity):
+        if utils.is_synapse_id_str(entity) or is_synapse_entity(entity):
             return self.restGET('/entity/%s/benefactor' % id_of(entity))
         return entity
 
@@ -3305,7 +3328,7 @@ class Synapse(object):
                 except ValueError:
                     # ignore aggregate column
                     pass
-        elif isinstance(x, SchemaBase) or utils.is_synapse_id(x):
+        elif isinstance(x, SchemaBase) or utils.is_synapse_id_str(x):
             for col in self.getTableColumns(x):
                 yield col
         elif isinstance(x, str):
@@ -3449,9 +3472,7 @@ class Synapse(object):
 
         :param  limit:          specify the maximum number of rows to be returned, defaults to None
         :param offset:          don't return the first n rows, defaults to None
-        :param isConsistent:    defaults to True. If set to False, return results based on current state of the index
-                                without waiting for pending writes to complete.
-                                Only use this if you know what you're doing.
+        :param isConsistent:    (**DEPRECATED**)
 
         For CSV files, there are several parameters to control the format of the resulting file:
 
@@ -3477,6 +3498,10 @@ class Synapse(object):
         if resultsAs.lower() == "rowset":
             return TableQueryResult(self, query, **kwargs)
         elif resultsAs.lower() == "csv":
+            # TODO: remove isConsistent because it has now been deprecated
+            # from the backend
+            if kwargs.get("isConsistent") is not None:
+                kwargs.pop('isConsistent')
             return CsvFileTable.from_table_query(self, query, **kwargs)
         else:
             raise ValueError("Unknown return type requested from tableQuery: " + str(resultsAs))
