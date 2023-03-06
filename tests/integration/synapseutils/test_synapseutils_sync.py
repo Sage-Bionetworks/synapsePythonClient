@@ -32,7 +32,7 @@ def test_state(syn, schedule_for_cleanup):
             self.row1 = '%s	%s	%s	"%s;https://www.example.com"	provName		bar\n' % (
                 self.f1, self.project.id, self.f2, self.f3
             )
-            self.row2 = '%s	%s	"syn12"	"syn123;https://www.example.com"	provName2		bar\n' % (
+            self.row2 = '%s	%s	"syn12"	" syn123 ;https://www.example.com"	provName2		bar\n' % (
                 self.f2, self.folder.id
             )
             self.row3 = '%s	%s	"syn12"		prov2	False	baz\n' % (self.f3, self.folder.id)
@@ -126,9 +126,11 @@ def test_syncToSynapse(test_state):
         # Go through each row
         for orig, new in zip(orig_df[provenanceType], new_df[provenanceType]):
             if not pd.isnull(orig) and not pd.isnull(new):
+                # Must strip out white space in original because thats what happens for the new
+                original = [prov.strip() for prov in orig.split(';')]
                 # Convert local file paths into synId.versionNumber strings
                 orig_list = ['%s.%s' % (i.id, i.versionNumber) if isinstance(i, Entity) else i
-                             for i in test_state.syn._convertProvenanceList(orig.split(';'))]
+                             for i in test_state.syn._convertProvenanceList(original)]
                 new_list = ['%s.%s' % (i.id, i.versionNumber) if isinstance(i, Entity) else i
                             for i in test_state.syn._convertProvenanceList(new.split(';'))]
                 assert set(orig_list) == set(new_list)
