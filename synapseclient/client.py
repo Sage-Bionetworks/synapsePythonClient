@@ -497,22 +497,17 @@ class Synapse(object):
         secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
         return secret['secretKey']
 
-    def _loggedIn(self):
+    def _is_logged_in(self) -> bool:
         """Test whether the user is logged in to Synapse."""
-
+        # This is a quick sanity check to see if credentials have been
+        # configured on the client
         if self.credentials is None:
             return False
-
-        try:
-            user = self.restGET('/userProfile')
-            if 'displayName' in user:
-                if user['displayName'] == 'Anonymous':
-                    return False
-                return user['displayName']
-        except SynapseHTTPError as err:
-            if err.response.status_code == 401:
-                return False
-            raise
+        # The public can query this command so there is no need to try catch.
+        user = self.restGET('/userProfile')
+        if user.get("userName") == "anonymous":
+            return False
+        return True
 
     def logout(self, forgetMe=False):
         """
@@ -531,7 +526,7 @@ class Synapse(object):
         """Invalidates authentication across all clients."""
 
         # Logout globally
-        if self._loggedIn():
+        if self._is_logged_in():
             self.restDELETE('/secretKey', endpoint=self.authEndpoint)
 
     @memoize
