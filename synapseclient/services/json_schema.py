@@ -334,7 +334,7 @@ class JsonSchemaOrganization:
         for entry in resource_access:
             if entry["principalId"] in principal_ids:
                 entry["accessType"] = access_type
-                principal_ids.pop(entry["principalId"])
+                principal_ids.remove(entry["principalId"])
         for principal_id in principal_ids:
             entry = {
                 "principalId": principal_id,
