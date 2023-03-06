@@ -19,7 +19,7 @@ def js(syn):
     return syn.service("json_schema")
 
 
-def test_json_schema_organization(js, project, schedule_for_cleanup):
+def test_json_schema_organization(js):
     # Schema organizations must start with a string
     js_org = "a" + uuid.uuid4().hex
     # Create, manage, and delete a JSON Schema organization
@@ -34,7 +34,7 @@ def test_json_schema_organization(js, project, schedule_for_cleanup):
         access_type=['READ']
     )
     assert len(new_acl['resourceAccess']) == 2
-    remove_public_acl = my_org.set_acl(principal_ids=[3324230])
+    remove_public_acl = my_org.set_acl(principal_ids=[js.synapse.getUserProfile()['ownerId']])
     # Use set to reorder the resource access control list
     original_acl['resourceAccess'][0]['accessType'] = set(original_acl['resourceAccess'][0]['accessType'])
     remove_public_acl['resourceAccess'][0]['accessType'] = set(remove_public_acl['resourceAccess'][0]['accessType'])
@@ -49,7 +49,7 @@ def test_json_schema_organization(js, project, schedule_for_cleanup):
     assert orgs is not None
 
 
-def test_json_schema_schemas(js, project, schedule_for_cleanup):
+def test_json_schema_schemas(js):
     js_org = "a" + uuid.uuid4().hex
     # Create, manage, and delete a JSON Schema organization
     my_org = js.JsonSchemaOrganization(js_org)
