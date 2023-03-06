@@ -1,5 +1,5 @@
 from random import randint
-from time import sleep
+# from time import sleep
 import uuid
 
 import pytest
@@ -80,14 +80,14 @@ def test_json_schema_schemas(js, project, schedule_for_cleanup):
     # Create json schema
     new_version1 = my_org.create_json_schema(simple_schema, schema_name, f"0.{rint}.1")
 
-    schemas  = my_org.list_json_schemas()
-    schema1  = next(schemas)
-    schema2  = my_org.get_json_schema(schema1.name)
-    assert schema1 is schema2 
+    schemas = my_org.list_json_schemas()
+    schema1 = next(schemas)
+    schema2 = my_org.get_json_schema(schema1.name)
+    assert schema1 is schema2
     # Manage a specific version of a JSON schema
-    versions  = schema1.list_versions()
-    version1  = next(versions)
-    raw_body  = version1.body
+    versions = schema1.list_versions()
+    version1 = next(versions)
+    raw_body = version1.body
     full_body = version1.expand()
     assert raw_body['properties'] == simple_schema['properties']
     assert full_body['properties'] == simple_schema['properties']
