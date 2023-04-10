@@ -31,7 +31,6 @@ import collections
 import collections.abc
 import configparser
 import csv
-import deprecated
 import errno
 import functools
 import getpass
@@ -1512,10 +1511,6 @@ class Synapse(object):
             uri = f'/entity/{id_of(entity)}/annotations2'
         return self.restGET(uri)
 
-    # @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`get_annotations`')
-    # def getAnnotations(self, entity, version=None):
-    #     return self.get_annotations(entity, version=version)
-
     def get_annotations(self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None) -> Annotations:
         """
         Retrieve annotations for an Entity from the Synapse Repository as a Python dict.
@@ -1531,38 +1526,6 @@ class Synapse(object):
         :rtype: :py:class:`synapseclient.annotations.Annotations`
         """
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
-
-    # @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`set_annotations` '
-    #                                                       'This method is UNSAFE and may overwrite existing annotations'
-    #                                                       ' without confirming that you have retrieved and'
-    #                                                       ' updated the latest annotations')
-    # def setAnnotations(self, entity, annotations=None, **kwargs):
-    #     """
-    #     Store annotations for an Entity in the Synapse Repository.
-
-    #     :param entity:      The Entity or Synapse Entity ID whose annotations are to be updated
-    #     :param annotations: A dictionary of annotation names and values
-    #     :param kwargs:      annotation names and values
-    #     :returns: the updated annotations for the entity
-
-    #     """
-    #     if not annotations:
-    #         annotations = {}
-
-    #     annotations.update(kwargs)
-
-    #     id = id_of(entity)
-    #     etag = annotations.etag if hasattr(annotations, 'etag') else annotations.get('etag')
-
-    #     if not etag:
-    #         if 'etag' in entity:
-    #             etag = entity['etag']
-    #         else:
-    #             uri = '/entity/%s/annotations2' % id_of(entity)
-    #             old_annos = self.restGET(uri)
-    #             etag = old_annos['etag']
-
-    #     return self.set_annotations(Annotations(id, etag, annotations))
 
     def set_annotations(self, annotations: Annotations):
         """
