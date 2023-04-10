@@ -73,7 +73,7 @@ shown.
 
 ### downloading test data from Synapse
 
-    synapse -u my_username -p my_password get syn1528299
+    synapse -p auth_token get syn1528299
 
 ### getting help
 
@@ -93,8 +93,8 @@ The Synapse client can be used to write software that interacts with the Sage Bi
 
     syn = synapseclient.Synapse()
 
-    ## log in using username and password
-    syn.login('my_username', 'my_password')
+    ## log in using a Synapse personal access token
+    syn.login(authtoken="")
 
     ## retrieve a 100 by 4 matrix
     matrix = syn.get('syn1901033')
@@ -120,28 +120,34 @@ The Synapse client can be used to write software that interacts with the Sage Bi
 
 Authentication
 --------------
-Authentication toward [Synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished in a few different ways. One is by passing username and password to the `syn.login` function.
+Authentication toward [Synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished in a few different ways.
 
+* Passing the synapse personal access token to the `syn.login` function.
+
+    ```
     import synapseclient
     syn = synapseclient.Synapse()
-    syn.login('my_username', 'my_password')
+    syn.login(authtoken="")
+    ```
 
-It is much more convenient to use an API key, which can be generated and cached locally by doing the following _once_:
+* Configure your `~/.synapseConfig` file to include your Synapse personal access token like:
 
-    syn.login('my_username', 'my_password', rememberMe=True)
+    ```
+    [authentication]
+    authtoken = <authtoken>
+    ```
 
-Then, in subsequent interactions, specifying username and password is optional and only needed to login as a different user. Calling `login` with no arguments uses cached credentials when they are available.
+* Set a `SYNAPSE_AUTH_TOKEN` environmental variable
 
-    syn.login('my_username')
+    ```
+    export SYNAPSE_AUTH_TOKEN=""
+    ```
 
 As a short-cut, creating the `Synapse` object and logging in can be done in one step:
 
     import synapseclient
     syn = synapseclient.login()
 
-Caching credentials can also be done from the command line client:
-
-    synapse login -u my_username -p my_password --rememberMe
 
 
 Synapse Utilities (synapseutils)
