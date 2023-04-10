@@ -2066,7 +2066,7 @@ class CsvFileTable(TableAbstractBaseClass):
                       header=header,
                       quotechar=quoteCharacter,
                       escapechar=escapeCharacter,
-                      line_terminator=lineEnd,
+                      lineterminator=lineEnd,
                       na_rep=kwargs.get('na_rep', ''),
                       float_format="%.12g")
             # NOTE: reason for flat_format='%.12g':

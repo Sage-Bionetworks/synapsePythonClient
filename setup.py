@@ -73,10 +73,10 @@ setuptools.setup(
     version=__version__,
     packages=setuptools.find_packages(exclude=["tests", "tests.*"]),
     # requirements
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     install_requires=install_requires,
     extras_require={
-        "pandas": ["pandas>=0.25.0,<2.0"],
+        "pandas": ["pandas~=2.0"],
         "pysftp": ["pysftp>=0.2.8,<0.3"],
         "boto3": ["boto3>=1.7.0,<2.0"],
         "docs": ["sphinx>=3.0,<4.0", "sphinx-argparse>=0.2,<0.3"],
