@@ -1888,10 +1888,11 @@ class TableQueryResult(TableAbstractBaseClass):
 
             for i, header in enumerate(self.rowset["headers"]):
                 column_name = header.name
-                series[column_name] = series[column_name].append(
+                series[column_name] = pd.concat(
+                    [series[column_name],
                     pd.Series(name=column_name,
                               data=[row['values'][i] for row in self.rowset['rows']],
-                              index=rownames),
+                              index=rownames)],
                     # can't verify integrity when indices are just numbers instead of 'rowid_rowversion'
                     verify_integrity=rowIdAndVersionInIndex)
 
