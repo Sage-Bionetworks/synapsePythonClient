@@ -8,9 +8,9 @@ Release Notes
 
 Highlights
 ----------
-- Locked down pandas version to only support pandas `<`1.5
+- Locked down pandas version to only support pandas `<` 1.5
 - Next major release (3.0.0)...
-   - Support only pandas `>=`1.5
+   - Support only pandas `>=` 1.5
    - Remove support for Python 3.7 due to its end of life.
    - Remove support for login via passwords for best security practices.
    - There will be major cosmetic changes to the cli such as
