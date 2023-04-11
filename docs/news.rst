@@ -3,6 +3,22 @@ Release Notes
 =============
 
 
+2.7.1 (2023-04-11)
+==================
+
+Highlights
+----------
+- Locked down pandas version to only support pandas `<`1.5
+- Next major release (3.0.0)...
+   - Support only pandas `>=`1.5
+   - Remove support for Python 3.7 due to its end of life.
+   - Remove support for login via passwords for best security practices.
+   - There will be major cosmetic changes to the cli such as
+  removing all camel case or non-standard single dash long command line interface (cli)
+  parameters.
+  Example: command line arguments like `-parent` will become
+  `--parent`.  Commands that support camel case like `--parentId`
+  will be changed to `--parent-id`.
 
 2.7.0 (2022-09-16)
 ==================
