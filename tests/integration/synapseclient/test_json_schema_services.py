@@ -100,6 +100,7 @@ class TestJsonSchemaSchemas():
         assert full_body['properties'] == self.simple_schema['properties']
         new_version.delete()
 
+
     def test_json_schema_schemas_js_create_schema(self, js):
         # Create json schema
         # Version 2 of creating json schema
@@ -122,18 +123,20 @@ class TestJsonSchemaSchemas():
         assert schema1 is schema2
         new_version.delete()
 
-    # # Test validation on a Synapse entity
-    # project_name = uuid.uuid4().hex
-    # project = synapseclient.Project(name=project_name)
-    # project = syn.store(project)
-    # synapse_id = project.id
-    # schedule_for_cleanup(project)
+    # def test_json_schema_validate(self, js, syn, schedule_for_cleanup):
+    #     project_name = uuid.uuid4().hex
+    #     project = synapseclient.Project(name=project_name)
+    #     project.firstName = "test"
+    #     project = syn.store(project)
+    #     synapse_id = project.id
+    #     schedule_for_cleanup(project)
 
-    # js.bind_json_schema(new_version1.uri, synapse_id)
-    # js.get_json_schema(synapse_id)
-    # sleep(3)
+    #     new_version = self.my_org.create_json_schema(self.simple_schema, self.schema_name, f"0.{self.rint}.1")
+    #     js.bind_json_schema(new_version.uri, synapse_id)
+    #     sleep(3)
 
-    # js.validate(synapse_id)
-    # js.validate_children(synapse_id)
-    # js.validation_stats(synapse_id)
-    # js.unbind_json_schema(synapse_id)
+    #     js.validate(synapse_id)
+    #     js.validate_children(synapse_id)
+    #     js.validation_stats(synapse_id)
+    #     js.unbind_json_schema(synapse_id)
+    #     new_version.delete()
