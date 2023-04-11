@@ -683,10 +683,17 @@ class Synapse(object):
     }
 
     def get_available_services(self):
+        """Get available Synapse services
+        This is a beta feature and is subject to change"""
         services = self._services.keys()
         return list(services)
 
     def service(self, service_name: str):
+        """Get available Synapse services
+        This is a beta feature and is subject to change"""
+        # This is to avoid circular imports
+        # TODO: revisit the import order and method https://stackoverflow.com/a/37126790
+        # To move this to the top
         import synapseclient.services
         assert isinstance(service_name, str)
         service_name = service_name.lower().replace(" ", "_")
