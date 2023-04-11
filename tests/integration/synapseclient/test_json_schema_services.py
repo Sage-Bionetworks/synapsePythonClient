@@ -100,7 +100,6 @@ class TestJsonSchemaSchemas():
         assert full_body['properties'] == self.simple_schema['properties']
         new_version.delete()
 
-
     def test_json_schema_schemas_js_create_schema(self, js):
         # Create json schema
         # Version 2 of creating json schema
