@@ -1,10 +1,10 @@
 from random import randint
-# from time import sleep
+from time import sleep
 import uuid
 
 import pytest
 
-# import synapseclient
+import synapseclient
 from synapseclient.core.exceptions import SynapseHTTPError
 
 
@@ -123,20 +123,26 @@ class TestJsonSchemaSchemas():
         assert schema1 is schema2
         new_version.delete()
 
-    # def test_json_schema_validate(self, js, syn, schedule_for_cleanup):
-    #     project_name = uuid.uuid4().hex
-    #     project = synapseclient.Project(name=project_name)
-    #     project.firstName = "test"
-    #     project = syn.store(project)
-    #     synapse_id = project.id
-    #     schedule_for_cleanup(project)
+    def test_json_schema_validate(self, js, syn, schedule_for_cleanup):
+        project_name = uuid.uuid4().hex
+        project = synapseclient.Project(name=project_name)
+        project.firstName = "test"
+        project = syn.store(project)
+        synapse_id = project.id
+        schedule_for_cleanup(project)
 
-    #     new_version = self.my_org.create_json_schema(self.simple_schema, self.schema_name, f"0.{self.rint}.1")
-    #     js.bind_json_schema(new_version.uri, synapse_id)
-    #     sleep(3)
+        new_version = self.my_org.create_json_schema(self.simple_schema, self.schema_name, f"0.{self.rint}.1")
+        js.bind_json_schema(new_version.uri, synapse_id)
+        sleep(3)
+        # TODO: look into why this doesn't work
+        # js.validate(synapse_id)
+        js.validate_children(synapse_id)
+        stats = js.validation_stats(synapse_id)
+        assert stats['containerId'] == synapse_id
+        assert stats['totalNumberOfChildren'] == 0
+        assert stats['numberOfValidChildren'] == 0
+        assert stats['numberOfInvalidChildren'] == 0
+        assert stats['numberOfUnknownChildren'] == 0
 
-    #     js.validate(synapse_id)
-    #     js.validate_children(synapse_id)
-    #     js.validation_stats(synapse_id)
-    #     js.unbind_json_schema(synapse_id)
-    #     new_version.delete()
+        js.unbind_json_schema(synapse_id)
+        new_version.delete()
