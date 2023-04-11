@@ -21,6 +21,20 @@ the `web <https://www.synapse.org/>`_. The Python client can also be used from t
 If you're just getting started with Synapse, have a look at the Getting Started guides for
 `Synapse <https://docs.synapse.org/articles/getting_started.html>`_.
 
+
+Next Major Release (3.0.0)
+==========================
+- Support only pandas `>=` 1.5
+- Remove support for Python 3.7 due to its end of life.
+- Remove support for login via passwords for best security practices.
+- There will be major cosmetic changes to the cli such as
+  removing all camel case or non-standard single dash long command line interface (cli)
+  parameters.
+  Example: command line arguments like `-parent` will become
+  `--parent`.  Commands that support camel case like `--parentId`
+  will be changed to `--parent-id`.
+
+
 Installation
 ============
 
@@ -55,11 +69,6 @@ Next, either install the package in the site-packages directory ``python setup.p
 
     python setup.py <install or develop>
 
-
-Python 2 Support
-----------------
-
-synapseclient versions 2.0 and above require Python 3.6 or greater. Python 2.7 is no longer supported.
 
 Connecting to Synapse
 =====================
