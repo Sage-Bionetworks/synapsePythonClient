@@ -76,7 +76,7 @@ setuptools.setup(
     python_requires=">=3.8",
     install_requires=install_requires,
     extras_require={
-        "pandas": ["pandas~=1.5"],
+        "pandas": ["pandas>=1.5,<2.1"],
         "pysftp": ["pysftp>=0.2.8,<0.3"],
         "boto3": ["boto3>=1.7.0,<2.0"],
         "docs": ["sphinx>=3.0,<4.0", "sphinx-argparse>=0.2,<0.3"],
