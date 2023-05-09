@@ -43,6 +43,7 @@ test_deps = [
 
 install_requires = [
     "requests>=2.22.0,<3.0",
+    "urllib3<2",
     "keyring>=15,<23.5",
     "deprecated>=1.2.4,<2.0",
     "importlib-metadata<5.0",
