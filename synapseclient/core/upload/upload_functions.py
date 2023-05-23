@@ -80,13 +80,18 @@ def upload_file_handle(
     elif upload_destination_type in (
         concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION,
         concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION,
+        concrete_types.EXTERNAL_GCP_UPLOAD_DESTINATION,
     ):
-        storageString = 'Synapse' \
-            if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION \
-            else 'your external S3'
+        if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION:
+            storage_str = 'Synapse'
+        elif upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
+            storage_str = 'your external S3'
+        else:
+            storage_str = 'your external Google Bucket'
+
         log_upload_message(
             syn,
-            '\n' + '#' * 50 + '\n Uploading file to ' + storageString + ' storage \n' + '#' * 50 + '\n'
+            '\n' + '#' * 50 + '\n Uploading file to ' + storage_str + ' storage \n' + '#' * 50 + '\n'
         )
 
         return upload_synapse_s3(
