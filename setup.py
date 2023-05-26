@@ -42,7 +42,8 @@ test_deps = [
 ]
 
 install_requires = [
-    "requests>=2.24.0,<3.0",
+    "requests>=2.22.0,<2.30.0; python_version<'3.10",
+    "requests>=2.30.0,<3.0; python_version>='3.10",
     "urllib3<2; python_version<'3.10'",
     "urllib3>=2; python_version>='3.10'",
     "keyring>=15,<23.5",
