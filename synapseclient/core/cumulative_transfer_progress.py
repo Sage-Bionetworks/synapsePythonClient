@@ -25,18 +25,19 @@ def printTransferProgress(*args, **kwargs):
     transfer (i.e. a Synapse sync)."""
 
     if is_active():
-        _thread_local.cumulative_transfer_progress.printTransferProgress(*args, **kwargs)
+        _thread_local.cumulative_transfer_progress.printTransferProgress(
+            *args, **kwargs
+        )
     else:
         utils.printTransferProgress(*args, **kwargs)
 
 
 def is_active():
     """Return whether the current thread is accumulating progress data."""
-    return hasattr(_thread_local, 'cumulative_transfer_progress')
+    return hasattr(_thread_local, "cumulative_transfer_progress")
 
 
 class CumulativeTransferProgress:
-
     def __init__(self, label, start=None):
         self._lock = threading.Lock()
         self._label = label
@@ -58,8 +59,16 @@ class CumulativeTransferProgress:
             del _thread_local.cumulative_transfer_progress
             del _thread_local.thread_transferred
 
-    def printTransferProgress(self, transferred, toBeTransferred, prefix='', postfix='', isBytes=True, dt=None,
-                              previouslyTransferred=0):
+    def printTransferProgress(
+        self,
+        transferred,
+        toBeTransferred,
+        prefix="",
+        postfix="",
+        isBytes=True,
+        dt=None,
+        previouslyTransferred=0,
+    ):
         """
         Parameters match those of synapseclient.core.utils.printTransferProgress.
         """
@@ -79,22 +88,24 @@ class CumulativeTransferProgress:
                     postfix=postfix,
                     isBytes=isBytes,
                     dt=dt,
-                    previouslyTransferred=previouslyTransferred
+                    previouslyTransferred=previouslyTransferred,
                 )
 
             # in order to know how much of the transferred data is newly transferred
             # we subtract the previously reported amount. this assumes that the printing
             # of the progress for any particular transfer is always conducted by the same
             # thread, which is true for all current transfer implementations.
-            self._total_transferred += (transferred - _thread_local.thread_transferred)
+            self._total_transferred += transferred - _thread_local.thread_transferred
             _thread_local.thread_transferred = transferred
 
             cumulative_dt = time.time() - self._start
             rate = self._total_transferred / float(cumulative_dt)
-            rate = '(%s/s)' % utils.humanizeBytes(rate) if isBytes else rate
+            rate = "(%s/s)" % utils.humanizeBytes(rate) if isBytes else rate
 
             # we print a rotating tick with each update
             self._spinner.print_tick()
 
-            sys.stdout.write(f"{self._label} {utils.humanizeBytes(self._total_transferred)} {rate}")
+            sys.stdout.write(
+                f"{self._label} {utils.humanizeBytes(self._total_transferred)} {rate}"
+            )
             sys.stdout.flush()

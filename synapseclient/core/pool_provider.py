@@ -21,7 +21,6 @@ DEFAULT_NUM_THREADS = multiprocessing.cpu_count() + 4
 
 
 class SingleThreadPool:
-
     def map(self, func, iterable):
         for item in iterable:
             func(item)
@@ -36,7 +35,7 @@ class SingleThreadExecutor(Executor):
 
     def submit(self, fn, *args, **kwargs):
         if self._shutdown:
-            raise RuntimeError('cannot schedule new futures after shutdown')
+            raise RuntimeError("cannot schedule new futures after shutdown")
 
         f = Future()
         try:
@@ -50,7 +49,6 @@ class SingleThreadExecutor(Executor):
 
 
 class FakeLock:
-
     def __enter__(self):
         pass
 
@@ -59,7 +57,6 @@ class FakeLock:
 
 
 class SingleValue:
-
     value = None
 
     def __init__(self, type, value):

@@ -12,7 +12,7 @@ from synapseclient.core.utils import datetime_to_iso
 def _json_encoder(self, obj):
     if isinstance(obj, datetime.datetime):
         # backend takes date string format of "yy-M-d H:m:s.SSS" with the time zone being UTC
-        return datetime_to_iso(obj, sep=" ").replace("Z", '')
+        return datetime_to_iso(obj, sep=" ").replace("Z", "")
 
     else:
         return getattr(obj.__class__, "to_json", _json_encoder.default)(obj)
