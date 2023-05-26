@@ -1879,6 +1879,7 @@ class TableQueryResult(TableAbstractBaseClass):
             offset += len(self.rowset['rows'])
 
             if not rowIdAndVersionInIndex:
+                # TODO: Look into why this isn't being assigned
                 series['ROW_ID'].append(pd.Series(name='ROW_ID', data=[row['id'] for row in self.rowset['rows']]))
                 series['ROW_VERSION'].append(pd.Series(name='ROW_VERSION',
                                                        data=[row['version'] for row in self.rowset['rows']]))
@@ -1888,10 +1889,13 @@ class TableQueryResult(TableAbstractBaseClass):
 
             for i, header in enumerate(self.rowset["headers"]):
                 column_name = header.name
-                series[column_name] = series[column_name].append(
-                    pd.Series(name=column_name,
-                              data=[row['values'][i] for row in self.rowset['rows']],
-                              index=rownames),
+                series[column_name] = pd.concat(
+                    [
+                        series[column_name],
+                        pd.Series(name=column_name,
+                                data=[row['values'][i] for row in self.rowset['rows']],
+                                index=rownames)
+                    ],
                     # can't verify integrity when indices are just numbers instead of 'rowid_rowversion'
                     verify_integrity=rowIdAndVersionInIndex)
 
