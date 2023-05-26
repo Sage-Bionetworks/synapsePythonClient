@@ -1,16 +1,17 @@
 import abc
 import base64
 import collections
-import hashlib
-import hmac
+# import hashlib
+# import hmac
 import json
-import keyring
+
+# import keyring
 import requests.auth
-import time
-import urllib.parse as urllib_parse
+# import time
+# import urllib.parse as urllib_parse
 
 from synapseclient.core.exceptions import SynapseAuthenticationError
-import synapseclient.core.utils
+# import synapseclient.core.utils
 
 
 class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
