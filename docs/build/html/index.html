@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Synapse Python Client Documentation &#8212; Synapse Python Client 2.7.0 documentation</title>
+    <title>Synapse Python Client Documentation &#8212; Synapse Python Client 2.7.1 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     
@@ -41,7 +41,7 @@
         <li class="right" >
           <a href="Credentials.html" title="Manage Synapse Credentials"
              accesskey="N">next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.7.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.7.1 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Python Client Documentation</a></li> 
       </ul>
     </div>  
@@ -71,6 +71,20 @@ the <a class="reference external" href="https://www.synapse.org/">web</a>. The P
 <a class="reference external" href="CommandLineClient.html">command line</a>.</p>
 <p>If you’re just getting started with Synapse, have a look at the Getting Started guides for
 <a class="reference external" href="https://docs.synapse.org/articles/getting_started.html">Synapse</a>.</p>
+<div class="section" id="next-major-release-3-0-0">
+<h3>Next Major Release (3.0.0)<a class="headerlink" href="#next-major-release-3-0-0" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>Support only pandas <cite>&gt;=</cite> 1.5</p></li>
+<li><p>Remove support for Python 3.7 due to its end of life.</p></li>
+<li><p>Remove support for login via passwords for best security practices.</p></li>
+<li><p>There will be major cosmetic changes to the cli such as
+removing all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
+</ul>
+</div>
 <div class="section" id="installation">
 <h3>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h3>
 <p>The <a class="reference external" href="https://pypi.python.org/pypi/synapseclient/">synapseclient</a> package is available from PyPI. It can be installed
@@ -102,10 +116,6 @@ revision:</p>
 </div>
 </dd>
 </dl>
-<div class="section" id="python-2-support">
-<h4>Python 2 Support<a class="headerlink" href="#python-2-support" title="Permalink to this headline">¶</a></h4>
-<p>synapseclient versions 2.0 and above require Python 3.6 or greater. Python 2.7 is no longer supported.</p>
-</div>
 </div>
 <div class="section" id="connecting-to-synapse">
 <h3>Connecting to Synapse<a class="headerlink" href="#connecting-to-synapse" title="Permalink to this headline">¶</a></h3>
@@ -2875,31 +2885,32 @@ is supplied.</p>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="news.html">Release Notes</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id1">2.7.0 (2022-09-16)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id2">2.6.0 (2022-04-19)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id7">2.5.1 (2021-12-02)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id11">2.5.0 (2021-10-05)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id16">2.4.0 (2021-07-08)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id20">2.3.1 (2021-04-13)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id24">2.3.0 (2021-03-03)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id28">2.2.2 (2020-10-18)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id33">2.2.0 (2020-08-31)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id38">2.1.1 (2020-07-10)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id42">2.1.0 (2020-06-16)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id47">2.0.0 (2020-03-23)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id51">1.9.4 (2019-06-28)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id55">1.9.3 (2019-06-28)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id57">1.9.2 (2019-02-15)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id61">1.9.1 (2019-01-20)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id66">1.9.0 (2018-09-28)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id71">1.8.2 (2018-08-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id76">1.8.1 (2018-05-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id78">1.8.0 (2018-05-07)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id82">1.7.5 (2018-01-31)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id83">1.7.4 (2018-01-29)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id88">1.7.3 (2017-12-08)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id96">1.7.1 (2017-11-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id101">1.6.1 (2016-11-02)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id1">2.7.1 (2023-04-11)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id2">2.7.0 (2022-09-16)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id4">2.6.0 (2022-04-19)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id9">2.5.1 (2021-12-02)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id13">2.5.0 (2021-10-05)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id18">2.4.0 (2021-07-08)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id22">2.3.1 (2021-04-13)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id26">2.3.0 (2021-03-03)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id30">2.2.2 (2020-10-18)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id35">2.2.0 (2020-08-31)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id40">2.1.1 (2020-07-10)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id44">2.1.0 (2020-06-16)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id49">2.0.0 (2020-03-23)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id53">1.9.4 (2019-06-28)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id57">1.9.3 (2019-06-28)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id59">1.9.2 (2019-02-15)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id63">1.9.1 (2019-01-20)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id68">1.9.0 (2018-09-28)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id73">1.8.2 (2018-08-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id78">1.8.1 (2018-05-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id80">1.8.0 (2018-05-07)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id84">1.7.5 (2018-01-31)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id85">1.7.4 (2018-01-29)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id90">1.7.3 (2017-12-08)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id98">1.7.1 (2017-11-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id103">1.6.1 (2016-11-02)</a></li>
 </ul>
 </li>
 </ul>
@@ -2927,10 +2938,8 @@ is supplied.</p>
   <ul>
 <li><a class="reference internal" href="#">Synapse Python Client Documentation</a><ul>
 <li><a class="reference internal" href="#overview">Overview</a><ul>
-<li><a class="reference internal" href="#installation">Installation</a><ul>
-<li><a class="reference internal" href="#python-2-support">Python 2 Support</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#next-major-release-3-0-0">Next Major Release (3.0.0)</a></li>
+<li><a class="reference internal" href="#installation">Installation</a></li>
 <li><a class="reference internal" href="#connecting-to-synapse">Connecting to Synapse</a></li>
 <li><a class="reference internal" href="#imports">Imports</a></li>
 <li><a class="reference internal" href="#accessing-data">Accessing Data</a></li>
@@ -2980,13 +2989,13 @@ is supplied.</p>
         <li class="right" >
           <a href="Credentials.html" title="Manage Synapse Credentials"
              >next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.7.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 2.7.1 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Synapse Python Client Documentation</a></li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Sep 16, 2022.
+      Last updated on Apr 10, 2023.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
     </div>
     <script type="text/javascript">
