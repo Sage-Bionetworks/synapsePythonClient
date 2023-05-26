@@ -1,7 +1,7 @@
 import abc
 import os
 
-from synapseclient.core.credentials import cached_sessions
+# from synapseclient.core.credentials import cached_sessions
 from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials, SynapseAuthTokenCredentials
 from synapseclient.core.exceptions import SynapseAuthenticationError
 
@@ -38,12 +38,7 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
         """
         return self._create_synapse_credential(syn, *self._get_auth_info(syn, user_login_args))
 
-    def _create_synapse_credential(self, syn, username, api_key, auth_token):
-        if username is not None:
-            if auth_token is None and api_key is not None:
-                # auth token takes precedence over api key
-                return SynapseApiKeyCredentials(api_key, username)
-
+    def _create_synapse_credential(self, syn, username, auth_token):
         if auth_token is not None:
             credentials = SynapseAuthTokenCredentials(auth_token)
             profile = syn.restGET('/userProfile', auth=credentials)
@@ -71,7 +66,6 @@ class UserArgsCredentialsProvider(SynapseCredentialsProvider):
     def _get_auth_info(self, syn, user_login_args):
         return (
             user_login_args.username,
-            user_login_args.api_key,
             user_login_args.auth_token,
         )
 
@@ -86,39 +80,34 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
         # check to make sure we didn't accidentally provide the wrong user
 
         username = config_dict.get('username')
-        api_key = config_dict.get('apikey')
         token = config_dict.get('authtoken')
 
         if user_login_args.username and username != user_login_args.username:
             # if the username is provided and there is a config file username but they don't match
             # then we don't use any of the values from the config to prevent ambiguity
             username = None
-            api_key = None
             token = None
 
-        return username, api_key, token
+        return username, token
 
 
-class CachedCredentialsProvider(SynapseCredentialsProvider):
-    """
-    Retrieves auth info from cached_sessions
-    """
+# class CachedCredentialsProvider(SynapseCredentialsProvider):
+#     """
+#     Retrieves auth info from cached_sessions
+#     """
 
-    def _get_auth_info(self, syn, user_login_args):
-        username = None
-        api_key = None
-        auth_token = None
+#     def _get_auth_info(self, syn, user_login_args):
+#         username = None
+#         auth_token = None
 
-        if not user_login_args.skip_cache:
-            username = user_login_args.username or cached_sessions.get_most_recent_user()
-            if username:
-                api_creds = SynapseApiKeyCredentials.get_from_keyring(username)
-                auth_token_creds = SynapseAuthTokenCredentials.get_from_keyring(username)
+#         if not user_login_args.skip_cache:
+#             username = user_login_args.username or cached_sessions.get_most_recent_user()
+#             if username:
+#                 api_creds = SynapseApiKeyCredentials.get_from_keyring(username)
+#                 auth_token_creds = SynapseAuthTokenCredentials.get_from_keyring(username)
+#                 auth_token = auth_token_creds.secret if auth_token_creds else None
 
-                api_key = api_creds.secret if api_creds else None
-                auth_token = auth_token_creds.secret if auth_token_creds else None
-
-        return username, api_key, auth_token
+#         return username, auth_token
 
 
 class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
@@ -202,7 +191,7 @@ DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([
     UserArgsCredentialsProvider(),
     EnvironmentVariableCredentialsProvider(),
     ConfigFileCredentialsProvider(),
-    CachedCredentialsProvider(),
+    # CachedCredentialsProvider(),
     AWSParameterStoreCredentialsProvider(),  # see service catalog issue: SC-260
 ])
 

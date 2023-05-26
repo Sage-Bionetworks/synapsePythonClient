@@ -74,8 +74,8 @@ from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
 from synapseclient.core import cumulative_transfer_progress
 from synapseclient.core.credentials import (
-    cached_sessions,
-    delete_stored_credentials,
+    # cached_sessions,
+    # delete_stored_credentials,
     get_default_credential_chain,
     UserLoginArgs,
 )
@@ -331,12 +331,11 @@ class Synapse(object):
         self.fileHandleEndpoint = endpoints['fileHandleEndpoint']
         self.portalEndpoint = endpoints['portalEndpoint']
 
-    def login(self, email=None, apiKey=None, rememberMe=False, silent=False,
-              forced=False, authToken=None):
+    def login(self, email=None, silent=False, forced=False, authToken=None):
         """
         Valid combinations of login() arguments:
 
-            - email/username and apiKey (Base64 encoded string)
+            - email/username (optional)
             - authToken
 
         If no login arguments are provided or only username is provided, login() will attempt to log in using
@@ -346,48 +345,14 @@ class Synapse(object):
 
         #. .synapseConfig file (in user home folder unless configured otherwise)
 
-        #. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
-
         :param email:        Synapse user name (or an email address associated with a Synapse account)
-        :param apiKey:       Base64 encoded Synapse API key
-        :param rememberMe:   Whether the authentication information should be cached in your operating system's
-                             credential storage.
-        :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
-                             password or apiKey
-
-        **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
-        **Linux** systems.
-        If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for
-        the current user only (chmod 600).
-        On Windows and Mac OS, a default credentials storage exists so it will be preferred over the plain-text file.
-        To install GNOME Keyring on Ubuntu::
-
-            sudo apt-get install gnome-keyring
-
-            sudo apt-get install python-dbus  #(for Python 2 installed via apt-get)
-            OR
-            sudo apt-get install python3-dbus #(for Python 3 installed via apt-get)
-            OR
-            sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python or vitualenv)
-            sudo pip install dbus-python #(may take a while to compile C code)
-        If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before
-        running your Python session::
-
-            dbus-run-session -- bash #(replace 'bash' with 'sh' if bash is unavailable)
-            echo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon -- unlock
-
+        :param authToken:    A bearer authorization token, e.g. a personal access token.
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
         :param forced:     Defaults to False.  Bypass the credential cache if set.
 
         Example::
 
-            syn.login('my-username', 'secret-password', rememberMe=True)
-            #> Welcome, Me!
-
-        After logging in with the *rememberMe* flag set, an API key will be cached and
-        used to authenticate for future logins::
-
-            syn.login()
+            syn.login(email='my-username', authToken='secret-pat')
             #> Welcome, Me!
 
         """
@@ -406,7 +371,6 @@ class Synapse(object):
             self,
             UserLoginArgs(
                 email,
-                apiKey,
                 forced,
                 authToken,
             )
@@ -416,11 +380,11 @@ class Synapse(object):
         if not self.credentials:
             raise SynapseNoCredentialsError("No credentials provided.")
 
-        # Save the API key in the cache
-        if rememberMe:
-            delete_stored_credentials(self.credentials.username)
-            self.credentials.store_to_keyring()
-            cached_sessions.set_most_recent_user(self.credentials.username)
+        # # Save the API key in the cache
+        # if rememberMe:
+        #     delete_stored_credentials(self.credentials.username)
+        #     self.credentials.store_to_keyring()
+        #     cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
             profile = self.getUserProfile(refresh=True)
@@ -467,24 +431,24 @@ class Synapse(object):
 
         return transfer_config
 
-    def _getSessionToken(self, email, password):
-        """Returns a validated session token."""
-        try:
-            req = {'email': email, 'password': password}
-            session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint,
-                                    headers=self.default_headers)
-            return session['sessionToken']
-        except SynapseHTTPError as err:
-            if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
-                raise SynapseAuthenticationError("Invalid username or password.")
-            raise
+    # def _getSessionToken(self, email, password):
+    #     """Returns a validated session token."""
+    #     try:
+    #         req = {'email': email, 'password': password}
+    #         session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint,
+    #                                 headers=self.default_headers)
+    #         return session['sessionToken']
+    #     except SynapseHTTPError as err:
+    #         if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
+    #             raise SynapseAuthenticationError("Invalid username or password.")
+    #         raise
 
-    def _getAPIKey(self, sessionToken):
-        """Uses a session token to fetch an API key."""
+    # def _getAPIKey(self, sessionToken):
+    #     """Uses a session token to fetch an API key."""
 
-        headers = {'sessionToken': sessionToken, 'Accept': 'application/json'}
-        secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
-        return secret['secretKey']
+    #     headers = {'sessionToken': sessionToken, 'Accept': 'application/json'}
+    #     secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
+    #     return secret['secretKey']
 
     def _is_logged_in(self) -> bool:
         """Test whether the user is logged in to Synapse."""
@@ -498,25 +462,22 @@ class Synapse(object):
             return False
         return True
 
-    def logout(self, forgetMe=False):
+    def logout(self):
         """
         Removes authentication information from the Synapse client.
-
-        :param forgetMe: Set as True to clear any local storage of authentication information.
-                         See the flag "rememberMe" in :py:func:`synapseclient.Synapse.login`.
         """
-        # Delete the user's API key from the cache
-        if forgetMe and self.credentials:
-            self.credentials.delete_from_keyring()
+        # # Delete the user's API key from the cache
+        # if forgetMe and self.credentials:
+        #     self.credentials.delete_from_keyring()
 
         self.credentials = None
 
-    def invalidateAPIKey(self):
-        """Invalidates authentication across all clients."""
+    # def invalidateAPIKey(self):
+    #     """Invalidates authentication across all clients."""
 
-        # Logout globally
-        if self._is_logged_in():
-            self.restDELETE('/secretKey', endpoint=self.authEndpoint)
+    #     # Logout globally
+    #     if self._is_logged_in():
+    #         self.restDELETE('/secretKey', endpoint=self.authEndpoint)
 
     @memoize
     def getUserProfile(self, id=None, sessionToken=None, refresh=False):
