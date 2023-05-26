@@ -41,16 +41,25 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
         return self._create_synapse_credential(syn, *self._get_auth_info(syn, user_login_args))
 
     def _create_synapse_credential(self, syn, username, password, api_key, auth_token):
-        login_deprecation_warning = "Please use a Synapse Personal Access Token to login."
+        login_deprecation_warning = (
+            "This message will disappear if you use a Synapse Personal Access Token to login."
+        )
         if username is not None:
             if password is not None:
-                message = f"Logging into Synapse via passwords will be deprecated by early 2024. {login_deprecation_warning}"
+                message = (
+                    "Logging into Synapse via passwords will be deprecated by "
+                    f"early 2024. {login_deprecation_warning}"
+                )
                 syn.logger.warning(message)
                 retrieved_session_token = syn._getSessionToken(email=username, password=password)
                 return SynapseApiKeyCredentials(syn._getAPIKey(retrieved_session_token), username)
 
             elif auth_token is None and api_key is not None:
-                message = f"Logging into Synapse via apikeys will be deprecated by early 2024.  If you've used `rememberMe=True`, that will also be deprecated. {login_deprecation_warning}"
+                message = (
+                    "Logging into Synapse via apikeys will be deprecated by early 2024.  "
+                    "If you've used `rememberMe=True` in the past, you may also be getting this message, "
+                    f"please delete your ~/.synapseCache/.session file. {login_deprecation_warning}"
+                )
                 syn.logger.warning(message)
                 # auth token takes precedence over api key
                 return SynapseApiKeyCredentials(api_key, username)

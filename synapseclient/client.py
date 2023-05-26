@@ -400,19 +400,6 @@ class Synapse(object):
             #> Welcome, Me!
 
         """
-        # message = None
-        # login_deprecation_warning = "Please use a Synapse Personal Access Token to login."
-        # if password is not None:
-        #     message = f"Logging into Synapse via passwords will be deprecated by early 2024. {login_deprecation_warning}"
-        # elif apiKey is not None:
-        #     message = f"Logging into Synapse via apikeys will be deprecated by early 2024. {login_deprecation_warning}"
-        # elif sessionToken is not None:
-        #     message = f"Logging into Synapse via session tokens will be deprecated by early 2024. {login_deprecation_warning}"
-        # if rememberMe:
-        #     message = "The rememberMe parameter will be deprecated by early 2024.  Please use the ~/.synapseConfig or SYNAPSE_AUTH_TOKEN environmental variable to set up your Synapse connection."
-        # if message is not None:
-        #     logging.warning(message)
-
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
@@ -442,7 +429,10 @@ class Synapse(object):
 
         # Save the API key in the cache
         if rememberMe:
-            message = "The rememberMe parameter will be deprecated by early 2024.  Please use the ~/.synapseConfig or SYNAPSE_AUTH_TOKEN environmental variable to set up your Synapse connection."
+            message = (
+                "The rememberMe parameter will be deprecated by early 2024. Please use the ~/.synapseConfig "
+                "or SYNAPSE_AUTH_TOKEN environmental variable to set up your Synapse connection."
+            )
             self.logger.warning(message)
             delete_stored_credentials(self.credentials.username)
             self.credentials.store_to_keyring()
