@@ -2122,6 +2122,7 @@ class TableQueryResult(TableAbstractBaseClass):
             offset += len(self.rowset["rows"])
 
             if not rowIdAndVersionInIndex:
+                # TODO: Look into why this isn't being assigned
                 series["ROW_ID"].append(
                     pd.Series(
                         name="ROW_ID", data=[row["id"] for row in self.rowset["rows"]]

@@ -166,7 +166,7 @@ class _FolderSync:
                     )
 
                 # in practice only the root folder sync will be waited on/need notifying
-                self._finished.notifyAll()
+                self._finished.notify_all()
 
     def _manifest_filename(self):
         return os.path.expanduser(
@@ -195,7 +195,7 @@ class _FolderSync:
                 self._parent.set_exception(exception)
 
             # an error also results in the folder being finished
-            self._finished.notifyAll()
+            self._finished.notify_all()
 
     def wait_until_finished(self):
         with self._finished:
@@ -596,7 +596,7 @@ class _SyncUploader:
                         # this item was defined as provenance for another item, now that
                         # it's finished we may be able to upload that depending item, so
                         # wake up he central thread
-                        dependency_condition.notifyAll()
+                        dependency_condition.notify_all()
 
                     except KeyError:
                         # this item is not used in provenance of another item, that's fine
@@ -605,7 +605,7 @@ class _SyncUploader:
         except Exception:
             with dependency_condition:
                 abort_event.set()
-                dependency_condition.notifyAll()
+                dependency_condition.notify_all()
             raise
 
         finally:
