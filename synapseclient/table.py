@@ -1893,8 +1893,8 @@ class TableQueryResult(TableAbstractBaseClass):
                     [
                         series[column_name],
                         pd.Series(name=column_name,
-                                data=[row['values'][i] for row in self.rowset['rows']],
-                                index=rownames)
+                                  data=[row['values'][i] for row in self.rowset['rows']],
+                                  index=rownames)
                     ],
                     # can't verify integrity when indices are just numbers instead of 'rowid_rowversion'
                     verify_integrity=rowIdAndVersionInIndex)
