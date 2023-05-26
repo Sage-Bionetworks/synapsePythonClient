@@ -24,10 +24,10 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
 
         :param ``synapseclient.client.Synapse`` syn:        Synapse client instance
         :param ``cred_data.UserLoginArgs`` user_login_args: subset of arguments passed during syn.login()
-        :return: tuple of (username, password, api_key, bearer auth token e.g. a personal access token),
+        :return: tuple of (username, bearer auth token e.g. a personal access token),
                     any of these values could None if it is not available.
         """
-        return None, None, None, None
+        return None, None
 
     def get_synapse_credentials(self, syn, user_login_args):
         """
@@ -144,7 +144,7 @@ class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
 
         # if username is included in user's arguments, return it so that
         # it may be validated against the username authenticated by the token
-        return user_login_args.username, None, None, token
+        return user_login_args.username, token
 
 
 class EnvironmentVariableCredentialsProvider(SynapseCredentialsProvider):
