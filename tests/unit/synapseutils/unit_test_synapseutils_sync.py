@@ -770,7 +770,7 @@ class TestSyncUploader:
         assert len(pending_provenance._pending) == 0
 
         # should have notified the condition to let anything waiting on this provenance to continue
-        mock_condition.notifyAll.assert_called_once_with()
+        mock_condition.notify_all.assert_called_once_with()
 
         assert not abort_event.is_set()
 
@@ -815,7 +815,7 @@ class TestSyncUploader:
         # abort event should have been raised and we shoudl have released threading locks
         assert abort_event.is_set()
         mock_release.assert_called_once_with()
-        mock_condition.notifyAll.assert_called_once_with()
+        mock_condition.notify_all.assert_called_once_with()
 
     def test_abort(self):
         """Verify abort behavior.
@@ -927,7 +927,7 @@ class TestSyncUploader:
                 convert_provenance_calls -= 1
 
                 if convert_provenance_calls == 0:
-                    convert_provenance_condition.notifyAll()
+                    convert_provenance_condition.notify_all()
 
             return convert_provenance_original(provenance, finished_items)
 
