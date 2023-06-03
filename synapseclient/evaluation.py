@@ -184,16 +184,16 @@ class Submission(DictObject):
         ):
             raise KeyError
 
-        super(Submission, self).__init__(kwargs)
+        super().__init__(kwargs)
 
     def postURI(self):
-        return "/evaluation/submission?etag=%s" % self.etag
+        return f"/evaluation/submission?etag={self.etag}"
 
     def putURI(self):
-        return "/evaluation/submission/%s" % self.id
+        return f"/evaluation/submission/{self.id}"
 
     def deleteURI(self):
-        return "/evaluation/submission/%s" % self.id
+        return f"/evaluation/submission/{self.id}"
 
 
 def _convert_to_annotation_cls(
@@ -230,10 +230,10 @@ class SubmissionStatus(DictObject):
     """
 
     @classmethod
-    def getURI(cls, id):
-        return "/evaluation/submission/%s/status" % id
+    def getURI(cls, id: str):
+        return f"/evaluation/submission/{id}/status"
 
-    def __init__(self, id, etag, **kwargs):
+    def __init__(self, id: str, etag: str, **kwargs):
         annotations = kwargs.pop("submissionAnnotations", {})
         # If it is synapse annotations, turn into a format
         # that can be worked with otherwise, create
@@ -241,7 +241,8 @@ class SubmissionStatus(DictObject):
         submission_annotations = _convert_to_annotation_cls(
             id=id, etag=etag, values=annotations
         )
-        super(SubmissionStatus, self).__init__(
+        # In Python 3, the super(SubmissionStatus, self) call is equivalent to the parameterless super()
+        super().__init__(
             id=id, etag=etag, submissionAnnotations=submission_annotations, **kwargs
         )
 
@@ -249,12 +250,12 @@ class SubmissionStatus(DictObject):
     #     return '/evaluation/submission/%s/status' % self.id
 
     def putURI(self):
-        return "/evaluation/submission/%s/status" % self.id
+        return f"/evaluation/submission/{self.id}/status"
 
     # def deleteURI(self):
     #     return '/evaluation/submission/%s/status' % self.id
 
-    def json(self, ensure_ascii=True):
+    def json(self, ensure_ascii: bool = True):
         """Overloaded json function, turning submissionAnnotations into
         synapse style annotations"""
 
