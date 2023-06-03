@@ -17,7 +17,7 @@ def set_most_recent_user(username):
 def _read_session_cache(filepath):
     """Returns the JSON contents of CACHE_DIR/SESSION_FILENAME."""
     try:
-        file = open(filepath, 'r')
+        file = open(filepath, "r")
         result = json.load(file)
         if isinstance(result, dict):
             return result
@@ -29,6 +29,6 @@ def _read_session_cache(filepath):
 
 def _write_session_cache(filepath, data):
     """Dumps the JSON data into CACHE_DIR/SESSION_FILENAME."""
-    with open(filepath, 'w') as file:
+    with open(filepath, "w") as file:
         json.dump(data, file)
-        file.write('\n')  # For compatibility with R's JSON parser
+        file.write("\n")  # For compatibility with R's JSON parser

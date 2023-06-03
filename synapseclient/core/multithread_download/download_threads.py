@@ -25,9 +25,9 @@ from synapseclient.core.retry import (
 
 # constants
 MAX_QUEUE_SIZE: int = 20
-MiB: int = 2 ** 20
+MiB: int = 2**20
 SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MiB
-ISO_AWS_STR_FORMAT: str = '%Y%m%dT%H%M%SZ'
+ISO_AWS_STR_FORMAT: str = "%Y%m%dT%H%M%SZ"
 CONNECT_FACTOR: int = 3
 BACK_OFF_FACTOR: float = 0.5
 
@@ -64,6 +64,7 @@ class DownloadRequest(NamedTuple):
         The local path to download the file to.
         This path can be either absolute path or relative path from where the code is executed to the download location.
     """
+
     file_handle_id: int
     object_id: str
     object_type: str
@@ -78,6 +79,7 @@ class TransferStatus(object):
     total_bytes_to_be_transferred: int
     transferred: int
     """
+
     total_bytes_to_be_transferred: int
     transferred: int
 
@@ -108,6 +110,7 @@ class PresignedUrlInfo(NamedTuple):
     expiration_utc: datetime.datetime
         datetime in UTC at which the url will expire
     """
+
     file_name: str
     url: str
     expiration_utc: datetime.datetime
@@ -117,6 +120,7 @@ class PresignedUrlProvider(object):
     """
     Provides an un-exipired pre-signed url to download a file
     """
+
     request: DownloadRequest
     _cached_info: PresignedUrlInfo
 
@@ -131,7 +135,10 @@ class PresignedUrlProvider(object):
 
     def get_info(self) -> PresignedUrlInfo:
         with self._lock:
-            if datetime.datetime.utcnow() + PresignedUrlProvider._TIME_BUFFER >= self._cached_info.expiration_utc:
+            if (
+                datetime.datetime.utcnow() + PresignedUrlProvider._TIME_BUFFER
+                >= self._cached_info.expiration_utc
+            ):
                 self._cached_info = self._get_pre_signed_info()
 
             return self._cached_info
@@ -150,11 +157,14 @@ class PresignedUrlProvider(object):
         )
         file_name = response["fileHandle"]["fileName"]
         pre_signed_url = response["preSignedURL"]
-        return PresignedUrlInfo(file_name, pre_signed_url, _pre_signed_url_expiration_time(pre_signed_url))
+        return PresignedUrlInfo(
+            file_name, pre_signed_url, _pre_signed_url_expiration_time(pre_signed_url)
+        )
 
 
-def _generate_chunk_ranges(file_size: int,
-                           ) -> Generator:
+def _generate_chunk_ranges(
+    file_size: int,
+) -> Generator:
     """
     Creates a generator which yields byte ranges and meta data required to make a range request download of url and
     write the data to file_name located at path. Download chunk sizes are 8MB by default.
@@ -176,9 +186,11 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     :return: datetime in UTC of when the url will expire
     """
     parsed_query: dict = parse_qs(urlparse(url).query)
-    time_made: str = parsed_query['X-Amz-Date'][0]
-    time_made_datetime: datetime.datetime = datetime.datetime.strptime(time_made, ISO_AWS_STR_FORMAT)
-    expires: str = parsed_query['X-Amz-Expires'][0]
+    time_made: str = parsed_query["X-Amz-Date"][0]
+    time_made_datetime: datetime.datetime = datetime.datetime.strptime(
+        time_made, ISO_AWS_STR_FORMAT
+    )
+    expires: str = parsed_query["X-Amz-Expires"][0]
     return time_made_datetime + datetime.timedelta(seconds=int(expires))
 
 
@@ -190,8 +202,8 @@ def _get_new_session() -> Session:
     session = Session()
     retry = Retry(connect=CONNECT_FACTOR, backoff_factor=BACK_OFF_FACTOR)
     adapter = HTTPAdapter(max_retries=retry)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
     return session
 
 
@@ -203,7 +215,7 @@ def _get_file_size(url: str) -> int:
     """
     session = _get_new_session()
     res_get = session.get(url, stream=True)
-    return int(res_get.headers['Content-Length'])
+    return int(res_get.headers["Content-Length"])
 
 
 def download_file(
@@ -223,7 +235,7 @@ def download_file(
 
     # we obtain an executor from a thread local if we are in the context of a Synapse sync
     # and wan't to re-use the same threadpool as was created for that
-    executor = getattr(_thread_local, 'executor', None)
+    executor = getattr(_thread_local, "executor", None)
     shutdown_after = False
     if not executor:
         shutdown_after = True
@@ -247,7 +259,7 @@ def _get_thread_session():
     # thread local since Sessions are not thread safe so we need one per
     # active thread and since we're allowing the use of an externally provided
     # ExecutorService we don't can't really allocate a pool of Sessions ourselves
-    session = getattr(_thread_local, 'session', None)
+    session = getattr(_thread_local, "session", None)
     if not session:
         session = _thread_local.session = _get_new_session()
     return session
@@ -305,8 +317,7 @@ class _MultithreadedDownloader:
                     break
 
                 completed_futures, pending_futures = concurrent.futures.wait(
-                    pending_futures,
-                    return_when=concurrent.futures.FIRST_COMPLETED
+                    pending_futures, return_when=concurrent.futures.FIRST_COMPLETED
                 )
 
                 self._check_for_errors(request, completed_futures)
@@ -325,12 +336,16 @@ class _MultithreadedDownloader:
             raise
 
     @staticmethod
-    def _get_response_with_retry(presigned_url_provider, start: int, end: int) -> Response:
+    def _get_response_with_retry(
+        presigned_url_provider, start: int, end: int
+    ) -> Response:
         session = _get_thread_session()
-        range_header = {'Range': f'bytes={start}-{end}'}
+        range_header = {"Range": f"bytes={start}-{end}"}
 
         def session_get():
-            return session.get(presigned_url_provider.get_info().url, headers=range_header)
+            return session.get(
+                presigned_url_provider.get_info().url, headers=range_header
+            )
 
         response = None
         cause = None
@@ -349,8 +364,8 @@ class _MultithreadedDownloader:
 
         if not response or response.status_code != HTTPStatus.PARTIAL_CONTENT:
             raise SynapseError(
-                f'Could not download the file: {presigned_url_provider.get_info().file_name},'
-                f' please try again.'
+                f"Could not download the file: {presigned_url_provider.get_info().file_name},"
+                f" please try again."
             ) from cause
 
         return start, response
@@ -360,7 +375,7 @@ class _MultithreadedDownloader:
         # upon receiving the parts of the file we'll open the file
         # and write the specific byte ranges, but to open it in
         # r+ mode we need to to exist and be empty
-        open(request.path, 'wb').close()
+        open(request.path, "wb").close()
 
     def _submit_chunks(self, url_provider, chunk_range_generator, pending_futures):
         submit_count = self._max_concurrent_parts - len(pending_futures)
@@ -383,7 +398,7 @@ class _MultithreadedDownloader:
 
     def _write_chunks(self, request, completed_futures, transfer_status):
         if completed_futures:
-            with open(request.path, 'rb+') as file_write:
+            with open(request.path, "rb+") as file_write:
                 for chunk_future in completed_futures:
                     start, chunk_response = chunk_future.result()
                     chunk_data = chunk_response.content
@@ -391,10 +406,13 @@ class _MultithreadedDownloader:
                     file_write.write(chunk_response.content)
 
                     transfer_status.transferred += len(chunk_data)
-                    self._syn._print_transfer_progress(transfer_status.transferred,
-                                                       transfer_status.total_bytes_to_be_transferred,
-                                                       'Downloading ', os.path.basename(request.path),
-                                                       dt=transfer_status.elapsed_time())
+                    self._syn._print_transfer_progress(
+                        transfer_status.transferred,
+                        transfer_status.total_bytes_to_be_transferred,
+                        "Downloading ",
+                        os.path.basename(request.path),
+                        dt=transfer_status.elapsed_time(),
+                    )
 
     @staticmethod
     def _check_for_errors(request, completed_futures):
@@ -405,4 +423,6 @@ class _MultithreadedDownloader:
         for completed_future in completed_futures:
             exception = completed_future.exception()
             if exception:
-                raise ValueError(f"Failed downloading {request.object_id} to {request.path}") from exception
+                raise ValueError(
+                    f"Failed downloading {request.object_id} to {request.path}"
+                ) from exception

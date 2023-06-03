@@ -1,6 +1,7 @@
 from collections import defaultdict
 import json
 import os
+import sys
 
 import synapseclient
 from synapseclient import table
@@ -24,15 +25,15 @@ def _open_entity_as_df(syn, entity: str):
         entity = syn.get(entity)
         name, format = os.path.splitext(entity.path)
     except synapseclient.core.exceptions.SynapseHTTPError:
-        print(str(entity) + " is not a valid Synapse id")
+        syn.logger.error(str(entity) + " is not a valid Synapse id")
         return dataset  # its value is None here
 
     if format == ".csv":
         dataset = pd.read_csv(entity.path)
     elif format == ".tsv":
-        dataset = pd.read_csv(entity.path, sep='\t')
+        dataset = pd.read_csv(entity.path, sep="\t")
     else:
-        print("File type not supported.")
+        syn.logger.info("File type not supported.")
 
     return dataset
 
@@ -54,17 +55,17 @@ def _describe_wrapper(df) -> dict:
         stats[column] = {}
         try:
             if pd.api.types.is_numeric_dtype(df[column].dtype):
-                stats[column]['mode'] = df[column].mode()[0]
-                stats[column]['min'] = df[column].min()
-                stats[column]['max'] = df[column].max()
-                stats[column]['mean'] = df[column].mean()
-                stats[column]['dtype'] = df[column].dtype.name
+                stats[column]["mode"] = df[column].mode()[0]
+                stats[column]["min"] = df[column].min()
+                stats[column]["max"] = df[column].max()
+                stats[column]["mean"] = df[column].mean()
+                stats[column]["dtype"] = df[column].dtype.name
             else:
-                stats[column]['mode'] = df[column].mode()[0]
-                stats[column]['dtype'] = df[column].dtype.name
+                stats[column]["mode"] = df[column].mode()[0]
+                stats[column]["dtype"] = df[column].dtype.name
 
         except TypeError:
-            print("Invalid column type.")
+            print("Invalid column type.", file=sys.stderr)
 
     return stats
 
@@ -112,5 +113,5 @@ def describe(syn, entity: str):
         return None
 
     stats = _describe_wrapper(df)
-    print(json.dumps(stats, indent=2, default=str))
+    syn.logger.info(json.dumps(stats, indent=2, default=str))
     return stats

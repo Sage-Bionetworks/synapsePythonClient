@@ -11,23 +11,41 @@ import typing
 from .monitor import notifyMe
 from synapseclient.entity import is_container
 from synapseclient.core import config
-from synapseclient.core.utils import id_of, is_url, is_synapse_id
+from synapseclient.core.utils import id_of, is_url, is_synapse_id_str
 from synapseclient import File, table
 from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core import utils
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
-from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseHTTPError, SynapseProvenanceError
-from synapseclient.core.multithread_download.download_threads import shared_executor as download_shared_executor
-from synapseclient.core.upload.multipart_upload import shared_executor as upload_shared_executor
+from synapseclient.core.exceptions import (
+    SynapseFileNotFoundError,
+    SynapseHTTPError,
+    SynapseProvenanceError,
+)
+from synapseclient.core.multithread_download.download_threads import (
+    shared_executor as download_shared_executor,
+)
+from synapseclient.core.upload.multipart_upload import (
+    shared_executor as upload_shared_executor,
+)
 
-REQUIRED_FIELDS = ['path', 'parent']
-FILE_CONSTRUCTOR_FIELDS = ['name', 'id', 'synapseStore', 'contentType']
-STORE_FUNCTION_FIELDS = ['activityName', 'activityDescription', 'forceVersion']
-PROVENANCE_FIELDS = ['used', 'executed']
+REQUIRED_FIELDS = ["path", "parent"]
+FILE_CONSTRUCTOR_FIELDS = ["name", "id", "synapseStore", "contentType"]
+STORE_FUNCTION_FIELDS = ["activityName", "activityDescription", "forceVersion"]
+PROVENANCE_FIELDS = ["used", "executed"]
 MAX_RETRIES = 4
-MANIFEST_FILENAME = 'SYNAPSE_METADATA_MANIFEST.tsv'
-DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'id', 'synapseStore', 'contentType', 'used', 'executed',
-                                   'activityName', 'activityDescription']
+MANIFEST_FILENAME = "SYNAPSE_METADATA_MANIFEST.tsv"
+DEFAULT_GENERATED_MANIFEST_KEYS = [
+    "path",
+    "parent",
+    "name",
+    "id",
+    "synapseStore",
+    "contentType",
+    "used",
+    "executed",
+    "activityName",
+    "activityDescription",
+]
 
 
 @contextmanager
@@ -45,8 +63,16 @@ def _sync_executor(syn):
         executor.shutdown()
 
 
-def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles=None, followLink=False,
-                    manifest="all", downloadFile=True):
+def syncFromSynapse(
+    syn,
+    entity,
+    path=None,
+    ifcollision="overwrite.local",
+    allFiles=None,
+    followLink=False,
+    manifest="all",
+    downloadFile=True,
+):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
     metadata.
 
@@ -92,7 +118,9 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     """
 
     if manifest not in ("all", "root", "suppress"):
-        raise ValueError('Value of manifest option should be one of the ("all", "root", "suppress")')
+        raise ValueError(
+            'Value of manifest option should be one of the ("all", "root", "suppress")'
+        )
 
     # we'll have the following threads:
     # 1. the entrant thread to this function walks the folder hierarchy and schedules files for download,
@@ -104,7 +132,9 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     # 2 threads always, if those aren't available then we'll run single threaded to avoid a deadlock
     with _sync_executor(syn) as executor:
         sync_from_synapse = _SyncDownloader(syn, executor)
-        files = sync_from_synapse.sync(entity, path, ifcollision, followLink, downloadFile, manifest)
+        files = sync_from_synapse.sync(
+            entity, path, ifcollision, followLink, downloadFile, manifest
+        )
 
     # the allFiles parameter used to be passed in as part of the recursive implementation of this function
     # with the public signature invoking itself. now that this isn't a recursive any longer we don't need
@@ -162,24 +192,27 @@ class _FolderSync:
                     self._parent.update(
                         finished_id=self._entity_id,
                         files=self._files,
-                        provenance=self._provenance
+                        provenance=self._provenance,
                     )
 
                 # in practice only the root folder sync will be waited on/need notifying
-                self._finished.notifyAll()
+                self._finished.notify_all()
 
     def _manifest_filename(self):
         return os.path.expanduser(
-            os.path.normcase(
-                os.path.join(self._path, MANIFEST_FILENAME)
-            )
+            os.path.normcase(os.path.join(self._path, MANIFEST_FILENAME))
         )
 
     def _generate_folder_manifest(self):
         # when a folder is complete we write a manifest file if we are downloading to a path outside
         # the Synapse cache and there are actually some files in this folder.
         if self._path and self._files:
-            generateManifest(self._syn, self._files, self._manifest_filename(), provenance_cache=self._provenance)
+            generateManifest(
+                self._syn,
+                self._files,
+                self._manifest_filename(),
+                provenance_cache=self._provenance,
+            )
 
     def get_exception(self):
         with self._lock:
@@ -195,7 +228,7 @@ class _FolderSync:
                 self._parent.set_exception(exception)
 
             # an error also results in the folder being finished
-            self._finished.notifyAll()
+            self._finished.notify_all()
 
     def wait_until_finished(self):
         with self._finished:
@@ -211,7 +244,12 @@ class _SyncDownloader:
     Manages the downloads associated associated with a syncFromSynapse call concurrently.
     """
 
-    def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_downloads=None):
+    def __init__(
+        self,
+        syn,
+        executor: concurrent.futures.Executor,
+        max_concurrent_file_downloads=None,
+    ):
         """
         :param syn:             A synapse client
         :param executor:        An ExecutorService in which concurrent file downlaods can be scheduled
@@ -222,13 +260,17 @@ class _SyncDownloader:
         # by default limit the number of concurrent file downloads that can happen at once to some proportion
         # of the available threads. otherwise we could end up downloading a single part from many files at once
         # rather than concentrating our download threads on a few files at a time so those files complete faster.
-        max_concurrent_file_downloads = max(int(max_concurrent_file_downloads or self._syn.max_threads / 2), 1)
+        max_concurrent_file_downloads = max(
+            int(max_concurrent_file_downloads or self._syn.max_threads / 2), 1
+        )
         self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_downloads)
 
-    def sync(self, entity, path, ifcollision, followLink, downloadFile=True, manifest="all"):
-        progress = CumulativeTransferProgress('Downloaded')
+    def sync(
+        self, entity, path, ifcollision, followLink, downloadFile=True, manifest="all"
+    ):
+        progress = CumulativeTransferProgress("Downloaded")
 
-        if is_synapse_id(entity):
+        if is_synapse_id_str(entity):
             # ensure that we seed with an actual entity
             entity = self._syn.get(
                 entity,
@@ -238,7 +280,9 @@ class _SyncDownloader:
             )
 
         if is_container(entity):
-            root_folder_sync = self._sync_root(entity, path, ifcollision, followLink, progress, downloadFile, manifest)
+            root_folder_sync = self._sync_root(
+                entity, path, ifcollision, followLink, progress, downloadFile, manifest
+            )
 
             # once the whole folder hierarchy has been traversed this entrant thread waits for
             # all file downloads to complete before returning
@@ -248,23 +292,34 @@ class _SyncDownloader:
             files = [entity]
 
         else:
-            raise ValueError("Cannot initiate a sync from an entity that is not a File or Folder")
+            raise ValueError(
+                "Cannot initiate a sync from an entity that is not a File or Folder"
+            )
 
         # since the sub folders could complete out of order from when they were submitted we
         # sort the files by their path (which includes their local folder) to get a predictable ordering.
         # not required but nice for testing etc.
-        files.sort(key=lambda f: f.get('path') or '')
+        files.sort(key=lambda f: f.get("path") or "")
         return files
 
-    def _sync_file(self, entity_id, parent_folder_sync, path, ifcollision, followLink, progress, downloadFile):
+    def _sync_file(
+        self,
+        entity_id,
+        parent_folder_sync,
+        path,
+        ifcollision,
+        followLink,
+        progress,
+        downloadFile,
+    ):
         try:
             # we use syn.get to download the File.
             # these context managers ensure that we are using some shared state
             # when conducting that download (shared progress bar, ExecutorService shared
             # by all multi threaded downloads in this sync)
-            with progress.accumulate_progress(), \
-                    download_shared_executor(self._executor):
-
+            with progress.accumulate_progress(), download_shared_executor(
+                self._executor
+            ):
                 entity = self._syn.get(
                     entity_id,
                     downloadLocation=path,
@@ -277,7 +332,9 @@ class _SyncDownloader:
             provenance = None
             if isinstance(entity, File):
                 if path:
-                    entity_provenance = _get_file_entity_provenance_dict(self._syn, entity)
+                    entity_provenance = _get_file_entity_provenance_dict(
+                        self._syn, entity
+                    )
                     provenance = {entity_id: entity_provenance}
 
                 files.append(entity)
@@ -302,7 +359,16 @@ class _SyncDownloader:
         finally:
             self._file_semaphore.release()
 
-    def _sync_root(self, root, root_path, ifcollision, followLink, progress, downloadFile, manifest="all"):
+    def _sync_root(
+        self,
+        root,
+        root_path,
+        ifcollision,
+        followLink,
+        progress,
+        downloadFile,
+        manifest="all",
+    ):
         # stack elements are a 3-tuple of:
         # 1. the folder entity/dict
         # 2. the local path to the folder to download to
@@ -321,7 +387,12 @@ class _SyncDownloader:
                 if exception:
                     raise ValueError("File download failed during sync") from exception
 
-            folder, parent_path, parent_folder_sync, create_manifest = folder_stack.pop()
+            (
+                folder,
+                parent_path,
+                parent_folder_sync,
+                create_manifest,
+            ) = folder_stack.pop()
 
             entity_id = id_of(folder)
             folder_path = None
@@ -331,7 +402,7 @@ class _SyncDownloader:
                     # syncFromSynapse behavior is that we do NOT create a folder for the root folder of the sync.
                     # we treat the download local path folder as the root and write the children of the sync
                     # directly into that local folder
-                    folder_path = os.path.join(folder_path, folder['name'])
+                    folder_path = os.path.join(folder_path, folder["name"])
                 os.makedirs(folder_path, exist_ok=True)
 
             child_ids = []
@@ -375,7 +446,9 @@ class _SyncDownloader:
                     )
 
                 for child_folder in child_folders:
-                    folder_stack.append((child_folder, folder_path, folder_sync, create_child_manifest))
+                    folder_stack.append(
+                        (child_folder, folder_path, folder_sync, create_child_manifest)
+                    )
 
         return root_folder_sync
 
@@ -409,6 +482,7 @@ class _PendingProvenance:
 
 class _SyncUploadItem(typing.NamedTuple):
     """Represents a single file being uploaded"""
+
     entity: File
     used: typing.Iterable[str]
     executed: typing.Iterable[str]
@@ -421,14 +495,21 @@ class _SyncUploader:
     Files will be uploaded concurrently and in an order that honors any interdependent provenance.
     """
 
-    def __init__(self, syn, executor: concurrent.futures.Executor, max_concurrent_file_transfers=None):
+    def __init__(
+        self,
+        syn,
+        executor: concurrent.futures.Executor,
+        max_concurrent_file_transfers=None,
+    ):
         """
         :param syn:         A synapse client
         :param executor:    An ExecutorService in which concurrent file downlaods can be scheduled
         """
         self._syn = syn
 
-        max_concurrent_file_transfers = max(int(max_concurrent_file_transfers or self._syn.max_threads / 2), 1)
+        max_concurrent_file_transfers = max(
+            int(max_concurrent_file_transfers or self._syn.max_threads / 2), 1
+        )
         self._executor = executor
         self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_transfers)
 
@@ -441,7 +522,7 @@ class _SyncUploader:
 
         for item in items:
             item_file_provenance = []
-            for provenance_dependency in (item.used + item.executed):
+            for provenance_dependency in item.used + item.executed:
                 if os.path.isfile(provenance_dependency):
                     if provenance_dependency not in items_by_path:
                         # an upload lists provenance of a file that is not itself included in the upload
@@ -490,7 +571,7 @@ class _SyncUploader:
         raise ValueError("Sync aborted due to upload failure") from exception
 
     def upload(self, items: typing.Iterable[_SyncUploadItem]):
-        progress = CumulativeTransferProgress('Uploaded')
+        progress = CumulativeTransferProgress("Uploaded")
 
         # flag to set in a child in an upload thread if an error occurs to signal to the entrant
         # thread to stop processing.
@@ -515,8 +596,12 @@ class _SyncUploader:
                     self._abort(futures)
 
                 with dependency_condition:
-                    used, used_pending = self._convert_provenance(item.used, finished_items)
-                    executed, executed_pending = self._convert_provenance(item.executed, finished_items)
+                    used, used_pending = self._convert_provenance(
+                        item.used, finished_items
+                    )
+                    executed, executed_pending = self._convert_provenance(
+                        item.executed, finished_items
+                    )
 
                     if used_pending or executed_pending:
                         # we can't upload this item yet, it has provenance that hasn't yet been uploaded
@@ -553,9 +638,12 @@ class _SyncUploader:
                     # the loop because they depended on another item for provenance. wait until there
                     # at least one those items finishes before continuing another time through the loop.
                     if not abort_event.is_set():
-                        dependency_condition.wait_for(lambda: (
-                            pending_provenance.has_finished_provenance() or abort_event.is_set()
-                        ))
+                        dependency_condition.wait_for(
+                            lambda: (
+                                pending_provenance.has_finished_provenance()
+                                or abort_event.is_set()
+                            )
+                        )
 
                 pending_provenance.reset_count()
 
@@ -586,7 +674,9 @@ class _SyncUploader:
                 # rather than creating their own threadpool.
 
                 with progress.accumulate_progress():
-                    entity = self._syn.store(item.entity, used=used, executed=executed, **item.store_kwargs)
+                    entity = self._syn.store(
+                        item.entity, used=used, executed=executed, **item.store_kwargs
+                    )
 
                 with dependency_condition:
                     finished_items[item.entity.path] = entity
@@ -596,7 +686,7 @@ class _SyncUploader:
                         # this item was defined as provenance for another item, now that
                         # it's finished we may be able to upload that depending item, so
                         # wake up he central thread
-                        dependency_condition.notifyAll()
+                        dependency_condition.notify_all()
 
                     except KeyError:
                         # this item is not used in provenance of another item, that's fine
@@ -605,7 +695,7 @@ class _SyncUploader:
         except Exception:
             with dependency_condition:
                 abort_event.set()
-                dependency_condition.notifyAll()
+                dependency_condition.notify_all()
             raise
 
         finally:
@@ -621,7 +711,9 @@ def generateManifest(syn, allFiles, filename, provenance_cache=None):
     :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
 
     """
-    keys, data = _extract_file_entity_metadata(syn, allFiles, provenance_cache=provenance_cache)
+    keys, data = _extract_file_entity_metadata(
+        syn, allFiles, provenance_cache=provenance_cache
+    )
     _write_manifest_data(filename, keys, data)
 
 
@@ -639,12 +731,25 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     annotKeys = set()
     data = []
     for entity in allFiles:
-        row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name, 'id': entity.id,
-               'synapseStore': entity.synapseStore, 'contentType': entity['contentType']}
-        row.update({key: (val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
+        row = {
+            "parent": entity["parentId"],
+            "path": entity.get("path"),
+            "name": entity.name,
+            "id": entity.id,
+            "synapseStore": entity.synapseStore,
+            "contentType": entity["contentType"],
+        }
+        row.update(
+            {
+                key: (val[0] if len(val) > 0 else "")
+                for key, val in entity.annotations.items()
+            }
+        )
 
-        entity_id = entity['id']
-        row_provenance = provenance_cache.get(entity_id) if provenance_cache is not None else None
+        entity_id = entity["id"]
+        row_provenance = (
+            provenance_cache.get(entity_id) if provenance_cache is not None else None
+        )
         if row_provenance is None:
             row_provenance = _get_file_entity_provenance_dict(syn, entity)
 
@@ -667,10 +772,12 @@ def _get_file_entity_provenance_dict(syn, entity):
     """
     try:
         prov = syn.getProvenance(entity)
-        return {'used': ';'.join(prov._getUsedStringList()),
-                'executed': ';'.join(prov._getExecutedStringList()),
-                'activityName': prov.get('name', ''),
-                'activityDescription': prov.get('description', '')}
+        return {
+            "used": ";".join(prov._getUsedStringList()),
+            "executed": ";".join(prov._getExecutedStringList()),
+            "activityName": prov.get("name", ""),
+            "activityDescription": prov.get("description", ""),
+        }
     except SynapseHTTPError as e:
         if e.response.status_code == 404:
             return {}  # No provenance present return empty dict
@@ -679,15 +786,17 @@ def _get_file_entity_provenance_dict(syn, entity):
 
 
 def _write_manifest_data(filename, keys, data):
-    with io.open(filename, 'w', encoding='utf8') if filename else sys.stdout as fp:
-        csv_writer = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
+    with io.open(filename, "w", encoding="utf8") if filename else sys.stdout as fp:
+        csv_writer = csv.DictWriter(
+            fp, keys, restval="", extrasaction="ignore", delimiter="\t"
+        )
         csv_writer.writeheader()
         for row in data:
             csv_writer.writerow(row)
 
 
 def _sortAndFixProvenance(syn, df):
-    df = df.set_index('path')
+    df = df.set_index("path")
     uploadOrder = {}
 
     def _checkProvenace(item, path):
@@ -695,7 +804,9 @@ def _sortAndFixProvenance(syn, df):
         if item is None:
             return item
 
-        item_path_normalized = os.path.abspath(os.path.expandvars(os.path.expanduser(item)))
+        item_path_normalized = os.path.abspath(
+            os.path.expandvars(os.path.expanduser(item))
+        )
         if os.path.isfile(item_path_normalized):
             # Add full path
             item = item_path_normalized
@@ -706,30 +817,40 @@ def _sortAndFixProvenance(syn, df):
                 except SynapseFileNotFoundError:
                     # TODO absence of a raise here appears to be a bug and yet tests fail if this is raised
                     SynapseProvenanceError(
-                        ("The provenance record for file: %s is incorrect.\n"
-                         "Specifically %s is not being uploaded and is not in Synapse."
-                         % (path, item)
-                         )
+                        (
+                            "The provenance record for file: %s is incorrect.\n"
+                            "Specifically %s is not being uploaded and is not in Synapse."
+                            % (path, item)
+                        )
                     )
 
-        elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
+        elif not utils.is_url(item) and (utils.is_synapse_id_str(item) is None):
             raise SynapseProvenanceError(
-                ("The provenance record for file: %s is incorrect.\n"
-                 "Specifically %s, is neither a valid URL or synapseId.") % (path, item)
+                (
+                    "The provenance record for file: %s is incorrect.\n"
+                    "Specifically %s, is neither a valid URL or synapseId."
+                )
+                % (path, item)
             )
         return item
 
     for path, row in df.iterrows():
         allRefs = []
-        if 'used' in row:
-            used = row['used'].split(';') if (row['used'].strip() != '') else []  # Get None or split if string
-            df.at[path, 'used'] = [_checkProvenace(item, path) for item in used]
-            allRefs.extend(df.loc[path, 'used'])
-        if 'executed' in row:
+        if "used" in row:
+            used = (
+                row["used"].split(";") if (row["used"].strip() != "") else []
+            )  # Get None or split if string
+            df.at[path, "used"] = [_checkProvenace(item.strip(), path) for item in used]
+            allRefs.extend(df.loc[path, "used"])
+        if "executed" in row:
             # Get None or split if string
-            executed = row['executed'].split(';') if (row['executed'].strip() != '') else []
-            df.at[path, 'executed'] = [_checkProvenace(item, path) for item in executed]
-            allRefs.extend(df.loc[path, 'executed'])
+            executed = (
+                row["executed"].split(";") if (row["executed"].strip() != "") else []
+            )
+            df.at[path, "executed"] = [
+                _checkProvenace(item.strip(), path) for item in executed
+            ]
+            allRefs.extend(df.loc[path, "executed"])
         uploadOrder[path] = allRefs
 
     uploadOrder = utils.topolgical_sort(uploadOrder)
@@ -738,13 +859,16 @@ def _sortAndFixProvenance(syn, df):
 
 
 def _check_path_and_normalize(f):
-    sys.stdout.write('.')
+    sys.stdout.write(".")
     if is_url(f):
         return f
     path_normalized = os.path.abspath(os.path.expandvars(os.path.expanduser(f)))
     if not os.path.isfile(path_normalized):
-        print('\nThe specified path "%s" is either not a file path or does not exist.', f)
-        raise IOError('The path %s is not a file or does not exist' % f)
+        print(
+            f'\nThe specified path "{f}" is either not a file path or does not exist.',
+            file=sys.stderr,
+        )
+        raise IOError("The path %s is not a file or does not exist" % f)
     return path_normalized
 
 
@@ -765,73 +889,83 @@ def readManifestFile(syn, manifestFile):
     import pandas as pd
 
     if manifestFile is sys.stdin:
-        sys.stdout.write('Validation and upload of: <stdin>\n')
+        sys.stdout.write("Validation and upload of: <stdin>\n")
     else:
-        sys.stdout.write('Validation and upload of: %s\n' % manifestFile)
+        sys.stdout.write("Validation and upload of: %s\n" % manifestFile)
     # Read manifest file into pandas dataframe
-    df = pd.read_csv(manifestFile, sep='\t')
-    if 'synapseStore' not in df:
+    df = pd.read_csv(manifestFile, sep="\t")
+    if "synapseStore" not in df:
         df = df.assign(synapseStore=None)
-    df.loc[df['path'].apply(is_url), 'synapseStore'] = False  # override synapseStore values to False when path is a url
-    df.loc[df['synapseStore'].isnull(), 'synapseStore'] = True  # remaining unset values default to True
+    df.loc[
+        df["path"].apply(is_url), "synapseStore"
+    ] = False  # override synapseStore values to False when path is a url
+    df.loc[
+        df["synapseStore"].isnull(), "synapseStore"
+    ] = True  # remaining unset values default to True
     df.synapseStore = df.synapseStore.astype(bool)
-    df = df.fillna('')
+    df = df.fillna("")
 
-    sys.stdout.write('Validating columns of manifest...')
+    sys.stdout.write("Validating columns of manifest...")
     for field in REQUIRED_FIELDS:
-        sys.stdout.write('.')
+        sys.stdout.write(".")
         if field not in df.columns:
-            sys.stdout.write('\n')
+            sys.stdout.write("\n")
             raise ValueError("Manifest must contain a column of %s" % field)
-    sys.stdout.write('OK\n')
+    sys.stdout.write("OK\n")
 
-    sys.stdout.write('Validating that all paths exist...')
+    sys.stdout.write("Validating that all paths exist...")
     df.path = df.path.apply(_check_path_and_normalize)
 
-    sys.stdout.write('OK\n')
+    sys.stdout.write("OK\n")
 
-    sys.stdout.write('Validating that all files are unique...')
+    sys.stdout.write("Validating that all files are unique...")
     # Both the path and the combination of entity name and parent must be unique
     if len(df.path) != len(set(df.path)):
         raise ValueError("All rows in manifest must contain a unique file to upload")
-    sys.stdout.write('OK\n')
+    sys.stdout.write("OK\n")
 
     # Check each size of uploaded file
-    sys.stdout.write('Validating that all the files are not empty...')
+    sys.stdout.write("Validating that all the files are not empty...")
     _check_size_each_file(df)
-    sys.stdout.write('OK\n')
+    sys.stdout.write("OK\n")
 
     # check the name of each file should be store on Synapse
-    name_column = 'name'
+    name_column = "name"
     # Create entity name column from basename
     if name_column not in df.columns:
-        filenames = [os.path.basename(path) for path in df['path']]
-        df['name'] = filenames
+        filenames = [os.path.basename(path) for path in df["path"]]
+        df["name"] = filenames
 
-    sys.stdout.write('Validating file names... \n')
+    sys.stdout.write("Validating file names... \n")
     _check_file_name(df)
-    sys.stdout.write('OK\n')
+    sys.stdout.write("OK\n")
 
-    sys.stdout.write('Validating provenance...')
+    sys.stdout.write("Validating provenance...")
     df = _sortAndFixProvenance(syn, df)
-    sys.stdout.write('OK\n')
+    sys.stdout.write("OK\n")
 
-    sys.stdout.write('Validating that parents exist and are containers...')
+    sys.stdout.write("Validating that parents exist and are containers...")
     parents = set(df.parent)
     for synId in parents:
         try:
             container = syn.get(synId, downloadFile=False)
         except SynapseHTTPError:
-            sys.stdout.write('\n%s in the parent column is not a valid Synapse Id\n' % synId)
+            sys.stdout.write(
+                "\n%s in the parent column is not a valid Synapse Id\n" % synId
+            )
             raise
         if not is_container(container):
-            sys.stdout.write('\n%s in the parent column is is not a Folder or Project\n' % synId)
+            sys.stdout.write(
+                "\n%s in the parent column is is not a Folder or Project\n" % synId
+            )
             raise SynapseHTTPError
-    sys.stdout.write('OK\n')
+    sys.stdout.write("OK\n")
     return df
 
 
-def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MAX_RETRIES):
+def syncToSynapse(
+    syn, manifestFile, dryRun=False, sendMessages=True, retries=MAX_RETRIES
+):
     """Synchronizes files specified in the manifest file to Synapse
 
     :param syn:             A synapse object as obtained with syn = synapseclient.login()
@@ -850,9 +984,12 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     file. The minimum required columns are **path** and **parent** where path is the local file path and parent is the
     Synapse Id of the project or folder where the file is uploaded to. In addition to these columns you can specify any
     of the parameters to the File constructor (**name**, **synapseStore**, **contentType**) as well as parameters to the
-    syn.store command (**used**, **executed**, **activityName**, **activityDescription**, **forceVersion**).
+    syn.store command (**used**, **executed**, **activityName**, **activityDescription**, **forceVersion**).  For only
+    updating annotations without uploading new versions of unchanged files, the syn.store parameter forceVersion
+    should be included in the manifest with the value set to False.
     Used and executed can be semi-colon (";") separated lists of Synapse ids, urls and/or local filepaths of files
-    already stored in Synapse (or being stored in Synapse by the manifest).
+    already stored in Synapse (or being stored in Synapse by the manifest).  If you leave a space, like
+    "syn1234; syn2345" the white space from " syn2345" will be stripped.
     Any additional columns will be added as annotations.
 
     **Required fields:**
@@ -875,14 +1012,19 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     **Provenance fields:**
 
-    ====================   =====================================  ==========================================
+    Each of these are individual examples and is what you would find in a row in each of these columns. To
+    clarify, "syn1235;/path/to_local/file.txt" below states that you would like both
+    "syn1234" and "/path/to_local/file.txt" added as items used to generate a file. You can also specify one item
+    by specifying "syn1234"
+
+    ====================   =====================================  ============================================
     Field                  Meaning                                Example
-    ====================   =====================================  ==========================================
-    used                   List of items used to generate file    syn1235; /path/to_local/file.txt
-    executed               List of items exectued                 https://github.org/; /path/to_local/code.py
+    ====================   =====================================  ============================================
+    used                   List of items used to generate file    "syn1235;/path/to_local/file.txt"
+    executed               List of items exectued                 "https://github.org/;/path/to_local/code.py"
     activityName           Name of activity in provenance         "Ran normalization"
     activityDescription    Text description on what was done      "Ran algorithm xyx with parameters..."
-    ====================   =====================================  ==========================================
+    ====================   =====================================  ============================================
 
     Annotations:
 
@@ -905,26 +1047,32 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     ===============   ========    =======   =======   ===========================    ============================
     path              parent      annot1    annot2    used                           executed
     ===============   ========    =======   =======   ===========================    ============================
-    /path/file1.txt   syn1243     "bar"     3.1415    "syn124; /path/file2.txt"      "https://github.org/foo/bar"
+    /path/file1.txt   syn1243     "bar"     3.1415    "syn124;/path/file2.txt"       "https://github.org/foo/bar"
     /path/file2.txt   syn12433    "baz"     2.71      ""                             "https://github.org/foo/baz"
     ===============   ========    =======   =======   ===========================    ============================
 
     """
     df = readManifestFile(syn, manifestFile)
     # have to check all size of single file
-    sizes = [os.stat(os.path.expandvars(os.path.expanduser(f))).st_size for f in df.path if not is_url(f)]
+    sizes = [
+        os.stat(os.path.expandvars(os.path.expanduser(f))).st_size
+        for f in df.path
+        if not is_url(f)
+    ]
     # Write output on what is getting pushed and estimated times - send out message.
-    sys.stdout.write('='*50+'\n')
-    sys.stdout.write('We are about to upload %i files with a total size of %s.\n '
-                     % (len(df), utils.humanizeBytes(sum(sizes))))
-    sys.stdout.write('='*50+'\n')
+    sys.stdout.write("=" * 50 + "\n")
+    sys.stdout.write(
+        "We are about to upload %i files with a total size of %s.\n "
+        % (len(df), utils.humanizeBytes(sum(sizes)))
+    )
+    sys.stdout.write("=" * 50 + "\n")
 
     if dryRun:
         return
 
-    sys.stdout.write('Starting upload...\n')
+    sys.stdout.write("Starting upload...\n")
     if sendMessages:
-        notify_decorator = notifyMe(syn, 'Upload of %s' % manifestFile, retries=retries)
+        notify_decorator = notifyMe(syn, "Upload of %s" % manifestFile, retries=retries)
         upload = notify_decorator(_manifest_upload)
         upload(syn, df)
     else:
@@ -935,24 +1083,29 @@ def _manifest_upload(syn, df):
     items = []
     for i, row in df.iterrows():
         file = File(
-            path=row['path'],
-            parent=row['parent'],
+            path=row["path"],
+            parent=row["parent"],
             **{key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row},
         )
 
-        annotations = dict(row.drop(
-            FILE_CONSTRUCTOR_FIELDS + STORE_FUNCTION_FIELDS + REQUIRED_FIELDS + PROVENANCE_FIELDS,
-            errors='ignore'
-        ))
+        annotations = dict(
+            row.drop(
+                FILE_CONSTRUCTOR_FIELDS
+                + STORE_FUNCTION_FIELDS
+                + REQUIRED_FIELDS
+                + PROVENANCE_FIELDS,
+                errors="ignore",
+            )
+        )
 
         # if a item in the manifest upload is an empty string we do not want to upload that
         # as an empty string annotation
-        file.annotations = {k: v for k, v in annotations.items() if v != ''}
+        file.annotations = {k: v for k, v in annotations.items() if v != ""}
 
         item = _SyncUploadItem(
             file,
-            row['used'] if 'used' in row else [],
-            row['executed'] if 'executed' in row else [],
+            row["used"] if "used" in row else [],
+            row["executed"] if "executed" in row else [],
             {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row},
         )
         items.append(item)
@@ -967,28 +1120,41 @@ def _manifest_upload(syn, df):
 def _check_file_name(df):
     compiled = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
     for idx, row in df.iterrows():
-        file_name = row['name']
+        file_name = row["name"]
         if not file_name:
-            directory_name = os.path.basename(row['path'])
-            df.loc[df.path == row['path'], 'name'] = file_name = directory_name
-            sys.stdout.write('No file name assigned to path: %s, defaulting to %s\n' % (row['path'], directory_name))
+            directory_name = os.path.basename(row["path"])
+            df.loc[df.path == row["path"], "name"] = file_name = directory_name
+            sys.stdout.write(
+                "No file name assigned to path: %s, defaulting to %s\n"
+                % (row["path"], directory_name)
+            )
         if not compiled.match(file_name):
-            raise ValueError("File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
-                             "underscores, hyphens, periods, plus signs, apostrophes, "
-                             "and parentheses".format(file_name))
-    if df[['name', 'parent']].duplicated().any():
-        raise ValueError("All rows in manifest must contain a path with a unique file name and parent to upload. "
-                         "Files uploaded to the same folder/project (parent) must have unique file names.")
+            raise ValueError(
+                "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
+                "underscores, hyphens, periods, plus signs, apostrophes, "
+                "and parentheses".format(file_name)
+            )
+    if df[["name", "parent"]].duplicated().any():
+        raise ValueError(
+            "All rows in manifest must contain a path with a unique file name and parent to upload. "
+            "Files uploaded to the same folder/project (parent) must have unique file names."
+        )
 
 
 def _check_size_each_file(df):
     for idx, row in df.iterrows():
-        file_path = row['path']
-        file_name = row['name'] if 'name' in row else os.path.basename(row['path'])
+        file_path = row["path"]
+        file_name = row["name"] if "name" in row else os.path.basename(row["path"])
         if not is_url(file_path):
-            single_file_size = os.stat(os.path.expandvars(os.path.expanduser(file_path))).st_size
+            single_file_size = os.stat(
+                os.path.expandvars(os.path.expanduser(file_path))
+            ).st_size
             if single_file_size == 0:
-                raise ValueError("File {} is empty, empty files cannot be uploaded to Synapse".format(file_name))
+                raise ValueError(
+                    "File {} is empty, empty files cannot be uploaded to Synapse".format(
+                        file_name
+                    )
+                )
 
 
 def generate_sync_manifest(syn, directory_path, parent_id, manifest_path):
@@ -1001,9 +1167,9 @@ def generate_sync_manifest(syn, directory_path, parent_id, manifest_path):
 def _create_folder(syn, name, parent_id):
     """Create Synapse folder."""
     entity = {
-        'name': name,
-        'concreteType': 'org.sagebionetworks.repo.model.Folder',
-        'parentId': parent_id
+        "name": name,
+        "concreteType": "org.sagebionetworks.repo.model.Folder",
+        "parentId": parent_id,
     }
     entity = syn.store(entity)
     return entity
@@ -1023,7 +1189,7 @@ def _walk_directory_tree(syn, path, parent_id):
             parent_id = parents[dirpath]
             folder = _create_folder(syn, name, parent_id)
             # Store Synapse ID for sub-folders/files
-            parents[folder_path] = folder['id']
+            parents[folder_path] = folder["id"]
         # Generate rows per file for the manifest
         for filename in filenames:
             # Add file to manifest if non-zero size
