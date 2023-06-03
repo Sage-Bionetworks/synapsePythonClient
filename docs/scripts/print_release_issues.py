@@ -24,8 +24,8 @@ RST_ISSUE_FORMAT = """-  [`{key} <{url}>`__] -
    {summary}"""
 GITHUB_ISSUE_FORMAT = "-  \\[[{key}]({url})\\] - {summary}"
 
-def _get_issues(project, version):
 
+def _get_issues(project, version):
     start_at = 0
     issues_by_type = {}
 
@@ -39,12 +39,12 @@ def _get_issues(project, version):
         )
         response_json = json.loads(response.read())
 
-        issues = response_json['issues']
+        issues = response_json["issues"]
         if not issues:
             break
 
         for issue in issues:
-            issue_type = issue['fields']['issuetype']['name']
+            issue_type = issue["fields"]["issuetype"]["name"]
             issues_for_type = issues_by_type.setdefault(issue_type, [])
             issues_for_type.append(issue)
 
@@ -59,25 +59,30 @@ def _get_issues(project, version):
 
 
 def _pluralize_issue_type(issue_type):
-    if issue_type == 'Bug':
-        return 'Bug Fixes'
-    elif issue_type == 'Story':
-        return 'Stories'
+    if issue_type == "Bug":
+        return "Bug Fixes"
+    elif issue_type == "Story":
+        return "Stories"
 
-    return issue_type + 's'
+    return issue_type + "s"
 
 
 def print_issues(issues_by_type, issue_format, file=sys.stdout):
     for issue_type, issues in issues_by_type.items():
         issue_type_plural = _pluralize_issue_type(issue_type)
         print(issue_type_plural, file=file)
-        print('-' * len(issue_type_plural), file=file)
+        print("-" * len(issue_type_plural), file=file)
 
         for issue in issues:
-            issue_key = issue['key']
+            issue_key = issue["key"]
             issue_url = ISSUE_URL_PREFIX.format(key=issue_key)
-            issue_summary = issue['fields']['summary']
-            print(issue_format.format(key=issue_key, url=issue_url, summary=issue_summary), file=file)
+            issue_summary = issue["fields"]["summary"]
+            print(
+                issue_format.format(
+                    key=issue_key, url=issue_url, summary=issue_summary
+                ),
+                file=file,
+            )
 
         # newline
         print(file=file)
@@ -86,17 +91,22 @@ def print_issues(issues_by_type, issue_format, file=sys.stdout):
 def main():
     """Builds the argument parser and returns the result."""
 
-    parser = argparse.ArgumentParser(description='Generates release note issue list in desired format')
+    parser = argparse.ArgumentParser(
+        description="Generates release note issue list in desired format"
+    )
 
-    parser.add_argument('version', help='The JIRA release version whose issues will be included in the release notes')
-    parser.add_argument('format', help='The output format', choices=['github', 'rst'])
-    parser.add_argument('--project', help='The JIRA project', default='SYNPY')
+    parser.add_argument(
+        "version",
+        help="The JIRA release version whose issues will be included in the release notes",
+    )
+    parser.add_argument("format", help="The output format", choices=["github", "rst"])
+    parser.add_argument("--project", help="The JIRA project", default="SYNPY")
 
     args = parser.parse_args()
     issues = _get_issues(args.project, args.version)
-    issue_format = RST_ISSUE_FORMAT if args.format == 'rst' else GITHUB_ISSUE_FORMAT
+    issue_format = RST_ISSUE_FORMAT if args.format == "rst" else GITHUB_ISSUE_FORMAT
     print_issues(issues, issue_format)
 
 
-if __name__ == '__main__':
-    main() 
+if __name__ == "__main__":
+    main()
