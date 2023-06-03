@@ -820,6 +820,7 @@ class Synapse(object):
         # TODO: revisit the import order and method https://stackoverflow.com/a/37126790
         # To move this to the top
         import synapseclient.services
+
         assert isinstance(service_name, str)
         service_name = service_name.lower().replace(" ", "_")
         assert service_name in self._services, (

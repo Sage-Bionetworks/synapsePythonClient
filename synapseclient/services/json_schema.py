@@ -429,6 +429,7 @@ class JsonSchemaService:
             except SynapseAuthenticationError as e:
                 raise SynapseAuthenticationError(msg).with_traceback(e.__traceback__)
             return result
+
         return wrapper
 
     @authentication_required
@@ -582,9 +583,7 @@ class JsonSchemaService:
 
     def bind_json_schema(self, json_schema_uri: str, entity: Union[str, Entity]):
         synapse_id = id_of(entity)
-        response = self.bind_json_schema_to_entity(
-            synapse_id, json_schema_uri
-        )
+        response = self.bind_json_schema_to_entity(synapse_id, json_schema_uri)
         return response
 
     def get_json_schema(self, entity: Union[str, Entity]):
