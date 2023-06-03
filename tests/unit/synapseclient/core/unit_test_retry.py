@@ -31,6 +31,7 @@ def test_with_retry():
             count = thirdTimes.pop()
             return count != 3
         return x == 503
+
     response.status_code.__eq__.side_effect = theCharm
     with_retry(function, verbose=True, **retryParams)
     assert function.call_count == 1 + 4 + 3
@@ -40,8 +41,10 @@ def test_with_retry():
     retryParams["retry_errors"] = retryErrorMessages
     response.status_code.__eq__.side_effect = lambda x: x == 500
     response.headers.__contains__.reset_mock()
-    response.headers.__contains__.side_effect = lambda x: x == 'content-type'
-    response.headers.get.side_effect = lambda x, default_value: "application/json" if x == 'content-type' else None
+    response.headers.__contains__.side_effect = lambda x: x == "content-type"
+    response.headers.get.side_effect = (
+        lambda x, default_value: "application/json" if x == "content-type" else None
+    )
     response.json.return_value = {"reason": retryErrorMessages[0]}
     with_retry(function, **retryParams)
     assert response.headers.get.called
@@ -52,16 +55,20 @@ def test_with_retry():
 
     def foo():
         raise SynapseError("Bar")
+
     function.side_effect = foo
     pytest.raises(SynapseError, with_retry, function, **retryParams)
     assert function.call_count == 1 + 4 + 3 + 4 + 1
 
 
-@pytest.mark.parametrize('values', (
-    None,
-    [],
-    tuple(),
-))
+@pytest.mark.parametrize(
+    "values",
+    (
+        None,
+        [],
+        tuple(),
+    ),
+)
 def test_with_retry__empty_status_codes(values):
     """Verify that passing some Falsey values for the various sequence args is ok"""
     response = MagicMock(spec=Response)
@@ -112,7 +119,7 @@ def test_with_retry__no_status_code():
         nonlocal x
         x += 1
         if x < 2:
-            raise ValueError('not yet')
+            raise ValueError("not yet")
         return x
 
     response = with_retry(fn, retry_exceptions=[ValueError])

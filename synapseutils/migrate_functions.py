@@ -712,7 +712,7 @@ def migrate_indexed_files(
                                     and from_file_handle_id not in {pending_file_handle_in}
                                 ) or
                                 (
-                                    id <= :id 
+                                    id <= :id
                                     and from_file_handle_id in {completed_file_handle_in}
                                 )
                         )

@@ -1,3 +1,2 @@
 .. automodule:: synapseclient.team
    :members:
-   

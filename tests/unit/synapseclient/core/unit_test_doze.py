@@ -11,7 +11,6 @@ def teardown():
 
 
 def test_doze():
-
     class CounterClass(object):
         def __init__(self):
             self.val = 0
