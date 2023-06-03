@@ -846,6 +846,7 @@ class TestPrivateUploadExternallyStoringProjects:
         self.syn = syn
 
     @pytest.mark.parametrize("external_type", [concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION,
+                                               concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION,
                                                concrete_types.EXTERNAL_GCP_UPLOAD_DESTINATION])
     def test__uploadExternallyStoringProjects_external_user(self, mock_upload_destination, external_type):
         # setup
