@@ -1120,12 +1120,11 @@ class Synapse(object):
     ):
         # always overwrite if we are downloading to .synapseCache
         if utils.normalize_path(downloadLocation) == synapseCache_location:
-            if ifcollision is not None:
+            if ifcollision is not None and ifcollision != "overwrite.local":
                 self.logger.warning(
                     "\n"
                     + "!" * 50
-                    + "\nifcollision="
-                    + ifcollision
+                    + f"\nifcollision={ifcollision} "
                     + "is being IGNORED because the download destination is synapse's cache."
                     ' Instead, the behavior is "overwrite.local". \n' + "!" * 50 + "\n"
                 )
