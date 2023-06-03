@@ -123,7 +123,7 @@ pytest -vs tests/integration/synapseclient/test_command_line_client.py::test_tab
 
 ### Code style
 
-The Synapse Python Client uses [`flake8`](https://pypi.org/project/flake8/) to enforce 
+The Synapse Python Client uses [`flake8`](https://pypi.org/project/flake8/) to enforce
 [`PEP8`](https://legacy.python.org/dev/peps/pep-0008/) style consistency and to check for possible errors.
 You can verify your code matches these expectations by running the **flake8** command from the project root directory:
 

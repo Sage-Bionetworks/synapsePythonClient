@@ -1,6 +1,6 @@
 [tool.black]
 line-length = 88
-target-version = ['py37']
+target-version = ['py39']
 include = '\.pyi?$'
 extend-exclude = '''
 (
@@ -9,3 +9,14 @@ extend-exclude = '''
     |/tests/unit
 )
 '''
+
+[tool.ruff]
+extend-ignore = ["E501"]
+exclude = [
+    'docs',
+    'tests'
+]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101", "B303", "B608", "B311", "B113", "B310", "B110"]

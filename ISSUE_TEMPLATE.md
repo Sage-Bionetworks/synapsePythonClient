@@ -32,4 +32,3 @@ A minimal reproducible example:
 ### Actual behavior
 
 *What actually happened? Provide output or error messages from the console, if applicable.*
-
