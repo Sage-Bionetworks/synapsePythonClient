@@ -63,7 +63,12 @@ def do_stuff_with_a_locked_resource(name, event_log):
 def test_multithreaded():
     event_log = []
 
-    threads = [Thread(target=do_stuff_with_a_locked_resource, args=("thread %d" % i, event_log)) for i in range(4)]
+    threads = [
+        Thread(
+            target=do_stuff_with_a_locked_resource, args=("thread %d" % i, event_log)
+        )
+        for i in range(4)
+    ]
 
     for thread in threads:
         thread.start()

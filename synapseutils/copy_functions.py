@@ -217,8 +217,7 @@ def _batch_iterator_generator(iterables, batch_size):
         yield [iterables[i][start:end] for i in range(len(iterables))]
 
 
-def _copy_cached_file_handles(cache, copiedFileHandles):
-    # type: (Cache , dict) -> None
+def _copy_cached_file_handles(cache: Cache, copiedFileHandles: dict) -> None:
     for copy_result in copiedFileHandles:
         if copy_result.get("failureCode") is None:  # sucessfully copied
             original_cache_path = cache.get(copy_result["originalFileHandleId"])
