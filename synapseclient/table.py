@@ -186,15 +186,14 @@ later::
 
     # upload album covers
     for row in data:
-        file_handle = syn.uploadSynapseManagedFileHandle(os.path.join(covers_dir, row[4]))
+        file_handle = syn.uploadFileHandle(os.path.join(covers_dir, row[4]), parent=project)
         row[4] = file_handle['id']
 
     # store the table data
-    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+    row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
 
     # Later, we'll want to query the table and download our album covers
-    results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'Sonny Rollins'" \
-                             % schema.id)
+    results = syn.tableQuery(f"select artist, album, cover from {schema.id} where artist = 'Sonny Rollins'")
     cover_files = syn.downloadTableColumns(results, ['cover'])
 
 -------------
@@ -301,34 +300,35 @@ import json
 from builtins import zip
 from typing import List, Dict
 
-from synapseclient.core.utils import id_of, from_unix_epoch_time
+from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, entity_type_to_class
 from synapseclient.core.constants import concrete_types
 
-aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
+aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
 
 # default is STRING, only need to put the non-STRING keys in here
 PANDAS_TABLE_TYPE = {
-    'floating': 'DOUBLE',
-    'decimal': 'DOUBLE',
-    'integer': 'INTEGER',
-    'boolean': 'BOOLEAN',
-    'datetime64': 'DATE',
-    'datetime': 'DATE',
-    'date': 'DATE',
+    "floating": "DOUBLE",
+    "decimal": "DOUBLE",
+    "integer": "INTEGER",
+    "mixed-integer-float": "DOUBLE",
+    "boolean": "BOOLEAN",
+    "datetime64": "DATE",
+    "datetime": "DATE",
+    "date": "DATE",
 }
 # These are all the synapse columns that are lists
 # Be sure to edit the values in the `cast_values` function as well
 # when lists column types are added
 LIST_COLUMN_TYPES = {
-    'STRING_LIST',
-    'INTEGER_LIST',
-    'BOOLEAN_LIST',
-    'DATE_LIST',
-    'ENTITYID_LIST',
-    'USERID_LIST'
+    "STRING_LIST",
+    "INTEGER_LIST",
+    "BOOLEAN_LIST",
+    "DATE_LIST",
+    "ENTITYID_LIST",
+    "USERID_LIST",
 }
 MAX_NUM_TABLE_COLUMNS = 152
 
@@ -355,23 +355,29 @@ class EntityViewType(enum.Enum):
 
 def _get_view_type_mask(types_to_include):
     if not types_to_include:
-        raise ValueError("Please include at least one of the entity types specified in EntityViewType.")
+        raise ValueError(
+            "Please include at least one of the entity types specified in EntityViewType."
+        )
     mask = 0x00
     for input in types_to_include:
         if not isinstance(input, EntityViewType):
-            raise ValueError("Please use EntityViewType to specify the type you want to include in a View.")
+            raise ValueError(
+                "Please use EntityViewType to specify the type you want to include in a View."
+            )
         mask = mask | input.value
     return mask
 
 
 def _get_view_type_mask_for_deprecated_type(type):
     if not type:
-        raise ValueError("Please specify the deprecated type to convert to viewTypeMask")
-    if type == 'file':
+        raise ValueError(
+            "Please specify the deprecated type to convert to viewTypeMask"
+        )
+    if type == "file":
         return EntityViewType.FILE.value
-    if type == 'project':
+    if type == "project":
         return EntityViewType.PROJECT.value
-    if type == 'file_and_table':
+    if type == "file_and_table":
         return EntityViewType.FILE.value | EntityViewType.TABLE.value
     raise ValueError("The provided value is not a valid type: %s", type)
 
@@ -381,11 +387,13 @@ def test_import_pandas():
         import pandas as pd  # noqa F401
     # used to catch when pandas isn't installed
     except ModuleNotFoundError:
-        raise ModuleNotFoundError("""\n\nThe pandas package is required for this function!\n
+        raise ModuleNotFoundError(
+            """\n\nThe pandas package is required for this function!\n
         Most functions in the synapseclient package don't require the
         installation of pandas, but some do. Please refer to the installation
         instructions at: http://pandas.pydata.org/.
-        \n\n\n""")
+        \n\n\n"""
+        )
     # catch other errors (see SYNPY-177)
     except:  # noqa
         raise
@@ -429,14 +437,23 @@ def as_table_columns(values):
     cols = list()
     for col in df:
         inferred_type = infer_dtype(df[col], skipna=True)
-        columnType = PANDAS_TABLE_TYPE.get(inferred_type, 'STRING')
-        if columnType == 'STRING':
+        columnType = PANDAS_TABLE_TYPE.get(inferred_type, "STRING")
+        if columnType == "STRING":
             maxStrLen = df[col].str.len().max()
             if maxStrLen > 1000:
-                cols.append(Column(name=col, columnType='LARGETEXT', defaultValue=''))
+                cols.append(Column(name=col, columnType="LARGETEXT", defaultValue=""))
             else:
-                size = int(round(min(1000, max(30, maxStrLen*1.5))))  # Determine the length of the longest string
-                cols.append(Column(name=col, columnType=columnType, maximumSize=size, defaultValue=''))
+                size = int(
+                    round(min(1000, max(30, maxStrLen * 1.5)))
+                )  # Determine the length of the longest string
+                cols.append(
+                    Column(
+                        name=col,
+                        columnType=columnType,
+                        maximumSize=size,
+                        defaultValue="",
+                    )
+                )
         else:
             cols.append(Column(name=col, columnType=columnType))
     return cols
@@ -456,11 +473,14 @@ def df2Table(df, syn, tableName, parentProject):
     schema1 = syn.store(schema1)
 
     # Add data to Table
-    for i in range(0, df.shape[0]/1200+1):
-        start = i*1200
-        end = min((i+1)*1200, df.shape[0])
-        rowset1 = RowSet(columns=cols, schema=schema1,
-                         rows=[Row(list(df.ix[j, :])) for j in range(start, end)])
+    for i in range(0, df.shape[0] / 1200 + 1):
+        start = i * 1200
+        end = min((i + 1) * 1200, df.shape[0])
+        rowset1 = RowSet(
+            columns=cols,
+            schema=schema1,
+            rows=[Row(list(df.ix[j, :])) for j in range(start, end)],
+        )
         syn.store(rowset1)
 
     return schema1
@@ -477,9 +497,9 @@ def to_boolean(value):
 
     if isinstance(value, str):
         lower_value = value.lower()
-        if lower_value in ['true', 't', '1']:
+        if lower_value in ["true", "t", "1"]:
             return True
-        if lower_value in ['false', 'f', '0']:
+        if lower_value in ["false", "f", "0"]:
             return False
 
     raise ValueError("Can't convert %s to boolean." % value)
@@ -488,7 +508,7 @@ def to_boolean(value):
 def column_ids(columns):
     if columns is None:
         return []
-    return [col.id for col in columns if 'id' in col]
+    return [col.id for col in columns if "id" in col]
 
 
 def row_labels_from_id_and_version(rows):
@@ -496,9 +516,14 @@ def row_labels_from_id_and_version(rows):
 
 
 def row_labels_from_rows(rows):
-    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber'], row['etag'])
-                                           if 'etag' in row else (row['rowId'], row['versionNumber'])
-                                           for row in rows])
+    return row_labels_from_id_and_version(
+        [
+            (row["rowId"], row["versionNumber"], row["etag"])
+            if "etag" in row
+            else (row["rowId"], row["versionNumber"])
+            for row in rows
+        ]
+    )
 
 
 def cast_values(values, headers):
@@ -508,31 +533,44 @@ def cast_values(values, headers):
     See: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
     """
     if len(values) != len(headers):
-        raise ValueError('The number of columns in the csv file does not match the given headers. %d fields, %d headers'
-                         % (len(values), len(headers)))
+        raise ValueError(
+            "The number of columns in the csv file does not match the given headers. %d fields, %d headers"
+            % (len(values), len(headers))
+        )
 
     result = []
     for header, field in zip(headers, values):
-
-        columnType = header.get('columnType', 'STRING')
+        columnType = header.get("columnType", "STRING")
 
         # convert field to column type
-        if field is None or field == '':
+        if field is None or field == "":
             result.append(None)
-        elif columnType in {'STRING', 'ENTITYID', 'FILEHANDLEID', 'LARGETEXT', 'USERID', 'LINK'}:
+        elif columnType in {
+            "STRING",
+            "ENTITYID",
+            "FILEHANDLEID",
+            "LARGETEXT",
+            "USERID",
+            "LINK",
+        }:
             result.append(field)
-        elif columnType == 'DOUBLE':
+        elif columnType == "DOUBLE":
             result.append(float(field))
-        elif columnType == 'INTEGER':
+        elif columnType == "INTEGER":
             result.append(int(field))
-        elif columnType == 'BOOLEAN':
+        elif columnType == "BOOLEAN":
             result.append(to_boolean(field))
-        elif columnType == 'DATE':
+        elif columnType == "DATE":
             result.append(from_unix_epoch_time(field))
-        elif columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST',
-                            'ENTITYID_LIST', 'USERID_LIST'}:
+        elif columnType in {
+            "STRING_LIST",
+            "INTEGER_LIST",
+            "BOOLEAN_LIST",
+            "ENTITYID_LIST",
+            "USERID_LIST",
+        }:
             result.append(json.loads(field))
-        elif columnType == 'DATE_LIST':
+        elif columnType == "DATE_LIST":
             result.append(json.loads(field, parse_int=from_unix_epoch_time))
         else:
             # default to string for unknown column type
@@ -542,45 +580,51 @@ def cast_values(values, headers):
 
 
 def cast_row(row, headers):
-    row['values'] = cast_values(row['values'], headers)
+    row["values"] = cast_values(row["values"], headers)
     return row
 
 
 def cast_row_set(rowset):
-    for i, row in enumerate(rowset['rows']):
-        rowset['rows'][i]['values'] = cast_row(row, rowset['headers'])
+    for i, row in enumerate(rowset["rows"]):
+        rowset["rows"][i]["values"] = cast_row(row, rowset["headers"])
     return rowset
 
 
 def escape_column_name(column):
     """Escape the name of the given column for use in a Synapse table query statement
     :param column: a string or column dictionary object with a 'name' key"""
-    col_name = column['name'] if isinstance(column, collections.abc.Mapping) else str(column)
+    col_name = (
+        column["name"] if isinstance(column, collections.abc.Mapping) else str(column)
+    )
     escaped_name = col_name.replace('"', '""')
     return f'"{escaped_name}"'
 
 
 def join_column_names(columns):
     """Join the names of the given columns into a comma delimited list suitable for use in a Synapse table query
-    :param columns: a sequence of column string names or dictionary objets with column 'name' keys"""
+    :param columns: a sequence of column string names or dictionary objets with column 'name' keys
+    """
     return ",".join(escape_column_name(c) for c in columns)
 
 
-def _csv_to_pandas_df(filepath,
-                      separator=DEFAULT_SEPARATOR,
-                      quote_char=DEFAULT_QUOTE_CHARACTER,
-                      escape_char=DEFAULT_ESCAPSE_CHAR,
-                      contain_headers=True,
-                      lines_to_skip=0,
-                      date_columns=None,
-                      list_columns=None,
-                      rowIdAndVersionInIndex=True,
-                      dtype=None):
+def _csv_to_pandas_df(
+    filepath,
+    separator=DEFAULT_SEPARATOR,
+    quote_char=DEFAULT_QUOTE_CHARACTER,
+    escape_char=DEFAULT_ESCAPSE_CHAR,
+    contain_headers=True,
+    lines_to_skip=0,
+    date_columns=None,
+    list_columns=None,
+    rowIdAndVersionInIndex=True,
+    dtype=None,
+):
     test_import_pandas()
     import pandas as pd
 
     # DATEs are stored in csv as unix timestamp in milliseconds
-    def datetime_millisecond_parser(milliseconds): return pd.to_datetime(milliseconds, unit='ms', utc=True)
+    def datetime_millisecond_parser(milliseconds):
+        return pd.to_datetime(milliseconds, unit="ms", utc=True)
 
     if not date_columns:
         date_columns = []
@@ -592,36 +636,42 @@ def _csv_to_pandas_df(filepath,
     # longer line terminators. See:
     #    https://github.com/pydata/pandas/issues/3501
     # "ValueError: Only length-1 line terminators supported"
-    df = pd.read_csv(filepath,
-                     dtype=dtype,
-                     sep=separator,
-                     lineterminator=line_terminator if len(line_terminator) == 1 else None,
-                     quotechar=quote_char,
-                     escapechar=escape_char,
-                     header=0 if contain_headers else None,
-                     skiprows=lines_to_skip,
-                     parse_dates=date_columns,
-                     date_parser=datetime_millisecond_parser)
+    df = pd.read_csv(
+        filepath,
+        dtype=dtype,
+        sep=separator,
+        lineterminator=line_terminator if len(line_terminator) == 1 else None,
+        quotechar=quote_char,
+        escapechar=escape_char,
+        header=0 if contain_headers else None,
+        skiprows=lines_to_skip,
+        parse_dates=date_columns,
+        date_parser=datetime_millisecond_parser,
+    )
     # Turn list columns into lists
     if list_columns:
         for col in list_columns:
             # Fill NA values with empty lists, it must be a string for json.loads to work
-            df[col].fillna('[]', inplace=True)
+            df[col].fillna("[]", inplace=True)
             df[col] = df[col].apply(json.loads)
 
-    if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
+    if (
+        rowIdAndVersionInIndex
+        and "ROW_ID" in df.columns
+        and "ROW_VERSION" in df.columns
+    ):
         # combine row-ids (in index) and row-versions (in column 0) to
         # make new row labels consisting of the row id and version
         # separated by a dash.
         zip_args = [df["ROW_ID"], df["ROW_VERSION"]]
         if "ROW_ETAG" in df.columns:
-            zip_args.append(df['ROW_ETAG'])
+            zip_args.append(df["ROW_ETAG"])
 
         df.index = row_labels_from_id_and_version(zip(*zip_args))
         del df["ROW_ID"]
         del df["ROW_VERSION"]
         if "ROW_ETAG" in df.columns:
-            del df['ROW_ETAG']
+            del df["ROW_ETAG"]
 
     return df
 
@@ -658,8 +708,8 @@ class SchemaBase(Entity, metaclass=abc.ABCMeta):
     You can not create an object of this type.
     """
 
-    _property_keys = Entity._property_keys + ['columnIds']
-    _local_keys = Entity._local_keys + ['columns_to_store']
+    _property_keys = Entity._property_keys + ["columnIds"]
+    _local_keys = Entity._local_keys + ["columns_to_store"]
 
     @property
     @abc.abstractmethod  # forces subclasses to define _synapse_entity_type
@@ -667,14 +717,21 @@ class SchemaBase(Entity, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def __init__(self, name, columns, properties, annotations, local_state, parent, **kwargs):
-        self.properties.setdefault('columnIds', [])
-        self.__dict__.setdefault('columns_to_store', [])
+    def __init__(
+        self, name, columns, properties, annotations, local_state, parent, **kwargs
+    ):
+        self.properties.setdefault("columnIds", [])
+        self.__dict__.setdefault("columns_to_store", [])
 
         if name:
-            kwargs['name'] = name
-        super(SchemaBase, self).__init__(properties=properties, annotations=annotations, local_state=local_state,
-                                         parent=parent, **kwargs)
+            kwargs["name"] = name
+        super(SchemaBase, self).__init__(
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            parent=parent,
+            **kwargs,
+        )
         if columns:
             self.addColumns(columns)
 
@@ -682,12 +739,12 @@ class SchemaBase(Entity, metaclass=abc.ABCMeta):
         """
         :param column: a column object or its ID
         """
-        if isinstance(column, str) or isinstance(column, int) or hasattr(column, 'id'):
+        if isinstance(column, str) or isinstance(column, int) or hasattr(column, "id"):
             self.properties.columnIds.append(id_of(column))
         elif isinstance(column, Column):
-            if not self.__dict__.get('columns_to_store', None):
-                self.__dict__['columns_to_store'] = []
-            self.__dict__['columns_to_store'].append(column)
+            if not self.__dict__.get("columns_to_store", None):
+                self.__dict__["columns_to_store"] = []
+            self.__dict__["columns_to_store"].append(column)
         else:
             raise ValueError("Not a column? %s" % str(column))
 
@@ -702,7 +759,7 @@ class SchemaBase(Entity, metaclass=abc.ABCMeta):
         """
         :param column: a column object or its ID
         """
-        if isinstance(column, str) or isinstance(column, int) or hasattr(column, 'id'):
+        if isinstance(column, str) or isinstance(column, int) or hasattr(column, "id"):
             self.properties.columnIds.remove(id_of(column))
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
@@ -711,15 +768,23 @@ class SchemaBase(Entity, metaclass=abc.ABCMeta):
 
     def has_columns(self):
         """Does this schema have columns specified?"""
-        return bool(self.properties.get('columnIds', None) or self.__dict__.get('columns_to_store', None))
+        return bool(
+            self.properties.get("columnIds", None)
+            or self.__dict__.get("columns_to_store", None)
+        )
 
     def _before_synapse_store(self, syn):
         if len(self.columns_to_store) + len(self.columnIds) > MAX_NUM_TABLE_COLUMNS:
-            raise ValueError("Too many columns. The limit is %s columns per table" % MAX_NUM_TABLE_COLUMNS)
+            raise ValueError(
+                "Too many columns. The limit is %s columns per table"
+                % MAX_NUM_TABLE_COLUMNS
+            )
 
         # store any columns before storing table
         if self.columns_to_store:
-            self.properties.columnIds.extend(column.id for column in syn.createColumns(self.columns_to_store))
+            self.properties.columnIds.extend(
+                column.id for column in syn.createColumns(self.columns_to_store)
+            )
             self.columns_to_store = []
 
 
@@ -744,12 +809,28 @@ class Schema(SchemaBase):
 
         schema = syn.store(Schema(name='MyTable', columns=cols, parent=project))
     """
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.TableEntity'
 
-    def __init__(self, name=None, columns=None, parent=None, properties=None, annotations=None, local_state=None,
-                 **kwargs):
-        super(Schema, self).__init__(name=name, columns=columns, properties=properties,
-                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+    _synapse_entity_type = "org.sagebionetworks.repo.model.table.TableEntity"
+
+    def __init__(
+        self,
+        name=None,
+        columns=None,
+        parent=None,
+        properties=None,
+        annotations=None,
+        local_state=None,
+        **kwargs,
+    ):
+        super(Schema, self).__init__(
+            name=name,
+            columns=columns,
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            parent=parent,
+            **kwargs,
+        )
 
 
 class MaterializedViewSchema(SchemaBase):
@@ -773,15 +854,31 @@ class MaterializedViewSchema(SchemaBase):
 
         schema = syn.store(MaterializedViewSchema(name='MyTable', parent=project, definingSQL=defining_sql))
     """
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.MaterializedView'
-    _property_keys = SchemaBase._property_keys + ['definingSQL']
-    def __init__(self, name=None, columns=None, parent=None, definingSQL=None, properties=None, annotations=None,
-                 local_state=None, **kwargs):
+
+    _synapse_entity_type = "org.sagebionetworks.repo.model.table.MaterializedView"
+    _property_keys = SchemaBase._property_keys + ["definingSQL"]
+
+    def __init__(
+        self,
+        name=None,
+        columns=None,
+        parent=None,
+        definingSQL=None,
+        properties=None,
+        annotations=None,
+        local_state=None,
+        **kwargs,
+    ):
         if definingSQL is not None:
-            kwargs['definingSQL'] = definingSQL
+            kwargs["definingSQL"] = definingSQL
         super(MaterializedViewSchema, self).__init__(
-            name=name, columns=columns, properties=properties,
-            annotations=annotations, local_state=local_state, parent=parent, **kwargs
+            name=name,
+            columns=columns,
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            parent=parent,
+            **kwargs,
         )
 
 
@@ -790,10 +887,14 @@ class ViewBase(SchemaBase):
     This is a helper class for EntityViewSchema and SubmissionViewSchema
     containing the common methods for both.
     """
+
     _synapse_entity_type = ""
-    _property_keys = SchemaBase._property_keys + ['viewTypeMask', 'scopeIds']
-    _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns',
-                                            'ignoredAnnotationColumnNames']
+    _property_keys = SchemaBase._property_keys + ["viewTypeMask", "scopeIds"]
+    _local_keys = SchemaBase._local_keys + [
+        "addDefaultViewColumns",
+        "addAnnotationColumns",
+        "ignoredAnnotationColumnNames",
+    ]
 
     def add_scope(self, entities):
         """
@@ -824,22 +925,28 @@ class ViewBase(SchemaBase):
         column_type_to_annotation_names = {}
 
         # add to existing columns the columns that user has added but not yet created in synapse
-        column_generator = itertools.chain(syn.getColumns(self.columnIds),
-                                           self.columns_to_store) if self.columns_to_store \
+        column_generator = (
+            itertools.chain(syn.getColumns(self.columnIds), self.columns_to_store)
+            if self.columns_to_store
             else syn.getColumns(self.columnIds)
+        )
 
         for column in column_generator:
-            column_name = column['name']
-            column_type = column['columnType']
+            column_name = column["name"]
+            column_type = column["columnType"]
 
-            column_type_to_annotation_names.setdefault(column_type, set()).add(column_name)
+            column_type_to_annotation_names.setdefault(column_type, set()).add(
+                column_name
+            )
 
         valid_columns = []
         for column in columns_to_add:
-            new_col_name = column['name']
-            new_col_type = column['columnType']
+            new_col_name = column["name"]
+            new_col_type = column["columnType"]
 
-            typed_col_name_set = column_type_to_annotation_names.setdefault(new_col_type, set())
+            typed_col_name_set = column_type_to_annotation_names.setdefault(
+                new_col_type, set()
+            )
             if new_col_name not in typed_col_name_set:
                 typed_col_name_set.add(new_col_name)
                 valid_columns.append(column)
@@ -858,9 +965,13 @@ class ViewBase(SchemaBase):
 
         # get default annotations
         if self.addAnnotationColumns:
-            anno_columns = [x for x in syn._get_annotation_view_columns(self.scopeIds, view_type,
-                                                                        view_type_mask=mask)
-                            if x['name'] not in self.ignoredAnnotationColumnNames]
+            anno_columns = [
+                x
+                for x in syn._get_annotation_view_columns(
+                    self.scopeIds, view_type, view_type_mask=mask
+                )
+                if x["name"] not in self.ignoredAnnotationColumnNames
+            ]
             additional_columns.extend(anno_columns)
 
         self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
@@ -956,22 +1067,39 @@ class Dataset(ViewBase):
             label="v1.0",
             comment="This is version 1")
     """
-    _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
-    _property_keys: List[str] = ViewBase._property_keys + ['datasetItems']
-    _local_keys: List[str] = ViewBase._local_keys + ['folders_to_add', 'force']
 
-    def __init__(self, name=None, columns=None, parent=None, properties=None,
-                 addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[],
-                 annotations=None, local_state=None, dataset_items=None,
-                 folders=None, force=False, **kwargs):
-        self.properties.setdefault('datasetItems', [])
-        self.__dict__.setdefault('folders_to_add', set())
+    _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
+    _property_keys: List[str] = ViewBase._property_keys + ["datasetItems"]
+    _local_keys: List[str] = ViewBase._local_keys + ["folders_to_add", "force"]
+
+    def __init__(
+        self,
+        name=None,
+        columns=None,
+        parent=None,
+        properties=None,
+        addDefaultViewColumns=True,
+        addAnnotationColumns=True,
+        ignoredAnnotationColumnNames=[],
+        annotations=None,
+        local_state=None,
+        dataset_items=None,
+        folders=None,
+        force=False,
+        **kwargs,
+    ):
+        self.properties.setdefault("datasetItems", [])
+        self.__dict__.setdefault("folders_to_add", set())
         self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
         self.viewTypeMask = EntityViewType.DATASET.value
         super(Dataset, self).__init__(
-            name=name, columns=columns, properties=properties,
-            annotations=annotations, local_state=local_state, parent=parent,
-            **kwargs
+            name=name,
+            columns=columns,
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            parent=parent,
+            **kwargs,
         )
 
         self.force = force
@@ -983,7 +1111,9 @@ class Dataset(ViewBase):
         # HACK: make sure we don't try to add columns to schemas that we retrieve from synapse
         is_from_normal_constructor = not (properties or local_state)
         # allowing annotations because user might want to update annotations all at once
-        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor
+        self.addDefaultViewColumns = (
+            addDefaultViewColumns and is_from_normal_constructor
+        )
         self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
 
     def __len__(self):
@@ -991,10 +1121,12 @@ class Dataset(ViewBase):
 
     @staticmethod
     def _check_needed_keys(keys: List[str]):
-        required_keys = {'entityId', 'versionNumber'}
+        required_keys = {"entityId", "versionNumber"}
         if required_keys - keys:
-            raise LookupError("DatasetItem missing a required property: %s" %
-                              str(required_keys - keys))
+            raise LookupError(
+                "DatasetItem missing a required property: %s"
+                % str(required_keys - keys)
+            )
         return True
 
     def add_item(self, dataset_item: Dict[str, str], force: bool = True):
@@ -1002,17 +1134,20 @@ class Dataset(ViewBase):
         :param dataset_item:    a single dataset item
         :param force:           force add item
         """
-        if isinstance(dataset_item, dict) and self._check_needed_keys(dataset_item.keys()):
-            if not self.has_item(dataset_item.get('entityId')):
+        if isinstance(dataset_item, dict) and self._check_needed_keys(
+            dataset_item.keys()
+        ):
+            if not self.has_item(dataset_item.get("entityId")):
                 self.properties.datasetItems.append(dataset_item)
             else:
                 if force:
-                    self.remove_item(dataset_item.get('entityId'))
+                    self.remove_item(dataset_item.get("entityId"))
                     self.properties.datasetItems.append(dataset_item)
                 else:
                     raise ValueError(
                         f"Duplicate item found: {dataset_item.get('entityId')}. "
-                        "Set force=True to overwrite the existing item.")
+                        "Set force=True to overwrite the existing item."
+                    )
         else:
             raise ValueError("Not a DatasetItem? %s" % str(dataset_item))
 
@@ -1031,7 +1166,7 @@ class Dataset(ViewBase):
         item_id = id_of(item_id)
         if item_id.startswith("syn"):
             for i, curr_item in enumerate(self.properties.datasetItems):
-                if curr_item.get('entityId') == item_id:
+                if curr_item.get("entityId") == item_id:
                     del self.properties.datasetItems[i]
                     break
         else:
@@ -1044,16 +1179,16 @@ class Dataset(ViewBase):
         """
         :param item_id: a single dataset item Synapse ID
         """
-        return any(item['entityId'] == item_id for item in self.properties.datasetItems)
+        return any(item["entityId"] == item_id for item in self.properties.datasetItems)
 
     def add_folder(self, folder: str, force: bool = True):
         """
         :param folder:  a single Synapse Folder ID
         :param force:   force add items from folder
         """
-        if not self.__dict__.get('folders_to_add', None):
-            self.__dict__['folders_to_add'] = set()
-        self.__dict__['folders_to_add'].add(folder)
+        if not self.__dict__.get("folders_to_add", None):
+            self.__dict__["folders_to_add"] = set()
+        self.__dict__["folders_to_add"].add(folder)
         # if self.force != force:
         self.force = force
 
@@ -1062,8 +1197,11 @@ class Dataset(ViewBase):
         :param folders: a list of Synapse Folder IDs
         :param force:   force add items from folders
         """
-        if isinstance(folders, list) or isinstance(folders, set) or \
-                isinstance(folders, tuple):
+        if (
+            isinstance(folders, list)
+            or isinstance(folders, set)
+            or isinstance(folders, tuple)
+        ):
             self.force = force
             for folder in folders:
                 self.add_folder(folder, force)
@@ -1077,16 +1215,20 @@ class Dataset(ViewBase):
             if child.get("type") == "org.sagebionetworks.repo.model.Folder":
                 files.extend(self._add_folder_files(syn, child.get("id")))
             elif child.get("type") == "org.sagebionetworks.repo.model.FileEntity":
-                files.append({
-                    'entityId': child.get("id"),
-                    'versionNumber': child.get('versionNumber')
-                })
+                files.append(
+                    {
+                        "entityId": child.get("id"),
+                        "versionNumber": child.get("versionNumber"),
+                    }
+                )
             elif child.get("type") == "org.sagebionetworks.repo.model.Link":
-                ent = syn.get(child['id'], downloadFile=False)
-                files.append({
-                    'entityId': ent.linksTo['targetId'],
-                    'versionNumber': ent.linksTo['targetVersionNumber']
-                })
+                ent = syn.get(child["id"], downloadFile=False)
+                files.append(
+                    {
+                        "entityId": ent.linksTo["targetId"],
+                        "versionNumber": ent.linksTo["targetVersionNumber"],
+                    }
+                )
             else:
                 raise ValueError(f"Not a Folder?: {folder}")
         return files
@@ -1100,7 +1242,7 @@ class Dataset(ViewBase):
             self.folders_to_add = set()
         # Must set this scopeIds is used to get all annotations from the
         # entities
-        self.scopeIds = [item['entityId'] for item in self.properties.datasetItems]
+        self.scopeIds = [item["entityId"] for item in self.properties.datasetItems]
         super()._before_synapse_store(syn)
         # Reset attribute to force-add items from folders.
         self.force = True
@@ -1153,35 +1295,58 @@ class EntityViewSchema(ViewBase):
 
     """
 
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
+    _synapse_entity_type = "org.sagebionetworks.repo.model.table.EntityView"
 
-    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, includeEntityTypes=None,
-                 addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[],
-                 properties=None, annotations=None, local_state=None, **kwargs):
+    def __init__(
+        self,
+        name=None,
+        columns=None,
+        parent=None,
+        scopes=None,
+        type=None,
+        includeEntityTypes=None,
+        addDefaultViewColumns=True,
+        addAnnotationColumns=True,
+        ignoredAnnotationColumnNames=[],
+        properties=None,
+        annotations=None,
+        local_state=None,
+        **kwargs,
+    ):
         if includeEntityTypes:
-            kwargs['viewTypeMask'] = _get_view_type_mask(includeEntityTypes)
+            kwargs["viewTypeMask"] = _get_view_type_mask(includeEntityTypes)
         elif type:
-            kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(type)
-        elif properties and 'type' in properties:
-            kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(properties['type'])
-            properties['type'] = None
+            kwargs["viewTypeMask"] = _get_view_type_mask_for_deprecated_type(type)
+        elif properties and "type" in properties:
+            kwargs["viewTypeMask"] = _get_view_type_mask_for_deprecated_type(
+                properties["type"]
+            )
+            properties["type"] = None
 
         self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
-        super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
-                                               annotations=annotations, local_state=local_state, parent=parent,
-                                               **kwargs)
+        super(EntityViewSchema, self).__init__(
+            name=name,
+            columns=columns,
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            parent=parent,
+            **kwargs,
+        )
 
         # This is a hacky solution to make sure we don't try to add columns to schemas that we retrieve from synapse
         is_from_normal_constructor = not (properties or local_state)
         # allowing annotations because user might want to update annotations all at once
-        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor
+        self.addDefaultViewColumns = (
+            addDefaultViewColumns and is_from_normal_constructor
+        )
         self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
 
         # set default values after constructor so we don't overwrite the values defined in properties using .get()
         # because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
-        if self.get('viewTypeMask') is None:
+        if self.get("viewTypeMask") is None:
             self.viewTypeMask = EntityViewType.FILE.value
-        if self.get('scopeIds') is None:
+        if self.get("scopeIds") is None:
             self.scopeIds = []
 
         # add the scopes last so that we can append the passed in scopes to those defined in properties
@@ -1234,26 +1399,41 @@ class SubmissionViewSchema(ViewBase):
         schema = syn.store(SubmissionViewSchema(name='My Submission View', parent=project, scopes=['9614543']))
     """
 
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.SubmissionView'
+    _synapse_entity_type = "org.sagebionetworks.repo.model.table.SubmissionView"
 
-    def __init__(self, name=None, columns=None, parent=None, scopes=None,
-                 addDefaultViewColumns=True, addAnnotationColumns=True,
-                 ignoredAnnotationColumnNames=[],
-                 properties=None, annotations=None, local_state=None, **kwargs):
-
+    def __init__(
+        self,
+        name=None,
+        columns=None,
+        parent=None,
+        scopes=None,
+        addDefaultViewColumns=True,
+        addAnnotationColumns=True,
+        ignoredAnnotationColumnNames=[],
+        properties=None,
+        annotations=None,
+        local_state=None,
+        **kwargs,
+    ):
         self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
         super(SubmissionViewSchema, self).__init__(
-            name=name, columns=columns, properties=properties,
-            annotations=annotations, local_state=local_state, parent=parent,
-            **kwargs
+            name=name,
+            columns=columns,
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            parent=parent,
+            **kwargs,
         )
         # This is a hacky solution to make sure we don't try to add columns to schemas that we retrieve from synapse
         is_from_normal_constructor = not (properties or local_state)
         # allowing annotations because user might want to update annotations all at once
-        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor
+        self.addDefaultViewColumns = (
+            addDefaultViewColumns and is_from_normal_constructor
+        )
         self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
 
-        if self.get('scopeIds') is None:
+        if self.get("scopeIds") is None:
             self.scopeIds = []
 
         # add the scopes last so that we can append the passed in scopes to those defined in properties
@@ -1262,11 +1442,10 @@ class SubmissionViewSchema(ViewBase):
 
 
 # add Schema to the map of synapse entity types to their Python representations
-entity_type_to_class[Schema._synapse_entity_type] = Schema
-entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
-entity_type_to_class[SubmissionViewSchema._synapse_entity_type] = SubmissionViewSchema
-entity_type_to_class[MaterializedViewSchema._synapse_entity_type] = MaterializedViewSchema
-entity_type_to_class[Dataset._synapse_entity_type] = Dataset
+for cls in itersubclasses(SchemaBase):
+    entity_type_to_class[cls._synapse_entity_type] = cls
+# HACK: viewbase extends schema base, so need to remove ViewBase
+entity_type_to_class.pop("")
 
 
 class SelectColumn(DictObject):
@@ -1298,7 +1477,11 @@ class SelectColumn(DictObject):
 
     @classmethod
     def from_column(cls, column):
-        return cls(column.get('id', None), column.get('columnType', None), column.get('name', None))
+        return cls(
+            column.get("id", None),
+            column.get("columnType", None),
+            column.get("name", None),
+        )
 
 
 class Column(DictObject):
@@ -1332,25 +1515,28 @@ class Column(DictObject):
 
     @classmethod
     def getURI(cls, id):
-        return '/column/%s' % id
+        return "/column/%s" % id
 
     def __init__(self, **kwargs):
         super(Column, self).__init__(kwargs)
-        self['concreteType'] = concrete_types.COLUMN_MODEL
+        self["concreteType"] = concrete_types.COLUMN_MODEL
 
     def postURI(self):
-        return '/column'
+        return "/column"
 
 
 class AppendableRowset(DictObject, metaclass=abc.ABCMeta):
     """Abstract Base Class for :py:class:`Rowset` and :py:class:`PartialRowset`"""
+
     @abc.abstractmethod
     def __init__(self, schema, **kwargs):
-        if ('tableId' not in kwargs) and schema:
-            kwargs['tableId'] = id_of(schema)
+        if ("tableId" not in kwargs) and schema:
+            kwargs["tableId"] = id_of(schema)
 
-        if not kwargs.get('tableId', None):
-            raise ValueError("Table schema ID must be defined to create a %s" % type(self).__name__)
+        if not kwargs.get("tableId", None):
+            raise ValueError(
+                "Table schema ID must be defined to create a %s" % type(self).__name__
+            )
         super(AppendableRowset, self).__init__(kwargs)
 
     def _synapse_store(self, syn):
@@ -1360,13 +1546,17 @@ class AppendableRowset(DictObject, metaclass=abc.ABCMeta):
         .. AppendableRowSetRequest:
          http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
         """
-        append_rowset_request = {'concreteType': concrete_types.APPENDABLE_ROWSET_REQUEST,
-                                 'toAppend': self,
-                                 'entityId': self.tableId}
+        append_rowset_request = {
+            "concreteType": concrete_types.APPENDABLE_ROWSET_REQUEST,
+            "toAppend": self,
+            "entityId": self.tableId,
+        }
 
-        response = syn._async_table_update(self.tableId, [append_rowset_request], wait=True)
+        response = syn._async_table_update(
+            self.tableId, [append_rowset_request], wait=True
+        )
         syn._check_table_transaction_response(response)
-        return response['results'][0]
+        return response["results"][0]
 
 
 class PartialRowset(AppendableRowset):
@@ -1412,20 +1602,33 @@ class PartialRowset(AppendableRowset):
             raise ValueError("mapping must be a supported Mapping type such as 'dict'")
 
         try:
-            name_to_column_id = {col.name: col.id for col in originalQueryResult.headers if 'id' in col}
+            name_to_column_id = {
+                col.name: col.id for col in originalQueryResult.headers if "id" in col
+            }
         except AttributeError:
-            raise ValueError('originalQueryResult must be the result of a syn.tableQuery()')
+            raise ValueError(
+                "originalQueryResult must be the result of a syn.tableQuery()"
+            )
 
         row_ids = set(int(id) for id in mapping.keys())
 
         # row_ids in the originalQueryResult are not guaranteed to be in ascending order
         # iterate over all etags but only map the row_ids used for this partial update to their etags
-        row_etags = {row_id: etag for row_id, row_version, etag in originalQueryResult.iter_row_metadata()
-                     if row_id in row_ids and etag is not None}
+        row_etags = {
+            row_id: etag
+            for row_id, row_version, etag in originalQueryResult.iter_row_metadata()
+            if row_id in row_ids and etag is not None
+        }
 
-        partial_rows = [PartialRow(row_changes, row_id, etag=row_etags.get(int(row_id)),
-                                   nameToColumnId=name_to_column_id)
-                        for row_id, row_changes in mapping.items()]
+        partial_rows = [
+            PartialRow(
+                row_changes,
+                row_id,
+                etag=row_etags.get(int(row_id)),
+                nameToColumnId=name_to_column_id,
+            )
+            for row_id, row_changes in mapping.items()
+        ]
 
         return cls(originalQueryResult.tableId, partial_rows)
 
@@ -1467,29 +1670,38 @@ class RowSet(AppendableRowset):
 
     @classmethod
     def from_json(cls, json):
-        headers = [SelectColumn(**header) for header in json.get('headers', [])]
-        rows = [cast_row(Row(**row), headers) for row in json.get('rows', [])]
-        return cls(headers=headers, rows=rows,
-                   **{key: json[key] for key in json.keys() if key not in ['headers', 'rows']})
+        headers = [SelectColumn(**header) for header in json.get("headers", [])]
+        rows = [cast_row(Row(**row), headers) for row in json.get("rows", [])]
+        return cls(
+            headers=headers,
+            rows=rows,
+            **{key: json[key] for key in json.keys() if key not in ["headers", "rows"]},
+        )
 
     def __init__(self, columns=None, schema=None, **kwargs):
-        if 'headers' not in kwargs:
+        if "headers" not in kwargs:
             if columns and schema:
-                raise ValueError("Please only user either 'columns' or 'schema' as an argument but not both.")
+                raise ValueError(
+                    "Please only user either 'columns' or 'schema' as an argument but not both."
+                )
             if columns:
-                kwargs.setdefault('headers', []).extend([SelectColumn.from_column(column) for column in columns])
+                kwargs.setdefault("headers", []).extend(
+                    [SelectColumn.from_column(column) for column in columns]
+                )
             elif schema and isinstance(schema, Schema):
-                kwargs.setdefault('headers', []).extend([SelectColumn(id=id) for id in schema["columnIds"]])
+                kwargs.setdefault("headers", []).extend(
+                    [SelectColumn(id=id) for id in schema["columnIds"]]
+                )
 
-        if not kwargs.get('headers', None):
+        if not kwargs.get("headers", None):
             raise ValueError("Column headers must be defined to create a RowSet")
-        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.table.RowSet'
+        kwargs["concreteType"] = "org.sagebionetworks.repo.model.table.RowSet"
 
         super(RowSet, self).__init__(schema, **kwargs)
 
     def _synapse_store(self, syn):
         response = super(RowSet, self)._synapse_store(syn)
-        return response.get('rowReferenceSet', response)
+        return response.get("rowReferenceSet", response)
 
     def _synapse_delete(self, syn):
         """
@@ -1568,8 +1780,13 @@ class PartialRow(DictObject):
 
         rowId = int(rowId)
 
-        self.values = [{'key': nameToColumnId[x_key] if nameToColumnId is not None else x_key,
-                        'value': x_value} for x_key, x_value in values.items()]
+        self.values = [
+            {
+                "key": nameToColumnId[x_key] if nameToColumnId is not None else x_key,
+                "value": x_value,
+            }
+            for x_key, x_value in values.items()
+        ]
         self.rowId = rowId
         if etag is not None:
             self.etag = etag
@@ -1640,6 +1857,7 @@ def Table(schema, values, **kwargs):
 
     try:
         import pandas as pd
+
         pandas_available = True
     except:  # noqa
         pandas_available = False
@@ -1665,7 +1883,9 @@ def Table(schema, values, **kwargs):
         return CsvFileTable.from_data_frame(schema, pd.DataFrame(values), **kwargs)
 
     else:
-        raise ValueError("Don't know how to make tables from values of type %s." % type(values))
+        raise ValueError(
+            "Don't know how to make tables from values of type %s." % type(values)
+        )
 
 
 class TableAbstractBaseClass(collections.abc.Iterable, collections.abc.Sized):
@@ -1673,13 +1893,17 @@ class TableAbstractBaseClass(collections.abc.Iterable, collections.abc.Sized):
     Abstract base class for Tables based on different data containers.
     """
 
-    RowMetadataTuple = collections.namedtuple('RowMetadataTuple', ['row_id', 'row_version', 'row_etag'])
+    RowMetadataTuple = collections.namedtuple(
+        "RowMetadataTuple", ["row_id", "row_version", "row_etag"]
+    )
 
     def __init__(self, schema, headers=None, etag=None):
         if isinstance(schema, Schema):
             self.schema = schema
-            self.tableId = schema.id if schema and 'id' in schema else None
-            self.headers = headers if headers else [SelectColumn(id=id) for id in schema.columnIds]
+            self.tableId = schema.id if schema and "id" in schema else None
+            self.headers = (
+                headers if headers else [SelectColumn(id=id) for id in schema.columnIds]
+            )
             self.etag = etag
         elif isinstance(schema, str):
             self.schema = None
@@ -1697,14 +1921,18 @@ class TableAbstractBaseClass(collections.abc.Iterable, collections.abc.Sized):
             first_row = next(iter(self))
             return int(first_row[0])
         except (KeyError, TypeError):
-            raise ValueError("asInteger is only valid for queries such as count queries whose first value is an"
-                             " integer.")
+            raise ValueError(
+                "asInteger is only valid for queries such as count queries whose first value is an"
+                " integer."
+            )
 
     def asRowSet(self):
-        return RowSet(headers=self.headers,
-                      tableId=self.tableId,
-                      etag=self.etag,
-                      rows=[row if isinstance(row, Row) else Row(row) for row in self])
+        return RowSet(
+            headers=self.headers,
+            tableId=self.tableId,
+            etag=self.etag,
+            rows=[row if isinstance(row, Row) else Row(row) for row in self],
+        )
 
     def _synapse_store(self, syn):
         raise NotImplementedError()
@@ -1716,7 +1944,10 @@ class TableAbstractBaseClass(collections.abc.Iterable, collections.abc.Sized):
         Example::
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
-        row_id_vers_generator = ((metadata.row_id, metadata.row_version) for metadata in self.iter_row_metadata())
+        row_id_vers_generator = (
+            (metadata.row_id, metadata.row_version)
+            for metadata in self.iter_row_metadata()
+        )
         _delete_rows(syn, self.tableId, row_id_vers_generator)
 
     @abc.abstractmethod
@@ -1735,7 +1966,7 @@ class RowSetTable(TableAbstractBaseClass):
     """
 
     def __init__(self, schema, rowset):
-        super(RowSetTable, self).__init__(schema, etag=rowset.get('etag', None))
+        super(RowSetTable, self).__init__(schema, etag=rowset.get("etag", None))
         self.rowset = rowset
 
     def _synapse_store(self, syn):
@@ -1746,16 +1977,18 @@ class RowSetTable(TableAbstractBaseClass):
         test_import_pandas()
         import pandas as pd
 
-        if any([row['rowId'] for row in self.rowset['rows']]):
-            rownames = row_labels_from_rows(self.rowset['rows'])
+        if any([row["rowId"] for row in self.rowset["rows"]]):
+            rownames = row_labels_from_rows(self.rowset["rows"])
         else:
             rownames = None
 
         series = collections.OrderedDict()
         for i, header in enumerate(self.rowset["headers"]):
-            series[header.name] = pd.Series(name=header.name,
-                                            data=[row['values'][i] for row in self.rowset['rows']],
-                                            index=rownames)
+            series[header.name] = pd.Series(
+                name=header.name,
+                data=[row["values"][i] for row in self.rowset["rows"]],
+                index=rownames,
+            )
 
         return pd.DataFrame(data=series, index=rownames)
 
@@ -1764,19 +1997,22 @@ class RowSetTable(TableAbstractBaseClass):
 
     def asInteger(self):
         try:
-            return int(self.rowset['rows'][0]['values'][0])
+            return int(self.rowset["rows"][0]["values"][0])
         except (KeyError, TypeError):
-            raise ValueError("asInteger is only valid for queries such as count queries whose first value is an"
-                             " integer.")
+            raise ValueError(
+                "asInteger is only valid for queries such as count queries whose first value is an"
+                " integer."
+            )
 
     def __iter__(self):
         def iterate_rows(rows, headers):
             for row in rows:
                 yield cast_values(row, headers)
-        return iterate_rows(self.rowset['rows'], self.rowset['headers'])
+
+        return iterate_rows(self.rowset["rows"], self.rowset["headers"])
 
     def __len__(self):
-        return len(self.rowset['rows'])
+        return len(self.rowset["rows"])
 
     def iter_row_metadata(self):
         raise NotImplementedError("iter_metadata is not supported for RowSetTable")
@@ -1803,23 +2039,22 @@ class TableQueryResult(TableAbstractBaseClass):
         self.isConsistent = isConsistent
 
         result = self.syn._queryTable(
-            query=query,
-            limit=limit,
-            offset=offset,
-            isConsistent=isConsistent)
+            query=query, limit=limit, offset=offset, isConsistent=isConsistent
+        )
 
-        self.rowset = RowSet.from_json(result['queryResult']['queryResults'])
+        self.rowset = RowSet.from_json(result["queryResult"]["queryResults"])
 
-        self.columnModels = [Column(**col) for col in result.get('columnModels', [])]
-        self.nextPageToken = result['queryResult'].get('nextPageToken', None)
-        self.count = result.get('queryCount', None)
-        self.maxRowsPerPage = result.get('maxRowsPerPage', None)
+        self.columnModels = [Column(**col) for col in result.get("columnModels", [])]
+        self.nextPageToken = result["queryResult"].get("nextPageToken", None)
+        self.count = result.get("queryCount", None)
+        self.maxRowsPerPage = result.get("maxRowsPerPage", None)
         self.i = -1
 
         super(TableQueryResult, self).__init__(
-            schema=self.rowset.get('tableId', None),
+            schema=self.rowset.get("tableId", None),
             headers=self.rowset.headers,
-            etag=self.rowset.get('etag', None))
+            etag=self.rowset.get("etag", None),
+        )
 
     def _synapse_store(self, syn):
         raise SynapseError(
@@ -1842,81 +2077,111 @@ class TableQueryResult(TableAbstractBaseClass):
 
         def construct_rownames(rowset, offset=0):
             try:
-
-                return row_labels_from_rows(rowset['rows']) if rowIdAndVersionInIndex else None
+                return (
+                    row_labels_from_rows(rowset["rows"])
+                    if rowIdAndVersionInIndex
+                    else None
+                )
             except KeyError:
                 # if we don't have row id and version, just number the rows
                 # python3 cast range to list for safety
-                return list(range(offset, offset + len(rowset['rows'])))
+                return list(range(offset, offset + len(rowset["rows"])))
 
         # first page of rows
         offset = 0
         rownames = construct_rownames(self.rowset, offset)
-        offset += len(self.rowset['rows'])
+        offset += len(self.rowset["rows"])
         series = collections.OrderedDict()
 
         if not rowIdAndVersionInIndex:
             # Since we use an OrderedDict this must happen before we construct the other columns
             # add row id, verison, and etag as rows
             append_etag = False  # only useful when (not rowIdAndVersionInIndex), hooray for lazy variables!
-            series['ROW_ID'] = pd.Series(name='ROW_ID', data=[row['rowId'] for row in self.rowset['rows']])
-            series['ROW_VERSION'] = pd.Series(name='ROW_VERSION',
-                                              data=[row['versionNumber'] for row in self.rowset['rows']])
+            series["ROW_ID"] = pd.Series(
+                name="ROW_ID", data=[row["rowId"] for row in self.rowset["rows"]]
+            )
+            series["ROW_VERSION"] = pd.Series(
+                name="ROW_VERSION",
+                data=[row["versionNumber"] for row in self.rowset["rows"]],
+            )
 
-            row_etag = [row.get('etag') for row in self.rowset['rows']]
+            row_etag = [row.get("etag") for row in self.rowset["rows"]]
             if any(row_etag):
                 append_etag = True
-                series['ROW_ETAG'] = pd.Series(name='ROW_ETAG', data=row_etag)
+                series["ROW_ETAG"] = pd.Series(name="ROW_ETAG", data=row_etag)
 
         for i, header in enumerate(self.rowset["headers"]):
             column_name = header.name
-            series[column_name] = pd.Series(name=column_name,
-                                            data=[row['values'][i] for row in self.rowset['rows']],
-                                            index=rownames)
+            series[column_name] = pd.Series(
+                name=column_name,
+                data=[row["values"][i] for row in self.rowset["rows"]],
+                index=rownames,
+            )
 
         # subsequent pages of rows
         while self.nextPageToken:
             result = self.syn._queryTableNext(self.nextPageToken, self.tableId)
-            self.rowset = RowSet.from_json(result['queryResults'])
-            self.nextPageToken = result.get('nextPageToken', None)
+            self.rowset = RowSet.from_json(result["queryResults"])
+            self.nextPageToken = result.get("nextPageToken", None)
             self.i = 0
 
             rownames = construct_rownames(self.rowset, offset)
-            offset += len(self.rowset['rows'])
+            offset += len(self.rowset["rows"])
 
             if not rowIdAndVersionInIndex:
-                series['ROW_ID'].append(pd.Series(name='ROW_ID', data=[row['id'] for row in self.rowset['rows']]))
-                series['ROW_VERSION'].append(pd.Series(name='ROW_VERSION',
-                                                       data=[row['version'] for row in self.rowset['rows']]))
+                # TODO: Look into why this isn't being assigned
+                series["ROW_ID"].append(
+                    pd.Series(
+                        name="ROW_ID", data=[row["id"] for row in self.rowset["rows"]]
+                    )
+                )
+                series["ROW_VERSION"].append(
+                    pd.Series(
+                        name="ROW_VERSION",
+                        data=[row["version"] for row in self.rowset["rows"]],
+                    )
+                )
                 if append_etag:
-                    series['ROW_ETAG'] = pd.Series(name='ROW_ETAG',
-                                                   data=[row.get('etag') for row in self.rowset['rows']])
+                    series["ROW_ETAG"] = pd.Series(
+                        name="ROW_ETAG",
+                        data=[row.get("etag") for row in self.rowset["rows"]],
+                    )
 
             for i, header in enumerate(self.rowset["headers"]):
                 column_name = header.name
-                series[column_name] = series[column_name].append(
-                    pd.Series(name=column_name,
-                              data=[row['values'][i] for row in self.rowset['rows']],
-                              index=rownames),
+                series[column_name] = pd.concat(
+                    [
+                        series[column_name],
+                        pd.Series(
+                            name=column_name,
+                            data=[row["values"][i] for row in self.rowset["rows"]],
+                            index=rownames,
+                        ),
+                    ],
                     # can't verify integrity when indices are just numbers instead of 'rowid_rowversion'
-                    verify_integrity=rowIdAndVersionInIndex)
+                    verify_integrity=rowIdAndVersionInIndex,
+                )
 
         return pd.DataFrame(data=series)
 
     def asRowSet(self):
         # Note that as of stack 60, an empty query will omit the headers field
         # see PLFM-3014
-        return RowSet(headers=self.headers,
-                      tableId=self.tableId,
-                      etag=self.etag,
-                      rows=[row for row in self])
+        return RowSet(
+            headers=self.headers,
+            tableId=self.tableId,
+            etag=self.etag,
+            rows=[row for row in self],
+        )
 
     def asInteger(self):
         try:
-            return int(self.rowset['rows'][0]['values'][0])
+            return int(self.rowset["rows"][0]["values"][0])
         except (KeyError, TypeError):
-            raise ValueError("asInteger is only valid for queries such as count queries whose first value is an"
-                             " integer.")
+            raise ValueError(
+                "asInteger is only valid for queries such as count queries whose first value is an"
+                " integer."
+            )
 
     def __iter__(self):
         return self
@@ -1926,15 +2191,15 @@ class TableQueryResult(TableAbstractBaseClass):
         Python 2 iterator
         """
         self.i += 1
-        if self.i >= len(self.rowset['rows']):
+        if self.i >= len(self.rowset["rows"]):
             if self.nextPageToken:
                 result = self.syn._queryTableNext(self.nextPageToken, self.tableId)
-                self.rowset = RowSet.from_json(result['queryResults'])
-                self.nextPageToken = result.get('nextPageToken', None)
+                self.rowset = RowSet.from_json(result["queryResults"])
+                self.nextPageToken = result.get("nextPageToken", None)
                 self.i = 0
             else:
                 raise StopIteration()
-        return self.rowset['rows'][self.i]
+        return self.rowset["rows"][self.i]
 
     def __next__(self):
         """
@@ -1943,7 +2208,7 @@ class TableQueryResult(TableAbstractBaseClass):
         return self.next()
 
     def __len__(self):
-        return len(self.rowset['rows'])
+        return len(self.rowset["rows"])
 
     def iter_row_metadata(self):
         """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
@@ -1952,7 +2217,9 @@ class TableQueryResult(TableAbstractBaseClass):
         :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_version, row_etag)
         """
         for row in self:
-            yield type(self).RowMetadataTuple(int(row['rowId']), int(row['versionNumber']), row.get('etag'))
+            yield type(self).RowMetadataTuple(
+                int(row["rowId"]), int(row["versionNumber"]), row.get("etag")
+            )
 
 
 class CsvFileTable(TableAbstractBaseClass):
@@ -1962,8 +2229,18 @@ class CsvFileTable(TableAbstractBaseClass):
     """
 
     @classmethod
-    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep),
-                         separator=",", header=True, includeRowIdAndRowVersion=True, downloadLocation=None):
+    def from_table_query(
+        cls,
+        synapse,
+        query,
+        quoteCharacter='"',
+        escapeCharacter="\\",
+        lineEnd=str(os.linesep),
+        separator=",",
+        header=True,
+        includeRowIdAndRowVersion=True,
+        downloadLocation=None,
+    ):
         """
         Create a Table object wrapping a CSV file resulting from querying a Synapse table.
         Mostly for internal use.
@@ -1982,36 +2259,54 @@ class CsvFileTable(TableAbstractBaseClass):
 
         # A dirty hack to find out if we got back row ID and Version
         # in particular, we don't get these back from aggregate queries
-        with io.open(path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f,
-                                delimiter=separator,
-                                escapechar=escapeCharacter,
-                                lineterminator=lineEnd,
-                                quotechar=quoteCharacter)
+        with io.open(path, "r", encoding="utf-8") as f:
+            reader = csv.reader(
+                f,
+                delimiter=separator,
+                escapechar=escapeCharacter,
+                lineterminator=lineEnd,
+                quotechar=quoteCharacter,
+            )
             first_line = next(reader)
-        if len(download_from_table_result['headers']) + 2 == len(first_line):
+        if len(download_from_table_result["headers"]) + 2 == len(first_line):
             includeRowIdAndRowVersion = True
         else:
             includeRowIdAndRowVersion = False
 
         self = cls(
             filepath=path,
-            schema=download_from_table_result.get('tableId', None),
-            etag=download_from_table_result.get('etag', None),
+            schema=download_from_table_result.get("tableId", None),
+            etag=download_from_table_result.get("etag", None),
             quoteCharacter=quoteCharacter,
             escapeCharacter=escapeCharacter,
             lineEnd=lineEnd,
             separator=separator,
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion,
-            headers=[SelectColumn(**header) for header in download_from_table_result['headers']])
+            headers=[
+                SelectColumn(**header)
+                for header in download_from_table_result["headers"]
+            ],
+        )
 
         return self
 
     @classmethod
-    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\",
-                        lineEnd=str(os.linesep), separator=",", header=True, includeRowIdAndRowVersion=None,
-                        headers=None, **kwargs):
+    def from_data_frame(
+        cls,
+        schema,
+        df,
+        filepath=None,
+        etag=None,
+        quoteCharacter='"',
+        escapeCharacter="\\",
+        lineEnd=str(os.linesep),
+        separator=",",
+        header=True,
+        includeRowIdAndRowVersion=None,
+        headers=None,
+        **kwargs,
+    ):
         # infer columns from data frame if not specified
         if not headers:
             cols = as_table_columns(df)
@@ -2023,8 +2318,8 @@ class CsvFileTable(TableAbstractBaseClass):
 
         # convert row names in the format [row_id]_[version] or [row_id]_[version]_[etag] back to columns
         # etag is essentially a UUID
-        etag_pattern = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}'
-        row_id_version_pattern = re.compile(r'(\d+)_(\d+)(_(' + etag_pattern + r'))?')
+        etag_pattern = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}"
+        row_id_version_pattern = re.compile(r"(\d+)_(\d+)(_(" + etag_pattern + r"))?")
 
         row_id = []
         row_version = []
@@ -2036,13 +2331,17 @@ class CsvFileTable(TableAbstractBaseClass):
             row_etag.append(m.group(4) if m else None)
 
         # include row ID and version, if we're asked to OR if it's encoded in row names
-        if includeRowIdAndRowVersion or (includeRowIdAndRowVersion is None and any(row_id)):
+        if includeRowIdAndRowVersion or (
+            includeRowIdAndRowVersion is None and any(row_id)
+        ):
             df2 = df.copy()
 
-            cls._insert_dataframe_column_if_not_exist(df2, 0, 'ROW_ID', row_id)
-            cls._insert_dataframe_column_if_not_exist(df2, 1, 'ROW_VERSION', row_version)
+            cls._insert_dataframe_column_if_not_exist(df2, 0, "ROW_ID", row_id)
+            cls._insert_dataframe_column_if_not_exist(
+                df2, 1, "ROW_VERSION", row_version
+            )
             if any(row_etag):
-                cls._insert_dataframe_column_if_not_exist(df2, 2, 'ROW_ETAG', row_etag)
+                cls._insert_dataframe_column_if_not_exist(df2, 2, "ROW_ETAG", row_etag)
 
             df = df2
             includeRowIdAndRowVersion = True
@@ -2051,30 +2350,39 @@ class CsvFileTable(TableAbstractBaseClass):
         try:
             if not filepath:
                 temp_dir = tempfile.mkdtemp()
-                filepath = os.path.join(temp_dir, 'table.csv')
+                filepath = os.path.join(temp_dir, "table.csv")
 
-            f = io.open(filepath, mode='w', encoding='utf-8', newline='')
+            f = io.open(filepath, mode="w", encoding="utf-8", newline="")
 
             test_import_pandas()
             import pandas as pd
+
             if isinstance(schema, Schema):
                 for col in schema.columns_to_store:
-                    if col['columnType'] == 'DATE':
+                    if col["columnType"] == "DATE":
+
                         def _trailing_date_time_millisecond(t):
                             if isinstance(t, str):
                                 return t[:-3]
-                        df[col.name] = pd.to_datetime(df[col.name], errors='coerce').dt.strftime('%s%f')
-                        df[col.name] = df[col.name].apply(lambda x: _trailing_date_time_millisecond(x))
 
-            df.to_csv(f,
-                      index=False,
-                      sep=separator,
-                      header=header,
-                      quotechar=quoteCharacter,
-                      escapechar=escapeCharacter,
-                      line_terminator=lineEnd,
-                      na_rep=kwargs.get('na_rep', ''),
-                      float_format="%.12g")
+                        df[col.name] = pd.to_datetime(
+                            df[col.name], errors="coerce"
+                        ).dt.strftime("%s%f")
+                        df[col.name] = df[col.name].apply(
+                            lambda x: _trailing_date_time_millisecond(x)
+                        )
+
+            df.to_csv(
+                f,
+                index=False,
+                sep=separator,
+                header=header,
+                quotechar=quoteCharacter,
+                escapechar=escapeCharacter,
+                lineterminator=lineEnd,
+                na_rep=kwargs.get("na_rep", ""),
+                float_format="%.12g",
+            )
             # NOTE: reason for flat_format='%.12g':
             # pandas automatically converts int columns into float64 columns when some cells in the column have no
             # value. If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are writing
@@ -2096,48 +2404,71 @@ class CsvFileTable(TableAbstractBaseClass):
             separator=separator,
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion,
-            headers=headers)
+            headers=headers,
+        )
 
     @staticmethod
-    def _insert_dataframe_column_if_not_exist(dataframe, insert_index, col_name, insert_column_data):
+    def _insert_dataframe_column_if_not_exist(
+        dataframe, insert_index, col_name, insert_column_data
+    ):
         # if the column already exists verify the column data is same as what we parsed
         if col_name in dataframe.columns:
             if dataframe[col_name].tolist() != insert_column_data:
                 raise SynapseError(
-                    ("A column named '{0}' already exists and does not match the '{0}' values present in"
-                     " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
-                     " column for your data because it is necessary for version tracking in Synapse's"
-                     " tables").format(col_name)
+                    (
+                        "A column named '{0}' already exists and does not match the '{0}' values present in"
+                        " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
+                        " column for your data because it is necessary for version tracking in Synapse's"
+                        " tables"
+                    ).format(col_name)
                 )
         else:
             dataframe.insert(insert_index, col_name, insert_column_data)
 
     @classmethod
-    def from_list_of_rows(cls, schema, values, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\",
-                          lineEnd=str(os.linesep), separator=",", linesToSkip=0, includeRowIdAndRowVersion=None,
-                          headers=None):
-
+    def from_list_of_rows(
+        cls,
+        schema,
+        values,
+        filepath=None,
+        etag=None,
+        quoteCharacter='"',
+        escapeCharacter="\\",
+        lineEnd=str(os.linesep),
+        separator=",",
+        linesToSkip=0,
+        includeRowIdAndRowVersion=None,
+        headers=None,
+    ):
         # create CSV file
         f = None
         try:
             if not filepath:
                 temp_dir = tempfile.mkdtemp()
-                filepath = os.path.join(temp_dir, 'table.csv')
+                filepath = os.path.join(temp_dir, "table.csv")
 
-            f = io.open(filepath, 'w', encoding='utf-8', newline='')
+            f = io.open(filepath, "w", encoding="utf-8", newline="")
 
-            writer = csv.writer(f,
-                                quoting=csv.QUOTE_NONNUMERIC,
-                                delimiter=separator,
-                                escapechar=escapeCharacter,
-                                lineterminator=lineEnd,
-                                quotechar=quoteCharacter,
-                                skipinitialspace=linesToSkip)
+            writer = csv.writer(
+                f,
+                quoting=csv.QUOTE_NONNUMERIC,
+                delimiter=separator,
+                escapechar=escapeCharacter,
+                lineterminator=lineEnd,
+                quotechar=quoteCharacter,
+                skipinitialspace=linesToSkip,
+            )
 
             # if we haven't explicitly set columns, try to grab them from
             # the schema object
-            if not headers and "columns_to_store" in schema and schema.columns_to_store is not None:
-                headers = [SelectColumn.from_column(col) for col in schema.columns_to_store]
+            if (
+                not headers
+                and "columns_to_store" in schema
+                and schema.columns_to_store is not None
+            ):
+                headers = [
+                    SelectColumn.from_column(col) for col in schema.columns_to_store
+                ]
 
             # write headers?
             if headers:
@@ -2164,11 +2495,23 @@ class CsvFileTable(TableAbstractBaseClass):
             separator=separator,
             header=header,
             headers=headers,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+        )
 
-    def __init__(self, schema, filepath, etag=None, quoteCharacter=DEFAULT_QUOTE_CHARACTER,
-                 escapeCharacter=DEFAULT_ESCAPSE_CHAR, lineEnd=str(os.linesep), separator=DEFAULT_SEPARATOR,
-                 header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
+    def __init__(
+        self,
+        schema,
+        filepath,
+        etag=None,
+        quoteCharacter=DEFAULT_QUOTE_CHARACTER,
+        escapeCharacter=DEFAULT_ESCAPSE_CHAR,
+        lineEnd=str(os.linesep),
+        separator=DEFAULT_SEPARATOR,
+        header=True,
+        linesToSkip=0,
+        includeRowIdAndRowVersion=None,
+        headers=None,
+    ):
         self.filepath = filepath
 
         self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
@@ -2190,7 +2533,7 @@ class CsvFileTable(TableAbstractBaseClass):
         return copied_self._update_self(syn)
 
     def _update_self(self, syn):
-        if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
+        if isinstance(self.schema, Schema) and self.schema.get("id", None) is None:
             # store schema
             self.schema = syn.store(self.schema)
             self.tableId = self.schema.id
@@ -2204,15 +2547,17 @@ class CsvFileTable(TableAbstractBaseClass):
             lineEnd=self.lineEnd,
             separator=self.separator,
             header=self.header,
-            linesToSkip=self.linesToSkip)
+            linesToSkip=self.linesToSkip,
+        )
 
-        upload_to_table_result = result['results'][0]
+        upload_to_table_result = result["results"][0]
 
-        assert upload_to_table_result['concreteType'] in ('org.sagebionetworks.repo.model.table.EntityUpdateResults',
-                                                          'org.sagebionetworks.repo.model.table.UploadToTableResult'),\
-            "Not an UploadToTableResult or EntityUpdateResults."
-        if 'etag' in upload_to_table_result:
-            self.etag = upload_to_table_result['etag']
+        assert upload_to_table_result["concreteType"] in (
+            "org.sagebionetworks.repo.model.table.EntityUpdateResults",
+            "org.sagebionetworks.repo.model.table.UploadToTableResult",
+        ), "Not an UploadToTableResult or EntityUpdateResults."
+        if "etag" in upload_to_table_result:
+            self.etag = upload_to_table_result["etag"]
         return self
 
     def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime=False):
@@ -2246,16 +2591,18 @@ class CsvFileTable(TableAbstractBaseClass):
                     elif select_column.columnType == "DATE" and convert_to_datetime:
                         date_columns.append(select_column.name)
 
-            return _csv_to_pandas_df(self.filepath,
-                                     separator=self.separator,
-                                     quote_char=quoteChar,
-                                     escape_char=self.escapeCharacter,
-                                     contain_headers=self.header,
-                                     lines_to_skip=self.linesToSkip,
-                                     date_columns=date_columns,
-                                     list_columns=list_columns,
-                                     rowIdAndVersionInIndex=rowIdAndVersionInIndex,
-                                     dtype=dtype)
+            return _csv_to_pandas_df(
+                self.filepath,
+                separator=self.separator,
+                quote_char=quoteChar,
+                escape_char=self.escapeCharacter,
+                contain_headers=self.header,
+                lines_to_skip=self.linesToSkip,
+                date_columns=date_columns,
+                list_columns=list_columns,
+                rowIdAndVersionInIndex=rowIdAndVersionInIndex,
+                dtype=dtype,
+            )
         except pd.parser.CParserError:
             return pd.DataFrame()
 
@@ -2264,9 +2611,9 @@ class CsvFileTable(TableAbstractBaseClass):
         row_id_col = None
         row_ver_col = None
         for i, header in enumerate(self.headers):
-            if header.name == 'ROW_ID':
+            if header.name == "ROW_ID":
                 row_id_col = i
-            elif header.name == 'ROW_VERSION':
+            elif header.name == "ROW_VERSION":
                 row_ver_col = i
 
         def to_row_object(row, row_id_col=None, row_ver_col=None):
@@ -2274,13 +2621,21 @@ class CsvFileTable(TableAbstractBaseClass):
                 return row
             rowId = row[row_id_col] if row_id_col is not None else None
             versionNumber = row[row_ver_col] if row_ver_col is not None else None
-            values = [elem for i, elem in enumerate(row) if i not in [row_id_col, row_ver_col]]
+            values = [
+                elem for i, elem in enumerate(row) if i not in [row_id_col, row_ver_col]
+            ]
             return Row(values, rowId=rowId, versionNumber=versionNumber)
 
-        return RowSet(headers=[elem for i, elem in enumerate(self.headers) if i not in [row_id_col, row_ver_col]],
-                      tableId=self.tableId,
-                      etag=self.etag,
-                      rows=[to_row_object(row, row_id_col, row_ver_col) for row in self])
+        return RowSet(
+            headers=[
+                elem
+                for i, elem in enumerate(self.headers)
+                if i not in [row_id_col, row_ver_col]
+            ],
+            tableId=self.tableId,
+            etag=self.etag,
+            rows=[to_row_object(row, row_id_col, row_ver_col) for row in self],
+        )
 
     def setColumnHeaders(self, headers):
         """
@@ -2292,8 +2647,10 @@ class CsvFileTable(TableAbstractBaseClass):
         if self.includeRowIdAndRowVersion:
             names = [header.name for header in headers]
             if "ROW_ID" not in names and "ROW_VERSION" not in names:
-                headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
-                           SelectColumn(name="ROW_VERSION", columnType="STRING")] + headers
+                headers = [
+                    SelectColumn(name="ROW_ID", columnType="STRING"),
+                    SelectColumn(name="ROW_VERSION", columnType="STRING"),
+                ] + headers
         self.headers = headers
 
     def __iter__(self):
@@ -2302,17 +2659,21 @@ class CsvFileTable(TableAbstractBaseClass):
                 raise ValueError("Iteration not supported for table without headers.")
 
             header_name = {header.name for header in headers}
-            row_metadata_headers = {'ROW_ID', 'ROW_VERSION', 'ROW_ETAG'}
+            row_metadata_headers = {"ROW_ID", "ROW_VERSION", "ROW_ETAG"}
             num_row_metadata_in_headers = len(header_name & row_metadata_headers)
-            with io.open(filepath, encoding='utf-8', newline=self.lineEnd) as f:
-                reader = csv.reader(f,
-                                    delimiter=self.separator,
-                                    escapechar=self.escapeCharacter,
-                                    lineterminator=self.lineEnd,
-                                    quotechar=self.quoteCharacter)
+            with io.open(filepath, encoding="utf-8", newline=self.lineEnd) as f:
+                reader = csv.reader(
+                    f,
+                    delimiter=self.separator,
+                    escapechar=self.escapeCharacter,
+                    lineterminator=self.lineEnd,
+                    quotechar=self.quoteCharacter,
+                )
                 csv_header = set(next(reader))
                 # the number of row metadata differences between the csv headers and self.headers
-                num_metadata_cols_diff = len(csv_header & row_metadata_headers) - num_row_metadata_in_headers
+                num_metadata_cols_diff = (
+                    len(csv_header & row_metadata_headers) - num_row_metadata_in_headers
+                )
                 # we only process 2 cases:
                 # 1. matching row metadata
                 # 2. if metadata does not match, self.headers must not contains row metadata
@@ -2320,11 +2681,14 @@ class CsvFileTable(TableAbstractBaseClass):
                     for row in reader:
                         yield cast_values(row[num_metadata_cols_diff:], headers)
                 else:
-                    raise ValueError("There is mismatching row metadata in the csv file and in headers.")
+                    raise ValueError(
+                        "There is mismatching row metadata in the csv file and in headers."
+                    )
+
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):
-        with io.open(self.filepath, encoding='utf-8', newline=self.lineEnd) as f:
+        with io.open(self.filepath, encoding="utf-8", newline=self.lineEnd) as f:
             if self.header:  # ignore the header line
                 f.readline()
 
@@ -2336,23 +2700,27 @@ class CsvFileTable(TableAbstractBaseClass):
 
         :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
         """
-        with io.open(self.filepath, encoding='utf-8', newline=self.lineEnd) as f:
-            reader = csv.reader(f,
-                                delimiter=self.separator,
-                                escapechar=self.escapeCharacter,
-                                lineterminator=self.lineEnd,
-                                quotechar=self.quoteCharacter)
+        with io.open(self.filepath, encoding="utf-8", newline=self.lineEnd) as f:
+            reader = csv.reader(
+                f,
+                delimiter=self.separator,
+                escapechar=self.escapeCharacter,
+                lineterminator=self.lineEnd,
+                quotechar=self.quoteCharacter,
+            )
             header = next(reader)
 
             # The ROW_... headers are always in a predefined order
-            row_id_index = header.index('ROW_ID')
-            row_version_index = header.index('ROW_VERSION')
+            row_id_index = header.index("ROW_ID")
+            row_version_index = header.index("ROW_VERSION")
             try:
-                row_etag_index = header.index('ROW_ETAG')
+                row_etag_index = header.index("ROW_ETAG")
             except ValueError:
                 row_etag_index = None
 
             for row in reader:
-                yield type(self).RowMetadataTuple(int(row[row_id_index]),
-                                                  int(row[row_version_index]),
-                                                  row[row_etag_index] if (row_etag_index is not None) else None)
+                yield type(self).RowMetadataTuple(
+                    int(row[row_id_index]),
+                    int(row[row_version_index]),
+                    row[row_etag_index] if (row_etag_index is not None) else None,
+                )

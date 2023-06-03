@@ -9,13 +9,13 @@ import platform
 from synapseclient.core.utils import iso_to_datetime, snake_case
 
 try:
-    boto3 = importlib.import_module('boto3')
+    boto3 = importlib.import_module("boto3")
 except ImportError:
     # boto is not a requirement to load this module,
     # we are able to optionally use functionality if it's available
     boto3 = None
 
-STS_PERMISSIONS = set(['read_only', 'read_write'])
+STS_PERMISSIONS = set(["read_only", "read_write"])
 
 # default minimum life left on a cached token that we'll hand out.
 DEFAULT_MIN_LIFE = datetime.timedelta(hours=1)
@@ -42,7 +42,7 @@ class _TokenCache(collections.OrderedDict):
         to_delete = []
         before_timestamp = datetime.datetime.utcnow().timestamp()
         for entity_id, token in self.items():
-            expiration_iso_str = token['expiration']
+            expiration_iso_str = token["expiration"]
 
             # our "iso_to_datetime" util naively assumes UTC ("Z") times which in practice STS tokens are
             if iso_to_datetime(expiration_iso_str).timestamp() < before_timestamp:
@@ -73,7 +73,9 @@ class StsTokenStore:
         self._tokens = {p: _TokenCache(max_token_cache_size) for p in STS_PERMISSIONS}
         self._lock = threading.Lock()
 
-    def get_token(self, syn, entity_id, permission, min_remaining_life: datetime.timedelta):
+    def get_token(
+        self, syn, entity_id, permission, min_remaining_life: datetime.timedelta
+    ):
         with self._lock:
             utcnow = datetime.datetime.utcnow()
             token_cache = self._tokens.get(permission)
@@ -81,36 +83,41 @@ class StsTokenStore:
                 raise ValueError(f"Invalid STS permission {permission}")
 
             token = token_cache.get(entity_id)
-            if not token or (iso_to_datetime(token['expiration']) - utcnow) < min_remaining_life:
+            if (
+                not token
+                or (iso_to_datetime(token["expiration"]) - utcnow) < min_remaining_life
+            ):
                 # either there is no cached token or the remaining life on the token isn't enough so fetch new
-                token = token_cache[entity_id] = self._fetch_token(syn, entity_id, permission)
+                token = token_cache[entity_id] = self._fetch_token(
+                    syn, entity_id, permission
+                )
 
         return token
 
     @staticmethod
     def _fetch_token(syn, entity_id, permission):
-        return syn.restGET(f'/entity/{entity_id}/sts?permission={permission}')
+        return syn.restGET(f"/entity/{entity_id}/sts?permission={permission}")
 
 
 EXPORT_TEMPLATE_STRINGS = {
-    'bash': """\
+    "bash": """\
 export SYNAPSE_STS_S3_LOCATION="s3://{bucket}/{baseKey}"
 export AWS_ACCESS_KEY_ID="{accessKeyId}"
 export AWS_SECRET_ACCESS_KEY="{secretAccessKey}"
 export AWS_SESSION_TOKEN="{sessionToken}"
 """,
-    'cmd': """\
+    "cmd": """\
 set SYNAPSE_STS_S3_LOCATION="s3://{bucket}/{baseKey}"
 set AWS_ACCESS_KEY_ID="{accessKeyId}"
 set AWS_SECRET_ACCESS_KEY="{secretAccessKey}"
 set AWS_SESSION_TOKEN="{sessionToken}"
 """,
-    'powershell': """\
+    "powershell": """\
 $Env:SYNAPSE_STS_S3_LOCATION="s3://{bucket}/{baseKey}"
 $Env:AWS_ACCESS_KEY_ID="{accessKeyId}"
 $Env:AWS_SECRET_ACCESS_KEY="{secretAccessKey}"
 $Env:AWS_SESSION_TOKEN="{sessionToken}"
-"""
+""",
 }
 
 
@@ -121,7 +128,7 @@ def _format_export_template_string(syn, entity_id, credentials, template_string)
     # at some point we can probably remove this extra check/call, but depending on when the fix
     # for the above is deployed and when the initial STS python client is released, we include
     # the fall back to fetch the keys separately, but only if necessary.
-    bucket_keys = {'bucket', 'baseKey'}
+    bucket_keys = {"bucket", "baseKey"}
     if all(k in credentials for k in bucket_keys):
         subs = credentials
     else:
@@ -131,43 +138,48 @@ def _format_export_template_string(syn, entity_id, credentials, template_string)
     # if for some reason we still don't have the bucket info, we just don't include
     # the path in the output
     if any(k not in subs for k in bucket_keys):
-        template_string = template_string[template_string.find('\n') + 1:]
+        template_string = template_string[template_string.find("\n") + 1 :]
 
     return template_string.format(**subs)
 
 
-def get_sts_credentials(syn, entity_id, permission, *, output_format='json', min_remaining_life=None):
+def get_sts_credentials(
+    syn, entity_id, permission, *, output_format="json", min_remaining_life=None
+):
     """See Synapse.get_sts_storage_token"""
     min_remaining_life = min_remaining_life or DEFAULT_MIN_LIFE
 
-    value = syn._sts_token_store.get_token(syn, entity_id, permission, min_remaining_life)
+    value = syn._sts_token_store.get_token(
+        syn, entity_id, permission, min_remaining_life
+    )
 
-    if output_format == 'boto':
+    if output_format == "boto":
         # the Synapse STS API returns camel cased keys that we need to convert to use with boto.
         # prefix with "aws_", convert to snake case, and exclude any other key/value pairs in the value
         # e.g. expiration
-        return {"aws_{}".format(snake_case(k)): value[k] for k in (
-            'accessKeyId', 'secretAccessKey', 'sessionToken'
-        )}
-    elif output_format == 'json':
+        return {
+            "aws_{}".format(snake_case(k)): value[k]
+            for k in ("accessKeyId", "secretAccessKey", "sessionToken")
+        }
+    elif output_format == "json":
         # pass through what server sent
         return value
 
-    elif output_format == 'shell':
+    elif output_format == "shell":
         # for "shell" we try to detect what is best for the system
         # assume bourne compatible output outside of windows
-        if platform.system() == 'Windows' and 'bash' not in os.environ.get('SHELL', ''):
-            if len(os.getenv('PSModulePath', '').split(os.pathsep)) >= 3:
+        if platform.system() == "Windows" and "bash" not in os.environ.get("SHELL", ""):
+            if len(os.getenv("PSModulePath", "").split(os.pathsep)) >= 3:
                 # https://stackoverflow.com/a/55598796
-                output_format = 'powershell'
+                output_format = "powershell"
             else:
-                output_format = 'cmd'
+                output_format = "cmd"
         else:
-            output_format = 'bash'
+            output_format = "bash"
 
     template_string = EXPORT_TEMPLATE_STRINGS.get(output_format)
     if not template_string:
-        raise ValueError(f'Unrecognized output_format {output_format}')
+        raise ValueError(f"Unrecognized output_format {output_format}")
 
     return _format_export_template_string(syn, entity_id, value, template_string)
 
@@ -185,11 +197,13 @@ def with_boto_sts_credentials(fn, syn, entity_id, permission):
     """
 
     for attempt in range(2):
-        credentials = get_sts_credentials(syn, entity_id, permission, output_format='boto')
+        credentials = get_sts_credentials(
+            syn, entity_id, permission, output_format="boto"
+        )
         try:
             response = fn(credentials)
         except boto3.exceptions.Boto3Error as ex:
-            if 'ExpiredToken' in str(ex) and attempt == 0:
+            if "ExpiredToken" in str(ex) and attempt == 0:
                 continue
             else:
                 raise
@@ -230,8 +244,8 @@ def is_storage_location_sts_enabled(syn, entity_id, location):
     else:
         # otherwise treat it as a storage location id,
         destination = syn.restGET(
-            f'/entity/{entity_id}/uploadDestination/{location}',
-            endpoint=syn.fileHandleEndpoint
+            f"/entity/{entity_id}/uploadDestination/{location}",
+            endpoint=syn.fileHandleEndpoint,
         )
 
-    return destination.get('stsEnabled', False)
+    return destination.get("stsEnabled", False)
