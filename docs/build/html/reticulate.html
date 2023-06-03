@@ -3,12 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Using synapseclient with R through reticulate &mdash; Synapse Python Client 2.7.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" /><link rel="shortcut icon" href="_static/favicon.png"/>
+  <title>Using synapseclient with R through reticulate &mdash; Synapse Python Client 2.7.2 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="shortcut icon" href="_static/favicon.png"/>
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
@@ -22,32 +25,37 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Synapse Python Client<img src="_static/synapse_logo.png" class="logo" alt="Logo"/>
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Synapse Python Client
+              <img src="_static/synapse_logo.png" class="logo" alt="Logo"/>
           </a>
               <div class="version">
-                2.7.0
+                2.7.2
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Getting Started</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/credentials.html">Manage Synapse Credentials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">Python Client Basics</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Command Line Client</span></p>
+<p class="caption" role="heading"><span class="caption-text">Command Line Client</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html#help">Help</a></li>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html#usage">Usage</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Python API</span></p>
+<p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api/Client.html">Synapse Client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/Entity.html">Entity</a></li>
@@ -60,7 +68,7 @@
 <li class="toctree-l1"><a class="reference internal" href="api/Table.html">Tables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/Team.html">Teams</a></li>
 </ul>
-<p class="caption"><span class="caption-text">News</span></p>
+<p class="caption" role="heading"><span class="caption-text">News</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="news.html">Release Notes</a></li>
 </ul>
@@ -78,8 +86,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Using synapseclient with R through reticulate</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Using synapseclient with R through reticulate</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/reticulate.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -90,7 +98,7 @@
            <div itemprop="articleBody">
              
   <div class="section" id="using-synapseclient-with-r-through-reticulate">
-<h1>Using synapseclient with R through reticulate<a class="headerlink" href="#using-synapseclient-with-r-through-reticulate" title="Permalink to this headline">¶</a></h1>
+<h1>Using synapseclient with R through reticulate<a class="headerlink" href="#using-synapseclient-with-r-through-reticulate" title="Permalink to this headline"></a></h1>
 <p>This article describes using the Python synapseclient with R through the
 <a class="reference external" href="https://rstudio.github.io/reticulate/">reticulate</a> package, which provides an interface between R and Python
 libraries.</p>
@@ -98,9 +106,9 @@ libraries.</p>
 directly in an R environment without the need for reticulate, it is not currently compatible with an
 R environment that already includes reticulate. In such cases using the Python synapseclient is an alternative.</p>
 <div class="section" id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline"></a></h2>
 <div class="section" id="installing-reticulate">
-<h3>Installing reticulate<a class="headerlink" href="#installing-reticulate" title="Permalink to this headline">¶</a></h3>
+<h3>Installing reticulate<a class="headerlink" href="#installing-reticulate" title="Permalink to this headline"></a></h3>
 <p>This article assumes that reticulate is installed and available in your R environment. If not it can be installed
 as follows:</p>
 <blockquote>
@@ -110,13 +118,13 @@ as follows:</p>
 </div></blockquote>
 </div>
 <div class="section" id="installing-synapseclient">
-<h3>Installing synapseclient<a class="headerlink" href="#installing-synapseclient" title="Permalink to this headline">¶</a></h3>
+<h3>Installing synapseclient<a class="headerlink" href="#installing-synapseclient" title="Permalink to this headline"></a></h3>
 <p>The Python synapseclient can be installed either directly into the Python installation you intend to use with
 reticulate or from within R using the reticulate library.</p>
 <p>synapseclient has the same requirements and dependencies when installed for use with reticulate as it does in other
 usage. In particular note that synapseclient requires a Python version of 3.6 or greater.</p>
 <div class="section" id="installing-into-python">
-<h4>Installing into Python<a class="headerlink" href="#installing-into-python" title="Permalink to this headline">¶</a></h4>
+<h4>Installing into Python<a class="headerlink" href="#installing-into-python" title="Permalink to this headline"></a></h4>
 <p>The Python synapseclient is available on the <a class="reference external" href="https://pypi.org/project/synapseclient/">PyPi package repository</a>
 and can be installed through Python tools that interface with the repository, such as <strong>pip</strong>. To install synapseclient for
 use with reticulate directly into a Python environment, first ensure that the current Python interpreter is the one you
@@ -130,7 +138,7 @@ information on how reticulate can be configured to use particular Python environ
 <a class="reference external" href="index.html#installation">installation instructions</a> to install synapseclient.</p>
 </div>
 <div class="section" id="installing-from-r-reticulate">
-<h4>Installing from R/Reticulate<a class="headerlink" href="#installing-from-r-reticulate" title="Permalink to this headline">¶</a></h4>
+<h4>Installing from R/Reticulate<a class="headerlink" href="#installing-from-r-reticulate" title="Permalink to this headline"></a></h4>
 <p>To install synapseclient from within R, first ensure that the reticulate library is loaded.</p>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">library</span><span class="p">(</span><span class="n">reticulate</span><span class="p">)</span>
@@ -157,7 +165,7 @@ dependencies.</p>
 </div>
 </div>
 <div class="section" id="usage">
-<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline"></a></h2>
 <p>Once synapseclient is installed it can be used once it is imported through R’s <a class="reference external" href="https://rstudio.github.io/reticulate/reference/imporl.html">import</a> command:</p>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapseclient</span> <span class="o">&lt;-</span> <span class="n">import</span><span class="p">(</span><span class="s2">&quot;synapseclient&quot;</span><span class="p">)</span>
@@ -210,7 +218,7 @@ syn$store(entity)
 <p>Each synapse object has its own state, such as configuration and login credentials.</p>
 </div>
 <div class="section" id="credentials">
-<h2>Credentials<a class="headerlink" href="#credentials" title="Permalink to this headline">¶</a></h2>
+<h2>Credentials<a class="headerlink" href="#credentials" title="Permalink to this headline"></a></h2>
 <p>synapseclient accessed through reticulate supports the same authentication options as it does when accessed directly
 from Python, for example:</p>
 <blockquote>
@@ -228,7 +236,7 @@ syn$login(&#39;&lt;username&#39;, &#39;&lt;password&gt;&#39;, rememberMe=TRUE)
 synapseclient handles credentials and authentication.</p>
 </div>
 <div class="section" id="accessing-data">
-<h2>Accessing Data<a class="headerlink" href="#accessing-data" title="Permalink to this headline">¶</a></h2>
+<h2>Accessing Data<a class="headerlink" href="#accessing-data" title="Permalink to this headline"></a></h2>
 <p>The following illustrates some examples of storing and retrieving data in Synapse using
 synapseclient through reticulate.</p>
 <p>See <a class="reference external" href="index.html#accessing-data">here</a> for more details on available data access APIs.</p>
@@ -281,7 +289,7 @@ file &lt;- syn$store(file)
 </div></blockquote>
 </div>
 <div class="section" id="annotating-synapse-entities">
-<h2>Annotating Synapse Entities<a class="headerlink" href="#annotating-synapse-entities" title="Permalink to this headline">¶</a></h2>
+<h2>Annotating Synapse Entities<a class="headerlink" href="#annotating-synapse-entities" title="Permalink to this headline"></a></h2>
 <p>This illustrates adding annotations to a Synapse entity.</p>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span># first retrieve the existing annotations object
@@ -297,7 +305,7 @@ syn$set_annotations(annotations)
 <p>See <a class="reference external" href="index.html#annotating-synapse-entities">here</a> for more information on annotations.</p>
 </div>
 <div class="section" id="provenance">
-<h2>Provenance<a class="headerlink" href="#provenance" title="Permalink to this headline">¶</a></h2>
+<h2>Provenance<a class="headerlink" href="#provenance" title="Permalink to this headline"></a></h2>
 <p>This example illustrates creating an entity with associated provenance.</p>
 <p>See <a class="reference external" href="index.html#provenance">here</a> for more information on Provenance related APIs.</p>
 <blockquote>
@@ -320,7 +328,7 @@ file &lt;- syn$store(file, activity = act)
 </div></blockquote>
 </div>
 <div class="section" id="tables">
-<h2>Tables<a class="headerlink" href="#tables" title="Permalink to this headline">¶</a></h2>
+<h2>Tables<a class="headerlink" href="#tables" title="Permalink to this headline"></a></h2>
 <p>These examples illustrate manipulating Synapse Tables.
 Note that you must have installed the Pandas dependency into the Python environment as described
 above in order to use this feature.</p>
@@ -377,7 +385,7 @@ results$asDataFrame()
 </div></blockquote>
 </div>
 <div class="section" id="wikis">
-<h2>Wikis<a class="headerlink" href="#wikis" title="Permalink to this headline">¶</a></h2>
+<h2>Wikis<a class="headerlink" href="#wikis" title="Permalink to this headline"></a></h2>
 <p>This example illustrates creating a wiki.</p>
 <p>See <a class="reference external" href="index.html#wikis">here</a> for more information on wiki APIs.</p>
 <blockquote>
@@ -415,7 +423,7 @@ wiki &lt;- syn$store(wiki)
 </div></blockquote>
 </div>
 <div class="section" id="evaluations">
-<h2>Evaluations<a class="headerlink" href="#evaluations" title="Permalink to this headline">¶</a></h2>
+<h2>Evaluations<a class="headerlink" href="#evaluations" title="Permalink to this headline"></a></h2>
 <p>An Evaluation is a Synapse construct useful for building processing pipelines and
 for scoring predictive modeling and data analysis challenges.</p>
 <p>See <a class="reference external" href="index.html#evaluations">here</a> for more information on Evaluations.</p>
@@ -479,7 +487,7 @@ syn$restGET(paste(&quot;/evaluation/submission/query?&quot;, URLencode(queryStri
 </div></blockquote>
 </div>
 <div class="section" id="sharing-access-to-content">
-<h2>Sharing Access to Content<a class="headerlink" href="#sharing-access-to-content" title="Permalink to this headline">¶</a></h2>
+<h2>Sharing Access to Content<a class="headerlink" href="#sharing-access-to-content" title="Permalink to this headline"></a></h2>
 <p>The following illustrates sharing access to a Synapse Entity.</p>
 <p>See <a class="reference external" href="index.html#access-control">here</a> for more information on Access Control including all available permissions.</p>
 <blockquote>
@@ -496,7 +504,7 @@ perms = syn$getPermissions(project)
 </div></blockquote>
 </div>
 <div class="section" id="views">
-<h2>Views<a class="headerlink" href="#views" title="Permalink to this headline">¶</a></h2>
+<h2>Views<a class="headerlink" href="#views" title="Permalink to this headline"></a></h2>
 <p>A view is a view of all entities (File, Folder, Project, Table, Docker Repository, View) within one or more Projects or Folders. Views can:
 The following examples illustrate some view operations.</p>
 <p>See <a class="reference external" href="index.html#views">here</a> for more information on Views. A view is implemented as a Table,
@@ -580,7 +588,7 @@ view$set_entity_types(list(synapseclient$EntityViewType$FILE))
 </div></blockquote>
 </div>
 <div class="section" id="using-with-a-shiny-app">
-<h2>Using with a Shiny App<a class="headerlink" href="#using-with-a-shiny-app" title="Permalink to this headline">¶</a></h2>
+<h2>Using with a Shiny App<a class="headerlink" href="#using-with-a-shiny-app" title="Permalink to this headline"></a></h2>
 <p>Reticulate and the Python synapseclient can be used to workaround an issue that exists when using
 synapser with a Shiny App. Since synapser shares a Synapse client instance within the R process,
 multiple users of a synapser integrated Shiny App may end up sharing a login if precautions aren’t
@@ -601,7 +609,7 @@ branch for an alternative implementation using reticulate with synapseclient.</p
 
   <div role="contentinfo">
     <p>&#169; Copyright 2018, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Mar 05, 2023.
+      <span class="lastupdated">Last updated on Jun 03, 2023.
       </span></p>
   </div>
 
@@ -622,8 +630,8 @@ branch for an alternative implementation using reticulate with synapseclient.</p
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Mar 05, 2023.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
+      Last updated on Jun 03, 2023.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

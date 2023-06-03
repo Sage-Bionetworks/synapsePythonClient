@@ -3,12 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Annotations &mdash; Synapse Python Client 2.7.0 documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /><link rel="shortcut icon" href="../_static/favicon.png"/>
+  <title>Annotations &mdash; Synapse Python Client 2.7.2 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
@@ -24,32 +27,37 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Synapse Python Client<img src="../_static/synapse_logo.png" class="logo" alt="Logo"/>
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Synapse Python Client
+              <img src="../_static/synapse_logo.png" class="logo" alt="Logo"/>
           </a>
               <div class="version">
-                2.7.0
+                2.7.2
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Getting Started</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/credentials.html">Manage Synapse Credentials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/basics.html">Python Client Basics</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Command Line Client</span></p>
+<p class="caption" role="heading"><span class="caption-text">Command Line Client</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../CommandLineClient.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../CommandLineClient.html#help">Help</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../CommandLineClient.html#usage">Usage</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Python API</span></p>
+<p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="Client.html">Synapse Client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Entity.html">Entity</a></li>
@@ -67,7 +75,7 @@
 <li class="toctree-l1"><a class="reference internal" href="Table.html">Tables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Team.html">Teams</a></li>
 </ul>
-<p class="caption"><span class="caption-text">News</span></p>
+<p class="caption" role="heading"><span class="caption-text">News</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../news.html">Release Notes</a></li>
 </ul>
@@ -85,8 +93,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Annotations</li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Annotations</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/api/Annotations.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -97,7 +105,7 @@
            <div itemprop="articleBody">
              
   <span class="target" id="module-synapseclient.annotations"></span><div class="section" id="annotations">
-<h1>Annotations<a class="headerlink" href="#annotations" title="Permalink to this headline">¶</a></h1>
+<h1>Annotations<a class="headerlink" href="#annotations" title="Permalink to this headline"></a></h1>
 <p>Annotations are arbitrary metadata attached to Synapse entities. They can be accessed like ordinary object properties
 or like dictionary keys:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span><span class="o">.</span><span class="n">my_annotation</span> <span class="o">=</span> <span class="s1">&#39;This is one way to do it&#39;</span>
@@ -123,11 +131,11 @@ or like dictionary keys:</p>
 <li><p><a class="reference internal" href="Client.html#synapseclient.Synapse.set_annotations" title="synapseclient.Synapse.set_annotations"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.set_annotations()</span></code></a></p></li>
 </ul>
 <div class="section" id="annotating-data-sources">
-<h2>Annotating data sources<a class="headerlink" href="#annotating-data-sources" title="Permalink to this headline">¶</a></h2>
+<h2>Annotating data sources<a class="headerlink" href="#annotating-data-sources" title="Permalink to this headline"></a></h2>
 <p>Data sources are best recorded using Synapse’s <a class="reference external" href="Activity.html">provenance</a> tools.</p>
 </div>
 <div class="section" id="implementation-details">
-<h2>Implementation details<a class="headerlink" href="#implementation-details" title="Permalink to this headline">¶</a></h2>
+<h2>Implementation details<a class="headerlink" href="#implementation-details" title="Permalink to this headline"></a></h2>
 <p>In Synapse, entities have both properties and annotations. Properties are used by the system, whereas annotations are
 completely user defined. In the Python client, we try to present this situation as a normal object, with one set of
 properties.</p>
@@ -139,15 +147,15 @@ properties.</p>
 </ul>
 </div>
 <div class="section" id="classes">
-<h2>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h2>
+<h2>Classes<a class="headerlink" href="#classes" title="Permalink to this headline"></a></h2>
 <dl class="py class">
-<dt id="synapseclient.annotations.Annotations">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.annotations.</span></code><code class="sig-name descname"><span class="pre">Annotations</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">int</span><span class="p"><span class="pre">,</span> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.annotations.Annotations" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.annotations.Annotations">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.annotations.</span></span><span class="sig-name descname"><span class="pre">Annotations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.annotations.Annotations" title="Permalink to this definition"></a></dt>
 <dd><p>Represent Synapse Entity annotations as a flat dictionary with the system assigned properties id, etag
 as object attributes.</p>
 <dl class="py method">
-<dt id="synapseclient.annotations.Annotations.__init__">
-<code class="sig-name descname"><span class="pre">__init__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">int</span><span class="p"><span class="pre">,</span> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.annotations.Annotations.__init__" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.annotations.Annotations.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.annotations.Annotations.__init__" title="Permalink to this definition"></a></dt>
 <dd><p>Create an Annotations object taking key value pairs from a dictionary or from keyword arguments.
 System properties id, etag, creationDate and uri become attributes of the object.</p>
 <dl class="field-list simple">
@@ -190,7 +198,7 @@ System properties id, etag, creationDate and uri become attributes of the object
 
   <div role="contentinfo">
     <p>&#169; Copyright 2018, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Mar 05, 2023.
+      <span class="lastupdated">Last updated on Jun 03, 2023.
       </span></p>
   </div>
 
@@ -211,8 +219,8 @@ System properties id, etag, creationDate and uri become attributes of the object
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Mar 05, 2023.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
+      Last updated on Jun 03, 2023.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

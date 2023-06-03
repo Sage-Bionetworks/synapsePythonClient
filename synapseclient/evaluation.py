@@ -81,10 +81,12 @@ import typing
 import urllib.parse as urllib_urlparse
 
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.annotations import (Annotations,
-                                       from_synapse_annotations,
-                                       is_synapse_annotations,
-                                       to_synapse_annotations)
+from synapseclient.annotations import (
+    Annotations,
+    from_synapse_annotations,
+    is_synapse_annotations,
+    to_synapse_annotations,
+)
 
 
 class Evaluation(DictObject):
@@ -126,33 +128,37 @@ class Evaluation(DictObject):
     @classmethod
     def getByNameURI(cls, name):
         quoted_name = urllib_urlparse.quote(name)
-        return f'/evaluation/name/{quoted_name}'
+        return f"/evaluation/name/{quoted_name}"
 
     @classmethod
     def getURI(cls, id):
-        return '/evaluation/%s' % id
+        return "/evaluation/%s" % id
 
     def __init__(self, **kwargs):
-        kwargs['contentSource'] = kwargs.get('contentSource', '')
-        if not kwargs['contentSource'].startswith('syn'):  # Verify that synapse Id given
-            raise ValueError('The "contentSource" parameter must be specified as a Synapse Entity when creating an'
-                             ' Evaluation')
+        kwargs["contentSource"] = kwargs.get("contentSource", "")
+        if not kwargs["contentSource"].startswith(
+            "syn"
+        ):  # Verify that synapse Id given
+            raise ValueError(
+                'The "contentSource" parameter must be specified as a Synapse Entity when creating an'
+                " Evaluation"
+            )
         super(Evaluation, self).__init__(kwargs)
 
     def postURI(self):
-        return '/evaluation'
+        return "/evaluation"
 
     def putURI(self):
-        return '/evaluation/%s' % self.id
+        return "/evaluation/%s" % self.id
 
     def deleteURI(self):
-        return '/evaluation/%s' % self.id
+        return "/evaluation/%s" % self.id
 
     def getACLURI(self):
-        return '/evaluation/%s/acl' % self.id
+        return "/evaluation/%s/acl" % self.id
 
     def putACLURI(self):
-        return '/evaluation/acl'
+        return "/evaluation/acl"
 
 
 class Submission(DictObject):
@@ -168,29 +174,31 @@ class Submission(DictObject):
 
     @classmethod
     def getURI(cls, id):
-        return '/evaluation/submission/%s' % id
+        return "/evaluation/submission/%s" % id
 
     def __init__(self, **kwargs):
-        if not ('evaluationId' in kwargs and
-                'entityId' in kwargs and
-                'versionNumber' in kwargs):
+        if not (
+            "evaluationId" in kwargs
+            and "entityId" in kwargs
+            and "versionNumber" in kwargs
+        ):
             raise KeyError
 
         super(Submission, self).__init__(kwargs)
 
     def postURI(self):
-        return '/evaluation/submission?etag=%s' % self.etag
+        return "/evaluation/submission?etag=%s" % self.etag
 
     def putURI(self):
-        return '/evaluation/submission/%s' % self.id
+        return "/evaluation/submission/%s" % self.id
 
     def deleteURI(self):
-        return '/evaluation/submission/%s' % self.id
+        return "/evaluation/submission/%s" % self.id
 
 
 def _convert_to_annotation_cls(
-        id: str, etag: str,
-        values: typing.Union[Annotations, dict]) -> Annotations:
+    id: str, etag: str, values: typing.Union[Annotations, dict]
+) -> Annotations:
     """Convert synapse style annotation or dict to synapseclient.Annotation
 
     :param id:  The id of the entity / submission
@@ -204,9 +212,7 @@ def _convert_to_annotation_cls(
     if is_synapse_annotations(values):
         values = from_synapse_annotations(values)
     else:
-        values = Annotations(id=id,
-                             etag=etag,
-                             values=values)
+        values = Annotations(id=id, etag=etag, values=values)
     return values
 
 
@@ -225,17 +231,15 @@ class SubmissionStatus(DictObject):
 
     @classmethod
     def getURI(cls, id):
-        return '/evaluation/submission/%s/status' % id
+        return "/evaluation/submission/%s/status" % id
 
     def __init__(self, id, etag, **kwargs):
-        annotations = kwargs.pop('submissionAnnotations', {})
+        annotations = kwargs.pop("submissionAnnotations", {})
         # If it is synapse annotations, turn into a format
         # that can be worked with otherwise, create
         # synapseclient.Annotations
         submission_annotations = _convert_to_annotation_cls(
-            id=id,
-            etag=etag,
-            values=annotations
+            id=id, etag=etag, values=annotations
         )
         super(SubmissionStatus, self).__init__(
             id=id, etag=etag, submissionAnnotations=submission_annotations, **kwargs
@@ -245,7 +249,7 @@ class SubmissionStatus(DictObject):
     #     return '/evaluation/submission/%s/status' % self.id
 
     def putURI(self):
-        return '/evaluation/submission/%s/status' % self.id
+        return "/evaluation/submission/%s/status" % self.id
 
     # def deleteURI(self):
     #     return '/evaluation/submission/%s/status' % self.id
@@ -261,12 +265,10 @@ class SubmissionStatus(DictObject):
             json_dict = self.copy()
 
             annotations = _convert_to_annotation_cls(
-                id=self.id, etag=self.etag,
-                values=self.submissionAnnotations
+                id=self.id, etag=self.etag, values=self.submissionAnnotations
             )
             # Turn into synapse annotation
-            json_dict['submissionAnnotations'] = to_synapse_annotations(
-                annotations
-            )
-        return json.dumps(json_dict, sort_keys=True, indent=2,
-                          ensure_ascii=ensure_ascii)
+            json_dict["submissionAnnotations"] = to_synapse_annotations(annotations)
+        return json.dumps(
+            json_dict, sort_keys=True, indent=2, ensure_ascii=ensure_ascii
+        )

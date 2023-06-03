@@ -67,7 +67,7 @@ def _executor(max_threads, shutdown_wait):
     :param max_threads: the maxmimum number of threads a created executor should use
     :param shutdown_wait: whether a created executor should shutdown after running the yielded to code
     """
-    executor = getattr(_thread_local, 'executor', None)
+    executor = getattr(_thread_local, "executor", None)
     shutdown_after = False
     if not executor:
         shutdown_after = True
@@ -81,22 +81,19 @@ def _executor(max_threads, shutdown_wait):
 
 
 class UploadAttempt:
-
     def __init__(
         self,
         syn,
         dest_file_name,
-
         upload_request_payload,
         part_request_body_provider_fn,
         md5_fn,
-
         max_threads: int,
         force_restart: bool,
     ):
         self._syn = syn
         self._dest_file_name = dest_file_name
-        self._part_size = upload_request_payload['partSizeBytes']
+        self._part_size = upload_request_payload["partSizeBytes"]
 
         self._upload_request_payload = upload_request_payload
 
@@ -116,11 +113,11 @@ class UploadAttempt:
     @classmethod
     def _get_remaining_part_numbers(cls, upload_status):
         part_numbers = []
-        parts_state = upload_status['partsState']
+        parts_state = upload_status["partsState"]
 
         # parts are 1-based
         for i, part_status in enumerate(parts_state, 1):
-            if part_status == '0':
+            if part_status == "0":
                 part_numbers.append(i)
 
         return len(parts_state), part_numbers
@@ -133,20 +130,21 @@ class UploadAttempt:
         # thread local rather that in the task closure since a connection can
         # be reused across separate part uploads so no reason to restrict it
         # per worker task.
-        session = getattr(_thread_local, 'session', None)
+        session = getattr(_thread_local, "session", None)
         if not session:
             session = _thread_local.session = requests.Session()
         return session
 
     def _is_copy(self):
         # is this a copy or upload request
-        return self._upload_request_payload.get('concreteType') == concrete_types.MULTIPART_UPLOAD_COPY_REQUEST
+        return (
+            self._upload_request_payload.get("concreteType")
+            == concrete_types.MULTIPART_UPLOAD_COPY_REQUEST
+        )
 
     def _create_synapse_upload(self):
         return self._syn.restPOST(
-            "/file/multipart?forceRestart={}".format(
-                str(self._force_restart).lower()
-            ),
+            "/file/multipart?forceRestart={}".format(str(self._force_restart).lower()),
             json.dumps(self._upload_request_payload),
             endpoint=self._syn.fileHandleEndpoint,
         )
@@ -157,13 +155,12 @@ class UploadAttempt:
         part_numbers: List[int],
         requests_session: requests.Session = None,
     ) -> Mapping[int, str]:
-
         uri = "/file/multipart/{upload_id}/presigned/url/batch".format(
             upload_id=upload_id
         )
         body = {
-            'uploadId': upload_id,
-            'partNumbers': part_numbers,
+            "uploadId": upload_id,
+            "partNumbers": part_numbers,
         }
 
         response = self._syn.restPOST(
@@ -174,10 +171,10 @@ class UploadAttempt:
         )
 
         part_urls = {}
-        for part in response['partPresignedUrls']:
-            part_urls[part['partNumber']] = (
-                part['uploadPresignedUrl'],
-                part.get('signedHeaders', {}),
+        for part in response["partPresignedUrls"]:
+            part_urls[part["partNumber"]] = (
+                part["uploadPresignedUrl"],
+                part.get("signedHeaders", {}),
             )
 
         return part_urls
@@ -231,14 +228,22 @@ class UploadAttempt:
         session = self._get_thread_session()
 
         # obtain the body (i.e. the upload bytes) for the given part number.
-        body = self._part_request_body_provider_fn(part_number) if self._part_request_body_provider_fn else None
+        body = (
+            self._part_request_body_provider_fn(part_number)
+            if self._part_request_body_provider_fn
+            else None
+        )
         part_size = len(body) if body else 0
         for retry in range(2):
+
             def put_fn():
                 return session.put(part_url, body, headers=signed_headers)
+
             try:
                 # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
-                response = with_retry(put_fn, retry_exceptions=[requests.exceptions.ConnectionError])
+                response = with_retry(
+                    put_fn, retry_exceptions=[requests.exceptions.ConnectionError]
+                )
                 _raise_for_status(response)
 
                 # completed upload part to s3 successfully
@@ -266,14 +271,13 @@ class UploadAttempt:
 
         # now tell synapse that we uploaded that part successfully
         self._syn.restPUT(
-            "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}"
-            .format(
+            "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}".format(
                 upload_id=self._upload_id,
                 part_number=part_number,
                 md5=md5_hex,
             ),
             requests_session=session,
-            endpoint=self._syn.fileHandleEndpoint
+            endpoint=self._syn.fileHandleEndpoint,
         )
 
         # remove so future batch pre_signed url fetches will exclude this part
@@ -285,7 +289,7 @@ class UploadAttempt:
     def _upload_parts(self, part_count, remaining_part_numbers):
         time_upload_started = time.time()
         completed_part_count = part_count - len(remaining_part_numbers)
-        file_size = self._upload_request_payload.get('fileSizeBytes')
+        file_size = self._upload_request_payload.get("fileSizeBytes")
 
         if not self._is_copy():
             # we won't have bytes to measure during a copy so the byte oriented progress bar is not useful
@@ -297,7 +301,7 @@ class UploadAttempt:
             self._syn._print_transfer_progress(
                 progress,
                 file_size,
-                prefix='Uploading',
+                prefix="Uploading",
                 postfix=self._dest_file_name,
                 previouslyTransferred=previously_transferred,
             )
@@ -328,7 +332,7 @@ class UploadAttempt:
                     self._syn._print_transfer_progress(
                         min(progress, file_size),
                         file_size,
-                        prefix='Uploading',
+                        prefix="Uploading",
                         postfix=self._dest_file_name,
                         dt=time.time() - time_upload_started,
                         previouslyTransferred=previously_transferred,
@@ -344,13 +348,9 @@ class UploadAttempt:
                 concurrent.futures.wait(futures)
 
                 if isinstance(cause, KeyboardInterrupt):
-                    raise SynapseUploadAbortedException(
-                        "User interrupted upload"
-                    )
+                    raise SynapseUploadAbortedException("User interrupted upload")
 
-                raise SynapseUploadFailedException(
-                    "Part upload failed"
-                ) from cause
+                raise SynapseUploadFailedException("Part upload failed") from cause
 
     def _complete_upload(self):
         upload_status_response = self._syn.restPUT(
@@ -361,8 +361,8 @@ class UploadAttempt:
             endpoint=self._syn.fileHandleEndpoint,
         )
 
-        upload_state = upload_status_response.get('state')
-        if upload_state != 'COMPLETED':
+        upload_state = upload_status_response.get("state")
+        if upload_state != "COMPLETED":
             # at this point we think successfully uploaded all the parts
             # but the upload status isn't complete, we'll throw an error
             # and let a subsequent attempt try to reconcile
@@ -374,14 +374,13 @@ class UploadAttempt:
 
     def __call__(self):
         upload_status_response = self._create_synapse_upload()
-        upload_state = upload_status_response.get('state')
+        upload_state = upload_status_response.get("state")
 
-        if upload_state != 'COMPLETED':
-            self._upload_id = upload_status_response['uploadId']
-            part_count, remaining_part_numbers =\
-                self._get_remaining_part_numbers(
-                    upload_status_response
-                )
+        if upload_state != "COMPLETED":
+            self._upload_id = upload_status_response["uploadId"]
+            part_count, remaining_part_numbers = self._get_remaining_part_numbers(
+                upload_status_response
+            )
 
             # if no remaining part numbers then all the parts have been
             # uploaded but the upload has not been marked complete.
@@ -396,7 +395,7 @@ def _get_file_chunk(file_path, part_number, chunk_size):
     """
     Read the nth chunk from the file.
     """
-    with open(file_path, 'rb') as f:
+    with open(file_path, "rb") as f:
         f.seek((part_number - 1) * chunk_size)
         return f.read(chunk_size)
 
@@ -405,7 +404,7 @@ def _get_data_chunk(data, part_number, chunk_size):
     """
     Return the nth chunk of a buffer.
     """
-    return data[(part_number - 1) * chunk_size: part_number * chunk_size]
+    return data[(part_number - 1) * chunk_size : part_number * chunk_size]
 
 
 def _get_part_size(part_size, file_size):
@@ -413,9 +412,7 @@ def _get_part_size(part_size, file_size):
 
     # can't exceed the maximum allowed num parts
     part_size = max(
-        part_size,
-        MIN_PART_SIZE,
-        int(math.ceil(file_size / MAX_NUMBER_OF_PARTS))
+        part_size, MIN_PART_SIZE, int(math.ceil(file_size / MAX_NUMBER_OF_PARTS))
     )
     return part_size
 
@@ -461,7 +458,6 @@ def multipart_upload_file(
     if not os.path.exists(file_path):
         raise IOError('File "{}" not found.'.format(file_path))
     if os.path.isdir(file_path):
-
         raise IOError('File "{}" is a directory.'.format(file_path))
 
     file_size = os.path.getsize(file_path)
@@ -470,7 +466,7 @@ def multipart_upload_file(
 
     if content_type is None:
         mime_type, _ = mimetypes.guess_type(file_path, strict=False)
-        content_type = mime_type or 'application/octet-stream'
+        content_type = mime_type or "application/octet-stream"
 
     callback_func = Spinner().print_tick if not syn.silent else None
     md5_hex = md5_for_file(file_path, callback=callback_func).hexdigest()
@@ -478,14 +474,14 @@ def multipart_upload_file(
     part_size = _get_part_size(part_size, file_size)
 
     upload_request = {
-        'concreteType': concrete_types.MULTIPART_UPLOAD_REQUEST,
-        'contentType': content_type,
-        'contentMD5Hex': md5_hex,
-        'fileName': dest_file_name,
-        'fileSizeBytes': file_size,
-        'generatePreview': preview,
-        'partSizeBytes': part_size,
-        'storageLocationId': storage_location_id,
+        "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
+        "contentType": content_type,
+        "contentMD5Hex": md5_hex,
+        "fileName": dest_file_name,
+        "fileSizeBytes": file_size,
+        "generatePreview": preview,
+        "partSizeBytes": part_size,
+        "storageLocationId": storage_location_id,
     }
 
     def part_fn(part_number):
@@ -499,11 +495,9 @@ def multipart_upload_file(
     return _multipart_upload(
         syn,
         dest_file_name,
-
         upload_request,
         part_fn,
         md5_fn,
-
         force_restart=force_restart,
         max_threads=max_threads,
     )
@@ -546,12 +540,12 @@ def multipart_upload_string(
      https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
 
-    data = text.encode('utf-8')
+    data = text.encode("utf-8")
     file_size = len(data)
     md5_hex = hashlib.md5(data).hexdigest()
 
     if not dest_file_name:
-        dest_file_name = 'message.txt'
+        dest_file_name = "message.txt"
 
     if not content_type:
         content_type = "text/plain; charset=utf-8"
@@ -559,14 +553,14 @@ def multipart_upload_string(
     part_size = _get_part_size(part_size, file_size)
 
     upload_request = {
-        'concreteType': concrete_types.MULTIPART_UPLOAD_REQUEST,
-        'contentType': content_type,
-        'contentMD5Hex': md5_hex,
-        'fileName': dest_file_name,
-        'fileSizeBytes': file_size,
-        'generatePreview': preview,
-        'partSizeBytes': part_size,
-        'storageLocationId': storage_location_id,
+        "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
+        "contentType": content_type,
+        "contentMD5Hex": md5_hex,
+        "fileName": dest_file_name,
+        "fileSizeBytes": file_size,
+        "generatePreview": preview,
+        "partSizeBytes": part_size,
+        "storageLocationId": storage_location_id,
     }
 
     def part_fn(part_number):
@@ -581,11 +575,9 @@ def multipart_upload_string(
     return _multipart_upload(
         syn,
         dest_file_name,
-
         upload_request,
         part_fn,
         md5_fn,
-
         force_restart=force_restart,
         max_threads=max_threads,
     )
@@ -601,16 +593,15 @@ def multipart_copy(
     force_restart: bool = False,
     max_threads: int = None,
 ):
-
     part_size = part_size or DEFAULT_PART_SIZE
 
     upload_request = {
-        'concreteType': concrete_types.MULTIPART_UPLOAD_COPY_REQUEST,
-        'fileName': dest_file_name,
-        'generatePreview': preview,
-        'partSizeBytes': part_size,
-        'sourceFileHandleAssociation': source_file_handle_association,
-        'storageLocationId': storage_location_id,
+        "concreteType": concrete_types.MULTIPART_UPLOAD_COPY_REQUEST,
+        "fileName": dest_file_name,
+        "generatePreview": preview,
+        "partSizeBytes": part_size,
+        "sourceFileHandleAssociation": source_file_handle_association,
+        "storageLocationId": storage_location_id,
     }
 
     def part_request_body_provider_fn(part_num):
@@ -625,19 +616,19 @@ def multipart_copy(
         # use lookahead and lookbehind to find the opening and closing ETag elements but
         # do not include those in the match, thus the entire matched string (group 0) will be
         # what was between those elements.
-        md5_hex = re.search('(?<=<ETag>).*?(?=<\\/ETag>)', (response.content.decode('utf-8'))).group(0)
+        md5_hex = re.search(
+            "(?<=<ETag>).*?(?=<\\/ETag>)", (response.content.decode("utf-8"))
+        ).group(0)
 
         # remove quotes found in the ETag to get at the normalized ETag
-        return md5_hex.replace('&quot;', '').replace('"', '')
+        return md5_hex.replace("&quot;", "").replace('"', "")
 
     return _multipart_upload(
         syn,
         dest_file_name,
-
         upload_request,
         part_request_body_provider_fn,
         md5_fn,
-
         force_restart=force_restart,
         max_threads=max_threads,
     )
@@ -646,15 +637,12 @@ def multipart_copy(
 def _multipart_upload(
     syn,
     dest_file_name,
-
     upload_request,
     part_fn,
     md5_fn,
-
     force_restart: bool = False,
     max_threads: int = None,
 ):
-
     if max_threads is None:
         max_threads = pool_provider.DEFAULT_NUM_THREADS
 
@@ -666,13 +654,10 @@ def _multipart_upload(
             upload_status_response = UploadAttempt(
                 syn,
                 dest_file_name,
-
                 upload_request,
                 part_fn,
                 md5_fn,
-
                 max_threads,
-
                 # only force_restart the first time through (if requested).
                 # a retry after a caught exception will not restart the upload
                 # from scratch.
@@ -680,7 +665,7 @@ def _multipart_upload(
             )()
 
             # success
-            return upload_status_response['resultFileHandleId']
+            return upload_status_response["resultFileHandleId"]
 
         except SynapseUploadFailedException:
             if retry < MAX_RETRIES:

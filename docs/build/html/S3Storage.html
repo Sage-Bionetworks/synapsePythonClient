@@ -3,12 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>S3 Storage Features &mdash; Synapse Python Client 2.7.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" /><link rel="shortcut icon" href="_static/favicon.png"/>
+  <title>S3 Storage Features &mdash; Synapse Python Client 2.7.2 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="shortcut icon" href="_static/favicon.png"/>
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
@@ -22,32 +25,37 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Synapse Python Client<img src="_static/synapse_logo.png" class="logo" alt="Logo"/>
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Synapse Python Client
+              <img src="_static/synapse_logo.png" class="logo" alt="Logo"/>
           </a>
               <div class="version">
-                2.7.0
+                2.7.2
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Getting Started</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/credentials.html">Manage Synapse Credentials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">Python Client Basics</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Command Line Client</span></p>
+<p class="caption" role="heading"><span class="caption-text">Command Line Client</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html#help">Help</a></li>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html#usage">Usage</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Python API</span></p>
+<p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api/Client.html">Synapse Client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/Entity.html">Entity</a></li>
@@ -60,7 +68,7 @@
 <li class="toctree-l1"><a class="reference internal" href="api/Table.html">Tables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/Team.html">Teams</a></li>
 </ul>
-<p class="caption"><span class="caption-text">News</span></p>
+<p class="caption" role="heading"><span class="caption-text">News</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="news.html">Release Notes</a></li>
 </ul>
@@ -78,8 +86,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>S3 Storage Features</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">S3 Storage Features</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/S3Storage.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -90,12 +98,12 @@
            <div itemprop="articleBody">
              
   <div class="section" id="s3-storage-features">
-<h1>S3 Storage Features<a class="headerlink" href="#s3-storage-features" title="Permalink to this headline">¶</a></h1>
+<h1>S3 Storage Features<a class="headerlink" href="#s3-storage-features" title="Permalink to this headline"></a></h1>
 <p>Synapse can use a variety of storage mechanisms to store content, however the most common
 storage solution is AWS S3. This article illustrates some special features that can be used with S3 storage
 and how they interact with the Python client.</p>
 <div class="section" id="external-storage-locations">
-<h2>External storage locations<a class="headerlink" href="#external-storage-locations" title="Permalink to this headline">¶</a></h2>
+<h2>External storage locations<a class="headerlink" href="#external-storage-locations" title="Permalink to this headline"></a></h2>
 <p>Synapse folders can be configured to use custom implementations for their underlying data storage.
 More information on this feature can be found
 <a class="reference external" href="https://docs.synapse.org/articles/custom_storage_location.html">here</a>.
@@ -151,7 +159,7 @@ a file handle for that object using the Python client and then storing the file 
 </div></blockquote>
 </div>
 <div class="section" id="sts-storage-locations">
-<span id="id1"></span><h2>STS Storage Locations<a class="headerlink" href="#sts-storage-locations" title="Permalink to this headline">¶</a></h2>
+<span id="id1"></span><h2>STS Storage Locations<a class="headerlink" href="#sts-storage-locations" title="Permalink to this headline"></a></h2>
 <p>Create an STS enabled folder to use
 <a class="reference external" href="https://docs.synapse.org/articles/aws_sts_storage_locations.html">AWS Security Token Service</a> credentials
 with S3 storage locations. These credentials can be scoped to access individual Synapse files or folders and can be used
@@ -160,7 +168,7 @@ from Synapse storage. At this time read and write capabilities are supported for
 Synapse storage is limited to read only. Please read the linked documentation for a complete understanding of the capabilities
 and restrictions of STS enabled folders.</p>
 <div class="section" id="creating-an-sts-enabled-folder">
-<h3>Creating an STS enabled folder<a class="headerlink" href="#creating-an-sts-enabled-folder" title="Permalink to this headline">¶</a></h3>
+<h3>Creating an STS enabled folder<a class="headerlink" href="#creating-an-sts-enabled-folder" title="Permalink to this headline"></a></h3>
 <p>Creating an STS enabled folder is similar to creating an external storage folder as described above, but this
 time passing an additional <strong>sts_enabled=True</strong> keyword parameter. The <strong>bucket_name</strong> and <strong>base_key</strong>
 parameters apply to external storage locations and can be omitted to use Synapse internal storage.
@@ -179,7 +187,7 @@ Note also that STS can only be enabled on an empty folder.</p>
 </div></blockquote>
 </div>
 <div class="section" id="using-credentials-with-the-awscli">
-<h3>Using credentials with the awscli<a class="headerlink" href="#using-credentials-with-the-awscli" title="Permalink to this headline">¶</a></h3>
+<h3>Using credentials with the awscli<a class="headerlink" href="#using-credentials-with-the-awscli" title="Permalink to this headline"></a></h3>
 <p>This example illustrates obtaining STS credentials and using them with the awscli command line tool.
 The first command outputs the credentials as shell commands to execute which will then be picked up
 by subsequent aws cli commands. Note that the bucket-owner-full-control ACL is required when putting
@@ -202,7 +210,7 @@ $ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION --acl bucket-owner-full
 </div></blockquote>
 </div>
 <div class="section" id="using-credentials-with-boto3-in-python">
-<h3>Using credentials with boto3 in python<a class="headerlink" href="#using-credentials-with-boto3-in-python" title="Permalink to this headline">¶</a></h3>
+<h3>Using credentials with boto3 in python<a class="headerlink" href="#using-credentials-with-boto3-in-python" title="Permalink to this headline"></a></h3>
 <p>This example illustrates retrieving STS credentials and using them with boto3 within python code,
 in this case to upload a file.  Note that the bucket-owner-full-control ACL is required when putting
 an object via STS credentials. This ensures that the object ownership will be transferred to the
@@ -223,7 +231,7 @@ owner of the AWS bucket.</p>
 </div></blockquote>
 </div>
 <div class="section" id="automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient">
-<h3>Automatic transfers to/from STS storage locations using boto3 with synapseclient<a class="headerlink" href="#automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient" title="Permalink to this headline">¶</a></h3>
+<h3>Automatic transfers to/from STS storage locations using boto3 with synapseclient<a class="headerlink" href="#automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient" title="Permalink to this headline"></a></h3>
 <p>The Python Synapse client can be configured to automatically use STS tokens to perform uploads and downloads to enabled
 storage locations using an installed boto3 library rather than through the traditional Synapse client APIs.
 This can improve performance in certain situations, particularly uploads of large files, as the data transfer itself
@@ -259,7 +267,7 @@ the <strong>use_boto_sts_transfers</strong> property.</p></li>
 </div>
 </div>
 <div class="section" id="storage-location-migration">
-<h2>Storage location migration<a class="headerlink" href="#storage-location-migration" title="Permalink to this headline">¶</a></h2>
+<h2>Storage location migration<a class="headerlink" href="#storage-location-migration" title="Permalink to this headline"></a></h2>
 <p>There are circumstances where it can be useful to move the files underlying Synapse entities from one storage
 location to another without impacting the structure or identifiers of the Synapse entities themselves. An example
 scenario is needing to use <a class="reference external" href="S3Storage.html#sts-storage-locations">STS</a> features with an existing Synapse Project
@@ -269,7 +277,7 @@ that was not initially configured with an STS enabled
 the content locally and re-uploading it which can be slow, and may alter the meta data associated with the entities
 in undesirable ways.</p>
 <div class="section" id="migrating-programmatically">
-<h3>Migrating programmatically<a class="headerlink" href="#migrating-programmatically" title="Permalink to this headline">¶</a></h3>
+<h3>Migrating programmatically<a class="headerlink" href="#migrating-programmatically" title="Permalink to this headline"></a></h3>
 <p>Migrating a Synapse project or folder programatically is a two step process.</p>
 <p>First ensure that you know the id of the storage location you want to migrate to. More info on storage
 locations can be found above and <a class="reference external" href="https://docs.synapse.org/articles/custom_storage_location.html">here</a>.</p>
@@ -328,7 +336,7 @@ with a migration requires confirmation in the form of user prompt. If running pr
 instead confirms your intention to proceed with the migration.</p>
 </div>
 <div class="section" id="migrating-from-the-command-line">
-<h3>Migrating from the command line<a class="headerlink" href="#migrating-from-the-command-line" title="Permalink to this headline">¶</a></h3>
+<h3>Migrating from the command line<a class="headerlink" href="#migrating-from-the-command-line" title="Permalink to this headline"></a></h3>
 <p>Synapse entities can also be migrated from the command line. The options are similar to above.
 Whereas migrating programatically involves two separate function calls, from the command line
 there is a single <a class="reference external" href="CommandLineClient.html#migrate">migrate</a> command with the <em>dryRun</em> argument providing the option
@@ -369,7 +377,7 @@ Writing csv log to /tmp/migrate.csv
 
   <div role="contentinfo">
     <p>&#169; Copyright 2018, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Mar 05, 2023.
+      <span class="lastupdated">Last updated on Jun 03, 2023.
       </span></p>
   </div>
 
@@ -390,8 +398,8 @@ Writing csv log to /tmp/migrate.csv
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Mar 05, 2023.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
+      Last updated on Jun 03, 2023.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

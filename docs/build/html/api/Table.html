@@ -3,12 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tables &mdash; Synapse Python Client 2.7.0 documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /><link rel="shortcut icon" href="../_static/favicon.png"/>
+  <title>Tables &mdash; Synapse Python Client 2.7.2 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
@@ -24,32 +27,37 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Synapse Python Client<img src="../_static/synapse_logo.png" class="logo" alt="Logo"/>
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Synapse Python Client
+              <img src="../_static/synapse_logo.png" class="logo" alt="Logo"/>
           </a>
               <div class="version">
-                2.7.0
+                2.7.2
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Getting Started</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/credentials.html">Manage Synapse Credentials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/basics.html">Python Client Basics</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Command Line Client</span></p>
+<p class="caption" role="heading"><span class="caption-text">Command Line Client</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../CommandLineClient.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../CommandLineClient.html#help">Help</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../CommandLineClient.html#usage">Usage</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Python API</span></p>
+<p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="Client.html">Synapse Client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Entity.html">Entity</a></li>
@@ -72,6 +80,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#row">Row</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#rowset">RowSet</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#table">Table</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dataset">Dataset</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#module-level-methods">Module level methods</a></li>
 </ul>
 </li>
@@ -79,7 +88,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="Team.html">Teams</a></li>
 </ul>
-<p class="caption"><span class="caption-text">News</span></p>
+<p class="caption" role="heading"><span class="caption-text">News</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../news.html">Release Notes</a></li>
 </ul>
@@ -97,8 +106,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Tables</li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Tables</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/api/Table.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -109,7 +118,7 @@
            <div itemprop="articleBody">
              
   <span class="target" id="module-synapseclient.table"></span><div class="section" id="tables">
-<h1>Tables<a class="headerlink" href="#tables" title="Permalink to this headline">¶</a></h1>
+<h1>Tables<a class="headerlink" href="#tables" title="Permalink to this headline"></a></h1>
 <p>Synapse Tables enable storage of tabular data in Synapse in a form that can be queried using a SQL-like query language.</p>
 <p>A table has a <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> and holds a set of rows conforming to that schema.</p>
 <p>A <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> defines a series of <a class="reference internal" href="#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> of the following types: STRING, DOUBLE, INTEGER, BOOLEAN,
@@ -178,7 +187,7 @@ To create a table with a custom <a class="reference internal" href="Entity.html#
 </pre></div>
 </div>
 <div class="section" id="id1">
-<h2>Pandas<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<h2>Pandas<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
 <p><a class="reference external" href="http://pandas.pydata.org/">Pandas</a> is a popular library for working with tabular data. If you have Pandas installed,
 the goal is that Synapse Tables will play nice with it.</p>
 <p>Create a Synapse Table from a <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe">DataFrame</a>:</p>
@@ -202,7 +211,7 @@ To create a table with a custom <a class="reference internal" href="Entity.html#
 </div>
 </div>
 <div class="section" id="changing-data">
-<h2>Changing Data<a class="headerlink" href="#changing-data" title="Permalink to this headline">¶</a></h2>
+<h2>Changing Data<a class="headerlink" href="#changing-data" title="Permalink to this headline"></a></h2>
 <p>Once the schema is settled, changes come in two flavors: appending new rows and updating existing ones.</p>
 <p><strong>Appending</strong> new rows is fairly straightforward. To continue the previous example, we might add some new genes from
 another file:</p>
@@ -234,7 +243,7 @@ optimistic concurrency. In case of a conflict, your update may be rejected. You 
 try your update again.</p>
 </div>
 <div class="section" id="changing-table-structure">
-<h2>Changing Table Structure<a class="headerlink" href="#changing-table-structure" title="Permalink to this headline">¶</a></h2>
+<h2>Changing Table Structure<a class="headerlink" href="#changing-table-structure" title="Permalink to this headline"></a></h2>
 <p>Adding columns can be done using the methods <code class="xref py py-meth docutils literal notranslate"><span class="pre">Schema.addColumn()</span></code> or <code class="xref py py-meth docutils literal notranslate"><span class="pre">addColumns()</span></code> on the
 <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn000000&quot;</span><span class="p">)</span>
@@ -255,7 +264,7 @@ try your update again.</p>
 </div>
 </div>
 <div class="section" id="table-attached-files">
-<h2>Table attached files<a class="headerlink" href="#table-attached-files" title="Permalink to this headline">¶</a></h2>
+<h2>Table attached files<a class="headerlink" href="#table-attached-files" title="Permalink to this headline"></a></h2>
 <p>Synapse tables support a special column type called ‘File’ which contain a file handle, an identifier of a file stored
 in Synapse. Here’s an example of how to upload files into Synapse, associate them with a table and read them back
 later:</p>
@@ -281,20 +290,20 @@ later:</p>
 
 <span class="c1"># upload album covers</span>
 <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
-    <span class="n">file_handle</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">uploadSynapseManagedFileHandle</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">covers_dir</span><span class="p">,</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">]))</span>
+    <span class="n">file_handle</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">uploadFileHandle</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">covers_dir</span><span class="p">,</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">]),</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">)</span>
     <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">file_handle</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
 
 <span class="c1"># store the table data</span>
-<span class="n">row_reference_set</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">RowSet</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span> <span class="n">rows</span><span class="o">=</span><span class="p">[</span><span class="n">Row</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]))</span>
+<span class="n">row_reference_set</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">RowSet</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span> <span class="n">rows</span><span class="o">=</span><span class="p">[</span><span class="n">Row</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]))</span>
 
 <span class="c1"># Later, we&#39;ll want to query the table and download our album covers</span>
-<span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select artist, album, &#39;year&#39;, catalog, cover from </span><span class="si">%s</span><span class="s2"> where artist = &#39;Sonny Rollins&#39;&quot;</span>                              <span class="o">%</span> <span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;select artist, album, cover from </span><span class="si">{</span><span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> where artist = &#39;Sonny Rollins&#39;&quot;</span><span class="p">)</span>
 <span class="n">cover_files</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">downloadTableColumns</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;cover&#39;</span><span class="p">])</span>
 </pre></div>
 </div>
 </div>
 <div class="section" id="deleting-rows">
-<h2>Deleting rows<a class="headerlink" href="#deleting-rows" title="Permalink to this headline">¶</a></h2>
+<h2>Deleting rows<a class="headerlink" href="#deleting-rows" title="Permalink to this headline"></a></h2>
 <p>Query for the rows you want to delete and call syn.delete on the results:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select * from </span><span class="si">%s</span><span class="s2"> where Chromosome=&#39;2&#39;&quot;</span> <span class="o">%</span> <span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 <span class="n">a</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
@@ -302,21 +311,21 @@ later:</p>
 </div>
 </div>
 <div class="section" id="deleting-the-whole-table">
-<h2>Deleting the whole table<a class="headerlink" href="#deleting-the-whole-table" title="Permalink to this headline">¶</a></h2>
+<h2>Deleting the whole table<a class="headerlink" href="#deleting-the-whole-table" title="Permalink to this headline"></a></h2>
 <p>Deleting the schema deletes the whole table and all rows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">syn</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="section" id="queries">
-<h3>Queries<a class="headerlink" href="#queries" title="Permalink to this headline">¶</a></h3>
+<h3>Queries<a class="headerlink" href="#queries" title="Permalink to this headline"></a></h3>
 <p>The query language is quite similar to SQL select statements, except that joins are not supported. The documentation
 for the Synapse API has lots of <a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html">query examples</a>.</p>
 </div>
 <div class="section" id="schema">
-<h3>Schema<a class="headerlink" href="#schema" title="Permalink to this headline">¶</a></h3>
+<h3>Schema<a class="headerlink" href="#schema" title="Permalink to this headline"></a></h3>
 <dl class="py class">
-<dt>
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">Schema</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
+<dt class="sig sig-object py">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">Schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>A Schema is an <a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a> that defines a set of columns in a table.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -343,8 +352,8 @@ for the Synapse API has lots of <a class="reference external" href="http://docs.
 </dd></dl>
 
 <dl class="py class">
-<dt>
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">EntityViewSchema</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
+<dt class="sig sig-object py">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">EntityViewSchema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>A EntityViewSchema is a <a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a> that displays all files/projects
 (depending on user choice) within a given set of scopes</p>
 <dl class="field-list simple">
@@ -355,15 +364,17 @@ for the Synapse API has lots of <a class="reference external" href="http://docs.
 <li><p><strong>parent</strong> – the project in Synapse to which this table belongs</p></li>
 <li><p><strong>scopes</strong> – a list of Projects/Folders or their ids</p></li>
 <li><p><strong>type</strong> – This field is deprecated. Please use <cite>includeEntityTypes</cite></p></li>
-<li><p><strong>includeEntityTypes</strong> – <dl class="simple">
-<dt>a list of entity types to include in the view. Supported entity types are:</dt><dd><p>EntityViewType.FILE,
-EntityViewType.PROJECT,
-EntityViewType.TABLE,
-EntityViewType.FOLDER,
-EntityViewType.VIEW,
-EntityViewType.DOCKER</p>
-</dd>
-</dl>
+<li><p><strong>includeEntityTypes</strong> – <p>a list of entity types to include in the view. Supported entity types are:</p>
+<blockquote>
+<div><ul>
+<li><p>EntityViewType.FILE,</p></li>
+<li><p>EntityViewType.PROJECT,</p></li>
+<li><p>EntityViewType.TABLE,</p></li>
+<li><p>EntityViewType.FOLDER,</p></li>
+<li><p>EntityViewType.VIEW,</p></li>
+<li><p>EntityViewType.DOCKER</p></li>
+</ul>
+</div></blockquote>
 <p>If none is provided, the view will default to include EntityViewType.FILE.</p>
 </p></li>
 <li><p><strong>addDefaultViewColumns</strong> – If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
@@ -393,19 +404,21 @@ of the defined scopes.</p></li>
 </pre></div>
 </div>
 <dl class="py method">
-<dt>
-<code class="sig-name descname"><span class="pre">set_entity_types</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">includeEntityTypes</span></span></em><span class="sig-paren">)</span></dt>
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">set_entity_types</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">includeEntityTypes</span></span></em><span class="sig-paren">)</span></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>includeEntityTypes</strong> – <p>a list of entity types to include in the view. This list will replace the previous
 settings. Supported entity types are:</p>
 <blockquote>
-<div><p>EntityViewType.FILE,
-EntityViewType.PROJECT,
-EntityViewType.TABLE,
-EntityViewType.FOLDER,
-EntityViewType.VIEW,
-EntityViewType.DOCKER</p>
+<div><ul class="simple">
+<li><p>EntityViewType.FILE,</p></li>
+<li><p>EntityViewType.PROJECT,</p></li>
+<li><p>EntityViewType.TABLE,</p></li>
+<li><p>EntityViewType.FOLDER,</p></li>
+<li><p>EntityViewType.VIEW,</p></li>
+<li><p>EntityViewType.DOCKER</p></li>
+</ul>
 </div></blockquote>
 </p>
 </dd>
@@ -416,10 +429,10 @@ EntityViewType.DOCKER</p>
 
 </div>
 <div class="section" id="column">
-<h3>Column<a class="headerlink" href="#column" title="Permalink to this headline">¶</a></h3>
+<h3>Column<a class="headerlink" href="#column" title="Permalink to this headline"></a></h3>
 <dl class="py class">
-<dt id="synapseclient.table.Column">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">Column</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Column" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.Column">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">Column</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Column" title="Permalink to this definition"></a></dt>
 <dd><p>Defines a column to be used in a table <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Schema</span></code></a>
 <a class="reference internal" href="Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.EntityViewSchema</span></code></a>.</p>
 <dl class="field-list simple">
@@ -445,19 +458,18 @@ allowed to have default values.</p></li>
 </dd>
 </dl>
 <dl class="py method">
-<dt id="synapseclient.table.Column.__init__">
-<code class="sig-name descname"><span class="pre">__init__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Column.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
-</dd></dl>
+<dt class="sig sig-object py" id="synapseclient.table.Column.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Column.__init__" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 </dd></dl>
 
 </div>
 <div class="section" id="row">
-<h3>Row<a class="headerlink" href="#row" title="Permalink to this headline">¶</a></h3>
+<h3>Row<a class="headerlink" href="#row" title="Permalink to this headline"></a></h3>
 <dl class="py class">
-<dt id="synapseclient.table.Row">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">Row</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rowId</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versionNumber</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Row" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.Row">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">Row</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rowId</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versionNumber</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Row" title="Permalink to this definition"></a></dt>
 <dd><p>A <a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html">row</a> in a Table.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -470,19 +482,18 @@ new version is created.</p></li>
 </dd>
 </dl>
 <dl class="py method">
-<dt id="synapseclient.table.Row.__init__">
-<code class="sig-name descname"><span class="pre">__init__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rowId</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versionNumber</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Row.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
-</dd></dl>
+<dt class="sig sig-object py" id="synapseclient.table.Row.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rowId</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versionNumber</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Row.__init__" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 </dd></dl>
 
 </div>
 <div class="section" id="rowset">
-<h3>RowSet<a class="headerlink" href="#rowset" title="Permalink to this headline">¶</a></h3>
+<h3>RowSet<a class="headerlink" href="#rowset" title="Permalink to this headline"></a></h3>
 <dl class="py class">
-<dt id="synapseclient.table.RowSet">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">RowSet</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSet" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.RowSet">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">RowSet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSet" title="Permalink to this definition"></a></dt>
 <dd><p>A Synapse object of type <a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html">org.sagebionetworks.repo.model.table.RowSet</a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -501,46 +512,45 @@ rows from a RowSet the etag must be provided with the POST.</p>
 </dd>
 </dl>
 <dl class="py method">
-<dt id="synapseclient.table.RowSet.__init__">
-<code class="sig-name descname"><span class="pre">__init__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSet.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
-</dd></dl>
+<dt class="sig sig-object py" id="synapseclient.table.RowSet.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSet.__init__" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 </dd></dl>
 
 </div>
 <div class="section" id="table">
-<h3>Table<a class="headerlink" href="#table" title="Permalink to this headline">¶</a></h3>
+<h3>Table<a class="headerlink" href="#table" title="Permalink to this headline"></a></h3>
 <dl class="py class">
-<dt id="synapseclient.table.TableAbstractBaseClass">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">TableAbstractBaseClass</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.TableAbstractBaseClass">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">TableAbstractBaseClass</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass" title="Permalink to this definition"></a></dt>
 <dd><p>Abstract base class for Tables based on different data containers.</p>
 <dl class="py class">
-<dt id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple">
-<em class="property"><span class="pre">class</span> </em><code class="sig-name descname"><span class="pre">RowMetadataTuple</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">row_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">row_version</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">row_etag</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="py method">
-<dt id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_etag">
-<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">row_etag</span></code><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_etag" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RowMetadataTuple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">row_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">row_version</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">row_etag</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple" title="Permalink to this definition"></a></dt>
+<dd><dl class="py attribute">
+<dt class="sig sig-object py" id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_etag">
+<span class="sig-name descname"><span class="pre">row_etag</span></span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_etag" title="Permalink to this definition"></a></dt>
 <dd><p>Alias for field number 2</p>
 </dd></dl>
 
-<dl class="py method">
-<dt id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_id">
-<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">row_id</span></code><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_id" title="Permalink to this definition">¶</a></dt>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_id">
+<span class="sig-name descname"><span class="pre">row_id</span></span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_id" title="Permalink to this definition"></a></dt>
 <dd><p>Alias for field number 0</p>
 </dd></dl>
 
-<dl class="py method">
-<dt id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_version">
-<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">row_version</span></code><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_version" title="Permalink to this definition">¶</a></dt>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_version">
+<span class="sig-name descname"><span class="pre">row_version</span></span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_version" title="Permalink to this definition"></a></dt>
 <dd><p>Alias for field number 1</p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="py method">
-<dt id="synapseclient.table.TableAbstractBaseClass.iter_row_metadata">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">iter_row_metadata</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.iter_row_metadata" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.TableAbstractBaseClass.iter_row_metadata">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">iter_row_metadata</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.iter_row_metadata" title="Permalink to this definition"></a></dt>
 <dd><p>Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
 generated as (row_id, None)</p>
 <dl class="field-list simple">
@@ -553,12 +563,12 @@ generated as (row_id, None)</p>
 </dd></dl>
 
 <dl class="py class">
-<dt id="synapseclient.table.RowSetTable">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">RowSetTable</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rowset</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSetTable" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.RowSetTable">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">RowSetTable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rowset</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSetTable" title="Permalink to this definition"></a></dt>
 <dd><p>A Table object that wraps a RowSet.</p>
 <dl class="py method">
-<dt id="synapseclient.table.RowSetTable.iter_row_metadata">
-<code class="sig-name descname"><span class="pre">iter_row_metadata</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSetTable.iter_row_metadata" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.RowSetTable.iter_row_metadata">
+<span class="sig-name descname"><span class="pre">iter_row_metadata</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSetTable.iter_row_metadata" title="Permalink to this definition"></a></dt>
 <dd><p>Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
 generated as (row_id, None)</p>
 <dl class="field-list simple">
@@ -571,8 +581,8 @@ generated as (row_id, None)</p>
 </dd></dl>
 
 <dl class="py class">
-<dt id="synapseclient.table.TableQueryResult">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">TableQueryResult</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isConsistent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.TableQueryResult">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">TableQueryResult</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isConsistent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult" title="Permalink to this definition"></a></dt>
 <dd><p>An object to wrap rows returned as a result of a table query.
 The TableQueryResult object can be used to iterate over results of a query.</p>
 <p>Example</p>
@@ -582,18 +592,20 @@ The TableQueryResult object can be used to iterate over results of a query.</p>
 </pre></div>
 </div>
 <dl class="py method">
-<dt id="synapseclient.table.TableQueryResult.asDataFrame">
-<code class="sig-name descname"><span class="pre">asDataFrame</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rowIdAndVersionInIndex</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult.asDataFrame" title="Permalink to this definition">¶</a></dt>
-<dd><p>Convert query result to a Pandas DataFrame.
-:param rowIdAndVersionInIndex:  Make the dataframe index consist of the row_id and row_version (and row_etag</p>
-<blockquote>
-<div><p>if it exists)</p>
-</div></blockquote>
+<dt class="sig sig-object py" id="synapseclient.table.TableQueryResult.asDataFrame">
+<span class="sig-name descname"><span class="pre">asDataFrame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rowIdAndVersionInIndex</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult.asDataFrame" title="Permalink to this definition"></a></dt>
+<dd><p>Convert query result to a Pandas DataFrame.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>rowIdAndVersionInIndex</strong> – Make the dataframe index consist of the row_id and row_version (and row_etag
+if it exists)</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
-<dt id="synapseclient.table.TableQueryResult.iter_row_metadata">
-<code class="sig-name descname"><span class="pre">iter_row_metadata</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult.iter_row_metadata" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.TableQueryResult.iter_row_metadata">
+<span class="sig-name descname"><span class="pre">iter_row_metadata</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult.iter_row_metadata" title="Permalink to this definition"></a></dt>
 <dd><p>Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
 generated as (row_id, row_version,None)</p>
 <dl class="field-list simple">
@@ -604,47 +616,47 @@ generated as (row_id, row_version,None)</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="synapseclient.table.TableQueryResult.next">
-<code class="sig-name descname"><span class="pre">next</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult.next" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.TableQueryResult.next">
+<span class="sig-name descname"><span class="pre">next</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult.next" title="Permalink to this definition"></a></dt>
 <dd><p>Python 2 iterator</p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
-<dt id="synapseclient.table.CsvFileTable">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">CsvFileTable</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filepath</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quoteCharacter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'&quot;'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">escapeCharacter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'\\'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lineEnd</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'\n'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">separator</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">','</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linesToSkip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeRowIdAndRowVersion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.CsvFileTable">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">CsvFileTable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filepath</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quoteCharacter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'&quot;'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">escapeCharacter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'\\'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lineEnd</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'\n'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">separator</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">','</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linesToSkip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeRowIdAndRowVersion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable" title="Permalink to this definition"></a></dt>
 <dd><p>An object to wrap a CSV file that may be stored into a Synapse table or
 returned as a result of a table query.</p>
 <dl class="py method">
-<dt id="synapseclient.table.CsvFileTable.asDataFrame">
-<code class="sig-name descname"><span class="pre">asDataFrame</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rowIdAndVersionInIndex</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_to_datetime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.asDataFrame" title="Permalink to this definition">¶</a></dt>
-<dd><p>Convert query result to a Pandas DataFrame.
-:param rowIdAndVersionInIndex:  Make the dataframe index consist of the row_id and row_version</p>
-<blockquote>
-<div><p>(and row_etag if it exists)</p>
-</div></blockquote>
+<dt class="sig sig-object py" id="synapseclient.table.CsvFileTable.asDataFrame">
+<span class="sig-name descname"><span class="pre">asDataFrame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rowIdAndVersionInIndex</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_to_datetime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.asDataFrame" title="Permalink to this definition"></a></dt>
+<dd><p>Convert query result to a Pandas DataFrame.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>convert_to_datetime</strong> – If set to True, will convert all Synapse DATE columns from UNIX timestamp
-integers into UTC datetime objects</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rowIdAndVersionInIndex</strong> – Make the dataframe index consist of the row_id and row_version
+(and row_etag if it exists)</p></li>
+<li><p><strong>convert_to_datetime</strong> – If set to True, will convert all Synapse DATE columns from UNIX timestamp
+integers into UTC datetime objects</p></li>
+</ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p></p>
+<dd class="field-even"><p>Pandas dataframe with results</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
-<dt id="synapseclient.table.CsvFileTable.from_table_query">
-<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">from_table_query</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quoteCharacter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'&quot;'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">escapeCharacter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'\\'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lineEnd</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'\n'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">separator</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">','</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeRowIdAndRowVersion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downloadLocation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.from_table_query" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.CsvFileTable.from_table_query">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_table_query</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quoteCharacter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'&quot;'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">escapeCharacter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'\\'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lineEnd</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'\n'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">separator</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">','</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeRowIdAndRowVersion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downloadLocation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.from_table_query" title="Permalink to this definition"></a></dt>
 <dd><p>Create a Table object wrapping a CSV file resulting from querying a Synapse table.
 Mostly for internal use.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="synapseclient.table.CsvFileTable.iter_row_metadata">
-<code class="sig-name descname"><span class="pre">iter_row_metadata</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.iter_row_metadata" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.CsvFileTable.iter_row_metadata">
+<span class="sig-name descname"><span class="pre">iter_row_metadata</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.iter_row_metadata" title="Permalink to this definition"></a></dt>
 <dd><p>Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
 it will generated as (row_id, None)</p>
 <dl class="field-list simple">
@@ -655,8 +667,8 @@ it will generated as (row_id, None)</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="synapseclient.table.CsvFileTable.setColumnHeaders">
-<code class="sig-name descname"><span class="pre">setColumnHeaders</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">headers</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.setColumnHeaders" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.CsvFileTable.setColumnHeaders">
+<span class="sig-name descname"><span class="pre">setColumnHeaders</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">headers</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.setColumnHeaders" title="Permalink to this definition"></a></dt>
 <dd><p>Set the list of <code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.SelectColumn</span></code> objects that will be used to convert fields to the
 appropriate data types.</p>
 <p>Column headers are automatically set when querying.</p>
@@ -665,11 +677,173 @@ appropriate data types.</p>
 </dd></dl>
 
 </div>
+<div class="section" id="dataset">
+<h3>Dataset<a class="headerlink" href="#dataset" title="Permalink to this headline"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
+<dd><p>A Dataset is an <a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a> that defines a
+flat list of entities as a tableview (a.k.a. a “dataset”).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – The name for the Dataset object</p></li>
+<li><p><strong>description</strong> – User readable description of the schema</p></li>
+<li><p><strong>columns</strong> – A list of <a class="reference internal" href="#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects or their IDs</p></li>
+<li><p><strong>parent</strong> – The Synapse Project to which this Dataset belongs</p></li>
+<li><p><strong>properties</strong> – A map of Synapse properties</p></li>
+<li><p><strong>annotations</strong> – A map of user defined annotations</p></li>
+<li><p><strong>dataset_items</strong> – A list of items characterized by entityId and versionNumber</p></li>
+<li><p><strong>folder</strong> – A list of Folder IDs</p></li>
+<li><p><strong>local_state</strong> – Internal use only</p></li>
+</ul>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">Dataset</span>
+
+<span class="c1"># Create a Dataset with pre-defined DatasetItems. Default Dataset columns</span>
+<span class="c1"># are used if no schema is provided.</span>
+<span class="n">dataset_items</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn000&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="p">{</span><span class="o">...</span><span class="p">},</span>
+<span class="p">]</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Dataset</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My Dataset&quot;</span><span class="p">,</span>
+    <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span>
+    <span class="n">dataset_items</span><span class="o">=</span><span class="n">dataset_items</span><span class="p">))</span>
+
+<span class="c1"># Add/remove specific Synapse IDs to/from the Dataset</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_item</span><span class="p">({</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn111&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">remove_item</span><span class="p">(</span><span class="s2">&quot;syn000&quot;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+<span class="c1"># Add a list of Synapse IDs to the Dataset</span>
+<span class="n">new_items</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn222&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn333&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+<span class="p">]</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_items</span><span class="p">(</span><span class="n">new_items</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Folders can easily be added recursively to a dataset, that is, all files
+within the folder (including sub-folders) will be added.  Note that using
+the following methods will add files with the latest version number ONLY.
+If another version number is desired, use <code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.table.add_item()</span></code>
+or <code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.table.add_items()</span></code>.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Add a single Folder to the Dataset</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_folder</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+
+<span class="c1"># Add a list of Folders, overwriting any existing files in the dataset</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_folders</span><span class="p">([</span><span class="s2">&quot;syn456&quot;</span><span class="p">,</span> <span class="s2">&quot;syn789&quot;</span><span class="p">],</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>empty() can be used to truncate a dataset, that is, remove all current
+items from the set.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="o">.</span><span class="n">empty</span><span class="p">()</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To get the number of entities in the dataset, use len().</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">dataset</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> has </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span><span class="si">}</span><span class="s2"> items.&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To create a snapshot version of the Dataset, use
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.client.create_snapshot_version()</span></code>.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">create_snapshot_version</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;v1.0&quot;</span><span class="p">,</span>
+    <span class="n">comment</span><span class="o">=</span><span class="s2">&quot;This is version 1&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">add_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder</strong> – a single Synapse Folder ID</p></li>
+<li><p><strong>force</strong> – force add items from folder</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">add_folders</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folders</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folders</strong> – a list of Synapse Folder IDs</p></li>
+<li><p><strong>force</strong> – force add items from folders</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">add_item</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_item</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset_item</strong> – a single dataset item</p></li>
+<li><p><strong>force</strong> – force add item</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">add_items</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_items</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset_items</strong> – a list of dataset items</p></li>
+<li><p><strong>force</strong> – force add items</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">has_item</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">item_id</span></span></em><span class="sig-paren">)</span></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>item_id</strong> – a single dataset item Synapse ID</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">remove_item</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">item_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>item_id</strong> – a single dataset item Synapse ID</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
 <div class="section" id="module-level-methods">
-<h3>Module level methods<a class="headerlink" href="#module-level-methods" title="Permalink to this headline">¶</a></h3>
+<h3>Module level methods<a class="headerlink" href="#module-level-methods" title="Permalink to this headline"></a></h3>
 <dl class="py function">
-<dt id="synapseclient.table.as_table_columns">
-<code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">as_table_columns</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.as_table_columns" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.as_table_columns">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">as_table_columns</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.as_table_columns" title="Permalink to this definition"></a></dt>
 <dd><p>Return a list of Synapse table <a class="reference internal" href="#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects that correspond to the columns in the given values.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Params values</dt>
@@ -691,8 +865,8 @@ appropriate data types.</p>
 </dd></dl>
 
 <dl class="py function">
-<dt id="synapseclient.table.build_table">
-<code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">build_table</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.build_table" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.build_table">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">build_table</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.build_table" title="Permalink to this definition"></a></dt>
 <dd><p>Build a Table object</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -724,8 +898,8 @@ appropriate data types.</p>
 </dd></dl>
 
 <dl class="py function">
-<dt id="synapseclient.table.Table">
-<code class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></code><code class="sig-name descname"><span class="pre">Table</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Table" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.table.Table">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">Table</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Table" title="Permalink to this definition"></a></dt>
 <dd><p>Combine a table schema and a set of values into some type of Table object
 depending on what type of values are given.</p>
 <dl class="field-list simple">
@@ -787,7 +961,7 @@ depending on what type of values are given.</p>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2018, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Mar 05, 2023.
+      <span class="lastupdated">Last updated on Jun 03, 2023.
       </span></p>
   </div>
 
@@ -808,8 +982,8 @@ depending on what type of values are given.</p>
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Mar 05, 2023.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
+      Last updated on Jun 03, 2023.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

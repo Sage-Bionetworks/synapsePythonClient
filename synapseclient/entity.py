@@ -154,8 +154,14 @@ from synapseclient.core.utils import id_of, itersubclasses
 class Versionable(object):
     """An entity for which Synapse will store a version history."""
 
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Versionable'
-    _property_keys = ['versionNumber', 'versionLabel', 'versionComment', 'versionUrl', 'versions']
+    _synapse_entity_type = "org.sagebionetworks.repo.model.Versionable"
+    _property_keys = [
+        "versionNumber",
+        "versionLabel",
+        "versionComment",
+        "versionUrl",
+        "versions",
+    ]
 
 
 # TODO: inherit from UserDict.DictMixin?
@@ -168,6 +174,7 @@ class Versionable(object):
 # entity_object branch)
 # - giving up on hiding the difference between properties and annotations
 
+
 class Entity(collections.abc.MutableMapping):
     """
     A Synapse entity is an object that has metadata, access control, and potentially a file. It can represent data,
@@ -176,11 +183,23 @@ class Entity(collections.abc.MutableMapping):
     Entities should typically be created using the constructors for specific subclasses such as Project, Folder or File.
     """
 
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Entity'
-    _property_keys = ['id', 'name', 'description', 'parentId',
-                      'entityType', 'concreteType',
-                      'uri', 'etag', 'annotations', 'accessControlList',
-                      'createdOn', 'createdBy', 'modifiedOn', 'modifiedBy']
+    _synapse_entity_type = "org.sagebionetworks.repo.model.Entity"
+    _property_keys = [
+        "id",
+        "name",
+        "description",
+        "parentId",
+        "entityType",
+        "concreteType",
+        "uri",
+        "etag",
+        "annotations",
+        "accessControlList",
+        "createdOn",
+        "createdBy",
+        "modifiedOn",
+        "modifiedBy",
+    ]
     _local_keys = []
 
     @classmethod
@@ -209,18 +228,22 @@ class Entity(collections.abc.MutableMapping):
             annotations.update(properties.annotations)
             local_state.update(properties.local_state())
             properties = properties.properties
-            if 'id' in properties:
-                del properties['id']
+            if "id" in properties:
+                del properties["id"]
 
-        if cls == Entity \
-                and 'concreteType' in properties \
-                and properties['concreteType'] in entity_type_to_class:
-            cls = entity_type_to_class[properties['concreteType']]
-        return cls(properties=properties, annotations=annotations, local_state=local_state)
+        if (
+            cls == Entity
+            and "concreteType" in properties
+            and properties["concreteType"] in entity_type_to_class
+        ):
+            cls = entity_type_to_class[properties["concreteType"]]
+        return cls(
+            properties=properties, annotations=annotations, local_state=local_state
+        )
 
     @classmethod
     def getURI(cls, id):
-        return '/entity/%s' % id
+        return "/entity/%s" % id
 
     def __new__(cls, *args, **kwargs):
         obj = object.__new__(cls)
@@ -229,37 +252,41 @@ class Entity(collections.abc.MutableMapping):
         # any object methods get invoked. This is important because the
         # dot operator magic methods have been overridden and depend on
         # properties and annotations existing.
-        obj.__dict__['properties'] = DictObject()
-        obj.__dict__['annotations'] = DictObject()
+        obj.__dict__["properties"] = DictObject()
+        obj.__dict__["annotations"] = DictObject()
         return obj
 
-    def __init__(self, properties=None, annotations=None, local_state=None, parent=None, **kwargs):
-
+    def __init__(
+        self, properties=None, annotations=None, local_state=None, parent=None, **kwargs
+    ):
         if properties:
             if isinstance(properties, collections.abc.Mapping):
-                if 'annotations' in properties and isinstance(properties['annotations'], collections.abc.Mapping):
-                    annotations.update(properties['annotations'])
-                    del properties['annotations']
+                if "annotations" in properties and isinstance(
+                    properties["annotations"], collections.abc.Mapping
+                ):
+                    annotations.update(properties["annotations"])
+                    del properties["annotations"]
 
                 # Re-map `items` to `datasetItems` to avoid namespace conflicts
                 # between Dataset schema and the items() builtin method.
-                if 'items' in properties:
-                    properties['datasetItems'] = properties['items']
-                    del properties['items']
-                self.__dict__['properties'].update(properties)
+                if "items" in properties:
+                    properties["datasetItems"] = properties["items"]
+                    del properties["items"]
+                self.__dict__["properties"].update(properties)
             else:
                 raise SynapseMalformedEntityError(
-                    'Unknown argument type: properties is a %s' % str(type(properties))
+                    "Unknown argument type: properties is a %s" % str(type(properties))
                 )
 
         if annotations:
             if isinstance(annotations, collections.abc.Mapping):
-                self.__dict__['annotations'].update(annotations)
+                self.__dict__["annotations"].update(annotations)
             elif isinstance(annotations, str):
-                self.properties['annotations'] = annotations
+                self.properties["annotations"] = annotations
             else:
                 raise SynapseMalformedEntityError(
-                    'Unknown argument type: annotations is a %s' % str(type(annotations))
+                    "Unknown argument type: annotations is a %s"
+                    % str(type(annotations))
                 )
 
         if local_state:
@@ -267,7 +294,8 @@ class Entity(collections.abc.MutableMapping):
                 self.local_state(local_state)
             else:
                 raise SynapseMalformedEntityError(
-                    'Unknown argument type: local_state is a %s' % str(type(local_state))
+                    "Unknown argument type: local_state is a %s"
+                    % str(type(local_state))
                 )
 
         for key in self.__class__._local_keys:
@@ -275,44 +303,50 @@ class Entity(collections.abc.MutableMapping):
                 self.__dict__[key] = None
 
         # Extract parentId from parent
-        if 'parentId' not in kwargs:
+        if "parentId" not in kwargs:
             if parent:
                 try:
-                    kwargs['parentId'] = id_of(parent)
+                    kwargs["parentId"] = id_of(parent)
                 except Exception:
-                    if isinstance(parent, Entity) and 'id' not in parent:
+                    if isinstance(parent, Entity) and "id" not in parent:
                         raise SynapseMalformedEntityError(
                             "Couldn't find 'id' of parent."
                             " Has it been stored in Synapse?"
                         )
                     else:
-                        raise SynapseMalformedEntityError("Couldn't find 'id' of parent.")
+                        raise SynapseMalformedEntityError(
+                            "Couldn't find 'id' of parent."
+                        )
 
         # Note: that this will work properly if derived classes declare their internal state variable *before* invoking
         # super(...).__init__(...)
         for key, value in kwargs.items():
             self.__setitem__(key, value)
 
-        if 'concreteType' not in self:
-            self['concreteType'] = self.__class__._synapse_entity_type
+        if "concreteType" not in self:
+            self["concreteType"] = self.__class__._synapse_entity_type
 
         # Only project can be top-level. All other entity types require parentId don't enforce this for generic Entity
-        if 'parentId' not in self \
-                and not isinstance(self, Project) \
-                and not type(self) == Entity:
-            raise SynapseMalformedEntityError("Entities of type %s must have a parentId." % type(self))
+        if (
+            "parentId" not in self
+            and not isinstance(self, Project)
+            and not type(self) == Entity
+        ):
+            raise SynapseMalformedEntityError(
+                "Entities of type %s must have a parentId." % type(self)
+            )
 
     def postURI(self):
-        return '/entity'
+        return "/entity"
 
     def putURI(self):
-        return '/entity/%s' % self.id
+        return "/entity/%s" % self.id
 
     def deleteURI(self, versionNumber=None):
         if versionNumber:
-            return '/entity/%s/version/%s' % (self.id, versionNumber)
+            return "/entity/%s/version/%s" % (self.id, versionNumber)
         else:
-            return '/entity/%s' % self.id
+            return "/entity/%s" % self.id
 
     def local_state(self, state=None):
         """
@@ -322,11 +356,11 @@ class Entity(collections.abc.MutableMapping):
         """
         if state:
             for key, value in state.items():
-                if key not in ['annotations', 'properties']:
+                if key not in ["annotations", "properties"]:
                     self.__dict__[key] = value
         result = {}
         for key, value in self.__dict__.items():
-            if key not in ['annotations', 'properties'] and not key.startswith('__'):
+            if key not in ["annotations", "properties"] and not key.startswith("__"):
                 result[key] = value
         return result
 
@@ -340,7 +374,9 @@ class Entity(collections.abc.MutableMapping):
             # Wrap the dictionary in a DictObject so we can
             # later do:
             #   entity.annotations.foo = 'bar'
-            if (key == 'annotations' or key == 'properties') and not isinstance(value, DictObject):
+            if (key == "annotations" or key == "properties") and not isinstance(
+                value, DictObject
+            ):
                 value = DictObject(value)
             self.__dict__[key] = value
         elif key in self.__class__._property_keys:
@@ -396,24 +432,30 @@ class Entity(collections.abc.MutableMapping):
     def _write_kvps(self, f, dictionary, key_filter=None, key_aliases=None):
         for key in sorted(dictionary.keys()):
             if (not key_filter) or key_filter(key):
-                f.write('  ')
+                f.write("  ")
                 f.write(str(key) if not key_aliases else key_aliases[key])
-                f.write('=')
+                f.write("=")
                 f.write(str(dictionary[key]))
-                f.write('\n')
+                f.write("\n")
 
     def __str__(self):
         f = io.StringIO()
 
-        f.write('%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'),
-                                   self['id'] if 'id' in self else '-',))
+        f.write(
+            "%s: %s (%s)\n"
+            % (
+                self.__class__.__name__,
+                self.properties.get("name", "None"),
+                self["id"] if "id" in self else "-",
+            )
+        )
 
         self._str_localstate(f)
 
-        f.write('properties:\n')
+        f.write("properties:\n")
         self._write_kvps(f, self.properties)
 
-        f.write('annotations:\n')
+        f.write("annotations:\n")
         self._write_kvps(f, self.annotations)
 
         return f.getvalue()
@@ -423,8 +465,13 @@ class Entity(collections.abc.MutableMapping):
         Helper method for writing the string representation of the local state to a StringIO object
         :param f: a StringIO object to which the local state string will be written
         """
-        self._write_kvps(f, self.__dict__,
-                         lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))
+        self._write_kvps(
+            f,
+            self.__dict__,
+            lambda key: not (
+                key in ["properties", "annotations"] or key.startswith("__")
+            ),
+        )
 
     def __repr__(self):
         """Returns an eval-able representation of the Entity."""
@@ -432,13 +479,31 @@ class Entity(collections.abc.MutableMapping):
         f = io.StringIO()
         f.write(self.__class__.__name__)
         f.write("(")
-        f.write(", ".join(
-            {"%s=%s" % (str(key), value.__repr__(),) for key, value in
-                itertools.chain(
-                    list([k_v for k_v in self.__dict__.items()
-                          if not (k_v[0] in ['properties', 'annotations'] or k_v[0].startswith('__'))]),
-                    self.properties.items(),
-                    self.annotations.items())}))
+        f.write(
+            ", ".join(
+                {
+                    "%s=%s"
+                    % (
+                        str(key),
+                        value.__repr__(),
+                    )
+                    for key, value in itertools.chain(
+                        list(
+                            [
+                                k_v
+                                for k_v in self.__dict__.items()
+                                if not (
+                                    k_v[0] in ["properties", "annotations"]
+                                    or k_v[0].startswith("__")
+                                )
+                            ]
+                        ),
+                        self.properties.items(),
+                        self.annotations.items(),
+                    )
+                }
+            )
+        )
         f.write(")")
         return f.getvalue()
 
@@ -461,13 +526,20 @@ class Project(Entity):
         project = syn.store(project)
     """
 
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Project'
+    _synapse_entity_type = "org.sagebionetworks.repo.model.Project"
 
-    def __init__(self, name=None, properties=None, annotations=None, local_state=None, **kwargs):
+    def __init__(
+        self, name=None, properties=None, annotations=None, local_state=None, **kwargs
+    ):
         if name:
-            kwargs['name'] = name
-        super(Project, self).__init__(concreteType=Project._synapse_entity_type, properties=properties,
-                                      annotations=annotations, local_state=local_state, **kwargs)
+            kwargs["name"] = name
+        super(Project, self).__init__(
+            concreteType=Project._synapse_entity_type,
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            **kwargs,
+        )
 
 
 class Folder(Entity):
@@ -488,13 +560,27 @@ class Folder(Entity):
         folder = syn.store(folder)
     """
 
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Folder'
+    _synapse_entity_type = "org.sagebionetworks.repo.model.Folder"
 
-    def __init__(self, name=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
+    def __init__(
+        self,
+        name=None,
+        parent=None,
+        properties=None,
+        annotations=None,
+        local_state=None,
+        **kwargs,
+    ):
         if name:
-            kwargs['name'] = name
-        super(Folder, self).__init__(concreteType=Folder._synapse_entity_type, properties=properties,
-                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+            kwargs["name"] = name
+        super(Folder, self).__init__(
+            concreteType=Folder._synapse_entity_type,
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            parent=parent,
+            **kwargs,
+        )
 
 
 class Link(Entity):
@@ -516,22 +602,39 @@ class Link(Entity):
         link = Link('targetID', parent=folder)
         link = syn.store(link)
     """
-    _property_keys = Entity._property_keys + ['linksTo', 'linksToClassName']
-    _local_keys = Entity._local_keys
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Link'
 
-    def __init__(self, targetId=None, targetVersion=None, parent=None, properties=None, annotations=None,
-                 local_state=None, **kwargs):
+    _property_keys = Entity._property_keys + ["linksTo", "linksToClassName"]
+    _local_keys = Entity._local_keys
+    _synapse_entity_type = "org.sagebionetworks.repo.model.Link"
+
+    def __init__(
+        self,
+        targetId=None,
+        targetVersion=None,
+        parent=None,
+        properties=None,
+        annotations=None,
+        local_state=None,
+        **kwargs,
+    ):
         if targetId is not None and targetVersion is not None:
-            kwargs['linksTo'] = dict(targetId=utils.id_of(targetId), targetVersionNumber=targetVersion)
+            kwargs["linksTo"] = dict(
+                targetId=utils.id_of(targetId), targetVersionNumber=targetVersion
+            )
         elif targetId is not None and targetVersion is None:
-            kwargs['linksTo'] = dict(targetId=utils.id_of(targetId))
-        elif properties is not None and 'linksTo' in properties:
+            kwargs["linksTo"] = dict(targetId=utils.id_of(targetId))
+        elif properties is not None and "linksTo" in properties:
             pass
         else:
             raise SynapseMalformedEntityError("Must provide a target id")
-        super(Link, self).__init__(concreteType=Link._synapse_entity_type, properties=properties,
-                                   annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        super(Link, self).__init__(
+            concreteType=Link._synapse_entity_type,
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            parent=parent,
+            **kwargs,
+        )
 
 
 class File(Entity, Versionable):
@@ -561,40 +664,80 @@ class File(Entity, Versionable):
         data = File('/path/to/file/data.xyz', parent=folder)
         data = syn.store(data)
     """
+
     # Note: externalURL technically should not be in the keys since it's only a field/member variable of
     # ExternalFileHandle, but for backwards compatibility it's included
-    _file_handle_keys = ["createdOn", "id", "concreteType", "contentSize", "createdBy", "etag", "fileName",
-                         "contentType", "contentMd5", "storageLocationId", 'externalURL']
+    _file_handle_keys = [
+        "createdOn",
+        "id",
+        "concreteType",
+        "contentSize",
+        "createdBy",
+        "etag",
+        "fileName",
+        "contentType",
+        "contentMd5",
+        "storageLocationId",
+        "externalURL",
+    ]
     # Used for backwards compatability. The keys found below used to located in the entity's local_state
     # (i.e. __dict__).
-    _file_handle_aliases = {'md5': 'contentMd5', 'externalURL': 'externalURL', 'fileSize': 'contentSize',
-                            'contentType': 'contentType'}
+    _file_handle_aliases = {
+        "md5": "contentMd5",
+        "externalURL": "externalURL",
+        "fileSize": "contentSize",
+        "contentType": "contentType",
+    }
     _file_handle_aliases_inverse = {v: k for k, v in _file_handle_aliases.items()}
 
-    _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
-    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', '_file_handle']
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
+    _property_keys = (
+        Entity._property_keys + Versionable._property_keys + ["dataFileHandleId"]
+    )
+    _local_keys = Entity._local_keys + [
+        "path",
+        "cacheDir",
+        "files",
+        "synapseStore",
+        "_file_handle",
+    ]
+    _synapse_entity_type = "org.sagebionetworks.repo.model.FileEntity"
 
     # TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
-    def __init__(self, path=None, parent=None, synapseStore=True, properties=None,
-                 annotations=None, local_state=None, **kwargs):
-        if path and 'name' not in kwargs:
-            kwargs['name'] = utils.guess_file_name(path)
-        self.__dict__['path'] = path
+    def __init__(
+        self,
+        path=None,
+        parent=None,
+        synapseStore=True,
+        properties=None,
+        annotations=None,
+        local_state=None,
+        **kwargs,
+    ):
+        if path and "name" not in kwargs:
+            kwargs["name"] = utils.guess_file_name(path)
+        self.__dict__["path"] = path
         if path:
             cacheDir, basename = os.path.split(path)
-            self.__dict__['cacheDir'] = cacheDir
-            self.__dict__['files'] = [basename]
+            self.__dict__["cacheDir"] = cacheDir
+            self.__dict__["files"] = [basename]
         else:
-            self.__dict__['cacheDir'] = None
-            self.__dict__['files'] = []
-        self.__dict__['synapseStore'] = synapseStore
+            self.__dict__["cacheDir"] = None
+            self.__dict__["files"] = []
+        self.__dict__["synapseStore"] = synapseStore
 
         # pop the _file_handle from local properties because it is handled differently from other local_state
-        self._update_file_handle(local_state.pop('_file_handle', None) if (local_state is not None) else None)
+        self._update_file_handle(
+            local_state.pop("_file_handle", None) if (local_state is not None) else None
+        )
 
-        super(File, self).__init__(concreteType=File._synapse_entity_type, properties=properties,
-                                   annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        super(File, self).__init__(
+            concreteType=File._synapse_entity_type,
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            parent=parent,
+            **kwargs,
+        )
 
     def _update_file_handle(self, file_handle_update_dict=None):
         """
@@ -604,14 +747,21 @@ class File(Entity, Versionable):
         """
 
         # replace the file handle dict
-        fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
-        self.__dict__['_file_handle'] = fh_dict
+        fh_dict = (
+            DictObject(file_handle_update_dict)
+            if file_handle_update_dict is not None
+            else DictObject()
+        )
+        self.__dict__["_file_handle"] = fh_dict
 
-        if file_handle_update_dict is not None \
-                and file_handle_update_dict.get('concreteType') ==\
-                "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
-                and urllib_parse.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
-            self.__dict__['synapseStore'] = False
+        if (
+            file_handle_update_dict is not None
+            and file_handle_update_dict.get("concreteType")
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+            and urllib_parse.urlparse(file_handle_update_dict.get("externalURL")).scheme
+            != "sftp"
+        ):
+            self.__dict__["synapseStore"] = False
 
         # initialize all nonexistent keys to have value of None
         for key in self.__class__._file_handle_keys:
@@ -619,27 +769,37 @@ class File(Entity, Versionable):
                 fh_dict[key] = None
 
     def __setitem__(self, key, value):
-        if key == '_file_handle':
+        if key == "_file_handle":
             self._update_file_handle(value)
         elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
         else:
-            def expand_and_convert_to_URL(path): return utils.as_url(os.path.expandvars(os.path.expanduser(path)))
+
+            def expand_and_convert_to_URL(path):
+                return utils.as_url(os.path.expandvars(os.path.expanduser(path)))
+
             # hacky solution to allowing immediate switching into a ExternalFileHandle pointing to the current path
             # yes, there is boolean zen but I feel like it is easier to read/understand this way
-            if key == 'synapseStore' and value is False and self['synapseStore'] is True \
-                    and utils.caller_module_name(inspect.currentframe()) != 'client':
-                self['externalURL'] = expand_and_convert_to_URL(self['path'])
+            if (
+                key == "synapseStore"
+                and value is False
+                and self["synapseStore"] is True
+                and utils.caller_module_name(inspect.currentframe()) != "client"
+            ):
+                self["externalURL"] = expand_and_convert_to_URL(self["path"])
 
             # hacky solution because we historically allowed modifying 'path' to indicate wanting to change to a new
             # ExternalFileHandle
             # don't change exernalURL if it's just the synapseclient setting metadata after a function call such as
             # syn.get()
-            if key == 'path' and not self['synapseStore'] \
-                    and utils.caller_module_name(inspect.currentframe()) != 'client':
-                self['externalURL'] = expand_and_convert_to_URL(value)
-                self['contentMd5'] = None
-                self['contentSize'] = None
+            if (
+                key == "path"
+                and not self["synapseStore"]
+                and utils.caller_module_name(inspect.currentframe()) != "client"
+            ):
+                self["externalURL"] = expand_and_convert_to_URL(value)
+                self["contentMd5"] = None
+                self["contentSize"] = None
             super(File, self).__setitem__(key, value)
 
     def __getitem__(self, item):
@@ -649,10 +809,21 @@ class File(Entity, Versionable):
             return super(File, self).__getitem__(item)
 
     def _str_localstate(self, f):
-        self._write_kvps(f, self._file_handle, lambda key: key in ['externalURL', 'contentMd5', 'contentSize',
-                                                                   'contentType'], self._file_handle_aliases_inverse)
-        self._write_kvps(f, self.__dict__, lambda key: not (key in ['properties', 'annotations', '_file_handle']
-                                                            or key.startswith('__')))
+        self._write_kvps(
+            f,
+            self._file_handle,
+            lambda key: key
+            in ["externalURL", "contentMd5", "contentSize", "contentType"],
+            self._file_handle_aliases_inverse,
+        )
+        self._write_kvps(
+            f,
+            self.__dict__,
+            lambda key: not (
+                key in ["properties", "annotations", "_file_handle"]
+                or key.startswith("__")
+            ),
+        )
 
 
 class DockerRepository(Entity):
@@ -675,17 +846,33 @@ class DockerRepository(Entity):
     :return:  an object of type :py:class:`synapseclient.entity.DockerRepository`
 
     """
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.docker.DockerRepository'
 
-    _property_keys = Entity._property_keys + ['repositoryName']
+    _synapse_entity_type = "org.sagebionetworks.repo.model.docker.DockerRepository"
 
-    def __init__(self, repositoryName=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
+    _property_keys = Entity._property_keys + ["repositoryName"]
+
+    def __init__(
+        self,
+        repositoryName=None,
+        parent=None,
+        properties=None,
+        annotations=None,
+        local_state=None,
+        **kwargs,
+    ):
         if repositoryName:
-            kwargs['repositoryName'] = repositoryName
-        super(DockerRepository, self).__init__(properties=properties, annotations=annotations, local_state=local_state,
-                                               parent=parent, **kwargs)
-        if 'repositoryName' not in self:
-            raise SynapseMalformedEntityError("DockerRepository must have a repositoryName.")
+            kwargs["repositoryName"] = repositoryName
+        super(DockerRepository, self).__init__(
+            properties=properties,
+            annotations=annotations,
+            local_state=local_state,
+            parent=parent,
+            **kwargs,
+        )
+        if "repositoryName" not in self:
+            raise SynapseMalformedEntityError(
+                "DockerRepository must have a repositoryName."
+            )
 
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
@@ -693,8 +880,17 @@ entity_type_to_class = {}
 for cls in itersubclasses(Entity):
     entity_type_to_class[cls._synapse_entity_type] = cls
 
-_entity_types = ["folder", "file", "table", "link", "entityview", "dockerrepo",
-                 "submissionview", "dataset", "materializedview"]
+_entity_types = [
+    "folder",
+    "file",
+    "table",
+    "link",
+    "entityview",
+    "dockerrepo",
+    "submissionview",
+    "dataset",
+    "materializedview",
+]
 
 
 def split_entity_namespaces(entity):
@@ -710,10 +906,12 @@ def split_entity_namespaces(entity):
         return entity.properties.copy(), entity.annotations.copy(), entity.local_state()
 
     if not isinstance(entity, collections.abc.Mapping):
-        raise SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
+        raise SynapseMalformedEntityError(
+            "Can't split a %s object." % entity.__class__.__name__
+        )
 
-    if 'concreteType' in entity and entity['concreteType'] in entity_type_to_class:
-        entity_class = entity_type_to_class[entity['concreteType']]
+    if "concreteType" in entity and entity["concreteType"] in entity_type_to_class:
+        entity_class = entity_type_to_class[entity["concreteType"]]
     else:
         entity_class = Entity
 
@@ -735,12 +933,12 @@ def split_entity_namespaces(entity):
 
 
 ENTITY_TYPES = [
-    'org.sagebionetworks.repo.model.FileEntity',
-    'org.sagebionetworks.repo.model.Folder',
-    'org.sagebionetworks.repo.model.Link',
-    'org.sagebionetworks.repo.model.Project',
-    'org.sagebionetworks.repo.model.table.TableEntity',
-    'org.sagebionetworks.repo.model.table.Dataset'
+    "org.sagebionetworks.repo.model.FileEntity",
+    "org.sagebionetworks.repo.model.Folder",
+    "org.sagebionetworks.repo.model.Link",
+    "org.sagebionetworks.repo.model.Project",
+    "org.sagebionetworks.repo.model.table.TableEntity",
+    "org.sagebionetworks.repo.model.table.Dataset",
 ]
 
 
@@ -748,7 +946,7 @@ def is_synapse_entity(entity):
     if isinstance(entity, Entity):
         return True
     if isinstance(entity, collections.abc.Mapping):
-        return entity.get('concreteType', None) in ENTITY_TYPES
+        return entity.get("concreteType", None) in ENTITY_TYPES
     return False
 
 
@@ -759,7 +957,7 @@ def is_versionable(entity):
         return True
 
     try:
-        entity_class = entity_type_to_class[entity['concreteType']]
+        entity_class = entity_type_to_class[entity["concreteType"]]
         return issubclass(entity_class, Versionable)
     except (KeyError, TypeError):
         # the dict input is not an entity
@@ -768,16 +966,16 @@ def is_versionable(entity):
 
 def is_container(entity):
     """Test if an entity is a container (ie, a Project or a Folder)"""
-    if 'concreteType' in entity:
-        concreteType = entity['concreteType']
-    elif 'type' in entity:
-        concreteType = entity['type']
+    if "concreteType" in entity:
+        concreteType = entity["concreteType"]
+    elif "type" in entity:
+        concreteType = entity["type"]
     elif isinstance(entity, collections.abc.Mapping):
         prefix = utils.extract_prefix(entity.keys())
-        if prefix+'concreteType' in entity:
-            concreteType = entity[prefix+'concreteType'][0]
-        elif prefix+'nodeType' in entity:
-            return entity[prefix+'nodeType'] in ['project', 'folder']
+        if prefix + "concreteType" in entity:
+            concreteType = entity[prefix + "concreteType"][0]
+        elif prefix + "nodeType" in entity:
+            return entity[prefix + "nodeType"] in ["project", "folder"]
         else:
             return False
     else:

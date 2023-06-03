@@ -3,12 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Synapse Multipart Upload &mdash; Synapse Python Client 2.7.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" /><link rel="shortcut icon" href="_static/favicon.png"/>
+  <title>Synapse Multipart Upload &mdash; Synapse Python Client 2.7.2 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="shortcut icon" href="_static/favicon.png"/>
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
@@ -22,32 +25,37 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Synapse Python Client<img src="_static/synapse_logo.png" class="logo" alt="Logo"/>
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Synapse Python Client
+              <img src="_static/synapse_logo.png" class="logo" alt="Logo"/>
           </a>
               <div class="version">
-                2.7.0
+                2.7.2
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Getting Started</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/credentials.html">Manage Synapse Credentials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">Python Client Basics</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Command Line Client</span></p>
+<p class="caption" role="heading"><span class="caption-text">Command Line Client</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html#help">Help</a></li>
 <li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html#usage">Usage</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Python API</span></p>
+<p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api/Client.html">Synapse Client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/Entity.html">Entity</a></li>
@@ -60,7 +68,7 @@
 <li class="toctree-l1"><a class="reference internal" href="api/Table.html">Tables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/Team.html">Teams</a></li>
 </ul>
-<p class="caption"><span class="caption-text">News</span></p>
+<p class="caption" role="heading"><span class="caption-text">News</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="news.html">Release Notes</a></li>
 </ul>
@@ -78,8 +86,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Synapse Multipart Upload</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Synapse Multipart Upload</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/Multipart_upload.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -90,13 +98,13 @@
            <div itemprop="articleBody">
              
   <span class="target" id="module-synapseclient.core.upload.multipart_upload"></span><div class="section" id="synapse-multipart-upload">
-<h1>Synapse Multipart Upload<a class="headerlink" href="#synapse-multipart-upload" title="Permalink to this headline">¶</a></h1>
+<h1>Synapse Multipart Upload<a class="headerlink" href="#synapse-multipart-upload" title="Permalink to this headline"></a></h1>
 <p>Implements the client side of <a class="reference external" href="http://docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController">Synapse multipart upload</a>, which provides a
 robust means of uploading large files (into the 10s of GB). End users should
 not need to call any of these functions directly.</p>
 <dl class="py function">
-<dt id="synapseclient.core.upload.multipart_upload.multipart_upload_file">
-<code class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></code><code class="sig-name descname"><span class="pre">multipart_upload_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preview</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">str</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.multipart_upload_file" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.core.upload.multipart_upload.multipart_upload_file">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></span><span class="sig-name descname"><span class="pre">multipart_upload_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preview</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.multipart_upload_file" title="Permalink to this definition"></a></dt>
 <dd><p>Upload a file to a Synapse upload destination in chunks.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -129,8 +137,8 @@ UploadDestination</p></li>
 </dd></dl>
 
 <dl class="py function">
-<dt id="synapseclient.core.upload.multipart_upload.multipart_upload_string">
-<code class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></code><code class="sig-name descname"><span class="pre">multipart_upload_string</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preview</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.multipart_upload_string" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.core.upload.multipart_upload.multipart_upload_string">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></span><span class="sig-name descname"><span class="pre">multipart_upload_string</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preview</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.multipart_upload_string" title="Permalink to this definition"></a></dt>
 <dd><p>Upload a file to a Synapse upload destination in chunks.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -163,16 +171,16 @@ UploadDestination</p></li>
 </dd></dl>
 
 <dl class="py function">
-<dt id="synapseclient.core.upload.multipart_upload.shared_executor">
-<code class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></code><code class="sig-name descname"><span class="pre">shared_executor</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">executor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.shared_executor" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.core.upload.multipart_upload.shared_executor">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></span><span class="sig-name descname"><span class="pre">shared_executor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">executor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.shared_executor" title="Permalink to this definition"></a></dt>
 <dd><p>An outside process that will eventually trigger an upload through the this module
 can configure a shared Executor by running its code within this context manager.</p>
 </dd></dl>
 
 </div>
 <dl class="py function">
-<dt id="synapseclient.core.upload.multipart_upload._multipart_upload">
-<code class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></code><code class="sig-name descname"><span class="pre">_multipart_upload</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upload_request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">md5_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="synapseclient.core.upload.multipart_upload._multipart_upload">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></span><span class="sig-name descname"><span class="pre">_multipart_upload</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upload_request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">md5_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 
@@ -185,7 +193,7 @@ can configure a shared Executor by running its code within this context manager.
 
   <div role="contentinfo">
     <p>&#169; Copyright 2018, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Mar 05, 2023.
+      <span class="lastupdated">Last updated on Jun 03, 2023.
       </span></p>
   </div>
 
@@ -206,8 +214,8 @@ can configure a shared Executor by running its code within this context manager.
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Mar 05, 2023.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.5.4.
+      Last updated on Jun 03, 2023.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
