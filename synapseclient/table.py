@@ -186,15 +186,14 @@ later::
 
     # upload album covers
     for row in data:
-        file_handle = syn.uploadSynapseManagedFileHandle(os.path.join(covers_dir, row[4]))
+        file_handle = syn.uploadFileHandle(os.path.join(covers_dir, row[4]), parent=project)
         row[4] = file_handle['id']
 
     # store the table data
-    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+    row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
 
     # Later, we'll want to query the table and download our album covers
-    results = syn.tableQuery("select artist, album, 'year', catalog, cover from %s where artist = 'Sonny Rollins'" \
-                             % schema.id)
+    results = syn.tableQuery(f"select artist, album, cover from {schema.id} where artist = 'Sonny Rollins'")
     cover_files = syn.downloadTableColumns(results, ['cover'])
 
 -------------
