@@ -4504,6 +4504,8 @@ class Synapse(object):
             for col_index in col_indices:
                 file_handle_id = row[col_index]
                 if is_integer(file_handle_id):
+                    # Make this an integer since all file handles are integers
+                    file_handle_id = int(file_handle_id)
                     path_to_cached_file = self.cache.get(
                         file_handle_id, path=downloadLocation
                     )
