@@ -59,17 +59,20 @@ class SynapseProvenanceError(SynapseError):
 
 class SynapseHTTPError(SynapseError, requests.exceptions.HTTPError):
     """Wraps recognized HTTP errors.  See
-    `HTTPError <http://docs.python-requests.org/en/latest/api/?highlight=exceptions#requests.exceptions.HTTPError>`_"""
+    `HTTPError <http://docs.python-requests.org/en/latest/api/?highlight=exceptions#requests.exceptions.HTTPError>`_
+    """
 
 
 class SynapseUploadAbortedException(SynapseError):
     """Raised when a worker thread detects the upload was
     aborted and stops further processing."""
+
     pass
 
 
 class SynapseUploadFailedException(SynapseError):
     """Raised when an upload failed. Should be chained to a cause Exception"""
+
     pass
 
 
@@ -117,7 +120,7 @@ def _raise_for_status(response, verbose=False):
         # 450: 'blocked_by_windows_parental_controls'
         # 451: 'unavailable_for_legal_reasons'
         # 499: 'client_closed_request'
-        message = '%s Client Error: %s' % (response.status_code, response.reason)
+        message = "%s Client Error: %s" % (response.status_code, response.reason)
 
     elif 500 <= response.status_code < 600:
         # TODOs:
@@ -131,19 +134,25 @@ def _raise_for_status(response, verbose=False):
         # 507: 'insufficient_storage'
         # 509: 'bandwidth_limit_exceeded'
         # 510: 'not_extended'
-        message = '%s Server Error: %s' % (response.status_code, response.reason)
+        message = "%s Server Error: %s" % (response.status_code, response.reason)
 
     if message is not None:
         # Append the server's JSON error message
-        if utils.is_json(response.headers.get('content-type', None)) and 'reason' in response.json():
-            message += "\n%s" % response.json()['reason']
+        if (
+            utils.is_json(response.headers.get("content-type", None))
+            and "reason" in response.json()
+        ):
+            message += "\n%s" % response.json()["reason"]
         else:
             message += "\n%s" % response.text
 
         if verbose:
             try:
                 # Append the request sent
-                message += "\n\n>>>>>> Request <<<<<<\n%s %s" % (response.request.url, response.request.method)
+                message += "\n\n>>>>>> Request <<<<<<\n%s %s" % (
+                    response.request.url,
+                    response.request.method,
+                )
                 message += "\n>>> Headers: %s" % response.request.headers
                 message += "\n>>> Body: %s" % response.request.body
             except:  # noqa
