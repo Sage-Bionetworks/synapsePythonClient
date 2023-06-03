@@ -42,7 +42,10 @@ test_deps = [
 ]
 
 install_requires = [
+    # "requests>=2.22.0,<2.30.0; python_version<'3.10'",
     "requests>=2.22.0,<3.0",
+    "urllib3<2",
+    # "urllib3>=2; python_version>='3.10'",
     "keyring>=15,<23.5",
     "deprecated>=1.2.4,<2.0",
     "importlib-metadata<5.0",
@@ -76,10 +79,10 @@ setuptools.setup(
     python_requires=">=3.8",
     install_requires=install_requires,
     extras_require={
-        "pandas": ["pandas~=1.5"],
+        "pandas": ["pandas>=1.5,<2.1"],
         "pysftp": ["pysftp>=0.2.8,<0.3"],
         "boto3": ["boto3>=1.7.0,<2.0"],
-        "docs": ["sphinx>=3.0,<4.0", "sphinx-argparse>=0.2,<0.3"],
+        "docs": ["sphinx>=4.0,<5.0", "sphinx-argparse>=0.2,<0.3"],
         "tests": test_deps,
         ':sys_platform=="linux"': ["keyrings.alt==3.1"],
     },

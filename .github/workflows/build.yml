@@ -34,14 +34,14 @@ jobs:
         os: [ubuntu-20.04, macos-11, windows-2019]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
-        python: [3.8, '3.9.9', '3.10', '3.11']
+        python: [3.8, '3.9', '3.10', '3.11']
 
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
 
@@ -50,13 +50,13 @@ jobs:
         run: |
           SITE_PACKAGES_LOCATION=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
           SITE_BIN_DIR=$(python3 -c "import os; import platform; import distutils.sysconfig; pre = distutils.sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
-          echo "::set-output name=site_packages_loc::$SITE_PACKAGES_LOCATION"
-          echo "::set-output name=site_bin_dir::$SITE_BIN_DIR"
+          echo "site_packages_loc=$SITE_PACKAGES_LOCATION" >> $GITHUB_OUTPUT
+          echo "site_bin_dir=$SITE_BIN_DIR" >> $GITHUB_OUTPUT
         id: get-dependencies
 
       - name: Cache py-dependencies
         id: cache-dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         env:
           cache-name: cache-py-dependencies
         with:
@@ -80,10 +80,10 @@ jobs:
             pip install numpy
           fi
 
-      - name: lint
-        shell: bash
-        run: |
-          flake8
+      # - name: lint
+      #   shell: bash
+      #   run: |
+      #     flake8
 
       - name: run-unit-tests
         shell: bash
@@ -139,7 +139,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: psf/black@stable
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
@@ -154,9 +154,9 @@ jobs:
       bdist-package-name: ${{ steps.build-package.outputs.bdist-package-name }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: 3.8
 
@@ -212,11 +212,11 @@ jobs:
           BDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}-py3-none-any.whl"
           RELEASE_URL_PREFIX="https://uploads.github.com/repos/${{ github.event.repository.full_name }}/releases/${{ github.event.release.id }}/assets?name="
 
-          echo "::set-output name=sdist-package-name::$SDIST_PACKAGE_NAME"
-          echo "::set-output name=bdist-package-name::$BDIST_PACKAGE_NAME"
+          echo "sdist-package-name=$SDIST_PACKAGE_NAME" >> $GITHUB_OUTPUT
+          echo "bdist-package-name=$BDIST_PACKAGE_NAME" >> $GITHUB_OUTPUT
 
-          echo "::set-output name=sdist-release-url::${RELEASE_URL_PREFIX}${SDIST_PACKAGE_NAME}"
-          echo "::set-output name=bdist-release-url::${RELEASE_URL_PREFIX}${BDIST_PACKAGE_NAME}"
+          echo "sdist-release-url=${RELEASE_URL_PREFIX}${SDIST_PACKAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "bdist-release-url=${RELEASE_URL_PREFIX}${BDIST_PACKAGE_NAME}" >> $GITHUB_OUTPUT
 
       # upload the packages as build artifacts of the GitHub Action
 
@@ -260,11 +260,11 @@ jobs:
   deploy:
     needs: package
 
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     steps:
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: 3.8
 
@@ -329,7 +329,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
 

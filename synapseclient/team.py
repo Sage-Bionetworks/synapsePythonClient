@@ -31,6 +31,7 @@ class UserProfile(DictObject):
     :param notificationSettings: An object of type :py:class:`org.sagebionetworks.repo.model.message.Settings`
      containing the user's preferences regarding when email notifications should be sent
     """
+
     def __init__(self, **kwargs):
         super(UserProfile, self).__init__(kwargs)
 
@@ -46,6 +47,7 @@ class UserGroupHeader(DictObject):
     :param email:   User's current email address
     :param isIndividual: True if this is a user, false if it is a group
     """
+
     def __init__(self, **kwargs):
         super(UserGroupHeader, self).__init__(kwargs)
 
@@ -60,27 +62,28 @@ class Team(DictObject):
     :param name:          The name of the Team.
     :param canPublicJoin: true for teams which members can join without an invitation or approval
     """
+
     def __init__(self, **kwargs):
         super(Team, self).__init__(kwargs)
 
     @classmethod
     def getURI(cls, id):
-        return '/team/%s' % id
+        return "/team/%s" % id
 
     def postURI(self):
-        return '/team'
+        return "/team"
 
     def putURI(self):
-        return '/team'
+        return "/team"
 
     def deleteURI(self):
-        return '/team/%s' % self.id
+        return "/team/%s" % self.id
 
     def getACLURI(self):
-        return '/team/%s/acl' % self.id
+        return "/team/%s/acl" % self.id
 
     def putACLURI(self):
-        return '/team/acl'
+        return "/team/acl"
 
 
 class TeamMember(DictObject):
@@ -92,8 +95,9 @@ class TeamMember(DictObject):
     :param member:  An object of type :py:class:`org.sagebionetworks.repo.model.UserGroupHeader` describing the member
     :param isAdmin: Whether the given member is an administrator of the team
 
-   """
+    """
+
     def __init__(self, **kwargs):
-        if 'member' in kwargs:
-            kwargs['member'] = UserGroupHeader(**kwargs['member'])
+        if "member" in kwargs:
+            kwargs["member"] = UserGroupHeader(**kwargs["member"])
         super(TeamMember, self).__init__(kwargs)

@@ -14,7 +14,6 @@ import synapseclient.core.utils
 
 
 class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
-
     @property
     @abc.abstractmethod
     def username(self):
@@ -31,7 +30,7 @@ class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
         pass
 
     @classmethod
-    def get_from_keyring(cls, username: str) -> 'SynapseCredentials':
+    def get_from_keyring(cls, username: str) -> "SynapseCredentials":
         secret = keyring.get_password(cls.get_keyring_service_name(), username)
         return cls(secret, username) if secret else None
 
@@ -43,7 +42,9 @@ class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
             pass
 
     def store_to_keyring(self):
-        keyring.set_password(self.get_keyring_service_name(), self.username, self.secret)
+        keyring.set_password(
+            self.get_keyring_service_name(), self.username, self.secret
+        )
 
 
 class SynapseApiKeyCredentials(SynapseCredentials):
@@ -79,16 +80,20 @@ class SynapseApiKeyCredentials(SynapseCredentials):
         :param url:
         :return:
         """
-        sig_timestamp = time.strftime(synapseclient.core.utils.ISO_FORMAT, time.gmtime())
+        sig_timestamp = time.strftime(
+            synapseclient.core.utils.ISO_FORMAT, time.gmtime()
+        )
         url = urllib_parse.urlparse(url).path
         sig_data = self.username + url + sig_timestamp
-        signature = base64.b64encode(hmac.new(self._api_key,
-                                              sig_data.encode('utf-8'),
-                                              hashlib.sha1).digest())
+        signature = base64.b64encode(
+            hmac.new(self._api_key, sig_data.encode("utf-8"), hashlib.sha1).digest()
+        )
 
-        return {'userId': self.username,
-                'signatureTimestamp': sig_timestamp,
-                'signature': signature}
+        return {
+            "userId": self.username,
+            "signatureTimestamp": sig_timestamp,
+            "signature": signature,
+        }
 
     def __call__(self, r):
         signed_headers = self.get_signed_headers(r.url)
@@ -100,10 +105,9 @@ class SynapseApiKeyCredentials(SynapseCredentials):
 
 
 class SynapseAuthTokenCredentials(SynapseCredentials):
-
     @classmethod
     def get_keyring_service_name(cls):
-        return 'SYNAPSE.ORG_CLIENT_AUTH_TOKEN'
+        return "SYNAPSE.ORG_CLIENT_AUTH_TOKEN"
 
     @classmethod
     def _validate_token(cls, token):
@@ -122,14 +126,15 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
                         # the python base64 implementation will truncate extra padding so we can overpad
                         # rather than compute exactly how much padding we might need.
                         # https://stackoverflow.com/a/49459036
-                        token.split('.')[1] + '==='
+                        token.split(".")[1]
+                        + "==="
                     ),
-                    'utf-8'
+                    "utf-8",
                 )
             )
-            scopes = token_body.get('access', {}).get('scope')
-            if scopes is not None and 'view' not in scopes:
-                raise SynapseAuthenticationError('A view scoped token is required')
+            scopes = token_body.get("access", {}).get("scope")
+            if scopes is not None and "view" not in scopes:
+                raise SynapseAuthenticationError("A view scoped token is required")
 
         except (IndexError, ValueError):
             # possible errors if token is not encoded as expected:
@@ -156,7 +161,7 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         return self._token
 
     def __call__(self, r):
-        r.headers.update({'Authorization': f"Bearer {self.secret}"})
+        r.headers.update({"Authorization": f"Bearer {self.secret}"})
         return r
 
     def __repr__(self):
@@ -166,15 +171,15 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
 # a class that just contains args passed form synapse client login
 # TODO remove deprecated sessionToken
 UserLoginArgs = collections.namedtuple(
-    'UserLoginArgs',
+    "UserLoginArgs",
     [
-        'username',
-        'password',
-        'api_key',
-        'skip_cache',
-        'session_token',
-        'auth_token',
-    ]
+        "username",
+        "password",
+        "api_key",
+        "skip_cache",
+        "session_token",
+        "auth_token",
+    ],
 )
 
 # make the namedtuple's arguments optional instead of positional. All values default to None

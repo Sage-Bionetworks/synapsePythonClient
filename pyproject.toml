@@ -5,9 +5,6 @@ include = '\.pyi?$'
 extend-exclude = '''
 (
     /docs
-    |/synapseclient
-    |/synapseclient/core
-    |/synapseutils
     |/tests/integration
     |/tests/unit
 )
