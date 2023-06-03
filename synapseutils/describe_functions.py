@@ -31,7 +31,7 @@ def _open_entity_as_df(syn, entity: str):
     if format == ".csv":
         dataset = pd.read_csv(entity.path)
     elif format == ".tsv":
-        dataset = pd.read_csv(entity.path, sep='\t')
+        dataset = pd.read_csv(entity.path, sep="\t")
     else:
         syn.logger.info("File type not supported.")
 
@@ -55,14 +55,14 @@ def _describe_wrapper(df) -> dict:
         stats[column] = {}
         try:
             if pd.api.types.is_numeric_dtype(df[column].dtype):
-                stats[column]['mode'] = df[column].mode()[0]
-                stats[column]['min'] = df[column].min()
-                stats[column]['max'] = df[column].max()
-                stats[column]['mean'] = df[column].mean()
-                stats[column]['dtype'] = df[column].dtype.name
+                stats[column]["mode"] = df[column].mode()[0]
+                stats[column]["min"] = df[column].min()
+                stats[column]["max"] = df[column].max()
+                stats[column]["mean"] = df[column].mean()
+                stats[column]["dtype"] = df[column].dtype.name
             else:
-                stats[column]['mode'] = df[column].mode()[0]
-                stats[column]['dtype'] = df[column].dtype.name
+                stats[column]["mode"] = df[column].mode()[0]
+                stats[column]["dtype"] = df[column].dtype.name
 
         except TypeError:
             print("Invalid column type.", file=sys.stderr)
