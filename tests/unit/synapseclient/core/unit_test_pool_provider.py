@@ -26,13 +26,10 @@ class TestSingleThreadPool:
 
 
 class TestSingleThreadExecutor:
-
     def test_execution(self):
         executor = SingleThreadExecutor()
         for i in range(10):
-            result = executor.submit(
-                lambda: i
-            )
+            result = executor.submit(lambda: i)
 
             assert result.done
             assert i == result.result()
@@ -41,13 +38,12 @@ class TestSingleThreadExecutor:
 def _patch_config(single_threaded: bool):
     return patch.object(
         synapseclient.core.config,
-        'single_threaded',
+        "single_threaded",
         single_threaded,
     )
 
 
 class TestExecutorProvider:
-
     def test_get_executor_for_single_thread(self):
         with _patch_config(True):
             assert isinstance(get_executor(), SingleThreadExecutor)
@@ -58,7 +54,6 @@ class TestExecutorProvider:
 
 
 class TestPoolProvider:
-
     def test_get_pool_for_single_thread(self):
         with _patch_config(True):
             assert isinstance(get_pool(), SingleThreadPool)
@@ -69,11 +64,12 @@ class TestPoolProvider:
 
 
 class TestGetValue:
-
-    @patch.object(synapseclient.core.config, 'single_threaded', PropertyMock(return_value=False))
+    @patch.object(
+        synapseclient.core.config, "single_threaded", PropertyMock(return_value=False)
+    )
     def test_get_value_for_multiple_thread(self):
         synapseclient.core.config.single_threaded = False
-        test_value = get_value('d', 500)
+        test_value = get_value("d", 500)
         type(test_value)
         assert isinstance(test_value, Synchronized)
         assert test_value.value == 500
@@ -82,10 +78,12 @@ class TestGetValue:
         test_value.value = 900
         assert test_value.value == 900
 
-    @patch.object(synapseclient.core.config, 'single_threaded', PropertyMock(return_value=True))
+    @patch.object(
+        synapseclient.core.config, "single_threaded", PropertyMock(return_value=True)
+    )
     def test_get_value_for_single_thread(self):
         synapseclient.core.config.single_threaded = True
-        test_value = get_value('d', 500)
+        test_value = get_value("d", 500)
         assert isinstance(test_value, SingleValue)
         test_value.value
         assert test_value.value == 500

@@ -14,4 +14,3 @@ RUN pip3 install --upgrade pip
 COPY . /synapsePythonClient
 WORKDIR /synapsePythonClient
 RUN python3 setup.py install
-
