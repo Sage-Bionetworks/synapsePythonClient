@@ -46,8 +46,14 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
         )
 
     def _create_synapse_credential(self, syn, username, password, api_key, auth_token):
+        login_deprecation_warning = "This message will disappear if you use a Synapse Personal Access Token to login."
         if username is not None:
             if password is not None:
+                message = (
+                    "Logging into Synapse via passwords will be deprecated by "
+                    f"early 2024. {login_deprecation_warning}"
+                )
+                syn.logger.warning(message)
                 retrieved_session_token = syn._getSessionToken(
                     email=username, password=password
                 )
@@ -56,6 +62,12 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
                 )
 
             elif auth_token is None and api_key is not None:
+                message = (
+                    "Logging into Synapse via apikeys will be deprecated by early 2024.  "
+                    "If you've used `rememberMe=True` in the past, you may also be getting this message, "
+                    f"please delete your ~/.synapseCache/.session file. {login_deprecation_warning}"
+                )
+                syn.logger.warning(message)
                 # auth token takes precedence over api key
                 return SynapseApiKeyCredentials(api_key, username)
 
@@ -155,7 +167,6 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
         password = None
         api_key = None
         auth_token = None
-
         if not user_login_args.skip_cache:
             username = (
                 user_login_args.username or cached_sessions.get_most_recent_user()

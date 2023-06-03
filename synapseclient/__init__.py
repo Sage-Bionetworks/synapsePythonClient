@@ -26,7 +26,6 @@ Next Major Release (3.0.0)
 ==========================
 - Support only pandas `>=` 1.5
 - Remove support for Python 3.7 due to its end of life.
-- Remove support for login via passwords for best security practices.
 - There will be major cosmetic changes to the cli such as
   removing all camel case or non-standard single dash long command line interface (cli)
   parameters.
@@ -74,15 +73,15 @@ Connecting to Synapse
 =====================
 
 To use Synapse, you'll need to `register <https://www.synapse.org/register>`_ for an account. The Synapse
-website can authenticate using a Google account, but you'll need to take the extra step of creating a Synapse password
-to use the programmatic clients.
+website can authenticate using a Google account, but you'll need to take the extra step of creating a Synapse
+personal access token to use the programmatic clients.
 
 Once that's done, you'll be able to load the library, create a :py:class:`Synapse` object and login::
 
     import synapseclient
     syn = synapseclient.Synapse()
 
-    syn.login('my_username', 'my_password')
+    syn.login(authToken=<PAT>)
 
 For more information, see:
 
