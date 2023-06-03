@@ -10,4 +10,10 @@ from .multipart_upload import (
     multipart_upload_string,
 )
 
-__all__ = ["multipart_copy", "multipart_upload_file", "multipart_upload_string", "upload_file_handle", "upload_synapse_s3"]
+__all__ = [
+    "multipart_copy",
+    "multipart_upload_file",
+    "multipart_upload_string",
+    "upload_file_handle",
+    "upload_synapse_s3",
+]
