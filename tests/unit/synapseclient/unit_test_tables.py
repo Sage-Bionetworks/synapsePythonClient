@@ -774,12 +774,12 @@ def test_downloadTableColumns(syn, downloadLocation):
         "fileSummary": [
             {
                 "status": "SUCCESS",
-                "fileHandleId": 1,
+                "fileHandleId": "1",  # NOTE: These are strings because thats the API return type
                 "zipEntryName": "entry1",
             },
             {
                 "status": "SUCCESS",
-                "fileHandleId": 3,
+                "fileHandleId": "3",
                 "zipEntryName": "entry2",
             },
         ],
