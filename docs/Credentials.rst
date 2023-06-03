@@ -103,4 +103,3 @@ The second time you login, you will not have to enter any arguments to :code:`lo
 
     import synapseclient
     syn = synapseclient.login()
-
