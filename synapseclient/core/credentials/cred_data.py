@@ -1,21 +1,23 @@
 import abc
 import base64
 import collections
+
 # import hashlib
 # import hmac
 import json
 
 # import keyring
 import requests.auth
+
 # import time
 # import urllib.parse as urllib_parse
 
 from synapseclient.core.exceptions import SynapseAuthenticationError
+
 # import synapseclient.core.utils
 
 
 class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
-
     @property
     @abc.abstractmethod
     def username(self):
@@ -101,7 +103,6 @@ class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
 
 
 class SynapseAuthTokenCredentials(SynapseCredentials):
-
     # @classmethod
     # def get_keyring_service_name(cls):
     #     return 'SYNAPSE.ORG_CLIENT_AUTH_TOKEN'
@@ -123,14 +124,15 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
                         # the python base64 implementation will truncate extra padding so we can overpad
                         # rather than compute exactly how much padding we might need.
                         # https://stackoverflow.com/a/49459036
-                        token.split('.')[1] + '==='
+                        token.split(".")[1]
+                        + "==="
                     ),
-                    'utf-8'
+                    "utf-8",
                 )
             )
-            scopes = token_body.get('access', {}).get('scope')
-            if scopes is not None and 'view' not in scopes:
-                raise SynapseAuthenticationError('A view scoped token is required')
+            scopes = token_body.get("access", {}).get("scope")
+            if scopes is not None and "view" not in scopes:
+                raise SynapseAuthenticationError("A view scoped token is required")
 
         except (IndexError, ValueError):
             # possible errors if token is not encoded as expected:
@@ -157,7 +159,7 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         return self._token
 
     def __call__(self, r):
-        r.headers.update({'Authorization': f"Bearer {self.secret}"})
+        r.headers.update({"Authorization": f"Bearer {self.secret}"})
         return r
 
     def __repr__(self):
@@ -166,12 +168,12 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
 
 # a class that just contains args passed form synapse client login
 UserLoginArgs = collections.namedtuple(
-    'UserLoginArgs',
+    "UserLoginArgs",
     [
-        'username',
-        'skip_cache',
-        'auth_token',
-    ]
+        "username",
+        "skip_cache",
+        "auth_token",
+    ],
 )
 
 # make the namedtuple's arguments optional instead of positional. All values default to None

@@ -2,7 +2,10 @@ import abc
 import os
 
 # from synapseclient.core.credentials import cached_sessions
-from synapseclient.core.credentials.cred_data import SynapseApiKeyCredentials, SynapseAuthTokenCredentials
+from synapseclient.core.credentials.cred_data import (
+    SynapseApiKeyCredentials,
+    SynapseAuthTokenCredentials,
+)
 from synapseclient.core.exceptions import SynapseAuthenticationError
 
 
@@ -36,20 +39,24 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
         :param ``cred_data.UserLoginArgs`` user_login_args: subset of arguments passed during syn.login()
         :return: `SynapseCredentials` if valid credentials can be found by this provider, None otherwise
         """
-        return self._create_synapse_credential(syn, *self._get_auth_info(syn, user_login_args))
+        return self._create_synapse_credential(
+            syn, *self._get_auth_info(syn, user_login_args)
+        )
 
     def _create_synapse_credential(self, syn, username, auth_token):
         if auth_token is not None:
             credentials = SynapseAuthTokenCredentials(auth_token)
-            profile = syn.restGET('/userProfile', auth=credentials)
-            profile_username = profile.get('userName')
-            profile_emails = profile.get('emails', [])
+            profile = syn.restGET("/userProfile", auth=credentials)
+            profile_username = profile.get("userName")
+            profile_emails = profile.get("emails", [])
 
-            if username and (username != profile_username and username not in profile_emails):
+            if username and (
+                username != profile_username and username not in profile_emails
+            ):
                 # a username/email is not required when logging in with an auth token however if both are provided
                 # raise an error if they do not correspond to avoid any ambiguity about what profile was logged in
                 raise SynapseAuthenticationError(
-                    'username/email and auth_token both provided but username does not match token profile'
+                    "username/email and auth_token both provided but username does not match token profile"
                 )
 
             credentials.username = profile_username
@@ -79,8 +86,8 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
         config_dict = syn._get_config_authentication()
         # check to make sure we didn't accidentally provide the wrong user
 
-        username = config_dict.get('username')
-        token = config_dict.get('authtoken')
+        username = config_dict.get("username")
+        token = config_dict.get("authtoken")
 
         if user_login_args.username and username != user_login_args.username:
             # if the username is provided and there is a config file username but they don't match
@@ -124,23 +131,28 @@ class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
             try:
                 import boto3
                 import botocore
-                ssm_client = boto3.client('ssm')
+
+                ssm_client = boto3.client("ssm")
                 result = ssm_client.get_parameter(
                     Name=ssm_param_name,
                     WithDecryption=True,
                 )
-                token = result['Parameter']['Value']
+                token = result["Parameter"]["Value"]
             except ImportError:
                 syn.logger.warning(
                     f'{self.ENVIRONMENT_VAR_NAME} was defined as {ssm_param_name}, but "boto3" could not be imported.'
                     ' The Synapse client uses "boto3" in order to access Systems Manager Parameter Storage.'
-                    ' Please ensure that you have installed "boto3" to enable this feature.')
+                    ' Please ensure that you have installed "boto3" to enable this feature.'
+                )
             # this except block must be defined after the ImportError except block
             # otherwise, there's no guarantee "botocore" is already imported and defined
             except botocore.exceptions.ClientError:
-                syn.logger.warning(f'{self.ENVIRONMENT_VAR_NAME} was defined as {ssm_param_name}, '
-                                   'but the matching parameter name could not be found in AWS Parameter Store. '
-                                   f'Caused by AWS error:\n', exc_info=True)
+                syn.logger.warning(
+                    f"{self.ENVIRONMENT_VAR_NAME} was defined as {ssm_param_name}, "
+                    "but the matching parameter name could not be found in AWS Parameter Store. "
+                    f"Caused by AWS error:\n",
+                    exc_info=True,
+                )
 
         # if username is included in user's arguments, return it so that
         # it may be validated against the username authenticated by the token
@@ -151,10 +163,16 @@ class EnvironmentVariableCredentialsProvider(SynapseCredentialsProvider):
     """
     Retrieves the user's auth token from an environment variable
     """
+
     ENVIRONMENT_VAR_NAME = "SYNAPSE_AUTH_TOKEN"
 
     def _get_auth_info(self, syn, user_login_args):
-        return user_login_args.username, None, None, os.environ.get(self.ENVIRONMENT_VAR_NAME)
+        return (
+            user_login_args.username,
+            None,
+            None,
+            os.environ.get(self.ENVIRONMENT_VAR_NAME),
+        )
 
 
 class SynapseCredentialsProviderChain(object):
@@ -187,13 +205,15 @@ class SynapseCredentialsProviderChain(object):
 # NOTE: If you change the order of this list, please also change the documentation in Synapse.login() that describes the
 # order
 
-DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([
-    UserArgsCredentialsProvider(),
-    EnvironmentVariableCredentialsProvider(),
-    ConfigFileCredentialsProvider(),
-    # CachedCredentialsProvider(),
-    AWSParameterStoreCredentialsProvider(),  # see service catalog issue: SC-260
-])
+DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
+    [
+        UserArgsCredentialsProvider(),
+        EnvironmentVariableCredentialsProvider(),
+        ConfigFileCredentialsProvider(),
+        # CachedCredentialsProvider(),
+        AWSParameterStoreCredentialsProvider(),  # see service catalog issue: SC-260
+    ]
+)
 
 
 def get_default_credential_chain():

@@ -35,9 +35,11 @@ def test_import_sqlite3():
     try:
         import sqlite3  # noqa
     except ImportError:
-        sys.stderr.write("""\nThis operation requires the sqlite3 module which is not available on this
+        sys.stderr.write(
+            """\nThis operation requires the sqlite3 module which is not available on this
 installation of python. Using a Python installed from a binary package or compiled from source with sqlite
-development headers available should ensure that the sqlite3 module is available.""")
+development headers available should ensure that the sqlite3 module is available."""
+        )
         raise
 
 
@@ -94,8 +96,9 @@ class _MigrationKey(typing.NamedTuple):
 
 def _get_row_dict(cursor, row, include_empty):
     return {
-        col[0]: row[i] for i, col in enumerate(cursor.description)
-        if (include_empty or row[i] is not None) and col[0] != 'rowid'
+        col[0]: row[i]
+        for i, col in enumerate(cursor.description)
+        if (include_empty or row[i] is not None) and col[0] != "rowid"
     }
 
 
@@ -116,23 +119,24 @@ class MigrationResult:
 
     def get_counts_by_status(self):
         """
-            Returns a dictionary of counts by the migration status of each indexed file/version.
-            Keys are as follows:
+        Returns a dictionary of counts by the migration status of each indexed file/version.
+        Keys are as follows:
 
-                * INDEXED - the file/version has been indexed and will be migrated on a call to migrate_indexed_files
-                * MIGRATED - the file/version has been migrated
-                * ALREADY_MIGRATED - the file/version was already stored at the target storage location and no migration is needed
-                * ERRORED - an error occurred while indexing or migrating the file/version
+            * INDEXED - the file/version has been indexed and will be migrated on a call to migrate_indexed_files
+            * MIGRATED - the file/version has been migrated
+            * ALREADY_MIGRATED - the file/version was already stored at the target storage location and no migration is needed
+            * ERRORED - an error occurred while indexing or migrating the file/version
         """  # noqa
         import sqlite3
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
             # for the purposes of these counts, containers (Projects and Folders) do not count.
             # we are counting actual files only
             result = cursor.execute(
-                'select status, count(*) from migrations where type in (?, ?) group by status',
-                (_MigrationType.FILE.value, _MigrationType.TABLE_ATTACHED_FILE.value)
+                "select status, count(*) from migrations where type in (?, ?) group by status",
+                (_MigrationType.FILE.value, _MigrationType.TABLE_ATTACHED_FILE.value),
             )
 
             counts_by_status = {status.name: 0 for status in _MigrationStatus}
@@ -161,6 +165,7 @@ class MigrationResult:
             - exception: if an error was encountered indexing/migrating the file/version its stack is here
         """
         import sqlite3
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
@@ -195,9 +200,10 @@ class MigrationResult:
                     """,
                     (
                         rowid,
-                        _MigrationType.FILE.value, _MigrationType.TABLE_ATTACHED_FILE.value,
-                        _get_batch_size()
-                    )
+                        _MigrationType.FILE.value,
+                        _MigrationType.TABLE_ATTACHED_FILE.value,
+                        _get_batch_size(),
+                    ),
                 )
 
                 row_count = 0
@@ -209,26 +215,30 @@ class MigrationResult:
 
                     # exclude the sqlite internal rowid
                     row_dict = _get_row_dict(cursor, row, False)
-                    entity_id = row_dict['id']
+                    entity_id = row_dict["id"]
                     if entity_id != last_id:
                         # if the next row is dealing with a different entity than the last table
                         # id then we discard any cached column names we looked up
                         column_names = {}
 
-                    row_dict['type'] = 'file' if row_dict['type'] == _MigrationType.FILE.value else 'table'
+                    row_dict["type"] = (
+                        "file"
+                        if row_dict["type"] == _MigrationType.FILE.value
+                        else "table"
+                    )
 
                     for int_arg in (
-                            'version',
-                            'row_id',
-                            'from_storage_location_id',
-                            'from_file_handle_id',
-                            'to_file_handle_id'
+                        "version",
+                        "row_id",
+                        "from_storage_location_id",
+                        "from_file_handle_id",
+                        "to_file_handle_id",
                     ):
                         int_val = row_dict.get(int_arg)
                         if int_val is not None:
                             row_dict[int_arg] = int(int_val)
 
-                    col_id = row_dict.pop('col_id', None)
+                    col_id = row_dict.pop("col_id", None)
                     if col_id is not None:
                         column_name = column_names.get(col_id)
 
@@ -237,11 +247,11 @@ class MigrationResult:
                         # rows that deal with the same table entity
                         if column_name is None:
                             column = self._syn.restGET("/column/{}".format(col_id))
-                            column_name = column_names[col_id] = column['name']
+                            column_name = column_names[col_id] = column["name"]
 
-                        row_dict['col_name'] = column_name
+                        row_dict["col_name"] = column_name
 
-                    row_dict['status'] = _MigrationStatus(row_dict['status']).name
+                    row_dict["status"] = _MigrationStatus(row_dict["status"]).name
 
                     yield row_dict
 
@@ -270,35 +280,37 @@ class MigrationResult:
 
         """
 
-        with open(path, 'w', newline='') as csv_file:
+        with open(path, "w", newline="") as csv_file:
             csv_writer = csv.writer(csv_file)
 
             # headers
-            csv_writer.writerow([
-                'id',
-                'type',
-                'version',
-                'row_id',
-                'col_name',
-                'from_storage_location_id',
-                'from_file_handle_id',
-                'to_file_handle_id',
-                'status',
-                'exception'
-            ])
+            csv_writer.writerow(
+                [
+                    "id",
+                    "type",
+                    "version",
+                    "row_id",
+                    "col_name",
+                    "from_storage_location_id",
+                    "from_file_handle_id",
+                    "to_file_handle_id",
+                    "status",
+                    "exception",
+                ]
+            )
 
             for row_dict in self.get_migrations():
                 row_data = [
-                    row_dict['id'],
-                    row_dict['type'],
-                    row_dict.get('version'),
-                    row_dict.get('row_id'),
-                    row_dict.get('col_name'),
-                    row_dict.get('from_storage_location_id'),
-                    row_dict.get('from_file_handle_id'),
-                    row_dict.get('to_file_handle_id'),
-                    row_dict['status'],
-                    row_dict.get('exception')
+                    row_dict["id"],
+                    row_dict["type"],
+                    row_dict.get("version"),
+                    row_dict.get("row_id"),
+                    row_dict.get("col_name"),
+                    row_dict.get("from_storage_location_id"),
+                    row_dict.get("from_file_handle_id"),
+                    row_dict.get("to_file_handle_id"),
+                    row_dict["status"],
+                    row_dict.get("exception"),
                 ]
 
                 csv_writer.writerow(row_data)
@@ -327,7 +339,9 @@ def _ensure_schema(cursor):
     # entity file handle migration.
 
     # one-row table of a json dictionary records the parameters used to create the index
-    cursor.execute("create table if not exists migration_settings (settings text not null)")
+    cursor.execute(
+        "create table if not exists migration_settings (settings text not null)"
+    )
 
     # our representation of migratable file handles is flat including both file entities
     # and table attached files, so not all columns are applicable to both. row id and col id
@@ -369,7 +383,6 @@ def _wait_futures(conn, cursor, futures, pending_keys, return_when, continue_on_
     completed_file_handle_ids = set()
 
     for completed_future in completed:
-
         to_file_handle_id = None
         ex = None
         try:
@@ -386,7 +399,11 @@ def _wait_futures(conn, cursor, futures, pending_keys, return_when, continue_on_
             completed_file_handle_ids.add(migration_ex.from_file_handle_id)
             status = _MigrationStatus.ERRORED.value
 
-        tb_str = ''.join(traceback.format_exception(type(ex), ex, ex.__traceback__)) if ex else None
+        tb_str = (
+            "".join(traceback.format_exception(type(ex), ex, ex.__traceback__))
+            if ex
+            else None
+        )
         update_statement = """
             update migrations set
                 status = ?,
@@ -398,7 +415,7 @@ def _wait_futures(conn, cursor, futures, pending_keys, return_when, continue_on_
         """
 
         update_args = [status, to_file_handle_id, tb_str, key.id, key.type]
-        for arg in ('version', 'row_id', 'col_id'):
+        for arg in ("version", "row_id", "col_id"):
             arg_value = getattr(key, arg)
             if arg_value is not None:
                 update_statement += "and {} = ?\n".format(arg)
@@ -422,7 +439,7 @@ def index_files_for_migration(
     dest_storage_location_id: str,
     db_path: str,
     source_storage_location_ids: typing.Iterable[str] = None,
-    file_version_strategy='new',
+    file_version_strategy="new",
     include_table_files=False,
     continue_on_error=False,
 ):
@@ -444,7 +461,7 @@ def index_files_for_migration(
     :param source_storage_location_ids: An optional iterable of storage location ids that will be migrated. If provided,
                                         files outside of one of the listed storage locations will not be indexed
                                         for migration. If not provided, then all files not already in the destination
-                                        storage location will be indexed for migrated. 
+                                        storage location will be indexed for migrated.
     :param file_version_strategy:   One of "new" (default), "all", "latest", "skip" as follows:
 
                                         * "new" - will create a new version of file entities in the new storage location, leaving existing versions unchanged
@@ -465,24 +482,25 @@ def index_files_for_migration(
     # accept an Iterable, but easier to work internally if we can assume a list of strings
     source_storage_location_ids = [str(s) for s in source_storage_location_ids or []]
 
-    file_version_strategies = {'new', 'all', 'latest', 'skip'}
+    file_version_strategies = {"new", "all", "latest", "skip"}
     if file_version_strategy not in file_version_strategies:
         raise ValueError(
             "Invalid file_version_strategy: {}, must be one of {}".format(
-                file_version_strategy,
-                file_version_strategies
+                file_version_strategy, file_version_strategies
             )
         )
 
-    if file_version_strategy == 'skip' and not include_table_files:
-        raise ValueError('Skipping both files entities and table attached files, nothing to migrate')
+    if file_version_strategy == "skip" and not include_table_files:
+        raise ValueError(
+            "Skipping both files entities and table attached files, nothing to migrate"
+        )
 
     _verify_storage_location_ownership(syn, dest_storage_location_id)
 
     test_import_sqlite3()
     import sqlite3
-    with sqlite3.connect(db_path) as conn:
 
+    with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         _ensure_schema(cursor)
 
@@ -493,7 +511,7 @@ def index_files_for_migration(
             dest_storage_location_id,
             source_storage_location_ids,
             file_version_strategy,
-            include_table_files
+            include_table_files,
         )
         conn.commit()
 
@@ -533,25 +551,26 @@ def _confirm_migration(cursor, force, storage_location_id):
     if not force:
         count = cursor.execute(
             "select count(*) from migrations where status = ?",
-            (_MigrationStatus.INDEXED.value,)
+            (_MigrationStatus.INDEXED.value,),
         ).fetchone()[0]
 
         if count == 0:
             logging.info("No items for migration.")
 
         elif sys.stdout.isatty():
-            uinput = input("{} items for migration to {}. Proceed? (y/n)? ".format(
-                count,
-                storage_location_id
-            ))
-            confirmed = uinput.strip().lower() == 'y'
+            uinput = input(
+                "{} items for migration to {}. Proceed? (y/n)? ".format(
+                    count, storage_location_id
+                )
+            )
+            confirmed = uinput.strip().lower() == "y"
 
         else:
             logging.info(
                 "%s items for migration. "
                 "force option not used, and console input not available to confirm migration, aborting. "
                 "Use the force option or run from an interactive shell to proceed with migration.",
-                count
+                count,
             )
 
     return confirmed
@@ -570,7 +589,7 @@ def _check_file_handle_exists(cursor, from_file_handle_id):
                 from_file_handle_id = ?
                 and to_file_handle_id is not null
         """,
-        (from_file_handle_id,)
+        (from_file_handle_id,),
     ).fetchone()
 
     return row[0] if row else None
@@ -581,7 +600,7 @@ def migrate_indexed_files(
     db_path: str,
     create_table_snapshots=True,
     continue_on_error=False,
-    force=False
+    force=False,
 ):
     """
     Migrate files previously indexed in a sqlite database at the given db_path using the separate
@@ -605,6 +624,7 @@ def migrate_indexed_files(
 
     test_import_sqlite3()
     import sqlite3
+
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
 
@@ -617,12 +637,12 @@ def migrate_indexed_files(
                 "Either this path does represent a previously created migration index file or the file is corrupt."
             )
 
-        dest_storage_location_id = settings['dest_storage_location_id']
+        dest_storage_location_id = settings["dest_storage_location_id"]
         if not _confirm_migration(cursor, force, dest_storage_location_id):
             logging.info("Migration aborted.")
             return
 
-        key = _MigrationKey(id='', type=None, row_id=-1, col_id=-1, version=-1)
+        key = _MigrationKey(id="", type=None, row_id=-1, col_id=-1, version=-1)
 
         futures = set()
 
@@ -652,23 +672,24 @@ def migrate_indexed_files(
             col_id = key.col_id if key.col_id is not None else -1
 
             query_kwargs = {
-                'indexed_status': _MigrationStatus.INDEXED.value,
-                'id': key.id,
-                'file_type': _MigrationType.FILE.value,
-                'table_type': _MigrationType.TABLE_ATTACHED_FILE.value,
-                'version': version,
-                'row_id': row_id,
-                'col_id': col_id,
-
+                "indexed_status": _MigrationStatus.INDEXED.value,
+                "id": key.id,
+                "file_type": _MigrationType.FILE.value,
+                "table_type": _MigrationType.TABLE_ATTACHED_FILE.value,
+                "version": version,
+                "row_id": row_id,
+                "col_id": col_id,
                 # ensure that we aren't ever adding more items to the shared executor than allowed
-                'limit': min(batch_size, max_concurrent_file_copies - len(futures)),
+                "limit": min(batch_size, max_concurrent_file_copies - len(futures)),
             }
 
             # we can't use both named and positional literals in a query, so we use named
             # literals and then inline a string for the values for our file handle ids
             # since these are a dynamic list of values
             pending_file_handle_in = "('" + "','".join(pending_file_handle_ids) + "')"
-            completed_file_handle_in = "('" + "','".join(completed_file_handle_ids) + "')"
+            completed_file_handle_in = (
+                "('" + "','".join(completed_file_handle_ids) + "')"
+            )
 
             results = cursor.execute(
                 f"""
@@ -712,25 +733,31 @@ def migrate_indexed_files(
 
                 row_dict = _get_row_dict(cursor, row, True)
                 key_dict = {
-                    k: v for k, v in row_dict.items()
-                    if k in ('id', 'type', 'version', 'row_id', 'col_id')
+                    k: v
+                    for k, v in row_dict.items()
+                    if k in ("id", "type", "version", "row_id", "col_id")
                 }
 
                 last_key = key
                 key = _MigrationKey(**key_dict)
-                from_file_handle_id = row_dict['from_file_handle_id']
+                from_file_handle_id = row_dict["from_file_handle_id"]
 
-                if key in pending_keys or from_file_handle_id in pending_file_handle_ids:
+                if (
+                    key in pending_keys
+                    or from_file_handle_id in pending_file_handle_ids
+                ):
                     # if this record is already being migrated or it shares a file handle
                     # with a record that is being migrated then skip this.
                     # if it the record shares a file handle it will be picked up later
                     # when its file handle is completed.
                     continue
 
-                file_size = row_dict['file_size']
+                file_size = row_dict["file_size"]
 
                 pending_keys.add(key)
-                to_file_handle_id = _check_file_handle_exists(conn.cursor(), from_file_handle_id)
+                to_file_handle_id = _check_file_handle_exists(
+                    conn.cursor(), from_file_handle_id
+                )
                 if not to_file_handle_id:
                     pending_file_handle_ids.add(from_file_handle_id)
 
@@ -748,9 +775,18 @@ def migrate_indexed_files(
                     migration_fn = _migrate_table_attached_file
 
                 else:
-                    raise ValueError("Unexpected type {} with id {}".format(key.type, key.id))
+                    raise ValueError(
+                        "Unexpected type {} with id {}".format(key.type, key.id)
+                    )
 
-                def migration_task(syn, key, from_file_handle_id, to_file_handle_id, file_size, storage_location_id):
+                def migration_task(
+                    syn,
+                    key,
+                    from_file_handle_id,
+                    to_file_handle_id,
+                    file_size,
+                    storage_location_id,
+                ):
                     # a closure to wrap the actual function call so that we an add some local variables
                     # to the return tuple which will be consumed when the future is processed
                     with shared_executor(executor):
@@ -763,10 +799,13 @@ def migrate_indexed_files(
                                 from_file_handle_id,
                                 to_file_handle_id,
                                 file_size,
-                                storage_location_id)
+                                storage_location_id,
+                            )
                             return key, from_file_handle_id, to_file_handle_id
                         except Exception as ex:
-                            raise _MigrationError(key, from_file_handle_id, to_file_handle_id) from ex
+                            raise _MigrationError(
+                                key, from_file_handle_id, to_file_handle_id
+                            ) from ex
 
                 future = executor.submit(
                     migration_task,
@@ -811,7 +850,7 @@ def migrate_indexed_files(
                 futures,
                 pending_keys,
                 concurrent.futures.ALL_COMPLETED,
-                continue_on_error
+                continue_on_error,
             )
 
     return MigrationResult(syn, db_path)
@@ -823,14 +862,16 @@ def _verify_storage_location_ownership(syn, storage_location_id):
         syn.restGET("/storageLocation/{}".format(storage_location_id))
     except synapseclient.core.exceptions.SynapseHTTPError:
         raise ValueError(
-            "Error verifying storage location ownership of {}. You must be creator of the destination storage location"
-            .format(storage_location_id)
+            "Error verifying storage location ownership of {}. You must be creator of the destination storage location".format(
+                storage_location_id
+            )
         )
 
 
 def _retrieve_index_settings(cursor):
     # index settings are stored as a json-string in a one-row table
     import sqlite3
+
     settings = None
     try:
         results = cursor.execute("select settings from migration_settings")
@@ -847,24 +888,24 @@ def _retrieve_index_settings(cursor):
 
 
 def _verify_index_settings(
-        cursor,
-        db_path,
-        root_id,
-        dest_storage_location_id,
-        source_storage_location_ids,
-        file_version_strategy,
-        include_table_files,
+    cursor,
+    db_path,
+    root_id,
+    dest_storage_location_id,
+    source_storage_location_ids,
+    file_version_strategy,
+    include_table_files,
 ):
     existing_settings = _retrieve_index_settings(cursor)
 
     if existing_settings is not None:
         settings = locals()
         for setting in (
-            'root_id',
-            'dest_storage_location_id',
-            'source_storage_location_ids',
-            'file_version_strategy',
-            'include_table_files',
+            "root_id",
+            "dest_storage_location_id",
+            "source_storage_location_ids",
+            "file_version_strategy",
+            "include_table_files",
         ):
             parameter = settings[setting]
             existing_value = existing_settings[setting]
@@ -886,35 +927,38 @@ def _verify_index_settings(
     else:
         # this is a new index file, no previous values to compare against,
         # instead record the current settings
-        settings_str = json.dumps({
-            'root_id': root_id,
-            'dest_storage_location_id': dest_storage_location_id,
-            'source_storage_location_ids': source_storage_location_ids,
-            'file_version_strategy': file_version_strategy,
-            'include_table_files': 1 if include_table_files else 0,
-        })
-        cursor.execute("insert into migration_settings (settings) values (?)", (settings_str,))
+        settings_str = json.dumps(
+            {
+                "root_id": root_id,
+                "dest_storage_location_id": dest_storage_location_id,
+                "source_storage_location_ids": source_storage_location_ids,
+                "file_version_strategy": file_version_strategy,
+                "include_table_files": 1 if include_table_files else 0,
+            }
+        )
+        cursor.execute(
+            "insert into migration_settings (settings) values (?)", (settings_str,)
+        )
 
 
 def _check_indexed(cursor, entity_id):
     # check if we have indexed the given entity in the sqlite db yet.
     # if so it can skip reindexing it. supports resumption.
     indexed_row = cursor.execute(
-        "select 1 from migrations where id = ?",
-        (entity_id,)
+        "select 1 from migrations where id = ?", (entity_id,)
     ).fetchone()
 
     if indexed_row:
-        logging.debug('%s already indexed, skipping', entity_id)
+        logging.debug("%s already indexed, skipping", entity_id)
         return True
 
-    logging.debug('%s not yet indexed, indexing now', entity_id)
+    logging.debug("%s not yet indexed, indexing now", entity_id)
     return False
 
 
 def _get_version_numbers(syn, entity_id):
     for version_info in syn._GET_paginated("/entity/{id}/version".format(id=entity_id)):
-        yield version_info['versionNumber']
+        yield version_info["versionNumber"]
 
 
 def _include_file_storage_location_in_index(
@@ -927,18 +971,17 @@ def _include_file_storage_location_in_index(
     # if the current storage location already matches the destination location then we also
     # include it in the index, we'll mark it as already migrated.
 
-    from_storage_location_id = file_handle.get('storageLocationId')
-    if (
-            (file_handle.get('concreteType') == concrete_types.S3_FILE_HANDLE) and
-            (
-                not source_storage_location_ids or
-                str(from_storage_location_id) in source_storage_location_ids or
-                str(from_storage_location_id) == str(to_storage_location_id)
-            )
+    from_storage_location_id = file_handle.get("storageLocationId")
+    if (file_handle.get("concreteType") == concrete_types.S3_FILE_HANDLE) and (
+        not source_storage_location_ids
+        or str(from_storage_location_id) in source_storage_location_ids
+        or str(from_storage_location_id) == str(to_storage_location_id)
     ):
-        migration_status = _MigrationStatus.INDEXED.value \
-            if str(from_storage_location_id) != str(to_storage_location_id) \
+        migration_status = (
+            _MigrationStatus.INDEXED.value
+            if str(from_storage_location_id) != str(to_storage_location_id)
             else _MigrationStatus.ALREADY_MIGRATED.value
+        )
         return migration_status
 
     # this file is not included in this index
@@ -946,66 +989,61 @@ def _include_file_storage_location_in_index(
 
 
 def _index_file_entity(
-        cursor,
-        syn,
-        entity_id,
-        parent_id,
-        to_storage_location_id,
-        source_storage_location_ids,
-        file_version_strategy
+    cursor,
+    syn,
+    entity_id,
+    parent_id,
+    to_storage_location_id,
+    source_storage_location_ids,
+    file_version_strategy,
 ):
-    logging.info('Indexing file entity %s', entity_id)
+    logging.info("Indexing file entity %s", entity_id)
 
     # 2-tuples of entity, version # to record
     entity_versions = []
 
-    if file_version_strategy == 'new':
+    if file_version_strategy == "new":
         # we'll need the etag to be able to do an update on an entity version
         # so we need to fetch the full entity now
         entity = syn.get(entity_id, downloadFile=False)
-        entity_versions.append((
-            entity,
-            None  # no version number, this record indicates we will create a new version
-        ))
+        entity_versions.append(
+            (
+                entity,
+                None,  # no version number, this record indicates we will create a new version
+            )
+        )
 
-    elif file_version_strategy == 'all':
+    elif file_version_strategy == "all":
         # one row for each existing version that will all be migrated
         for version in _get_version_numbers(syn, entity_id):
             entity = syn.get(entity_id, version=version, downloadFile=False)
-            entity_versions.append((
-                entity,
-                version)
-            )
+            entity_versions.append((entity, version))
 
-    elif file_version_strategy == 'latest':
+    elif file_version_strategy == "latest":
         # one row for the most recent version that will be migrated
         entity = syn.get(entity_id, downloadFile=False)
-        entity_versions.append((
-            entity,
-            entity.versionNumber
-        ))
+        entity_versions.append((entity, entity.versionNumber))
 
     if entity_versions:
         insert_values = []
-        for (entity, version) in entity_versions:
+        for entity, version in entity_versions:
             migration_status = _include_file_storage_location_in_index(
-                entity._file_handle,
-                source_storage_location_ids,
-                to_storage_location_id
+                entity._file_handle, source_storage_location_ids, to_storage_location_id
             )
             if migration_status:
-
-                file_size = entity._file_handle['contentSize']
-                insert_values.append((
-                    entity_id,
-                    _MigrationType.FILE.value,
-                    version,
-                    parent_id,
-                    entity._file_handle['storageLocationId'],
-                    entity.dataFileHandleId,
-                    file_size,
-                    migration_status
-                ))
+                file_size = entity._file_handle["contentSize"]
+                insert_values.append(
+                    (
+                        entity_id,
+                        _MigrationType.FILE.value,
+                        version,
+                        parent_id,
+                        entity._file_handle["storageLocationId"],
+                        entity.dataFileHandleId,
+                        file_size,
+                        migration_status,
+                    )
+                )
 
         if insert_values:
             cursor.executemany(
@@ -1021,15 +1059,19 @@ def _index_file_entity(
                         status
                     ) values (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                insert_values
+                insert_values,
             )
 
 
 def _get_table_file_handle_rows(syn, table_id):
-    file_handle_columns = [c for c in syn.getTableColumns(table_id) if c['columnType'] == 'FILEHANDLEID']
+    file_handle_columns = [
+        c for c in syn.getTableColumns(table_id) if c["columnType"] == "FILEHANDLEID"
+    ]
     if file_handle_columns:
         file_column_select = join_column_names(file_handle_columns)
-        results = syn.tableQuery("select {} from {}".format(file_column_select, table_id))
+        results = syn.tableQuery(
+            "select {} from {}".format(file_column_select, table_id)
+        )
         for row in results:
             file_handles = {}
 
@@ -1039,27 +1081,25 @@ def _get_table_file_handle_rows(syn, table_id):
             file_handle_ids = row[2:]
             for i, file_handle_id in enumerate(file_handle_ids):
                 if file_handle_id:
-                    col_id = file_handle_columns[i]['id']
+                    col_id = file_handle_columns[i]["id"]
                     file_handle = syn._getFileHandleDownload(
-                        file_handle_id,
-                        table_id,
-                        objectType='TableEntity'
-                    )['fileHandle']
+                        file_handle_id, table_id, objectType="TableEntity"
+                    )["fileHandle"]
                     file_handles[col_id] = file_handle
 
             yield row_id, row_version, file_handles
 
 
 def _index_table_entity(
-        cursor,
-        syn,
-        entity,
-        parent_id,
-        dest_storage_location_id,
-        source_storage_location_ids
+    cursor,
+    syn,
+    entity,
+    parent_id,
+    dest_storage_location_id,
+    source_storage_location_ids,
 ):
     entity_id = utils.id_of(entity)
-    logging.info('Indexing table entity %s', entity_id)
+    logging.info("Indexing table entity %s", entity_id)
 
     row_batch = []
 
@@ -1080,10 +1120,12 @@ def _index_table_entity(
                         status
                     ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                row_batch
+                row_batch,
             )
 
-    for row_id, row_version, file_handles in _get_table_file_handle_rows(syn, entity_id):
+    for row_id, row_version, file_handles in _get_table_file_handle_rows(
+        syn, entity_id
+    ):
         for col_id, file_handle in file_handles.items():
             migration_status = _include_file_storage_location_in_index(
                 file_handle,
@@ -1091,19 +1133,21 @@ def _index_table_entity(
                 dest_storage_location_id,
             )
             if migration_status:
-                file_size = file_handle['contentSize']
-                row_batch.append((
-                    entity_id,
-                    _MigrationType.TABLE_ATTACHED_FILE.value,
-                    parent_id,
-                    row_id,
-                    col_id,
-                    row_version,
-                    file_handle['storageLocationId'],
-                    file_handle['id'],
-                    file_size,
-                    migration_status
-                ))
+                file_size = file_handle["contentSize"]
+                row_batch.append(
+                    (
+                        entity_id,
+                        _MigrationType.TABLE_ATTACHED_FILE.value,
+                        parent_id,
+                        row_id,
+                        col_id,
+                        row_version,
+                        file_handle["storageLocationId"],
+                        file_handle["id"],
+                        file_size,
+                        migration_status,
+                    )
+                )
 
                 if len(row_batch) % _get_batch_size() == 0:
                     _insert_row_batch(row_batch)
@@ -1114,26 +1158,28 @@ def _index_table_entity(
 
 
 def _index_container(
-        conn,
-        cursor,
-        syn,
-        container_entity,
-        parent_id,
-        dest_storage_location_id,
-        source_storage_location_ids,
-        file_version_strategy,
-        include_table_files,
-        continue_on_error
+    conn,
+    cursor,
+    syn,
+    container_entity,
+    parent_id,
+    dest_storage_location_id,
+    source_storage_location_ids,
+    file_version_strategy,
+    include_table_files,
+    continue_on_error,
 ):
     entity_id = utils.id_of(container_entity)
     concrete_type = utils.concrete_type_of(container_entity)
-    logging.info('Indexing %s %s', concrete_type[concrete_type.rindex('.') + 1:], entity_id)
+    logging.info(
+        "Indexing %s %s", concrete_type[concrete_type.rindex(".") + 1 :], entity_id
+    )
 
     include_types = []
-    if file_version_strategy != 'skip':
-        include_types.extend(('folder', 'file'))
+    if file_version_strategy != "skip":
+        include_types.extend(("folder", "file"))
     if include_table_files:
-        include_types.append('table')
+        include_types.append("table")
 
     children = syn.getChildren(entity_id, includeTypes=include_types)
     for child in children:
@@ -1158,21 +1204,21 @@ def _index_container(
     )
     cursor.execute(
         "insert into migrations (id, type, parent_id, status) values (?, ?, ?, ?)",
-        [entity_id, container_type, parent_id, _MigrationStatus.INDEXED.value]
+        [entity_id, container_type, parent_id, _MigrationStatus.INDEXED.value],
     )
 
 
 def _index_entity(
-        conn,
-        cursor,
-        syn,
-        entity,
-        parent_id,
-        dest_storage_location_id,
-        source_storage_location_ids,
-        file_version_strategy,
-        include_table_files,
-        continue_on_error
+    conn,
+    cursor,
+    syn,
+    entity,
+    parent_id,
+    dest_storage_location_id,
+    source_storage_location_ids,
+    file_version_strategy,
+    include_table_files,
+    continue_on_error,
 ):
     # recursive function to index a given entity into the sqlite db.
 
@@ -1204,7 +1250,10 @@ def _index_entity(
                     source_storage_location_ids,
                 )
 
-            elif concrete_type in [concrete_types.FOLDER_ENTITY, concrete_types.PROJECT_ENTITY]:
+            elif concrete_type in [
+                concrete_types.FOLDER_ENTITY,
+                concrete_types.PROJECT_ENTITY,
+            ]:
                 _index_container(
                     conn,
                     cursor,
@@ -1227,10 +1276,14 @@ def _index_entity(
         raise
 
     except Exception as ex:
-
         if continue_on_error:
-            logging.warning("Error indexing entity %s of type %s", entity_id, concrete_type, exc_info=True)
-            tb_str = ''.join(traceback.format_exception(type(ex), ex, ex.__traceback__))
+            logging.warning(
+                "Error indexing entity %s of type %s",
+                entity_id,
+                concrete_type,
+                exc_info=True,
+            )
+            tb_str = "".join(traceback.format_exception(type(ex), ex, ex.__traceback__))
 
             cursor.execute(
                 """
@@ -1248,7 +1301,7 @@ def _index_entity(
                     parent_id,
                     _MigrationStatus.ERRORED.value,
                     tb_str,
-                )
+                ),
             )
 
         else:
@@ -1259,15 +1312,17 @@ def _get_part_size(file_size):
     return max(DEFAULT_PART_SIZE, math.ceil((file_size / MAX_NUMBER_OF_PARTS)))
 
 
-def _create_new_file_version(syn, key, from_file_handle_id, to_file_handle_id, file_size, storage_location_id):
-    logging.info('Creating new version for file entity %s', key.id)
+def _create_new_file_version(
+    syn, key, from_file_handle_id, to_file_handle_id, file_size, storage_location_id
+):
+    logging.info("Creating new version for file entity %s", key.id)
 
     entity = syn.get(key.id, downloadFile=False)
 
     source_file_handle_association = {
-        'fileHandleId': from_file_handle_id,
-        'associateObjectId': key.id,
-        'associateObjectType': 'FileEntity',
+        "fileHandleId": from_file_handle_id,
+        "associateObjectId": key.id,
+        "associateObjectType": "FileEntity",
     }
 
     # copy to a new file handle if we haven't already
@@ -1276,7 +1331,7 @@ def _create_new_file_version(syn, key, from_file_handle_id, to_file_handle_id, f
             syn,
             source_file_handle_association,
             storage_location_id=storage_location_id,
-            part_size=_get_part_size(file_size)
+            part_size=_get_part_size(file_size),
         )
 
     entity.dataFileHandleId = to_file_handle_id
@@ -1285,13 +1340,15 @@ def _create_new_file_version(syn, key, from_file_handle_id, to_file_handle_id, f
     return to_file_handle_id
 
 
-def _migrate_file_version(syn, key, from_file_handle_id, to_file_handle_id, file_size, storage_location_id):
-    logging.info('Migrating file entity %s version %s', key.id, key.version)
+def _migrate_file_version(
+    syn, key, from_file_handle_id, to_file_handle_id, file_size, storage_location_id
+):
+    logging.info("Migrating file entity %s version %s", key.id, key.version)
 
     source_file_handle_association = {
-        'fileHandleId': from_file_handle_id,
-        'associateObjectId': key.id,
-        'associateObjectType': 'FileEntity',
+        "fileHandleId": from_file_handle_id,
+        "associateObjectId": key.id,
+        "associateObjectType": "FileEntity",
     }
 
     # copy to a new file handle if we haven't already
@@ -1304,8 +1361,8 @@ def _migrate_file_version(syn, key, from_file_handle_id, to_file_handle_id, file
         )
 
     file_handle_update_request = {
-        'oldFileHandleId': from_file_handle_id,
-        'newFileHandleId': to_file_handle_id,
+        "oldFileHandleId": from_file_handle_id,
+        "newFileHandleId": to_file_handle_id,
     }
 
     # no response, we rely on a 200 here
@@ -1320,13 +1377,20 @@ def _migrate_file_version(syn, key, from_file_handle_id, to_file_handle_id, file
     return to_file_handle_id
 
 
-def _migrate_table_attached_file(syn, key, from_file_handle_id, to_file_handle_id, file_size, storage_location_id):
-    logging.info('Migrating table attached file %s, row %s, col %s', key.id, key.row_id, key.col_id)
+def _migrate_table_attached_file(
+    syn, key, from_file_handle_id, to_file_handle_id, file_size, storage_location_id
+):
+    logging.info(
+        "Migrating table attached file %s, row %s, col %s",
+        key.id,
+        key.row_id,
+        key.col_id,
+    )
 
     source_file_handle_association = {
-        'fileHandleId': from_file_handle_id,
-        'associateObjectId': key.id,
-        'associateObjectType': 'TableEntity',
+        "fileHandleId": from_file_handle_id,
+        "associateObjectId": key.id,
+        "associateObjectType": "TableEntity",
     }
 
     # copy to a new file handle if we haven't already

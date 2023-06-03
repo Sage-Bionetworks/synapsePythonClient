@@ -26,7 +26,6 @@ Next Major Release (3.0.0)
 ==========================
 - Support only pandas `>=` 1.5
 - Remove support for Python 3.7 due to its end of life.
-- Remove support for login via passwords for best security practices.
 - There will be major cosmetic changes to the cli such as
   removing all camel case or non-standard single dash long command line interface (cli)
   parameters.
@@ -74,15 +73,15 @@ Connecting to Synapse
 =====================
 
 To use Synapse, you'll need to `register <https://www.synapse.org/register>`_ for an account. The Synapse
-website can authenticate using a Google account, but you'll need to take the extra step of creating a Synapse password
-to use the programmatic clients.
+website can authenticate using a Google account, but you'll need to take the extra step of creating a Synapse
+personal access token to use the programmatic clients.
 
 Once that's done, you'll be able to load the library, create a :py:class:`Synapse` object and login::
 
     import synapseclient
     syn = synapseclient.Synapse()
 
-    syn.login('my_username', 'my_password')
+    syn.login(authToken=<PAT>)
 
 For more information, see:
 
@@ -284,42 +283,87 @@ import pkg_resources
 from .activity import Activity
 from .annotations import Annotations
 from .client import PUBLIC, AUTHENTICATED_USERS
+
 # public APIs
 from .client import Synapse, login
 from .core.version_check import check_for_updates, release_notes
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, \
-    EntityViewType, build_table, SubmissionViewSchema, MaterializedViewSchema, Dataset
+from .table import (
+    Schema,
+    EntityViewSchema,
+    Column,
+    RowSet,
+    Row,
+    as_table_columns,
+    Table,
+    PartialRowset,
+    EntityViewType,
+    build_table,
+    SubmissionViewSchema,
+    MaterializedViewSchema,
+    Dataset,
+)
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-__version__ = json.load(
-    pkg_resources.resource_stream(
-        __name__,
-        'synapsePythonClient'
-    )
-)['latestVersion']
+__version__ = json.load(pkg_resources.resource_stream(__name__, "synapsePythonClient"))[
+    "latestVersion"
+]
 
 __all__ = [
     # objects
-    'Synapse', 'Activity', 'Entity', 'Project', 'Folder', 'File', 'Link', 'DockerRepository', 'Evaluation',
-    'Submission', 'SubmissionStatus', 'Schema', 'EntityViewSchema', 'Column', 'Row', 'RowSet', 'Table', 'PartialRowset',
-    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki', 'Annotations', 'SubmissionViewSchema',
-    'MaterializedViewSchema', 'Dataset',
+    "Synapse",
+    "Activity",
+    "Entity",
+    "Project",
+    "Folder",
+    "File",
+    "Link",
+    "DockerRepository",
+    "Evaluation",
+    "Submission",
+    "SubmissionStatus",
+    "Schema",
+    "EntityViewSchema",
+    "Column",
+    "Row",
+    "RowSet",
+    "Table",
+    "PartialRowset",
+    "Team",
+    "UserProfile",
+    "UserGroupHeader",
+    "TeamMember",
+    "Wiki",
+    "Annotations",
+    "SubmissionViewSchema",
+    "MaterializedViewSchema",
+    "Dataset",
     # functions
-    'login', 'build_table', 'as_table_columns', 'check_for_updates', 'release_notes',
+    "login",
+    "build_table",
+    "as_table_columns",
+    "check_for_updates",
+    "release_notes",
     # enum
-    'EntityViewType',
+    "EntityViewType",
     # constants
-    'PUBLIC', 'AUTHENTICATED_USERS']
+    "PUBLIC",
+    "AUTHENTICATED_USERS",
+]
 
 
 # ensure user-agent is set to track Synapse Python client usage
 import requests
-USER_AGENT = {'User-Agent': 'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
+
+USER_AGENT = {
+    "User-Agent": "synapseclient/%s %s"
+    % (__version__, requests.utils.default_user_agent())
+}
 
 # patch json
 from .core.models import custom_json  # noqa
+
 # patch logging
-from .core import logging_setup       # noqa
+from .core import logging_setup  # noqa

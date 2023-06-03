@@ -102,30 +102,42 @@ class Wiki(DictObject):
     :param parentWikiId:    (optional) For sub-pages, specify parent wiki page
     """
 
-    __PROPERTIES = ('title', 'markdown', 'attachmentFileHandleIds', 'id', 'etag', 'createdBy', 'createdOn',
-                    'modifiedBy', 'modifiedOn', 'parentWikiId')
+    __PROPERTIES = (
+        "title",
+        "markdown",
+        "attachmentFileHandleIds",
+        "id",
+        "etag",
+        "createdBy",
+        "createdOn",
+        "modifiedBy",
+        "modifiedOn",
+        "parentWikiId",
+    )
 
     def __init__(self, **kwargs):
         # Verify that the parameters are correct
-        if 'owner' not in kwargs:
-            raise ValueError('Wiki constructor must have an owner specified')
+        if "owner" not in kwargs:
+            raise ValueError("Wiki constructor must have an owner specified")
 
         # Initialize the file handle list to be an empty list
-        if 'attachmentFileHandleIds' not in kwargs:
-            kwargs['attachmentFileHandleIds'] = []
+        if "attachmentFileHandleIds" not in kwargs:
+            kwargs["attachmentFileHandleIds"] = []
 
         # update the markdown
-        self.update_markdown(kwargs.pop('markdown', None), kwargs.pop('markdownFile', None))
+        self.update_markdown(
+            kwargs.pop("markdown", None), kwargs.pop("markdownFile", None)
+        )
 
         # Move the 'fileHandles' into the proper (wordier) bucket
-        if 'fileHandles' in kwargs:
-            for handle in kwargs['fileHandles']:
-                kwargs['attachmentFileHandleIds'].append(handle)
-            del kwargs['fileHandles']
+        if "fileHandles" in kwargs:
+            for handle in kwargs["fileHandles"]:
+                kwargs["attachmentFileHandleIds"].append(handle)
+            del kwargs["fileHandles"]
 
         super(Wiki, self).__init__(kwargs)
         self.ownerId = id_of(self.owner)
-        del self['owner']
+        del self["owner"]
 
     def json(self):
         """Returns the JSON representation of the Wiki object."""
@@ -134,22 +146,22 @@ class Wiki(DictObject):
     def getURI(self):
         """For internal use."""
 
-        return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
+        return "/entity/%s/wiki/%s" % (self.ownerId, self.id)
 
     def postURI(self):
         """For internal use."""
 
-        return '/entity/%s/wiki' % self.ownerId
+        return "/entity/%s/wiki" % self.ownerId
 
     def putURI(self):
         """For internal use."""
 
-        return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
+        return "/entity/%s/wiki/%s" % (self.ownerId, self.id)
 
     def deleteURI(self):
         """For internal use."""
 
-        return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
+        return "/entity/%s/wiki/%s" % (self.ownerId, self.id)
 
     def update_markdown(self, markdown=None, markdown_file=None):
         """
@@ -165,10 +177,10 @@ class Wiki(DictObject):
             markdown_path = os.path.expandvars(os.path.expanduser(markdown_file))
             if not os.path.isfile(markdown_path):
                 raise ValueError(markdown_file + "is not a valid file")
-            with open(markdown_path, 'r') as opened_markdown_file:
+            with open(markdown_path, "r") as opened_markdown_file:
                 markdown = opened_markdown_file.read()
 
-        self['markdown'] = markdown
+        self["markdown"] = markdown
 
 
 class WikiAttachment(DictObject):
@@ -176,7 +188,8 @@ class WikiAttachment(DictObject):
     Represents a wiki page attachment
 
     """
-    __PROPERTIES = ('contentType', 'fileName', 'contentMd5', 'contentSize')
+
+    __PROPERTIES = ("contentType", "fileName", "contentMd5", "contentSize")
 
     def __init__(self, **kwargs):
         super(WikiAttachment, self).__init__(**kwargs)
