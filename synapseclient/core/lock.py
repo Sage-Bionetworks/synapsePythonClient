@@ -21,9 +21,16 @@ class Lock(object):
     """
     Implements a lock by making a directory named [lockname].lock
     """
-    SUFFIX = 'lock'
 
-    def __init__(self, name, dir=None, max_age=LOCK_DEFAULT_MAX_AGE, default_blocking_timeout=DEFAULT_BLOCKING_TIMEOUT):
+    SUFFIX = "lock"
+
+    def __init__(
+        self,
+        name,
+        dir=None,
+        max_age=LOCK_DEFAULT_MAX_AGE,
+        default_blocking_timeout=DEFAULT_BLOCKING_TIMEOUT,
+    ):
         self.name = name
         self.held = False
         self.dir = dir if dir else os.getcwd()

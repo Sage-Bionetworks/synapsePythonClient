@@ -23,21 +23,29 @@ import typing
 from synapseclient.core.lock import Lock
 from synapseclient.core import utils
 
-CACHE_ROOT_DIR = os.path.join('~', '.synapseCache')
+CACHE_ROOT_DIR = os.path.join("~", ".synapseCache")
 
 
 def epoch_time_to_iso(epoch_time):
     """
     Convert seconds since unix epoch to a string in ISO format
     """
-    return None if epoch_time is None else utils.datetime_to_iso(utils.from_unix_epoch_time_secs(epoch_time))
+    return (
+        None
+        if epoch_time is None
+        else utils.datetime_to_iso(utils.from_unix_epoch_time_secs(epoch_time))
+    )
 
 
 def iso_time_to_epoch(iso_time):
     """
     Convert an ISO formatted time into seconds since unix epoch
     """
-    return None if iso_time is None else utils.to_unix_epoch_time_secs(utils.iso_to_datetime(iso_time))
+    return (
+        None
+        if iso_time is None
+        else utils.to_unix_epoch_time_secs(utils.iso_to_datetime(iso_time))
+    )
 
 
 def compare_timestamps(modified_time, cached_time):
@@ -88,13 +96,21 @@ class Cache:
 
     def get_cache_dir(self, file_handle_id):
         if isinstance(file_handle_id, collections.abc.Mapping):
-            if 'dataFileHandleId' in file_handle_id:
-                file_handle_id = file_handle_id['dataFileHandleId']
-            elif 'concreteType' in file_handle_id \
-                    and 'id' in file_handle_id \
-                    and file_handle_id['concreteType'].startswith('org.sagebionetworks.repo.model.file'):
-                file_handle_id = file_handle_id['id']
-        return os.path.join(self.cache_root_dir, str(int(file_handle_id) % self.fanout), str(file_handle_id))
+            if "dataFileHandleId" in file_handle_id:
+                file_handle_id = file_handle_id["dataFileHandleId"]
+            elif (
+                "concreteType" in file_handle_id
+                and "id" in file_handle_id
+                and file_handle_id["concreteType"].startswith(
+                    "org.sagebionetworks.repo.model.file"
+                )
+            ):
+                file_handle_id = file_handle_id["id"]
+        return os.path.join(
+            self.cache_root_dir,
+            str(int(file_handle_id) % self.fanout),
+            str(file_handle_id),
+        )
 
     def _read_cache_map(self, cache_dir):
         cache_map_file = os.path.join(cache_dir, self.cache_map_file_name)
@@ -102,7 +118,7 @@ class Cache:
         if not os.path.exists(cache_map_file):
             return {}
 
-        with open(cache_map_file, 'r') as f:
+        with open(cache_map_file, "r") as f:
             try:
                 cache_map = json.load(f)
             except json.decoder.JSONDecodeError:
@@ -118,9 +134,9 @@ class Cache:
 
         cache_map_file = os.path.join(cache_dir, self.cache_map_file_name)
 
-        with open(cache_map_file, 'w') as f:
+        with open(cache_map_file, "w") as f:
             json.dump(cache_map, f)
-            f.write('\n')  # For compatibility with R's JSON parser
+            f.write("\n")  # For compatibility with R's JSON parser
 
     def contains(self, file_handle_id, path):
         """
@@ -175,13 +191,17 @@ class Cache:
                 # If we're given a path to a directory, look for a cached file in that directory
                 if os.path.isdir(path):
                     matching_unmodified_directory = None
-                    removed_entry_from_cache = False  # determines if cache_map needs to be rewritten to disk
+                    removed_entry_from_cache = (
+                        False  # determines if cache_map needs to be rewritten to disk
+                    )
 
                     # iterate a copy of cache_map to allow modifying original cache_map
                     for cached_file_path, cached_time in dict(cache_map).items():
                         if path == os.path.dirname(cached_file_path):
                             # compare_timestamps has an implicit check for whether the path exists
-                            if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
+                            if compare_timestamps(
+                                _get_modified_time(cached_file_path), cached_time
+                            ):
                                 # "break" instead of "return" to write removed invalid entries to disk if necessary
                                 matching_unmodified_directory = cached_file_path
                                 break
@@ -202,12 +222,20 @@ class Cache:
                 else:
                     cached_time = cache_map.get(path, None)
                     if cached_time:
-                        return path if compare_timestamps(_get_modified_time(path), cached_time) else None
+                        return (
+                            path
+                            if compare_timestamps(_get_modified_time(path), cached_time)
+                            else None
+                        )
 
             # return most recently cached and unmodified file OR
             # None if there are no unmodified files
-            for cached_file_path, cached_time in sorted(cache_map.items(), key=operator.itemgetter(1), reverse=True):
-                if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
+            for cached_file_path, cached_time in sorted(
+                cache_map.items(), key=operator.itemgetter(1), reverse=True
+            ):
+                if compare_timestamps(
+                    _get_modified_time(cached_file_path), cached_time
+                ):
                     return cached_file_path
             return None
 
@@ -216,7 +244,7 @@ class Cache:
         Add a file to the cache
         """
         if not path or not os.path.exists(path):
-            raise ValueError("Can't find file \"%s\"" % path)
+            raise ValueError('Can\'t find file "%s"' % path)
 
         cache_dir = self.get_cache_dir(file_handle_id)
         with Lock(self.cache_map_file_name, dir=cache_dir):
@@ -244,8 +272,12 @@ class Cache:
         cache_dir = self.get_cache_dir(file_handle_id)
 
         # if we've passed an entity and not a path, get path from entity
-        if path is None and isinstance(file_handle_id, collections.abc.Mapping) and 'path' in file_handle_id:
-            path = file_handle_id['path']
+        if (
+            path is None
+            and isinstance(file_handle_id, collections.abc.Mapping)
+            and "path" in file_handle_id
+        ):
+            path = file_handle_id["path"]
 
         with Lock(self.cache_map_file_name, dir=cache_dir):
             cache_map = self._read_cache_map(cache_dir)
@@ -275,17 +307,17 @@ class Cache:
         """
         for item1 in os.listdir(self.cache_root_dir):
             path1 = os.path.join(self.cache_root_dir, item1)
-            if os.path.isdir(path1) and re.match('\\d+', item1):
+            if os.path.isdir(path1) and re.match("\\d+", item1):
                 for item2 in os.listdir(path1):
                     path2 = os.path.join(path1, item2)
-                    if os.path.isdir(path2) and re.match('\\d+', item2):
+                    if os.path.isdir(path2) and re.match("\\d+", item2):
                         yield path2
 
     def purge(
         self,
         before_date: typing.Union[datetime.datetime, int] = None,
         after_date: typing.Union[datetime.datetime, int] = None,
-        dry_run: bool = False
+        dry_run: bool = False,
     ):
         """
         Purge the cache. Use with caution. Deletes files whose cache maps were last updated in a specified period.
@@ -326,10 +358,13 @@ class Cache:
             # exist and n > None evaluates to True in python 2.7(wtf?). I'm guessing it's
             # OK to purge directories in the cache that have no .cacheMap file
 
-            last_modified_time = _get_modified_time(os.path.join(cache_dir, self.cache_map_file_name))
+            last_modified_time = _get_modified_time(
+                os.path.join(cache_dir, self.cache_map_file_name)
+            )
             if last_modified_time is None or (
-                    (not before_date or before_date > last_modified_time) and
-                    (not after_date or after_date < last_modified_time)):
+                (not before_date or before_date > last_modified_time)
+                and (not after_date or after_date < last_modified_time)
+            ):
                 if dry_run:
                     print(cache_dir)
                 else:

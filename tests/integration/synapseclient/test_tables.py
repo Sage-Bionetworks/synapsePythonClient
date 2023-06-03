@@ -236,7 +236,9 @@ def test_dataset(syn, project):
         name="Test Pokedex",
         parent=project,
         dataset_items=[{'entityId': "syn20685093", 'versionNumber': 1}],
-        columns=cols
+        columns=cols,
+        addAnnotationColumns=False,
+        addDefaultViewColumns=False
     )
     dataset = syn.store(dataset)
     dataset_df = syn.tableQuery(f"SELECT * FROM {dataset.id}").asDataFrame()

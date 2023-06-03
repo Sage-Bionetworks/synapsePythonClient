@@ -2,8 +2,21 @@ from synapseclient.entity import is_container
 import os
 
 
-def walk(syn, synId, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo",
-                                   "submissionview", "dataset", "materializedview"]):
+def walk(
+    syn,
+    synId,
+    includeTypes=[
+        "folder",
+        "file",
+        "table",
+        "link",
+        "entityview",
+        "dockerrepo",
+        "submissionview",
+        "dataset",
+        "materializedview",
+    ],
+):
     """
     Traverse through the hierarchy of files and folders stored under the synId. Has the same behavior as os.walk()
 
@@ -49,7 +62,7 @@ def _helpWalk(syn, synId, includeTypes, newpath=None):
     if newpath is None and not is_container(starting):
         return
     elif newpath is None:
-        dirpath = (starting['name'], synId)
+        dirpath = (starting["name"], synId)
     else:
         dirpath = (newpath, synId)
     dirs = []
@@ -57,9 +70,9 @@ def _helpWalk(syn, synId, includeTypes, newpath=None):
     results = syn.getChildren(synId, includeTypes)
     for i in results:
         if is_container(i):
-            dirs.append((i['name'], i['id']))
+            dirs.append((i["name"], i["id"]))
         else:
-            nondirs.append((i['name'], i['id']))
+            nondirs.append((i["name"], i["id"]))
     yield dirpath, dirs, nondirs
     for name in dirs:
         # The directory path for each os.walk() result needs to be built up
