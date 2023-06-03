@@ -845,7 +845,8 @@ class TestPrivateUploadExternallyStoringProjects:
     def init_syn(self, syn):
         self.syn = syn
 
-    @pytest.mark.parametrize("external_type", [concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION, concrete_types.EXTERNAL_GCP_UPLOAD_DESTINATION])
+    @pytest.mark.parametrize("external_type", [concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION,
+                                               concrete_types.EXTERNAL_GCP_UPLOAD_DESTINATION])
     def test__uploadExternallyStoringProjects_external_user(self, mock_upload_destination, external_type):
         # setup
         expected_storage_location_id = "1234567"
