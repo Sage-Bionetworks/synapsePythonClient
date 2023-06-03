@@ -33,5 +33,3 @@ Installing on Windows
 After running the pycrypto installer, ``sudo pip install synapseclient`` should work.
 
 Another option is to build your own binary with either the `free developer tools from Microsoft <http://www.visualstudio.com/en-us/products/visual-studio-community-vs>`_ or the `MinGW compiler <http://www.mingw.org/>`_.
-
-

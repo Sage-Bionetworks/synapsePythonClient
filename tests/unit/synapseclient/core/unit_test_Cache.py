@@ -23,14 +23,18 @@ def add_file_to_cache(i, cache_root_dir):
     random.shuffle(file_handle_ids)
     for file_handle_id in file_handle_ids:
         cache_dir = my_cache.get_cache_dir(file_handle_id)
-        file_path = os.path.join(cache_dir, "file_handle_%d_process_%02d.junk" % (file_handle_id, i))
+        file_path = os.path.join(
+            cache_dir, "file_handle_%d_process_%02d.junk" % (file_handle_id, i)
+        )
         utils.touch(file_path)
         my_cache.add(file_handle_id, file_path)
 
 
 def test_cache_concurrent_access():
     cache_root_dir = tempfile.mkdtemp()
-    processes = [Process(target=add_file_to_cache, args=(i, cache_root_dir)) for i in range(20)]
+    processes = [
+        Process(target=add_file_to_cache, args=(i, cache_root_dir)) for i in range(20)
+    ]
 
     for process in processes:
         process.start()
@@ -44,7 +48,10 @@ def test_cache_concurrent_access():
         cache_map = my_cache._read_cache_map(my_cache.get_cache_dir(file_handle_id))
         process_ids = set()
         for path, iso_time in cache_map.items():
-            m = re.match("file_handle_%d_process_(\\d+).junk" % file_handle_id, os.path.basename(path))
+            m = re.match(
+                "file_handle_%d_process_(\\d+).junk" % file_handle_id,
+                os.path.basename(path),
+            )
             if m:
                 process_ids.add(int(m.group(1)))
         assert process_ids == set(range(20))
@@ -75,7 +82,9 @@ def test_get_modification_time():
     ALLOWABLE_TIME_ERROR = 0.01  # seconds
 
     # Non existent files return None
-    assert cache._get_modified_time("A:/I/h0pe/th1s/k0mput3r/haz/n0/fl0ppy.disk") is None
+    assert (
+        cache._get_modified_time("A:/I/h0pe/th1s/k0mput3r/haz/n0/fl0ppy.disk") is None
+    )
 
     # File creation should result in a correct modification time
     _, path = tempfile.mkstemp()
@@ -88,7 +97,7 @@ def test_get_modification_time():
 
 def test_cache_timestamps():
     # test conversion to epoch time to ISO with proper rounding to millisecond
-    assert cache.epoch_time_to_iso(1433544108.080841) == '2015-06-05T22:41:48.081Z'
+    assert cache.epoch_time_to_iso(1433544108.080841) == "2015-06-05T22:41:48.081Z"
 
 
 def test_compare_timestamps():
@@ -109,8 +118,11 @@ def test_subsecond_timestamps():
 
     my_cache.add(file_handle_id=1234, path=path)
 
-    with patch.object(cache, "_get_modified_time") as _get_modified_time_mock, \
-            patch.object(cache.Cache, "_read_cache_map") as _read_cache_map_mock:
+    with patch.object(
+        cache, "_get_modified_time"
+    ) as _get_modified_time_mock, patch.object(
+        cache.Cache, "_read_cache_map"
+    ) as _read_cache_map_mock:
         # this should be a match, 'cause we round microseconds to milliseconds
         _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.001Z"}
         _get_modified_time_mock.return_value = 1430861695.001111
@@ -137,7 +149,9 @@ def test_unparseable_cache_map():
     # path normalization for windows
     path1 = os.path.normcase(
         os.path.normpath(
-            utils.touch(os.path.join(my_cache.get_cache_dir(file_handle_id), "file1.ext"))
+            utils.touch(
+                os.path.join(my_cache.get_cache_dir(file_handle_id), "file1.ext")
+            )
         )
     )
 
@@ -149,9 +163,14 @@ def test_unparseable_cache_map():
 
     my_cache.add(file_handle_id=101201, path=path1)
 
-    assert os.path.normcase(os.path.normpath(my_cache.get(file_handle_id=101201, path=path1))) == path1
+    assert (
+        os.path.normcase(
+            os.path.normpath(my_cache.get(file_handle_id=101201, path=path1))
+        )
+        == path1
+    )
 
-    with open(cache_map_file, mode='r') as cache_map_in:
+    with open(cache_map_file, mode="r") as cache_map_in:
         cache_map = json.loads(cache_map_in.read())
         assert os.path.normpath(os.path.normcase(next(iter(cache_map.keys())))) == path1
 
@@ -169,7 +188,9 @@ def test_cache_store_get():
     # set path3's mtime to be later than path2's
     new_time_stamp = cache._get_modified_time(path2) + 2
 
-    path3 = utils.touch(os.path.join(tmp_dir, "foo", "file2.ext"), (new_time_stamp, new_time_stamp))
+    path3 = utils.touch(
+        os.path.join(tmp_dir, "foo", "file2.ext"), (new_time_stamp, new_time_stamp)
+    )
     my_cache.add(file_handle_id=101202, path=path3)
 
     a_file = my_cache.get(file_handle_id=101201)
@@ -233,7 +254,7 @@ def test_cache_remove():
     my_cache.add(file_handle_id=101201, path=path2)
 
     # remove the cached copy at path1
-    rp = my_cache.remove({'dataFileHandleId': 101201, 'path': path1})
+    rp = my_cache.remove({"dataFileHandleId": 101201, "path": path1})
 
     assert len(rp) == 1
     assert utils.equal_paths(rp[0], path1)
@@ -263,18 +284,27 @@ def test_cache_rules():
     my_cache.add(file_handle_id=101201, path=path1)
 
     new_time_stamp = cache._get_modified_time(path1) + 1
-    path2 = utils.touch(os.path.join(tmp_dir, "not_in_cache", "file1.ext"), (new_time_stamp, new_time_stamp))
+    path2 = utils.touch(
+        os.path.join(tmp_dir, "not_in_cache", "file1.ext"),
+        (new_time_stamp, new_time_stamp),
+    )
     my_cache.add(file_handle_id=101201, path=path2)
 
     new_time_stamp = cache._get_modified_time(path2) + 1
-    path3 = utils.touch(os.path.join(tmp_dir, "also_not_in_cache", "file1.ext"), (new_time_stamp, new_time_stamp))
+    path3 = utils.touch(
+        os.path.join(tmp_dir, "also_not_in_cache", "file1.ext"),
+        (new_time_stamp, new_time_stamp),
+    )
     my_cache.add(file_handle_id=101201, path=path3)
 
     # DownloadLocation specified, found exact match
     assert utils.equal_paths(my_cache.get(file_handle_id=101201, path=path2), path2)
 
     # DownloadLocation specified, no match, get most recent
-    path = my_cache.get(file_handle_id=101201, path=os.path.join(tmp_dir, "file_is_not_here", "file1.ext"))
+    path = my_cache.get(
+        file_handle_id=101201,
+        path=os.path.join(tmp_dir, "file_is_not_here", "file1.ext"),
+    )
     assert utils.equal_paths(path, path3)
 
     # DownloadLocation specified as a directory, not in cache, get most recent
@@ -296,14 +326,23 @@ def test_cache_rules():
 
     # Get file from alternate location. Do we care which file we get?
     assert my_cache.get(file_handle_id=101201, path=path2) is None
-    assert my_cache.get(file_handle_id=101201) in [utils.normalize_path(path1), utils.normalize_path(path3)]
+    assert my_cache.get(file_handle_id=101201) in [
+        utils.normalize_path(path1),
+        utils.normalize_path(path3),
+    ]
 
     # Download uncached file to a specified download location
-    assert my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "not_in_cache")) is None
+    assert (
+        my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "not_in_cache"))
+        is None
+    )
 
     # No downloadLocation specified, get file from alternate location. Do we care which file we get?
     assert my_cache.get(file_handle_id=101201) is not None
-    assert my_cache.get(file_handle_id=101201) in [utils.normalize_path(path1), utils.normalize_path(path3)]
+    assert my_cache.get(file_handle_id=101201) in [
+        utils.normalize_path(path1),
+        utils.normalize_path(path3),
+    ]
 
     # test case 2b.
     assert my_cache.get(file_handle_id=101202) is None
@@ -317,8 +356,10 @@ def test_set_cache_root_dir():
 
     path_suffix = "GrayFaceNoSpace"
 
-    expanded_path = os.path.expandvars(os.path.expanduser(os.path.join("~", enviornment_variable_value, path_suffix)))
-    non_expanded_path = os.path.join("~", '$' + enviornment_variable_name, path_suffix)
+    expanded_path = os.path.expandvars(
+        os.path.expanduser(os.path.join("~", enviornment_variable_value, path_suffix))
+    )
+    non_expanded_path = os.path.join("~", "$" + enviornment_variable_name, path_suffix)
 
     # test that the constructor correctly expands the path
     my_cache = cache.Cache(cache_root_dir=non_expanded_path)
@@ -329,8 +370,8 @@ def test_set_cache_root_dir():
     assert expanded_path + "2" == my_cache.cache_root_dir
 
 
-@patch.object(cache, 'os')
-@patch.object(cache, 're')
+@patch.object(cache, "os")
+@patch.object(cache, "re")
 def test_private_helper_cache_dirs(mock_re, mock_os):
     """
     Verify the _cache_dirs method is called correctly.
@@ -338,7 +379,7 @@ def test_private_helper_cache_dirs(mock_re, mock_os):
 
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
-    mock_os.listdir.return_value = ['dir1', 'dir2']
+    mock_os.listdir.return_value = ["dir1", "dir2"]
     mock_os.path.isdir.return_value = True
     mock_re.match.return_value = True
 
@@ -346,17 +387,17 @@ def test_private_helper_cache_dirs(mock_re, mock_os):
         return args[1]
 
     mock_os.path.join.side_effect = os_join_side_effect
-    expected_path = ['dir1', 'dir2', 'dir1', 'dir2']
+    expected_path = ["dir1", "dir2", "dir1", "dir2"]
     idx = 0
     for path in my_cache._cache_dirs():
         assert path == expected_path[idx]
         idx += 1
 
 
-@patch.object(cache.Cache, '_cache_dirs')
-@patch.object(cache, '_get_modified_time')
-@patch.object(cache, 'shutil')
-@patch('builtins.print')
+@patch.object(cache.Cache, "_cache_dirs")
+@patch.object(cache, "_get_modified_time")
+@patch.object(cache, "shutil")
+@patch("builtins.print")
 def test_purge(mock_print, mock_shutil, mock_get_modified_time, mock_cache_dirs):
     """
     Verify the purge method is called correctly.
@@ -364,7 +405,7 @@ def test_purge(mock_print, mock_shutil, mock_get_modified_time, mock_cache_dirs)
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
 
-    mock_cache_dirs.return_value = ['file1', 'file2']
+    mock_cache_dirs.return_value = ["file1", "file2"]
     mock_before_date = datetime.datetime(2021, 1, 31)
     mock_after_date = datetime.datetime(2020, 12, 31)
 
@@ -378,15 +419,15 @@ def test_purge(mock_print, mock_shutil, mock_get_modified_time, mock_cache_dirs)
     mock_get_modified_time.return_value = 1609472800.0
     my_cache.purge(mock_before_date, mock_after_date, dry_run=True)
     mock_shutil.rmtree.assert_not_called()
-    assert mock_print.call_args_list == [call('file1'), call('file2')]
+    assert mock_print.call_args_list == [call("file1"), call("file2")]
 
     # test if files will be deleted and dry_run is False
     my_cache.purge(mock_before_date, mock_after_date)
-    assert mock_shutil.rmtree.call_args_list == [call('file1'), call('file2')]
+    assert mock_shutil.rmtree.call_args_list == [call("file1"), call("file2")]
 
 
-@patch.object(cache, 'utils')
-@patch.object(cache.Cache, '_cache_dirs')
+@patch.object(cache, "utils")
+@patch.object(cache.Cache, "_cache_dirs")
 def test_purge_datetime_transform(mock_cache_dirs, mock_utils):
     """
     Verify if pass in the datetime object as either before_date or after date in the purge method,
@@ -407,9 +448,13 @@ def test_purge_datetime_transform(mock_cache_dirs, mock_utils):
     mock_before_date = datetime.datetime(2021, 1, 31)
     mock_after_date = datetime.datetime(2020, 12, 31)
 
-    my_cache.purge(before_date=mock_before_date, after_date=mock_after_date, dry_run=True)
-    assert mock_utils.to_unix_epoch_time_secs.call_args_list == [call(datetime.datetime(2021, 1, 31, 0, 0)),
-                                                                 call(datetime.datetime(2020, 12, 31, 0, 0))]
+    my_cache.purge(
+        before_date=mock_before_date, after_date=mock_after_date, dry_run=True
+    )
+    assert mock_utils.to_unix_epoch_time_secs.call_args_list == [
+        call(datetime.datetime(2021, 1, 31, 0, 0)),
+        call(datetime.datetime(2020, 12, 31, 0, 0)),
+    ]
 
 
 def test_purge_raise_value_error():

@@ -6,7 +6,7 @@ Branch  | Build Status
 develop | [![Build Status develop branch](https://github.com/Sage-Bionetworks/synapsePythonClient/workflows/build/badge.svg?branch=develop)](https://github.com/Sage-Bionetworks/synapsePythonClient/actions?query=branch%3Adevelop)
 master  | [![Build Status master branch](https://github.com/Sage-Bionetworks/synapsePythonClient/workflows/build/badge.svg?branch=master)](https://github.com/Sage-Bionetworks/synapsePythonClient/actions?query=branch%3Amaster)
 
-[![Get the synapseclient from PyPI](https://img.shields.io/pypi/v/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Supported Python Versions](https://img.shields.io/pypi/pyversions/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) 
+[![Get the synapseclient from PyPI](https://img.shields.io/pypi/v/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Supported Python Versions](https://img.shields.io/pypi/pyversions/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/)
 
 A Python client for [Sage Bionetworks'](https://www.sagebase.org) [Synapse](https://www.synapse.org/), a collaborative, open-source research platform that allows teams to share data, track analyses, and collaborate. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
 
@@ -17,7 +17,7 @@ Documentation
 
 For more information about the Python client, see:
 
- * [Python client API docs](https://python-docs.synapse.org) 
+ * [Python client API docs](https://python-docs.synapse.org)
 
 For more information about interacting with Synapse, see:
 
@@ -160,10 +160,10 @@ The purpose of synapseutils is to create a space filled with convenience functio
     import synapseutils
     import synapseclient
     syn = synapseclient.login()
-    
+
     #COPY: copies all Synapse entities to a destination location
     synapseutils.copy(syn, "syn1234", destinationId = "syn2345")
-    
+
     #COPY WIKI: copies the wiki from the entity to a destination entity. Only a project can have sub wiki pages.
     synapseutils.copyWiki(syn, "syn1234", destinationId = "syn2345")
 
@@ -175,7 +175,7 @@ The purpose of synapseutils is to create a space filled with convenience functio
         print(dirpath)
         print(dirname)
         print(filename)
-        
+
 
 License and Copyright
 ---------------------

@@ -8,13 +8,13 @@ def test_Wiki():
     """Test the construction and accessors of Wiki objects."""
 
     # Wiki contstuctor only takes certain values
-    pytest.raises(ValueError, Wiki, title='foo')
+    pytest.raises(ValueError, Wiki, title="foo")
 
     # Construct a wiki and test uri's
-    Wiki(title='foobar2', markdown='bar', owner={'id': '5'})
+    Wiki(title="foobar2", markdown="bar", owner={"id": "5"})
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_Wiki()
 
 
@@ -25,12 +25,13 @@ def test_Wiki__with_markdown_file():
                     adkflajsl;kfjasd;lfkjsal;kfajslkfjasdlkfj
                     """
     markdown_path = "/somewhere/over/the/rainbow.txt"
-    with patch("synapseclient.wiki.open", mock_open(read_data=markdown_data), create=True) as mocked_open,\
-            patch("os.path.isfile", return_value=True):
+    with patch(
+        "synapseclient.wiki.open", mock_open(read_data=markdown_data), create=True
+    ) as mocked_open, patch("os.path.isfile", return_value=True):
         # method under test
         wiki = Wiki(owner="doesn't matter", markdownFile=markdown_path)
 
-        mocked_open.assert_called_once_with(markdown_path, 'r')
+        mocked_open.assert_called_once_with(markdown_path, "r")
         mocked_open().read.assert_called_once_with()
         assert markdown_data == wiki.markdown
 
@@ -42,12 +43,13 @@ def test_Wiki__markdown_and_markdownFile_both_defined():
 
 def test_Wiki__markdown_is_None_markdownFile_defined():
     markdown_path = "/somewhere/over/the/rainbow.txt"
-    with patch("synapseclient.wiki.open", mock_open(), create=True) as mocked_open,\
-            patch("os.path.isfile", return_value=True):
+    with patch(
+        "synapseclient.wiki.open", mock_open(), create=True
+    ) as mocked_open, patch("os.path.isfile", return_value=True):
         # method under test
         Wiki(owner="doesn't matter", markdownFile=markdown_path)
 
-        mocked_open.assert_called_once_with(markdown_path, 'r')
+        mocked_open.assert_called_once_with(markdown_path, "r")
         mocked_open().read.assert_called_once_with()
 
 
@@ -63,11 +65,14 @@ def test_Wiki__markdown_defined_markdownFile_is_None():
 def test_Wiki__markdownFile_path_not_exist():
     # method under test
     with pytest.raises(ValueError):
-        Wiki(owner="doesn't matter", markdownFile="/this/is/not/the/file/you/are/looking.for")
+        Wiki(
+            owner="doesn't matter",
+            markdownFile="/this/is/not/the/file/you/are/looking.for",
+        )
 
 
 def test_wiki_with_none_attachments():
     syn = Synapse(skip_checks=True)
-    with patch.object(syn, 'restPOST'):
+    with patch.object(syn, "restPOST"):
         w = Wiki(owner="syn1", markdown="markdown", attachments=None)
         syn.store(w)
