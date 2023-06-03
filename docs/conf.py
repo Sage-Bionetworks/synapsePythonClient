@@ -43,7 +43,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Synapse Python Client'
-copyright = u'2018, Sage Bionetworks'
+copyright = u'2012-2023, Sage Bionetworks'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -223,7 +223,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'synapsepythonclient', u'Synapse Python Client Documentation',
-     [u'Christopher Bare, Larsson Omberg'], 1)
+     [u'Thomas Yu'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -237,7 +237,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'SynapsePythonClient', u'Synapse Python Client Documentation',
-   u'Christopher Bare, Larsson Omberg', 'SynapsePythonClient', 'One line description of project.',
+   u'Thomas Yu', 'SynapsePythonClient', 'One line description of project.',
    'Miscellaneous'),
 ]
 
@@ -252,3 +252,6 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
+
+# def setup(app):
+#     app.add_css_file("custom.css", priority=200)
