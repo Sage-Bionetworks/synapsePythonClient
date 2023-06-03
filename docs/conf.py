@@ -42,8 +42,8 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = u'Synapse Python Client'
-copyright = u'2012-2023, Sage Bionetworks'
+project = "Synapse Python Client"
+copyright = "2012-2023, Sage Bionetworks"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -96,18 +96,16 @@ pygments_style = "sphinx"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 # html_style = 'custom.css'
 html_logo = "_static/synapse_logo.png"
 html_css_files = [
-    'custom.css',
+    "custom.css",
 ]
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {
-    'logo_only': True
-}
+html_theme_options = {"logo_only": True}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -229,8 +227,13 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'synapsepythonclient', u'Synapse Python Client Documentation',
-     [u'Thomas Yu'], 1)
+    (
+        "index",
+        "synapsepythonclient",
+        "Synapse Python Client Documentation",
+        ["Thomas Yu"],
+        1,
+    )
 ]
 
 # If true, show URL addresses after external links.
@@ -243,9 +246,15 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'SynapsePythonClient', u'Synapse Python Client Documentation',
-   u'Thomas Yu', 'SynapsePythonClient', 'One line description of project.',
-   'Miscellaneous'),
+    (
+        "index",
+        "SynapsePythonClient",
+        "Synapse Python Client Documentation",
+        "Thomas Yu",
+        "SynapsePythonClient",
+        "One line description of project.",
+        "Miscellaneous",
+    ),
 ]
 
 # Documents to append as an appendix to all manuals.
@@ -258,7 +267,7 @@ texinfo_documents = [
 # texinfo_show_urls = 'footnote'
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
-#texinfo_no_detailmenu = False
+# texinfo_no_detailmenu = False
 
 # def setup(app):
 #     app.add_css_file("custom.css", priority=200)
