@@ -2,13 +2,6 @@
 line-length = 88
 target-version = ['py39']
 include = '\.pyi?$'
-extend-exclude = '''
-(
-    /docs
-    |/tests/integration
-    |/tests/unit
-)
-'''
 
 [tool.ruff]
 extend-ignore = ["E501"]
