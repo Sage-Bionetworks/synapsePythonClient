@@ -19,9 +19,16 @@ def test_walk(syn, schedule_for_cleanup):
     file_entity = syn.store(File(firstfile, parent=project_entity))
     schedule_for_cleanup(file_entity.id)
 
-    walked.append(((project_entity.name, project_entity.id),
-                   [(folder_entity.name, folder_entity.id), (second_folder.name, second_folder.id)],
-                   [(file_entity.name, file_entity.id)]))
+    walked.append(
+        (
+            (project_entity.name, project_entity.id),
+            [
+                (folder_entity.name, folder_entity.id),
+                (second_folder.name, second_folder.id),
+            ],
+            [(file_entity.name, file_entity.id)],
+        )
+    )
 
     nested_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=folder_entity))
     schedule_for_cleanup(nested_folder.id)
@@ -34,12 +41,33 @@ def test_walk(syn, schedule_for_cleanup):
     third_file = syn.store(File(thirdfile, parent=second_folder))
     schedule_for_cleanup(third_file.id)
 
-    walked.append(((os.path.join(project_entity.name, folder_entity.name), folder_entity.id),
-                   [(nested_folder.name, nested_folder.id)], []))
-    walked.append(((os.path.join(os.path.join(project_entity.name, folder_entity.name), nested_folder.name),
-                    nested_folder.id), [], [(second_file.name, second_file.id)]))
-    walked.append(((os.path.join(project_entity.name, second_folder.name), second_folder.id), [],
-                   [(third_file.name, third_file.id)]))
+    walked.append(
+        (
+            (os.path.join(project_entity.name, folder_entity.name), folder_entity.id),
+            [(nested_folder.name, nested_folder.id)],
+            [],
+        )
+    )
+    walked.append(
+        (
+            (
+                os.path.join(
+                    os.path.join(project_entity.name, folder_entity.name),
+                    nested_folder.name,
+                ),
+                nested_folder.id,
+            ),
+            [],
+            [(second_file.name, second_file.id)],
+        )
+    )
+    walked.append(
+        (
+            (os.path.join(project_entity.name, second_folder.name), second_folder.id),
+            [],
+            [(third_file.name, third_file.id)],
+        )
+    )
 
     temp = synapseutils.walk(syn, project_entity.id)
     temp = list(temp)

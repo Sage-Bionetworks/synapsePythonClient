@@ -25,14 +25,19 @@ def test_wikiAttachment(syn, project, schedule_for_cleanup):
 
     Blabber jabber blah blah boo.
     """
-    wiki = Wiki(owner=project, title='A Test Wiki', markdown=md,
-                fileHandles=[fileHandle['id']],
-                attachments=[attachname])
+    wiki = Wiki(
+        owner=project,
+        title="A Test Wiki",
+        markdown=md,
+        fileHandles=[fileHandle["id"]],
+        attachments=[attachname],
+    )
     wiki = syn.store(wiki)
 
     # Create a Wiki sub-page
-    subwiki = Wiki(owner=project, title='A sub-wiki',
-                   markdown='nothing', parentWikiId=wiki.id)
+    subwiki = Wiki(
+        owner=project, title="A sub-wiki", markdown="nothing", parentWikiId=wiki.id
+    )
     subwiki = syn.store(subwiki)
 
     # Retrieve the root Wiki from Synapse
@@ -49,20 +54,20 @@ def test_wikiAttachment(syn, project, schedule_for_cleanup):
         assert subwiki[property_name] == wiki2[property_name]
 
     # Try making an update
-    wiki['title'] = 'A New Title'
-    wiki['markdown'] = wiki['markdown'] + "\nNew stuff here!!!\n"
+    wiki["title"] = "A New Title"
+    wiki["markdown"] = wiki["markdown"] + "\nNew stuff here!!!\n"
     syn.store(wiki)
     wiki = syn.getWiki(project)
-    assert wiki['title'] == 'A New Title'
-    assert wiki['markdown'].endswith("\nNew stuff here!!!\n")
+    assert wiki["title"] == "A New Title"
+    assert wiki["markdown"].endswith("\nNew stuff here!!!\n")
 
     # Check the Wiki's metadata
     headers = syn.getWikiHeaders(project)
     assert len(headers) == 2
-    assert headers[0]['title'] in (wiki['title'], subwiki['title'])
+    assert headers[0]["title"] in (wiki["title"], subwiki["title"])
 
     file_handles = syn.getWikiAttachments(wiki)
-    file_names = [fh['fileName'] for fh in file_handles]
+    file_names = [fh["fileName"] for fh in file_handles]
     for fn in [filename, attachname]:
         assert os.path.basename(fn) in file_names
 
@@ -73,22 +78,37 @@ def test_wikiAttachment(syn, project, schedule_for_cleanup):
 
 def test_create_or_update_wiki(syn, project):
     # create wiki once
-    syn.store(Wiki(title='This is the title', owner=project,
-                   markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!"))
+    syn.store(
+        Wiki(
+            title="This is the title",
+            owner=project,
+            markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!",
+        )
+    )
 
     # for now, creating it again it will be updated
-    new_title = 'This is a different title'
-    wiki = syn.store(Wiki(title=new_title, owner=project,
-                          markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!"),
-                     createOrUpdate=True)
-    assert new_title == syn.getWiki(wiki.ownerId)['title']
+    new_title = "This is a different title"
+    wiki = syn.store(
+        Wiki(
+            title=new_title,
+            owner=project,
+            markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!",
+        ),
+        createOrUpdate=True,
+    )
+    assert new_title == syn.getWiki(wiki.ownerId)["title"]
 
 
 def test_wiki_version(syn, project):
     # create a new project to avoid artifacts from previous tests
     project = syn.store(Project(name=str(uuid.uuid4())))
-    wiki = syn.store(Wiki(title='Title version 1', owner=project,
-                          markdown="##A heading\n\nThis is version 1 of the wiki page!\n"))
+    wiki = syn.store(
+        Wiki(
+            title="Title version 1",
+            owner=project,
+            markdown="##A heading\n\nThis is version 1 of the wiki page!\n",
+        )
+    )
 
     wiki.title = "Title version 2"
     wiki.markdown = "##A heading\n\nThis is version 2 of the wiki page!\n"

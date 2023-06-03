@@ -42,7 +42,7 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    :caption: Command Line Client
    :maxdepth: 1
    :hidden:
-   
+
    CommandLineClient
 
 .. toctree::
@@ -60,7 +60,7 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    api/Versions
    api/Table
    api/Team
-   
+
 
 .. .. toctree::
 ..    :caption: Articles

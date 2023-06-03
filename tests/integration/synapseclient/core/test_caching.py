@@ -51,10 +51,15 @@ def test_threaded_access(syn, project, schedule_for_cleanup):
     requests_originalLevel = requests_log.getEffectiveLevel()
     requests_log.setLevel(logging.WARNING)
 
-    store_thread = wrap_function_as_child_thread(syn, thread_keep_storing_one_File, syn, project, schedule_for_cleanup)
-    get_thread = wrap_function_as_child_thread(syn, thread_get_files_from_Project, syn, project)
-    update_thread = wrap_function_as_child_thread(syn, thread_get_and_update_file_from_Project,
-                                                  syn, project, schedule_for_cleanup)
+    store_thread = wrap_function_as_child_thread(
+        syn, thread_keep_storing_one_File, syn, project, schedule_for_cleanup
+    )
+    get_thread = wrap_function_as_child_thread(
+        syn, thread_get_files_from_Project, syn, project
+    )
+    update_thread = wrap_function_as_child_thread(
+        syn, thread_get_and_update_file_from_Project, syn, project, schedule_for_cleanup
+    )
     thread.start_new_thread(store_thread, ())
     thread.start_new_thread(store_thread, ())
     thread.start_new_thread(store_thread, ())
@@ -77,6 +82,7 @@ def test_threaded_access(syn, project, schedule_for_cleanup):
     requests_log.setLevel(requests_originalLevel)
 
     collect_errors_and_fail(syn)
+
 
 #############
 #  Helpers  #
@@ -109,7 +115,8 @@ def collect_errors_and_fail(syn):
     for i in range(syn.test_errors.qsize()):
         failures.append(syn.test_errors.get())
     if len(failures) > 0:
-        raise SynapseError('\n' + '\n'.join(failures))
+        raise SynapseError("\n" + "\n".join(failures))
+
 
 ######################
 #  Thread Behaviors  #
@@ -122,13 +129,15 @@ def thread_keep_storing_one_File(syn, project, schedule_for_cleanup):
     # Make a local file to continuously store
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    myPrecious = File(path, parent=project, description='This bogus file is MINE', mwa="hahahah")
+    myPrecious = File(
+        path, parent=project, description="This bogus file is MINE", mwa="hahahah"
+    )
 
     while syn.test_keepRunning:
         stored = store_catch_412_HTTPError(syn, myPrecious)
         if stored is not None:
             myPrecious = stored
-        elif 'id' in myPrecious:
+        elif "id" in myPrecious:
             # only attempt to retrieve if the entity was initially saved above without encountering a 412 error
             # and thus has a retrievable synapse id
             myPrecious = syn.get(myPrecious)
@@ -167,6 +176,7 @@ def thread_get_and_update_file_from_Project(syn, project, schedule_for_cleanup):
 
         sleep_for_a_bit()
 
+
 ####################
 #  Thread Helpers  #
 ####################
@@ -180,7 +190,7 @@ def sleep_for_a_bit():
 
 def get_all_ids_from_Project(syn, project):
     """Fetches all currently available Synapse IDs from the parent Project."""
-    return [result['id'] for result in syn.getChildren(project.id)]
+    return [result["id"] for result in syn.getChildren(project.id)]
 
 
 def store_catch_412_HTTPError(syn, entity):
