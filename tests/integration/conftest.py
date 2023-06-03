@@ -52,6 +52,7 @@ def project(request, syn):
     def project_teardown():
         _cleanup(syn, [working_directory, proj])
         os.chdir(_old_working_directory)
+
     request.addfinalizer(project_teardown)
 
     return proj
@@ -79,11 +80,15 @@ def schedule_for_cleanup(request, syn):
 def _cleanup(syn, items):
     """cleanup junk created during testing"""
     for item in reversed(items):
-        if isinstance(item, Entity) or utils.is_synapse_id_str(item) or hasattr(item, 'deleteURI'):
+        if (
+            isinstance(item, Entity)
+            or utils.is_synapse_id_str(item)
+            or hasattr(item, "deleteURI")
+        ):
             try:
                 syn.delete(item)
             except Exception as ex:
-                if hasattr(ex, 'response') and ex.response.status_code in [404, 403]:
+                if hasattr(ex, "response") and ex.response.status_code in [404, 403]:
                     pass
                 else:
                     print("Error cleaning up entity: " + str(ex))
@@ -97,4 +102,4 @@ def _cleanup(syn, items):
                 except Exception as ex:
                     print(ex)
         else:
-            sys.stderr.write('Don\'t know how to clean: %s' % str(item))
+            sys.stderr.write("Don't know how to clean: %s" % str(item))

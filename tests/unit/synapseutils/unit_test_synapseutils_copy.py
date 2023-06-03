@@ -6,54 +6,80 @@ from unittest.mock import patch, call
 
 import synapseclient
 import synapseutils
-from synapseutils.copy_functions import _copy_file_handles_batch, _create_batch_file_handle_copy_request, \
-    _batch_iterator_generator
+from synapseutils.copy_functions import (
+    _copy_file_handles_batch,
+    _create_batch_file_handle_copy_request,
+    _batch_iterator_generator,
+)
 
 
 def test_copyWiki_empty_Wiki(syn):
     entity = {"id": "syn123"}
-    with patch.object(syn, "getWikiHeaders", return_value=None), \
-            patch.object(syn, "get", return_value=entity):
+    with patch.object(syn, "getWikiHeaders", return_value=None), patch.object(
+        syn, "get", return_value=entity
+    ):
         synapseutils.copyWiki(syn, "syn123", "syn456", updateLinks=False)
 
 
 def test_copyWiki_input_validation(syn):
-    to_copy = [{'id': '8688', 'title': 'A Test Wiki'},
-               {'id': '8689', 'title': 'A sub-wiki', 'parentId': '8688'},
-               {'id': '8690', 'title': 'A sub-sub-wiki', 'parentId': '8689'}]
-    wiki = {"id": "8786",
-            "title": "A Test Wiki",
-            "markdown": "some text"
-            }
+    to_copy = [
+        {"id": "8688", "title": "A Test Wiki"},
+        {"id": "8689", "title": "A sub-wiki", "parentId": "8688"},
+        {"id": "8690", "title": "A sub-sub-wiki", "parentId": "8689"},
+    ]
+    wiki = {"id": "8786", "title": "A Test Wiki", "markdown": "some text"}
     entity = {"id": "syn123"}
-    expected_calls = [call({'id': 'syn123'}, '4'),
-                      call({'id': 'syn123'}, '8688'),
-                      call({'id': 'syn123'}, '8689'),
-                      call({'id': 'syn123'}, '8690')]
-    with patch.object(syn, "getWikiHeaders", return_value=to_copy),\
-            patch.object(syn, "get", return_value=entity),\
-            patch.object(syn, "getWiki", return_value=wiki) as mock_getWiki,\
-            patch.object(syn, "store", return_value=wiki):
-        synapseutils.copyWiki(syn, "syn123", "syn456", entitySubPageId="8688", destinationSubPageId="4",
-                              updateLinks=False)
+    expected_calls = [
+        call({"id": "syn123"}, "4"),
+        call({"id": "syn123"}, "8688"),
+        call({"id": "syn123"}, "8689"),
+        call({"id": "syn123"}, "8690"),
+    ]
+    with patch.object(syn, "getWikiHeaders", return_value=to_copy), patch.object(
+        syn, "get", return_value=entity
+    ), patch.object(syn, "getWiki", return_value=wiki) as mock_getWiki, patch.object(
+        syn, "store", return_value=wiki
+    ):
+        synapseutils.copyWiki(
+            syn,
+            "syn123",
+            "syn456",
+            entitySubPageId="8688",
+            destinationSubPageId="4",
+            updateLinks=False,
+        )
         mock_getWiki.assert_has_calls(expected_calls)
 
-        synapseutils.copyWiki(syn, "syn123", "syn456", entitySubPageId=8688.0, destinationSubPageId=4.0,
-                              updateLinks=False)
+        synapseutils.copyWiki(
+            syn,
+            "syn123",
+            "syn456",
+            entitySubPageId=8688.0,
+            destinationSubPageId=4.0,
+            updateLinks=False,
+        )
         mock_getWiki.assert_has_calls(expected_calls)
 
-        pytest.raises(ValueError, synapseutils.copyWiki, syn, "syn123", "syn456", entitySubPageId="some_string",
-                      updateLinks=False)
+        pytest.raises(
+            ValueError,
+            synapseutils.copyWiki,
+            syn,
+            "syn123",
+            "syn456",
+            entitySubPageId="some_string",
+            updateLinks=False,
+        )
 
 
 class TestCopyFileHandles:
-
-    @pytest.fixture(autouse=True, scope='function')
+    @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn):
         self.syn = syn
 
     def setup(self):
-        self.patch_private_copy = patch.object(synapseutils.copy_functions, "_copy_file_handles_batch")
+        self.patch_private_copy = patch.object(
+            synapseutils.copy_functions, "_copy_file_handles_batch"
+        )
         self.mock_private_copy = self.patch_private_copy.start()
 
     def teardown(self):
@@ -73,7 +99,9 @@ class TestCopyFileHandles:
         obj_ids = ["123"]
         new_con_type = []
         with pytest.raises(ValueError):
-            synapseutils.copyFileHandles(self.syn, file_handles, obj_types, obj_ids, new_con_type)
+            synapseutils.copyFileHandles(
+                self.syn, file_handles, obj_types, obj_ids, new_con_type
+            )
         self.mock_private_copy.assert_not_called()
 
     def test_copy_file_handles__invalid_input_params_branch3(self):
@@ -83,11 +111,15 @@ class TestCopyFileHandles:
         new_con_type = ["text/plain"]
         new_file_name = []
         with pytest.raises(ValueError):
-            synapseutils.copyFileHandles(self.syn, file_handles, obj_types, obj_ids, new_con_type, new_file_name)
+            synapseutils.copyFileHandles(
+                self.syn, file_handles, obj_types, obj_ids, new_con_type, new_file_name
+            )
         self.mock_private_copy.assert_not_called()
 
     def test_copy_file_handles__multiple_batch_calls(self):
-        synapseutils.copy_functions.MAX_FILE_HANDLE_PER_COPY_REQUEST = 1  # set batch size to 1
+        synapseutils.copy_functions.MAX_FILE_HANDLE_PER_COPY_REQUEST = (
+            1  # set batch size to 1
+        )
         file_handles = ["789", "NotAccessibleFile"]
         obj_types = ["FileEntity", "FileEntity"]
         obj_ids = ["0987", "2352"]
@@ -95,37 +127,61 @@ class TestCopyFileHandles:
         file_names = [None, "testName"]
 
         expected_calls = [
-            ((self.syn, file_handles[0:1], obj_types[0:1], obj_ids[0:1], con_types[0:1], file_names[0:1]),),
-            ((self.syn, file_handles[1:2], obj_types[1:2], obj_ids[1:2], con_types[1:2], file_names[1:2]),)
+            (
+                (
+                    self.syn,
+                    file_handles[0:1],
+                    obj_types[0:1],
+                    obj_ids[0:1],
+                    con_types[0:1],
+                    file_names[0:1],
+                ),
+            ),
+            (
+                (
+                    self.syn,
+                    file_handles[1:2],
+                    obj_types[1:2],
+                    obj_ids[1:2],
+                    con_types[1:2],
+                    file_names[1:2],
+                ),
+            ),
         ]
 
-        return_val_1 = [{
-            "newFileHandle": {
-                "contentMd5": "alpha_num_1",
-                "bucketName": "bucket.sagebase.org",
-                "fileName": "Name1.txt",
-                "createdBy": "111",
-                "contentSize": 16,
-                "concreteType": "type1",
-                                "etag": "etag1",
-                                "id": "0987",
-                                "storageLocationId": 1,
-                                "createdOn": "2019-07-24T21:49:40.615Z",
-                                "contentType": "text/plain",
-                                "key": "key1"
-            },
-            "originalFileHandleId": "789"
-        }]
+        return_val_1 = [
+            {
+                "newFileHandle": {
+                    "contentMd5": "alpha_num_1",
+                    "bucketName": "bucket.sagebase.org",
+                    "fileName": "Name1.txt",
+                    "createdBy": "111",
+                    "contentSize": 16,
+                    "concreteType": "type1",
+                    "etag": "etag1",
+                    "id": "0987",
+                    "storageLocationId": 1,
+                    "createdOn": "2019-07-24T21:49:40.615Z",
+                    "contentType": "text/plain",
+                    "key": "key1",
+                },
+                "originalFileHandleId": "789",
+            }
+        ]
 
-        return_val_2 = [{
-            "failureCode": "UNAUTHORIZED",
-            "originalFileHandleId": "NotAccessibleFile"
-        }]
+        return_val_2 = [
+            {"failureCode": "UNAUTHORIZED", "originalFileHandleId": "NotAccessibleFile"}
+        ]
 
         expected_return = return_val_1 + return_val_2
 
-        self.mock_private_copy.side_effect = [return_val_1, return_val_2]  # define multiple returns
-        result = synapseutils.copyFileHandles(self.syn, file_handles, obj_types, obj_ids, con_types, file_names)
+        self.mock_private_copy.side_effect = [
+            return_val_1,
+            return_val_2,
+        ]  # define multiple returns
+        result = synapseutils.copyFileHandles(
+            self.syn, file_handles, obj_types, obj_ids, con_types, file_names
+        )
         assert expected_calls == self.mock_private_copy.call_args_list
 
         assert result == expected_return
@@ -133,13 +189,12 @@ class TestCopyFileHandles:
 
 
 class TestProtectedCopyFileHandlesBatch:
-
-    @pytest.fixture(autouse=True, scope='function')
+    @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn):
         self.syn = syn
 
     def setup(self):
-        self.patch_restPOST = patch.object(self.syn, 'restPOST')
+        self.patch_restPOST = patch.object(self.syn, "restPOST")
         self.mock_restPOST = self.patch_restPOST.start()
 
     def teardown(self):
@@ -156,21 +211,21 @@ class TestProtectedCopyFileHandlesBatch:
                 {
                     "originalFile": {
                         "fileHandleId": "123",
-                                        "associateObjectId": "321",
-                                        "associateObjectType": "FileEntity"
+                        "associateObjectId": "321",
+                        "associateObjectType": "FileEntity",
                     },
                     "newContentType": None,
-                    "newFileName": None
+                    "newFileName": None,
                 },
                 {
                     "originalFile": {
                         "fileHandleId": "456",
-                                        "associateObjectId": "645",
-                                        "associateObjectType": "FileEntity"
+                        "associateObjectId": "645",
+                        "associateObjectType": "FileEntity",
                     },
                     "newContentType": "text/plain",
-                    "newFileName": "test"
-                }
+                    "newFileName": "test",
+                },
             ]
         }
         return_val = [
@@ -179,46 +234,50 @@ class TestProtectedCopyFileHandlesBatch:
                     "contentMd5": "alpha_num_1",
                     "bucketName": "bucket.sagebase.org",
                     "fileName": "Name1.txt",
-                                "createdBy": "111",
-                                "contentSize": 16,
-                                "concreteType": "type1",
-                                "etag": "etag1",
-                                "id": "123",
-                                "storageLocationId": 1,
-                                "createdOn": "2019-07-24T21:49:40.615Z",
-                                "contentType": "text/plain",
-                                "key": "key1"
+                    "createdBy": "111",
+                    "contentSize": 16,
+                    "concreteType": "type1",
+                    "etag": "etag1",
+                    "id": "123",
+                    "storageLocationId": 1,
+                    "createdOn": "2019-07-24T21:49:40.615Z",
+                    "contentType": "text/plain",
+                    "key": "key1",
                 },
-                "originalFileHandleId": "122"
+                "originalFileHandleId": "122",
             },
             {
                 "newFileHandle": {
                     "contentMd5": "alpha_num2",
                     "bucketName": "bucket.sagebase.org",
                     "fileName": "Name2.txt",
-                                "createdBy": "111",
-                                "contentSize": 5,
-                                "concreteType": "type2",
-                                "etag": "etag2",
-                                "id": "456",
-                                "storageLocationId": 1,
-                                "createdOn": "2019-07-24T21:49:40.638Z",
-                                "contentType": "text/plain",
-                                "key": "key2"
+                    "createdBy": "111",
+                    "contentSize": 5,
+                    "concreteType": "type2",
+                    "etag": "etag2",
+                    "id": "456",
+                    "storageLocationId": 1,
+                    "createdOn": "2019-07-24T21:49:40.638Z",
+                    "contentType": "text/plain",
+                    "key": "key2",
                 },
-                "originalFileHandleId": "124"
-            }
+                "originalFileHandleId": "124",
+            },
         ]
         post_return_val = {"copyResults": return_val}
         self.mock_restPOST.return_value = post_return_val
-        result = _copy_file_handles_batch(self.syn, file_handles, obj_types, obj_ids, con_types, file_names)
+        result = _copy_file_handles_batch(
+            self.syn, file_handles, obj_types, obj_ids, con_types, file_names
+        )
         assert result == return_val
-        self.mock_restPOST.assert_called_once_with('/filehandles/copy', body=json.dumps(expected_input),
-                                                   endpoint=self.syn.fileHandleEndpoint)
+        self.mock_restPOST.assert_called_once_with(
+            "/filehandles/copy",
+            body=json.dumps(expected_input),
+            endpoint=self.syn.fileHandleEndpoint,
+        )
 
 
 class TestProtectedCreateBatchFileHandleCopyRequest:
-
     def test__create_batch_file_handle_copy_request__no_optional_params(self):
         file_handle_ids = ["123"]
         obj_types = ["FileEntity"]
@@ -230,16 +289,17 @@ class TestProtectedCreateBatchFileHandleCopyRequest:
                 {
                     "originalFile": {
                         "fileHandleId": "123",
-                                        "associateObjectId": "321",
-                                        "associateObjectType": "FileEntity"
+                        "associateObjectId": "321",
+                        "associateObjectType": "FileEntity",
                     },
                     "newFileName": None,
-                    "newContentType": None
+                    "newContentType": None,
                 }
             ]
         }
-        result = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, new_con_types,
-                                                        new_file_names)
+        result = _create_batch_file_handle_copy_request(
+            file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names
+        )
         assert expected_result == result
 
     def test__create_batch_file_handle_copy_request__two_file_request(self):
@@ -253,30 +313,30 @@ class TestProtectedCreateBatchFileHandleCopyRequest:
                 {
                     "originalFile": {
                         "fileHandleId": "345",
-                                        "associateObjectId": "543",
-                                        "associateObjectType": "FileEntity"
+                        "associateObjectId": "543",
+                        "associateObjectType": "FileEntity",
                     },
                     "newFileName": None,
-                    "newContentType": None
+                    "newContentType": None,
                 },
                 {
                     "originalFile": {
                         "fileHandleId": "789",
-                                        "associateObjectId": "987",
-                                        "associateObjectType": "FileEntity"
+                        "associateObjectId": "987",
+                        "associateObjectType": "FileEntity",
                     },
                     "newFileName": "test",
-                    "newContentType": "text/plain"
-                }
+                    "newContentType": "text/plain",
+                },
             ]
         }
-        result = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, new_con_types,
-                                                        new_file_names)
+        result = _create_batch_file_handle_copy_request(
+            file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names
+        )
         assert expected_result == result
 
 
 class TestProtectedBatchIteratorGenerator:
-
     def test__batch_iterator_generator__empty_iterable(self):
         iterables = []
         batch_size = 2
@@ -300,49 +360,58 @@ class TestProtectedBatchIteratorGenerator:
 
 @pytest.mark.parametrize("forceVersionToggle", [True, False])
 def test_change_file_metadata(syn, forceVersionToggle):
-    with patch.object(syn, "get") as get_mock, \
-            patch.object(syn, "_getFileHandleDownload") as fh_mock, \
-            patch("synapseutils.copy_functions.copyFileHandles") as copy_mock, \
-            patch.object(syn, "store") as store_mock:
-        copy_result = {"failureCode": None, "newFileHandle": {'id': 123}}
+    with patch.object(syn, "get") as get_mock, patch.object(
+        syn, "_getFileHandleDownload"
+    ) as fh_mock, patch(
+        "synapseutils.copy_functions.copyFileHandles"
+    ) as copy_mock, patch.object(
+        syn, "store"
+    ) as store_mock:
+        copy_result = {"failureCode": None, "newFileHandle": {"id": 123}}
         copy_mock.return_value = [copy_result]
         synapseutils.changeFileMetaData(syn, "syn123", forceVersion=forceVersionToggle)
         get_mock.assert_called_once()
         fh_mock.assert_called_once()
         copy_mock.assert_called_once()
-        store_mock.assert_called_once_with(get_mock.return_value,
-                                           forceVersion=forceVersionToggle)
+        store_mock.assert_called_once_with(
+            get_mock.return_value, forceVersion=forceVersionToggle
+        )
 
 
 class TestCopyPermissions:
     """Test copy entities with different permissions"""
 
-    @pytest.fixture(autouse=True, scope='function')
+    @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn):
         self.syn = syn
 
     def setup(self):
-        self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
-                                                    id="syn1234")
-        self.second_project = synapseclient.Project(name=str(uuid.uuid4()),
-                                                    id="syn2345")
-        self.file_ent = synapseclient.File(name='File',
-                                           parent=self.project_entity.id,
-                                           id="syn3456")
+        self.project_entity = synapseclient.Project(
+            name=str(uuid.uuid4()), id="syn1234"
+        )
+        self.second_project = synapseclient.Project(
+            name=str(uuid.uuid4()), id="syn2345"
+        )
+        self.file_ent = synapseclient.File(
+            name="File", parent=self.project_entity.id, id="syn3456"
+        )
 
     def test_dont_copy_read_permissions(self):
         """Entities with READ permissions not copied"""
-        permissions = {'canDownload': False}
-        with patch.object(self.syn, "get",
-                          return_value=self.file_ent) as patch_syn_get,\
-            patch.object(self.syn, "restGET",
-                         return_value=permissions) as patch_rest_get:
-            copied_file = synapseutils.copy(self.syn, self.file_ent,
-                                            destinationId=self.second_project.id,
-                                            skipCopyWikiPage=True)
+        permissions = {"canDownload": False}
+        with patch.object(
+            self.syn, "get", return_value=self.file_ent
+        ) as patch_syn_get, patch.object(
+            self.syn, "restGET", return_value=permissions
+        ) as patch_rest_get:
+            copied_file = synapseutils.copy(
+                self.syn,
+                self.file_ent,
+                destinationId=self.second_project.id,
+                skipCopyWikiPage=True,
+            )
             assert copied_file == dict()
-            patch_syn_get.assert_called_once_with(self.file_ent,
-                                                  downloadFile=False)
+            patch_syn_get.assert_called_once_with(self.file_ent, downloadFile=False)
             rest_call = "/entity/{}/permissions".format(self.file_ent.id)
             patch_rest_get.assert_called_once_with(rest_call)
 
@@ -350,78 +419,89 @@ class TestCopyPermissions:
 class TestCopyAccessRestriction:
     """Test that entities with access restrictions aren't copied"""
 
-    @pytest.fixture(autouse=True, scope='function')
+    @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn):
         self.syn = syn
 
     def setup(self):
-        self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
-                                                    id="syn1234")
-        self.second_project = synapseclient.Project(name=str(uuid.uuid4()),
-                                                    id="syn2345")
-        self.file_ent = synapseclient.File(name='File',
-                                           parent=self.project_entity.id)
+        self.project_entity = synapseclient.Project(
+            name=str(uuid.uuid4()), id="syn1234"
+        )
+        self.second_project = synapseclient.Project(
+            name=str(uuid.uuid4()), id="syn2345"
+        )
+        self.file_ent = synapseclient.File(name="File", parent=self.project_entity.id)
         self.file_ent.id = "syn3456"
 
     def test_copy_entity_access_requirements(self):
         # TEST: Entity with access requirement not copied
-        access_requirements = {'results': ["fee", "fi"]}
-        permissions = {'canDownload': True}
-        with patch.object(self.syn, "get",
-                          return_value=self.file_ent) as patch_syn_get,\
-            patch.object(self.syn, "restGET",
-                         side_effects=[permissions,
-                                       access_requirements]) as patch_rest_get:
-            copied_file = synapseutils.copy(self.syn, self.file_ent,
-                                            destinationId=self.second_project.id,
-                                            skipCopyWikiPage=True)
+        access_requirements = {"results": ["fee", "fi"]}
+        permissions = {"canDownload": True}
+        with patch.object(
+            self.syn, "get", return_value=self.file_ent
+        ) as patch_syn_get, patch.object(
+            self.syn, "restGET", side_effects=[permissions, access_requirements]
+        ) as patch_rest_get:
+            copied_file = synapseutils.copy(
+                self.syn,
+                self.file_ent,
+                destinationId=self.second_project.id,
+                skipCopyWikiPage=True,
+            )
             assert copied_file == dict()
-            patch_syn_get.assert_called_once_with(self.file_ent,
-                                                  downloadFile=False)
-            calls = [call('/entity/{}/accessRequirement'.format(self.file_ent.id)),
-                     call("/entity/{}/permissions".format(self.file_ent.id))]
+            patch_syn_get.assert_called_once_with(self.file_ent, downloadFile=False)
+            calls = [
+                call("/entity/{}/accessRequirement".format(self.file_ent.id)),
+                call("/entity/{}/permissions".format(self.file_ent.id)),
+            ]
             patch_rest_get.has_calls(calls)
 
 
 class TestCopy:
     """Test that certain entities aren't copied"""
 
-    @pytest.fixture(autouse=True, scope='function')
+    @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn):
         self.syn = syn
 
     def setup(self):
-        self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
-                                                    id="syn1234")
-        self.second_project = synapseclient.Project(name=str(uuid.uuid4()),
-                                                    id="syn2345")
-        self.file_ent = synapseclient.File(name='File',
-                                           parent=self.project_entity.id)
+        self.project_entity = synapseclient.Project(
+            name=str(uuid.uuid4()), id="syn1234"
+        )
+        self.second_project = synapseclient.Project(
+            name=str(uuid.uuid4()), id="syn2345"
+        )
+        self.file_ent = synapseclient.File(name="File", parent=self.project_entity.id)
         self.file_ent.id = "syn3456"
 
     def test_no_copy_types(self):
         """Docker repositories and EntityViews aren't copied"""
-        access_requirements = {'results': []}
-        permissions = {'canDownload': True}
-        with patch.object(self.syn, "get",
-                          return_value=self.project_entity) as patch_syn_get,\
-                patch.object(self.syn, "restGET",
-                             side_effect=[permissions,
-                                          access_requirements]) as patch_rest_get,\
-                patch.object(self.syn, "getChildren") as patch_get_children:
-            copied_file = synapseutils.copy(self.syn, self.project_entity,
-                                            destinationId=self.second_project.id,
-                                            skipCopyWikiPage=True)
-            assert copied_file == {
-                self.project_entity.id:
-                self.second_project.id
-            }
-            calls = [call(self.project_entity, downloadFile=False),
-                     call(self.second_project.id)]
+        access_requirements = {"results": []}
+        permissions = {"canDownload": True}
+        with patch.object(
+            self.syn, "get", return_value=self.project_entity
+        ) as patch_syn_get, patch.object(
+            self.syn, "restGET", side_effect=[permissions, access_requirements]
+        ) as patch_rest_get, patch.object(
+            self.syn, "getChildren"
+        ) as patch_get_children:
+            copied_file = synapseutils.copy(
+                self.syn,
+                self.project_entity,
+                destinationId=self.second_project.id,
+                skipCopyWikiPage=True,
+            )
+            assert copied_file == {self.project_entity.id: self.second_project.id}
+            calls = [
+                call(self.project_entity, downloadFile=False),
+                call(self.second_project.id),
+            ]
             patch_syn_get.assert_has_calls(calls)
-            calls = [call('/entity/{}/accessRequirement'.format(self.file_ent.id)),
-                     call("/entity/{}/permissions".format(self.file_ent.id))]
+            calls = [
+                call("/entity/{}/accessRequirement".format(self.file_ent.id)),
+                call("/entity/{}/permissions".format(self.file_ent.id)),
+            ]
             patch_rest_get.has_calls(calls)
-            patch_get_children.assert_called_once_with(self.project_entity,
-                                                       includeTypes=['folder', 'file',
-                                                                     'table', 'link'])
+            patch_get_children.assert_called_once_with(
+                self.project_entity, includeTypes=["folder", "file", "table", "link"]
+            )
