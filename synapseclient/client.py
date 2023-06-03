@@ -1039,7 +1039,9 @@ class Synapse(object):
             )
         return download_dir
 
-    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
+    def _download_file_entity(
+        self, downloadLocation: str, entity: Entity, ifcollision: str, submission: str
+    ):
         # set the initial local state
         entity.path = None
         entity.files = []
