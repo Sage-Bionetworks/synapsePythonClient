@@ -845,14 +845,17 @@ class TestPrivateUploadExternallyStoringProjects:
     def init_syn(self, syn):
         self.syn = syn
 
-    def test__uploadExternallyStoringProjects_external_user(self, mock_upload_destination):
+    @pytest.mark.parametrize("external_type", [concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION,
+                                               concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION,
+                                               concrete_types.EXTERNAL_GCP_UPLOAD_DESTINATION])
+    def test__uploadExternallyStoringProjects_external_user(self, mock_upload_destination, external_type):
         # setup
         expected_storage_location_id = "1234567"
         expected_path = "~/fake/path/file.txt"
         expected_path_expanded = os.path.expanduser(expected_path)
         expected_file_handle_id = "8786"
         mock_upload_destination.return_value = {'storageLocationId': expected_storage_location_id,
-                                                'concreteType': concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
+                                                'concreteType': external_type}
 
         test_file = File(expected_path, parent="syn12345")
         max_threads = 8

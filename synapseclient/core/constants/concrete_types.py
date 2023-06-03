@@ -5,11 +5,13 @@ Constant variables for Synapse's concreteType
 # Concrete types for StorageLocationSettings
 SYNAPSE_S3_STORAGE_LOCATION_SETTING = 'org.sagebionetworks.repo.model.project.S3StorageLocationSetting'
 EXTERNAL_S3_STORAGE_LOCATION_SETTING = 'org.sagebionetworks.repo.model.project.ExternalS3StorageLocationSetting'
+# EXTERNAL_GCP_STORAGE_LOCATION_SETTING = 'org.sagebionetworks.repo.model.project.ExternalGoogleCloudStorageLocationSetting'  # noqa: E501
 
 # Concrete types for UploadDestinations
 SYNAPSE_S3_UPLOAD_DESTINATION = 'org.sagebionetworks.repo.model.file.S3UploadDestination'
 EXTERNAL_UPLOAD_DESTINATION = 'org.sagebionetworks.repo.model.file.ExternalUploadDestination'
 EXTERNAL_S3_UPLOAD_DESTINATION = 'org.sagebionetworks.repo.model.file.ExternalS3UploadDestination'
+EXTERNAL_GCP_UPLOAD_DESTINATION = 'org.sagebionetworks.repo.model.file.ExternalGoogleCloudUploadDestination'
 EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION = 'org.sagebionetworks.repo.model.file.ExternalObjectStoreUploadDestination'
 
 # Concrete types for FileHandles
