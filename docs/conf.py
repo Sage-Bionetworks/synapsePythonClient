@@ -99,11 +99,15 @@ pygments_style = 'sphinx'
 html_theme = 'sphinx_rtd_theme'
 # html_style = 'custom.css'
 html_logo = "_static/synapse_logo.png"
-
+html_css_files = [
+    'custom.css',
+]
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {}
+html_theme_options = {
+    'logo_only': True
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
