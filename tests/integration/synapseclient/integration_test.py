@@ -22,8 +22,11 @@ def test_login(syn):
     try:
         config = configparser.RawConfigParser()
         config.read(client.CONFIG_FILE)
-        username = config.get('authentication', 'username')
-        password = config.get('authentication', 'password')
+        # keep password authentication tests until fully deprecated
+        # Added a section in the synapse config
+        username = config.get('oldAuthentication', 'username')
+        password = config.get('oldAuthentication', 'password')
+        authtoken = config.get('authentication', 'authtoken')
         sessionToken = syn._getSessionToken(username, password)
 
         syn.logout(forgetMe=True)
@@ -44,6 +47,9 @@ def test_login(syn):
 
         # Login with ID only from config file
         syn.login(username, silent=True)
+
+        # Login with auth token
+        syn.login(authToken=authtoken, silent=True)
 
         # Login with ID not matching username
         pytest.raises(SynapseNoCredentialsError, syn.login, "fakeusername")
