@@ -268,6 +268,20 @@ class JsonSchemaOrganization:
         )
 
     @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if len(value) < 6:
+            raise ValueError("Name must be at least 6 characters.")
+        if len(value) > 250:
+            raise ValueError("Name cannot exceed 250 characters. ")
+        if value[0].isdigit():
+            raise ValueError("Name must not start with a number.")
+        self._name = value
+
+    @property
     def raw(self):
         self.must_get()
         return self._raw
