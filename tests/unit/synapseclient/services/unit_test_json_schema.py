@@ -17,7 +17,6 @@ def test_json_schema_organization():
 
 def test_json_schema_organization_bad_name():
     with pytest.raises(ValueError):
-
         # Name is too short
         json_schema.JsonSchemaOrganization(
             name="foo",
