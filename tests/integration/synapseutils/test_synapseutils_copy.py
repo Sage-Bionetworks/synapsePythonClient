@@ -376,10 +376,9 @@ class TestCopyWiki:
             new_wikiPage = self.syn.getWiki(self.second_project, info["id"])
             s = orig_wikiPage.markdown
             for oldWikiId in mapping.keys():
-                oldProjectAndWikiId = "%s/wiki/%s" % (self.project_entity.id, oldWikiId)
-                newProjectAndWikiId = "%s/wiki/%s" % (
-                    self.second_project.id,
-                    mapping[oldWikiId],
+                oldProjectAndWikiId = f"{self.project_entity.id}/wiki/{oldWikiId}"
+                newProjectAndWikiId = (
+                    f"{self.second_project.id}/wiki/{mapping[oldWikiId]}"
                 )
                 s = re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
             for oldFileId in self.fileMapping.keys():
