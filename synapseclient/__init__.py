@@ -275,7 +275,7 @@ To get information about new versions of the client, see:
 
 
 """
-import importlib.resources as importlib_resources
+import importlib.resources
 
 import json
 import requests  # ensure user-agent is set to track Synapse Python client usage
@@ -307,9 +307,13 @@ from .table import (
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-ref = importlib_resources.files(__name__).joinpath("synapsePythonClient")
-with ref.open("r") as fp:
-    __version__ = json.load(fp)["latestVersion"]
+# ref = importlib.resources.files(__name__).joinpath("synapsePythonClient")
+# with ref.open("r") as fp:
+#     __version__ = json.load(fp)["latestVersion"]
+# TODO: switch to the above after python 3.8 is deprecated
+__version__ = json.load(
+    importlib.resources.path(__name__, "synapsePythonClient").open("r")
+)["latestVersion"]
 
 __all__ = [
     # objects
