@@ -275,10 +275,10 @@ To get information about new versions of the client, see:
 
 
 """
+import importlib.resources as importlib_resources
 
 import json
-
-import pkg_resources
+import requests  # ensure user-agent is set to track Synapse Python client usage
 
 from .activity import Activity
 from .annotations import Annotations
@@ -307,9 +307,9 @@ from .table import (
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-__version__ = json.load(pkg_resources.resource_stream(__name__, "synapsePythonClient"))[
-    "latestVersion"
-]
+ref = importlib_resources.files(__name__).joinpath("synapsePythonClient")
+with ref.open("r") as fp:
+    __version__ = json.load(fp)["latestVersion"]
 
 __all__ = [
     # objects
@@ -352,10 +352,6 @@ __all__ = [
     "PUBLIC",
     "AUTHENTICATED_USERS",
 ]
-
-
-# ensure user-agent is set to track Synapse Python client usage
-import requests
 
 USER_AGENT = {
     "User-Agent": "synapseclient/%s %s"
