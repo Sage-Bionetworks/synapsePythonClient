@@ -15,14 +15,13 @@ def test_json_schema_organization():
     assert org._raw_json_schemas == dict()
 
 
-def test_json_schema_organization_bad_name():
+@pytest.mark.parametrize(
+    "org_name",
+    ["foo", "123foo"],
+    ids=["name too short", "name can't start with number"],
+)
+def test_json_schema_organization_bad_name(org_name):
     with pytest.raises(ValueError):
-        # Name is too short
         json_schema.JsonSchemaOrganization(
-            name="foo",
-        )
-
-        # Name cannot start with a number
-        json_schema.JsonSchemaOrganization(
-            name="123foo",
+            name=org_name,
         )
