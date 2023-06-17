@@ -76,7 +76,7 @@ Submission Status
 
 """
 import json
-import typing
+from typing import Union
 
 import urllib.parse as urllib_urlparse
 
@@ -126,13 +126,13 @@ class Evaluation(DictObject):
     """
 
     @classmethod
-    def getByNameURI(cls, name):
+    def getByNameURI(cls, name: str):
         quoted_name = urllib_urlparse.quote(name)
         return f"/evaluation/name/{quoted_name}"
 
     @classmethod
-    def getURI(cls, id):
-        return "/evaluation/%s" % id
+    def getURI(cls, id: Union[str, int]):
+        return f"/evaluation/{id}"
 
     def __init__(self, **kwargs):
         kwargs["contentSource"] = kwargs.get("contentSource", "")
@@ -149,13 +149,13 @@ class Evaluation(DictObject):
         return "/evaluation"
 
     def putURI(self):
-        return "/evaluation/%s" % self.id
+        return f"/evaluation/{self.id}"
 
     def deleteURI(self):
-        return "/evaluation/%s" % self.id
+        return f"/evaluation/{self.id}"
 
     def getACLURI(self):
-        return "/evaluation/%s/acl" % self.id
+        return f"/evaluation/{self.id}/acl"
 
     def putACLURI(self):
         return "/evaluation/acl"
@@ -173,8 +173,8 @@ class Submission(DictObject):
     """
 
     @classmethod
-    def getURI(cls, id):
-        return "/evaluation/submission/%s" % id
+    def getURI(cls, id: Union[str, int]):
+        return f"/evaluation/submission/{id}"
 
     def __init__(self, **kwargs):
         if not (
@@ -184,20 +184,20 @@ class Submission(DictObject):
         ):
             raise KeyError
 
-        super(Submission, self).__init__(kwargs)
+        super().__init__(kwargs)
 
     def postURI(self):
-        return "/evaluation/submission?etag=%s" % self.etag
+        return f"/evaluation/submission?etag={self.etag}"
 
     def putURI(self):
-        return "/evaluation/submission/%s" % self.id
+        return f"/evaluation/submission/{self.id}"
 
     def deleteURI(self):
-        return "/evaluation/submission/%s" % self.id
+        return f"/evaluation/submission/{self.id}"
 
 
 def _convert_to_annotation_cls(
-    id: str, etag: str, values: typing.Union[Annotations, dict]
+    id: Union[str, int], etag: str, values: Union[Annotations, dict]
 ) -> Annotations:
     """Convert synapse style annotation or dict to synapseclient.Annotation
 
@@ -230,10 +230,10 @@ class SubmissionStatus(DictObject):
     """
 
     @classmethod
-    def getURI(cls, id):
-        return "/evaluation/submission/%s/status" % id
+    def getURI(cls, id: Union[str, int]):
+        return f"/evaluation/submission/{id}/status"
 
-    def __init__(self, id, etag, **kwargs):
+    def __init__(self, id: Union[str, int], etag: str, **kwargs):
         annotations = kwargs.pop("submissionAnnotations", {})
         # If it is synapse annotations, turn into a format
         # that can be worked with otherwise, create
@@ -241,7 +241,8 @@ class SubmissionStatus(DictObject):
         submission_annotations = _convert_to_annotation_cls(
             id=id, etag=etag, values=annotations
         )
-        super(SubmissionStatus, self).__init__(
+        # In Python 3, the super(SubmissionStatus, self) call is equivalent to the parameterless super()
+        super().__init__(
             id=id, etag=etag, submissionAnnotations=submission_annotations, **kwargs
         )
 
@@ -249,12 +250,12 @@ class SubmissionStatus(DictObject):
     #     return '/evaluation/submission/%s/status' % self.id
 
     def putURI(self):
-        return "/evaluation/submission/%s/status" % self.id
+        return f"/evaluation/submission/{self.id}/status"
 
     # def deleteURI(self):
     #     return '/evaluation/submission/%s/status' % self.id
 
-    def json(self, ensure_ascii=True):
+    def json(self, ensure_ascii: bool = True):
         """Overloaded json function, turning submissionAnnotations into
         synapse style annotations"""
 
