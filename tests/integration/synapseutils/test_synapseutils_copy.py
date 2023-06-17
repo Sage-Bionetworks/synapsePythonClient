@@ -382,7 +382,7 @@ class TestCopyWiki:
                 )
                 s = re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
             for oldFileId in self.fileMapping.keys():
-                s = re.sub(oldFileId, self.fileMapping[oldFileId], s)
+                s = re.sub(oldFileId + "\\b", self.fileMapping[oldFileId], s)
             assert s == new_wikiPage.markdown
             orig_attach = self.syn.getWikiAttachments(orig_wikiPage)
             new_attach = self.syn.getWikiAttachments(new_wikiPage)
