@@ -15,13 +15,13 @@ Print release notes for installed version of client::
 .. automethod:: synapseclient.core.version_check.release_notes
 
 """
+import importlib.resources as importlib_resources
+import re
+import sys
 
 import json
-import pkg_resources
-import re
 import requests
 import synapseclient
-import sys
 
 
 _VERSION_URL = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/master/synapseclient/synapsePythonClient"  # noqa
@@ -167,11 +167,10 @@ def _version_tuple(version, levels=2):
 
 def _get_version_info(version_url=_VERSION_URL):
     if version_url is None:
-        return json.loads(
-            pkg_resources.resource_string(
-                "synapseclient", "synapsePythonClient"
-            ).decode()
-        )
+        ref = importlib_resources.files("synapseclient").joinpath("synapsePythonClient")
+        with ref.open("r") as fp:
+            pkg_metadata = json.loads(fp.read())
+        return pkg_metadata
     else:
         headers = {"Accept": "application/json; charset=UTF-8"}
         headers.update(synapseclient.USER_AGENT)
