@@ -48,7 +48,6 @@ install_requires = [
     # "urllib3>=2; python_version>='3.10'",
     "keyring>=15,<23.5",
     "deprecated>=1.2.4,<2.0",
-    "importlib-resource; python_version<'3.9'",
 ]
 
 # on Linux specify a cryptography dependency that will not
