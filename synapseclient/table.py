@@ -622,10 +622,6 @@ def _csv_to_pandas_df(
     test_import_pandas()
     import pandas as pd
 
-    # DATEs are stored in csv as unix timestamp in milliseconds
-    def datetime_millisecond_parser(milliseconds):
-        return pd.to_datetime(milliseconds, unit="ms", utc=True)
-
     if not date_columns:
         date_columns = []
 
@@ -646,8 +642,14 @@ def _csv_to_pandas_df(
         header=0 if contain_headers else None,
         skiprows=lines_to_skip,
         parse_dates=date_columns,
-        date_parser=datetime_millisecond_parser,
     )
+    # parse date columns if exists
+    if date_columns:
+        df[date_columns] = df[date_columns].astype(int)
+        df[date_columns] = df[date_columns].apply(
+            lambda x: pd.to_datetime(x, unit="ms", utc=True)
+        )
+
     # Turn list columns into lists
     if list_columns:
         for col in list_columns:
