@@ -394,6 +394,7 @@ def test_tables_pandas(syn, project):
 
     # retrieve the table and verify
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
+    df2 = results.asDataFrame(convert_to_datetime=True)
     df1 = results.asDataFrame()
 
     # simulate rowId-version rownames for comparison
@@ -401,13 +402,19 @@ def test_tables_pandas(syn, project):
 
     df["string_"] = df["string_"].transform(str)
 
-    # for the purpose of comparing queried dataframe and original dataframe, covert data type from object to integer
-    df["datetime64"] = df.datetime64.astype("int")
+    # SYNPY-717
+    # This is a check for windows
+    if os.name == "nt":
+        df["datetime64"] = pd.to_datetime(
+            df["datetime64"], utc=True, unit="ms", origin="unix"
+        )
+    else:
+        df["datetime64"] = pd.to_datetime(df["datetime64"], unit="ms", utc=True)
 
     # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column;
     # second .all() gives a bool that is ANDed value of that Series
 
-    assert_frame_equal(df1, df)
+    assert_frame_equal(df2, df)
     # Test if string as schema can be passed in.
     syn.store(Table(table.tableId, df1))
 
