@@ -641,7 +641,6 @@ def _csv_to_pandas_df(
         escapechar=escape_char,
         header=0 if contain_headers else None,
         skiprows=lines_to_skip,
-        parse_dates=date_columns,
     )
     # parse date columns if exists
     if date_columns:
