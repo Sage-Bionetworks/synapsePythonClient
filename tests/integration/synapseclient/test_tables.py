@@ -404,11 +404,9 @@ def test_tables_pandas(syn, project):
 
     # SYNPY-717
     # This is a check for windows
+    df["datetime64"] = df["datetime64"].astype(int)
     if os.name == "nt":
-        df["datetime64"] = pd.to_datetime(
-            df["datetime64"], utc=True, unit="ms"
-        )
-
+        df["datetime64"] = pd.to_datetime(df["datetime64"], utc=True)
     else:
         df["datetime64"] = pd.to_datetime(df["datetime64"], unit="ms", utc=True)
 
