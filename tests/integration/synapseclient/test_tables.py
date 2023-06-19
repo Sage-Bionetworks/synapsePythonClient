@@ -408,6 +408,7 @@ def test_tables_pandas(syn, project):
         df["datetime64"] = pd.to_datetime(
             df["datetime64"], utc=True, unit="ms", origin="unix"
         )
+
     else:
         df["datetime64"] = pd.to_datetime(df["datetime64"], unit="ms", utc=True)
 
