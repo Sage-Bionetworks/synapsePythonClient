@@ -643,11 +643,9 @@ def _csv_to_pandas_df(
         skiprows=lines_to_skip,
     )
     # parse date columns if exists
-    df[date_columns] = df[date_columns].astype(int)
-    df[date_columns] = df[date_columns].apply(
-        lambda x: pd.to_datetime(x, unit="ms", utc=True)
-    )
-
+    if date_columns:
+        df[date_columns] = df[date_columns].astype(int)
+        df["datetime64"] = pd.to_datetime(df["datetime64"], unit="ms", utc=True)
     # Turn list columns into lists
     if list_columns:
         for col in list_columns:
