@@ -299,6 +299,7 @@ import enum
 import json
 from builtins import zip
 from typing import List, Dict
+import pandas as pd
 
 from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -607,6 +608,18 @@ def join_column_names(columns):
     return ",".join(escape_column_name(c) for c in columns)
 
 
+def _convert_df_date_cols_to_datetime(df: pd.DataFrame, date_columns: List):
+    """Convert date columns with epoch time to date time in UTC timezone
+    :param df: a pandas dataframe
+    :param date_columns: a list of columns that contain epoch time
+    """
+    df[date_columns] = df[date_columns].astype(int)
+    df[date_columns] = df[date_columns].apply(
+        lambda x: pd.to_datetime(x, unit="ms", utc=True)
+    )
+    return df
+
+
 def _csv_to_pandas_df(
     filepath,
     separator=DEFAULT_SEPARATOR,
@@ -641,8 +654,7 @@ def _csv_to_pandas_df(
     )
     # parse date columns if exists
     if date_columns:
-        df[date_columns] = df[date_columns].astype(int)
-        df["datetime64"] = pd.to_datetime(df["datetime64"], unit="ms", utc=True)
+        df = _convert_df_date_cols_to_datetime(df, date_columns)
     # Turn list columns into lists
     if list_columns:
         for col in list_columns:
