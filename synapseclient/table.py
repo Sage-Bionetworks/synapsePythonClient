@@ -300,6 +300,7 @@ import json
 from builtins import zip
 from typing import List, Dict
 import pandas as pd
+import numpy as np
 
 from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -613,7 +614,7 @@ def _convert_df_date_cols_to_datetime(df: pd.DataFrame, date_columns: List):
     :param df: a pandas dataframe
     :param date_columns: a list of columns that contain epoch time
     """
-    df[date_columns] = df[date_columns].astype(int)
+    df[date_columns] = df[date_columns].astype(np.int64)
     df[date_columns] = df[date_columns].apply(
         lambda x: pd.to_datetime(x, unit="ms", utc=True)
     )
