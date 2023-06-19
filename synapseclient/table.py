@@ -285,6 +285,7 @@ See also:
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
 """
+from __future__ import annotations
 import collections.abc
 import csv
 import io
@@ -298,9 +299,7 @@ import abc
 import enum
 import json
 from builtins import zip
-from typing import List, Dict
-import pandas as pd
-import numpy as np
+from typing import List, Dict, TYPE_CHECKING
 
 from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -338,6 +337,9 @@ MAX_NUM_TABLE_COLUMNS = 152
 DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
 DEFAULT_ESCAPSE_CHAR = "\\"
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 # This Enum is used to help users determine which Entity types they want in their view
@@ -614,6 +616,10 @@ def _convert_df_date_cols_to_datetime(df: pd.DataFrame, date_columns: List):
     :param df: a pandas dataframe
     :param date_columns: name of date columns
     """
+    test_import_pandas()
+    import pandas as pd
+    import numpy as np
+
     df[date_columns] = df[date_columns].astype(np.int64)
     df[date_columns] = df[date_columns].apply(
         lambda x: pd.to_datetime(x, unit="ms", utc=True)
