@@ -622,9 +622,6 @@ def _csv_to_pandas_df(
     test_import_pandas()
     import pandas as pd
 
-    if not date_columns:
-        date_columns = []
-
     line_terminator = str(os.linesep)
 
     # assign line terminator only if for single character
