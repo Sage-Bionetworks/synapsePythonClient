@@ -299,7 +299,7 @@ import abc
 import enum
 import json
 from builtins import zip
-from typing import List, Dict, TYPE_CHECKING
+from typing import List, Dict, TypeVar
 
 from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -338,8 +338,7 @@ DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
 DEFAULT_ESCAPSE_CHAR = "\\"
 
-if TYPE_CHECKING:
-    import pandas as pd
+DataFrameType = TypeVar("pd.DataFrame")
 
 
 # This Enum is used to help users determine which Entity types they want in their view
@@ -611,7 +610,7 @@ def join_column_names(columns):
     return ",".join(escape_column_name(c) for c in columns)
 
 
-def _convert_df_date_cols_to_datetime(df: pd.DataFrame, date_columns: List):
+def _convert_df_date_cols_to_datetime(df: DataFrameType, date_columns: List):
     """Convert date columns with epoch time to date time in UTC timezone
     :param df: a pandas dataframe
     :param date_columns: name of date columns
