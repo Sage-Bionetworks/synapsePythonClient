@@ -619,7 +619,8 @@ def _convert_df_date_cols_to_datetime(df: DataFrameType, date_columns: List):
     import pandas as pd
     import numpy as np
 
-    diff_elem = np.setdiff1d(df.columns, date_columns)
+    # find elements that are in date_columns list but not in dataframe
+    diff_elem = list(set(date_columns) - set(df.columns))
     if diff_elem:
         raise ValueError("Please ensure that date columns are already in the dataframe")
 
