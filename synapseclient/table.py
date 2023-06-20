@@ -610,7 +610,7 @@ def join_column_names(columns):
     return ",".join(escape_column_name(c) for c in columns)
 
 
-def _convert_df_date_cols_to_datetime(df: DataFrameType, date_columns: List):
+def _convert_df_date_cols_to_datetime(df: DataFrameType, date_columns: List) -> DataFrameType:
     """Convert date columns with epoch time to date time in UTC timezone
     :param df: a pandas dataframe
     :param date_columns: name of date columns
