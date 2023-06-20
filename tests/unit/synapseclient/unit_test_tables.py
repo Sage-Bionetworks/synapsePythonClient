@@ -121,6 +121,30 @@ def test_cast_values__list_type():
     ]
 
 
+def test_convert_df_date_cols_to_datetime_empty_df():
+    test_df = pd.DataFrame()
+    date_columns = []
+    test_df_output = _convert_df_date_cols_to_datetime(test_df, date_columns)
+    assert test_df_output.empty
+
+
+def test_convert_df_date_cols_to_datetime_invalid_date_columns():
+    test_df = pd.DataFrame(
+        {
+            "epoch_time1": [
+                "1107234000000",
+                "1107320400000",
+                "1107406800000",
+                "1107493200000",
+                "1107579600000",
+            ]
+        }
+    )
+    date_columns = ["invalid date column"]
+    with pytest.raises(ValueError):
+        test_df_output = _convert_df_date_cols_to_datetime(test_df, date_columns)
+
+
 def test_convert_df_date_cols_to_datetime():
     # construct test dataframe and get date columns
     test_df = pd.DataFrame(
@@ -162,6 +186,7 @@ def test_convert_df_date_cols_to_datetime():
                 "2005-02-04 05:00:00+00:00",
                 "2005-02-05 05:00:00+00:00",
             ],
+            "string": ["str1", "str2", "str3", "str4", "str5"],
         }
     )
     expected_date_df[["epoch_time1", "epoch_time2"]] = expected_date_df[
@@ -171,7 +196,12 @@ def test_convert_df_date_cols_to_datetime():
     # convert epoch time to date time
     test_df2 = _convert_df_date_cols_to_datetime(test_df, date_columns)
     test_df2_dates = test_df2[["epoch_time1", "epoch_time2"]]
-    assert_frame_equal(test_df2_dates, expected_date_df)
+    assert_frame_equal(test_df2_dates, expected_date_df[["epoch_time1", "epoch_time2"]])
+
+    # make sure that other columns are the same as before
+    test_df2_other_columns = test_df2[["string"]]
+    expected_other_column_df = expected_date_df[["string"]]
+    assert_frame_equal(test_df2_other_columns, expected_other_column_df)
 
 
 def test_schema():

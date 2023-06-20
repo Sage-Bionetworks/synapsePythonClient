@@ -619,6 +619,10 @@ def _convert_df_date_cols_to_datetime(df: DataFrameType, date_columns: List):
     import pandas as pd
     import numpy as np
 
+    diff_elem = np.setdiff1d(df.columns, date_columns)
+    if diff_elem:
+        raise ValueError("Please ensure that date columns are already in the dataframe")
+
     df[date_columns] = df[date_columns].astype(np.int64)
     df[date_columns] = df[date_columns].apply(
         lambda x: pd.to_datetime(x, unit="ms", utc=True)
