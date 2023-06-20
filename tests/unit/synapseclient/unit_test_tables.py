@@ -128,6 +128,23 @@ def test_convert_df_date_cols_to_datetime_empty_df():
     assert test_df_output.empty
 
 
+def test_convert_df_date_cols_to_datetime_invalid_epoch_time():
+    test_df = pd.DataFrame(
+        {
+            "epoch_time1": [
+                "1107234000000",
+                "invalid epoch time",
+                "invalid epoch time",
+                "invalid epoch time",
+                "invalid epoch time",
+            ]
+        }
+    )
+    date_columns = ["epoch_time1"]
+    with pytest.raises(ValueError):
+        test_df_output = _convert_df_date_cols_to_datetime(test_df, date_columns)
+
+
 def test_convert_df_date_cols_to_datetime_invalid_date_columns():
     test_df = pd.DataFrame(
         {
