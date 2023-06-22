@@ -7,6 +7,7 @@ import tempfile
 import time
 from builtins import zip
 import pandas as pd
+import numpy as np
 from pandas.testing import assert_frame_equal
 
 import pytest
@@ -50,6 +51,24 @@ from synapseclient.table import (
 from synapseclient.core.utils import from_unix_epoch_time
 from unittest.mock import patch
 from collections import OrderedDict, abc
+
+
+@pytest.fixture()
+def sample_df_datetime():
+    test_df = pd.DataFrame(
+        {
+            "epoch_time1": [
+                "1107234000000",
+                "invalid epoch time",
+                "invalid epoch time",
+                "invalid epoch time",
+                "invalid epoch time",
+            ],
+            "epoch_time2": ["1107234000000", np.nan, np.nan, np.nan, np.nan],
+        }
+    )
+
+    return test_df
 
 
 def test_cast_values():
@@ -128,21 +147,30 @@ def test_convert_df_date_cols_to_datetime_empty_df():
     assert test_df_output.empty
 
 
-def test_convert_df_date_cols_to_datetime_invalid_epoch_time():
-    test_df = pd.DataFrame(
-        {
-            "epoch_time1": [
-                "1107234000000",
-                "invalid epoch time",
-                "invalid epoch time",
-                "invalid epoch time",
-                "invalid epoch time",
-            ]
-        }
-    )
+def test_convert_df_date_cols_to_datetime_invalid_epoch_time(sample_df_datetime):
     date_columns = ["epoch_time1"]
     with pytest.raises(ValueError):
-        test_df_output = _convert_df_date_cols_to_datetime(test_df, date_columns)
+        test_df_output = _convert_df_date_cols_to_datetime(
+            sample_df_datetime, date_columns
+        )
+
+
+def test_convert_df_date_cols_to_datetime_empty_vals(sample_df_datetime):
+    date_columns = ["epoch_time2"]
+    test_df_output = _convert_df_date_cols_to_datetime(sample_df_datetime, date_columns)
+    test_df_epoch_time2 = test_df_output[["epoch_time2"]]
+    expected_date_df = pd.DataFrame(
+        {
+            "epoch_time2": [
+                "2005-02-01 05:00:00+00:00",
+                pd.NaT,
+                pd.NaT,
+                pd.NaT,
+                pd.NaT,
+            ],
+        }
+    ).astype("datetime64[ns, UTC]")
+    assert_frame_equal(test_df_epoch_time2, expected_date_df)
 
 
 def test_convert_df_date_cols_to_datetime_invalid_date_columns():
@@ -189,6 +217,7 @@ def test_convert_df_date_cols_to_datetime():
     # construct expected date dataframe
     expected_date_df = pd.DataFrame(
         {
+            "row": [1, 2, 3, 4, 5],
             "epoch_time1": [
                 "2005-02-01 05:00:00+00:00",
                 "2005-02-02 05:00:00+00:00",
@@ -210,15 +239,10 @@ def test_convert_df_date_cols_to_datetime():
         ["epoch_time1", "epoch_time2"]
     ].astype("datetime64[ns, UTC]")
 
-    # convert epoch time to date time
+    # make sure the conversion from epoch time to date time is correct
+    # also make sure that other string columns are the same as before
     test_df2 = _convert_df_date_cols_to_datetime(test_df, date_columns)
-    test_df2_dates = test_df2[["epoch_time1", "epoch_time2"]]
-    assert_frame_equal(test_df2_dates, expected_date_df[["epoch_time1", "epoch_time2"]])
-
-    # make sure that other columns are the same as before
-    test_df2_other_columns = test_df2[["string"]]
-    expected_other_column_df = expected_date_df[["string"]]
-    assert_frame_equal(test_df2_other_columns, expected_other_column_df)
+    assert_frame_equal(test_df2, expected_date_df)
 
 
 def test_schema():
