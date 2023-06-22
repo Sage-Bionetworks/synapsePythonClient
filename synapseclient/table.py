@@ -285,7 +285,6 @@ See also:
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
 """
-from __future__ import annotations
 import collections.abc
 import csv
 import io
