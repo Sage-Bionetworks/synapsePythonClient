@@ -64,7 +64,7 @@ def sample_df_datetime():
                 "invalid epoch time",
                 "invalid epoch time",
             ],
-            "epoch_time2": ["1107234000000", np.nan, np.nan, np.nan, np.nan],
+            "epoch_time2": ["1107234000000", float("nan"), np.nan, np.nan, np.nan],
         }
     )
 
