@@ -625,9 +625,7 @@ def _convert_df_date_cols_to_datetime(
     if diff_cols:
         raise ValueError("Please ensure that date columns are already in the dataframe")
     try:
-        df[date_columns] = df[date_columns].applymap(
-            lambda x: np.int64(x) if pd.notnull(x) and str(x).isnumeric() else x
-        )
+        df[date_columns] = df[date_columns].astype(np.float64)
     except ValueError:
         raise ValueError(
             "Cannot convert epoch time to integer. Please make sure that the date columns that you specified contain valid epoch time value"
