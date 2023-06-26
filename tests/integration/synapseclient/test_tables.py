@@ -389,6 +389,7 @@ def test_tables_pandas(syn, project):
     schema = Schema(name="Nifty Table", columns=cols, parent=project)
 
     # store in Synapse
+    # datetime64 column in df also gets changed from date time to epoch time.
     table = syn.store(Table(schema, df))
 
     # retrieve the table and verify
@@ -404,10 +405,9 @@ def test_tables_pandas(syn, project):
     # SYNPY-717
     # This is a check for windows
     if os.name == "nt":
-        df["datetime64"] = pd.to_datetime(
-            df["datetime64"], utc=True, dtype="datetime64[ns, UTC]", freq=None
-        )
+        df["datetime64"] = pd.to_datetime(df["datetime64"], utc=True)
     else:
+        df["datetime64"] = df["datetime64"].astype(int)
         df["datetime64"] = pd.to_datetime(df["datetime64"], unit="ms", utc=True)
 
     # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column;
