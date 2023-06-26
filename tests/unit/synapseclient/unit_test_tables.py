@@ -209,10 +209,11 @@ def test_convert_df_date_cols_to_datetime():
                 "1107493200000",
                 "1107579600000",
             ],
+            "epoch_time3": ["-200", "-100", "-1.2", "2.4", "0.0"],
             "string": ["str1", "str2", "str3", "str4", "str5"],
         }
     )
-    date_columns = ["epoch_time1", "epoch_time2"]
+    date_columns = ["epoch_time1", "epoch_time2", "epoch_time3"]
 
     # construct expected date dataframe
     expected_date_df = pd.DataFrame(
@@ -232,11 +233,18 @@ def test_convert_df_date_cols_to_datetime():
                 "2005-02-04 05:00:00+00:00",
                 "2005-02-05 05:00:00+00:00",
             ],
+            "epoch_time3": [
+                "1969-12-31 23:59:59.800000+00:00",
+                "1969-12-31 23:59:59.900000+00:00",
+                "1969-12-31 23:59:59.998800+00:00",
+                "1970-01-01 00:00:00.002400+00:00",
+                "1970-01-01 00:00:00+00:00",
+            ],
             "string": ["str1", "str2", "str3", "str4", "str5"],
         }
     )
-    expected_date_df[["epoch_time1", "epoch_time2"]] = expected_date_df[
-        ["epoch_time1", "epoch_time2"]
+    expected_date_df[["epoch_time1", "epoch_time2", "epoch_time3"]] = expected_date_df[
+        ["epoch_time1", "epoch_time2", "epoch_time3"]
     ].astype("datetime64[ns, UTC]")
 
     # make sure the conversion from epoch time to date time is correct
