@@ -311,9 +311,9 @@ from .wiki import Wiki
 # with ref.open("r") as fp:
 #     __version__ = json.load(fp)["latestVersion"]
 # TODO: switch to the above after python 3.8 is deprecated
-__version__ = json.load(
-    importlib.resources.path(__name__, "synapsePythonClient").open("r")
-)["latestVersion"]
+__version__ = json.load(importlib.resources.path(__name__, "synapsePythonClient"))[
+    "latestVersion"
+]
 
 __all__ = [
     # objects
