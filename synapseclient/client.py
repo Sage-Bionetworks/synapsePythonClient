@@ -2585,7 +2585,7 @@ class Synapse(object):
                     else:
                         mode = "wb"
                         previouslyTransferred = 0
-                        sig = hashlib.md5(usedforsecurity=False)
+                        sig = hashlib.new("md5", usedforsecurity=False)
 
                     try:
                         with open(temp_destination, mode) as fd:

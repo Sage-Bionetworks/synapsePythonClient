@@ -50,7 +50,7 @@ def md5_for_file(filename, block_size=2 * MB, callback=None):
     :returns: The MD5
     """
 
-    md5 = hashlib.md5(usedforsecurity=False)
+    md5 = hashlib.new("md5", usedforsecurity=False)
     with open(filename, "rb") as f:
         while True:
             if callback:
