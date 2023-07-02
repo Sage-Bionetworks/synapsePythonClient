@@ -2147,7 +2147,8 @@ class Synapse(object):
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
         :param entity:              An Entity or Synapse ID to modify
-        :param principalId:         Identifier of a user or group
+        :param principalId:         Identifier of a user or group. '273948' is for all registered Synapse users
+                                    and '273949' is for public access.
         :param accessType:          Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
                                     DELETE, CHANGE_PERMISSIONS
         :param modify_benefactor:   Set as True when modifying a benefactor's ACL
@@ -2158,6 +2159,12 @@ class Synapse(object):
 
         :returns: an Access Control List object
 
+        Example::
+
+            # Grant all registered users download access
+            syn.setPermissions('syn1234','273948',['READ','DOWNLOAD'])
+            # Grant the public view access
+            syn.setPermissions('syn1234','273949',['READ'])
         """
 
         benefactor = self._getBenefactor(entity)
