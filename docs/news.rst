@@ -626,7 +626,7 @@ Highlights
 - This version includes a performance improvement for
   `syncFromSynapse <https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse>`__
   downloads of deep folder hierarchies to local filesystem locations outside of the
-  `Synapse cache <https://docs.synapse.org/articles/downloading_data.html#downloading-a-file>`__.
+  `Synapse cache <https://help.synapse.org/docs/Downloading-Data-Programmatically.2003796248.html#DownloadingDataProgrammatically-DownloadingFiles>`__.
 
 - Support is added for **SubmissionViews** that can be used to query and edit
   a set of submissions through table services.
@@ -676,7 +676,7 @@ Highlights
   higher may speed up file transfers if the local system resources can take advantage of the higher setting.
   Currently this value applies only to files whose underlying storage is AWS S3.
 
-  Alternately, a value can be stored in the `synapseConfig configuration file <https://docs.synapse.org/articles/client_configuration.html>`__ that will automatically apply
+  Alternately, a value can be stored in the `synapseConfig configuration file <https://help.synapse.org/docs/Client-Configuration.1985446156.html>`__ that will automatically apply
   as the default if a value is not explicitly set.
 
   .. code-block::
@@ -757,12 +757,12 @@ Highlights:
     syn.get("syn123")
 
   Currently, multi-threaded download only works with files stored in AWS S3, where most files on Synapse reside.
-  This also includes `custom storage locations <https://docs.synapse.org/articles/custom_storage_location.html>`__
+  This also includes `custom storage locations <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html>`__
   that point to an AWS S3 bucket.
   Files not stored in S3 will fall back to single-threaded download even if :code:`syn.multi_threaded==True`.
 - :code:`synapseutils.copy()` now has limitations on what can be copied:
    - A user must have download permissions on the entity they want to copy.
-   - Users cannot copy any entities that have `access requirements <https://docs.synapse.org/articles/access_controls.html>`__.
+   - Users cannot copy any entities that have `access requirements <https://help.synapse.org/docs/Sharing-Settings,-Permissions,-and-Conditions-for-Use.2024276030.html>`__.
 - :code:`contentTypes` and :code:`fileNames` are optional parameters in :code:`synapseutils.copyFileHandles()`
 
 - Synapse Docker Repository(:code:`synapseclient.DockerRepository`) objects can now be submitted to Synapse evaluation
@@ -966,7 +966,7 @@ Tasks
 -  [`SYNPY-847 <https://sagebionetworks.jira.com/browse/SYNPY-847>`__] -
    uploadFileHandle should not be deprecated nor removed
 -  [`SYNPY-852 <https://sagebionetworks.jira.com/browse/SYNPY-852>`__] -
-   Check and update docs.synapse.org to reflect the change in the Python
+   Check and update help.synapse.org to reflect the change in the Python
    client
 -  [`SYNPY-860 <https://sagebionetworks.jira.com/browse/SYNPY-860>`__] -
    vignette for how to upload a new version of a file directly to a
@@ -1302,8 +1302,8 @@ Release 1.7 is a large bugfix release with several new features. The main ones i
     * Notify you via email on the progress of a function (useful for jobs like large file uploads that may take a long time to complete).
     * The syncFromSynapse function now creates a "manifest" which contains the metadata of downloaded files. (These can also be used to update metadata with the bulk upload function.
 
-* File View tables can now be created from the python client using EntityViewSchema. See `fileviews documentation <http://docs.synapse.org/articles/fileviews.html>`_.
-* The python client is now able to upload to user owned S3 Buckets. `Click here for instructions on linking your S3 bucket to synapse <http://docs.synapse.org/articles/custom_storage_location.html>`_.
+* File View tables can now be created from the python client using EntityViewSchema. See `fileviews documentation <https://help.synapse.org/docs/Views.2011070739.html>`_.
+* The python client is now able to upload to user owned S3 Buckets. `Click here for instructions on linking your S3 bucket to synapse <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html>`_.
 
 We've also made various improvements to existing features:
 

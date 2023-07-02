@@ -11,7 +11,7 @@ By contributing, you are agreeing that we may redistribute your work under this 
 We have an official forum and a detailed FAQ and where the community and maintainers can chime in with helpful advice if you have questions.
 
 * [Synapse Help Forum](https://www.synapse.org/#!SynapseForum:default)
-* [Synapse FAQ](http://docs.synapse.org/articles/faq.html)
+* [Synapse FAQ](https://help.synapse.org/docs/FAQ.2047967233.html)
 
 ## How to contribute
 
