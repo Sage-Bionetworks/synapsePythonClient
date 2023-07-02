@@ -1931,16 +1931,6 @@ class TableAbstractBaseClass(collections.abc.Iterable, collections.abc.Sized):
     def asDataFrame(self):
         raise NotImplementedError()
 
-    def asInteger(self):
-        try:
-            first_row = next(iter(self))
-            return int(first_row[0])
-        except (KeyError, TypeError):
-            raise ValueError(
-                "asInteger is only valid for queries such as count queries whose first value is an"
-                " integer."
-            )
-
     def asRowSet(self):
         return RowSet(
             headers=self.headers,
@@ -2009,15 +1999,6 @@ class RowSetTable(TableAbstractBaseClass):
 
     def asRowSet(self):
         return self.rowset
-
-    def asInteger(self):
-        try:
-            return int(self.rowset["rows"][0]["values"][0])
-        except (KeyError, TypeError):
-            raise ValueError(
-                "asInteger is only valid for queries such as count queries whose first value is an"
-                " integer."
-            )
 
     def __iter__(self):
         def iterate_rows(rows, headers):
@@ -2188,15 +2169,6 @@ class TableQueryResult(TableAbstractBaseClass):
             etag=self.etag,
             rows=[row for row in self],
         )
-
-    def asInteger(self):
-        try:
-            return int(self.rowset["rows"][0]["values"][0])
-        except (KeyError, TypeError):
-            raise ValueError(
-                "asInteger is only valid for queries such as count queries whose first value is an"
-                " integer."
-            )
 
     def __iter__(self):
         return self
