@@ -434,24 +434,20 @@ def multipart_upload_file(
     :param syn:                 a Synapse object
     :param file_path:           the file to upload
     :param dest_file_name:      upload as a different filename
-    :param content_type:        contentType`_
-    :param part_size:           number of bytes per part. Minimum 5MB.
+    :param content_type:        `contentType`_
+    :param part_size:           Number of bytes per part. Minimum 5MB.
     :param storage_location_id: an id indicating where the file should be
-                                stored. Retrieved from Synapse's
-                                UploadDestination
+                                stored. Retrieved from Synapse's UploadDestination
     :param preview:             True to generate a preview
-    :param force_restart        True to restart a previously initiated upload
+    :param force_restart:       True to restart a previously initiated upload
                                 from scratch, False to try to resume
-    :param max_threads          number of concurrent threads to devote
+    :param max_threads:         number of concurrent threads to devote
                                 to upload
 
-    :return: a File Handle ID
+    :returns: a File Handle ID
 
-    Keyword arguments are passed down to
-    :py:func:`_multipart_upload` and :py:func:`_start_multipart_upload`.
-
-    .. _contentType:
-     https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
+    Keyword arguments are passed down to :py:func:`_multipart_upload` and :py:func:`_start_multipart_upload`.
+    .. _contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
 
     """
 
@@ -520,18 +516,17 @@ def multipart_upload_string(
     :param syn:                 a Synapse object
     :param text:                a string to upload as a file.
     :param dest_file_name:      upload as a different filename
-    :param content_type:        contentType`_
+    :param content_type:        `contentType`_
     :param part_size:           number of bytes per part. Minimum 5MB.
     :param storage_location_id: an id indicating where the file should be
-                                stored. Retrieved from Synapse's
-                                UploadDestination
+                                stored. Retrieved from Synapse's UploadDestination
     :param preview:             True to generate a preview
-    :param force_restart        True to restart a previously initiated upload
+    :param force_restart:       True to restart a previously initiated upload
                                 from scratch, False to try to resume
-    :param max_threads          number of concurrent threads to devote
+    :param max_threads:         number of concurrent threads to devote
                                 to upload
 
-    :return: a File Handle ID
+    :returns: a File Handle ID
 
     Keyword arguments are passed down to
     :py:func:`_multipart_upload` and :py:func:`_start_multipart_upload`.

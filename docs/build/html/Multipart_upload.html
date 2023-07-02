@@ -51,7 +51,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/credentials.html">Manage Synapse Credentials</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">Python Client Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">The Basics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/cli.html">Command Line Client</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
@@ -121,28 +121,23 @@ not need to call any of these functions directly.</p>
 <li><p><strong>syn</strong> – a Synapse object</p></li>
 <li><p><strong>file_path</strong> – the file to upload</p></li>
 <li><p><strong>dest_file_name</strong> – upload as a different filename</p></li>
-<li><p><strong>content_type</strong> – contentType`_</p></li>
-<li><p><strong>part_size</strong> – number of bytes per part. Minimum 5MB.</p></li>
+<li><p><strong>content_type</strong> – <a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17">contentType</a></p></li>
+<li><p><strong>part_size</strong> – Number of bytes per part. Minimum 5MB.</p></li>
 <li><p><strong>storage_location_id</strong> – an id indicating where the file should be
-stored. Retrieved from Synapse’s
-UploadDestination</p></li>
+stored. Retrieved from Synapse’s UploadDestination</p></li>
 <li><p><strong>preview</strong> – True to generate a preview</p></li>
+<li><p><strong>force_restart</strong> – True to restart a previously initiated upload
+from scratch, False to try to resume</p></li>
+<li><p><strong>max_threads</strong> – number of concurrent threads to devote
+to upload</p></li>
 </ul>
 </dd>
-</dl>
-<dl class="simple">
-<dt>:param force_restart        True to restart a previously initiated upload</dt><dd><p>from scratch, False to try to resume</p>
-</dd>
-<dt>:param max_threads          number of concurrent threads to devote</dt><dd><p>to upload</p>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a File Handle ID</p>
 </dd>
 </dl>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>a File Handle ID</p>
-</dd>
-</dl>
-<p>Keyword arguments are passed down to
-<a class="reference internal" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="synapseclient.core.upload.multipart_upload._multipart_upload"><code class="xref py py-func docutils literal notranslate"><span class="pre">_multipart_upload()</span></code></a> and <code class="xref py py-func docutils literal notranslate"><span class="pre">_start_multipart_upload()</span></code>.</p>
+<p>Keyword arguments are passed down to <a class="reference internal" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="synapseclient.core.upload.multipart_upload._multipart_upload"><code class="xref py py-func docutils literal notranslate"><span class="pre">_multipart_upload()</span></code></a> and <code class="xref py py-func docutils literal notranslate"><span class="pre">_start_multipart_upload()</span></code>.
+.. _contentType: <a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17">https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17</a></p>
 </dd></dl>
 
 <dl class="py function">
@@ -155,24 +150,19 @@ UploadDestination</p></li>
 <li><p><strong>syn</strong> – a Synapse object</p></li>
 <li><p><strong>text</strong> – a string to upload as a file.</p></li>
 <li><p><strong>dest_file_name</strong> – upload as a different filename</p></li>
-<li><p><strong>content_type</strong> – contentType`_</p></li>
+<li><p><strong>content_type</strong> – <a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17">contentType</a></p></li>
 <li><p><strong>part_size</strong> – number of bytes per part. Minimum 5MB.</p></li>
 <li><p><strong>storage_location_id</strong> – an id indicating where the file should be
-stored. Retrieved from Synapse’s
-UploadDestination</p></li>
+stored. Retrieved from Synapse’s UploadDestination</p></li>
 <li><p><strong>preview</strong> – True to generate a preview</p></li>
+<li><p><strong>force_restart</strong> – True to restart a previously initiated upload
+from scratch, False to try to resume</p></li>
+<li><p><strong>max_threads</strong> – number of concurrent threads to devote
+to upload</p></li>
 </ul>
 </dd>
-</dl>
-<dl class="simple">
-<dt>:param force_restart        True to restart a previously initiated upload</dt><dd><p>from scratch, False to try to resume</p>
-</dd>
-<dt>:param max_threads          number of concurrent threads to devote</dt><dd><p>to upload</p>
-</dd>
-</dl>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>a File Handle ID</p>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a File Handle ID</p>
 </dd>
 </dl>
 <p>Keyword arguments are passed down to

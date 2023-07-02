@@ -50,7 +50,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/credentials.html">Manage Synapse Credentials</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">Python Client Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">The Basics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/cli.html">Command Line Client</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
@@ -278,34 +278,13 @@
 <h2>2.7.2 (2023-06-02)<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
 <section id="highlights">
 <h3>Highlights<a class="headerlink" href="#highlights" title="Permalink to this headline"></a></h3>
-<ul>
+<ul class="simple">
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1267">SYNPY-1267</a>] -
 Lock down urllib3</p></li>
 <li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1268">SYNPY-1268</a>] -
 Add deprecation warning for non-support login arguments</p></li>
-<li><p>Next major release (3.0.0)…
-- Support only pandas <cite>&gt;=</cite> 1.5
-- Remove support for Python 3.7 due to its end of life.
-- There will be major cosmetic changes to the cli such as</p>
-<blockquote>
-<div><p>removing all camel case or non-standard single dash long command line interface (cli)
-parameters.
-Example: command line arguments like <cite>-parent</cite> will become
-<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
-will be changed to <cite>–parent-id</cite>.</p>
-</div></blockquote>
-</li>
-</ul>
-</section>
-</section>
-<section id="id2">
-<h2>2.7.1 (2023-04-11)<a class="headerlink" href="#id2" title="Permalink to this headline"></a></h2>
-<section id="id3">
-<h3>Highlights<a class="headerlink" href="#id3" title="Permalink to this headline"></a></h3>
-<ul class="simple">
-<li><p>Locked down pandas version to only support pandas <cite>&lt;</cite> 1.5</p></li>
-<li><dl class="simple">
-<dt>Next major release (3.0.0)…</dt><dd><ul>
+<li><p>Next major release (3.0.0)…</p>
+<ul>
 <li><p>Support only pandas <cite>&gt;=</cite> 1.5</p></li>
 <li><p>Remove support for Python 3.7 due to its end of life.</p></li>
 <li><p>There will be major cosmetic changes to the cli such as
@@ -315,8 +294,29 @@ Example: command line arguments like <cite>-parent</cite> will become
 <cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
 will be changed to <cite>–parent-id</cite>.</p></li>
 </ul>
-</dd>
-</dl>
+</li>
+</ul>
+</section>
+</section>
+<section id="id2">
+<h2>2.7.1 (2023-04-11)<a class="headerlink" href="#id2" title="Permalink to this headline"></a></h2>
+<section id="id3">
+<h3>Highlights<a class="headerlink" href="#id3" title="Permalink to this headline"></a></h3>
+<ul>
+<li><p>Locked down pandas version to only support pandas <cite>&lt;</cite> 1.5</p></li>
+<li><p>Next major release (3.0.0)…</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Support only pandas <cite>&gt;=</cite> 1.5</p></li>
+<li><p>Remove support for Python 3.7 due to its end of life.</p></li>
+<li><p>There will be major cosmetic changes to the cli such as
+removing all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
+</ul>
+</div></blockquote>
 </li>
 </ul>
 </section>
@@ -367,6 +367,10 @@ You can use this feature by first adding items to your download cart on Synapse.
 <span class="kn">import</span> <span class="nn">synapseutils</span>
 <span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
 <span class="n">manifest_path</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get_download_list</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from command line</span>
+synapse<span class="w"> </span>get-download-list
 </pre></div>
 </div>
 </li>

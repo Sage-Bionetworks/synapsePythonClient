@@ -51,7 +51,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/credentials.html">Manage Synapse Credentials</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../getting_started/basics.html">Python Client Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting_started/basics.html">The Basics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/cli.html">Command Line Client</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
@@ -171,17 +171,13 @@ System properties id, etag, creationDate and uri become attributes of the object
 <li><p><strong>id</strong> – A Synapse ID, a Synapse Entity object, a plain dictionary in which ‘id’ maps to a Synapse ID</p></li>
 <li><p><strong>etag</strong> – etag of the Synapse Entity</p></li>
 <li><p><strong>values</strong> – (Optional) dictionary of values to be copied into annotations</p></li>
-<li><p><strong>**kwargs</strong> – <p>additional key-value pairs to be added as annotations</p>
-</p></li>
+<li><p><strong>**kwargs</strong> – additional key-value pairs to be added as annotations</p></li>
 </ul>
 </dd>
 </dl>
 <p>Example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">example1</span> <span class="o">=</span> <span class="n">Annotations</span><span class="p">(</span><span class="s1">&#39;syn123&#39;</span><span class="p">,</span><span class="s1">&#39;40256475-6fb3-11ea-bb0a-9cb6d0d8d984&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;foo&#39;</span><span class="p">:</span><span class="s1">&#39;bar&#39;</span><span class="p">})</span>
-
 <span class="n">example2</span> <span class="o">=</span> <span class="n">Annotations</span><span class="p">(</span><span class="s1">&#39;syn123&#39;</span><span class="p">,</span><span class="s1">&#39;40256475-6fb3-11ea-bb0a-9cb6d0d8d984&#39;</span><span class="p">,</span> <span class="n">foo</span><span class="o">=</span><span class="s1">&#39;bar&#39;</span><span class="p">)</span>
-
-
 <span class="n">example3</span> <span class="o">=</span> <span class="n">Annotations</span><span class="p">(</span><span class="s1">&#39;syn123&#39;</span><span class="p">,</span><span class="s1">&#39;40256475-6fb3-11ea-bb0a-9cb6d0d8d984&#39;</span><span class="p">)</span>
 <span class="n">example3</span><span class="p">[</span><span class="s1">&#39;foo&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;bar&#39;</span>
 </pre></div>

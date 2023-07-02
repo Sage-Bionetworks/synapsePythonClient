@@ -2,17 +2,18 @@
 Release Notes
 =============
 
-
 2.7.2 (2023-06-02)
 ==================
 
 Highlights
 ----------
--  [`SYNPY-1267 <https://sagebionetworks.jira.com/browse/SYNPY-1267>`__] -
+-  [`SYNPY-1267 <https://sagebionetworks.jira.com/browse/SYNPY-1267>`_] -
    Lock down urllib3
--  [`SYNPY-1268 <https://sagebionetworks.jira.com/browse/SYNPY-1268>`__] -
+-  [`SYNPY-1268 <https://sagebionetworks.jira.com/browse/SYNPY-1268>`_] -
    Add deprecation warning for non-support login arguments
+
 -  Next major release (3.0.0)...
+
    - Support only pandas `>=` 1.5
    - Remove support for Python 3.7 due to its end of life.
    - There will be major cosmetic changes to the cli such as
@@ -22,7 +23,6 @@ Highlights
      `--parent`.  Commands that support camel case like `--parentId`
      will be changed to `--parent-id`.
 
-
 2.7.1 (2023-04-11)
 ==================
 
@@ -30,6 +30,7 @@ Highlights
 ----------
 - Locked down pandas version to only support pandas `<` 1.5
 - Next major release (3.0.0)...
+
    - Support only pandas `>=` 1.5
    - Remove support for Python 3.7 due to its end of life.
    - There will be major cosmetic changes to the cli such as
@@ -92,6 +93,7 @@ Highlights
         manifest_path = syn.get_download_list()
 
   .. code-block:: bash
+
         # from command line
         synapse get-download-list
 

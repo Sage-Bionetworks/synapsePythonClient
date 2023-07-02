@@ -1,6 +1,6 @@
-********************
-Python Client Basics
-********************
+**********
+The Basics
+**********
 
 
 Accessing Data
@@ -99,6 +99,7 @@ Tables can be built up by adding sets of rows that follow a user-defined schema 
 See:
 
 - :py:mod:`synapseclient.table`
+
 .. - :py:class:`synapseclient.table.Schema`
 .. - :py:class:`synapseclient.table.Column`
 .. - :py:func:`synapseclient.Synapse.getColumns`

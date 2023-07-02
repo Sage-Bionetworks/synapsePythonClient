@@ -265,16 +265,12 @@ class Annotations(dict):
         :param id:  A Synapse ID, a Synapse Entity object, a plain dictionary in which 'id' maps to a Synapse ID
         :param etag: etag of the Synapse Entity
         :param values:  (Optional) dictionary of values to be copied into annotations
-
-        :param **kwargs: additional key-value pairs to be added as annotations
+        :param \**kwargs: additional key-value pairs to be added as annotations
 
         Example::
 
             example1 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', {'foo':'bar'})
-
             example2 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', foo='bar')
-
-
             example3 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984')
             example3['foo'] = 'bar'
 
