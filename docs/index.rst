@@ -2,10 +2,6 @@
 Synapse Python/Command Line Client Documentation
 ================================================
 
-.. .. automodule:: synapseclient
-..     :members:
-..     :noindex:
-
 The ``synapseclient`` package provides an interface to `Synapse <http://www.synapse.org>`__, a collaborative,
 open-source research platform that allows teams to share data, track analyses,
 and collaborate, providing support for:
@@ -36,14 +32,19 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    getting_started/installation
    getting_started/credentials
    getting_started/basics
-
+   getting_started/cli
 
 .. toctree::
-   :caption: Command Line Client
+   :caption: Advanced Topics
    :maxdepth: 1
    :hidden:
 
-   CommandLineClient
+   Multipart_upload
+   S3Storage
+   Upload
+   reticulate
+   sftp
+   synapseutils
 
 .. toctree::
    :caption: Python API
@@ -60,40 +61,7 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    api/Versions
    api/Table
    api/Team
-
-
-.. .. toctree::
-..    :caption: Articles
-..    :maxdepth: 1
-..    :hidden:
-
-..    Credentials
-..    Views
-..    Upload
-..    S3Storage
-..    reticulate
-
-
-.. .. toctree::
-..    :caption: Reference
-..    :maxdepth: 1
-..    :hidden:
-
-..    Client
-..    Entity
-..    Evaluation
-..    Activity
-..    Annotations
-..    Wiki
-..    Utilities
-..    Versions
-..    CommandLineClient
-..    Table
-..    sftp
-..    Team
-..    synapseutils
-..    Multipart_upload
-
+   api/Views
 
 .. toctree::
    :caption: News

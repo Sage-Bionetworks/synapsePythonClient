@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Overview &mdash; Synapse Python Client 2.7.2 documentation</title>
+  <title>synapseutils &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -20,6 +20,8 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Synapse Client" href="api/Client.html" />
+    <link rel="prev" title="Using the Synapse Python Client with SFTP data storage" href="sftp.html" />
 </head>
 
 <body class="wy-body-for-nav">
@@ -50,12 +52,25 @@
 <li class="toctree-l1"><a class="reference internal" href="getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/credentials.html">Manage Synapse Credentials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">Python Client Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/cli.html">Command Line Client</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Command Line Client</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html#help">Help</a></li>
-<li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html#usage">Usage</a></li>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Multipart_upload.html">Synapse Multipart Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="S3Storage.html">S3 Storage Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Upload.html">File Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reticulate.html">Using synapseclient with R through reticulate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">synapseutils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-synapseutils.copy_functions">copy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-synapseutils.walk_functions">walk</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-synapseutils.sync">sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-synapseutils.monitor">monitor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-synapseutils.migrate_functions">migrate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-synapseutils.describe_functions">describe</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul>
@@ -69,6 +84,7 @@
 <li class="toctree-l1"><a class="reference internal" href="api/Versions.html">Version Functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/Table.html">Tables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/Team.html">Teams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/Views.html">Views</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">News</span></p>
 <ul>
@@ -89,7 +105,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Overview</li>
+      <li class="breadcrumb-item active">synapseutils</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/synapseutils.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -99,8 +115,10 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <span class="target" id="module-synapseutils"></span><section id="overview">
-<h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h1>
+  <section id="module-synapseutils">
+<span id="synapseutils"></span><h1>synapseutils<a class="headerlink" href="#module-synapseutils" title="Permalink to this headline"></a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">synapseutils</span></code> package provides both higher level functions as well as utilities for interacting with
 <a class="reference external" href="http://www.synapse.org">Synapse</a>.  These functionalities include:</p>
 <ul class="simple">
@@ -116,7 +134,7 @@
 </ul>
 </section>
 <section id="module-synapseutils.copy_functions">
-<span id="copy"></span><h1>copy<a class="headerlink" href="#module-synapseutils.copy_functions" title="Permalink to this headline"></a></h1>
+<span id="copy"></span><h2>copy<a class="headerlink" href="#module-synapseutils.copy_functions" title="Permalink to this headline"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="synapseutils.copy_functions.changeFileMetaData">
 <span class="sig-prename descclassname"><span class="pre">synapseutils.copy_functions.</span></span><span class="sig-name descname"><span class="pre">changeFileMetaData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downloadAs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">contentType</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forceVersion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.copy_functions.changeFileMetaData" title="Permalink to this definition"></a></dt>
@@ -277,7 +295,7 @@ Defaults to None</p></li>
 
 </section>
 <section id="module-synapseutils.walk_functions">
-<span id="walk"></span><h1>walk<a class="headerlink" href="#module-synapseutils.walk_functions" title="Permalink to this headline"></a></h1>
+<span id="walk"></span><h2>walk<a class="headerlink" href="#module-synapseutils.walk_functions" title="Permalink to this headline"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="synapseutils.walk_functions.walk">
 <span class="sig-prename descclassname"><span class="pre">synapseutils.walk_functions.</span></span><span class="sig-name descname"><span class="pre">walk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">synId</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includeTypes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['folder',</span> <span class="pre">'file',</span> <span class="pre">'table',</span> <span class="pre">'link',</span> <span class="pre">'entityview',</span> <span class="pre">'dockerrepo',</span> <span class="pre">'submissionview',</span> <span class="pre">'dataset',</span> <span class="pre">'materializedview']</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.walk_functions.walk" title="Permalink to this definition"></a></dt>
@@ -306,7 +324,7 @@ The “folder” type is always included so the hierarchy can be traversed</p></
 
 </section>
 <section id="module-synapseutils.sync">
-<span id="sync"></span><h1>sync<a class="headerlink" href="#module-synapseutils.sync" title="Permalink to this headline"></a></h1>
+<span id="sync"></span><h2>sync<a class="headerlink" href="#module-synapseutils.sync" title="Permalink to this headline"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="synapseutils.sync.generateManifest">
 <span class="sig-prename descclassname"><span class="pre">synapseutils.sync.</span></span><span class="sig-name descname"><span class="pre">generateManifest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allFiles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">provenance_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.sync.generateManifest" title="Permalink to this definition"></a></dt>
@@ -577,7 +595,7 @@ by specifying “syn1234”</p>
 
 </section>
 <section id="module-synapseutils.monitor">
-<span id="monitor"></span><h1>monitor<a class="headerlink" href="#module-synapseutils.monitor" title="Permalink to this headline"></a></h1>
+<span id="monitor"></span><h2>monitor<a class="headerlink" href="#module-synapseutils.monitor" title="Permalink to this headline"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="synapseutils.monitor.notifyMe">
 <span class="sig-prename descclassname"><span class="pre">synapseutils.monitor.</span></span><span class="sig-name descname"><span class="pre">notifyMe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">messageSubject</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">retries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.monitor.notifyMe" title="Permalink to this definition"></a></dt>
@@ -641,7 +659,7 @@ by specifying “syn1234”</p>
 
 </section>
 <section id="module-synapseutils.migrate_functions">
-<span id="migrate"></span><h1>migrate<a class="headerlink" href="#module-synapseutils.migrate_functions" title="Permalink to this headline"></a></h1>
+<span id="migrate"></span><h2>migrate<a class="headerlink" href="#module-synapseutils.migrate_functions" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseutils.migrate_functions.MigrationResult">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseutils.migrate_functions.</span></span><span class="sig-name descname"><span class="pre">MigrationResult</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">db_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.migrate_functions.MigrationResult" title="Permalink to this definition"></a></dt>
@@ -789,7 +807,7 @@ This can be bypassed by using the force=True option.</p></li>
 
 </section>
 <section id="module-synapseutils.describe_functions">
-<span id="describe"></span><h1>describe<a class="headerlink" href="#module-synapseutils.describe_functions" title="Permalink to this headline"></a></h1>
+<span id="describe"></span><h2>describe<a class="headerlink" href="#module-synapseutils.describe_functions" title="Permalink to this headline"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="synapseutils.describe_functions.describe">
 <span class="sig-prename descclassname"><span class="pre">synapseutils.describe_functions.</span></span><span class="sig-name descname"><span class="pre">describe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseutils.describe_functions.describe" title="Permalink to this definition"></a></dt>
@@ -838,11 +856,15 @@ This can be bypassed by using the force=True option.</p></li>
 </dd></dl>
 
 </section>
+</section>
 
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sftp.html" class="btn btn-neutral float-left" title="Using the Synapse Python Client with SFTP data storage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api/Client.html" class="btn btn-neutral float-right" title="Synapse Client" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
