@@ -184,11 +184,13 @@ Default is False</p></li>
 </ul>
 </dd>
 </dl>
-<p>Examples::
-import synapseutils
-import synapseclient
-syn = synapseclient.login()
-synapseutils.copy(syn, …)</p>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseutils</span>
+<span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">synapseutils</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">syn</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
 <p>Examples and extra parameters unique to each copy function
 – COPYING FILES</p>
 <dl class="field-list simple">
@@ -207,10 +209,10 @@ None: No provenance is set</p></li>
 </ul>
 </dd>
 </dl>
-<dl class="simple">
-<dt>Examples::</dt><dd><p>synapseutils.copy(syn, “syn12345”, “syn45678”, updateExisting=False, setProvenance = “traceback”,version=None)</p>
-</dd>
-</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapseutils</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">syn</span><span class="p">,</span> <span class="s2">&quot;syn12345&quot;</span><span class="p">,</span> <span class="s2">&quot;syn45678&quot;</span><span class="p">,</span> <span class="n">updateExisting</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">setProvenance</span> <span class="o">=</span> <span class="s2">&quot;traceback&quot;</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</pre></div>
+</div>
 <p>– COPYING FOLDERS/PROJECTS</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -219,9 +221,11 @@ not copy.
 Defaults to an empty list.</p>
 </dd>
 </dl>
-<p>Examples::
-#This will copy everything in the project into the destinationId except files and tables.
-synapseutils.copy(syn, “syn123450”,”syn345678”,excludeTypes=[“file”,”table”])</p>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1">#This will copy everything in the project into the destinationId except files and tables.</span>
+<span class="n">synapseutils</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">syn</span><span class="p">,</span> <span class="s2">&quot;syn123450&quot;</span><span class="p">,</span><span class="s2">&quot;syn345678&quot;</span><span class="p">,</span><span class="n">excludeTypes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;file&quot;</span><span class="p">,</span><span class="s2">&quot;table&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>a mapping between the original and copied entity: {‘syn1234’:’syn33455’}</p>
@@ -359,8 +363,10 @@ The “folder” type is always included so the hierarchy can be traversed</p></
 See below for details</p></li>
 </ul>
 </dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A pandas dataframe if the manifest is validated.</p>
+</dd>
 </dl>
-<p>:returns A pandas dataframe if the manifest is validated.</p>
 <dl class="simple">
 <dt>See also for a description of the file format:</dt><dd><ul class="simple">
 <li><p><a class="reference internal" href="#synapseutils.sync.syncToSynapse" title="synapseutils.sync.syncToSynapse"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseutils.sync.syncToSynapse()</span></code></a></p></li>
@@ -387,16 +393,12 @@ Defaults to “overwrite.local”.</p></li>
 Defaults to False</p></li>
 <li><p><strong>manifest</strong> – Determines whether creating manifest file automatically.
 The optional values here (“all”, “root”, “suppress”).</p></li>
+<li><p><strong>downloadFile</strong> – Determines whether downloading the files.
+Defaults to True</p></li>
 </ul>
 </dd>
-</dl>
-<dl class="simple">
-<dt>:param downloadFile Determines whether downloading the files.</dt><dd><p>Defaults to True</p>
-</dd>
-</dl>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>list of entities (files, tables, links)</p>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>list of entities (files, tables, links)</p>
 </dd>
 </dl>
 <p>This function will crawl all subfolders of the project/folder specified by <cite>entity</cite> and download all files that have
@@ -407,8 +409,7 @@ cache) since the last download then local the file will be replaced by the new f
 location and provenance of all downloaded files).</p>
 <p>See also:
 - <a class="reference internal" href="#synapseutils.sync.syncToSynapse" title="synapseutils.sync.syncToSynapse"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseutils.sync.syncToSynapse()</span></code></a></p>
-<p>Example:
-Download and print the paths of all downloaded files:</p>
+<p>Example - Download and print the paths of all downloaded files:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entities</span> <span class="o">=</span> <span class="n">syncFromSynapse</span><span class="p">(</span><span class="n">syn</span><span class="p">,</span> <span class="s2">&quot;syn1234&quot;</span><span class="p">)</span>
 <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
