@@ -798,6 +798,39 @@ class Synapse(object):
             cumulative_transfer_progress.printTransferProgress(*args, **kwargs)
 
     ############################################################
+    #                      Service methods                     #
+    ############################################################
+
+    _services = {
+        "json_schema": "JsonSchemaService",
+    }
+
+    def get_available_services(self):
+        """Get available Synapse services
+        This is a beta feature and is subject to change"""
+        services = self._services.keys()
+        return list(services)
+
+    def service(self, service_name: str):
+        """Get available Synapse services
+        This is a beta feature and is subject to change"""
+        # This is to avoid circular imports
+        # TODO: revisit the import order and method https://stackoverflow.com/a/37126790
+        # To move this to the top
+        import synapseclient.services
+
+        assert isinstance(service_name, str)
+        service_name = service_name.lower().replace(" ", "_")
+        assert service_name in self._services, (
+            f"Unrecognized service ({service_name}). Run the 'get_available_"
+            "services()' method to get a list of available services."
+        )
+        service_attr = self._services[service_name]
+        service_cls = getattr(synapseclient.services, service_attr)
+        service = service_cls(self)
+        return service
+
+    ############################################################
     #                   Get / Store methods                    #
     ############################################################
 
@@ -3608,6 +3641,24 @@ class Synapse(object):
             for result in results:
                 offset += 1
                 yield result
+
+    def _POST_paginated(self, uri, body, **kwargs):
+        """
+        :param uri:     A URI that returns paginated results
+        :param body:    POST request payload
+
+        :returns: A generator over some paginated results
+        """
+
+        next_page_token = None
+        while True:
+            body["nextPageToken"] = next_page_token
+            response = self.restPOST(uri, body=json.dumps(body), **kwargs)
+            next_page_token = response.get("nextPageToken")
+            for item in response["page"]:
+                yield item
+            if next_page_token is None:
+                break
 
     def getSubmission(self, id, **kwargs):
         """

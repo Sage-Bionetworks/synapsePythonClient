@@ -1,6 +1,7 @@
-import json
+import importlib.resources
 
-import pkg_resources
+import json
+import requests  # ensure user-agent is set to track Synapse Python client usage
 
 from .activity import Activity
 from .annotations import Annotations
@@ -29,9 +30,12 @@ from .table import (
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-__version__ = json.load(pkg_resources.resource_stream(__name__, "synapsePythonClient"))[
-    "latestVersion"
-]
+# ref = importlib.resources.files(__name__).joinpath("synapsePythonClient")
+# with ref.open("r") as fp:
+#     __version__ = json.load(fp)["latestVersion"]
+# TODO: switch to the above after python 3.8 is deprecated
+with importlib.resources.path(__name__, "synapsePythonClient") as ref:
+    __version__ = json.load(open(ref))["latestVersion"]
 
 __all__ = [
     # objects
@@ -74,10 +78,6 @@ __all__ = [
     "PUBLIC",
     "AUTHENTICATED_USERS",
 ]
-
-
-# ensure user-agent is set to track Synapse Python client usage
-import requests
 
 USER_AGENT = {
     "User-Agent": "synapseclient/%s %s"

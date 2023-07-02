@@ -642,7 +642,8 @@ class File(Entity, Versionable):
     Represents a file in Synapse.
 
     When a File object is stored, the associated local file or its URL will be stored in Synapse. A File must have a
-    path (or URL) and a parent.
+    path (or URL) and a parent. By default, the name of the file in Synapse matches the filename, but by specifying
+    the `name` attribute, the File Entity name can be different.
 
     :param path:                Location to be represented by this File
     :param name:                Name of the file in Synapse, not to be confused with the name within the path
@@ -661,7 +662,12 @@ class File(Entity, Versionable):
 
     Example::
 
+        # The Entity name is derived from the path and is 'data.xyz'
         data = File('/path/to/file/data.xyz', parent=folder)
+        data = syn.store(data)
+
+        # The Entity name is specified as 'my entity'
+        data = File('/path/to/file/data.xyz', name="my entity", parent=folder)
         data = syn.store(data)
     """
 

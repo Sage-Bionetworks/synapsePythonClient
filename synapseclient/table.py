@@ -306,7 +306,7 @@ import abc
 import enum
 import json
 from builtins import zip
-from typing import List, Dict
+from typing import List, Dict, TypeVar
 
 from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -344,6 +344,8 @@ MAX_NUM_TABLE_COLUMNS = 152
 DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
 DEFAULT_ESCAPSE_CHAR = "\\"
+
+DataFrameType = TypeVar("pd.DataFrame")
 
 
 # This Enum is used to help users determine which Entity types they want in their view
@@ -615,6 +617,33 @@ def join_column_names(columns):
     return ",".join(escape_column_name(c) for c in columns)
 
 
+def _convert_df_date_cols_to_datetime(
+    df: DataFrameType, date_columns: List
+) -> DataFrameType:
+    """Convert date columns with epoch time to date time in UTC timezone
+    :param df: a pandas dataframe
+    :param date_columns: name of date columns
+    """
+    test_import_pandas()
+    import pandas as pd
+    import numpy as np
+
+    # find columns that are in date_columns list but not in dataframe
+    diff_cols = list(set(date_columns) - set(df.columns))
+    if diff_cols:
+        raise ValueError("Please ensure that date columns are already in the dataframe")
+    try:
+        df[date_columns] = df[date_columns].astype(np.float64)
+    except ValueError:
+        raise ValueError(
+            "Cannot convert epoch time to integer. Please make sure that the date columns that you specified contain valid epoch time value"
+        )
+    df[date_columns] = df[date_columns].apply(
+        lambda x: pd.to_datetime(x, unit="ms", utc=True)
+    )
+    return df
+
+
 def _csv_to_pandas_df(
     filepath,
     separator=DEFAULT_SEPARATOR,
@@ -629,13 +658,6 @@ def _csv_to_pandas_df(
 ):
     test_import_pandas()
     import pandas as pd
-
-    # DATEs are stored in csv as unix timestamp in milliseconds
-    def datetime_millisecond_parser(milliseconds):
-        return pd.to_datetime(milliseconds, unit="ms", utc=True)
-
-    if not date_columns:
-        date_columns = []
 
     line_terminator = str(os.linesep)
 
@@ -653,9 +675,10 @@ def _csv_to_pandas_df(
         escapechar=escape_char,
         header=0 if contain_headers else None,
         skiprows=lines_to_skip,
-        parse_dates=date_columns,
-        date_parser=datetime_millisecond_parser,
     )
+    # parse date columns if exists
+    if date_columns:
+        df = _convert_df_date_cols_to_datetime(df, date_columns)
     # Turn list columns into lists
     if list_columns:
         for col in list_columns:
@@ -1920,16 +1943,6 @@ class TableAbstractBaseClass(collections.abc.Iterable, collections.abc.Sized):
     def asDataFrame(self):
         raise NotImplementedError()
 
-    def asInteger(self):
-        try:
-            first_row = next(iter(self))
-            return int(first_row[0])
-        except (KeyError, TypeError):
-            raise ValueError(
-                "asInteger is only valid for queries such as count queries whose first value is an"
-                " integer."
-            )
-
     def asRowSet(self):
         return RowSet(
             headers=self.headers,
@@ -1998,15 +2011,6 @@ class RowSetTable(TableAbstractBaseClass):
 
     def asRowSet(self):
         return self.rowset
-
-    def asInteger(self):
-        try:
-            return int(self.rowset["rows"][0]["values"][0])
-        except (KeyError, TypeError):
-            raise ValueError(
-                "asInteger is only valid for queries such as count queries whose first value is an"
-                " integer."
-            )
 
     def __iter__(self):
         def iterate_rows(rows, headers):
@@ -2179,15 +2183,6 @@ class TableQueryResult(TableAbstractBaseClass):
             etag=self.etag,
             rows=[row for row in self],
         )
-
-    def asInteger(self):
-        try:
-            return int(self.rowset["rows"][0]["values"][0])
-        except (KeyError, TypeError):
-            raise ValueError(
-                "asInteger is only valid for queries such as count queries whose first value is an"
-                " integer."
-            )
 
     def __iter__(self):
         return self
