@@ -219,8 +219,7 @@ def set_privacy(
     """
     Set privacy of individual annotations, where annotations are in the format used by Synapse SubmissionStatus objects.
     See the `Annotations documentation \
-    <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html>`_ and the docs regarding
-    `querying annotations <http://docs.synapse.org/rest/GET/evaluation/submission/query.html>`_.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html>`_.
 
     :param annotations: Annotations that have already been converted to Synapse format using
                         :py:func:`to_submission_status_annotations`.

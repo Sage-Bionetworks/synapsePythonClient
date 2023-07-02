@@ -219,7 +219,7 @@ Queries
 
 The query language is quite similar to SQL select statements, except that joins are not supported. The documentation
 for the Synapse API has lots of `query examples \
-<http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_.
+<https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_.
 
 ~~~~~~
 Schema
@@ -540,7 +540,7 @@ def cast_values(values, headers):
     """
     Convert a row of table query results from strings to the correct column type.
 
-    See: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
+    See: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
     """
     if len(values) != len(headers):
         raise ValueError(
@@ -1520,7 +1520,7 @@ class Column(DictObject):
     :param columnType:        The column type determines the type of data that can be stored in a column. It can be any
                               of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
                               "LARGETEXT", "USERID". For more information, please see:
-                              https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
+                              https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
     :param maximumSize:       A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
                               default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
                               characters.
@@ -1571,7 +1571,7 @@ class AppendableRowset(DictObject, metaclass=abc.ABCMeta):
         Creates and POSTs an AppendableRowSetRequest_
 
         .. AppendableRowSetRequest:
-         http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
+         https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
         """
         append_rowset_request = {
             "concreteType": concrete_types.APPENDABLE_ROWSET_REQUEST,
@@ -1678,7 +1678,7 @@ class PartialRowset(AppendableRowset):
 class RowSet(AppendableRowset):
     """
     A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet \
-    <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html>`_.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
     :param schema:  A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers: The list of SelectColumn objects that describe the fields in each row.
@@ -1742,7 +1742,7 @@ class RowSet(AppendableRowset):
 
 class Row(DictObject):
     """
-    A `row <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
+    A `row <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
 
     :param values:          A list of values
     :param rowId:           The immutable ID issued to a new row
