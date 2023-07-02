@@ -130,12 +130,12 @@ and how they interact with the Python client.</p>
 <h2>External storage locations<a class="headerlink" href="#external-storage-locations" title="Permalink to this headline"></a></h2>
 <p>Synapse folders can be configured to use custom implementations for their underlying data storage.
 More information on this feature can be found
-<a class="reference external" href="https://docs.synapse.org/articles/custom_storage_location.html">here</a>.
+<a class="reference external" href="https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html">here</a>.
 The most common implementation of this is to configure a folder to store data in a user controlled AWS S3 bucket
 rather than Synapse’s default internal S3 storage.</p>
 <p>The following illustrates creating a new folder backed by a user specified S3 bucket.</p>
 <ol class="arabic simple">
-<li><p>Ensure that the bucket is <a class="reference external" href="https://docs.synapse.org/articles/custom_storage_location.html#setting-up-an-external-aws-s3-bucket">properly configured</a>.</p></li>
+<li><p>Ensure that the bucket is <a class="reference external" href="https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html#CustomStorageLocations-SettingUpanExternalAWSS3Bucket">properly configured</a>.</p></li>
 <li><p>Create a folder and configure it to use external S3 storage:</p></li>
 </ol>
 <blockquote>
@@ -185,7 +185,7 @@ a file handle for that object using the Python client and then storing the file 
 <section id="sts-storage-locations">
 <span id="id1"></span><h2>STS Storage Locations<a class="headerlink" href="#sts-storage-locations" title="Permalink to this headline"></a></h2>
 <p>Create an STS enabled folder to use
-<a class="reference external" href="https://docs.synapse.org/articles/aws_sts_storage_locations.html">AWS Security Token Service</a> credentials
+<a class="reference external" href="https://help.synapse.org/docs/Compute-Directly-on-Data-in-Synapse-or-S3.2048426057.html#ComputeDirectlyonDatainSynapseorS3-Synapse-ManagedSTSStorageLocations">AWS Security Token Service</a> credentials
 with S3 storage locations. These credentials can be scoped to access individual Synapse files or folders and can be used
 with external S3 tools such as the awscli and the boto3 library separately from Synapse to read and write files to and
 from Synapse storage. At this time read and write capabilities are supported for external storage locations, while default
@@ -304,7 +304,7 @@ in undesirable ways.</p>
 <h3>Migrating programmatically<a class="headerlink" href="#migrating-programmatically" title="Permalink to this headline"></a></h3>
 <p>Migrating a Synapse project or folder programatically is a two step process.</p>
 <p>First ensure that you know the id of the storage location you want to migrate to. More info on storage
-locations can be found above and <a class="reference external" href="https://docs.synapse.org/articles/custom_storage_location.html">here</a>.</p>
+locations can be found above and <a class="reference external" href="https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html">here</a>.</p>
 <p>Once the storage location is known, the first step to migrate an entity is create a migratable index
 of its contents using the
 <a class="reference external" href="synapseutils.html#synapseutils.migrate_functions.index_files_for_migration">index_files_for_migration</a> function, e.g.</p>
