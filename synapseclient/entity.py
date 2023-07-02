@@ -839,7 +839,7 @@ class DockerRepository(Entity):
     NOTE: store()-ing a DockerRepository created in the Python client will always result in it being treated as a
     reference to an external Docker repository that is not managed by synapse.
     To upload a docker image that is managed by Synapse please use the official Docker client and read
-    http://docs.synapse.org/articles/docker.html for instructions on uploading a Docker Image to Synapse
+    https://help.synapse.org/docs/Synapse-Docker-Registry.2011037752.html for instructions on uploading a Docker Image to Synapse
 
     :param repositoryName: the name of the Docker Repository. Usually in the format: [host[:port]/]path.
                            If host is not set, it will default to that of DockerHub. port can only be specified

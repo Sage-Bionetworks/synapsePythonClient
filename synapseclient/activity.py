@@ -150,7 +150,7 @@ class Activity(dict):
     :param used:        Either a list of:
 
                             - `reference objects \
-                              <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Reference.html>`_
+                              <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Reference.html>`_
                               (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``)
                             - a list of Synapse Entities or Entity IDs
                             - a list of URL's
