@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Python Client Basics &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -113,9 +114,9 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <div class="section" id="python-client-basics">
+  <section id="python-client-basics">
 <h1>Python Client Basics<a class="headerlink" href="#python-client-basics" title="Permalink to this headline"></a></h1>
-<div class="section" id="accessing-data">
+<section id="accessing-data">
 <h2>Accessing Data<a class="headerlink" href="#accessing-data" title="Permalink to this headline"></a></h2>
 <p>Synapse identifiers are used to refer to projects and data which are represented by <a class="reference internal" href="../api/Entity.html#module-synapseclient.entity" title="synapseclient.entity"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.entity</span></code></a>
 objects. For example, the entity <a class="reference external" href="https://www.synapse.org/#!Synapse:syn1899498">syn1899498</a> represents a tab-delimited
@@ -146,8 +147,8 @@ and also downloads the file to a local cache:</p>
 <li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.get" title="synapseclient.Synapse.get"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.get()</span></code></a></p></li>
 <li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.onweb" title="synapseclient.Synapse.onweb"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.onweb()</span></code></a></p></li>
 </ul>
-</div>
-<div class="section" id="organizing-data-in-a-project">
+</section>
+<section id="organizing-data-in-a-project">
 <h2>Organizing Data in a Project<a class="headerlink" href="#organizing-data-in-a-project" title="Permalink to this headline"></a></h2>
 <p>You can create your own projects and upload your own data sets. Synapse stores entities in a hierarchical or tree
 structure. Projects are at the top level and must be uniquely named:</p>
@@ -180,8 +181,8 @@ record of a data analysis pipeline.</p>
 <li><p><a class="reference internal" href="../api/Entity.html#synapseclient.entity.Link" title="synapseclient.entity.Link"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Link</span></code></a></p></li>
 <li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a></p></li>
 </ul>
-</div>
-<div class="section" id="annotating-synapse-entities">
+</section>
+<section id="annotating-synapse-entities">
 <h2>Annotating Synapse Entities<a class="headerlink" href="#annotating-synapse-entities" title="Permalink to this headline"></a></h2>
 <p>Annotations are arbitrary metadata attached to Synapse entities, for example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">test_entity</span><span class="o">.</span><span class="n">genome_assembly</span> <span class="o">=</span> <span class="s2">&quot;hg19&quot;</span>
@@ -191,8 +192,8 @@ record of a data analysis pipeline.</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="../api/Annotations.html#module-synapseclient.annotations" title="synapseclient.annotations"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.annotations</span></code></a></p></li>
 </ul>
-</div>
-<div class="section" id="provenance">
+</section>
+<section id="provenance">
 <h2>Provenance<a class="headerlink" href="#provenance" title="Permalink to this headline"></a></h2>
 <p>Synapse provides tools for tracking ‘provenance’, or the transformation of raw data into processed results, by linking
 derived data objects to source data and the code used to perform the transformation.</p>
@@ -200,16 +201,16 @@ derived data objects to source data and the code used to perform the transformat
 <ul class="simple">
 <li><p><a class="reference internal" href="../api/Activity.html#synapseclient.activity.Activity" title="synapseclient.activity.Activity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.activity.Activity</span></code></a></p></li>
 </ul>
-</div>
-<div class="section" id="tables">
+</section>
+<section id="tables">
 <h2>Tables<a class="headerlink" href="#tables" title="Permalink to this headline"></a></h2>
 <p>Tables can be built up by adding sets of rows that follow a user-defined schema and queried using a SQL-like syntax.</p>
 <p>See:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="../api/Table.html#module-synapseclient.table" title="synapseclient.table"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.table</span></code></a></p></li>
 </ul>
-</div>
-<div class="section" id="wikis">
+</section>
+<section id="wikis">
 <h2>Wikis<a class="headerlink" href="#wikis" title="Permalink to this headline"></a></h2>
 <p>Wiki pages can be attached to an Synapse entity (i.e. project, folder, file, etc). Text and graphics can be composed in
 markdown and rendered in the web view of the object.</p>
@@ -218,8 +219,8 @@ markdown and rendered in the web view of the object.</p>
 <li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.getWiki" title="synapseclient.Synapse.getWiki"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getWiki()</span></code></a></p></li>
 <li><p><a class="reference internal" href="../api/Wiki.html#synapseclient.wiki.Wiki" title="synapseclient.wiki.Wiki"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.wiki.Wiki</span></code></a></p></li>
 </ul>
-</div>
-<div class="section" id="access-control">
+</section>
+<section id="access-control">
 <h2>Access Control<a class="headerlink" href="#access-control" title="Permalink to this headline"></a></h2>
 <p>By default, data sets in Synapse are private to your user account, but they can easily be shared with specific users,
 groups, or the public.</p>
@@ -228,8 +229,8 @@ groups, or the public.</p>
 <li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">Synapse.getPermissions()</span></code></p></li>
 <li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">Synapse.setPermissions()</span></code></p></li>
 </ul>
-</div>
-<div class="section" id="accessing-the-api-directly">
+</section>
+<section id="accessing-the-api-directly">
 <h2>Accessing the API Directly<a class="headerlink" href="#accessing-the-api-directly" title="Permalink to this headline"></a></h2>
 <p>These methods enable access to the Synapse REST(ish) API taking care of details like endpoints and authentication.
 See the <a class="reference external" href="https://docs.synapse.org/rest/">REST API documentation</a>.</p>
@@ -240,25 +241,25 @@ See the <a class="reference external" href="https://docs.synapse.org/rest/">REST
 <li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.restPUT" title="synapseclient.Synapse.restPUT"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restPUT()</span></code></a></p></li>
 <li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.restDELETE" title="synapseclient.Synapse.restDELETE"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restDELETE()</span></code></a></p></li>
 </ul>
-</div>
-<div class="section" id="synapse-utilities">
+</section>
+<section id="synapse-utilities">
 <h2>Synapse Utilities<a class="headerlink" href="#synapse-utilities" title="Permalink to this headline"></a></h2>
 <p>There is a companion module called synapseutils that provide higher level functionality such as recursive copying of
 content, syncing with Synapse and additional query functionality.</p>
 <p>See:
 - <a class="reference internal" href="../synapseutils.html#module-synapseutils" title="synapseutils"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseutils</span></code></a></p>
-</div>
-<div class="section" id="more-information">
+</section>
+<section id="more-information">
 <h2>More Information<a class="headerlink" href="#more-information" title="Permalink to this headline"></a></h2>
 <p>For more information see the <a class="reference external" href="https://docs.synapse.org/articles/">Synapse User Guide</a>. More detailed Python API
 docs are available under the pages in “PYTHON API”.</p>
-</div>
-<div class="section" id="getting-updates">
+</section>
+<section id="getting-updates">
 <h2>Getting Updates<a class="headerlink" href="#getting-updates" title="Permalink to this headline"></a></h2>
 <p>To get information about new versions of the client, see:
 <a class="reference external" href="Versions.html#synapseclient.version_check.check_for_updates">synapseclient.check_for_updates()</a>.</p>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
@@ -272,7 +273,7 @@ docs are available under the pages in “PYTHON API”.</p>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2012-2023, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Jun 04, 2023.
+      <span class="lastupdated">Last updated on Jul 02, 2023.
       </span></p>
   </div>
 
@@ -293,7 +294,7 @@ docs are available under the pages in “PYTHON API”.</p>
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jun 04, 2023.
+      Last updated on Jul 02, 2023.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">

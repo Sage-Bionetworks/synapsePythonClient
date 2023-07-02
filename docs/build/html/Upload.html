@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>File Upload &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -98,10 +99,10 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <div class="section" id="file-upload">
+  <section id="file-upload">
 <h1>File Upload<a class="headerlink" href="#file-upload" title="Permalink to this headline"></a></h1>
 <p>Files in Synapse are versionable. Please see <a class="reference external" href="https://docs.synapse.org/articles/files_and_versioning.html">Files and Versioning</a> for more information about how versions in Files works.</p>
-<div class="section" id="uploading-a-new-version">
+<section id="uploading-a-new-version">
 <h2>Uploading a New Version<a class="headerlink" href="#uploading-a-new-version" title="Permalink to this headline"></a></h2>
 <p>Uploading a new version follows the same steps as uploading a file for the first time - use the same file name and store it in the same location (e.g., the same parentId). It is recommended to add a comment to the new version in order to easily track differences at a glance. The example file <cite>raw_data.txt</cite> will now have a version of 2 and a comment describing the change.</p>
 <p>Explicit example:</p>
@@ -128,8 +129,8 @@
 <span class="n">new_file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;path/to/new_version/raw_data.txt&#39;</span><span class="p">,</span>  <span class="n">parentId</span><span class="o">=</span><span class="s1">&#39;syn123456&#39;</span><span class="p">))</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="updating-annotations-or-provenance-without-changing-versions">
+</section>
+<section id="updating-annotations-or-provenance-without-changing-versions">
 <h2>Updating Annotations or Provenance without Changing Versions<a class="headerlink" href="#updating-annotations-or-provenance-without-changing-versions" title="Permalink to this headline"></a></h2>
 <p>Any change to a File will automatically update its version. If this isn’t the desired behavior, such as minor changes to the metadata, you can set <cite>forceVersion=False</cite> with the Python client. For command line, the commands <cite>set-annotations</cite> and <cite>set-provenance</cite> will update the metadata without creating a new version. Adding/updating annotations and provenance in the web client will also not cause a version change.</p>
 <p><strong>Important: Because Provenance is tracked by version, set `forceVersion=False` for minor changes to avoid breaking Provenance.</strong></p>
@@ -144,8 +145,8 @@
 <span class="n">file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">forceVersion</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="setting-provenance-without-changing-version">
+</section>
+<section id="setting-provenance-without-changing-version">
 <h2>Setting Provenance without Changing Version<a class="headerlink" href="#setting-provenance-without-changing-version" title="Permalink to this headline"></a></h2>
 <p>To set Provenance without changing the file version:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get file from Synapse, set download=False since we are only updating provenance</span>
@@ -158,15 +159,15 @@
 <span class="n">file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">forceVersion</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="downloading-a-specific-version">
+</section>
+<section id="downloading-a-specific-version">
 <h2>Downloading a Specific Version<a class="headerlink" href="#downloading-a-specific-version" title="Permalink to this headline"></a></h2>
 <p>By default, the File downloaded will always be the most recent version. However, a specific version can be downloaded by passing the version parameter:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn3260973&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
@@ -177,7 +178,7 @@
 
   <div role="contentinfo">
     <p>&#169; Copyright 2012-2023, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Jun 03, 2023.
+      <span class="lastupdated">Last updated on Jul 02, 2023.
       </span></p>
   </div>
 
@@ -198,7 +199,7 @@
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jun 03, 2023.
+      Last updated on Jul 02, 2023.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">

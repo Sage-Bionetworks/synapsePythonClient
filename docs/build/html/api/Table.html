@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tables &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -118,7 +119,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <span class="target" id="module-synapseclient.table"></span><div class="section" id="tables">
+  <span class="target" id="module-synapseclient.table"></span><section id="tables">
 <h1>Tables<a class="headerlink" href="#tables" title="Permalink to this headline"></a></h1>
 <p>Synapse Tables enable storage of tabular data in Synapse in a form that can be queried using a SQL-like query language.</p>
 <p>A table has a <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> and holds a set of rows conforming to that schema.</p>
@@ -187,7 +188,7 @@ To create a table with a custom <a class="reference internal" href="Entity.html#
     <span class="nb">print</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="section" id="id1">
+<section id="id1">
 <h2>Pandas<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
 <p><a class="reference external" href="http://pandas.pydata.org/">Pandas</a> is a popular library for working with tabular data. If you have Pandas installed,
 the goal is that Synapse Tables will play nice with it.</p>
@@ -210,8 +211,8 @@ To create a table with a custom <a class="reference internal" href="Entity.html#
 <span class="n">df</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">asDataFrame</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="changing-data">
+</section>
+<section id="changing-data">
 <h2>Changing Data<a class="headerlink" href="#changing-data" title="Permalink to this headline"></a></h2>
 <p>Once the schema is settled, changes come in two flavors: appending new rows and updating existing ones.</p>
 <p><strong>Appending</strong> new rows is fairly straightforward. To continue the previous example, we might add some new genes from
@@ -242,8 +243,8 @@ actually change will make processing faster.</p>
 <p>The etag is used by the server to prevent concurrent users from making conflicting changes, a technique called
 optimistic concurrency. In case of a conflict, your update may be rejected. You then have to do another query and
 try your update again.</p>
-</div>
-<div class="section" id="changing-table-structure">
+</section>
+<section id="changing-table-structure">
 <h2>Changing Table Structure<a class="headerlink" href="#changing-table-structure" title="Permalink to this headline"></a></h2>
 <p>Adding columns can be done using the methods <code class="xref py py-meth docutils literal notranslate"><span class="pre">Schema.addColumn()</span></code> or <code class="xref py py-meth docutils literal notranslate"><span class="pre">addColumns()</span></code> on the
 <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object:</p>
@@ -263,8 +264,8 @@ try your update again.</p>
 <span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="table-attached-files">
+</section>
+<section id="table-attached-files">
 <h2>Table attached files<a class="headerlink" href="#table-attached-files" title="Permalink to this headline"></a></h2>
 <p>Synapse tables support a special column type called ‘File’ which contain a file handle, an identifier of a file stored
 in Synapse. Here’s an example of how to upload files into Synapse, associate them with a table and read them back
@@ -302,27 +303,27 @@ later:</p>
 <span class="n">cover_files</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">downloadTableColumns</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;cover&#39;</span><span class="p">])</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="deleting-rows">
+</section>
+<section id="deleting-rows">
 <h2>Deleting rows<a class="headerlink" href="#deleting-rows" title="Permalink to this headline"></a></h2>
 <p>Query for the rows you want to delete and call syn.delete on the results:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select * from </span><span class="si">%s</span><span class="s2"> where Chromosome=&#39;2&#39;&quot;</span> <span class="o">%</span> <span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 <span class="n">a</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="deleting-the-whole-table">
+</section>
+<section id="deleting-the-whole-table">
 <h2>Deleting the whole table<a class="headerlink" href="#deleting-the-whole-table" title="Permalink to this headline"></a></h2>
 <p>Deleting the schema deletes the whole table and all rows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">syn</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="section" id="queries">
+<section id="queries">
 <h3>Queries<a class="headerlink" href="#queries" title="Permalink to this headline"></a></h3>
 <p>The query language is quite similar to SQL select statements, except that joins are not supported. The documentation
 for the Synapse API has lots of <a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html">query examples</a>.</p>
-</div>
-<div class="section" id="schema">
+</section>
+<section id="schema">
 <h3>Schema<a class="headerlink" href="#schema" title="Permalink to this headline"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py">
@@ -428,8 +429,8 @@ settings. Supported entity types are:</p>
 
 </dd></dl>
 
-</div>
-<div class="section" id="column">
+</section>
+<section id="column">
 <h3>Column<a class="headerlink" href="#column" title="Permalink to this headline"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.table.Column">
@@ -465,8 +466,8 @@ allowed to have default values.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="row">
+</section>
+<section id="row">
 <h3>Row<a class="headerlink" href="#row" title="Permalink to this headline"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.table.Row">
@@ -489,8 +490,8 @@ new version is created.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="rowset">
+</section>
+<section id="rowset">
 <h3>RowSet<a class="headerlink" href="#rowset" title="Permalink to this headline"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.table.RowSet">
@@ -519,8 +520,8 @@ rows from a RowSet the etag must be provided with the POST.</p>
 
 </dd></dl>
 
-</div>
-<div class="section" id="table">
+</section>
+<section id="table">
 <h3>Table<a class="headerlink" href="#table" title="Permalink to this headline"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.table.TableAbstractBaseClass">
@@ -677,8 +678,8 @@ appropriate data types.</p>
 
 </dd></dl>
 
-</div>
-<div class="section" id="dataset">
+</section>
+<section id="dataset">
 <h3>Dataset<a class="headerlink" href="#dataset" title="Permalink to this headline"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py">
@@ -839,8 +840,8 @@ items from the set.</p>
 
 </dd></dl>
 
-</div>
-<div class="section" id="module-level-methods">
+</section>
+<section id="module-level-methods">
 <h3>Module level methods<a class="headerlink" href="#module-level-methods" title="Permalink to this headline"></a></h3>
 <dl class="py function">
 <dt class="sig sig-object py" id="synapseclient.table.as_table_columns">
@@ -946,9 +947,9 @@ depending on what type of values are given.</p>
 </ul>
 </dd>
 </dl>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
            </div>
@@ -962,7 +963,7 @@ depending on what type of values are given.</p>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2012-2023, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Jun 04, 2023.
+      <span class="lastupdated">Last updated on Jul 02, 2023.
       </span></p>
   </div>
 
@@ -983,7 +984,7 @@ depending on what type of values are given.</p>
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jun 04, 2023.
+      Last updated on Jul 02, 2023.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">

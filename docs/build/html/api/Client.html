@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Synapse Client &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -105,11 +106,11 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <span class="target" id="module-synapseclient.client"></span><div class="section" id="synapse-client">
+  <span class="target" id="module-synapseclient.client"></span><section id="synapse-client">
 <h1>Synapse Client<a class="headerlink" href="#synapse-client" title="Permalink to this headline"></a></h1>
 <p>The <cite>Synapse</cite> object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.</p>
-<div class="section" id="login">
+<section id="login">
 <h2>Login<a class="headerlink" href="#login" title="Permalink to this headline"></a></h2>
 <dl class="py method">
 <dt class="sig sig-object py" id="synapseclient.client.login">
@@ -123,8 +124,8 @@ retrieving data, and recording provenance of data analysis.</p>
 </div>
 </dd></dl>
 
-</div>
-<div class="section" id="synapse">
+</section>
+<section id="synapse">
 <h2>Synapse<a class="headerlink" href="#synapse" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.Synapse">
@@ -850,6 +851,13 @@ information. See <code class="xref py py-func docutils literal notranslate"><spa
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.Synapse.get_available_services">
+<span class="sig-name descname"><span class="pre">get_available_services</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.get_available_services" title="Permalink to this definition"></a></dt>
+<dd><p>Get available Synapse services
+This is a beta feature and is subject to change</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="synapseclient.Synapse.get_download_list">
 <span class="sig-name descname"><span class="pre">get_download_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">downloadLocation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#synapseclient.Synapse.get_download_list" title="Permalink to this definition"></a></dt>
 <dd><p>Download all files from your Synapse download list</p>
@@ -1280,6 +1288,13 @@ team. Default to None.</p></li>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.Synapse.service">
+<span class="sig-name descname"><span class="pre">service</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">service_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.service" title="Permalink to this definition"></a></dt>
+<dd><p>Get available Synapse services
+This is a beta feature and is subject to change</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="synapseclient.Synapse.setAnnotations">
 <span class="sig-name descname"><span class="pre">setAnnotations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.setAnnotations" title="Permalink to this definition"></a></dt>
 <dd><p>Store annotations for an Entity in the Synapse Repository.</p>
@@ -1615,12 +1630,12 @@ calculated automatically.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="more-information">
+</section>
+<section id="more-information">
 <h2>More information<a class="headerlink" href="#more-information" title="Permalink to this headline"></a></h2>
 <p>See also the <a class="reference external" href="https://docs.synapse.org/rest/">Synapse API documentation</a>.</p>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
@@ -1634,7 +1649,7 @@ calculated automatically.</p></li>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2012-2023, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Jun 04, 2023.
+      <span class="lastupdated">Last updated on Jul 02, 2023.
       </span></p>
   </div>
 
@@ -1655,7 +1670,7 @@ calculated automatically.</p></li>
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jun 04, 2023.
+      Last updated on Jul 02, 2023.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">

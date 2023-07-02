@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Entity &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -113,7 +114,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <span class="target" id="module-synapseclient.entity"></span><div class="section" id="entity">
+  <span class="target" id="module-synapseclient.entity"></span><section id="entity">
 <h1>Entity<a class="headerlink" href="#entity" title="Permalink to this headline"></a></h1>
 <p>The Entity class is the base class for all entities, including Project, Folder, File, and Link.</p>
 <p>Entities are dictionary-like objects in which both object and dictionary notation (entity.foo or entity[‘foo’]) can be
@@ -130,7 +131,7 @@ source code, or a folder that contains other entities.</p>
 <p>Entities should typically be created using the constructors for specific subclasses such as Project, Folder or File.</p>
 </dd></dl>
 
-<div class="section" id="project">
+<section id="project">
 <h2>Project<a class="headerlink" href="#project" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.entity.Project">
@@ -155,8 +156,8 @@ source code, or a folder that contains other entities.</p>
 </div>
 </dd></dl>
 
-</div>
-<div class="section" id="folder">
+</section>
+<section id="folder">
 <h2>Folder<a class="headerlink" href="#folder" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.entity.Folder">
@@ -181,15 +182,16 @@ source code, or a folder that contains other entities.</p>
 </div>
 </dd></dl>
 
-</div>
-<div class="section" id="file">
+</section>
+<section id="file">
 <h2>File<a class="headerlink" href="#file" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.entity.File">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.entity.</span></span><span class="sig-name descname"><span class="pre">File</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.entity.File" title="Permalink to this definition"></a></dt>
 <dd><p>Represents a file in Synapse.</p>
 <p>When a File object is stored, the associated local file or its URL will be stored in Synapse. A File must have a
-path (or URL) and a parent.</p>
+path (or URL) and a parent. By default, the name of the file in Synapse matches the filename, but by specifying
+the <cite>name</cite> attribute, the File Entity name can be different.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -211,13 +213,18 @@ permission to store the file</p></li>
 </dd>
 </dl>
 <p>Example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="s1">&#39;/path/to/file/data.xyz&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># The Entity name is derived from the path and is &#39;data.xyz&#39;</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="s1">&#39;/path/to/file/data.xyz&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+<span class="c1"># The Entity name is specified as &#39;my entity&#39;</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="s1">&#39;/path/to/file/data.xyz&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;my entity&quot;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
 <span class="n">data</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 </pre></div>
 </div>
 </dd></dl>
 
-<div class="section" id="changing-file-names">
+<section id="changing-file-names">
 <h3>Changing File Names<a class="headerlink" href="#changing-file-names" title="Permalink to this headline"></a></h3>
 <p>A Synapse File Entity has a name separate from the name of the actual file it represents. When a file is uploaded to
 Synapse, its filename is fixed, even though the name of the entity can be changed at any time. Synapse provides a way
@@ -237,9 +244,9 @@ local copy manually or remove it from the cache and re-download.:</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">path</span><span class="p">))</span>  <span class="c1">## prints &quot;my_newname_file.txt&quot;</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="link">
+</section>
+</section>
+<section id="link">
 <h2>Link<a class="headerlink" href="#link" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.entity.Link">
@@ -266,8 +273,8 @@ the Link object is returned. If the target is desired, specify followLink=True i
 </div>
 </dd></dl>
 
-</div>
-<div class="section" id="table-schema">
+</section>
+<section id="table-schema">
 <h2>Table Schema<a class="headerlink" href="#table-schema" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.table.Schema">
@@ -297,8 +304,8 @@ the Link object is returned. If the target is desired, specify followLink=True i
 </div>
 </dd></dl>
 
-</div>
-<div class="section" id="entity-view-schema">
+</section>
+<section id="entity-view-schema">
 <h2>Entity View Schema<a class="headerlink" href="#entity-view-schema" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.table.EntityViewSchema">
@@ -354,8 +361,8 @@ of the defined scopes.</p></li>
 </div>
 </dd></dl>
 
-</div>
-<div class="section" id="dockerrepository">
+</section>
+<section id="dockerrepository">
 <h2>DockerRepository<a class="headerlink" href="#dockerrepository" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.entity.DockerRepository">
@@ -383,8 +390,8 @@ if the host is also specified.</p></li>
 </dl>
 </dd></dl>
 
-</div>
-<div class="section" id="properties-and-annotations-implementation-details">
+</section>
+<section id="properties-and-annotations-implementation-details">
 <h2>Properties and annotations, implementation details<a class="headerlink" href="#properties-and-annotations-implementation-details" title="Permalink to this headline"></a></h2>
 <p>In Synapse, entities have both properties and annotations. Properties are used by the system, whereas annotations are
 completely user defined. In the Python client, we try to present this situation as a normal object, with one set of
@@ -436,8 +443,8 @@ End users should never need to manipulate items in __dict__.</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="Annotations.html#module-synapseclient.annotations" title="synapseclient.annotations"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.annotations</span></code></a></p></li>
 </ul>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
@@ -451,7 +458,7 @@ End users should never need to manipulate items in __dict__.</p>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2012-2023, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Jun 04, 2023.
+      <span class="lastupdated">Last updated on Jul 02, 2023.
       </span></p>
   </div>
 
@@ -472,7 +479,7 @@ End users should never need to manipulate items in __dict__.</p>
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jun 04, 2023.
+      Last updated on Jul 02, 2023.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">
