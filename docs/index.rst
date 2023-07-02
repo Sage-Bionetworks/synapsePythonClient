@@ -15,10 +15,10 @@ shared data analysis projects from within Python scripts or at the interactive P
 exist for `R <https://r-docs.synapse.org/>`_,
 `Java <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/tree/develop/client/synapseJavaClient>`_, and
 the `web <https://www.synapse.org/>`_. The Python client can also be used from the
-`command line <CommandLineClient.html>`_.
+`command line <getting_started/cli.html>`_.
 
 If you're just getting started with Synapse, have a look at the Getting Started guides for
-`Synapse <https://docs.synapse.org/articles/getting_started.html>`__.
+`Synapse <https://help.synapse.org/docs/Getting-Started.2055471150.html>`__.
 
 
 .. Hidden TOCs

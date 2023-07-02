@@ -21,16 +21,16 @@ For more information about the Python client, see:
 
 For more information about interacting with Synapse, see:
 
- * [Synapse API docs](http://docs.synapse.org/rest/)
- * [User guides (including Python examples)](http://docs.synapse.org/articles/)
- * [Getting Started Guide to Synapse](http://docs.synapse.org/articles/getting_started.html)
+ * [Synapse API docs](https://rest-docs.synapse.org/rest/)
+ * [User cases](https://help.synapse.org/docs/Use-Cases.1985151645.html)
+ * [Getting Started Guide to Synapse](https://help.synapse.org/docs/Getting-Started.2055471150.html)
 
 For release information, see:
 
  * [Release notes](https://python-docs.synapse.org/build/html/news.html)
 
-Subscribe to release and other announcements [here](https://groups.google.com/a/sagebase.org/forum/#!forum/python-announce)
-or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python-announce+subscribe@sagebase.org)
+<!-- Subscribe to release and other announcements [here](https://groups.google.com/a/sagebase.org/forum/#!forum/python-announce)
+or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python-announce+subscribe@sagebase.org) -->
 
 
 Installation

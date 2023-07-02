@@ -2,7 +2,7 @@
 File Upload
 ===========
 
-Files in Synapse are versionable. Please see `Files and Versioning <https://docs.synapse.org/articles/files_and_versioning.html>`_ for more information about how versions in Files works.
+Files in Synapse are versionable. Please see `Versioning <https://help.synapse.org/docs/Versioning.2668134540.html>`_ for more information about how versions in Files works.
 
 Uploading a New Version
 =======================

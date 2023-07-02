@@ -11,14 +11,14 @@ External storage locations
 
 Synapse folders can be configured to use custom implementations for their underlying data storage.
 More information on this feature can be found
-`here <https://docs.synapse.org/articles/custom_storage_location.html>`__.
+`here <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html>`__.
 The most common implementation of this is to configure a folder to store data in a user controlled AWS S3 bucket
 rather than Synapse's default internal S3 storage.
 
 The following illustrates creating a new folder backed by a user specified S3 bucket.
 
 #. Ensure that the bucket is `properly configured
-   <https://docs.synapse.org/articles/custom_storage_location.html#setting-up-an-external-aws-s3-bucket>`__.
+   <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html#CustomStorageLocations-SettingUpanExternalAWSS3Bucket>`__.
 
 #. Create a folder and configure it to use external S3 storage:
 
@@ -72,7 +72,7 @@ STS Storage Locations
 =====================
 
 Create an STS enabled folder to use
-`AWS Security Token Service <https://docs.synapse.org/articles/aws_sts_storage_locations.html>`__ credentials
+`AWS Security Token Service <https://help.synapse.org/docs/Compute-Directly-on-Data-in-Synapse-or-S3.2048426057.html#ComputeDirectlyonDatainSynapseorS3-Synapse-ManagedSTSStorageLocations>`__ credentials
 with S3 storage locations. These credentials can be scoped to access individual Synapse files or folders and can be used
 with external S3 tools such as the awscli and the boto3 library separately from Synapse to read and write files to and
 from Synapse storage. At this time read and write capabilities are supported for external storage locations, while default
@@ -194,7 +194,7 @@ Migrating programmatically
 Migrating a Synapse project or folder programatically is a two step process.
 
 First ensure that you know the id of the storage location you want to migrate to. More info on storage
-locations can be found above and `here <https://docs.synapse.org/articles/custom_storage_location.html>`__.
+locations can be found above and `here <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html>`__.
 
 Once the storage location is known, the first step to migrate an entity is create a migratable index
 of its contents using the
