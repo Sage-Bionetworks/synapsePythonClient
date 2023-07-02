@@ -8,7 +8,7 @@ robust means of uploading large files (into the 10s of GB). End users should
 not need to call any of these functions directly.
 
 .. _Synapse multipart upload:
- http://docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController
+ https://rest-docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController
 
 """
 
