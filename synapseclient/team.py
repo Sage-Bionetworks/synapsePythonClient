@@ -1,7 +1,5 @@
 """
-*****
-Teams
-*****
+Functions that interact with Synapse Teams
 """
 
 

@@ -1,10 +1,5 @@
 """
-*****************
-Utility Functions
-*****************
-
 Utility functions useful in the implementation and testing of the Synapse client.
-
 """
 import base64
 import cgi
