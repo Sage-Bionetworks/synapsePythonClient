@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Synapse Multipart Upload &mdash; Synapse Python Client 2.7.2 documentation</title>
+  <title>Multipart Upload &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -54,9 +54,9 @@
 <li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">The Basics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/cli.html">Command Line Client</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<p class="caption" role="heading"><span class="caption-text">Articles</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Synapse Multipart Upload</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Multipart Upload</a></li>
 <li class="toctree-l1"><a class="reference internal" href="S3Storage.html">S3 Storage Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Upload.html">File Upload</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reticulate.html">Using synapseclient with R through reticulate</a></li>
@@ -96,7 +96,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Synapse Multipart Upload</li>
+      <li class="breadcrumb-item active">Multipart Upload</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/Multipart_upload.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -106,8 +106,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <span class="target" id="module-synapseclient.core.upload.multipart_upload"></span><section id="synapse-multipart-upload">
-<h1>Synapse Multipart Upload<a class="headerlink" href="#synapse-multipart-upload" title="Permalink to this headline"></a></h1>
+  <section id="module-synapseclient.core.upload.multipart_upload">
+<span id="multipart-upload"></span><h1>Multipart Upload<a class="headerlink" href="#module-synapseclient.core.upload.multipart_upload" title="Permalink to this headline"></a></h1>
 <p>Implements the client side of <a class="reference external" href="https://rest-docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController">Synapse multipart upload</a>, which provides a
 robust means of uploading large files (into the 10s of GB). End users should
 not need to call any of these functions directly.</p>
@@ -176,12 +176,12 @@ to upload</p></li>
 can configure a shared Executor by running its code within this context manager.</p>
 </dd></dl>
 
-</section>
 <dl class="py function">
 <dt class="sig sig-object py" id="synapseclient.core.upload.multipart_upload._multipart_upload">
 <span class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></span><span class="sig-name descname"><span class="pre">_multipart_upload</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upload_request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">md5_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
+</section>
 
 
            </div>
@@ -195,7 +195,7 @@ can configure a shared Executor by running its code within this context manager.
 
   <div role="contentinfo">
     <p>&#169; Copyright 2012-2023, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Jul 02, 2023.
+      <span class="lastupdated">Last updated on Jul 14, 2023.
       </span></p>
   </div>
 
@@ -216,7 +216,7 @@ can configure a shared Executor by running its code within this context manager.
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jul 02, 2023.
+      Last updated on Jul 14, 2023.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">

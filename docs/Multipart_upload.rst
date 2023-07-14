@@ -1,3 +1,7 @@
+****************
+Multipart Upload
+****************
+
 .. automodule:: synapseclient.core.upload.multipart_upload
    :members:
 

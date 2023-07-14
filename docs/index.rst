@@ -35,7 +35,7 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    getting_started/cli
 
 .. toctree::
-   :caption: Advanced Topics
+   :caption: Articles
    :maxdepth: 1
    :hidden:
 

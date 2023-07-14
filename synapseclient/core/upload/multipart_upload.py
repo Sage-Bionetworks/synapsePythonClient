@@ -1,8 +1,4 @@
 """
-************************
-Synapse Multipart Upload
-************************
-
 Implements the client side of `Synapse multipart upload`_, which provides a
 robust means of uploading large files (into the 10s of GB). End users should
 not need to call any of these functions directly.
