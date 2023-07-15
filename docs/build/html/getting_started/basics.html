@@ -21,7 +21,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Command Line Client" href="cli.html" />
-    <link rel="prev" title="Manage Synapse Credentials" href="credentials.html" />
+    <link rel="prev" title="Authentication" href="credentials.html" />
 </head>
 
 <body class="wy-body-for-nav">
@@ -50,13 +50,14 @@
               <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="credentials.html">Manage Synapse Credentials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="credentials.html">Authentication</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">The Basics</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#accessing-data">Accessing Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#organizing-data-in-a-project">Organizing Data in a Project</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#annotating-synapse-entities">Annotating Synapse Entities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#provenance">Provenance</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#tables">Tables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#file-views">File Views</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#wikis">Wikis</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#access-control">Access Control</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#accessing-the-api-directly">Accessing the API Directly</a></li>
@@ -213,6 +214,22 @@ derived data objects to source data and the code used to perform the transformat
 <p>See:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="../api/Table.html#module-synapseclient.table" title="synapseclient.table"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.table</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Schema</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/Table.html#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Column</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.getColumns" title="synapseclient.Synapse.getColumns"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getColumns()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.getTableColumns" title="synapseclient.Synapse.getTableColumns"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getTableColumns()</span></code></a></p></li>
+</ul>
+</section>
+<section id="file-views">
+<h2>File Views<a class="headerlink" href="#file-views" title="Permalink to this headline"></a></h2>
+<p>A view is a type of table. Views display rows and columns of information, and they can be
+shared and queried just like a table. Unlike tables, views are essentially queries of
+other data already in Synapse. They allow you to see groups of files, tables, projects, or submissions and any associated annotations about those items.</p>
+<p>Annotations are an essential component to building a view. Annotations are labels
+that you apply to your data, stored as key-value pairs in Synapse.</p>
+<p>See:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../api/Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.EntityViewSchema</span></code></a></p></li>
 </ul>
 </section>
 <section id="wikis">
@@ -238,7 +255,7 @@ groups, or the public.</p>
 <section id="accessing-the-api-directly">
 <h2>Accessing the API Directly<a class="headerlink" href="#accessing-the-api-directly" title="Permalink to this headline"></a></h2>
 <p>These methods enable access to the Synapse REST(ish) API taking care of details like endpoints and authentication.
-See the <a class="reference external" href="https://docs.synapse.org/rest/">REST API documentation</a>.</p>
+See the <a class="reference external" href="https://rest-docs.synapse.org/rest/">REST API documentation</a>.</p>
 <p>See:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.restGET" title="synapseclient.Synapse.restGET"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restGET()</span></code></a></p></li>
@@ -256,8 +273,7 @@ content, syncing with Synapse and additional query functionality.</p>
 </section>
 <section id="more-information">
 <h2>More Information<a class="headerlink" href="#more-information" title="Permalink to this headline"></a></h2>
-<p>For more information see the <a class="reference external" href="https://docs.synapse.org/articles/">Synapse User Guide</a>. More detailed Python API
-docs are available under the pages in “PYTHON API”.</p>
+<p>For more information see the <a class="reference external" href="https://help.synapse.org/docs/Getting-Started.2055471150.html">Synapse Getting Started</a>.</p>
 </section>
 <section id="getting-updates">
 <h2>Getting Updates<a class="headerlink" href="#getting-updates" title="Permalink to this headline"></a></h2>
@@ -270,7 +286,7 @@ docs are available under the pages in “PYTHON API”.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="credentials.html" class="btn btn-neutral float-left" title="Manage Synapse Credentials" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="credentials.html" class="btn btn-neutral float-left" title="Authentication" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="cli.html" class="btn btn-neutral float-right" title="Command Line Client" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

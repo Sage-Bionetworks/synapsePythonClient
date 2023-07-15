@@ -99,11 +99,25 @@ Tables can be built up by adding sets of rows that follow a user-defined schema 
 See:
 
 - :py:mod:`synapseclient.table`
+- :py:class:`synapseclient.table.Schema`
+- :py:class:`synapseclient.table.Column`
+- :py:func:`synapseclient.Synapse.getColumns`
+- :py:func:`synapseclient.Synapse.getTableColumns`
 
-.. - :py:class:`synapseclient.table.Schema`
-.. - :py:class:`synapseclient.table.Column`
-.. - :py:func:`synapseclient.Synapse.getColumns`
-.. - :py:func:`synapseclient.Synapse.getTableColumns`
+File Views
+==========
+
+A view is a type of table. Views display rows and columns of information, and they can be
+shared and queried just like a table. Unlike tables, views are essentially queries of
+other data already in Synapse. They allow you to see groups of files, tables, projects, or submissions and any associated annotations about those items.
+
+Annotations are an essential component to building a view. Annotations are labels
+that you apply to your data, stored as key-value pairs in Synapse.
+
+See:
+
+- :py:class:`synapseclient.table.EntityViewSchema`
+
 
 Wikis
 =====
@@ -132,7 +146,7 @@ Accessing the API Directly
 ==========================
 
 These methods enable access to the Synapse REST(ish) API taking care of details like endpoints and authentication.
-See the `REST API documentation <https://docs.synapse.org/rest/>`_.
+See the `REST API documentation <https://rest-docs.synapse.org/rest/>`_.
 
 See:
 
@@ -154,8 +168,7 @@ See:
 More Information
 ================
 
-For more information see the `Synapse User Guide <https://docs.synapse.org/articles/>`_. More detailed Python API
-docs are available under the pages in "PYTHON API".
+For more information see the `Synapse Getting Started <https://help.synapse.org/docs/Getting-Started.2055471150.html>`_.
 
 Getting Updates
 ===============

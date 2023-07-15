@@ -1,6 +1,9 @@
 Installation
 ============
 
+By following the instructions below, you are installing the `synapseclient`,
+`synapseutils` and the command line client.
+
 PyPI
 ----
 

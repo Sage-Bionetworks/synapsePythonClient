@@ -17,6 +17,9 @@ exist for `R <https://r-docs.synapse.org/>`_,
 the `web <https://www.synapse.org/>`_. The Python client can also be used from the
 `command line <getting_started/cli.html>`_.
 
+Installing this package will install `synapseclient`, `synapseutils` and the command line client.
+`synapseutils` contains beta features and the behavior of these features are subject to change.
+
 If you're just getting started with Synapse, have a look at the Getting Started guides for
 `Synapse <https://help.synapse.org/docs/Getting-Started.2055471150.html>`__.
 
