@@ -1,31 +1,6 @@
 """
-**************
-Synapse Client
-**************
-
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
-
-~~~~~
-Login
-~~~~~
-
-.. automethod:: synapseclient.client.login
-
-~~~~~~~
-Synapse
-~~~~~~~
-
-.. autoclass:: synapseclient.Synapse
-    :members:
-
-
-~~~~~~~~~~~~~~~~
-More information
-~~~~~~~~~~~~~~~~
-
-See also the `Synapse API documentation <https://rest-docs.synapse.org/>`_.
-
 """
 import collections
 import collections.abc

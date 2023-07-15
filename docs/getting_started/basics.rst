@@ -139,8 +139,8 @@ groups, or the public.
 
 See:
 
-- :py:func:`Synapse.getPermissions`
-- :py:func:`Synapse.setPermissions`
+- :py:func:`synapseclient.Synapse.getPermissions`
+- :py:func:`synapseclient.Synapse.setPermissions`
 
 Accessing the API Directly
 ==========================

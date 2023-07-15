@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Synapse Client &mdash; Synapse Python Client 2.7.2 documentation</title>
+  <title>Client &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -65,12 +65,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Synapse Client</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#login">Login</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#synapse">Synapse</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#more-information">More information</a></li>
-</ul>
-</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Entity.html">Entity</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Evaluation.html">Evaluations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Activity.html">Provenance</a></li>
@@ -101,7 +96,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Synapse Client</li>
+      <li class="breadcrumb-item active">Client</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/api/Client.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -111,27 +106,10 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <span class="target" id="module-synapseclient.client"></span><section id="synapse-client">
-<h1>Synapse Client<a class="headerlink" href="#synapse-client" title="Permalink to this headline"></a></h1>
+  <section id="client">
+<h1>Client<a class="headerlink" href="#client" title="Permalink to this headline"></a></h1>
 <p>The <cite>Synapse</cite> object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.</p>
-<section id="login">
-<h2>Login<a class="headerlink" href="#login" title="Permalink to this headline"></a></h2>
-<dl class="py method">
-<dt class="sig sig-object py" id="synapseclient.client.login">
-<span class="sig-prename descclassname"><span class="pre">client.</span></span><span class="sig-name descname"><span class="pre">login</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.client.login" title="Permalink to this definition"></a></dt>
-<dd><p>Convenience method to create a Synapse object and login.</p>
-<p>See <a class="reference internal" href="#synapseclient.Synapse.login" title="synapseclient.Synapse.login"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.login()</span></code></a> for arguments and usage.</p>
-<p>Example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
-<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
-</pre></div>
-</div>
-</dd></dl>
-
-</section>
-<section id="synapse">
-<h2>Synapse<a class="headerlink" href="#synapse" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.Synapse">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.</span></span><span class="sig-name descname"><span class="pre">Synapse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">repoEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileHandleEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">portalEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_checks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configPath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/Users/tyu/.synapseConfig'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse" title="Permalink to this definition"></a></dt>
@@ -1643,11 +1621,6 @@ calculated automatically.</p></li>
 
 </dd></dl>
 
-</section>
-<section id="more-information">
-<h2>More information<a class="headerlink" href="#more-information" title="Permalink to this headline"></a></h2>
-<p>See also the <a class="reference external" href="https://rest-docs.synapse.org/">Synapse API documentation</a>.</p>
-</section>
 </section>
 
 

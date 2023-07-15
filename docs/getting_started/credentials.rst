@@ -89,6 +89,6 @@ can be scoped to certain functions and are revocable.
 
 For more information, see:
 
-- :py:class:`Synapse`
-- :py:func:`Synapse.login`
-- :py:func:`Synapse.logout`
+- :py:class:`synapseclient.Synapse`
+- :py:func:`synapseclient.Synapse.login`
+- :py:func:`synapseclient.Synapse.logout`
