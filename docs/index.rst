@@ -44,8 +44,6 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    articles/cli
    articles/Multipart_upload
    articles/S3Storage
-   articles/Upload
-   articles/reticulate
    articles/sftp
    articles/synapseutils
    articles/api

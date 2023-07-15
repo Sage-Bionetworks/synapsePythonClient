@@ -6,7 +6,7 @@ Authentication
 ==============
 
 Most operations in Synapse require you to be logged in.  Please follow instructions in
-:doc:`credentials` to configure your client.::
+:doc:`credentials` to configure your client::
 
     import synapseclient
     syn = synapseclient.Synapse()
@@ -57,9 +57,10 @@ You can create your own projects and upload your own data sets. Synapse stores e
 structure. Projects are at the top level and must be uniquely named::
 
     import synapseclient
-    from synapseclient import Project, Folder, File, Link
+    from synapseclient import Project, Folder, File
 
     syn = synapseclient.login()
+    # Project names must be globally unique
     project = Project('My uniquely named project')
     project = syn.store(project)
 
@@ -68,13 +69,29 @@ Creating a folder::
     data_folder = Folder('Data', parent=project)
     data_folder = syn.store(data_folder)
 
-Adding files to the project::
+Adding files to the project. You will get an error if you try to store an empty file in Synapse.
+Here we create temporary files, but you can specify your own file path::
 
-    test_entity = File('/path/to/data/file.xyz', description='Fancy new data', parent=data_folder)
+    import tempfile
+
+    temp = tempfile.NamedTemporaryFile(prefix='your_file', suffix='.txt')
+    with open(temp.name, "w") as temp_f:
+        temp_f.write("Example text")
+    filepath = temp.name
+    test_entity = File(filepath, description='Fancy new data', parent=data_folder)
     test_entity = syn.store(test_entity)
+    print(test_entity)
+
+You may notice that there is "downloadAs" name and "entity name".  By default,
+the client will use the file's name as the entity name, but you can configure the
+file to display a different name on Synapse.
+
+    test_second_entity = File(filepath, name="second file", parent=data_folder)
+    test_second_entity = syn.store(test_second_entity)
+    print(test_second_entity)
 
 In addition to simple data storage, Synapse entities can be `annotated <#annotating-synapse-entities>`_ with key/value
-metadata, described in markdown documents (wikis_), and linked together in provenance_ graphs to create a reproducible
+metadata, described in markdown documents (:doc:`../api/Wiki`), and linked together in provenance_ graphs to create a reproducible
 record of a data analysis pipeline.
 
 See also:
@@ -83,19 +100,60 @@ See also:
 - :py:class:`synapseclient.entity.Project`
 - :py:class:`synapseclient.entity.Folder`
 - :py:class:`synapseclient.entity.File`
-- :py:class:`synapseclient.entity.Link`
 - :py:func:`synapseclient.Synapse.store`
 
 Annotating Synapse Entities
 ===========================
 
-Annotations are arbitrary metadata attached to Synapse entities, for example::
+Annotations are arbitrary metadata attached to Synapse entities.
+There are different ways to creating annotations. Using the entity
+created from the previous step in the tutorial, for example::
 
-    test_entity.genome_assembly = "hg19"
+    # First method
+    test_ent = syn.get(test_entity.id)
+    test_ent.foo = "foo"
+    test_ent.bar = "bar"
+    syn.store(test_ent)
+
+    # Second method
+    test_ent = syn.get(test_entity.id)
+    annotations = {"foo": "foo", "bar": "bar"}
+    test_ent.annotations = annotations
+    syn.store(test_ent)
 
 See:
 
 - :py:mod:`synapseclient.annotations`
+
+Versioning
+==========
+
+Synapse supports versioning of many entity types. This tutorial will focus on File versions.
+Using the project/folder created earlier in this tutorial
+
+Uploading a new version. Synapse leverages the entity name to version entities::
+
+    import tempfile
+
+    temp = tempfile.NamedTemporaryFile(prefix='second', suffix='.txt')
+    with open(temp.name, "w") as temp_f:
+        temp_f.write("First text")
+
+    version_entity = File(temp.name, parent=data_folder)
+    version_entity = syn.store(version_entity)
+    print(version_entity.versionNumber)
+
+    with open(temp.name, "w") as temp_f:
+        temp_f.write("Second text")
+    version_entity = File(temp.name, parent=data_folder)
+    version_entity = syn.store(version_entity)
+    print(version_entity.versionNumber)
+
+Downloading a specific version.  By default, Synapse downloads the latest version
+unless a version is specified::
+
+    version_1 = syn.get(version_entity, version=1)
+
 
 Provenance
 ==========
@@ -135,17 +193,6 @@ See:
 - :py:class:`synapseclient.table.EntityViewSchema`
 
 
-Wikis
-=====
-
-Wiki pages can be attached to an Synapse entity (i.e. project, folder, file, etc). Text and graphics can be composed in
-markdown and rendered in the web view of the object.
-
-See:
-
-- :py:func:`synapseclient.Synapse.getWiki`
-- :py:class:`synapseclient.wiki.Wiki`
-
 
 Access Control
 ==============
@@ -168,4 +215,4 @@ Getting Updates
 ===============
 
 To get information about new versions of the client, see:
-`synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_.
+- :py:func:`synapseclient.check_for_updates`

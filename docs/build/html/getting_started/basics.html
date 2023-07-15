@@ -56,10 +56,10 @@
 <li class="toctree-l2"><a class="reference internal" href="#accessing-data">Accessing Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#managing-data-in-a-project">Managing Data in a Project</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#annotating-synapse-entities">Annotating Synapse Entities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#versioning">Versioning</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#provenance">Provenance</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#tables">Tables</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#file-views">File Views</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#wikis">Wikis</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#access-control">Access Control</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#more-information">More Information</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#getting-updates">Getting Updates</a></li>
@@ -71,8 +71,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../articles/cli.html">Command Line Client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../articles/Multipart_upload.html">Multipart Upload</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../articles/S3Storage.html">S3 Storage Features</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../articles/Upload.html">File Upload</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../articles/reticulate.html">Using synapseclient with R through reticulate</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../articles/sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../articles/synapseutils.html">synapseutils</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../articles/api.html">Accessing the API</a></li>
@@ -125,7 +123,7 @@
 <section id="authentication">
 <h2>Authentication<a class="headerlink" href="#authentication" title="Permalink to this headline"></a></h2>
 <p>Most operations in Synapse require you to be logged in.  Please follow instructions in
-<a class="reference internal" href="credentials.html"><span class="doc">Authentication</span></a> to configure your client.:</p>
+<a class="reference internal" href="credentials.html"><span class="doc">Authentication</span></a> to configure your client:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
 <span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">Synapse</span><span class="p">()</span>
 <span class="n">syn</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
@@ -175,9 +173,10 @@ and also downloads the file to a local cache:</p>
 <p>You can create your own projects and upload your own data sets. Synapse stores entities in a hierarchical or tree
 structure. Projects are at the top level and must be uniquely named:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
-<span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">Project</span><span class="p">,</span> <span class="n">Folder</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">Link</span>
+<span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">Project</span><span class="p">,</span> <span class="n">Folder</span><span class="p">,</span> <span class="n">File</span>
 
 <span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="c1"># Project names must be globally unique</span>
 <span class="n">project</span> <span class="o">=</span> <span class="n">Project</span><span class="p">(</span><span class="s1">&#39;My uniquely named project&#39;</span><span class="p">)</span>
 <span class="n">project</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">project</span><span class="p">)</span>
 </pre></div>
@@ -187,13 +186,29 @@ structure. Projects are at the top level and must be uniquely named:</p>
 <span class="n">data_folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">data_folder</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Adding files to the project:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">test_entity</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="s1">&#39;/path/to/data/file.xyz&#39;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Fancy new data&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">data_folder</span><span class="p">)</span>
+<p>Adding files to the project. You will get an error if you try to store an empty file in Synapse.
+Here we create temporary files, but you can specify your own file path:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">tempfile</span>
+
+<span class="n">temp</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;your_file&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.txt&#39;</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">temp_f</span><span class="p">:</span>
+    <span class="n">temp_f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Example text&quot;</span><span class="p">)</span>
+<span class="n">filepath</span> <span class="o">=</span> <span class="n">temp</span><span class="o">.</span><span class="n">name</span>
+<span class="n">test_entity</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Fancy new data&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">data_folder</span><span class="p">)</span>
 <span class="n">test_entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">test_entity</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">test_entity</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>You may notice that there is “downloadAs” name and “entity name”.  By default,
+the client will use the file’s name as the entity name, but you can configure the
+file to display a different name on Synapse.</p>
+<blockquote>
+<div><p>test_second_entity = File(filepath, name=”second file”, parent=data_folder)
+test_second_entity = syn.store(test_second_entity)
+print(test_second_entity)</p>
+</div></blockquote>
 <p>In addition to simple data storage, Synapse entities can be <a class="reference external" href="#annotating-synapse-entities">annotated</a> with key/value
-metadata, described in markdown documents (<a class="reference internal" href="#wikis">wikis</a>), and linked together in <a class="reference internal" href="#provenance">provenance</a> graphs to create a reproducible
+metadata, described in markdown documents (<a class="reference internal" href="../api/Wiki.html"><span class="doc">Wiki</span></a>), and linked together in <a class="reference internal" href="#provenance">provenance</a> graphs to create a reproducible
 record of a data analysis pipeline.</p>
 <p>See also:</p>
 <ul class="simple">
@@ -201,20 +216,59 @@ record of a data analysis pipeline.</p>
 <li><p><a class="reference internal" href="../api/Entity.html#synapseclient.entity.Project" title="synapseclient.entity.Project"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Project</span></code></a></p></li>
 <li><p><a class="reference internal" href="../api/Entity.html#synapseclient.entity.Folder" title="synapseclient.entity.Folder"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Folder</span></code></a></p></li>
 <li><p><a class="reference internal" href="../api/Entity.html#synapseclient.entity.File" title="synapseclient.entity.File"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.File</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Entity.html#synapseclient.entity.Link" title="synapseclient.entity.Link"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Link</span></code></a></p></li>
 <li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a></p></li>
 </ul>
 </section>
 <section id="annotating-synapse-entities">
 <h2>Annotating Synapse Entities<a class="headerlink" href="#annotating-synapse-entities" title="Permalink to this headline"></a></h2>
-<p>Annotations are arbitrary metadata attached to Synapse entities, for example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">test_entity</span><span class="o">.</span><span class="n">genome_assembly</span> <span class="o">=</span> <span class="s2">&quot;hg19&quot;</span>
+<p>Annotations are arbitrary metadata attached to Synapse entities.
+There are different ways to creating annotations. Using the entity
+created from the previous step in the tutorial, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># First method</span>
+<span class="n">test_ent</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">test_entity</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">test_ent</span><span class="o">.</span><span class="n">foo</span> <span class="o">=</span> <span class="s2">&quot;foo&quot;</span>
+<span class="n">test_ent</span><span class="o">.</span><span class="n">bar</span> <span class="o">=</span> <span class="s2">&quot;bar&quot;</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">test_ent</span><span class="p">)</span>
+
+<span class="c1"># Second method</span>
+<span class="n">test_ent</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">test_entity</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">annotations</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;foo&quot;</span><span class="p">:</span> <span class="s2">&quot;foo&quot;</span><span class="p">,</span> <span class="s2">&quot;bar&quot;</span><span class="p">:</span> <span class="s2">&quot;bar&quot;</span><span class="p">}</span>
+<span class="n">test_ent</span><span class="o">.</span><span class="n">annotations</span> <span class="o">=</span> <span class="n">annotations</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">test_ent</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>See:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="../api/Annotations.html#module-synapseclient.annotations" title="synapseclient.annotations"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.annotations</span></code></a></p></li>
 </ul>
+</section>
+<section id="versioning">
+<h2>Versioning<a class="headerlink" href="#versioning" title="Permalink to this headline"></a></h2>
+<p>Synapse supports versioning of many entity types. This tutorial will focus on File versions.
+Using the project/folder created earlier in this tutorial</p>
+<p>Uploading a new version. Synapse leverages the entity name to version entities:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">tempfile</span>
+
+<span class="n">temp</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;second&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.txt&#39;</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">temp_f</span><span class="p">:</span>
+    <span class="n">temp_f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;First text&quot;</span><span class="p">)</span>
+
+<span class="n">version_entity</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">data_folder</span><span class="p">)</span>
+<span class="n">version_entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">version_entity</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">version_entity</span><span class="o">.</span><span class="n">versionNumber</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">temp_f</span><span class="p">:</span>
+    <span class="n">temp_f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Second text&quot;</span><span class="p">)</span>
+<span class="n">version_entity</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">data_folder</span><span class="p">)</span>
+<span class="n">version_entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">version_entity</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">version_entity</span><span class="o">.</span><span class="n">versionNumber</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Downloading a specific version.  By default, Synapse downloads the latest version
+unless a version is specified:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">version_1</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">version_entity</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
 </section>
 <section id="provenance">
 <h2>Provenance<a class="headerlink" href="#provenance" title="Permalink to this headline"></a></h2>
@@ -249,16 +303,6 @@ that you apply to your data, stored as key-value pairs in Synapse.</p>
 <li><p><a class="reference internal" href="../api/Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.EntityViewSchema</span></code></a></p></li>
 </ul>
 </section>
-<section id="wikis">
-<h2>Wikis<a class="headerlink" href="#wikis" title="Permalink to this headline"></a></h2>
-<p>Wiki pages can be attached to an Synapse entity (i.e. project, folder, file, etc). Text and graphics can be composed in
-markdown and rendered in the web view of the object.</p>
-<p>See:</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.getWiki" title="synapseclient.Synapse.getWiki"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getWiki()</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Wiki.html#synapseclient.wiki.Wiki" title="synapseclient.wiki.Wiki"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.wiki.Wiki</span></code></a></p></li>
-</ul>
-</section>
 <section id="access-control">
 <h2>Access Control<a class="headerlink" href="#access-control" title="Permalink to this headline"></a></h2>
 <p>By default, data sets in Synapse are private to your user account, but they can easily be shared with specific users,
@@ -276,7 +320,7 @@ groups, or the public.</p>
 <section id="getting-updates">
 <h2>Getting Updates<a class="headerlink" href="#getting-updates" title="Permalink to this headline"></a></h2>
 <p>To get information about new versions of the client, see:
-<a class="reference external" href="Versions.html#synapseclient.version_check.check_for_updates">synapseclient.check_for_updates()</a>.</p>
+- <code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.check_for_updates()</span></code></p>
 </section>
 </section>
 
