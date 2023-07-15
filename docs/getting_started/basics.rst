@@ -84,7 +84,7 @@ Here we create temporary files, but you can specify your own file path::
 
 You may notice that there is "downloadAs" name and "entity name".  By default,
 the client will use the file's name as the entity name, but you can configure the
-file to display a different name on Synapse.
+file to display a different name on Synapse::
 
     test_second_entity = File(filepath, name="second file", parent=data_folder)
     test_second_entity = syn.store(test_second_entity)
@@ -214,5 +214,4 @@ For more information see the `Synapse Getting Started <https://help.synapse.org/
 Getting Updates
 ===============
 
-To get information about new versions of the client, see:
-- :py:func:`synapseclient.check_for_updates`
+To get information about new versions of the client, see :doc:`../api/Versions`

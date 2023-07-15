@@ -201,12 +201,12 @@ Here we create temporary files, but you can specify your own file path:</p>
 </div>
 <p>You may notice that there is “downloadAs” name and “entity name”.  By default,
 the client will use the file’s name as the entity name, but you can configure the
-file to display a different name on Synapse.</p>
-<blockquote>
-<div><p>test_second_entity = File(filepath, name=”second file”, parent=data_folder)
-test_second_entity = syn.store(test_second_entity)
-print(test_second_entity)</p>
-</div></blockquote>
+file to display a different name on Synapse:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">test_second_entity</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;second file&quot;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">data_folder</span><span class="p">)</span>
+<span class="n">test_second_entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">test_second_entity</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">test_second_entity</span><span class="p">)</span>
+</pre></div>
+</div>
 <p>In addition to simple data storage, Synapse entities can be <a class="reference external" href="#annotating-synapse-entities">annotated</a> with key/value
 metadata, described in markdown documents (<a class="reference internal" href="../api/Wiki.html"><span class="doc">Wiki</span></a>), and linked together in <a class="reference internal" href="#provenance">provenance</a> graphs to create a reproducible
 record of a data analysis pipeline.</p>
@@ -319,8 +319,7 @@ groups, or the public.</p>
 </section>
 <section id="getting-updates">
 <h2>Getting Updates<a class="headerlink" href="#getting-updates" title="Permalink to this headline"></a></h2>
-<p>To get information about new versions of the client, see:
-- <code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.check_for_updates()</span></code></p>
+<p>To get information about new versions of the client, see <a class="reference internal" href="../api/Versions.html"><span class="doc">Version Functions</span></a></p>
 </section>
 </section>
 
