@@ -1,7 +1,19 @@
-**********
-The Basics
-**********
+********
+Tutorial
+********
 
+Authentication
+==============
+
+Most operations in Synapse require you to be logged in.  Please follow instructions in
+:doc:`credentials` to configure your client.::
+
+    import synapseclient
+    syn = synapseclient.Synapse()
+    syn.login()
+    # If you aren't logged in, this following command will
+    # show that you are an "anonymous" user.
+    syn.getUserProfile()
 
 Accessing Data
 ==============
@@ -11,6 +23,9 @@ objects. For example, the entity `syn1899498 <https://www.synapse.org/#!Synapse:
 file containing a 100 by 4 matrix. Getting the entity retrieves an object that holds metadata describing the matrix,
 and also downloads the file to a local cache::
 
+    import synapseclient
+    # This is a shortcut to login
+    syn = synapseclient.login()
     entity = syn.get('syn1899498')
 
 View the entity's metadata in the Python console::
@@ -35,8 +50,8 @@ View the entity in the browser::
 - :py:func:`synapseclient.Synapse.onweb`
 
 
-Organizing Data in a Project
-============================
+Managing Data in a Project
+==========================
 
 You can create your own projects and upload your own data sets. Synapse stores entities in a hierarchical or tree
 structure. Projects are at the top level and must be uniquely named::
@@ -44,6 +59,7 @@ structure. Projects are at the top level and must be uniquely named::
     import synapseclient
     from synapseclient import Project, Folder, File, Link
 
+    syn = synapseclient.login()
     project = Project('My uniquely named project')
     project = syn.store(project)
 
@@ -142,28 +158,6 @@ See:
 - :py:func:`synapseclient.Synapse.getPermissions`
 - :py:func:`synapseclient.Synapse.setPermissions`
 
-Accessing the API Directly
-==========================
-
-These methods enable access to the Synapse REST(ish) API taking care of details like endpoints and authentication.
-See the `REST API documentation <https://rest-docs.synapse.org/rest/>`_.
-
-See:
-
-- :py:func:`synapseclient.Synapse.restGET`
-- :py:func:`synapseclient.Synapse.restPOST`
-- :py:func:`synapseclient.Synapse.restPUT`
-- :py:func:`synapseclient.Synapse.restDELETE`
-
-
-Synapse Utilities
-=================
-
-There is a companion module called synapseutils that provide higher level functionality such as recursive copying of
-content, syncing with Synapse and additional query functionality.
-
-See:
-- :py:mod:`synapseutils`
 
 More Information
 ================

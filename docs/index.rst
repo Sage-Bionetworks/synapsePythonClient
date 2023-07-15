@@ -41,13 +41,14 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    :maxdepth: 1
    :hidden:
 
-   cli
-   Multipart_upload
-   S3Storage
-   Upload
-   reticulate
-   sftp
-   synapseutils
+   articles/cli
+   articles/Multipart_upload
+   articles/S3Storage
+   articles/Upload
+   articles/reticulate
+   articles/sftp
+   articles/synapseutils
+   articles/api
 
 .. toctree::
    :caption: Python API

@@ -50,17 +50,18 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/credentials.html">Authentication</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">The Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">Tutorial</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Articles</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="cli.html">Command Line Client</a></li>
-<li class="toctree-l1"><a class="reference internal" href="Multipart_upload.html">Multipart Upload</a></li>
-<li class="toctree-l1"><a class="reference internal" href="S3Storage.html">S3 Storage Features</a></li>
-<li class="toctree-l1"><a class="reference internal" href="Upload.html">File Upload</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reticulate.html">Using synapseclient with R through reticulate</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
-<li class="toctree-l1"><a class="reference internal" href="synapseutils.html">synapseutils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/cli.html">Command Line Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/Multipart_upload.html">Multipart Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/S3Storage.html">S3 Storage Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/Upload.html">File Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/reticulate.html">Using synapseclient with R through reticulate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/synapseutils.html">synapseutils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/api.html">Accessing the API</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul>
@@ -986,7 +987,7 @@ as the default if a value is not explicitly set.</p>
 <li><p>This release includes support for directly accessing S3 storage locations using AWS Security Token Service
 credentials. This allows use of external AWS clients and libraries with Synapse storage, and can be used to
 accelerate file transfers under certain conditions. To create an STS enabled folder and set-up direct access to S3
-storage, see <a class="reference internal" href="S3Storage.html#sts-storage-locations"><span class="std std-ref">here</span></a>.</p></li>
+storage, see <a class="reference internal" href="articles/S3Storage.html#sts-storage-locations"><span class="std std-ref">here</span></a>.</p></li>
 <li><p>The <code class="code docutils literal notranslate"><span class="pre">getAnnotations</span></code> and <code class="code docutils literal notranslate"><span class="pre">setAnnotations</span></code> methods of the Synapse object have been <strong>deprecated</strong> in
 favor of newer <code class="code docutils literal notranslate"><span class="pre">get_annotations</span></code> and <code class="code docutils literal notranslate"><span class="pre">set_annotations</span></code> methods, respectively. The newer versions
 are parameterized with a typed <code class="code docutils literal notranslate"><span class="pre">Annotations</span></code> dictionary rather than a plain Python dictionary to prevent

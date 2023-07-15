@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Basics &mdash; Synapse Python Client 2.7.2 documentation</title>
+  <title>Tutorial &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,7 +20,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Command Line Client" href="../cli.html" />
+    <link rel="next" title="Command Line Client" href="../articles/cli.html" />
     <link rel="prev" title="Authentication" href="credentials.html" />
 </head>
 
@@ -51,17 +51,16 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="credentials.html">Authentication</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">The Basics</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#authentication">Authentication</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#accessing-data">Accessing Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#organizing-data-in-a-project">Organizing Data in a Project</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#managing-data-in-a-project">Managing Data in a Project</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#annotating-synapse-entities">Annotating Synapse Entities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#provenance">Provenance</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#tables">Tables</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#file-views">File Views</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#wikis">Wikis</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#access-control">Access Control</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#accessing-the-api-directly">Accessing the API Directly</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#synapse-utilities">Synapse Utilities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#more-information">More Information</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#getting-updates">Getting Updates</a></li>
 </ul>
@@ -69,13 +68,14 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Articles</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../cli.html">Command Line Client</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../Multipart_upload.html">Multipart Upload</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../S3Storage.html">S3 Storage Features</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../Upload.html">File Upload</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../reticulate.html">Using synapseclient with R through reticulate</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../synapseutils.html">synapseutils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/cli.html">Command Line Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/Multipart_upload.html">Multipart Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/S3Storage.html">S3 Storage Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/Upload.html">File Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/reticulate.html">Using synapseclient with R through reticulate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/synapseutils.html">synapseutils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/api.html">Accessing the API</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul>
@@ -110,7 +110,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">The Basics</li>
+      <li class="breadcrumb-item active">Tutorial</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/getting_started/basics.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -120,15 +120,31 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <section id="the-basics">
-<h1>The Basics<a class="headerlink" href="#the-basics" title="Permalink to this headline"></a></h1>
+  <section id="tutorial">
+<h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline"></a></h1>
+<section id="authentication">
+<h2>Authentication<a class="headerlink" href="#authentication" title="Permalink to this headline"></a></h2>
+<p>Most operations in Synapse require you to be logged in.  Please follow instructions in
+<a class="reference internal" href="credentials.html"><span class="doc">Authentication</span></a> to configure your client.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">Synapse</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="c1"># If you aren&#39;t logged in, this following command will</span>
+<span class="c1"># show that you are an &quot;anonymous&quot; user.</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">getUserProfile</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
 <section id="accessing-data">
 <h2>Accessing Data<a class="headerlink" href="#accessing-data" title="Permalink to this headline"></a></h2>
 <p>Synapse identifiers are used to refer to projects and data which are represented by <a class="reference internal" href="../api/Entity.html#module-synapseclient.entity" title="synapseclient.entity"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.entity</span></code></a>
 objects. For example, the entity <a class="reference external" href="https://www.synapse.org/#!Synapse:syn1899498">syn1899498</a> represents a tab-delimited
 file containing a 100 by 4 matrix. Getting the entity retrieves an object that holds metadata describing the matrix,
 and also downloads the file to a local cache:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;syn1899498&#39;</span><span class="p">)</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="c1"># This is a shortcut to login</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;syn1899498&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>View the entity’s metadata in the Python console:</p>
@@ -154,13 +170,14 @@ and also downloads the file to a local cache:</p>
 <li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.onweb" title="synapseclient.Synapse.onweb"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.onweb()</span></code></a></p></li>
 </ul>
 </section>
-<section id="organizing-data-in-a-project">
-<h2>Organizing Data in a Project<a class="headerlink" href="#organizing-data-in-a-project" title="Permalink to this headline"></a></h2>
+<section id="managing-data-in-a-project">
+<h2>Managing Data in a Project<a class="headerlink" href="#managing-data-in-a-project" title="Permalink to this headline"></a></h2>
 <p>You can create your own projects and upload your own data sets. Synapse stores entities in a hierarchical or tree
 structure. Projects are at the top level and must be uniquely named:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
 <span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">Project</span><span class="p">,</span> <span class="n">Folder</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">Link</span>
 
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
 <span class="n">project</span> <span class="o">=</span> <span class="n">Project</span><span class="p">(</span><span class="s1">&#39;My uniquely named project&#39;</span><span class="p">)</span>
 <span class="n">project</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">project</span><span class="p">)</span>
 </pre></div>
@@ -252,25 +269,6 @@ groups, or the public.</p>
 <li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.setPermissions" title="synapseclient.Synapse.setPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.setPermissions()</span></code></a></p></li>
 </ul>
 </section>
-<section id="accessing-the-api-directly">
-<h2>Accessing the API Directly<a class="headerlink" href="#accessing-the-api-directly" title="Permalink to this headline"></a></h2>
-<p>These methods enable access to the Synapse REST(ish) API taking care of details like endpoints and authentication.
-See the <a class="reference external" href="https://rest-docs.synapse.org/rest/">REST API documentation</a>.</p>
-<p>See:</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.restGET" title="synapseclient.Synapse.restGET"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restGET()</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.restPOST" title="synapseclient.Synapse.restPOST"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restPOST()</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.restPUT" title="synapseclient.Synapse.restPUT"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restPUT()</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.restDELETE" title="synapseclient.Synapse.restDELETE"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restDELETE()</span></code></a></p></li>
-</ul>
-</section>
-<section id="synapse-utilities">
-<h2>Synapse Utilities<a class="headerlink" href="#synapse-utilities" title="Permalink to this headline"></a></h2>
-<p>There is a companion module called synapseutils that provide higher level functionality such as recursive copying of
-content, syncing with Synapse and additional query functionality.</p>
-<p>See:
-- <a class="reference internal" href="../synapseutils.html#module-synapseutils" title="synapseutils"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseutils</span></code></a></p>
-</section>
 <section id="more-information">
 <h2>More Information<a class="headerlink" href="#more-information" title="Permalink to this headline"></a></h2>
 <p>For more information see the <a class="reference external" href="https://help.synapse.org/docs/Getting-Started.2055471150.html">Synapse Getting Started</a>.</p>
@@ -287,7 +285,7 @@ content, syncing with Synapse and additional query functionality.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="credentials.html" class="btn btn-neutral float-left" title="Authentication" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="../cli.html" class="btn btn-neutral float-right" title="Command Line Client" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../articles/cli.html" class="btn btn-neutral float-right" title="Command Line Client" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

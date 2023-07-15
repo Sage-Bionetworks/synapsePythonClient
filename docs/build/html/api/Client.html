@@ -21,7 +21,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Entity" href="Entity.html" />
-    <link rel="prev" title="synapseutils" href="../synapseutils.html" />
+    <link rel="prev" title="Accessing the API" href="../articles/api.html" />
 </head>
 
 <body class="wy-body-for-nav">
@@ -51,21 +51,26 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/credentials.html">Authentication</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../getting_started/basics.html">The Basics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting_started/basics.html">Tutorial</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Articles</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../cli.html">Command Line Client</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../Multipart_upload.html">Multipart Upload</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../S3Storage.html">S3 Storage Features</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../Upload.html">File Upload</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../reticulate.html">Using synapseclient with R through reticulate</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../synapseutils.html">synapseutils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/cli.html">Command Line Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/Multipart_upload.html">Multipart Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/S3Storage.html">S3 Storage Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/Upload.html">File Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/reticulate.html">Using synapseclient with R through reticulate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/synapseutils.html">synapseutils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/api.html">Accessing the API</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Client</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Client</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#synapse">Synapse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#more-information">More information</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="Entity.html">Entity</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Evaluation.html">Evaluations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Activity.html">Provenance</a></li>
@@ -106,10 +111,12 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <section id="client">
-<h1>Client<a class="headerlink" href="#client" title="Permalink to this headline"></a></h1>
+  <section id="module-synapseclient.client">
+<span id="client"></span><h1>Client<a class="headerlink" href="#module-synapseclient.client" title="Permalink to this headline"></a></h1>
 <p>The <cite>Synapse</cite> object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.</p>
+<section id="synapse">
+<h2>Synapse<a class="headerlink" href="#synapse" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.Synapse">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.</span></span><span class="sig-name descname"><span class="pre">Synapse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">repoEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileHandleEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">portalEndpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_checks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configPath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/Users/tyu/.synapseConfig'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_session</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse" title="Permalink to this definition"></a></dt>
@@ -1622,12 +1629,17 @@ calculated automatically.</p></li>
 </dd></dl>
 
 </section>
+<section id="more-information">
+<h2>More information<a class="headerlink" href="#more-information" title="Permalink to this headline"></a></h2>
+<p>See also the <a class="reference external" href="https://rest-docs.synapse.org/">Synapse API documentation</a>.</p>
+</section>
+</section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="../synapseutils.html" class="btn btn-neutral float-left" title="synapseutils" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../articles/api.html" class="btn btn-neutral float-left" title="Accessing the API" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="Entity.html" class="btn btn-neutral float-right" title="Entity" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
