@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File Upload &mdash; Synapse Python Client 2.7.2 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Using synapseclient with R through reticulate" href="reticulate.html" />
+    <link rel="prev" title="S3 Storage Features" href="S3Storage.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+
+
+          <a href="../index.html">
+
+              <img src="../_static/synapse_logo.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                2.7.2
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting_started/credentials.html">Authentication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting_started/basics.html">Tutorial</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Articles</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Command Line Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Multipart_upload.html">Multipart Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="S3Storage.html">S3 Storage Features</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">File Upload</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#uploading-a-new-version">Uploading a New Version</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#updating-annotations-or-provenance-without-changing-versions">Updating Annotations or Provenance without Changing Versions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setting-provenance-without-changing-version">Setting Provenance without Changing Version</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#downloading-a-specific-version">Downloading a Specific Version</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reticulate.html">Using synapseclient with R through reticulate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="synapseutils.html">synapseutils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Accessing the API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/Client.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Entity.html">Entity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Evaluation.html">Evaluations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Activity.html">Provenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Annotations.html">Annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Wiki.html">Wiki</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Utilities.html">Utility Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Versions.html">Version Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Table.html">Tables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Team.html">Teams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Views.html">Views</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">News</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../news.html">Release Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Synapse Python Client</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">File Upload</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/articles/Upload.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="file-upload">
+<h1>File Upload<a class="headerlink" href="#file-upload" title="Permalink to this headline"></a></h1>
+<p>Files in Synapse are versionable. Please see <a class="reference external" href="https://help.synapse.org/docs/Versioning.2668134540.html">Versioning</a> for more information about how versions in Files works.</p>
+<section id="uploading-a-new-version">
+<h2>Uploading a New Version<a class="headerlink" href="#uploading-a-new-version" title="Permalink to this headline"></a></h2>
+<p>Uploading a new version follows the same steps as uploading a file for the first time - use the same file name and store it in the same location (e.g., the same parentId). It is recommended to add a comment to the new version in order to easily track differences at a glance. The example file <cite>raw_data.txt</cite> will now have a version of 2 and a comment describing the change.</p>
+<p>Explicit example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+
+<span class="c1"># fetch the file in Synapse</span>
+<span class="n">file_to_update</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;syn2222&#39;</span><span class="p">,</span> <span class="n">downloadFile</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># save the local path to the new version of the file</span>
+<span class="n">file_to_update</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="s1">&#39;/path/to/new/version/of/raw_data.txt&#39;</span>
+
+<span class="c1"># add a version comment</span>
+<span class="n">file_to_update</span><span class="o">.</span><span class="n">versionComment</span> <span class="o">=</span> <span class="s1">&#39;Added 5 random normally distributed numbers.&#39;</span>
+
+<span class="c1"># store the new file</span>
+<span class="n">updated_file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">file_to_update</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Implicit example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Assuming that there is a file created with:</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;path/to/old/raw_data.txt&#39;</span><span class="p">,</span> <span class="n">parentId</span><span class="o">=</span><span class="s1">&#39;syn123456&#39;</span><span class="p">))</span>
+
+<span class="c1"># To create a new version of that file, make sure you store it with the exact same name</span>
+<span class="n">new_file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;path/to/new_version/raw_data.txt&#39;</span><span class="p">,</span>  <span class="n">parentId</span><span class="o">=</span><span class="s1">&#39;syn123456&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+</section>
+<section id="updating-annotations-or-provenance-without-changing-versions">
+<h2>Updating Annotations or Provenance without Changing Versions<a class="headerlink" href="#updating-annotations-or-provenance-without-changing-versions" title="Permalink to this headline"></a></h2>
+<p>Any change to a File will automatically update its version. If this isn’t the desired behavior, such as minor changes to the metadata, you can set <cite>forceVersion=False</cite> with the Python client. For command line, the commands <cite>set-annotations</cite> and <cite>set-provenance</cite> will update the metadata without creating a new version. Adding/updating annotations and provenance in the web client will also not cause a version change.</p>
+<p><strong>Important: Because Provenance is tracked by version, set `forceVersion=False` for minor changes to avoid breaking Provenance.</strong></p>
+<p>Setting annotations without changing version:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get file from Synapse, set download=False since we are only updating annotations</span>
+<span class="n">file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;syn56789&#39;</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Add annotations</span>
+<span class="n">file</span><span class="o">.</span><span class="n">annotations</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;fileType&quot;</span><span class="p">:</span><span class="s2">&quot;bam&quot;</span><span class="p">,</span> <span class="s2">&quot;assay&quot;</span><span class="p">:</span><span class="s2">&quot;RNA-seq&quot;</span><span class="p">}</span>
+
+<span class="c1"># Store the file without creating a new version</span>
+<span class="n">file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">forceVersion</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="setting-provenance-without-changing-version">
+<h2>Setting Provenance without Changing Version<a class="headerlink" href="#setting-provenance-without-changing-version" title="Permalink to this headline"></a></h2>
+<p>To set Provenance without changing the file version:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get file from Synapse, set download=False since we are only updating provenance</span>
+<span class="n">file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;syn56789&#39;</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Add provenance</span>
+<span class="n">file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">setProvenance</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">activity</span> <span class="o">=</span> <span class="n">Activity</span><span class="p">(</span><span class="n">used</span> <span class="o">=</span> <span class="s1">&#39;/path/to/example_code&#39;</span><span class="p">))</span>
+
+<span class="c1"># Store the file without creating a new version</span>
+<span class="n">file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">forceVersion</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="downloading-a-specific-version">
+<h2>Downloading a Specific Version<a class="headerlink" href="#downloading-a-specific-version" title="Permalink to this headline"></a></h2>
+<p>By default, the File downloaded will always be the most recent version. However, a specific version can be downloaded by passing the version parameter:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn3260973&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="S3Storage.html" class="btn btn-neutral float-left" title="S3 Storage Features" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="reticulate.html" class="btn btn-neutral float-right" title="Using synapseclient with R through reticulate" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2012-2023, Sage Bionetworks.
+      <span class="lastupdated">Last updated on Jul 15, 2023.
+      </span></p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Jul 15, 2023.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+
+</body>
+</html>
