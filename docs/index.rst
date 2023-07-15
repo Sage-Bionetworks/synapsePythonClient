@@ -35,13 +35,13 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    getting_started/installation
    getting_started/credentials
    getting_started/basics
-   getting_started/cli
 
 .. toctree::
    :caption: Articles
    :maxdepth: 1
    :hidden:
 
+   cli
    Multipart_upload
    S3Storage
    Upload

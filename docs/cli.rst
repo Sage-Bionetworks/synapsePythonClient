@@ -5,7 +5,7 @@ Command Line Client
 The Synapse Python Client can be used from the command line via the **synapse** command.
 
 .. note::
-    The command line client is installed along with :doc:`installation` of the Synapse Python client.
+    The command line client is installed along with :doc:`getting_started/installation` of the Synapse Python client.
 
 
 Usage
