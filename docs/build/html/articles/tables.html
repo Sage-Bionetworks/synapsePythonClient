@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Using the Synapse Python Client with SFTP data storage &mdash; Synapse Python Client 2.7.2 documentation</title>
+  <title>Tables &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,8 +20,6 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="synapseutils" href="synapseutils.html" />
-    <link rel="prev" title="S3 Storage Features" href="S3Storage.html" />
 </head>
 
 <body class="wy-body-for-nav">
@@ -54,17 +52,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../getting_started/basics.html">Tutorial</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Articles</span></p>
-<ul class="current">
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="cli.html">Command Line Client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="S3Storage.html">S3 Storage Features</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Using the Synapse Python Client with SFTP data storage</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#installing-on-unix-variants">Installing on Unix variants</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#installing-on-windows">Installing on Windows</a></li>
-</ul>
-</li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="synapseutils.html">synapseutils</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">Accessing the API</a></li>
 </ul>
@@ -102,9 +93,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Using the Synapse Python Client with SFTP data storage</li>
+      <li class="breadcrumb-item active">Tables</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/articles/sftp.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/articles/tables.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -112,48 +103,23 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <section id="using-the-synapse-python-client-with-sftp-data-storage">
-<h1>Using the Synapse Python Client with SFTP data storage<a class="headerlink" href="#using-the-synapse-python-client-with-sftp-data-storage" title="Permalink to this headline"></a></h1>
-<section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline"></a></h2>
-<p>Installing the extra libraries that the Python client uses to communication
-with SFTP servers may add a few steps to the installation process.</p>
-<dl class="simple">
-<dt>The required libraries are:</dt><dd><ul class="simple">
-<li><p><a class="reference external" href="https://pypi.python.org/pypi/pysftp">pysftp</a></p></li>
-<li><p><a class="reference external" href="http://www.paramiko.org/">paramiko</a></p></li>
-<li><p><a class="reference external" href="https://www.dlitz.net/software/pycrypto/">pycrypto</a></p></li>
-<li><p><a class="reference external" href="https://pypi.python.org/pypi/ecdsa/">ecdsa</a></p></li>
+  <section id="tables">
+<h1>Tables<a class="headerlink" href="#tables" title="Permalink to this headline"></a></h1>
+<p>Tables can be built up by adding sets of rows that follow a user-defined schema and queried using a SQL-like syntax.</p>
+<p>See:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../api/Table.html#module-synapseclient.table" title="synapseclient.table"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.table</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Schema</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/Table.html#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Column</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.getColumns" title="synapseclient.Synapse.getColumns"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getColumns()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.getTableColumns" title="synapseclient.Synapse.getTableColumns"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getTableColumns()</span></code></a></p></li>
 </ul>
-</dd>
-</dl>
-<section id="installing-on-unix-variants">
-<h3>Installing on Unix variants<a class="headerlink" href="#installing-on-unix-variants" title="Permalink to this headline"></a></h3>
-<p>Building these libraries on Unix OS’s is straight forward, but you need the
-Python development headers and libraries. For example, in Debian or Ubuntu
-distributions:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">python</span><span class="o">-</span><span class="n">dev</span>
-</pre></div>
-</div>
-<p>Once this requirement is met, <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">synapseclient</span></code> should be able
-to build pycrypto.</p>
-</section>
-<section id="installing-on-windows">
-<h3>Installing on Windows<a class="headerlink" href="#installing-on-windows" title="Permalink to this headline"></a></h3>
-<p><a class="reference external" href="http://www.voidspace.org.uk/python/modules.shtml#pycrypto">Binary distributions of pycrypto</a> built for Windows is available from Michael Foord at Voidspace. Install this before installing the Python client.</p>
-<p>After running the pycrypto installer, <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">synapseclient</span></code> should work.</p>
-<p>Another option is to build your own binary with either the <a class="reference external" href="http://www.visualstudio.com/en-us/products/visual-studio-community-vs">free developer tools from Microsoft</a> or the <a class="reference external" href="http://www.mingw.org/">MinGW compiler</a>.</p>
-</section>
-</section>
 </section>
 
 
            </div>
           </div>
-          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="S3Storage.html" class="btn btn-neutral float-left" title="S3 Storage Features" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="synapseutils.html" class="btn btn-neutral float-right" title="synapseutils" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-    </div>
+          <footer>
 
   <hr/>
 

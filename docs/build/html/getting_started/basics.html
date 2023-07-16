@@ -67,7 +67,6 @@
 <p class="caption" role="heading"><span class="caption-text">Articles</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../articles/cli.html">Command Line Client</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../articles/Multipart_upload.html">Multipart Upload</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../articles/S3Storage.html">S3 Storage Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../articles/sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../articles/synapseutils.html">synapseutils</a></li>
@@ -86,6 +85,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/Table.html">Tables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/Team.html">Teams</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/Views.html">Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/Multipart_upload.html">Multipart Upload</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">News</span></p>
 <ul>
@@ -287,15 +287,33 @@ derived data objects to source data and the code used to perform the transformat
 </section>
 <section id="file-views">
 <h2>File Views<a class="headerlink" href="#file-views" title="Permalink to this headline"></a></h2>
-<p>A view is a type of table. Views display rows and columns of information, and they can be
-shared and queried just like a table. Unlike tables, views are essentially queries of
-other data already in Synapse. They allow you to see groups of files, tables, projects, or submissions and any associated annotations about those items.</p>
+<p>Views display rows and columns of information, and they can be
+shared and queried with SQL. Views are queries of other data already in Synapse.
+They allow you to see groups of files, tables, projects, or submissions and any associated annotations about those items.</p>
 <p>Annotations are an essential component to building a view. Annotations are labels
 that you apply to your data, stored as key-value pairs in Synapse.</p>
-<p>See:</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="../api/Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.EntityViewSchema</span></code></a></p></li>
-</ul>
+<p>We will create a file view from the project above:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">(</span>
+<span class="c1"># Here we are using project.id from the earlier sections from this tutorial</span>
+<span class="n">project_id</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">id</span>
+<span class="n">fileview</span> <span class="o">=</span> <span class="n">EntityViewSchema</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;MyTable&#39;</span><span class="p">,</span>
+    <span class="n">parent</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span>
+    <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="n">project_id</span><span class="p">]</span>
+<span class="p">)</span>
+<span class="n">fileview_ent</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">fileview</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can now query it to see all the files within the project.
+Note: it is highly recommended to install <cite>pandas</cite>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;select * from </span><span class="si">{</span><span class="n">fileview_ent</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">query_results</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">asDataFrame</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">query_results</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See:
+- <a class="reference internal" href="../api/Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.EntityViewSchema</span></code></a></p>
 </section>
 <section id="more-information">
 <h2>More Information<a class="headerlink" href="#more-information" title="Permalink to this headline"></a></h2>

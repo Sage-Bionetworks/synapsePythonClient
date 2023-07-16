@@ -176,15 +176,34 @@ See:
 File Views
 ==========
 
-A view is a type of table. Views display rows and columns of information, and they can be
-shared and queried just like a table. Unlike tables, views are essentially queries of
-other data already in Synapse. They allow you to see groups of files, tables, projects, or submissions and any associated annotations about those items.
+Views display rows and columns of information, and they can be
+shared and queried with SQL. Views are queries of other data already in Synapse.
+They allow you to see groups of files, tables, projects, or submissions and any associated annotations about those items.
 
 Annotations are an essential component to building a view. Annotations are labels
 that you apply to your data, stored as key-value pairs in Synapse.
 
-See:
+We will create a file view from the project above::
 
+    import synapseclient
+    syn = synapseclient.login(
+    # Here we are using project.id from the earlier sections from this tutorial
+    project_id = project.id
+    fileview = EntityViewSchema(
+        name='MyTable',
+        parent=project_id,
+        scopes=[project_id]
+    )
+    fileview_ent = syn.store(fileview)
+
+You can now query it to see all the files within the project.
+Note: it is highly recommended to install `pandas`::
+
+    query = syn.tableQuery(f"select * from {fileview_ent.id}")
+    query_results = query.asDataFrame()
+    print(query_results)
+
+See:
 - :py:class:`synapseclient.table.EntityViewSchema`
 
 
