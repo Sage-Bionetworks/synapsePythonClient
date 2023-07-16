@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>S3 Storage Features &mdash; Synapse Python Client 2.7.2 documentation</title>
+  <title>Data Storage &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,7 +20,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Using the Synapse Python Client with SFTP data storage" href="sftp.html" />
+    <link rel="next" title="synapseutils" href="synapseutils.html" />
     <link rel="prev" title="Command Line Client" href="cli.html" />
 </head>
 
@@ -56,23 +56,26 @@
 <p class="caption" role="heading"><span class="caption-text">Articles</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="cli.html">Command Line Client</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">S3 Storage Features</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#external-storage-locations">External storage locations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#sts-storage-locations">STS Storage Locations</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#creating-an-sts-enabled-folder">Creating an STS enabled folder</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#using-credentials-with-the-awscli">Using credentials with the awscli</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#using-credentials-with-boto3-in-python">Using credentials with boto3 in python</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient">Automatic transfers to/from STS storage locations using boto3 with synapseclient</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Data Storage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#s3-storage-features">S3 Storage Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#external-storage-locations">External storage locations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sts-storage-locations">STS Storage Locations</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#creating-an-sts-enabled-folder">Creating an STS enabled folder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#using-credentials-with-the-awscli">Using credentials with the awscli</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#using-credentials-with-boto3-in-python">Using credentials with boto3 in python</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient">Automatic transfers to/from STS storage locations using boto3 with synapseclient</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#storage-location-migration">Storage location migration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#migrating-programmatically">Migrating programmatically</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#migrating-from-the-command-line">Migrating from the command line</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#storage-location-migration">Storage location migration</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#migrating-programmatically">Migrating programmatically</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#migrating-from-the-command-line">Migrating from the command line</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sftp">SFTP</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="synapseutils.html">synapseutils</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">Accessing the API</a></li>
 </ul>
@@ -110,9 +113,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">S3 Storage Features</li>
+      <li class="breadcrumb-item active">Data Storage</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/articles/S3Storage.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/articles/data_storage.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -120,13 +123,15 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <section id="s3-storage-features">
-<h1>S3 Storage Features<a class="headerlink" href="#s3-storage-features" title="Permalink to this headline"></a></h1>
+  <section id="data-storage">
+<h1>Data Storage<a class="headerlink" href="#data-storage" title="Permalink to this headline"></a></h1>
+<section id="s3-storage-features">
+<h2>S3 Storage Features<a class="headerlink" href="#s3-storage-features" title="Permalink to this headline"></a></h2>
 <p>Synapse can use a variety of storage mechanisms to store content, however the most common
 storage solution is AWS S3. This article illustrates some special features that can be used with S3 storage
 and how they interact with the Python client.</p>
 <section id="external-storage-locations">
-<h2>External storage locations<a class="headerlink" href="#external-storage-locations" title="Permalink to this headline"></a></h2>
+<h3>External storage locations<a class="headerlink" href="#external-storage-locations" title="Permalink to this headline"></a></h3>
 <p>Synapse folders can be configured to use custom implementations for their underlying data storage.
 More information on this feature can be found
 <a class="reference external" href="https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html">here</a>.
@@ -182,7 +187,7 @@ a file handle for that object using the Python client and then storing the file 
 </div></blockquote>
 </section>
 <section id="sts-storage-locations">
-<span id="id1"></span><h2>STS Storage Locations<a class="headerlink" href="#sts-storage-locations" title="Permalink to this headline"></a></h2>
+<span id="id1"></span><h3>STS Storage Locations<a class="headerlink" href="#sts-storage-locations" title="Permalink to this headline"></a></h3>
 <p>Create an STS enabled folder to use
 <a class="reference external" href="https://help.synapse.org/docs/Compute-Directly-on-Data-in-Synapse-or-S3.2048426057.html#ComputeDirectlyonDatainSynapseorS3-Synapse-ManagedSTSStorageLocations">AWS Security Token Service</a> credentials
 with S3 storage locations. These credentials can be scoped to access individual Synapse files or folders and can be used
@@ -191,7 +196,7 @@ from Synapse storage. At this time read and write capabilities are supported for
 Synapse storage is limited to read only. Please read the linked documentation for a complete understanding of the capabilities
 and restrictions of STS enabled folders.</p>
 <section id="creating-an-sts-enabled-folder">
-<h3>Creating an STS enabled folder<a class="headerlink" href="#creating-an-sts-enabled-folder" title="Permalink to this headline"></a></h3>
+<h4>Creating an STS enabled folder<a class="headerlink" href="#creating-an-sts-enabled-folder" title="Permalink to this headline"></a></h4>
 <p>Creating an STS enabled folder is similar to creating an external storage folder as described above, but this
 time passing an additional <strong>sts_enabled=True</strong> keyword parameter. The <strong>bucket_name</strong> and <strong>base_key</strong>
 parameters apply to external storage locations and can be omitted to use Synapse internal storage.
@@ -210,7 +215,7 @@ Note also that STS can only be enabled on an empty folder.</p>
 </div></blockquote>
 </section>
 <section id="using-credentials-with-the-awscli">
-<h3>Using credentials with the awscli<a class="headerlink" href="#using-credentials-with-the-awscli" title="Permalink to this headline"></a></h3>
+<h4>Using credentials with the awscli<a class="headerlink" href="#using-credentials-with-the-awscli" title="Permalink to this headline"></a></h4>
 <p>This example illustrates obtaining STS credentials and using them with the awscli command line tool.
 The first command outputs the credentials as shell commands to execute which will then be picked up
 by subsequent aws cli commands. Note that the bucket-owner-full-control ACL is required when putting
@@ -233,7 +238,7 @@ $ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION --acl bucket-owner-full
 </div></blockquote>
 </section>
 <section id="using-credentials-with-boto3-in-python">
-<h3>Using credentials with boto3 in python<a class="headerlink" href="#using-credentials-with-boto3-in-python" title="Permalink to this headline"></a></h3>
+<h4>Using credentials with boto3 in python<a class="headerlink" href="#using-credentials-with-boto3-in-python" title="Permalink to this headline"></a></h4>
 <p>This example illustrates retrieving STS credentials and using them with boto3 within python code,
 in this case to upload a file.  Note that the bucket-owner-full-control ACL is required when putting
 an object via STS credentials. This ensures that the object ownership will be transferred to the
@@ -254,7 +259,7 @@ owner of the AWS bucket.</p>
 </div></blockquote>
 </section>
 <section id="automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient">
-<h3>Automatic transfers to/from STS storage locations using boto3 with synapseclient<a class="headerlink" href="#automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient" title="Permalink to this headline"></a></h3>
+<h4>Automatic transfers to/from STS storage locations using boto3 with synapseclient<a class="headerlink" href="#automatic-transfers-to-from-sts-storage-locations-using-boto3-with-synapseclient" title="Permalink to this headline"></a></h4>
 <p>The Python Synapse client can be configured to automatically use STS tokens to perform uploads and downloads to enabled
 storage locations using an installed boto3 library rather than through the traditional Synapse client APIs.
 This can improve performance in certain situations, particularly uploads of large files, as the data transfer itself
@@ -290,7 +295,7 @@ the <strong>use_boto_sts_transfers</strong> property.</p></li>
 </section>
 </section>
 <section id="storage-location-migration">
-<h2>Storage location migration<a class="headerlink" href="#storage-location-migration" title="Permalink to this headline"></a></h2>
+<h3>Storage location migration<a class="headerlink" href="#storage-location-migration" title="Permalink to this headline"></a></h3>
 <p>There are circumstances where it can be useful to move the files underlying Synapse entities from one storage
 location to another without impacting the structure or identifiers of the Synapse entities themselves. An example
 scenario is needing to use <a class="reference external" href="S3Storage.html#sts-storage-locations">STS</a> features with an existing Synapse Project
@@ -300,7 +305,7 @@ that was not initially configured with an STS enabled
 the content locally and re-uploading it which can be slow, and may alter the meta data associated with the entities
 in undesirable ways.</p>
 <section id="migrating-programmatically">
-<h3>Migrating programmatically<a class="headerlink" href="#migrating-programmatically" title="Permalink to this headline"></a></h3>
+<h4>Migrating programmatically<a class="headerlink" href="#migrating-programmatically" title="Permalink to this headline"></a></h4>
 <p>Migrating a Synapse project or folder programatically is a two step process.</p>
 <p>First ensure that you know the id of the storage location you want to migrate to. More info on storage
 locations can be found above and <a class="reference external" href="https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html">here</a>.</p>
@@ -359,7 +364,7 @@ with a migration requires confirmation in the form of user prompt. If running pr
 instead confirms your intention to proceed with the migration.</p>
 </section>
 <section id="migrating-from-the-command-line">
-<h3>Migrating from the command line<a class="headerlink" href="#migrating-from-the-command-line" title="Permalink to this headline"></a></h3>
+<h4>Migrating from the command line<a class="headerlink" href="#migrating-from-the-command-line" title="Permalink to this headline"></a></h4>
 <p>Synapse entities can also be migrated from the command line. The options are similar to above.
 Whereas migrating programatically involves two separate function calls, from the command line
 there is a single <a class="reference external" href="CommandLineClient.html#migrate">migrate</a> command with the <em>dryRun</em> argument providing the option
@@ -390,13 +395,40 @@ Writing csv log to /tmp/migrate.csv
 </section>
 </section>
 </section>
+<section id="sftp">
+<h2>SFTP<a class="headerlink" href="#sftp" title="Permalink to this headline"></a></h2>
+<p>Installing the extra libraries that the Python client uses to communication
+with SFTP servers may add a few steps to the installation process.</p>
+<dl class="simple">
+<dt>The required libraries are:</dt><dd><ul class="simple">
+<li><p><a class="reference external" href="https://pypi.python.org/pypi/pysftp">pysftp</a></p></li>
+<li><p><a class="reference external" href="http://www.paramiko.org/">paramiko</a></p></li>
+<li><p><a class="reference external" href="https://www.dlitz.net/software/pycrypto/">pycrypto</a></p></li>
+<li><p><a class="reference external" href="https://pypi.python.org/pypi/ecdsa/">ecdsa</a></p></li>
+</ul>
+</dd>
+</dl>
+<p>Building these libraries on Unix OS’s is straight forward, but you need the
+Python development headers and libraries. For example, in Debian or Ubuntu
+distributions:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">python</span><span class="o">-</span><span class="n">dev</span>
+</pre></div>
+</div>
+<p>Once this requirement is met, <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">synapseclient</span></code> should be able
+to build pycrypto.</p>
+<p><a class="reference external" href="http://www.voidspace.org.uk/python/modules.shtml#pycrypto">Binary distributions of pycrypto</a> built for Windows is available from Michael Foord at Voidspace. Install this before installing the Python client.</p>
+<p>After running the pycrypto installer, <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">synapseclient</span></code> should work.</p>
+<p>Another option is to build your own binary with either the <a class="reference external" href="http://www.visualstudio.com/en-us/products/visual-studio-community-vs">free developer tools from Microsoft</a> or the <a class="reference external" href="http://www.mingw.org/">MinGW compiler</a>.</p>
+<p>Make sure you configure your ~/.synapseConfig file to connect to your SFTP server.</p>
+</section>
+</section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="cli.html" class="btn btn-neutral float-left" title="Command Line Client" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="sftp.html" class="btn btn-neutral float-right" title="Using the Synapse Python Client with SFTP data storage" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="synapseutils.html" class="btn btn-neutral float-right" title="synapseutils" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

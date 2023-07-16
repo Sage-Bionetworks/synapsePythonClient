@@ -42,8 +42,7 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    :hidden:
 
    articles/cli
-   articles/S3Storage
-   articles/sftp
+   articles/data_storage
    articles/synapseutils
    articles/api
 
