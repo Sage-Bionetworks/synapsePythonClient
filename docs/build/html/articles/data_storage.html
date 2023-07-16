@@ -73,7 +73,15 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#sftp">SFTP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sftp">SFTP</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#installation">Installation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#installing-on-unix-variants">Installing on Unix variants</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#installing-on-windows">Installing on Windows</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#configure-your-client">Configure your client</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="synapseutils.html">synapseutils</a></li>
@@ -397,6 +405,8 @@ Writing csv log to /tmp/migrate.csv
 </section>
 <section id="sftp">
 <h2>SFTP<a class="headerlink" href="#sftp" title="Permalink to this headline"></a></h2>
+<section id="installation">
+<h3>Installation<a class="headerlink" href="#installation" title="Permalink to this headline"></a></h3>
 <p>Installing the extra libraries that the Python client uses to communication
 with SFTP servers may add a few steps to the installation process.</p>
 <dl class="simple">
@@ -408,6 +418,8 @@ with SFTP servers may add a few steps to the installation process.</p>
 </ul>
 </dd>
 </dl>
+<section id="installing-on-unix-variants">
+<h4>Installing on Unix variants<a class="headerlink" href="#installing-on-unix-variants" title="Permalink to this headline"></a></h4>
 <p>Building these libraries on Unix OS’s is straight forward, but you need the
 Python development headers and libraries. For example, in Debian or Ubuntu
 distributions:</p>
@@ -416,10 +428,18 @@ distributions:</p>
 </div>
 <p>Once this requirement is met, <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">synapseclient</span></code> should be able
 to build pycrypto.</p>
+</section>
+<section id="installing-on-windows">
+<h4>Installing on Windows<a class="headerlink" href="#installing-on-windows" title="Permalink to this headline"></a></h4>
 <p><a class="reference external" href="http://www.voidspace.org.uk/python/modules.shtml#pycrypto">Binary distributions of pycrypto</a> built for Windows is available from Michael Foord at Voidspace. Install this before installing the Python client.</p>
 <p>After running the pycrypto installer, <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">synapseclient</span></code> should work.</p>
 <p>Another option is to build your own binary with either the <a class="reference external" href="http://www.visualstudio.com/en-us/products/visual-studio-community-vs">free developer tools from Microsoft</a> or the <a class="reference external" href="http://www.mingw.org/">MinGW compiler</a>.</p>
+</section>
+</section>
+<section id="configure-your-client">
+<h3>Configure your client<a class="headerlink" href="#configure-your-client" title="Permalink to this headline"></a></h3>
 <p>Make sure you configure your ~/.synapseConfig file to connect to your SFTP server.</p>
+</section>
 </section>
 </section>
 

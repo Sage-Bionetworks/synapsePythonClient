@@ -294,7 +294,7 @@ SFTP
 ====
 
 Installation
-------------
+============
 Installing the extra libraries that the Python client uses to communication
 with SFTP servers may add a few steps to the installation process.
 
@@ -305,7 +305,7 @@ The required libraries are:
  * `ecdsa <https://pypi.python.org/pypi/ecdsa/>`_
 
 Installing on Unix variants
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 Building these libraries on Unix OS's is straight forward, but you need the
 Python development headers and libraries. For example, in Debian or Ubuntu
@@ -317,7 +317,7 @@ Once this requirement is met, ``sudo pip install synapseclient`` should be able
 to build pycrypto.
 
 Installing on Windows
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 `Binary distributions of pycrypto <http://www.voidspace.org.uk/python/modules.shtml#pycrypto>`_ built for Windows is available from Michael Foord at Voidspace. Install this before installing the Python client.
 
@@ -326,6 +326,6 @@ After running the pycrypto installer, ``sudo pip install synapseclient`` should 
 Another option is to build your own binary with either the `free developer tools from Microsoft <http://www.visualstudio.com/en-us/products/visual-studio-community-vs>`_ or the `MinGW compiler <http://www.mingw.org/>`_.
 
 Configure your client
-~~~~~~~~~~~~~~~~~~~~~
+=====================
 
 Make sure you configure your ~/.synapseConfig file to connect to your SFTP server.
