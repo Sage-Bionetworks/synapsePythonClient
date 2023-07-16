@@ -58,9 +58,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#annotating-synapse-entities">Annotating Synapse Entities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#versioning">Versioning</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#provenance">Provenance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#tables">Tables</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#file-views">File Views</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#access-control">Access Control</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#more-information">More Information</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#getting-updates">Getting Updates</a></li>
 </ul>
@@ -273,22 +271,18 @@ unless a version is specified:</p>
 <section id="provenance">
 <h2>Provenance<a class="headerlink" href="#provenance" title="Permalink to this headline"></a></h2>
 <p>Synapse provides tools for tracking ‘provenance’, or the transformation of raw data into processed results, by linking
-derived data objects to source data and the code used to perform the transformation.</p>
+derived data objects to source data and the code used to perform the transformation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># pass the provenance to the store function</span>
+<span class="n">provenance_ent</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span>
+    <span class="n">version_entity</span><span class="p">,</span>
+    <span class="n">used</span><span class="o">=</span><span class="p">[</span><span class="n">version_1</span><span class="o">.</span><span class="n">id</span><span class="p">],</span>
+    <span class="n">executed</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;https://github.com/Sage-Bionetworks/synapsePythonClient/tree/v2.7.2&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
 <p>See:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="../api/Activity.html#synapseclient.activity.Activity" title="synapseclient.activity.Activity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.activity.Activity</span></code></a></p></li>
-</ul>
-</section>
-<section id="tables">
-<h2>Tables<a class="headerlink" href="#tables" title="Permalink to this headline"></a></h2>
-<p>Tables can be built up by adding sets of rows that follow a user-defined schema and queried using a SQL-like syntax.</p>
-<p>See:</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="../api/Table.html#module-synapseclient.table" title="synapseclient.table"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.table</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Schema</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Table.html#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Column</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.getColumns" title="synapseclient.Synapse.getColumns"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getColumns()</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.getTableColumns" title="synapseclient.Synapse.getTableColumns"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getTableColumns()</span></code></a></p></li>
 </ul>
 </section>
 <section id="file-views">
@@ -301,16 +295,6 @@ that you apply to your data, stored as key-value pairs in Synapse.</p>
 <p>See:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="../api/Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.EntityViewSchema</span></code></a></p></li>
-</ul>
-</section>
-<section id="access-control">
-<h2>Access Control<a class="headerlink" href="#access-control" title="Permalink to this headline"></a></h2>
-<p>By default, data sets in Synapse are private to your user account, but they can easily be shared with specific users,
-groups, or the public.</p>
-<p>See:</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.getPermissions" title="synapseclient.Synapse.getPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getPermissions()</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.setPermissions" title="synapseclient.Synapse.setPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.setPermissions()</span></code></a></p></li>
 </ul>
 </section>
 <section id="more-information">
