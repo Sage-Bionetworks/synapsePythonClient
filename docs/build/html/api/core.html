@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Utility Functions &mdash; Synapse Python Client 2.7.2 documentation</title>
+  <title>Core &mdash; Synapse Python Client 2.7.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,8 +20,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Version Functions" href="Versions.html" />
-    <link rel="prev" title="Wiki" href="Wiki.html" />
+    <link rel="next" title="Release Notes" href="../news.html" />
+    <link rel="prev" title="Views" href="Views.html" />
 </head>
 
 <body class="wy-body-for-nav">
@@ -57,7 +57,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../articles/cli.html">Command Line Client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../articles/data_storage.html">Data Storage</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../articles/synapseutils.html">synapseutils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/synapseutils.html">Synapse Utils</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../articles/api.html">Accessing the API</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Python API</span></p>
@@ -68,12 +68,18 @@
 <li class="toctree-l1"><a class="reference internal" href="Activity.html">Provenance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Annotations.html">Annotations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Wiki.html">Wiki</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Utility Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="Versions.html">Version Functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Table.html">Tables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Team.html">Teams</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Views.html">Views</a></li>
-<li class="toctree-l1"><a class="reference internal" href="Multipart_upload.html">Multipart Upload</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Core</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-synapseclient.core.upload.multipart_upload">Multipart Upload</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-synapseclient.core.utils">Utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-synapseclient.core.version_check">Versions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#version-functions">Version Functions</a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">News</span></p>
 <ul>
@@ -94,9 +100,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Utility Functions</li>
+      <li class="breadcrumb-item active">Core</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/api/Utilities.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/api/core.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -104,8 +110,89 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
 
-  <section id="module-synapseclient.core.utils">
-<span id="utility-functions"></span><h1>Utility Functions<a class="headerlink" href="#module-synapseclient.core.utils" title="Permalink to this headline"></a></h1>
+  <section id="core">
+<h1>Core<a class="headerlink" href="#core" title="Permalink to this headline"></a></h1>
+<p>This section is for super users / developers only.
+These functions are subject to change as they are internal development
+functions.  Use at your own risk.</p>
+<section id="module-synapseclient.core.upload.multipart_upload">
+<span id="multipart-upload"></span><h2>Multipart Upload<a class="headerlink" href="#module-synapseclient.core.upload.multipart_upload" title="Permalink to this headline"></a></h2>
+<p>Implements the client side of <a class="reference external" href="https://rest-docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController">Synapse multipart upload</a>, which provides a
+robust means of uploading large files (into the 10s of GB). End users should
+not need to call any of these functions directly.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="synapseclient.core.upload.multipart_upload.multipart_upload_file">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></span><span class="sig-name descname"><span class="pre">multipart_upload_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preview</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.multipart_upload_file" title="Permalink to this definition"></a></dt>
+<dd><p>Upload a file to a Synapse upload destination in chunks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – a Synapse object</p></li>
+<li><p><strong>file_path</strong> – the file to upload</p></li>
+<li><p><strong>dest_file_name</strong> – upload as a different filename</p></li>
+<li><p><strong>content_type</strong> – <a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17">contentType</a></p></li>
+<li><p><strong>part_size</strong> – Number of bytes per part. Minimum 5MB.</p></li>
+<li><p><strong>storage_location_id</strong> – an id indicating where the file should be
+stored. Retrieved from Synapse’s UploadDestination</p></li>
+<li><p><strong>preview</strong> – True to generate a preview</p></li>
+<li><p><strong>force_restart</strong> – True to restart a previously initiated upload
+from scratch, False to try to resume</p></li>
+<li><p><strong>max_threads</strong> – number of concurrent threads to devote
+to upload</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a File Handle ID</p>
+</dd>
+</dl>
+<p>Keyword arguments are passed down to <a class="reference internal" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="synapseclient.core.upload.multipart_upload._multipart_upload"><code class="xref py py-func docutils literal notranslate"><span class="pre">_multipart_upload()</span></code></a> and <code class="xref py py-func docutils literal notranslate"><span class="pre">_start_multipart_upload()</span></code>.
+.. _contentType: <a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17">https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17</a></p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="synapseclient.core.upload.multipart_upload.multipart_upload_string">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></span><span class="sig-name descname"><span class="pre">multipart_upload_string</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage_location_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preview</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.multipart_upload_string" title="Permalink to this definition"></a></dt>
+<dd><p>Upload a file to a Synapse upload destination in chunks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>syn</strong> – a Synapse object</p></li>
+<li><p><strong>text</strong> – a string to upload as a file.</p></li>
+<li><p><strong>dest_file_name</strong> – upload as a different filename</p></li>
+<li><p><strong>content_type</strong> – <a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17">contentType</a></p></li>
+<li><p><strong>part_size</strong> – number of bytes per part. Minimum 5MB.</p></li>
+<li><p><strong>storage_location_id</strong> – an id indicating where the file should be
+stored. Retrieved from Synapse’s UploadDestination</p></li>
+<li><p><strong>preview</strong> – True to generate a preview</p></li>
+<li><p><strong>force_restart</strong> – True to restart a previously initiated upload
+from scratch, False to try to resume</p></li>
+<li><p><strong>max_threads</strong> – number of concurrent threads to devote
+to upload</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a File Handle ID</p>
+</dd>
+</dl>
+<p>Keyword arguments are passed down to
+<a class="reference internal" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="synapseclient.core.upload.multipart_upload._multipart_upload"><code class="xref py py-func docutils literal notranslate"><span class="pre">_multipart_upload()</span></code></a> and <code class="xref py py-func docutils literal notranslate"><span class="pre">_start_multipart_upload()</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="synapseclient.core.upload.multipart_upload.shared_executor">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></span><span class="sig-name descname"><span class="pre">shared_executor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">executor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload.shared_executor" title="Permalink to this definition"></a></dt>
+<dd><p>An outside process that will eventually trigger an upload through the this module
+can configure a shared Executor by running its code within this context manager.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="synapseclient.core.upload.multipart_upload._multipart_upload">
+<span class="sig-prename descclassname"><span class="pre">synapseclient.core.upload.multipart_upload.</span></span><span class="sig-name descname"><span class="pre">_multipart_upload</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">syn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upload_request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">md5_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_restart</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.upload.multipart_upload._multipart_upload" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-synapseclient.core.utils">
+<span id="utils"></span><h2>Utils<a class="headerlink" href="#module-synapseclient.core.utils" title="Permalink to this headline"></a></h2>
 <p>Utility functions useful in the implementation and testing of the Synapse client.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="synapseclient.core.utils.as_url">
@@ -533,13 +620,54 @@ to UNIX time.</p>
 </dd></dl>
 
 </section>
+<section id="module-synapseclient.core.version_check">
+<span id="versions"></span><h2>Versions<a class="headerlink" href="#module-synapseclient.core.version_check" title="Permalink to this headline"></a></h2>
+<section id="version-functions">
+<h3>Version Functions<a class="headerlink" href="#version-functions" title="Permalink to this headline"></a></h3>
+<p>Check for latest version and recommend upgrade:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapseclient</span><span class="o">.</span><span class="n">check_for_updates</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Print release notes for installed version of client:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">synapseclient</span><span class="o">.</span><span class="n">release_notes</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.core.version_check.check_for_updates">
+<span class="sig-prename descclassname"><span class="pre">version_check.</span></span><span class="sig-name descname"><span class="pre">check_for_updates</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.version_check.check_for_updates" title="Permalink to this definition"></a></dt>
+<dd><p>Check for the existence of newer versions of the client, reporting both current release version and development
+version.</p>
+<p>For help installing development versions of the client, see the docs for
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient</span></code> or the <a class="reference external" href="https://github.com/Sage-Bionetworks/synapsePythonClient">README.md</a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.core.version_check.release_notes">
+<span class="sig-prename descclassname"><span class="pre">version_check.</span></span><span class="sig-name descname"><span class="pre">release_notes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.core.version_check.release_notes" title="Permalink to this definition"></a></dt>
+<dd><p>Print release notes for the installed version of the client or latest release or development version if version_url
+is supplied.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>version_url</strong> – <p>Defaults to None, meaning release notes for the installed version. Alternatives are:</p>
+<ul class="simple">
+<li><p>synapseclient.version_check._VERSION_URL</p></li>
+<li><p>synapseclient.version_check._DEV_VERSION_URL</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+</section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="Wiki.html" class="btn btn-neutral float-left" title="Wiki" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="Versions.html" class="btn btn-neutral float-right" title="Version Functions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="Views.html" class="btn btn-neutral float-left" title="Views" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../news.html" class="btn btn-neutral float-right" title="Release Notes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

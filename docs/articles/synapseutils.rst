@@ -1,6 +1,6 @@
-************
-synapseutils
-************
+*************
+Synapse Utils
+*************
 
 .. automodule:: synapseutils
 

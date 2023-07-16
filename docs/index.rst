@@ -57,12 +57,10 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    api/Activity
    api/Annotations
    api/Wiki
-   api/Utilities
-   api/Versions
    api/Table
    api/Team
    api/Views
-   api/Multipart_upload
+   api/core
 
 .. toctree::
    :caption: News
