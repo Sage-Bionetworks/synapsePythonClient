@@ -159,24 +159,19 @@ Provenance
 ==========
 
 Synapse provides tools for tracking 'provenance', or the transformation of raw data into processed results, by linking
-derived data objects to source data and the code used to perform the transformation.
+derived data objects to source data and the code used to perform the transformation::
+
+    # pass the provenance to the store function
+    provenance_ent = syn.store(
+        version_entity,
+        used=[version_1.id],
+        executed=["https://github.com/Sage-Bionetworks/synapsePythonClient/tree/v2.7.2"]
+    )
 
 See:
 
 - :py:class:`synapseclient.activity.Activity`
 
-Tables
-======
-
-Tables can be built up by adding sets of rows that follow a user-defined schema and queried using a SQL-like syntax.
-
-See:
-
-- :py:mod:`synapseclient.table`
-- :py:class:`synapseclient.table.Schema`
-- :py:class:`synapseclient.table.Column`
-- :py:func:`synapseclient.Synapse.getColumns`
-- :py:func:`synapseclient.Synapse.getTableColumns`
 
 File Views
 ==========
@@ -193,17 +188,6 @@ See:
 - :py:class:`synapseclient.table.EntityViewSchema`
 
 
-
-Access Control
-==============
-
-By default, data sets in Synapse are private to your user account, but they can easily be shared with specific users,
-groups, or the public.
-
-See:
-
-- :py:func:`synapseclient.Synapse.getPermissions`
-- :py:func:`synapseclient.Synapse.setPermissions`
 
 
 More Information
