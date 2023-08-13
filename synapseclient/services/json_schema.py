@@ -250,6 +250,12 @@ class JsonSchema:
 
 
 class JsonSchemaOrganization:
+    """Json Schema Organization
+
+    :param name: Name of JSON schema organization
+    :type name:  str
+    """
+
     def __init__(self, name: str) -> None:
         self.name = name
         self.id = None
