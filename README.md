@@ -21,24 +21,24 @@ For more information about the Python client, see:
 
 For more information about interacting with Synapse, see:
 
- * [Synapse API docs](http://docs.synapse.org/rest/)
- * [User guides (including Python examples)](http://docs.synapse.org/articles/)
- * [Getting Started Guide to Synapse](http://docs.synapse.org/articles/getting_started.html)
+ * [Synapse API docs](https://rest-docs.synapse.org/rest/)
+ * [User cases](https://help.synapse.org/docs/Use-Cases.1985151645.html)
+ * [Getting Started Guide to Synapse](https://help.synapse.org/docs/Getting-Started.2055471150.html)
 
 For release information, see:
 
  * [Release notes](https://python-docs.synapse.org/build/html/news.html)
 
-Subscribe to release and other announcements [here](https://groups.google.com/a/sagebase.org/forum/#!forum/python-announce)
-or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python-announce+subscribe@sagebase.org)
+<!-- Subscribe to release and other announcements [here](https://groups.google.com/a/sagebase.org/forum/#!forum/python-announce)
+or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python-announce+subscribe@sagebase.org) -->
 
 
 Installation
 ------------
 
-The Python Synapse client has been tested on 3.7, 3.8, 3.9, 3.10 and 3.11 on Mac OS X, Ubuntu Linux and Windows.
+The Python Synapse client has been tested on 3.8, 3.9, 3.10 and 3.11 on Mac OS X, Ubuntu Linux and Windows.
 
-**Starting from Synapse Python client version 2.0, Synapse Python client requires Python 3.6+**
+**Starting from Synapse Python client version 3.0, Synapse Python client requires Python >= 3.8**
 
 ### Install using pip
 
@@ -73,7 +73,7 @@ shown.
 
 ### downloading test data from Synapse
 
-    synapse -u my_username -p my_password get syn1528299
+    synapse -p auth_token get syn1528299
 
 ### getting help
 
@@ -94,7 +94,7 @@ The Synapse client can be used to write software that interacts with the Sage Bi
     syn = synapseclient.Synapse()
 
     ## log in using username and password
-    syn.login('my_username', 'my_password')
+    syn.login(authToken='auth_token')
 
     ## retrieve a 100 by 4 matrix
     matrix = syn.get('syn1901033')
@@ -120,28 +120,9 @@ The Synapse client can be used to write software that interacts with the Sage Bi
 
 Authentication
 --------------
-Authentication toward [Synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished in a few different ways. One is by passing username and password to the `syn.login` function.
+Authentication toward [Synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished with the clients using personal access tokens. Learn more about [Synapse personal access tokens](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens)
 
-    import synapseclient
-    syn = synapseclient.Synapse()
-    syn.login('my_username', 'my_password')
-
-It is much more convenient to use an API key, which can be generated and cached locally by doing the following _once_:
-
-    syn.login('my_username', 'my_password', rememberMe=True)
-
-Then, in subsequent interactions, specifying username and password is optional and only needed to login as a different user. Calling `login` with no arguments uses cached credentials when they are available.
-
-    syn.login('my_username')
-
-As a short-cut, creating the `Synapse` object and logging in can be done in one step:
-
-    import synapseclient
-    syn = synapseclient.login()
-
-Caching credentials can also be done from the command line client:
-
-    synapse login -u my_username -p my_password --rememberMe
+Authentication via passwords and API keys will be deprecated early 2024.
 
 
 Synapse Utilities (synapseutils)
@@ -155,14 +136,14 @@ The purpose of synapseutils is to create a space filled with convenience functio
     import synapseclient
     syn = synapseclient.login()
 
-    #COPY: copies all Synapse entities to a destination location
+    # copies all Synapse entities to a destination location
     synapseutils.copy(syn, "syn1234", destinationId = "syn2345")
 
-    #COPY WIKI: copies the wiki from the entity to a destination entity. Only a project can have sub wiki pages.
+    # copies the wiki from the entity to a destination entity. Only a project can have sub wiki pages.
     synapseutils.copyWiki(syn, "syn1234", destinationId = "syn2345")
 
 
-    #WALK: Traverses through Synapse directories, behaves exactly like os.walk()
+    # Traverses through Synapse directories, behaves exactly like os.walk()
     walkedPath = synapseutils.walk(syn, "syn1234")
 
     for dirpath, dirname, filename in walkedPath:
@@ -174,6 +155,6 @@ The purpose of synapseutils is to create a space filled with convenience functio
 License and Copyright
 ---------------------
 
-&copy; Copyright 2013-19 Sage Bionetworks
+&copy; Copyright 2013-23 Sage Bionetworks
 
 This software is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).

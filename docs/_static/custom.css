@@ -1,27 +1,3 @@
-@import url("bizstyle.css");
-
-html * {
-    font-family: Lato, Sans-Serif;
-}
-
-div.header {
-    background-color: white;
-    border-top: 1px solid #ddd;
-    border-bottom: 1px solid #ddd;
-    text-align: center;
-    height: 55px;
-    padding-left: 2em;
-    padding-right: 200px;
-}
-
-div.header img {
-	float:left;
-}
-
-.deprecated {
-    background-color: #FFFF00
-}
-
-table.field-list th {
-    word-break: normal;
+.wy-side-nav-search, .wy-nav-top {
+    background-color: #303366;
 }

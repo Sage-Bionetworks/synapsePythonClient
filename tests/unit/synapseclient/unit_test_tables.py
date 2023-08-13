@@ -832,7 +832,7 @@ def test_waitForAsync():
     syn.table_query_max_sleep = 0.001
     syn.restPOST = MagicMock(return_value={"token": "1234567"})
 
-    # return a mocked http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
+    # return a mocked https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
     syn.restGET = MagicMock(
         return_value={
             "jobState": "PROCESSING",

@@ -76,24 +76,24 @@ def syncFromSynapse(
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
     metadata.
 
-    :param syn:         A synapse object as obtained with syn = synapseclient.login()
+    :param syn:          A synapse object as obtained with syn = synapseclient.login()
 
-    :param entity:      A Synapse ID, a Synapse Entity object of type file, folder or project.
+    :param entity:       A Synapse ID, a Synapse Entity object of type file, folder or project.
 
-    :param path:        An optional path where the file hierarchy will be reproduced. If not specified the files will by
-                        default be placed in the synapseCache.
+    :param path:         An optional path where the file hierarchy will be reproduced. If not specified the files will by
+                         default be placed in the synapseCache.
 
-    :param ifcollision: Determines how to handle file collisions. Maybe "overwrite.local", "keep.local", or "keep.both".
-                        Defaults to "overwrite.local".
+    :param ifcollision:  Determines how to handle file collisions. Maybe "overwrite.local", "keep.local", or "keep.both".
+                         Defaults to "overwrite.local".
 
-    :param followLink:  Determines whether the link returns the target Entity.
-                        Defaults to False
+    :param followLink:   Determines whether the link returns the target Entity.
+                         Defaults to False
 
-    :param manifest:    Determines whether creating manifest file automatically.
-                        The optional values here ("all", "root", "suppress").
+    :param manifest:     Determines whether creating manifest file automatically.
+                         The optional values here ("all", "root", "suppress").
 
-    :param downloadFile Determines whether downloading the files.
-                        Defaults to True
+    :param downloadFile: Determines whether downloading the files.
+                         Defaults to True
 
     :returns: list of entities (files, tables, links)
 
@@ -108,8 +108,7 @@ def syncFromSynapse(
     See also:
     - :py:func:`synapseutils.sync.syncToSynapse`
 
-    Example:
-    Download and print the paths of all downloaded files::
+    Example - Download and print the paths of all downloaded files::
 
         entities = syncFromSynapse(syn, "syn1234")
         for f in entities:
@@ -880,7 +879,7 @@ def readManifestFile(syn, manifestFile):
     :param manifestFile:    A tsv file with file locations and metadata to be pushed to Synapse.
                             See below for details
 
-    :returns A pandas dataframe if the manifest is validated.
+    :returns: A pandas dataframe if the manifest is validated.
 
     See also for a description of the file format:
         - :py:func:`synapseutils.sync.syncToSynapse`

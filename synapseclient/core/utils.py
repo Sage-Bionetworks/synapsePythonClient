@@ -1,10 +1,5 @@
 """
-*****************
-Utility Functions
-*****************
-
 Utility functions useful in the implementation and testing of the Synapse client.
-
 """
 import base64
 import cgi
@@ -822,8 +817,10 @@ def extract_prefix(keys):
     """
     Takes a list of strings and extracts a common prefix delimited by a dot,
     for example::
+
         extract_prefix(["entity.bang", "entity.bar", "entity.bat"])
-    entity.
+        # returns "entity"
+
     """
     prefixes = set()
     for key in keys:

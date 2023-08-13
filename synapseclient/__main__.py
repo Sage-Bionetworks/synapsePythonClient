@@ -70,7 +70,7 @@ def query(args, syn):
     else:
         sys.stderr.write(
             "Input query cannot be parsed. Please see our documentation for writing Synapse query:"
-            " https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html"
+            " https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html"
         )
 
 
@@ -88,7 +88,7 @@ def _getIdsFromQuery(queryString, syn, downloadLocation):
     else:
         raise ValueError(
             "Input query cannot be parsed. Please see our documentation for writing Synapse query:"
-            " https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html"
+            " https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html"
         )
 
 
@@ -1266,7 +1266,7 @@ any quotes that may appear within the query string itself.
 Example::
 
     synapse query "select \\"column has spaces\\" from syn123"
-See https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html' for more information""",
+See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html' for more information""",
     )
     parser_query.set_defaults(func=query)
 
