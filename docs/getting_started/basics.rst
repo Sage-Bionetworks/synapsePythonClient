@@ -207,14 +207,7 @@ See:
 - :py:class:`synapseclient.table.EntityViewSchema`
 
 
-
-
 More Information
 ================
 
 For more information see the `Synapse Getting Started <https://help.synapse.org/docs/Getting-Started.2055471150.html>`_.
-
-Getting Updates
-===============
-
-To get information about new versions of the client, see :doc:`../api/Versions`

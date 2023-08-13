@@ -2,6 +2,59 @@
 Release Notes
 =============
 
+
+3.0.0 (2023-08-13)
+==================
+
+Highlights
+----------
+-  Removed all camel case or non-standard single dash long command line interface (cli)
+   parameters.
+   Example: command line arguments like `-parent` will become
+   `--parent`.  Commands that support camel case like `--parentId`
+   will be changed to `--parent-id`.
+-  Remove support for Python 3.7 due to its end of life and support Python 3.11
+-  Support Synapse JSON schema services
+
+Bug Fixes
+---------
+-  [`SYNPY-570 <https://sagebionetworks.jira.com/browse/SYNPY-570>`__] -
+   warning messages when downloading if files in the cache already
+-  [`SYNPY-622 <https://sagebionetworks.jira.com/browse/SYNPY-622>`__] -
+   Constructor for SubmissionStatus is not correctly implemented
+-  [`SYNPY-1242 <https://sagebionetworks.jira.com/browse/SYNPY-1242>`__] -
+   _loggedIn() function doesn't work
+-  [`SYNPY-1269 <https://sagebionetworks.jira.com/browse/SYNPY-1269>`__] -
+   Integration test failures against release-456
+-  [`SYNPY-1271 <https://sagebionetworks.jira.com/browse/SYNPY-1271>`__] -
+   Integration test failure against release-458
+
+Stories
+-------
+-  [`SYNPY-737 <https://sagebionetworks.jira.com/browse/SYNPY-737>`__] -
+   deprecate single dash, multi-letter named params in command line client
+-  [`SYNPY-1012 <https://sagebionetworks.jira.com/browse/SYNPY-1012>`__] -
+   Synapse Command Line documentation is not distinct from Synapse Python Client documentations
+-  [`SYNPY-1213 <https://sagebionetworks.jira.com/browse/SYNPY-1213>`__] -
+   Add "public" and "registered users" group to setPermissions doc
+-  [`SYNPY-1245 <https://sagebionetworks.jira.com/browse/SYNPY-1245>`__] -
+   Fix old links to synapse docs
+-  [`SYNPY-1246 <https://sagebionetworks.jira.com/browse/SYNPY-1246>`__] -
+   Support Python 3.11
+-  [`SYNPY-1122 <https://sagebionetworks.jira.com/browse/SYNPY-1122>`__] -
+   JSON Schema support
+-  [`SYNPY-1255 <https://sagebionetworks.jira.com/browse/SYNPY-1255>`__] -
+   Support pandas 2.0 in python client
+-  [`SYNPY-1266 <https://sagebionetworks.jira.com/browse/SYNPY-1266>`__] -
+   Support uploads to GCP external bucket
+-  [`SYNPY-1270 <https://sagebionetworks.jira.com/browse/SYNPY-1270>`__] -
+   Deprecate the use of `date_parser` and `parse_date` in `pd.read_csv` in table module
+-  [`SYNPY-716 <https://sagebionetworks.jira.com/browse/SYNPY-716>`__] -
+   Deprecate and remove asInteger()
+-  [`SYNPY-1227 <https://sagebionetworks.jira.com/browse/SYNPY-1227>`__] -
+   Run `black` the Python auto formatter on the files
+
+
 2.7.2 (2023-06-02)
 ==================
 
