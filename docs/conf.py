@@ -43,7 +43,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "Synapse Python Client"
-copyright = "2018, Sage Bionetworks"
+copyright = "2012-2023, Sage Bionetworks"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -96,13 +96,16 @@ pygments_style = "sphinx"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "bizstyle"
-html_style = "custom.css"
-
+html_theme = "sphinx_rtd_theme"
+# html_style = 'custom.css'
+html_logo = "_static/synapse_logo.png"
+html_css_files = [
+    "custom.css",
+]
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {}
+html_theme_options = {"logo_only": True}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -228,7 +231,7 @@ man_pages = [
         "index",
         "synapsepythonclient",
         "Synapse Python Client Documentation",
-        ["Christopher Bare, Larsson Omberg"],
+        ["Thomas Yu"],
         1,
     )
 ]
@@ -247,7 +250,7 @@ texinfo_documents = [
         "index",
         "SynapsePythonClient",
         "Synapse Python Client Documentation",
-        "Christopher Bare, Larsson Omberg",
+        "Thomas Yu",
         "SynapsePythonClient",
         "One line description of project.",
         "Miscellaneous",
@@ -265,3 +268,6 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 # texinfo_no_detailmenu = False
+
+# def setup(app):
+#     app.add_css_file("custom.css", priority=200)

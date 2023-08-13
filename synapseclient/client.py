@@ -1,31 +1,6 @@
 """
-**************
-Synapse Client
-**************
-
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
-
-~~~~~
-Login
-~~~~~
-
-.. automethod:: synapseclient.client.login
-
-~~~~~~~
-Synapse
-~~~~~~~
-
-.. autoclass:: synapseclient.Synapse
-    :members:
-
-
-~~~~~~~~~~~~~~~~
-More information
-~~~~~~~~~~~~~~~~
-
-See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
-
 """
 import collections
 import collections.abc
@@ -229,7 +204,7 @@ class Synapse(object):
     :param skip_checks:           Skip version and endpoint checks
     :param configPath:            Path to config File with setting for Synapse
                                   defaults to ~/.synapseConfig
-    :param requests_session       a custom requests.Session object that this Synapse instance will use
+    :param requests_session:      a custom requests.Session object that this Synapse instance will use
                                   when making http requests
 
     Typically, no parameters are needed::
@@ -423,13 +398,10 @@ class Synapse(object):
         """
         Valid combinations of login() arguments:
 
-        - email/username and password (**WILL BE DEPRECATED**)
-
-        - email/username and apiKey (Base64 encoded string) (**WILL BE DEPRECATED**)
-
-        - authToken
-
-        - sessionToken (**DEPRECATED**)
+            - email/username and password
+            - email/username and apiKey (Base64 encoded string)
+            - authToken
+            - sessionToken (**DEPRECATED**)
 
         If no login arguments are provided or only username is provided, login() will attempt to log in using
          information from these sources (in order of preference):
@@ -465,6 +437,7 @@ class Synapse(object):
             OR
             sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python or vitualenv)
             sudo pip install dbus-python #(may take a while to compile C code)
+
         If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before
         running your Python session::
 
@@ -1853,6 +1826,7 @@ class Synapse(object):
         reason="deprecated and replaced with :py:meth:`get_annotations`",
     )
     def getAnnotations(self, entity, version=None):
+        """deprecated and replaced with :py:meth:`get_annotations`"""
         return self.get_annotations(entity, version=version)
 
     def get_annotations(
@@ -2148,7 +2122,8 @@ class Synapse(object):
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
         :param entity:              An Entity or Synapse ID to modify
-        :param principalId:         Identifier of a user or group
+        :param principalId:         Identifier of a user or group. '273948' is for all registered Synapse users
+                                    and '273949' is for public access.
         :param accessType:          Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
                                     DELETE, CHANGE_PERMISSIONS
         :param modify_benefactor:   Set as True when modifying a benefactor's ACL
@@ -2159,6 +2134,12 @@ class Synapse(object):
 
         :returns: an Access Control List object
 
+        Example::
+
+            # Grant all registered users download access
+            syn.setPermissions('syn1234','273948',['READ','DOWNLOAD'])
+            # Grant the public view access
+            syn.setPermissions('syn1234','273949',['READ'])
         """
 
         benefactor = self._getBenefactor(entity)
@@ -3183,7 +3164,7 @@ class Synapse(object):
 
     def get_team_open_invitations(self, team):
         """Retrieve the open requests submitted to a Team
-        https://docs.synapse.org/rest/GET/team/id/openInvitation.html
+        https://rest-docs.synapse.org/rest/GET/team/id/openInvitation.html
 
         :param team: A :py:class:`synapseclient.team.Team` object or a
                      team's ID.
@@ -3197,7 +3178,7 @@ class Synapse(object):
 
     def get_membership_status(self, userid, team):
         """Retrieve a user's Team Membership Status bundle.
-        https://docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html
+        https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html
 
         :param user: Synapse user ID
         :param team: A :py:class:`synapseclient.team.Team` object or a
@@ -3433,7 +3414,7 @@ class Synapse(object):
             return None, None
 
         team_id = id_of(team)
-        # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
+        # see https://rest-docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
         eligibility = self.restGET(
             "/evaluation/{evalId}/team/{id}/submissionEligibility".format(
                 evalId=evaluation_id, id=team_id
@@ -3856,7 +3837,7 @@ class Synapse(object):
             uri + "/start", body=json.dumps(request), endpoint=endpoint
         )
 
-        # http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
+        # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
         start_time = time.time()
         lastMessage, lastProgress, lastTotal, progressed = "", 0, 1, False
@@ -4102,7 +4083,7 @@ class Synapse(object):
         Query a Synapse Table.
 
         :param query: query string in a `SQL-like syntax \
-         <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_, for example
+         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_, for example
             "SELECT * from syn12345"
 
         :param resultsAs:   select whether results are returned as a CSV file ("csv") or incrementally downloaded as
@@ -4157,7 +4138,7 @@ class Synapse(object):
     ):
         """
         Query a table and return the first page of results as a `QueryResultBundle \
-         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
+         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
         If the result contains a *nextPageToken*, following pages a retrieved by calling :py:meth:`~._queryTableNext`.
 
         :param partMask: Optional, default all. The 'partsMask' is a bit field for requesting
@@ -4168,7 +4149,7 @@ class Synapse(object):
                             Max Rows Per Page (maxRowsPerPage) = 0x8
         """
 
-        # See: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+        # See: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
         query_bundle_request = {
             "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
             "query": {
@@ -4210,7 +4191,7 @@ class Synapse(object):
     ):
         """
         Send an `UploadToTableRequest \
-         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
+         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
 
         :param filepath:    Path of a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
         :param schema:      A table entity or its Synapse ID.
@@ -4218,7 +4199,7 @@ class Synapse(object):
                             To update any rows from a RowSet the etag must be provided with the POST.
 
         :returns: `UploadToTableResult \
-         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
+         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """
 
         fileHandleId = multipart_upload_file(self, filepath, content_type="text/csv")
@@ -4298,10 +4279,10 @@ class Synapse(object):
         Query a Synapse Table and download a CSV file containing the results.
 
         Sends a `DownloadFromTableRequest \
-         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
+         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
 
         :return: a tuple containing a `DownloadFromTableResult \
-         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
+         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
 
         The DownloadFromTableResult object contains these fields:
          * headers:             ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
@@ -4462,7 +4443,7 @@ class Synapse(object):
             # ------------------------------------------------------------
 
             # returns a BulkFileDownloadResponse:
-            #   http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
+            #   https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
             request = dict(
                 concreteType="org.sagebionetworks.repo.model.file.BulkFileDownloadRequest",
                 requestedFiles=file_handle_associations_batch,
@@ -4546,7 +4527,7 @@ class Synapse(object):
                 + ", ".join('"' + col + '"' for col in cols_not_found)
             )
         col_indices = [i for i, h in enumerate(table.headers) if h.name in columns]
-        # see: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
+        # see: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
         file_handle_associations = []
         file_handle_to_path_map = collections.OrderedDict()
         seen_file_handle_ids = (

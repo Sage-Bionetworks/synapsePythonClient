@@ -302,10 +302,11 @@ def copy(
                                 Default is False
 
     Examples::
-    import synapseutils
-    import synapseclient
-    syn = synapseclient.login()
-    synapseutils.copy(syn, ...)
+
+        import synapseutils
+        import synapseclient
+        syn = synapseclient.login()
+        synapseutils.copy(syn, ...)
 
     Examples and extra parameters unique to each copy function
     -- COPYING FILES
@@ -324,6 +325,7 @@ def copy(
                             None: No provenance is set
 
     Examples::
+
         synapseutils.copy(syn, "syn12345", "syn45678", updateExisting=False, setProvenance = "traceback",version=None)
 
     -- COPYING FOLDERS/PROJECTS
@@ -333,8 +335,9 @@ def copy(
                             Defaults to an empty list.
 
     Examples::
-    #This will copy everything in the project into the destinationId except files and tables.
-    synapseutils.copy(syn, "syn123450","syn345678",excludeTypes=["file","table"])
+
+        #This will copy everything in the project into the destinationId except files and tables.
+        synapseutils.copy(syn, "syn123450","syn345678",excludeTypes=["file","table"])
 
     :returns: a mapping between the original and copied entity: {'syn1234':'syn33455'}
     """

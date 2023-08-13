@@ -25,7 +25,7 @@ def walk(
     :param synId:   A synapse ID of a folder or project
 
     :param includeTypes:    Must be a list of entity types (ie. ["file", "table"]) which can be found here:
-                            http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
+                            http://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
                             The "folder" type is always included so the hierarchy can be traversed
 
     Example::
@@ -53,7 +53,7 @@ def _helpWalk(syn, synId, includeTypes, newpath=None):
     :param syn:     A synapse object: syn = synapseclient.login()- Must be logged into synapse
     :param synId:   A synapse ID of a folder or project
     :param includeTypes:    Must be a list of entity types (ie. ["file", "table"]) which can be found here:
-                            http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
+                            http://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
                             The "folder" type is always included so the hierarchy can be traversed
     :param newpath: The directory path of the listed files
     """
