@@ -1,7 +1,7 @@
 """
-*****
+***********
 JSON Schema
-*****
+***********
 """
 
 from __future__ import annotations
@@ -20,6 +20,16 @@ DEFAULT_ACCESS = ("CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE")
 
 
 class JsonSchemaVersion:
+    """Json schema version response object
+
+    :param organization:     JSON schema organization.
+    :type organization:      JsonSchemaOrganization
+    :param name:             Name of the JSON schema.
+    :type name:              str
+    :param semantic_version: Version of JSON schema. Defaults to None.
+    :type semantic_version:  str, optional
+    """
+
     def __init__(
         self,
         organization: JsonSchemaOrganization,
@@ -67,6 +77,7 @@ class JsonSchemaVersion:
         return version
 
     def get(self):
+        """Get the JSON Schema Version"""
         if self.uri is not None:
             return True
         json_schema = self.organization.get_json_schema(self.name)
@@ -90,6 +101,13 @@ class JsonSchemaVersion:
         json_schema_body: dict,
         dry_run: bool = False,
     ):
+        """Create JSON schema version
+
+        :params json_schema_body: JSON schema body
+        :type json_schema_body:   dict
+        :params dry_run:          Do not store to Synapse. Defaults to False.
+        :type dry_run:            bool, optional
+        """
         uri = f"{self.organization.name}-{self.name}"
         if self.semantic_version:
             uri = f"{uri}-{self.semantic_version}"
@@ -102,6 +120,7 @@ class JsonSchemaVersion:
         return self
 
     def delete(self):
+        """Delete the JSON schema version"""
         self.must_get()
         response = self.service.delete_json_schema(self.uri)
         return response
@@ -113,12 +132,14 @@ class JsonSchemaVersion:
         return json_schema_body
 
     def expand(self):
+        """Validate entities with schema"""
         self.must_get()
         response = self.service.json_schema_validation(self.uri)
         json_schema_body = response["validationSchema"]
         return json_schema_body
 
     def bind_to_object(self, synapse_id: str):
+        """Bind schema to an entity"""
         self.must_get()
         response = self.service.bind_json_schema_to_entity(synapse_id, self.uri)
         return response
@@ -402,6 +423,12 @@ class JsonSchemaOrganization:
 
 
 class JsonSchemaService:
+    """Json Schema Service
+
+    :params synapse: Synapse connection
+    :type synapse:   Synapse
+    """
+
     def __init__(self, synapse: Synapse = None) -> None:
         self.synapse = synapse
 

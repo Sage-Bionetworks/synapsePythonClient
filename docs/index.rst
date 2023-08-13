@@ -44,6 +44,7 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    articles/cli
    articles/data_storage
    articles/synapseutils
+   articles/validate_annotations
    articles/api
 
 .. toctree::
@@ -60,6 +61,7 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    api/Table
    api/Team
    api/Views
+   api/JsonSchema
    api/core
 
 .. toctree::
