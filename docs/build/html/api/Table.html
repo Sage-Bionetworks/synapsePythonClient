@@ -70,22 +70,23 @@
 <li class="toctree-l1"><a class="reference internal" href="Annotations.html">Annotations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Wiki.html">Wiki</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Tables</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#id1">Pandas</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#changing-data">Changing Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#changing-table-structure">Changing Table Structure</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#table-attached-files">Table attached files</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#deleting-rows">Deleting rows</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#deleting-the-whole-table">Deleting the whole table</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#queries">Queries</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#schema">Schema</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#column">Column</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#row">Row</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#rowset">RowSet</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#table">Table</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#dataset">Dataset</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#module-level-methods">Module level methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example">Example</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Pandas</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#changing-data">Changing Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#changing-table-structure">Changing Table Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#table-attached-files">Table attached files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#deleting-rows">Deleting rows</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#deleting-the-whole-table">Deleting the whole table</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#queries">Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#schema">Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#column">Column</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#row">Row</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#rowset">RowSet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#table">Table</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dataset">Dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-level-methods">Module level methods</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="Team.html">Teams</a></li>
@@ -127,10 +128,9 @@
 <p>Synapse Tables enable storage of tabular data in Synapse in a form that can be queried using a SQL-like query language.</p>
 <p>A table has a <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> and holds a set of rows conforming to that schema.</p>
 <p>A <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> defines a series of <a class="reference internal" href="#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> of the following types: STRING, DOUBLE, INTEGER, BOOLEAN,
-DATE, ENTITYID, FILEHANDLEID, LINK, LARGETEXT, USERID
-~~~~~~~
-Example
-~~~~~~~</p>
+DATE, ENTITYID, FILEHANDLEID, LINK, LARGETEXT, USERID</p>
+<section id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this headline"></a></h2>
 <p>Preliminaries:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
 <span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">Project</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">Folder</span>
@@ -192,7 +192,7 @@ To create a table with a custom <a class="reference internal" href="Entity.html#
 </pre></div>
 </div>
 <section id="id1">
-<h2>Pandas<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
+<h3>Pandas<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h3>
 <p><a class="reference external" href="http://pandas.pydata.org/">Pandas</a> is a popular library for working with tabular data. If you have Pandas installed,
 the goal is that Synapse Tables will play nice with it.</p>
 <p>Create a Synapse Table from a <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe">DataFrame</a>:</p>
@@ -216,7 +216,7 @@ To create a table with a custom <a class="reference internal" href="Entity.html#
 </div>
 </section>
 <section id="changing-data">
-<h2>Changing Data<a class="headerlink" href="#changing-data" title="Permalink to this headline"></a></h2>
+<h3>Changing Data<a class="headerlink" href="#changing-data" title="Permalink to this headline"></a></h3>
 <p>Once the schema is settled, changes come in two flavors: appending new rows and updating existing ones.</p>
 <p><strong>Appending</strong> new rows is fairly straightforward. To continue the previous example, we might add some new genes from
 another file:</p>
@@ -248,7 +248,7 @@ optimistic concurrency. In case of a conflict, your update may be rejected. You 
 try your update again.</p>
 </section>
 <section id="changing-table-structure">
-<h2>Changing Table Structure<a class="headerlink" href="#changing-table-structure" title="Permalink to this headline"></a></h2>
+<h3>Changing Table Structure<a class="headerlink" href="#changing-table-structure" title="Permalink to this headline"></a></h3>
 <p>Adding columns can be done using the methods <code class="xref py py-meth docutils literal notranslate"><span class="pre">Schema.addColumn()</span></code> or <code class="xref py py-meth docutils literal notranslate"><span class="pre">addColumns()</span></code> on the
 <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn000000&quot;</span><span class="p">)</span>
@@ -269,14 +269,22 @@ try your update again.</p>
 </div>
 </section>
 <section id="table-attached-files">
-<h2>Table attached files<a class="headerlink" href="#table-attached-files" title="Permalink to this headline"></a></h2>
+<h3>Table attached files<a class="headerlink" href="#table-attached-files" title="Permalink to this headline"></a></h3>
 <p>Synapse tables support a special column type called ‘File’ which contain a file handle, an identifier of a file stored
 in Synapse. Here’s an example of how to upload files into Synapse, associate them with a table and read them back
 later:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># your synapse project</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
 <span class="n">project</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
 
-<span class="n">covers_dir</span> <span class="o">=</span> <span class="s1">&#39;/path/to/album/covers/&#39;</span>
+<span class="c1"># Create temporary files to store</span>
+<span class="n">temp</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;w+&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">temp_d</span><span class="p">:</span>
+    <span class="n">temp_d</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;this is a test&quot;</span><span class="p">)</span>
+
+<span class="n">temp2</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">temp2</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;w+&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">temp_d</span><span class="p">:</span>
+    <span class="n">temp_d</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;this is a test 2&quot;</span><span class="p">)</span>
 
 <span class="c1"># store the table&#39;s schema</span>
 <span class="n">cols</span> <span class="o">=</span> <span class="p">[</span>
@@ -288,14 +296,14 @@ later:</p>
 <span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Schema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Jazz Albums&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">))</span>
 
 <span class="c1"># the actual data</span>
-<span class="n">data</span> <span class="o">=</span> <span class="p">[[</span><span class="s2">&quot;John Coltrane&quot;</span><span class="p">,</span>  <span class="s2">&quot;Blue Train&quot;</span><span class="p">,</span>   <span class="mi">1957</span><span class="p">,</span> <span class="s2">&quot;BLP 1577&quot;</span><span class="p">,</span> <span class="s2">&quot;coltraneBlueTrain.jpg&quot;</span><span class="p">],</span>
-        <span class="p">[</span><span class="s2">&quot;Sonny Rollins&quot;</span><span class="p">,</span>  <span class="s2">&quot;Vol. 2&quot;</span><span class="p">,</span>       <span class="mi">1957</span><span class="p">,</span> <span class="s2">&quot;BLP 1558&quot;</span><span class="p">,</span> <span class="s2">&quot;rollinsBN1558.jpg&quot;</span><span class="p">],</span>
-        <span class="p">[</span><span class="s2">&quot;Sonny Rollins&quot;</span><span class="p">,</span>  <span class="s2">&quot;Newk&#39;s Time&quot;</span><span class="p">,</span>  <span class="mi">1958</span><span class="p">,</span> <span class="s2">&quot;BLP 4001&quot;</span><span class="p">,</span> <span class="s2">&quot;rollinsBN4001.jpg&quot;</span><span class="p">],</span>
-        <span class="p">[</span><span class="s2">&quot;Kenny Burrel&quot;</span><span class="p">,</span>   <span class="s2">&quot;Kenny Burrel&quot;</span><span class="p">,</span> <span class="mi">1956</span><span class="p">,</span> <span class="s2">&quot;BLP 1543&quot;</span><span class="p">,</span> <span class="s2">&quot;burrellWarholBN1543.jpg&quot;</span><span class="p">]]</span>
+<span class="n">data</span> <span class="o">=</span> <span class="p">[[</span><span class="s2">&quot;John Coltrane&quot;</span><span class="p">,</span>  <span class="s2">&quot;Blue Train&quot;</span><span class="p">,</span>   <span class="mi">1957</span><span class="p">,</span> <span class="s2">&quot;BLP 1577&quot;</span><span class="p">,</span> <span class="n">temp</span><span class="o">.</span><span class="n">name</span><span class="p">],</span>
+        <span class="p">[</span><span class="s2">&quot;Sonny Rollins&quot;</span><span class="p">,</span>  <span class="s2">&quot;Vol. 2&quot;</span><span class="p">,</span>       <span class="mi">1957</span><span class="p">,</span> <span class="s2">&quot;BLP 1558&quot;</span><span class="p">,</span> <span class="n">temp</span><span class="o">.</span><span class="n">name</span><span class="p">],</span>
+        <span class="p">[</span><span class="s2">&quot;Sonny Rollins&quot;</span><span class="p">,</span>  <span class="s2">&quot;Newk&#39;s Time&quot;</span><span class="p">,</span>  <span class="mi">1958</span><span class="p">,</span> <span class="s2">&quot;BLP 4001&quot;</span><span class="p">,</span> <span class="n">temp2</span><span class="o">.</span><span class="n">name</span><span class="p">],</span>
+        <span class="p">[</span><span class="s2">&quot;Kenny Burrel&quot;</span><span class="p">,</span>   <span class="s2">&quot;Kenny Burrel&quot;</span><span class="p">,</span> <span class="mi">1956</span><span class="p">,</span> <span class="s2">&quot;BLP 1543&quot;</span><span class="p">,</span> <span class="n">temp2</span><span class="o">.</span><span class="n">name</span><span class="p">]]</span>
 
 <span class="c1"># upload album covers</span>
 <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
-    <span class="n">file_handle</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">uploadFileHandle</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">covers_dir</span><span class="p">,</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">]),</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">)</span>
+    <span class="n">file_handle</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">uploadFileHandle</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">)</span>
     <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">file_handle</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
 
 <span class="c1"># store the table data</span>
@@ -303,12 +311,12 @@ later:</p>
 
 <span class="c1"># Later, we&#39;ll want to query the table and download our album covers</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;select artist, album, cover from </span><span class="si">{</span><span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> where artist = &#39;Sonny Rollins&#39;&quot;</span><span class="p">)</span>
-<span class="n">cover_files</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">downloadTableColumns</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;cover&#39;</span><span class="p">])</span>
+<span class="n">test_files</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">downloadTableColumns</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;cover&#39;</span><span class="p">])</span>
 </pre></div>
 </div>
 </section>
 <section id="deleting-rows">
-<h2>Deleting rows<a class="headerlink" href="#deleting-rows" title="Permalink to this headline"></a></h2>
+<h3>Deleting rows<a class="headerlink" href="#deleting-rows" title="Permalink to this headline"></a></h3>
 <p>Query for the rows you want to delete and call syn.delete on the results:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select * from </span><span class="si">%s</span><span class="s2"> where Chromosome=&#39;2&#39;&quot;</span> <span class="o">%</span> <span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 <span class="n">a</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
@@ -316,18 +324,20 @@ later:</p>
 </div>
 </section>
 <section id="deleting-the-whole-table">
-<h2>Deleting the whole table<a class="headerlink" href="#deleting-the-whole-table" title="Permalink to this headline"></a></h2>
+<h3>Deleting the whole table<a class="headerlink" href="#deleting-the-whole-table" title="Permalink to this headline"></a></h3>
 <p>Deleting the schema deletes the whole table and all rows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">syn</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
 </pre></div>
 </div>
+</section>
+</section>
 <section id="queries">
-<h3>Queries<a class="headerlink" href="#queries" title="Permalink to this headline"></a></h3>
+<h2>Queries<a class="headerlink" href="#queries" title="Permalink to this headline"></a></h2>
 <p>The query language is quite similar to SQL select statements, except that joins are not supported. The documentation
 for the Synapse API has lots of <a class="reference external" href="https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html">query examples</a>.</p>
 </section>
 <section id="schema">
-<h3>Schema<a class="headerlink" href="#schema" title="Permalink to this headline"></a></h3>
+<h2>Schema<a class="headerlink" href="#schema" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">Schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
@@ -434,7 +444,7 @@ settings. Supported entity types are:</p>
 
 </section>
 <section id="column">
-<h3>Column<a class="headerlink" href="#column" title="Permalink to this headline"></a></h3>
+<h2>Column<a class="headerlink" href="#column" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.table.Column">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">Column</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Column" title="Permalink to this definition"></a></dt>
@@ -471,7 +481,7 @@ allowed to have default values.</p></li>
 
 </section>
 <section id="row">
-<h3>Row<a class="headerlink" href="#row" title="Permalink to this headline"></a></h3>
+<h2>Row<a class="headerlink" href="#row" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.table.Row">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">Row</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rowId</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versionNumber</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Row" title="Permalink to this definition"></a></dt>
@@ -495,7 +505,7 @@ new version is created.</p></li>
 
 </section>
 <section id="rowset">
-<h3>RowSet<a class="headerlink" href="#rowset" title="Permalink to this headline"></a></h3>
+<h2>RowSet<a class="headerlink" href="#rowset" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.table.RowSet">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">RowSet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSet" title="Permalink to this definition"></a></dt>
@@ -525,7 +535,7 @@ rows from a RowSet the etag must be provided with the POST.</p>
 
 </section>
 <section id="table">
-<h3>Table<a class="headerlink" href="#table" title="Permalink to this headline"></a></h3>
+<h2>Table<a class="headerlink" href="#table" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="synapseclient.table.TableAbstractBaseClass">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">TableAbstractBaseClass</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass" title="Permalink to this definition"></a></dt>
@@ -683,7 +693,7 @@ appropriate data types.</p>
 
 </section>
 <section id="dataset">
-<h3>Dataset<a class="headerlink" href="#dataset" title="Permalink to this headline"></a></h3>
+<h2>Dataset<a class="headerlink" href="#dataset" title="Permalink to this headline"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
@@ -845,7 +855,7 @@ items from the set.</p>
 
 </section>
 <section id="module-level-methods">
-<h3>Module level methods<a class="headerlink" href="#module-level-methods" title="Permalink to this headline"></a></h3>
+<h2>Module level methods<a class="headerlink" href="#module-level-methods" title="Permalink to this headline"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="synapseclient.table.as_table_columns">
 <span class="sig-prename descclassname"><span class="pre">synapseclient.table.</span></span><span class="sig-name descname"><span class="pre">as_table_columns</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.as_table_columns" title="Permalink to this definition"></a></dt>
@@ -950,7 +960,6 @@ depending on what type of values are given.</p>
 </ul>
 </dd>
 </dl>
-</section>
 </section>
 </section>
 

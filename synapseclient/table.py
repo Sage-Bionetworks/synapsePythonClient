@@ -9,6 +9,8 @@ A table has a :py:class:`Schema` and holds a set of rows conforming to that sche
 
 A :py:class:`Schema` defines a series of :py:class:`Column` of the following types: STRING, DOUBLE, INTEGER, BOOLEAN,
 DATE, ENTITYID, FILEHANDLEID, LINK, LARGETEXT, USERID
+
+
 ~~~~~~~
 Example
 ~~~~~~~
@@ -165,9 +167,17 @@ in Synapse. Here's an example of how to upload files into Synapse, associate the
 later::
 
     # your synapse project
+    import tempfile
     project = syn.get(...)
 
-    covers_dir = '/path/to/album/covers/'
+    # Create temporary files to store
+    temp = tempfile.NamedTemporaryFile()
+    with open(temp.name, "w+") as temp_d:
+        temp_d.write("this is a test")
+
+    temp2 = tempfile.NamedTemporaryFile()
+    with open(temp2.name, "w+") as temp_d:
+        temp_d.write("this is a test 2")
 
     # store the table's schema
     cols = [
@@ -179,14 +189,14 @@ later::
     schema = syn.store(Schema(name='Jazz Albums', columns=cols, parent=project))
 
     # the actual data
-    data = [["John Coltrane",  "Blue Train",   1957, "BLP 1577", "coltraneBlueTrain.jpg"],
-            ["Sonny Rollins",  "Vol. 2",       1957, "BLP 1558", "rollinsBN1558.jpg"],
-            ["Sonny Rollins",  "Newk's Time",  1958, "BLP 4001", "rollinsBN4001.jpg"],
-            ["Kenny Burrel",   "Kenny Burrel", 1956, "BLP 1543", "burrellWarholBN1543.jpg"]]
+    data = [["John Coltrane",  "Blue Train",   1957, "BLP 1577", temp.name],
+            ["Sonny Rollins",  "Vol. 2",       1957, "BLP 1558", temp.name],
+            ["Sonny Rollins",  "Newk's Time",  1958, "BLP 4001", temp2.name],
+            ["Kenny Burrel",   "Kenny Burrel", 1956, "BLP 1543", temp2.name]]
 
     # upload album covers
     for row in data:
-        file_handle = syn.uploadFileHandle(os.path.join(covers_dir, row[4]), parent=project)
+        file_handle = syn.uploadFileHandle(row[4], parent=project)
         row[4] = file_handle['id']
 
     # store the table data
@@ -194,7 +204,7 @@ later::
 
     # Later, we'll want to query the table and download our album covers
     results = syn.tableQuery(f"select artist, album, cover from {schema.id} where artist = 'Sonny Rollins'")
-    cover_files = syn.downloadTableColumns(results, ['cover'])
+    test_files = syn.downloadTableColumns(results, ['cover'])
 
 -------------
 Deleting rows
