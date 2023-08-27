@@ -2,6 +2,9 @@
 ***********
 JSON Schema
 ***********
+
+.. warning::
+    This is a beta implementation and is subject to change.  Use at your own risk.
 """
 
 from __future__ import annotations
@@ -103,10 +106,11 @@ class JsonSchemaVersion:
     ):
         """Create JSON schema version
 
-        :params json_schema_body: JSON schema body
-        :type json_schema_body:   dict
-        :params dry_run:          Do not store to Synapse. Defaults to False.
-        :type dry_run:            bool, optional
+        :param json_schema_body: JSON schema body
+        :type json_schema_body:  dict
+        :param dry_run:          Do not store to Synapse. Defaults to False.
+        :type dry_run:           bool, optional
+        :returns: JSON Schema
         """
         uri = f"{self.organization.name}-{self.name}"
         if self.semantic_version:
@@ -139,13 +143,25 @@ class JsonSchemaVersion:
         return json_schema_body
 
     def bind_to_object(self, synapse_id: str):
-        """Bind schema to an entity"""
+        """Bind schema to an entity
+
+        :param synapse_id: Synapse Id to bind json schema to.
+        :type synapse_id:  str
+        """
         self.must_get()
         response = self.service.bind_json_schema_to_entity(synapse_id, self.uri)
         return response
 
 
 class JsonSchema:
+    """Json schema response object
+
+    :param organization:     JSON schema organization.
+    :type organization:      JsonSchemaOrganization
+    :param name:             Name of the JSON schema.
+    :type name:              str
+    """
+
     def __init__(self, organization: JsonSchemaOrganization, name: str) -> None:
         self.organization = organization
         self.name = name
@@ -180,6 +196,7 @@ class JsonSchema:
         return json_schema
 
     def get(self):
+        """Get Json schema"""
         if self.id is not None:
             return True
         response = self.organization.get_json_schema(self.name, raw=True)
@@ -196,6 +213,7 @@ class JsonSchema:
         )
 
     def list_versions(self):
+        """List versions of the json schema"""
         self.must_get()
         self._versions = dict()
         response = self.service.list_json_schema_versions(
@@ -236,6 +254,15 @@ class JsonSchema:
         semantic_version: str = None,
         dry_run: bool = False,
     ):
+        """Create JSON schema
+
+        :param json_schema_body: JSON schema body
+        :type json_schema_body:  dict
+        :param semantic_version: Version of JSON schema. Defaults to None.
+        :type semantic_version:  str, optional
+        :param dry_run:          Do not store to Synapse. Defaults to False.
+        :type dry_run:           bool, optional
+        """
         uri = f"{self.organization.name}-{self.name}"
         if semantic_version:
             uri = f"{uri}-{semantic_version}"
@@ -272,6 +299,7 @@ class JsonSchemaOrganization:
         self.service = service
 
     def get(self):
+        """Gets Json Schema organization"""
         if self.id is not None:
             return True
         try:
@@ -326,6 +354,7 @@ class JsonSchemaOrganization:
         return organization
 
     def create(self):
+        """Create the JSON schema organization"""
         already_exists = self.get()
         if already_exists:
             return
@@ -334,11 +363,13 @@ class JsonSchemaOrganization:
         return self
 
     def delete(self):
+        """Delete the JSON schema organization"""
         self.must_get()
         response = self.service.delete_organization(self.id)
         return response
 
     def get_acl(self):
+        """Get ACL of JSON schema organization"""
         self.must_get()
         response = self.service.get_organization_acl(self.id)
         return response
@@ -349,6 +380,15 @@ class JsonSchemaOrganization:
         access_type: Sequence[str] = DEFAULT_ACCESS,
         etag: str = None,
     ):
+        """Set ACL of JSON schema organization
+
+        :param principal_ids: List of Synapse user or team ids.
+        :type principal_ids:  list
+        :param access_type:   Access control list. Defaults to ["CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE"].
+        :type access_type:    list, optional
+        :param etag:          Etag. Defaults to None.
+        :type etag:           str, optional
+        """
         self.must_get()
         if etag is None:
             acl = self.get_acl()
@@ -366,6 +406,15 @@ class JsonSchemaOrganization:
         access_type: Sequence[str] = DEFAULT_ACCESS,
         etag: str = None,
     ):
+        """Update ACL of JSON schema organization
+
+        :param principal_ids: List of Synapse user or team ids.
+        :type principal_ids:  list
+        :param access_type:   Access control list. Defaults to ["CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE"].
+        :type access_type:    list, optional
+        :param etag:          Etag. Defaults to None.
+        :type etag:           str, optional
+        """
         self.must_get()
         principal_ids = set(principal_ids)
         acl = self.get_acl()
@@ -386,6 +435,7 @@ class JsonSchemaOrganization:
         return response
 
     def list_json_schemas(self):
+        """List JSON schemas available from the organization"""
         self.must_get()
         response = self.service.list_json_schemas(self.name)
         for raw_json_schema in response:
@@ -394,7 +444,14 @@ class JsonSchemaOrganization:
             self._json_schemas[json_schema.name] = json_schema
             yield json_schema
 
-    def get_json_schema(self, json_schema_name, raw: bool = False):
+    def get_json_schema(self, json_schema_name: str, raw: bool = False):
+        """Get JSON schema
+
+        :param json_schema_name: Name of JSON schema.
+        :type json_schema_name:  str
+        :param raw:              Return raw JSON schema. Default is False.
+        :type raw:               bool, optional
+        """
         self.must_get()
         if json_schema_name not in self._json_schemas:
             list(self.list_json_schemas())
@@ -406,11 +463,22 @@ class JsonSchemaOrganization:
 
     def create_json_schema(
         self,
-        json_schema_body,
+        json_schema_body: dict,
         name: str = None,
         semantic_version: str = None,
         dry_run: bool = False,
     ):
+        """Create JSON schema
+
+        :param json_schema_body: JSON schema dict
+        :type json_schema_body:  dict
+        :param name:             Name of JSON schema. Defaults to None.
+        :type name:              str, optional
+        :param semantic_version: Version of JSON schema. Defaults to None.
+        :type semantic_version:  str, optional
+        :param dry_run:          Don't store to Synapse. Defaults to False.
+        :type dry_run:           bool, optional
+        """
         if name:
             uri = f"{self.name}-{name}"
             if semantic_version:
@@ -431,8 +499,8 @@ class JsonSchemaOrganization:
 class JsonSchemaService:
     """Json Schema Service
 
-    :params synapse: Synapse connection
-    :type synapse:   Synapse
+    :param synapse: Synapse connection
+    :type synapse:  Synapse
     """
 
     def __init__(self, synapse: Synapse = None) -> None:
@@ -481,7 +549,11 @@ class JsonSchemaService:
 
     @authentication_required
     def create_organization(self, organization_name: str):
-        """Create a new organization"""
+        """Create a new organization
+
+        :param organization_name: JSON schema organization name
+        :type organization_name:  str
+        """
         request_body = {"organizationName": organization_name}
         response = self.synapse.restPOST(
             "/schema/organization", body=json.dumps(request_body)
@@ -490,7 +562,11 @@ class JsonSchemaService:
 
     @authentication_required
     def get_organization(self, organization_name: str):
-        """Get a organization"""
+        """Get a organization
+
+        :param organization_name: JSON schema organization name
+        :type organization_name:  str
+        """
         response = self.synapse.restGET(
             f"/schema/organization?name={organization_name}"
         )
@@ -506,13 +582,21 @@ class JsonSchemaService:
 
     @authentication_required
     def delete_organization(self, organization_id: str):
-        """Delete organization"""
+        """Delete organization
+
+        :param organization_id: JSON schema organization Id
+        :type organization_id:  str
+        """
         response = self.synapse.restDELETE(f"/schema/organization/{organization_id}")
         return response
 
     @authentication_required
     def get_organization_acl(self, organization_id: str):
-        """Get ACL associated with Organization"""
+        """Get ACL associated with Organization
+
+        :param organization_id: JSON schema organization Id
+        :type organization_id:  str
+        """
         response = self.synapse.restGET(f"/schema/organization/{organization_id}/acl")
         return response
 
@@ -523,7 +607,15 @@ class JsonSchemaService:
         resource_access: Sequence[Mapping[str, Sequence[str]]],
         etag: str,
     ):
-        """Get ACL associated with Organization"""
+        """Get ACL associated with Organization
+
+        :param organization_id: JSON schema organization Id
+        :type organization_id:  str
+        :param resource_access: Resource access array
+        :type resource_access:  list
+        :param etag:            Etag
+        :type etag:             str
+        """
         request_body = {"resourceAccess": resource_access, "etag": etag}
         response = self.synapse.restPUT(
             f"/schema/organization/{organization_id}/acl", body=json.dumps(request_body)
@@ -531,13 +623,23 @@ class JsonSchemaService:
         return response
 
     def list_json_schemas(self, organization_name: str):
-        """List JSON schemas for an organization"""
+        """List JSON schemas for an organization
+
+        :param organization_name: JSON schema organization name
+        :type organization_name:  str
+        """
         request_body = {"organizationName": organization_name}
         response = self.synapse._POST_paginated("/schema/list", request_body)
         return response
 
     def list_json_schema_versions(self, organization_name: str, json_schema_name: str):
-        """List version information for each JSON schema"""
+        """List version information for each JSON schema
+
+        :param organization_name: JSON schema organization name
+        :type organization_name:  str
+        :param json_schema_name:  JSON schema name
+        :type json_schema_name:   str
+        """
         request_body = {
             "organizationName": organization_name,
             "schemaName": json_schema_name,
@@ -547,7 +649,13 @@ class JsonSchemaService:
 
     @authentication_required
     def create_json_schema(self, json_schema_body: dict, dry_run: bool = False):
-        """Create a JSON schema"""
+        """Create a JSON schema
+
+        :param json_schema_body: JSON schema body
+        :type json_schema_body:  dict
+        :param dry_run:          Don't store to Synapse. Default to False.
+        :type dry_run:           bool, optional
+        """
         request_body = {
             "concreteType": "org.sagebionetworks.repo.model.schema.CreateSchemaRequest",
             "schema": json_schema_body,
@@ -556,20 +664,32 @@ class JsonSchemaService:
         response = self.synapse._waitForAsync("/schema/type/create/async", request_body)
         return response
 
-    def get_json_schema_body(self, json_schema_uri):
-        """Get registered JSON schema with its $id"""
+    def get_json_schema_body(self, json_schema_uri: str):
+        """Get registered JSON schema with its $id
+
+        :param json_schema_uri: JSON schema URI
+        :type json_schema_uri:  str
+        """
         response = self.synapse.restGET(f"/schema/type/registered/{json_schema_uri}")
         return response
 
     @authentication_required
-    def delete_json_schema(self, json_schema_uri):
-        """Delete the given schema using its $id"""
+    def delete_json_schema(self, json_schema_uri: str):
+        """Delete the given schema using its $id
+
+        :param json_schema_uri: JSON schema URI
+        :type json_schema_uri:  str
+        """
         response = self.synapse.restDELETE(f"/schema/type/registered/{json_schema_uri}")
         return response
 
     @authentication_required
-    def json_schema_validation(self, json_schema_uri):
-        """Use a JSON schema for validation"""
+    def json_schema_validation(self, json_schema_uri: str):
+        """Use a JSON schema for validation
+
+        :param json_schema_uri: JSON schema URI
+        :type json_schema_uri:  str
+        """
         request_body = {
             "concreteType": (
                 "org.sagebionetworks.repo.model.schema.GetValidationSchemaRequest"
@@ -582,8 +702,14 @@ class JsonSchemaService:
         return response
 
     @authentication_required
-    def bind_json_schema_to_entity(self, synapse_id, json_schema_uri):
-        """Bind a JSON schema to an entity"""
+    def bind_json_schema_to_entity(self, synapse_id: str, json_schema_uri: str):
+        """Bind a JSON schema to an entity
+
+        :param synapse_id:      Synapse Id
+        :type synapse_id:       str
+        :param json_schema_uri: JSON schema URI
+        :type json_schema_uri:  str
+        """
         request_body = {"entityId": synapse_id, "schema$id": json_schema_uri}
         response = self.synapse.restPUT(
             f"/entity/{synapse_id}/schema/binding", body=json.dumps(request_body)
@@ -591,27 +717,42 @@ class JsonSchemaService:
         return response
 
     @authentication_required
-    def get_json_schema_from_entity(self, synapse_id):
-        """Get bound schema from entity"""
+    def get_json_schema_from_entity(self, synapse_id: str):
+        """Get bound schema from entity
+
+        :param synapse_id:      Synapse Id
+        :type synapse_id:       str
+        """
         response = self.synapse.restGET(f"/entity/{synapse_id}/schema/binding")
         return response
 
     @authentication_required
-    def delete_json_schema_from_entity(self, synapse_id):
-        """Delete bound schema from entity"""
+    def delete_json_schema_from_entity(self, synapse_id: str):
+        """Delete bound schema from entity
+
+        :param synapse_id:      Synapse Id
+        :type synapse_id:       str
+        """
         response = self.synapse.restDELETE(f"/entity/{synapse_id}/schema/binding")
         return response
 
     @authentication_required
-    def validate_entity_with_json_schema(self, synapse_id):
-        """Get validation results of an entity against bound JSON schema"""
+    def validate_entity_with_json_schema(self, synapse_id: str):
+        """Get validation results of an entity against bound JSON schema
+
+        :param synapse_id:      Synapse Id
+        :type synapse_id:       str
+        """
         response = self.synapse.restGET(f"/entity/{synapse_id}/schema/validation")
         return response
 
     @authentication_required
-    def get_json_schema_validation_statistics(self, synapse_id):
+    def get_json_schema_validation_statistics(self, synapse_id: str):
         """Get the summary statistic of json schema validation results for
         a container entity
+
+        :param synapse_id:      Synapse Id
+        :type synapse_id:       str
         """
         response = self.synapse.restGET(
             f"/entity/{synapse_id}/schema/validation/statistics"
@@ -619,7 +760,13 @@ class JsonSchemaService:
         return response
 
     @authentication_required
-    def get_invalid_json_schema_validation(self, synapse_id):
+    def get_invalid_json_schema_validation(self, synapse_id: str):
+        """Get a single page of invalid JSON schema validation results for a container Entity
+        (Project or Folder).
+
+        :param synapse_id:      Synapse Id
+        :type synapse_id:       str
+        """
         request_body = {"containerId": synapse_id}
         response = self.synapse._POST_paginated(
             f"/entity/{synapse_id}/schema/validation/invalid", request_body
@@ -629,31 +776,63 @@ class JsonSchemaService:
     # The methods below are here until they are integrated with Synapse/Entity
 
     def bind_json_schema(self, json_schema_uri: str, entity: Union[str, Entity]):
+        """Bind a JSON schema to an entity
+
+        :param json_schema_uri: JSON schema URI
+        :type json_schema_uri:  str
+        :param entity:          Synapse Entity or Synapse Id
+        :type entity:           str, Entity
+        """
         synapse_id = id_of(entity)
         response = self.bind_json_schema_to_entity(synapse_id, json_schema_uri)
         return response
 
     def get_json_schema(self, entity: Union[str, Entity]):
+        """Get a JSON schema associated to an Entity
+
+        :param entity:          Synapse Entity or Synapse Id
+        :type entity:           str, Entity
+        """
         synapse_id = id_of(entity)
         response = self.get_json_schema_from_entity(synapse_id)
         return response
 
     def unbind_json_schema(self, entity: Union[str, Entity]):
+        """Unbind a JSON schema from an entity
+
+        :param entity:          Synapse Entity or Synapse Id
+        :type entity:           str, Entity
+        """
         synapse_id = id_of(entity)
         response = self.delete_json_schema_from_entity(synapse_id)
         return response
 
     def validate(self, entity: Union[str, Entity]):
+        """Validate an entity based on the bound JSON schema
+
+        :param entity:          Synapse Entity or Synapse Id
+        :type entity:           str, Entity
+        """
         synapse_id = id_of(entity)
         response = self.validate_entity_with_json_schema(synapse_id)
         return response
 
     def validation_stats(self, entity: Union[str, Entity]):
+        """Get validation statistics of an entity based on the bound JSON schema
+
+        :param entity:          Synapse Entity or Synapse Id
+        :type entity:           str, Entity
+        """
         synapse_id = id_of(entity)
         response = self.get_json_schema_validation_statistics(synapse_id)
         return response
 
     def validate_children(self, entity: Union[str, Entity]):
+        """Validate an entity and it's children based on the bound JSON schema
+
+        :param entity:          Synapse Entity or Synapse Id of a project or folder.
+        :type entity:           str, Entity
+        """
         synapse_id = id_of(entity)
         response = self.get_invalid_json_schema_validation(synapse_id)
         return response

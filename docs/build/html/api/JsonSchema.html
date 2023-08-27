@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JSON Schema &mdash; Synapse Python Client 3.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Core" href="core.html" />
+    <link rel="prev" title="Views" href="Views.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+
+
+          <a href="../index.html">
+
+              <img src="../_static/synapse_logo.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                3.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting_started/credentials.html">Authentication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting_started/basics.html">Tutorial</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Articles</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../articles/cli.html">Command Line Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/data_storage.html">Data Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/synapseutils.html">Synapse Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/validate_annotations.html">Validate Annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../articles/api.html">Accessing the API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Client.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Entity.html">Entity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Evaluation.html">Evaluations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Activity.html">Provenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Annotations.html">Annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Wiki.html">Wiki</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Table.html">Tables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Team.html">Teams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Views.html">Views</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">JSON Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core.html">Core</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">News</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../news.html">Release Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Synapse Python Client</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">JSON Schema</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/JsonSchema.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <span class="target" id="module-synapseclient.services.json_schema"></span><section id="json-schema">
+<h1>JSON Schema<a class="headerlink" href="#json-schema" title="Permalink to this headline"></a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is a beta implementation and is subject to change.  Use at your own risk.</p>
+</div>
+<dl class="py class">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchema">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.services.json_schema.</span></span><span class="sig-name descname"><span class="pre">JsonSchema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#synapseclient.services.json_schema.JsonSchemaOrganization" title="synapseclient.services.json_schema.JsonSchemaOrganization"><span class="pre">synapseclient.services.json_schema.JsonSchemaOrganization</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchema" title="Permalink to this definition"></a></dt>
+<dd><p>Json schema response object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>organization</strong> (<a class="reference internal" href="#synapseclient.services.json_schema.JsonSchemaOrganization" title="synapseclient.services.json_schema.JsonSchemaOrganization"><em>JsonSchemaOrganization</em></a>) – JSON schema organization.</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – Name of the JSON schema.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchema.create">
+<span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_schema_body</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semantic_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchema.create" title="Permalink to this definition"></a></dt>
+<dd><p>Create JSON schema</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>json_schema_body</strong> (<em>dict</em>) – JSON schema body</p></li>
+<li><p><strong>semantic_version</strong> (<em>str</em><em>, </em><em>optional</em>) – Version of JSON schema. Defaults to None.</p></li>
+<li><p><strong>dry_run</strong> (<em>bool</em><em>, </em><em>optional</em>) – Do not store to Synapse. Defaults to False.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchema.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchema.get" title="Permalink to this definition"></a></dt>
+<dd><p>Get Json schema</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchema.list_versions">
+<span class="sig-name descname"><span class="pre">list_versions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchema.list_versions" title="Permalink to this definition"></a></dt>
+<dd><p>List versions of the json schema</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaOrganization">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.services.json_schema.</span></span><span class="sig-name descname"><span class="pre">JsonSchemaOrganization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaOrganization" title="Permalink to this definition"></a></dt>
+<dd><p>Json Schema Organization</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>name</strong> (<em>str</em>) – Name of JSON schema organization</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaOrganization.create">
+<span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaOrganization.create" title="Permalink to this definition"></a></dt>
+<dd><p>Create the JSON schema organization</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaOrganization.create_json_schema">
+<span class="sig-name descname"><span class="pre">create_json_schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_schema_body</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semantic_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaOrganization.create_json_schema" title="Permalink to this definition"></a></dt>
+<dd><p>Create JSON schema</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>json_schema_body</strong> (<em>dict</em>) – JSON schema dict</p></li>
+<li><p><strong>name</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of JSON schema. Defaults to None.</p></li>
+<li><p><strong>semantic_version</strong> (<em>str</em><em>, </em><em>optional</em>) – Version of JSON schema. Defaults to None.</p></li>
+<li><p><strong>dry_run</strong> (<em>bool</em><em>, </em><em>optional</em>) – Don’t store to Synapse. Defaults to False.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaOrganization.delete">
+<span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaOrganization.delete" title="Permalink to this definition"></a></dt>
+<dd><p>Delete the JSON schema organization</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaOrganization.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaOrganization.get" title="Permalink to this definition"></a></dt>
+<dd><p>Gets Json Schema organization</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaOrganization.get_acl">
+<span class="sig-name descname"><span class="pre">get_acl</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaOrganization.get_acl" title="Permalink to this definition"></a></dt>
+<dd><p>Get ACL of JSON schema organization</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaOrganization.get_json_schema">
+<span class="sig-name descname"><span class="pre">get_json_schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_schema_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaOrganization.get_json_schema" title="Permalink to this definition"></a></dt>
+<dd><p>Get JSON schema</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>json_schema_name</strong> (<em>str</em>) – Name of JSON schema.</p></li>
+<li><p><strong>raw</strong> (<em>bool</em><em>, </em><em>optional</em>) – Return raw JSON schema. Default is False.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaOrganization.list_json_schemas">
+<span class="sig-name descname"><span class="pre">list_json_schemas</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaOrganization.list_json_schemas" title="Permalink to this definition"></a></dt>
+<dd><p>List JSON schemas available from the organization</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaOrganization.set_acl">
+<span class="sig-name descname"><span class="pre">set_acl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">principal_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">access_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">('CHANGE_PERMISSIONS',</span> <span class="pre">'DELETE',</span> <span class="pre">'READ',</span> <span class="pre">'CREATE',</span> <span class="pre">'UPDATE')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaOrganization.set_acl" title="Permalink to this definition"></a></dt>
+<dd><p>Set ACL of JSON schema organization</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>principal_ids</strong> (<em>list</em>) – List of Synapse user or team ids.</p></li>
+<li><p><strong>access_type</strong> (<em>list</em><em>, </em><em>optional</em>) – Access control list. Defaults to [“CHANGE_PERMISSIONS”, “DELETE”, “READ”, “CREATE”, “UPDATE”].</p></li>
+<li><p><strong>etag</strong> (<em>str</em><em>, </em><em>optional</em>) – Etag. Defaults to None.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaOrganization.update_acl">
+<span class="sig-name descname"><span class="pre">update_acl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">principal_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">access_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">('CHANGE_PERMISSIONS',</span> <span class="pre">'DELETE',</span> <span class="pre">'READ',</span> <span class="pre">'CREATE',</span> <span class="pre">'UPDATE')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaOrganization.update_acl" title="Permalink to this definition"></a></dt>
+<dd><p>Update ACL of JSON schema organization</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>principal_ids</strong> (<em>list</em>) – List of Synapse user or team ids.</p></li>
+<li><p><strong>access_type</strong> (<em>list</em><em>, </em><em>optional</em>) – Access control list. Defaults to [“CHANGE_PERMISSIONS”, “DELETE”, “READ”, “CREATE”, “UPDATE”].</p></li>
+<li><p><strong>etag</strong> (<em>str</em><em>, </em><em>optional</em>) – Etag. Defaults to None.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.services.json_schema.</span></span><span class="sig-name descname"><span class="pre">JsonSchemaService</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="Client.html#synapseclient.Synapse" title="synapseclient.client.Synapse"><span class="pre">synapseclient.client.Synapse</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService" title="Permalink to this definition"></a></dt>
+<dd><p>Json Schema Service</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>synapse</strong> (<a class="reference internal" href="Client.html#synapseclient.Synapse" title="synapseclient.Synapse"><em>Synapse</em></a>) – Synapse connection</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.JsonSchema">
+<span class="sig-name descname"><span class="pre">JsonSchema</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;function</span> <span class="pre">JsonSchema&gt;</span></em><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.JsonSchema" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.JsonSchemaOrganization">
+<span class="sig-name descname"><span class="pre">JsonSchemaOrganization</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;function</span> <span class="pre">JsonSchemaOrganization&gt;</span></em><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.JsonSchemaOrganization" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.JsonSchemaVersion">
+<span class="sig-name descname"><span class="pre">JsonSchemaVersion</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;function</span> <span class="pre">JsonSchemaVersion&gt;</span></em><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.JsonSchemaVersion" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.bind_json_schema">
+<span class="sig-name descname"><span class="pre">bind_json_schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_schema_uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.bind_json_schema" title="Permalink to this definition"></a></dt>
+<dd><p>Bind a JSON schema to an entity</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>json_schema_uri</strong> (<em>str</em>) – JSON schema URI</p></li>
+<li><p><strong>entity</strong> (<em>str</em><em>, </em><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><em>Entity</em></a>) – Synapse Entity or Synapse Id</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.bind_json_schema_to_entity">
+<span class="sig-name descname"><span class="pre">bind_json_schema_to_entity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">json_schema_uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.bind_json_schema_to_entity" title="Permalink to this definition"></a></dt>
+<dd><p>Bind a JSON schema to an entity</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>synapse_id</strong> (<em>str</em>) – Synapse Id</p></li>
+<li><p><strong>json_schema_uri</strong> (<em>str</em>) – JSON schema URI</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.create_json_schema">
+<span class="sig-name descname"><span class="pre">create_json_schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_schema_body</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.create_json_schema" title="Permalink to this definition"></a></dt>
+<dd><p>Create a JSON schema</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>json_schema_body</strong> (<em>dict</em>) – JSON schema body</p></li>
+<li><p><strong>dry_run</strong> (<em>bool</em><em>, </em><em>optional</em>) – Don’t store to Synapse. Default to False.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.create_organization">
+<span class="sig-name descname"><span class="pre">create_organization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organization_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.create_organization" title="Permalink to this definition"></a></dt>
+<dd><p>Create a new organization</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>organization_name</strong> (<em>str</em>) – JSON schema organization name</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.delete_json_schema">
+<span class="sig-name descname"><span class="pre">delete_json_schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_schema_uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.delete_json_schema" title="Permalink to this definition"></a></dt>
+<dd><p>Delete the given schema using its $id</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>json_schema_uri</strong> (<em>str</em>) – JSON schema URI</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.delete_json_schema_from_entity">
+<span class="sig-name descname"><span class="pre">delete_json_schema_from_entity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.delete_json_schema_from_entity" title="Permalink to this definition"></a></dt>
+<dd><p>Delete bound schema from entity</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>synapse_id</strong> (<em>str</em>) – Synapse Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.delete_organization">
+<span class="sig-name descname"><span class="pre">delete_organization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organization_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.delete_organization" title="Permalink to this definition"></a></dt>
+<dd><p>Delete organization</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>organization_id</strong> (<em>str</em>) – JSON schema organization Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.get_invalid_json_schema_validation">
+<span class="sig-name descname"><span class="pre">get_invalid_json_schema_validation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.get_invalid_json_schema_validation" title="Permalink to this definition"></a></dt>
+<dd><p>Get a single page of invalid JSON schema validation results for a container Entity
+(Project or Folder).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>synapse_id</strong> (<em>str</em>) – Synapse Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.get_json_schema">
+<span class="sig-name descname"><span class="pre">get_json_schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.get_json_schema" title="Permalink to this definition"></a></dt>
+<dd><p>Get a JSON schema associated to an Entity</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>entity</strong> (<em>str</em><em>, </em><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><em>Entity</em></a>) – Synapse Entity or Synapse Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.get_json_schema_body">
+<span class="sig-name descname"><span class="pre">get_json_schema_body</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_schema_uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.get_json_schema_body" title="Permalink to this definition"></a></dt>
+<dd><p>Get registered JSON schema with its $id</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>json_schema_uri</strong> (<em>str</em>) – JSON schema URI</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.get_json_schema_from_entity">
+<span class="sig-name descname"><span class="pre">get_json_schema_from_entity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.get_json_schema_from_entity" title="Permalink to this definition"></a></dt>
+<dd><p>Get bound schema from entity</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>synapse_id</strong> (<em>str</em>) – Synapse Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.get_json_schema_validation_statistics">
+<span class="sig-name descname"><span class="pre">get_json_schema_validation_statistics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.get_json_schema_validation_statistics" title="Permalink to this definition"></a></dt>
+<dd><p>Get the summary statistic of json schema validation results for
+a container entity</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>synapse_id</strong> (<em>str</em>) – Synapse Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.get_organization">
+<span class="sig-name descname"><span class="pre">get_organization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organization_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.get_organization" title="Permalink to this definition"></a></dt>
+<dd><p>Get a organization</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>organization_name</strong> (<em>str</em>) – JSON schema organization name</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.get_organization_acl">
+<span class="sig-name descname"><span class="pre">get_organization_acl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organization_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.get_organization_acl" title="Permalink to this definition"></a></dt>
+<dd><p>Get ACL associated with Organization</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>organization_id</strong> (<em>str</em>) – JSON schema organization Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.json_schema_validation">
+<span class="sig-name descname"><span class="pre">json_schema_validation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_schema_uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.json_schema_validation" title="Permalink to this definition"></a></dt>
+<dd><p>Use a JSON schema for validation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>json_schema_uri</strong> (<em>str</em>) – JSON schema URI</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.list_json_schema_versions">
+<span class="sig-name descname"><span class="pre">list_json_schema_versions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organization_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">json_schema_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.list_json_schema_versions" title="Permalink to this definition"></a></dt>
+<dd><p>List version information for each JSON schema</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>organization_name</strong> (<em>str</em>) – JSON schema organization name</p></li>
+<li><p><strong>json_schema_name</strong> (<em>str</em>) – JSON schema name</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.list_json_schemas">
+<span class="sig-name descname"><span class="pre">list_json_schemas</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organization_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.list_json_schemas" title="Permalink to this definition"></a></dt>
+<dd><p>List JSON schemas for an organization</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>organization_name</strong> (<em>str</em>) – JSON schema organization name</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.list_organizations">
+<span class="sig-name descname"><span class="pre">list_organizations</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.list_organizations" title="Permalink to this definition"></a></dt>
+<dd><p>List organizations</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.login">
+<span class="sig-name descname"><span class="pre">login</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apiKey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sessionToken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rememberMe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forced</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authToken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.login" title="Permalink to this definition"></a></dt>
+<dd><p>Valid combinations of login() arguments:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>email/username and password</p></li>
+<li><p>email/username and apiKey (Base64 encoded string)</p></li>
+<li><p>authToken</p></li>
+<li><p>sessionToken (<strong>DEPRECATED</strong>)</p></li>
+</ul>
+</div></blockquote>
+<dl class="simple">
+<dt>If no login arguments are provided or only username is provided, login() will attempt to log in using</dt><dd><p>information from these sources (in order of preference):</p>
+</dd>
+</dl>
+<ol class="arabic simple">
+<li><p>User’s personal access token from environment the variable: SYNAPSE_AUTH_TOKEN</p></li>
+<li><p>.synapseConfig file (in user home folder unless configured otherwise)</p></li>
+<li><p>cached credentials from previous <cite>login()</cite> where <cite>rememberMe=True</cite> was passed as a parameter</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>email</strong> – Synapse user name (or an email address associated with a Synapse account)</p></li>
+<li><p><strong>password</strong> – <strong>!!WILL BE DEPRECATED!!</strong> password. Please use authToken (Synapse personal access token)</p></li>
+<li><p><strong>apiKey</strong> – <strong>!!WILL BE DEPRECATED!!</strong> Base64 encoded Synapse API key</p></li>
+<li><p><strong>sessionToken</strong> – <strong>!!DEPRECATED FIELD!!</strong> User’s current session token. Using this field will ignore the
+following fields: email, password, apiKey</p></li>
+<li><p><strong>rememberMe</strong> – Whether the authentication information should be cached in your operating system’s
+credential storage.</p></li>
+<li><p><strong>authToken</strong> – A bearer authorization token, e.g. a personal access token, can be used in lieu of a
+password or apiKey</p></li>
+</ul>
+</dd>
+</dl>
+<p><strong>GNOME Keyring</strong> (recommended) or <strong>KWallet</strong> is recommended to be installed for credential storage on
+<strong>Linux</strong> systems.
+If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for
+the current user only (chmod 600).
+On Windows and Mac OS, a default credentials storage exists so it will be preferred over the plain-text file.
+To install GNOME Keyring on Ubuntu:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">gnome</span><span class="o">-</span><span class="n">keyring</span>
+
+<span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">python</span><span class="o">-</span><span class="n">dbus</span>  <span class="c1">#(for Python 2 installed via apt-get)</span>
+<span class="n">OR</span>
+<span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">python3</span><span class="o">-</span><span class="n">dbus</span> <span class="c1">#(for Python 3 installed via apt-get)</span>
+<span class="n">OR</span>
+<span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">libdbus</span><span class="o">-</span><span class="n">glib</span><span class="o">-</span><span class="mi">1</span><span class="o">-</span><span class="n">dev</span> <span class="c1">#(for custom installation of Python or vitualenv)</span>
+<span class="n">sudo</span> <span class="n">pip</span> <span class="n">install</span> <span class="n">dbus</span><span class="o">-</span><span class="n">python</span> <span class="c1">#(may take a while to compile C code)</span>
+</pre></div>
+</div>
+<p>If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before
+running your Python session:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dbus</span><span class="o">-</span><span class="n">run</span><span class="o">-</span><span class="n">session</span> <span class="o">--</span> <span class="n">bash</span> <span class="c1">#(replace &#39;bash&#39; with &#39;sh&#39; if bash is unavailable)</span>
+<span class="n">echo</span> <span class="o">-</span><span class="n">n</span> <span class="s2">&quot;REPLACE_WITH_YOUR_KEYRING_PASSWORD&quot;</span><span class="o">|</span><span class="n">gnome</span><span class="o">-</span><span class="n">keyring</span><span class="o">-</span><span class="n">daemon</span> <span class="o">--</span> <span class="n">unlock</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>silent</strong> – Defaults to False.  Suppresses the “Welcome …!” message.</p></li>
+<li><p><strong>forced</strong> – Defaults to False.  Bypass the credential cache if set.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">syn</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="s1">&#39;my-username&#39;</span><span class="p">,</span> <span class="s1">&#39;secret-password&#39;</span><span class="p">,</span> <span class="n">rememberMe</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="c1">#&gt; Welcome, Me!</span>
+</pre></div>
+</div>
+<p>After logging in with the <em>rememberMe</em> flag set, an API key will be cached and
+used to authenticate for future logins:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">syn</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="c1">#&gt; Welcome, Me!</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.unbind_json_schema">
+<span class="sig-name descname"><span class="pre">unbind_json_schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.unbind_json_schema" title="Permalink to this definition"></a></dt>
+<dd><p>Unbind a JSON schema from an entity</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>entity</strong> (<em>str</em><em>, </em><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><em>Entity</em></a>) – Synapse Entity or Synapse Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.update_organization_acl">
+<span class="sig-name descname"><span class="pre">update_organization_acl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organization_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resource_access</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Mapping</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">etag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.update_organization_acl" title="Permalink to this definition"></a></dt>
+<dd><p>Get ACL associated with Organization</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>organization_id</strong> (<em>str</em>) – JSON schema organization Id</p></li>
+<li><p><strong>resource_access</strong> (<em>list</em>) – Resource access array</p></li>
+<li><p><strong>etag</strong> (<em>str</em>) – Etag</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.validate">
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.validate" title="Permalink to this definition"></a></dt>
+<dd><p>Validate an entity based on the bound JSON schema</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>entity</strong> (<em>str</em><em>, </em><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><em>Entity</em></a>) – Synapse Entity or Synapse Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.validate_children">
+<span class="sig-name descname"><span class="pre">validate_children</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.validate_children" title="Permalink to this definition"></a></dt>
+<dd><p>Validate an entity and it’s children based on the bound JSON schema</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>entity</strong> (<em>str</em><em>, </em><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><em>Entity</em></a>) – Synapse Entity or Synapse Id of a project or folder.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.validate_entity_with_json_schema">
+<span class="sig-name descname"><span class="pre">validate_entity_with_json_schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.validate_entity_with_json_schema" title="Permalink to this definition"></a></dt>
+<dd><p>Get validation results of an entity against bound JSON schema</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>synapse_id</strong> (<em>str</em>) – Synapse Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaService.validation_stats">
+<span class="sig-name descname"><span class="pre">validation_stats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><span class="pre">synapseclient.entity.Entity</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaService.validation_stats" title="Permalink to this definition"></a></dt>
+<dd><p>Get validation statistics of an entity based on the bound JSON schema</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>entity</strong> (<em>str</em><em>, </em><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><em>Entity</em></a>) – Synapse Entity or Synapse Id</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaVersion">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">synapseclient.services.json_schema.</span></span><span class="sig-name descname"><span class="pre">JsonSchemaVersion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#synapseclient.services.json_schema.JsonSchemaOrganization" title="synapseclient.services.json_schema.JsonSchemaOrganization"><span class="pre">synapseclient.services.json_schema.JsonSchemaOrganization</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semantic_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaVersion" title="Permalink to this definition"></a></dt>
+<dd><p>Json schema version response object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>organization</strong> (<a class="reference internal" href="#synapseclient.services.json_schema.JsonSchemaOrganization" title="synapseclient.services.json_schema.JsonSchemaOrganization"><em>JsonSchemaOrganization</em></a>) – JSON schema organization.</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – Name of the JSON schema.</p></li>
+<li><p><strong>semantic_version</strong> (<em>str</em><em>, </em><em>optional</em>) – Version of JSON schema. Defaults to None.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaVersion.bind_to_object">
+<span class="sig-name descname"><span class="pre">bind_to_object</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synapse_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaVersion.bind_to_object" title="Permalink to this definition"></a></dt>
+<dd><p>Bind schema to an entity</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>synapse_id</strong> (<em>str</em>) – Synapse Id to bind json schema to.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaVersion.create">
+<span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_schema_body</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaVersion.create" title="Permalink to this definition"></a></dt>
+<dd><p>Create JSON schema version</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>json_schema_body</strong> (<em>dict</em>) – JSON schema body</p></li>
+<li><p><strong>dry_run</strong> (<em>bool</em><em>, </em><em>optional</em>) – Do not store to Synapse. Defaults to False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>JSON Schema</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaVersion.delete">
+<span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaVersion.delete" title="Permalink to this definition"></a></dt>
+<dd><p>Delete the JSON schema version</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaVersion.expand">
+<span class="sig-name descname"><span class="pre">expand</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaVersion.expand" title="Permalink to this definition"></a></dt>
+<dd><p>Validate entities with schema</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.services.json_schema.JsonSchemaVersion.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.services.json_schema.JsonSchemaVersion.get" title="Permalink to this definition"></a></dt>
+<dd><p>Get the JSON Schema Version</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Views.html" class="btn btn-neutral float-left" title="Views" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="core.html" class="btn btn-neutral float-right" title="Core" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2012-2023, Sage Bionetworks.
+      <span class="lastupdated">Last updated on Aug 26, 2023.
+      </span></p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Aug 26, 2023.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+
+</body>
+</html>

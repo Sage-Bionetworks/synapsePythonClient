@@ -2,8 +2,12 @@
 Validate Annotations
 ********************
 
+.. warning::
+    This is a beta implementation and is subject to change.  Use at your own risk.
+
 Validate annotations on your Synapse entities by leveraging the JSON schema services.
 Here are the steps you must take to set up the JSON Schema service.
+
 
 Create a JSON Schema organization
 =================================
@@ -45,6 +49,7 @@ Manage a specific version of a JSON schema::
 
 
 Create a new JSON schema version for an existing organization::
+
     from random import randint
     rint = randint(0, 100000)
     org_name    = "bgrande.test"
@@ -74,22 +79,23 @@ Test validation on a Synapse entity::
     js.validation_stats(synapse_id)
     js.unbind_json_schema(synapse_id)
 
-# Access to low-level API functions
-# js.create_organization(organization_name)
-# js.get_organization(organization_name)
-# js.list_organizations()
-# js.delete_organization(organization_id)
-# js.get_organization_acl(organization_id)
-# js.update_organization_acl(organization_id, resource_access, etag)
-# js.list_json_schemas(organization_name)
-# js.list_json_schema_versions(organization_name, json_schema_name)
-# js.create_json_schema(json_schema_body, dry_run)
-# js.get_json_schema_body(json_schema_uri)
-# js.delete_json_schema(json_schema_uri)
-# js.json_schema_validation(json_schema_uri)
-# js.bind_json_schema_to_entity(synapse_id, json_schema_uri)
-# js.get_json_schema_from_entity(synapse_id)
-# js.delete_json_schema_from_entity(synapse_id)
-# js.validate_entity_with_json_schema(synapse_id)
-# js.get_json_schema_validation_statistics(synapse_id)
-# js.get_invalid_json_schema_validation(synapse_id)
+Access to low-level API functions::
+
+    js.create_organization(organization_name)
+    js.get_organization(organization_name)
+    js.list_organizations()
+    js.delete_organization(organization_id)
+    js.get_organization_acl(organization_id)
+    js.update_organization_acl(organization_id, resource_access, etag)
+    js.list_json_schemas(organization_name)
+    js.list_json_schema_versions(organization_name, json_schema_name)
+    js.create_json_schema(json_schema_body, dry_run)
+    js.get_json_schema_body(json_schema_uri)
+    js.delete_json_schema(json_schema_uri)
+    js.json_schema_validation(json_schema_uri)
+    js.bind_json_schema_to_entity(synapse_id, json_schema_uri)
+    js.get_json_schema_from_entity(synapse_id)
+    js.delete_json_schema_from_entity(synapse_id)
+    js.validate_entity_with_json_schema(synapse_id)
+    js.get_json_schema_validation_statistics(synapse_id)
+    js.get_invalid_json_schema_validation(synapse_id)
