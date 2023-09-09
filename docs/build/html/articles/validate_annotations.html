@@ -125,12 +125,13 @@ Here are the steps you must take to set up the JSON Schema service.</p>
 </pre></div>
 </div>
 <p>Create, manage, and delete a JSON Schema organization:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">my_org</span> <span class="o">=</span> <span class="n">js</span><span class="o">.</span><span class="n">JsonSchemaOrganization</span><span class="p">(</span><span class="s2">&quot;test.new&quot;</span><span class="p">)</span>
-<span class="n">my_org</span>  <span class="c1"># Output: JsonSchemaOrganization(name=&#39;test.new&#39;)</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">my_org_name</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">your</span> <span class="n">org</span> <span class="n">name</span> <span class="n">here</span><span class="o">&gt;</span>
+<span class="n">my_org</span> <span class="o">=</span> <span class="n">js</span><span class="o">.</span><span class="n">JsonSchemaOrganization</span><span class="p">(</span><span class="n">my_org_name</span><span class="p">)</span>
+<span class="n">my_org</span>  <span class="c1"># Output: JsonSchemaOrganization(name=my_org_name)</span>
 <span class="n">my_org</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
 <span class="n">my_org</span><span class="o">.</span><span class="n">get_acl</span><span class="p">()</span>
-<span class="n">my_org</span><span class="o">.</span><span class="n">set_acl</span><span class="p">([</span><span class="mi">3413689</span><span class="p">])</span>
-<span class="n">my_org</span><span class="o">.</span><span class="n">update_acl</span><span class="p">([</span><span class="mi">3324230</span><span class="p">])</span>
+<span class="n">my_org</span><span class="o">.</span><span class="n">set_acl</span><span class="p">([</span><span class="n">syn</span><span class="o">.</span><span class="n">getUserProfile</span><span class="p">()</span><span class="o">.</span><span class="n">ownerId</span><span class="p">])</span>
+<span class="c1"># my_org.update_acl([syn.getUserProfile().ownerId])</span>
 <span class="n">my_org</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -149,17 +150,16 @@ Here are the steps you must take to set up the JSON Schema service.</p>
 <span class="n">version1</span>  <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">versions</span><span class="p">)</span>
 <span class="n">raw_body</span>  <span class="o">=</span> <span class="n">version1</span><span class="o">.</span><span class="n">body</span>
 <span class="n">full_body</span> <span class="o">=</span> <span class="n">version1</span><span class="o">.</span><span class="n">expand</span><span class="p">()</span>
-<span class="n">version1</span>  <span class="c1"># Output: JsonSchemaVersion(org=&#39;sage.annotations&#39;, name=&#39;analysis.alignmentMethod&#39;, version=&#39;0.0.2&#39;)</span>
+<span class="n">version1</span>  <span class="c1"># Output: JsonSchemaVersion(org=&#39;sage.annotations&#39;, name=&#39;analysis.alignmentMethod&#39;, version=&#39;0.0.1&#39;)</span>
 </pre></div>
 </div>
 <p>Create a new JSON schema version for an existing organization:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">random</span> <span class="kn">import</span> <span class="n">randint</span>
 <span class="n">rint</span> <span class="o">=</span> <span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100000</span><span class="p">)</span>
-<span class="n">org_name</span>    <span class="o">=</span> <span class="s2">&quot;bgrande.test&quot;</span>
 <span class="n">schema_name</span> <span class="o">=</span> <span class="s2">&quot;my.schema&quot;</span>
 
 <span class="c1"># Method 1</span>
-<span class="n">my_org</span>          <span class="o">=</span> <span class="n">js</span><span class="o">.</span><span class="n">JsonSchemaOrganization</span><span class="p">(</span><span class="n">org_name</span><span class="p">)</span>
+<span class="n">my_org</span>          <span class="o">=</span> <span class="n">js</span><span class="o">.</span><span class="n">JsonSchemaOrganization</span><span class="p">(</span><span class="n">my_org_name</span><span class="p">)</span>
 <span class="n">new_version1</span>    <span class="o">=</span> <span class="n">my_org</span><span class="o">.</span><span class="n">create_json_schema</span><span class="p">(</span><span class="n">raw_body</span><span class="p">,</span> <span class="n">schema_name</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;0.</span><span class="si">{</span><span class="n">rint</span><span class="si">}</span><span class="s2">.1&quot;</span><span class="p">)</span>
 
 <span class="c1"># Method 2</span>
@@ -219,7 +219,7 @@ Here are the steps you must take to set up the JSON Schema service.</p>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2012-2023, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Aug 26, 2023.
+      <span class="lastupdated">Last updated on Sep 09, 2023.
       </span></p>
   </div>
 
@@ -240,7 +240,7 @@ Here are the steps you must take to set up the JSON Schema service.</p>
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Aug 26, 2023.
+      Last updated on Sep 09, 2023.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">

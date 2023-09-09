@@ -45,8 +45,6 @@ Stories
    JSON Schema support
 -  [`SYNPY-1255 <https://sagebionetworks.jira.com/browse/SYNPY-1255>`__] -
    Support pandas 2.0 in python client
--  [`SYNPY-1266 <https://sagebionetworks.jira.com/browse/SYNPY-1266>`__] -
-   Support uploads to GCP external bucket
 -  [`SYNPY-1270 <https://sagebionetworks.jira.com/browse/SYNPY-1270>`__] -
    Deprecate the use of `date_parser` and `parse_date` in `pd.read_csv` in table module
 -  [`SYNPY-716 <https://sagebionetworks.jira.com/browse/SYNPY-716>`__] -

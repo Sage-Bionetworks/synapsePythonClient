@@ -2,6 +2,11 @@
 Synapse Python/Command Line Client Documentation
 ================================================
 
+|Supported Python Versions|
+
+.. |Supported Python Versions| image:: https://img.shields.io/pypi/pyversions/synapseclient.svg
+   :target: https://pypi.python.org/pypi/synapseclient/
+
 The ``synapseclient`` package provides an interface to `Synapse <http://www.synapse.org>`__, a collaborative,
 open-source research platform that allows teams to share data, track analyses,
 and collaborate, providing support for:

@@ -21,12 +21,13 @@ Set up Synapse client and JSON Schema service::
 
 Create, manage, and delete a JSON Schema organization::
 
-    my_org = js.JsonSchemaOrganization("test.new")
-    my_org  # Output: JsonSchemaOrganization(name='test.new')
+    my_org_name = <your org name here>
+    my_org = js.JsonSchemaOrganization(my_org_name)
+    my_org  # Output: JsonSchemaOrganization(name=my_org_name)
     my_org.create()
     my_org.get_acl()
-    my_org.set_acl([3413689])
-    my_org.update_acl([3324230])
+    my_org.set_acl([syn.getUserProfile().ownerId])
+    # my_org.update_acl([syn.getUserProfile().ownerId])
     my_org.delete()
 
 Retrieve existing organization and associated JSON schemas::
@@ -45,18 +46,17 @@ Manage a specific version of a JSON schema::
     version1  = next(versions)
     raw_body  = version1.body
     full_body = version1.expand()
-    version1  # Output: JsonSchemaVersion(org='sage.annotations', name='analysis.alignmentMethod', version='0.0.2')
+    version1  # Output: JsonSchemaVersion(org='sage.annotations', name='analysis.alignmentMethod', version='0.0.1')
 
 
 Create a new JSON schema version for an existing organization::
 
     from random import randint
     rint = randint(0, 100000)
-    org_name    = "bgrande.test"
     schema_name = "my.schema"
 
     # Method 1
-    my_org          = js.JsonSchemaOrganization(org_name)
+    my_org          = js.JsonSchemaOrganization(my_org_name)
     new_version1    = my_org.create_json_schema(raw_body, schema_name, f"0.{rint}.1")
 
     # Method 2
