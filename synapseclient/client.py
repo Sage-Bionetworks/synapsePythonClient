@@ -3112,7 +3112,7 @@ class Synapse(object):
 
     def _findTeamsForPrincipal(self, principalId):
         """
-        Retrieve a list of teams for the matching principal ID. If the principalId that is passed in is a team itself, 
+        Retrieve a list of teams for the matching principal ID. If the principalId that is passed in is a team itself,
         or not found, this will return an empty list.
 
         :param principalId: Identifier of a user or group.
