@@ -2098,15 +2098,21 @@ class Synapse(object):
                   or an empty array
 
         """
-        # TODO: what if user has permissions by membership in a group?
         principalId = self._getUserbyPrincipalIdOrName(principalId)
         acl = self._getACL(entity)
+
+        teamList = self._findTeamsForPrincipal(principalId)
+        teamIds = [int(team.id) for team in teamList]
+        effectivePermissionSet = set()
         for permissions in acl["resourceAccess"]:
-            if "principalId" in permissions and permissions["principalId"] == int(
-                principalId
+            if "principalId" in permissions and (
+                permissions["principalId"] == int(principalId)
+                or permissions["principalId"] in teamIds
             ):
-                return permissions["accessType"]
-        return []
+                effectivePermissionSet = effectivePermissionSet.union(
+                    permissions["accessType"]
+                )
+        return list(effectivePermissionSet)
 
     def setPermissions(
         self,
@@ -3102,6 +3108,18 @@ class Synapse(object):
         Retrieve a Teams matching the supplied name fragment
         """
         for result in self._GET_paginated("/teams?fragment=%s" % name):
+            yield Team(**result)
+
+    def _findTeamsForPrincipal(self, principalId):
+        """
+        Retrieve a list of teams for the matching principal ID. If the principalId that is passed in is a team itself, 
+        or not found, this will return an empty list.
+
+        :param principalId: Identifier of a user or group.
+
+        :return:  A list of objects of type :py:class:`synapseclient.team.Team`
+        """
+        for result in self._GET_paginated("/user/%s/team" % principalId):
             yield Team(**result)
 
     def getTeam(self, id):
