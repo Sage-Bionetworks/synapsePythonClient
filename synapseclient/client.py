@@ -2087,7 +2087,7 @@ class Synapse(object):
                 "Unknown Synapse user (%s).  %s." % (principalId, supplementalMessage)
             )
 
-    def getPermissions(self, entity, principal_id=None):
+    def getPermissions(self, entity, principalId=None):
         """Get the permissions that a user or group has on an Entity.
 
         :param entity:      An Entity or Synapse ID to lookup
@@ -2098,7 +2098,7 @@ class Synapse(object):
                   or an empty array
 
         """
-        principal_id = self._getUserbyPrincipalIdOrName(principal_id)
+        principal_id = self._getUserbyPrincipalIdOrName(principalId)
         acl = self._getACL(entity)
 
         team_list = self._find_teams_for_principal(principal_id)
