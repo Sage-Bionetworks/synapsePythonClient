@@ -2087,7 +2087,7 @@ class Synapse(object):
                 "Unknown Synapse user (%s).  %s." % (principalId, supplementalMessage)
             )
 
-    def getPermissions(self, entity, principalId=None):
+    def getPermissions(self, entity, principal_id=None):
         """Get the permissions that a user or group has on an Entity.
 
         :param entity:      An Entity or Synapse ID to lookup
@@ -2098,21 +2098,21 @@ class Synapse(object):
                   or an empty array
 
         """
-        principalId = self._getUserbyPrincipalIdOrName(principalId)
+        principal_id = self._getUserbyPrincipalIdOrName(principal_id)
         acl = self._getACL(entity)
 
-        teamList = self._findTeamsForPrincipal(principalId)
-        teamIds = [int(team.id) for team in teamList]
-        effectivePermissionSet = set()
+        team_list = self._find_teams_for_principal(principal_id)
+        team_ids = [int(team.id) for team in team_list]
+        effective_permission_set = set()
         for permissions in acl["resourceAccess"]:
             if "principalId" in permissions and (
-                permissions["principalId"] == int(principalId)
-                or permissions["principalId"] in teamIds
+                permissions["principalId"] == int(principal_id)
+                or permissions["principalId"] in team_ids
             ):
-                effectivePermissionSet = effectivePermissionSet.union(
+                effective_permission_set = effective_permission_set.union(
                     permissions["accessType"]
                 )
-        return list(effectivePermissionSet)
+        return list(effective_permission_set)
 
     def setPermissions(
         self,
@@ -3110,16 +3110,18 @@ class Synapse(object):
         for result in self._GET_paginated("/teams?fragment=%s" % name):
             yield Team(**result)
 
-    def _findTeamsForPrincipal(self, principalId):
+    def _find_teams_for_principal(
+        self, principal_id: str
+    ) -> typing.Generator[Team, None, None]:
         """
         Retrieve a list of teams for the matching principal ID. If the principalId that is passed in is a team itself,
         or not found, this will return an empty list.
 
-        :param principalId: Identifier of a user or group.
+        :param principal_id: Identifier of a user or group.
 
-        :return:  A list of objects of type :py:class:`synapseclient.team.Team`
+        :return:  A generator that yields objects of type :py:class:`synapseclient.team.Team`
         """
-        for result in self._GET_paginated("/user/%s/team" % principalId):
+        for result in self._GET_paginated("/user/%s/team" % principal_id):
             yield Team(**result)
 
     def getTeam(self, id):
