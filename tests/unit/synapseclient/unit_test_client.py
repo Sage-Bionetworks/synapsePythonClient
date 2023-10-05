@@ -3469,7 +3469,7 @@ class TestPermissionsOnProject:
             "_getUserbyPrincipalIdOrName",
             # AND a user with id of 456
             return_value=456,
-        ) as patch_get_user, patch.object(
+        ), patch.object(
             self.syn,
             "_getACL",
             return_value={
@@ -3490,12 +3490,12 @@ class TestPermissionsOnProject:
                     }
                 ]
             },
-        ) as patch_get_acl, patch.object(
+        ), patch.object(
             self.syn,
             "_find_teams_for_principal",
             # AND the user is a part of no teams
             return_value=[],
-        ) as patch_find_teams:
+        ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
 
@@ -3519,7 +3519,7 @@ class TestPermissionsOnProject:
             "_getUserbyPrincipalIdOrName",
             # AND a user with id of 456
             return_value=456,
-        ) as patch_get_user, patch.object(
+        ), patch.object(
             self.syn,
             "_getACL",
             return_value={
@@ -3540,12 +3540,12 @@ class TestPermissionsOnProject:
                     }
                 ]
             },
-        ) as patch_get_acl, patch.object(
+        ), patch.object(
             self.syn,
             "_find_teams_for_principal",
             # AND the user is a part of no teams
             return_value=[],
-        ) as patch_find_teams:
+        ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
 
@@ -3560,7 +3560,7 @@ class TestPermissionsOnProject:
             "_getUserbyPrincipalIdOrName",
             # AND a user with id of 456
             return_value=456,
-        ) as patch_get_user, patch.object(
+        ), patch.object(
             self.syn,
             "_getACL",
             return_value={
@@ -3581,12 +3581,12 @@ class TestPermissionsOnProject:
                     }
                 ]
             },
-        ) as patch_get_acl, patch.object(
+        ), patch.object(
             self.syn,
             "_find_teams_for_principal",
             # AND the user is assigned to a team
             return_value=[Team(id=999)],
-        ) as patch_find_teams:
+        ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
 
@@ -3610,7 +3610,7 @@ class TestPermissionsOnProject:
             "_getUserbyPrincipalIdOrName",
             # AND a user with id of 456
             return_value=456,
-        ) as patch_get_user, patch.object(
+        ), patch.object(
             self.syn,
             "_getACL",
             return_value={
@@ -3639,12 +3639,12 @@ class TestPermissionsOnProject:
                     },
                 ]
             },
-        ) as patch_get_acl, patch.object(
+        ), patch.object(
             self.syn,
             "_find_teams_for_principal",
             # AND the user is assigned to both of the teams
             return_value=[Team(id=888), Team(id=999)],
-        ) as patch_find_teams:
+        ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
 
