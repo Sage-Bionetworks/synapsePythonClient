@@ -531,7 +531,8 @@ class TestPermissionsOnProject:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions: Entity = self.syn.store(
             Project(
-                name=str(uuid.uuid4()) + "test_get_permissions_read_permissions_on_project"
+                name=str(uuid.uuid4())
+                + "test_get_permissions_read_permissions_on_project"
             )
         )
         self.schedule_for_cleanup(project_with_read_only_permissions)
@@ -557,7 +558,8 @@ class TestPermissionsOnProject:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team: Entity = self.syn.store(
             Project(
-                name=str(uuid.uuid4()) + "test_get_permissions_through_team_assigned_to_user_and_project"
+                name=str(uuid.uuid4())
+                + "test_get_permissions_through_team_assigned_to_user_and_project"
             )
         )
 
@@ -618,7 +620,8 @@ class TestPermissionsOnProject:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_multiple_teams: Entity = self.syn.store(
             Project(
-                name=str(uuid.uuid4()) + "test_get_permissions_through_two_teams_assigned_to_user_and_project"
+                name=str(uuid.uuid4())
+                + "test_get_permissions_through_two_teams_assigned_to_user_and_project"
             )
         )
 
