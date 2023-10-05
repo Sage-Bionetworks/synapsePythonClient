@@ -613,7 +613,7 @@ class Synapse(object):
             self.restDELETE("/secretKey", endpoint=self.authEndpoint)
 
     @memoize
-    def getUserProfile(self, id=None, sessionToken=None, refresh=False):
+    def getUserProfile(self, id=None, sessionToken=None, refresh=False) -> UserProfile:
         """
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted.

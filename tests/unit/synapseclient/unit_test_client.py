@@ -3455,3 +3455,208 @@ def test__updateActivity__without_id(syn):
     with pytest.raises(ValueError) as ve:
         syn.updateActivity(activity)
     assert str(ve.value) == "The activity you want to update must exist on Synapse"
+
+
+class TestPermissionsOnProject:
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse):
+        self.syn = syn
+
+    def test_get_permissions_with_defined_set_for_access(self):
+        # GIVEN the API calls are mocked
+        with patch.object(
+            self.syn,
+            "_getUserbyPrincipalIdOrName",
+            # AND a user with id of 456
+            return_value=456,
+        ) as patch_get_user, patch.object(
+            self.syn,
+            "_getACL",
+            return_value={
+                "resourceAccess": [
+                    {
+                        "principalId": 456,
+                        # AND the permissions are given to the user
+                        "accessType": [
+                            "READ",
+                            "DELETE",
+                            "CHANGE_SETTINGS",
+                            "UPDATE",
+                            "CHANGE_PERMISSIONS",
+                            "CREATE",
+                            "MODERATE",
+                            "DOWNLOAD",
+                        ],
+                    }
+                ]
+            },
+        ) as patch_get_acl, patch.object(
+            self.syn,
+            "_find_teams_for_principal",
+            # AND the user is a part of no teams
+            return_value=[],
+        ) as patch_find_teams:
+            # WHEN I get the permissions for the user on the entity
+            permissions = self.syn.getPermissions("123", "456")
+
+            # THEN I expect to see the defined set of permissions returned
+            expected_permissions = [
+                "READ",
+                "DELETE",
+                "CHANGE_SETTINGS",
+                "UPDATE",
+                "CHANGE_PERMISSIONS",
+                "CREATE",
+                "MODERATE",
+                "DOWNLOAD",
+            ]
+            assert set(expected_permissions) == set(permissions)
+
+    def test_get_permissions_with_no_permissions_for_user(self):
+        # GIVEN the API calls are mocked
+        with patch.object(
+            self.syn,
+            "_getUserbyPrincipalIdOrName",
+            # AND a user with id of 456
+            return_value=456,
+        ) as patch_get_user, patch.object(
+            self.syn,
+            "_getACL",
+            return_value={
+                "resourceAccess": [
+                    {
+                        # AND the permissions are given to an unknown user
+                        "principalId": 99999,
+                        "accessType": [
+                            "READ",
+                            "DELETE",
+                            "CHANGE_SETTINGS",
+                            "UPDATE",
+                            "CHANGE_PERMISSIONS",
+                            "CREATE",
+                            "MODERATE",
+                            "DOWNLOAD",
+                        ],
+                    }
+                ]
+            },
+        ) as patch_get_acl, patch.object(
+            self.syn,
+            "_find_teams_for_principal",
+            # AND the user is a part of no teams
+            return_value=[],
+        ) as patch_find_teams:
+            # WHEN I get the permissions for the user on the entity
+            permissions = self.syn.getPermissions("123", "456")
+
+            # THEN I expect to see no permissions
+            expected_permissions = []
+            assert set(expected_permissions) == set(permissions)
+
+    def test_get_permissions_with_permissions_given_through_single_team(self):
+        # GIVEN the API calls are mocked
+        with patch.object(
+            self.syn,
+            "_getUserbyPrincipalIdOrName",
+            # AND a user with id of 456
+            return_value=456,
+        ) as patch_get_user, patch.object(
+            self.syn,
+            "_getACL",
+            return_value={
+                "resourceAccess": [
+                    {
+                        # AND the permissions are given to a team
+                        "principalId": 999,
+                        "accessType": [
+                            "READ",
+                            "DELETE",
+                            "CHANGE_SETTINGS",
+                            "UPDATE",
+                            "CHANGE_PERMISSIONS",
+                            "CREATE",
+                            "MODERATE",
+                            "DOWNLOAD",
+                        ],
+                    }
+                ]
+            },
+        ) as patch_get_acl, patch.object(
+            self.syn,
+            "_find_teams_for_principal",
+            # AND the user is assigned to a team
+            return_value=[Team(id=999)],
+        ) as patch_find_teams:
+            # WHEN I get the permissions for the user on the entity
+            permissions = self.syn.getPermissions("123", "456")
+
+            # THEN I expect to see the default admin permissions
+            expected_permissions = [
+                "READ",
+                "DELETE",
+                "CHANGE_SETTINGS",
+                "UPDATE",
+                "CHANGE_PERMISSIONS",
+                "CREATE",
+                "MODERATE",
+                "DOWNLOAD",
+            ]
+            assert set(expected_permissions) == set(permissions)
+
+    def test_get_permissions_with_permissions_given_through_multiple_teams(self):
+        # GIVEN the API calls are mocked
+        with patch.object(
+            self.syn,
+            "_getUserbyPrincipalIdOrName",
+            # AND a user with id of 456
+            return_value=456,
+        ) as patch_get_user, patch.object(
+            self.syn,
+            "_getACL",
+            return_value={
+                "resourceAccess": [
+                    # AND the permissions are spread across a set of 2 teams
+                    {
+                        "principalId": 888,
+                        "accessType": [
+                            "READ",
+                            "DELETE",
+                            "CHANGE_SETTINGS",
+                            "UPDATE",
+                            "CHANGE_PERMISSIONS",
+                        ],
+                    },
+                    {
+                        "principalId": 999,
+                        "accessType": [
+                            "READ",
+                            "UPDATE",
+                            "CHANGE_PERMISSIONS",
+                            "CREATE",
+                            "MODERATE",
+                            "DOWNLOAD",
+                        ],
+                    },
+                ]
+            },
+        ) as patch_get_acl, patch.object(
+            self.syn,
+            "_find_teams_for_principal",
+            # AND the user is assigned to both of the teams
+            return_value=[Team(id=888), Team(id=999)],
+        ) as patch_find_teams:
+            # WHEN I get the permissions for the user on the entity
+            permissions = self.syn.getPermissions("123", "456")
+
+            # THEN I expect to see the aggregated permissions
+            expected_permissions = [
+                "READ",
+                "DELETE",
+                "CHANGE_SETTINGS",
+                "UPDATE",
+                "CHANGE_PERMISSIONS",
+                "CREATE",
+                "MODERATE",
+                "DOWNLOAD",
+            ]
+            assert set(expected_permissions) == set(permissions)
