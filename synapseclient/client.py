@@ -3115,7 +3115,7 @@ class Synapse(object):
     ) -> typing.Generator[Team, None, None]:
         """
         Retrieve a list of teams for the matching principal ID. If the principalId that is passed in is a team itself,
-        or not found, this will return an empty list.
+        or not found, this will return a generator that yields no results.
 
         :param principal_id: Identifier of a user or group.
 
