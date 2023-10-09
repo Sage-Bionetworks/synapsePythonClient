@@ -20,6 +20,8 @@ from synapseclient.core.exceptions import (
 import synapseclient.core.utils as utils
 from synapseclient.core.version_check import version_check
 
+PUBLIC = 273949  # PrincipalId of public "user"
+AUTHENTICATED_USERS = 273948
 
 def test_login(syn):
     try:
@@ -684,6 +686,76 @@ class TestPermissionsOnProject:
         )
 
         # THEN I expect to see the permissions of both teams
+        expected_permissions = [
+            "READ",
+            "DELETE",
+            "CHANGE_SETTINGS",
+            "UPDATE",
+            "CHANGE_PERMISSIONS",
+            "CREATE",
+            "MODERATE",
+            "DOWNLOAD",
+        ]
+        assert set(expected_permissions) == set(permissions)
+
+
+    def test_get_permissions_for_project_with_public_and_registered_user(self):
+        # GIVEN a project created with default permissions of administrator
+        project_with_permissions_for_public_and_authenticated_users: Entity = self.syn.store(
+            Project(
+                name=str(uuid.uuid4())
+                + "test_get_permissions_for_project_with_registered_user"
+            )
+        )
+        self.schedule_for_cleanup(project_with_permissions_for_public_and_authenticated_users)
+
+        # AND the user that created the project
+        p1: UserProfile = self.syn.getUserProfile()
+
+        # AND the permissions for PUBLIC are set to 'READ'
+        self.syn.setPermissions(
+            project_with_permissions_for_public_and_authenticated_users,
+            PUBLIC,
+            ["READ"],
+        )
+
+        # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
+        self.syn.setPermissions(
+            project_with_permissions_for_public_and_authenticated_users,
+            AUTHENTICATED_USERS,
+            ["READ", "DOWNLOAD"],
+        )
+
+        # AND the permissions for the user on the entity do NOT include DOWNLOAD
+        self.syn.setPermissions(
+            project_with_permissions_for_public_and_authenticated_users, p1.ownerId, [
+                "READ",
+                "DELETE",
+                "CHANGE_SETTINGS",
+                "UPDATE",
+                "CHANGE_PERMISSIONS",
+                "CREATE",
+                "MODERATE"
+            ]
+        )
+
+        # WHEN I get the permissions for a public user on the entity
+        permissions = self.syn.getPermissions(
+            project_with_permissions_for_public_and_authenticated_users.id
+        )
+
+        # THEN I expect to the public permissions
+        expected_permissions = [
+            "READ"
+        ]
+        assert set(expected_permissions) == set(permissions)
+        
+        # and WHEN I get the permissions for an authenticated user on the entity
+        permissions = self.syn.getPermissions(
+            project_with_permissions_for_public_and_authenticated_users.id, p1.ownerId
+        )
+
+        # THEN I expect to see the permissions of the user, and the authenticated user, and the public user
         expected_permissions = [
             "READ",
             "DELETE",
