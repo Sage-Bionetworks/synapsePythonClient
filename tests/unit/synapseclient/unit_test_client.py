@@ -3495,6 +3495,10 @@ class TestPermissionsOnProject:
             "_find_teams_for_principal",
             # AND the user is a part of no teams
             return_value=[],
+        ), patch.object(
+            self.syn,
+            "_get_user_bundle",
+            return_value=None,
         ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
@@ -3545,6 +3549,10 @@ class TestPermissionsOnProject:
             "_find_teams_for_principal",
             # AND the user is a part of no teams
             return_value=[],
+        ), patch.object(
+            self.syn,
+            "_get_user_bundle",
+            return_value=None,
         ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
@@ -3586,6 +3594,10 @@ class TestPermissionsOnProject:
             "_find_teams_for_principal",
             # AND the user is assigned to a team
             return_value=[Team(id=999)],
+        ), patch.object(
+            self.syn,
+            "_get_user_bundle",
+            return_value=None,
         ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
@@ -3644,6 +3656,10 @@ class TestPermissionsOnProject:
             "_find_teams_for_principal",
             # AND the user is assigned to both of the teams
             return_value=[Team(id=888), Team(id=999)],
+        ), patch.object(
+            self.syn,
+            "_get_user_bundle",
+            return_value=None,
         ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
