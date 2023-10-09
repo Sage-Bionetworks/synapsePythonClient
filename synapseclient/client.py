@@ -2108,7 +2108,11 @@ class Synapse(object):
                 "Unknown Synapse user (%s).  %s." % (principalId, supplementalMessage)
             )
 
-    def getPermissions(self, entity: Union[Entity, Evaluation, str, collections.abc.Mapping], principalId: str = None):
+    def getPermissions(
+        self,
+        entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
+        principalId: str = None,
+    ):
         """Get the permissions that a user or group has on an Entity.
 
         :param entity:      An Entity or Synapse ID to lookup
@@ -2125,14 +2129,14 @@ class Synapse(object):
         team_list = self._find_teams_for_principal(principal_id)
         team_ids = [int(team.id) for team in team_list]
         effective_permission_set = set()
-        
+
         # This user_profile_bundle is being used to verify that the principal_id is a registered user of the system
         user_profile_bundle = self._get_user_bundle(principal_id, 1)
-        
+
         # Loop over all permissions in the returned ACL and add it to the effective_permission_set
-        # if the principalId in the ACL matches 
-        # 1) the one we are looking for, 
-        # 2) a team the entity is a member of, 
+        # if the principalId in the ACL matches
+        # 1) the one we are looking for,
+        # 2) a team the entity is a member of,
         # 3) PUBLIC
         # 4) A user_profile_bundle exists for the principal_id
         for permissions in acl["resourceAccess"]:
@@ -2140,7 +2144,10 @@ class Synapse(object):
                 permissions["principalId"] == principal_id
                 or permissions["principalId"] in team_ids
                 or permissions["principalId"] == PUBLIC
-                or (permissions["principalId"] == AUTHENTICATED_USERS and user_profile_bundle is not None)
+                or (
+                    permissions["principalId"] == AUTHENTICATED_USERS
+                    and user_profile_bundle is not None
+                )
             ):
                 effective_permission_set = effective_permission_set.union(
                     permissions["accessType"]

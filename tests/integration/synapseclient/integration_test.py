@@ -23,6 +23,7 @@ from synapseclient.core.version_check import version_check
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 
+
 def test_login(syn):
     try:
         config = configparser.RawConfigParser()
@@ -698,16 +699,19 @@ class TestPermissionsOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-
     def test_get_permissions_for_project_with_public_and_registered_user(self):
         # GIVEN a project created with default permissions of administrator
-        project_with_permissions_for_public_and_authenticated_users: Entity = self.syn.store(
-            Project(
-                name=str(uuid.uuid4())
-                + "test_get_permissions_for_project_with_registered_user"
+        project_with_permissions_for_public_and_authenticated_users: Entity = (
+            self.syn.store(
+                Project(
+                    name=str(uuid.uuid4())
+                    + "test_get_permissions_for_project_with_registered_user"
+                )
             )
         )
-        self.schedule_for_cleanup(project_with_permissions_for_public_and_authenticated_users)
+        self.schedule_for_cleanup(
+            project_with_permissions_for_public_and_authenticated_users
+        )
 
         # AND the user that created the project
         p1: UserProfile = self.syn.getUserProfile()
@@ -728,15 +732,17 @@ class TestPermissionsOnProject:
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
         self.syn.setPermissions(
-            project_with_permissions_for_public_and_authenticated_users, p1.ownerId, [
+            project_with_permissions_for_public_and_authenticated_users,
+            p1.ownerId,
+            [
                 "READ",
                 "DELETE",
                 "CHANGE_SETTINGS",
                 "UPDATE",
                 "CHANGE_PERMISSIONS",
                 "CREATE",
-                "MODERATE"
-            ]
+                "MODERATE",
+            ],
         )
 
         # WHEN I get the permissions for a public user on the entity
@@ -745,11 +751,9 @@ class TestPermissionsOnProject:
         )
 
         # THEN I expect to the public permissions
-        expected_permissions = [
-            "READ"
-        ]
+        expected_permissions = ["READ"]
         assert set(expected_permissions) == set(permissions)
-        
+
         # and WHEN I get the permissions for an authenticated user on the entity
         permissions = self.syn.getPermissions(
             project_with_permissions_for_public_and_authenticated_users.id, p1.ownerId
