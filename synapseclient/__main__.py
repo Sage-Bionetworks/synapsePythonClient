@@ -16,6 +16,8 @@ import csv
 import re
 import shutil
 
+import deprecated
+
 import synapseclient
 import synapseutils
 
@@ -341,7 +343,7 @@ def show(args, syn):
     syn.printEntity(ent)
     sys.stdout.write("Provenance:\n")
     try:
-        prov = syn.getProvenance(ent)
+        prov = syn.get_activity(ent)
         syn.logger.info(prov)
     except SynapseHTTPError:
         syn.logger.error("  No Activity specified.\n")
@@ -405,8 +407,8 @@ def setProvenance(args, syn):
         )
 
 
-def getProvenance(args, syn):
-    activity = syn.getProvenance(args.id, args.version)
+def get_activity(args, syn: synapseclient.Synapse):
+    activity = syn.get_activity(args.id, args.version)
 
     if args.output is None or args.output == "STDOUT":
         syn.logger.info(json.dumps(activity, sort_keys=True, indent=2))
@@ -414,6 +416,14 @@ def getProvenance(args, syn):
         with open(args.output, "w") as f:
             f.write(json.dumps(activity))
             f.write("\n")
+
+
+@deprecated.sphinx.deprecated(
+    version="3.1.0",
+    reason="deprecated and replaced with :py:meth:`get_activity`",
+)
+def getProvenance(args, syn: synapseclient.Synapse):
+    get_activity(args, syn)
 
 
 def setAnnotations(args, syn):
@@ -1483,7 +1493,7 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
         type=str,
         help="Output the provenance record in JSON format",
     )
-    parser_get_provenance.set_defaults(func=getProvenance)
+    parser_get_provenance.set_defaults(func=get_activity)
 
     parser_set_annotations = subparsers.add_parser(
         "set-annotations", help="create annotations records"

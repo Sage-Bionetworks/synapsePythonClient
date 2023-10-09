@@ -564,7 +564,7 @@ def _copyFile(
     # if existing, check if provenance exists
     elif setProvenance == "existing":
         try:
-            act = syn.getProvenance(ent.id)
+            act = syn.get_activity(ent.id)
         except SynapseHTTPError as e:
             if e.response.status_code == 404:
                 act = None

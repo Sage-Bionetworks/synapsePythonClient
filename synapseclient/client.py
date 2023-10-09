@@ -6,6 +6,7 @@ import collections
 import collections.abc
 import configparser
 import csv
+import numbers
 import deprecated
 import errno
 import functools
@@ -846,7 +847,7 @@ class Synapse(object):
 
            # Determine the provenance of a locally stored file as indicated in Synapse
            entity = syn.get('/path/to/file.txt', limitSearch='syn12312')
-           print(syn.getProvenance(entity))
+           print(syn.get_activity(entity))
 
         """
         # If entity is a local file determine the corresponding synapse entity
@@ -2187,9 +2188,9 @@ class Synapse(object):
     ############################################################
     #                        Provenance                        #
     ############################################################
-
-    # TODO: rename these to Activity
-    def getProvenance(self, entity, version=None):
+    def get_activity(
+        self, entity: typing.Union[Entity, str, numbers.Number], version: str = None
+    ) -> any:
         """
         Retrieve provenance information for a Synapse Entity.
 
@@ -2210,6 +2211,27 @@ class Synapse(object):
         else:
             uri = "/entity/%s/generatedBy" % id_of(entity)
         return Activity(data=self.restGET(uri))
+
+    @deprecated.sphinx.deprecated(
+        version="3.1.0",
+        reason="deprecated and replaced with :py:meth:`get_activity`",
+    )
+    def getProvenance(
+        self, entity: typing.Union[Entity, str, numbers.Number], version: str = None
+    ):
+        """
+        Deprecated and replaced with :py:meth:`get_activity`.
+
+        Retrieve provenance information for a Synapse Entity.
+
+        :param entity:  An Entity or Synapse ID to lookup
+        :param version: The version of the Entity to retrieve.
+                        Gets the most recent version if omitted
+
+        :returns: An Activity object or
+                  raises exception if no provenance record exists
+        """
+        return self.get_activity(entity, version)
 
     def setProvenance(self, entity, activity):
         """
@@ -2237,7 +2259,7 @@ class Synapse(object):
         :param entity: An Entity or Synapse ID to modify
         """
 
-        activity = self.getProvenance(entity)
+        activity = self.get_activity(entity)
         if not activity:
             return
 
