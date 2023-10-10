@@ -186,12 +186,8 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     :return: datetime in UTC of when the url will expire
     """
     parsed_query: dict = parse_qs(urlparse(url).query)
-    time_made: str = parsed_query["X-Amz-Date"][0]
-    time_made_datetime: datetime.datetime = datetime.datetime.strptime(
-        time_made, ISO_AWS_STR_FORMAT
-    )
-    expires: str = parsed_query["X-Amz-Expires"][0]
-    return time_made_datetime + datetime.timedelta(seconds=int(expires))
+    expires: int = int(parsed_query["Expires"][0])
+    return datetime.datetime.utcfromtimestamp(expires)
 
 
 def _get_new_session() -> Session:
