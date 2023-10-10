@@ -131,20 +131,24 @@ def test_generate_chunk_ranges():
 
 
 def test_pre_signed_url_expiration_time():
+    # GIVEN a pre signed URL with an expiration date of: Jul 22 2013 20:12:07 in seconds since epoch UTC
     url = (
         "https://s3.amazonaws.com/examplebucket/test.txt"
         "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
         "&X-Amz-Credential=your-access-key-id/20130721/us-east-1/s3/aws4_request"
-        "&X-Amz-Date=20130721T201207Z"
-        "&X-Amz-Expires=86400"
+        "&Expires=1374523927"
         "&X-Amz-SignedHeaders=host"
         "&X-Amz-Signature=signature-value"
     )
 
+    # WHEN I get the expiration time from the pre signed URL
+    expiration_time = download_threads._pre_signed_url_expiration_time(url)
+
+    # THEN I expect the expiration time to be Jul 22 2013 20:12:07
     expected = datetime.datetime(
-        year=2013, month=7, day=21, hour=20, minute=12, second=7
-    ) + datetime.timedelta(seconds=86400)
-    assert expected == download_threads._pre_signed_url_expiration_time(url)
+        year=2013, month=7, day=22, hour=20, minute=12, second=7
+    )
+    assert expected == expiration_time
 
 
 @mock.patch.object(download_threads, "_MultithreadedDownloader")
