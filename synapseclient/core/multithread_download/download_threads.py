@@ -186,8 +186,35 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     :return: datetime in UTC of when the url will expire
     """
     parsed_query: dict = parse_qs(urlparse(url).query)
+    if (
+        parsed_query.get("X-Amz-Date") is not None
+        and parsed_query.get("X-Amz-Expires") is not None
+    ):
+        return _pre_signed_url_expiration_time_creaton_date_and_time_to_expire(
+            parsed_query
+        )
+    elif parsed_query.get("Expires") is not None:
+        return _pre_signed_url_expiration_time_expires_timestamp(parsed_query)
+
+    raise ValueError(
+        f"pre_signed_url does not contain an `Expires` field, or a `X-Amz-Date` field and a `X-Amz-Expires` field: {url}"
+    )
+
+
+def _pre_signed_url_expiration_time_expires_timestamp(parsed_query: dict) -> datetime:
     expires: int = int(parsed_query["Expires"][0])
     return datetime.datetime.utcfromtimestamp(expires)
+
+
+def _pre_signed_url_expiration_time_creaton_date_and_time_to_expire(
+    parsed_query: dict,
+) -> datetime:
+    time_made: str = parsed_query["X-Amz-Date"][0]
+    time_made_datetime: datetime.datetime = datetime.datetime.strptime(
+        time_made, ISO_AWS_STR_FORMAT
+    )
+    expires: str = parsed_query["X-Amz-Expires"][0]
+    return time_made_datetime + datetime.timedelta(seconds=int(expires))
 
 
 def _get_new_session() -> Session:
