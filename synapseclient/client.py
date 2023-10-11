@@ -118,7 +118,7 @@ from synapseclient.core.upload.upload_functions import (
     upload_synapse_s3,
 )
 from synapseclient.core.dozer import doze
-
+from typing import Union
 
 PRODUCTION_ENDPOINTS = {
     "repoEndpoint": "https://repo-prod.prod.sagebase.org/repo/v1",
@@ -613,7 +613,12 @@ class Synapse(object):
             self.restDELETE("/secretKey", endpoint=self.authEndpoint)
 
     @memoize
-    def getUserProfile(self, id=None, sessionToken=None, refresh=False):
+    def getUserProfile(
+        self,
+        id: Union[str, int, UserProfile, TeamMember] = None,
+        sessionToken: str = None,
+        refresh: bool = False,
+    ) -> UserProfile:
         """
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted.
@@ -686,6 +691,22 @@ class Synapse(object):
             https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/quiz/PassingRecord.html
         """
         response = self.restGET(f"/user/{userid}/certifiedUserPassingRecord")
+        return response
+
+    def _get_user_bundle(self, userid: int, mask: int) -> dict:
+        """Retrieve the user bundle for the given user.
+
+        :params userid: Synapse user Id
+        :params mask: Bit field indicating which components to include in the bundle.
+
+        :returns: Synapse User Bundle
+            https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserBundle.html
+        """
+        try:
+            response = self.restGET(f"/user/{userid}/bundle?mask={mask}")
+        except SynapseHTTPError as ex:
+            if ex.response.status_code == 404:
+                return None
         return response
 
     def is_certified(self, user: typing.Union[str, int]) -> bool:
@@ -2056,7 +2077,7 @@ class Synapse(object):
             else:
                 return self.restPOST(uri, json.dumps(acl))
 
-    def _getUserbyPrincipalIdOrName(self, principalId=None):
+    def _getUserbyPrincipalIdOrName(self, principalId: str = None):
         """
         Given either a string, int or None finds the corresponding user where None implies PUBLIC
 
@@ -2087,7 +2108,11 @@ class Synapse(object):
                 "Unknown Synapse user (%s).  %s." % (principalId, supplementalMessage)
             )
 
-    def getPermissions(self, entity, principalId=None):
+    def getPermissions(
+        self,
+        entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
+        principalId: str = None,
+    ):
         """Get the permissions that a user or group has on an Entity.
 
         :param entity:      An Entity or Synapse ID to lookup
@@ -2098,15 +2123,36 @@ class Synapse(object):
                   or an empty array
 
         """
-        # TODO: what if user has permissions by membership in a group?
-        principalId = self._getUserbyPrincipalIdOrName(principalId)
+        principal_id = self._getUserbyPrincipalIdOrName(principalId)
         acl = self._getACL(entity)
+
+        team_list = self._find_teams_for_principal(principal_id)
+        team_ids = [int(team.id) for team in team_list]
+        effective_permission_set = set()
+
+        # This user_profile_bundle is being used to verify that the principal_id is a registered user of the system
+        user_profile_bundle = self._get_user_bundle(principal_id, 1)
+
+        # Loop over all permissions in the returned ACL and add it to the effective_permission_set
+        # if the principalId in the ACL matches
+        # 1) the one we are looking for,
+        # 2) a team the entity is a member of,
+        # 3) PUBLIC
+        # 4) A user_profile_bundle exists for the principal_id
         for permissions in acl["resourceAccess"]:
-            if "principalId" in permissions and permissions["principalId"] == int(
-                principalId
+            if "principalId" in permissions and (
+                permissions["principalId"] == principal_id
+                or permissions["principalId"] in team_ids
+                or permissions["principalId"] == PUBLIC
+                or (
+                    permissions["principalId"] == AUTHENTICATED_USERS
+                    and user_profile_bundle is not None
+                )
             ):
-                return permissions["accessType"]
-        return []
+                effective_permission_set = effective_permission_set.union(
+                    permissions["accessType"]
+                )
+        return list(effective_permission_set)
 
     def setPermissions(
         self,
@@ -3102,6 +3148,18 @@ class Synapse(object):
         Retrieve a Teams matching the supplied name fragment
         """
         for result in self._GET_paginated("/teams?fragment=%s" % name):
+            yield Team(**result)
+
+    def _find_teams_for_principal(self, principal_id: str) -> typing.Iterator[Team]:
+        """
+        Retrieve a list of teams for the matching principal ID. If the principalId that is passed in is a team itself,
+        or not found, this will return a generator that yields no results.
+
+        :param principal_id: Identifier of a user or group.
+
+        :return:  A generator that yields objects of type :py:class:`synapseclient.team.Team`
+        """
+        for result in self._GET_paginated(f"/user/{principal_id}/team"):
             yield Team(**result)
 
     def getTeam(self, id):
