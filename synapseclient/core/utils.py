@@ -6,6 +6,7 @@ import cgi
 import collections.abc
 import datetime
 import errno
+import functools
 import hashlib
 import importlib
 import inspect
@@ -45,7 +46,7 @@ def md5_for_file(filename, block_size=2 * MB, callback=None):
     :returns: The MD5
     """
 
-    md5 = hashlib.new("md5", usedforsecurity=False)
+    md5 = hashlib.md5()
     with open(filename, "rb") as f:
         while True:
             if callback:
@@ -636,6 +637,21 @@ def extract_synapse_id_from_query(query):
         return m.group(1)
     else:
         raise ValueError('Couldn\'t extract synapse ID from query: "%s"' % query)
+
+
+# Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
+def memoize(obj):
+    cache = obj._memoize_cache = {}
+
+    @functools.wraps(obj)
+    def memoizer(*args, **kwargs):
+        refresh = kwargs.pop("refresh", False)
+        key = str(args) + str(kwargs)
+        if refresh or key not in cache:
+            cache[key] = obj(*args, **kwargs)
+        return cache[key]
+
+    return memoizer
 
 
 def printTransferProgress(

@@ -483,7 +483,7 @@ def test_md5_for_file(mock_hashlib):
     file_name = "/home/foo/bar/test.txt"
     mock_callback = Mock()
     mock_md5 = Mock()
-    mock_hashlib.new.return_value = mock_md5
+    mock_hashlib.md5.return_value = mock_md5
     with patch.object(utils, "open", mock_open(), create=True) as mocked_open:
         mocked_open.return_value.read.side_effect = ["data1", "data2", None]
         utils.md5_for_file(file_name, callback=mock_callback)
