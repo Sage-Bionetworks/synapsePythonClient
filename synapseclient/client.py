@@ -93,7 +93,6 @@ from synapseclient.core.utils import (
     id_of,
     get_properties,
     MB,
-    memoize,
     is_json,
     extract_synapse_id_from_query,
     find_data_file_handle,
@@ -498,7 +497,7 @@ class Synapse(object):
             cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
-            profile = self.getUserProfile(refresh=True)
+            profile = self.getUserProfile()
             # TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
             self.logger.info(
                 "Welcome, %s!\n"
@@ -612,26 +611,23 @@ class Synapse(object):
         if self._is_logged_in():
             self.restDELETE("/secretKey", endpoint=self.authEndpoint)
 
-    @memoize
+    @functools.lru_cache()
     def getUserProfile(
         self,
         id: Union[str, int, UserProfile, TeamMember] = None,
         sessionToken: str = None,
-        refresh: bool = False,
     ) -> UserProfile:
         """
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted.
         :param id:           The 'userId' (aka 'ownerId') of a user or the userName
         :param sessionToken: The session token to use to find the user profile
-        :param refresh:      If set to True will always fetch the data from Synape otherwise will use cached information
         :returns: The user profile for the user of interest.
 
         Example::
             my_profile = syn.getUserProfile()
             freds_profile = syn.getUserProfile('fredcommo')
         """
-
         try:
             # if id is unset or a userID, this will succeed
             id = "" if id is None else int(id)
@@ -652,7 +648,6 @@ class Synapse(object):
                     else:  # no break
                         raise ValueError('Can\'t find user "%s": ' % id)
         uri = "/userProfile/%s" % id
-
         return UserProfile(
             **self.restGET(
                 uri, headers={"sessionToken": sessionToken} if sessionToken else None
@@ -2649,7 +2644,7 @@ class Synapse(object):
                     else:
                         mode = "wb"
                         previouslyTransferred = 0
-                        sig = hashlib.md5()
+                        sig = hashlib.new("md5", usedforsecurity=False)
 
                     try:
                         with open(temp_destination, mode) as fd:
@@ -4771,7 +4766,6 @@ class Synapse(object):
 
         if headers is None:
             headers = dict(self.default_headers)
-
         headers.update(synapseclient.USER_AGENT)
 
         return headers
@@ -4807,6 +4801,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(
             uri, endpoint=endpoint, headers=headers
         )
+
         retryPolicy = self._build_retry_policy(retryPolicy)
         requests_session = requests_session or self._requests_session
 
@@ -4823,6 +4818,7 @@ class Synapse(object):
             verbose=self.debug,
             **retryPolicy,
         )
+
         self._handle_synapse_http_error(response)
         return response
 
