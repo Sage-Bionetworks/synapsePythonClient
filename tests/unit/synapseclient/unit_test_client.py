@@ -141,6 +141,7 @@ class TestLogin:
             # method under test
             self.syn.login(silent=False, **self.login_args)
 
+            mocked_get_user_profile.assert_called_once_with(refresh=True)
             mocked_logger.info.assert_called_once()
 
     def test_login__rememberMeIsTrue(self, mocker):
