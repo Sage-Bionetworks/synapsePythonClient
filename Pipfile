@@ -4,12 +4,9 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-boto3 = "1.28.62"
 cryptography = "3.3.2"
 deprecated = "1.2.14"
 keyring = "23.4.1"
-pandas = "2.0.3"
-pysftp = "0.2.9"
 requests = "2.25.0"
 urllib3 = "1.25.11"
 synapseclient = {file = "."}
@@ -19,8 +16,11 @@ python_version = "3.11.3"
 
 [dev-packages]
 black = "23.9.1"
+boto3 = "1.28.62"
 flake8 = "3.9.2"
+pandas = "2.0.3"
 pre-commit = "3.4.0"
+pysftp = "0.2.9"
 pytest = "6.2.5"
 pytest-mock = "3.11.1"
 pytest-xdist = "2.5.0"
