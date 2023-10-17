@@ -173,7 +173,7 @@ mimetypes.add_type("text/x-markdown", ".markdown", strict=False)
 DEFAULT_STORAGE_LOCATION_ID = 1
 
 
-def login(*args, **kwargs):
+def login(*args, **kwargs) -> synapseclient.Synapse:
     """
     Convenience method to create a Synapse object and login.
 
@@ -296,7 +296,7 @@ class Synapse(object):
         logging.getLogger("py.warnings").handlers = self.logger.handlers
 
     @property
-    def max_threads(self):
+    def max_threads(self) -> int:
         return self._max_threads
 
     @max_threads.setter
@@ -304,12 +304,12 @@ class Synapse(object):
         self._max_threads = min(max(value, 1), MAX_THREADS_CAP)
 
     @property
-    def username(self):
+    def username(self) -> Union[str, None]:
         # for backwards compatability when username was a part of the Synapse object and not in credentials
         return self.credentials.username if self.credentials is not None else None
 
     @functools.lru_cache()
-    def getConfigFile(self, configPath: str):
+    def getConfigFile(self, configPath: str) -> configparser.RawConfigParser:
         """
         Retrieves the client configuration information.
 
@@ -508,7 +508,7 @@ class Synapse(object):
                 )
             )
 
-    def _get_config_section_dict(self, section_name: str):
+    def _get_config_section_dict(self, section_name: str) -> dict:
         config = self.getConfigFile(self.configPath)
         try:
             return dict(config.items(section_name))
@@ -516,18 +516,18 @@ class Synapse(object):
             # section not present
             return {}
 
-    def _get_config_authentication(self):
+    def _get_config_authentication(self) -> str:
         return self._get_config_section_dict(
             config_file_constants.AUTHENTICATION_SECTION_NAME
         )
 
-    def _get_client_authenticated_s3_profile(self, endpoint: str, bucket: str):
+    def _get_client_authenticated_s3_profile(self, endpoint: str, bucket: str) -> dict:
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get(
             "profile_name", "default"
         )
 
-    def _get_transfer_config(self):
+    def _get_transfer_config(self) -> dict:
         # defaults
         transfer_config = {"max_threads": DEFAULT_NUM_THREADS, "use_boto_sts": False}
 
@@ -552,7 +552,7 @@ class Synapse(object):
 
         return transfer_config
 
-    def _getSessionToken(self, email: str, password: str):
+    def _getSessionToken(self, email: str, password: str) -> str:
         """Returns a validated session token."""
         try:
             req = {"email": email, "password": password}
@@ -572,7 +572,7 @@ class Synapse(object):
                 raise SynapseAuthenticationError("Invalid username or password.")
             raise
 
-    def _getAPIKey(self, sessionToken: str):
+    def _getAPIKey(self, sessionToken: str) -> str:
         """Uses a session token to fetch an API key."""
 
         headers = {"sessionToken": sessionToken, "Accept": "application/json"}
