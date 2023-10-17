@@ -9,6 +9,9 @@ from synapseclient.core.credentials.cred_data import (
     SynapseAuthTokenCredentials,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
+from opentelemetry import trace
+
+tracer = trace.get_tracer("synapseclient")
 
 
 class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
@@ -34,6 +37,7 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
         """
         return None, None, None, None
 
+    @tracer.start_as_current_span("SynapseCredentialsProvider::get_synapse_credentials")
     def get_synapse_credentials(self, syn, user_login_args):
         """
         Returns `SynapseCredentials` if this provider is able to get valid credentials, returns None otherwise.
@@ -45,6 +49,9 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
             syn, *self._get_auth_info(syn, user_login_args)
         )
 
+    @tracer.start_as_current_span(
+        "SynapseCredentialsProvider::_create_synapse_credential"
+    )
     def _create_synapse_credential(self, syn, username, password, api_key, auth_token):
         login_deprecation_warning = "This message will disappear if you use a Synapse Personal Access Token to login."
         if username is not None:
@@ -253,6 +260,7 @@ class SynapseCredentialsProviderChain(object):
         """
         self.cred_providers = list(cred_providers)
 
+    @tracer.start_as_current_span("SynapseCredentialsProviderChain::get_credentials")
     def get_credentials(self, syn, user_login_args):
         """
         Iterates its list of ``SynapseCredentialsProvider`` and returns the first non-None ``SynapseCredential``

@@ -118,6 +118,9 @@ from synapseclient.core.upload.upload_functions import (
 )
 from synapseclient.core.dozer import doze
 from typing import Union
+from opentelemetry import trace
+
+tracer = trace.get_tracer("synapseclient")
 
 PRODUCTION_ENDPOINTS = {
     "repoEndpoint": "https://repo-prod.prod.sagebase.org/repo/v1",
@@ -219,6 +222,7 @@ class Synapse(object):
     """
 
     # TODO: add additional boolean for write to disk?
+    @tracer.start_as_current_span("Synapse::__init__")
     def __init__(
         self,
         repoEndpoint=None,
@@ -383,6 +387,7 @@ class Synapse(object):
         self.fileHandleEndpoint = endpoints["fileHandleEndpoint"]
         self.portalEndpoint = endpoints["portalEndpoint"]
 
+    @tracer.start_as_current_span("Synapse::login")
     def login(
         self,
         email=None,
@@ -591,6 +596,7 @@ class Synapse(object):
             return False
         return True
 
+    @tracer.start_as_current_span("Synapse::logout")
     def logout(self, forgetMe=False):
         """
         Removes authentication information from the Synapse client.
@@ -1593,6 +1599,7 @@ class Synapse(object):
             )
         return self._user_name_cache[user_id]
 
+    @tracer.start_as_current_span("Synapse::_list")
     def _list(
         self,
         parent,
@@ -1953,6 +1960,7 @@ class Synapse(object):
     #                         Querying                         #
     ############################################################
 
+    @tracer.start_as_current_span("Synapse::getChildren")
     def getChildren(
         self,
         parent,
@@ -4822,6 +4830,7 @@ class Synapse(object):
         self._handle_synapse_http_error(response)
         return response
 
+    @tracer.start_as_current_span("Synapse::restGET")
     def restGET(
         self,
         uri,
@@ -4843,11 +4852,13 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
+        trace.get_current_span().set_attributes({"uri": uri})
         response = self._rest_call(
             "get", uri, None, endpoint, headers, retryPolicy, requests_session, **kwargs
         )
         return self._return_rest_body(response)
 
+    @tracer.start_as_current_span("Synapse::restPOST")
     def restPOST(
         self,
         uri,
@@ -4883,6 +4894,7 @@ class Synapse(object):
         )
         return self._return_rest_body(response)
 
+    @tracer.start_as_current_span("Synapse::restPUT")
     def restPUT(
         self,
         uri,
@@ -4911,6 +4923,7 @@ class Synapse(object):
         )
         return self._return_rest_body(response)
 
+    @tracer.start_as_current_span("Synapse::restDELETE")
     def restDELETE(
         self,
         uri,

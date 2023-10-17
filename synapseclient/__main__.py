@@ -29,6 +29,17 @@ from synapseclient.core.exceptions import (
     SynapseFileNotFoundError,
     SynapseNoCredentialsError,
 )
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+trace.set_tracer_provider(
+    TracerProvider(resource=Resource(attributes={SERVICE_NAME: "synapseclient"}))
+)
+
+tracer = trace.get_tracer("synapseclient")
 
 
 def _init_console_logging():
@@ -92,6 +103,7 @@ def _getIdsFromQuery(queryString, syn, downloadLocation):
         )
 
 
+@tracer.start_as_current_span("main::get")
 def get(args, syn):
     syn.multi_threaded = args.multiThreaded
     if args.recursive:
@@ -324,8 +336,10 @@ def cat(args, syn):
                 sys.stdout.write(line)
 
 
-def ls(args, syn):
+@tracer.start_as_current_span("main::ls")
+def ls(args, syn: synapseclient.Synapse):
     """List entities in a Project or Folder"""
+    trace.get_current_span().set_attributes({"id": args.id})
     syn._list(
         args.id,
         recursive=args.recursive,
@@ -532,6 +546,7 @@ def _generate_new_config(auth_section):
     return new_config_text
 
 
+@tracer.start_as_current_span("main::config")
 def config(args, syn):
     """Create/modify a synapse configuration file"""
     user, secret = _prompt_for_credentials()
@@ -631,6 +646,7 @@ def get_download_list(args, syn):
     syn.logger.info(f"Manifest file: {manifest_path}")
 
 
+@tracer.start_as_current_span("main::login")
 def login(args, syn):
     """Log in to Synapse, optionally caching credentials"""
     login_with_prompt(
@@ -810,6 +826,14 @@ def build_parser():
         dest="skip_checks",
         action="store_true",
         help="suppress checking for version upgrade messages and endpoint redirection",
+    )
+
+    parser.add_argument(
+        "--otel",
+        type=str,
+        dest="otel",
+        choices=["console", "otlp"],
+        help="enabled the usage of OpenTelemetry for tracing",
     )
 
     subparsers = parser.add_subparsers(
@@ -1725,6 +1749,7 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
     return parser
 
 
+@tracer.start_as_current_span("main::perform_main")
 def perform_main(args, syn):
     if "func" in args:
         if args.func != login and args.func != config:
@@ -1743,6 +1768,7 @@ def perform_main(args, syn):
         build_parser().print_help()
 
 
+@tracer.start_as_current_span("main::login_with_prompt")
 def login_with_prompt(
     syn, user, password, rememberMe=False, silent=False, forced=False
 ):
@@ -1782,6 +1808,7 @@ def _prompt_for_credentials(user=None):
     return user, passwd
 
 
+@tracer.start_as_current_span("main::_authenticate_login")
 def _authenticate_login(syn, user, secret, **login_kwargs):
     # login using the given secret.
     # we try logging in using the secret as a password, a auth bearer token, an api key in that order.
@@ -1828,11 +1855,20 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
         raise first_auth_ex or SynapseNoCredentialsError()
 
 
+@tracer.start_as_current_span("main::main")
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT["User-Agent"] = (
         "synapsecommandlineclient " + synapseclient.USER_AGENT["User-Agent"]
     )
+    if args.otel == "otlp":
+        trace.get_tracer_provider().add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter())
+        )
+    elif args.otel == "console":
+        trace.get_tracer_provider().add_span_processor(
+            BatchSpanProcessor(ConsoleSpanExporter())
+        )
     syn = synapseclient.Synapse(
         debug=args.debug,
         skip_checks=args.skip_checks,

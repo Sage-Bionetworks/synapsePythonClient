@@ -151,6 +151,37 @@ The purpose of synapseutils is to create a space filled with convenience functio
         print(dirname)
         print(filename)
 
+OpenTelemetry (OTEL)
+--------------------------------
+[OpenTelemetry](https://opentelemetry.io/) is a tool that can be used to collect telemetry data. The synapseclient is ready to provide metrics should you want them.
+
+The Synapse Python client supports OTLP Exports and can be configured via environment variables as defined [here](https://opentelemetry-python.readthedocs.io/en/stable/exporter/otlp/otlp.html).
+
+#### Sample PoC content (To be cleaned up/moved):
+A sample proof of concept using a jaeger back-end.
+
+Running the latest jaeger via this docker command allows it to accept OTLP traces allowing for the removal of jaeger to be a dependency within the python project:
+```
+docker run --name jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 16686:16686 \
+  -p 4317:4317 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+```
+Explanation of ports:
+* `4317` gRPC
+* `4318` HTTP
+* `16686` Jaeger UI
+
+Once the docker container is running you can access the Jaeger UI via: `http://localhost:16686`
+
+Setting the OTEL endpoint to the jaeger docker container via environment variables:
+```
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+```
+
+
 
 License and Copyright
 ---------------------
