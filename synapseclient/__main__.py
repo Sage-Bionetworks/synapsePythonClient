@@ -34,10 +34,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-
-trace.set_tracer_provider(
-    TracerProvider(resource=Resource(attributes={SERVICE_NAME: "synapseclient"}))
-)
+from opentelemetry.sdk.trace.sampling import ALWAYS_OFF, ALWAYS_ON, ParentBased
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -1855,27 +1852,37 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
         raise first_auth_ex or SynapseNoCredentialsError()
 
 
-@tracer.start_as_current_span("main::main")
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT["User-Agent"] = (
         "synapsecommandlineclient " + synapseclient.USER_AGENT["User-Agent"]
     )
-    if args.otel == "otlp":
-        trace.get_tracer_provider().add_span_processor(
-            BatchSpanProcessor(OTLPSpanExporter())
+    if args.otel:
+        trace.set_tracer_provider(
+            TracerProvider(
+                sampler=ParentBased(ALWAYS_ON),
+                resource=Resource(attributes={SERVICE_NAME: "synapseclient"}),
+            )
         )
-    elif args.otel == "console":
-        trace.get_tracer_provider().add_span_processor(
-            BatchSpanProcessor(ConsoleSpanExporter())
+        if args.otel == "otlp":
+            trace.get_tracer_provider().add_span_processor(
+                BatchSpanProcessor(OTLPSpanExporter())
+            )
+        elif args.otel == "console":
+            trace.get_tracer_provider().add_span_processor(
+                BatchSpanProcessor(ConsoleSpanExporter())
+            )
+    else:
+        trace.set_tracer_provider(TracerProvider(sampler=ParentBased(ALWAYS_OFF)))
+
+    with tracer.start_as_current_span("main::main"):
+        syn = synapseclient.Synapse(
+            debug=args.debug,
+            skip_checks=args.skip_checks,
+            configPath=args.configPath,
+            silent=args.silent,
         )
-    syn = synapseclient.Synapse(
-        debug=args.debug,
-        skip_checks=args.skip_checks,
-        configPath=args.configPath,
-        silent=args.silent,
-    )
-    perform_main(args, syn)
+        perform_main(args, syn)
 
 
 if __name__ == "__main__":
