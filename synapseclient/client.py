@@ -173,7 +173,7 @@ mimetypes.add_type("text/x-markdown", ".markdown", strict=False)
 DEFAULT_STORAGE_LOCATION_ID = 1
 
 
-def login(*args, **kwargs) -> synapseclient.Synapse:
+def login(*args, **kwargs):
     """
     Convenience method to create a Synapse object and login.
 
