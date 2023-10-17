@@ -521,7 +521,7 @@ class Synapse(object):
             config_file_constants.AUTHENTICATION_SECTION_NAME
         )
 
-    def _get_client_authenticated_s3_profile(self, endpoint: str, bucket: str) -> dict:
+    def _get_client_authenticated_s3_profile(self, endpoint: str, bucket: str) -> str:
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get(
             "profile_name", "default"
@@ -654,7 +654,7 @@ class Synapse(object):
             )
         )
 
-    def _findPrincipals(self, query_string: str) -> list:
+    def _findPrincipals(self, query_string: str) -> typing.List[UserGroupHeader]:
         """
         Find users or groups by name or email.
 
