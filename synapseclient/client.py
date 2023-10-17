@@ -221,16 +221,16 @@ class Synapse(object):
     # TODO: add additional boolean for write to disk?
     def __init__(
         self,
-        repoEndpoint=None,
-        authEndpoint=None,
-        fileHandleEndpoint=None,
-        portalEndpoint=None,
-        debug=None,
-        skip_checks=False,
-        configPath=CONFIG_FILE,
-        requests_session=None,
-        cache_root_dir=None,
-        silent=None,
+        repoEndpoint: str = None,
+        authEndpoint: str = None,
+        fileHandleEndpoint: str = None,
+        portalEndpoint: str = None,
+        debug: bool = None,
+        skip_checks: bool = False,
+        configPath: str = CONFIG_FILE,
+        requests_session: requests.Session = None,
+        cache_root_dir: str = None,
+        silent: bool = None,
     ):
         self._requests_session = requests_session or requests.Session()
 
@@ -309,7 +309,7 @@ class Synapse(object):
         return self.credentials.username if self.credentials is not None else None
 
     @functools.lru_cache()
-    def getConfigFile(self, configPath):
+    def getConfigFile(self, configPath: str):
         """
         Retrieves the client configuration information.
 
@@ -328,11 +328,11 @@ class Synapse(object):
 
     def setEndpoints(
         self,
-        repoEndpoint=None,
-        authEndpoint=None,
-        fileHandleEndpoint=None,
-        portalEndpoint=None,
-        skip_checks=False,
+        repoEndpoint: str = None,
+        authEndpoint: str = None,
+        fileHandleEndpoint: str = None,
+        portalEndpoint: str = None,
+        skip_checks: bool = False,
     ):
         """
         Sets the locations for each of the Synapse services (mostly useful for testing).
@@ -385,14 +385,14 @@ class Synapse(object):
 
     def login(
         self,
-        email=None,
-        password=None,
-        apiKey=None,
-        sessionToken=None,
-        rememberMe=False,
-        silent=False,
-        forced=False,
-        authToken=None,
+        email: str = None,
+        password: str = None,
+        apiKey: str = None,
+        sessionToken: str = None,
+        rememberMe: bool = False,
+        silent: bool = False,
+        forced: bool = False,
+        authToken: str = None,
     ):
         """
         Valid combinations of login() arguments:
@@ -508,7 +508,7 @@ class Synapse(object):
                 )
             )
 
-    def _get_config_section_dict(self, section_name):
+    def _get_config_section_dict(self, section_name: str):
         config = self.getConfigFile(self.configPath)
         try:
             return dict(config.items(section_name))
@@ -521,7 +521,7 @@ class Synapse(object):
             config_file_constants.AUTHENTICATION_SECTION_NAME
         )
 
-    def _get_client_authenticated_s3_profile(self, endpoint, bucket):
+    def _get_client_authenticated_s3_profile(self, endpoint: str, bucket: str):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get(
             "profile_name", "default"
@@ -552,7 +552,7 @@ class Synapse(object):
 
         return transfer_config
 
-    def _getSessionToken(self, email, password):
+    def _getSessionToken(self, email: str, password: str):
         """Returns a validated session token."""
         try:
             req = {"email": email, "password": password}
@@ -572,7 +572,7 @@ class Synapse(object):
                 raise SynapseAuthenticationError("Invalid username or password.")
             raise
 
-    def _getAPIKey(self, sessionToken):
+    def _getAPIKey(self, sessionToken: str):
         """Uses a session token to fetch an API key."""
 
         headers = {"sessionToken": sessionToken, "Accept": "application/json"}
@@ -591,7 +591,7 @@ class Synapse(object):
             return False
         return True
 
-    def logout(self, forgetMe=False):
+    def logout(self, forgetMe: bool = False):
         """
         Removes authentication information from the Synapse client.
 
@@ -654,7 +654,7 @@ class Synapse(object):
             )
         )
 
-    def _findPrincipals(self, query_string):
+    def _findPrincipals(self, query_string: str) -> list:
         """
         Find users or groups by name or email.
 
