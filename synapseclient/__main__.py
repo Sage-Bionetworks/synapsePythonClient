@@ -379,8 +379,8 @@ def onweb(args, syn):
     syn.onweb(args.id)
 
 
-def setProvenance(args, syn):
-    """Set provenance information on a synapse entity."""
+def set_activity(args, syn: synapseclient.Synapse):
+    """Set activity information on a synapse entity."""
 
     activity = Activity(name=args.name, description=args.description)
 
@@ -390,7 +390,7 @@ def setProvenance(args, syn):
     if args.executed:
         for item in syn._convertProvenanceList(args.executed, args.limitSearch):
             activity.used(item, wasExecuted=True)
-    activity = syn.setProvenance(args.id, activity)
+    activity = syn.set_activity(args.id, activity)
 
     # Display the activity record, if -o or -output specified
     if args.output:
@@ -403,8 +403,20 @@ def setProvenance(args, syn):
                 f.write("\n")
     else:
         syn.logger.info(
-            "Set provenance record %s on entity %s\n", str(activity["id"]), str(args.id)
+            "Set activity record %s on entity %s\n", str(activity["id"]), str(args.id)
         )
+
+
+@deprecated.sphinx.deprecated(
+    version="3.1.0",
+    reason="deprecated and replaced with :py:meth:`set_activity`",
+)
+def setProvenance(args, syn):
+    """Set provenance information on a synapse entity."""
+    syn.logger.warn(
+        "deprecated and replaced with `set_activity` -- Deprecated since version 3.1.0"
+    )
+    set_activity(args, syn)
 
 
 def get_activity(args, syn: synapseclient.Synapse):
@@ -423,6 +435,9 @@ def get_activity(args, syn: synapseclient.Synapse):
     reason="deprecated and replaced with :py:meth:`get_activity`",
 )
 def getProvenance(args, syn: synapseclient.Synapse):
+    syn.logger.warn(
+        "deprecated and replaced with `get_activity` -- Deprecated since version 3.1.0"
+    )
     get_activity(args, syn)
 
 
@@ -1417,7 +1432,8 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
     parser_config.set_defaults(func=config)
 
     parser_set_provenance = subparsers.add_parser(
-        "set-provenance", help="create provenance records"
+        "set-provenance",
+        help="create provenance records. This is *deprecated* - Swap to using `set-activity` instead.",
     )
     parser_set_provenance.add_argument(
         "--id",
@@ -1465,8 +1481,58 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
     )
     parser_set_provenance.set_defaults(func=setProvenance)
 
+    parser_set_activity = subparsers.add_parser(
+        "set-activity", help="create activity records"
+    )
+    parser_set_activity.add_argument(
+        "--id",
+        metavar="syn123",
+        type=str,
+        required=True,
+        help="Synapse ID of entity whose activity we are accessing.",
+    )
+    parser_set_activity.add_argument(
+        "--name",
+        metavar="NAME",
+        type=str,
+        required=False,
+        help="Name of the activity that generated the entity",
+    )
+    parser_set_activity.add_argument(
+        "--description",
+        metavar="DESCRIPTION",
+        type=str,
+        required=False,
+        help="Description of the activity that generated the entity",
+    )
+    parser_set_activity.add_argument(
+        "-o",
+        "--output",
+        metavar="OUTPUT_FILE",
+        dest="output",
+        const="STDOUT",
+        nargs="?",
+        type=str,
+        help="Output the activity record in JSON format",
+    )
+    parser_set_activity.add_argument(
+        "--used", metavar="target", type=str, nargs="*", help=USED_HELP
+    )
+    parser_set_activity.add_argument(
+        "--executed", metavar="target", type=str, nargs="*", help=EXECUTED_HELP
+    )
+    parser_set_activity.add_argument(
+        "--limitSearch",
+        metavar="projId",
+        type=str,
+        help="Synapse ID of a container such as project or folder to limit search for "
+        "activity files.",
+    )
+    parser_set_activity.set_defaults(func=set_activity)
+
     parser_get_provenance = subparsers.add_parser(
-        "get-provenance", help="show provenance records"
+        "get-provenance",
+        help="show provenance records. This is *deprecated* - Swap to using `get-activity` instead.",
     )
     parser_get_provenance.add_argument(
         "--id",
@@ -1493,7 +1559,37 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
         type=str,
         help="Output the provenance record in JSON format",
     )
-    parser_get_provenance.set_defaults(func=get_activity)
+    parser_get_provenance.set_defaults(func=getProvenance)
+
+    parser_get_activity = subparsers.add_parser(
+        "get-activity", help="show activity records."
+    )
+    parser_get_activity.add_argument(
+        "--id",
+        metavar="syn123",
+        type=str,
+        required=True,
+        help="Synapse ID of entity whose activity we are accessing.",
+    )
+    parser_get_activity.add_argument(
+        "--version",
+        metavar="version",
+        type=int,
+        required=False,
+        help="version of Synapse entity whose activity we are accessing.",
+    )
+
+    parser_get_activity.add_argument(
+        "-o",
+        "--output",
+        metavar="OUTPUT_FILE",
+        dest="output",
+        const="STDOUT",
+        nargs="?",
+        type=str,
+        help="Output the activity record in JSON format",
+    )
+    parser_get_activity.set_defaults(func=get_activity)
 
     parser_set_annotations = subparsers.add_parser(
         "set-annotations", help="create annotations records"

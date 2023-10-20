@@ -355,7 +355,7 @@ def test_store_activity(syn, project, schedule_for_cleanup):
     entity = syn.store(entity, activity=honking)
 
     # But this does
-    honking = syn.getProvenance(entity.id)
+    honking = syn.get_activity(entity.id)
 
     # Verify the Activity
     assert honking["name"] == "Hinkle horn honking"
@@ -384,7 +384,7 @@ def test_store_activity(syn, project, schedule_for_cleanup):
     entity = syn.store(entity, activity=honking)
 
     # The Activities should match
-    honking2 = syn.getProvenance(entity)
+    honking2 = syn.get_activity(entity)
     assert honking["id"] == honking2["id"]
 
 

@@ -1460,7 +1460,7 @@ class Synapse(object):
 
         # If we have an Activity, set it as the Entity's provenance record
         if activity:
-            self.setProvenance(properties, activity)
+            self.set_activity(properties, activity)
 
             # 'etag' has changed, so get the new Entity
             properties = self._getEntity(properties)
@@ -2231,7 +2231,7 @@ class Synapse(object):
     ############################################################
     def get_activity(
         self, entity: typing.Union[Entity, str, numbers.Number], version: str = None
-    ) -> any:
+    ) -> Activity:
         """
         Retrieve provenance information for a Synapse Entity.
 
@@ -2259,7 +2259,7 @@ class Synapse(object):
     )
     def getProvenance(
         self, entity: typing.Union[Entity, str, numbers.Number], version: str = None
-    ):
+    ) -> Activity:
         """
         Deprecated and replaced with :py:meth:`get_activity`.
 
@@ -2274,7 +2274,26 @@ class Synapse(object):
         """
         return self.get_activity(entity, version)
 
-    def setProvenance(self, entity, activity):
+    @deprecated.sphinx.deprecated(
+        version="3.1.0",
+        reason="deprecated and replaced with :py:meth:`set_activity`",
+    )
+    def setProvenance(
+        self, entity: typing.Union[Entity, str, numbers.Number], activity: Activity
+    ):
+        """
+        Stores a record of the code and data used to derive a Synapse entity.
+
+        :param entity:   An Entity or Synapse ID to modify
+        :param activity: a :py:class:`synapseclient.activity.Activity`
+
+        :returns: An updated :py:class:`synapseclient.activity.Activity` object
+        """
+        return self.set_activity(entity, activity)
+
+    def set_activity(
+        self, entity: typing.Union[Entity, str, numbers.Number], activity: Activity
+    ):
         """
         Stores a record of the code and data used to derive a Synapse entity.
 
@@ -2293,9 +2312,25 @@ class Synapse(object):
 
         return activity
 
-    def deleteProvenance(self, entity):
+    @deprecated.sphinx.deprecated(
+        version="3.1.0",
+        reason="deprecated and replaced with :py:meth:`delete_activity`",
+    )
+    def deleteProvenance(
+        self, entity: typing.Union[Entity, str, numbers.Number]
+    ) -> None:
         """
         Removes provenance information from an Entity and deletes the associated Activity.
+
+        :param entity: An Entity or Synapse ID to modify
+        """
+        self.delete_activity(entity)
+
+    def delete_activity(
+        self, entity: typing.Union[Entity, str, numbers.Number]
+    ) -> None:
+        """
+        Removes activity information from an Entity and deletes the associated Activity.
 
         :param entity: An Entity or Synapse ID to modify
         """

@@ -51,7 +51,7 @@ def test_copy(syn, schedule_for_cleanup):
     )
     syn.set_annotations(Annotations(file_entity, file_entity.etag, annos))
     syn.set_annotations(Annotations(externalURL_entity, externalURL_entity.etag, annos))
-    syn.setProvenance(externalURL_entity.id, prov)
+    syn.set_activity(externalURL_entity.id, prov)
     schedule_for_cleanup(file_entity.id)
     schedule_for_cleanup(externalURL_entity.id)
     # ------------------------------------
@@ -71,8 +71,8 @@ def test_copy(syn, schedule_for_cleanup):
 
     copied_ent_annot = syn.get_annotations(copied_ent)
     copied_url_annot = syn.get_annotations(copied_URL_ent)
-    copied_prov = syn.getProvenance(copied_ent)
-    copied_url_prov = syn.getProvenance(copied_URL_ent)
+    copied_prov = syn.get_activity(copied_ent)
+    copied_url_prov = syn.get_activity(copied_URL_ent)
     schedule_for_cleanup(copied_ent.id)
     schedule_for_cleanup(copied_URL_ent.id)
 
@@ -111,27 +111,27 @@ def test_copy(syn, schedule_for_cleanup):
         syn,
         file_entity.id,
         destinationId=third_folder.id,
-        setProvenance="gib",
+        set_activity="gib",
     )
     pytest.raises(
         ValueError, synapseutils.copy, syn, file_entity.id, destinationId=file_entity.id
     )
 
-    # Test: setProvenance = None
+    # Test: set_activity = None
     output = synapseutils.copy(
-        syn, file_entity.id, destinationId=second_folder.id, setProvenance=None
+        syn, file_entity.id, destinationId=second_folder.id, set_activity=None
     )
-    pytest.raises(SynapseHTTPError, syn.getProvenance, output[file_entity.id])
+    pytest.raises(SynapseHTTPError, syn.get_activity, output[file_entity.id])
     schedule_for_cleanup(output[file_entity.id])
 
-    # Test: setProvenance = Existing
+    # Test: set_activity = Existing
     output_URL = synapseutils.copy(
         syn,
         externalURL_entity.id,
         destinationId=second_folder.id,
-        setProvenance="existing",
+        set_activity="existing",
     )
-    output_prov = syn.getProvenance(output_URL[externalURL_entity.id])
+    output_prov = syn.get_activity(output_URL[externalURL_entity.id])
     schedule_for_cleanup(output_URL[externalURL_entity.id])
     assert output_prov["name"] == prov["name"]
     assert output_prov["used"] == prov["used"]

@@ -701,10 +701,10 @@ def test_command_copy(test_state):
     copied_ent_annot = test_state.syn.get_annotations(copied_id)
     copied_url_annot = test_state.syn.get_annotations(copied_URL_id)
 
-    copied_prov = test_state.syn.getProvenance(copied_id)["used"][0]["reference"][
+    copied_prov = test_state.syn.get_activity(copied_id)["used"][0]["reference"][
         "targetId"
     ]
-    copied_url_prov = test_state.syn.getProvenance(copied_URL_id)["used"][0][
+    copied_url_prov = test_state.syn.get_activity(copied_URL_id)["used"][0][
         "reference"
     ]["targetId"]
 

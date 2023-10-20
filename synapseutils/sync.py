@@ -2,14 +2,17 @@ import csv
 import concurrent.futures
 from contextlib import contextmanager
 import io
+import numbers
 import os
 import re
 import sys
 import threading
 import typing
 
+import synapseclient
+
 from .monitor import notifyMe
-from synapseclient.entity import is_container
+from synapseclient.entity import Entity, is_container
 from synapseclient.core import config
 from synapseclient.core.utils import id_of, is_url, is_synapse_id_str
 from synapseclient import File, table
@@ -764,18 +767,20 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     return keys, data
 
 
-def _get_file_entity_provenance_dict(syn, entity):
+def _get_file_entity_provenance_dict(
+    syn: synapseclient.Synapse, entity: typing.Union[Entity, str, numbers.Number]
+) -> dict:
     """
     Returns a dict with a subset of the provenance metadata for the entity.
     An empty dict is returned if the metadata does not have a provenance record.
     """
     try:
-        prov = syn.getProvenance(entity)
+        activity = syn.get_activity(entity)
         return {
-            "used": ";".join(prov._getUsedStringList()),
-            "executed": ";".join(prov._getExecutedStringList()),
-            "activityName": prov.get("name", ""),
-            "activityDescription": prov.get("description", ""),
+            "used": ";".join(activity._getUsedStringList()),
+            "executed": ";".join(activity._getExecutedStringList()),
+            "activityName": activity.get("name", ""),
+            "activityDescription": activity.get("description", ""),
         }
     except SynapseHTTPError as e:
         if e.response.status_code == 404:

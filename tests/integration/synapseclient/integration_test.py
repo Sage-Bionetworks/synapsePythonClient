@@ -350,10 +350,10 @@ def test_provenance(syn, project, schedule_for_cleanup):
         {"name": "Superhack", "url": "https://github.com/joe_coder/Superhack"},
         wasExecuted=True,
     )
-    activity = syn.setProvenance(data_entity, activity)
+    activity = syn.set_activity(data_entity, activity)
 
     # Retrieve and verify the saved Provenance record
-    retrieved_activity = syn.getProvenance(data_entity)
+    retrieved_activity = syn.get_activity(data_entity)
     assert retrieved_activity == activity
 
     # Test Activity update
@@ -365,7 +365,7 @@ def test_provenance(syn, project, schedule_for_cleanup):
 
     # Test delete
     syn.deleteProvenance(data_entity)
-    pytest.raises(SynapseHTTPError, syn.getProvenance, data_entity["id"])
+    pytest.raises(SynapseHTTPError, syn.get_activity, data_entity["id"])
 
 
 def test_annotations(syn, project, schedule_for_cleanup):

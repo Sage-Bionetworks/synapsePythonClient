@@ -456,13 +456,13 @@ def test_syncFromSynase__manifest(syn):
     def syn_get_side_effect(entity, *args, **kwargs):
         return entities[id_of(entity)]
 
-    file_1_provenance = Activity(
+    file_1_activity = Activity(
         data={
             "used": "",
             "executed": "",
         }
     )
-    file_2_provenance = Activity(
+    file_2_activity = Activity(
         data={
             "used": "",
             "executed": "",
@@ -471,13 +471,13 @@ def test_syncFromSynase__manifest(syn):
         }
     )
 
-    provenance = {
-        file1.id: file_1_provenance,
-        file2.id: file_2_provenance,
+    activity = {
+        file1.id: file_1_activity,
+        file2.id: file_2_activity,
     }
 
-    def getProvenance_side_effect(entity, *args, **kwargs):
-        return provenance[id_of(entity)]
+    def get_activity_side_effect(entity, *args, **kwargs):
+        return activity[id_of(entity)]
 
     expected_project_manifest = f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
 {path1}\tsyn123\tfile1\tsyn456\tTrue\t\t\t\t\t
@@ -494,9 +494,9 @@ def test_syncFromSynase__manifest(syn):
         with patch.object(
             syn, "getChildren", side_effect=[[folder, file1], [file2]]
         ), patch.object(syn, "get", side_effect=syn_get_side_effect), patch.object(
-            syn, "getProvenance"
+            syn, "get_activity"
         ) as patch_syn_get_provenance:
-            patch_syn_get_provenance.side_effect = getProvenance_side_effect
+            patch_syn_get_provenance.side_effect = get_activity_side_effect
 
             synced_files = synapseutils.syncFromSynapse(syn, project, path=sync_dir)
             assert sorted([id_of(e) for e in expected_synced_files]) == sorted(
@@ -1102,7 +1102,7 @@ class TestGetFileEntityProvenanceDict:
         self.mock_syn = create_autospec(Synapse)
 
     def test_get_file_entity_provenance_dict__error_is_404(self):
-        self.mock_syn.getProvenance.side_effect = SynapseHTTPError(
+        self.mock_syn.get_activity.side_effect = SynapseHTTPError(
             response=Mock(status_code=404)
         )
 
@@ -1112,7 +1112,7 @@ class TestGetFileEntityProvenanceDict:
         assert {} == result_dict
 
     def test_get_file_entity_provenance_dict__error_not_404(self):
-        self.mock_syn.getProvenance.side_effect = SynapseHTTPError(
+        self.mock_syn.get_activity.side_effect = SynapseHTTPError(
             response=Mock(status_code=400)
         )
 
