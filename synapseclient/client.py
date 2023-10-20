@@ -94,7 +94,6 @@ from synapseclient.core.utils import (
     id_of,
     get_properties,
     MB,
-    memoize,
     is_json,
     extract_synapse_id_from_query,
     find_data_file_handle,
@@ -119,7 +118,7 @@ from synapseclient.core.upload.upload_functions import (
     upload_synapse_s3,
 )
 from synapseclient.core.dozer import doze
-
+from typing import Union
 
 PRODUCTION_ENDPOINTS = {
     "repoEndpoint": "https://repo-prod.prod.sagebase.org/repo/v1",
@@ -223,16 +222,16 @@ class Synapse(object):
     # TODO: add additional boolean for write to disk?
     def __init__(
         self,
-        repoEndpoint=None,
-        authEndpoint=None,
-        fileHandleEndpoint=None,
-        portalEndpoint=None,
-        debug=None,
-        skip_checks=False,
-        configPath=CONFIG_FILE,
-        requests_session=None,
-        cache_root_dir=None,
-        silent=None,
+        repoEndpoint: str = None,
+        authEndpoint: str = None,
+        fileHandleEndpoint: str = None,
+        portalEndpoint: str = None,
+        debug: bool = None,
+        skip_checks: bool = False,
+        configPath: str = CONFIG_FILE,
+        requests_session: requests.Session = None,
+        cache_root_dir: str = None,
+        silent: bool = None,
     ):
         self._requests_session = requests_session or requests.Session()
 
@@ -298,7 +297,7 @@ class Synapse(object):
         logging.getLogger("py.warnings").handlers = self.logger.handlers
 
     @property
-    def max_threads(self):
+    def max_threads(self) -> int:
         return self._max_threads
 
     @max_threads.setter
@@ -306,12 +305,12 @@ class Synapse(object):
         self._max_threads = min(max(value, 1), MAX_THREADS_CAP)
 
     @property
-    def username(self):
+    def username(self) -> Union[str, None]:
         # for backwards compatability when username was a part of the Synapse object and not in credentials
         return self.credentials.username if self.credentials is not None else None
 
     @functools.lru_cache()
-    def getConfigFile(self, configPath):
+    def getConfigFile(self, configPath: str) -> configparser.RawConfigParser:
         """
         Retrieves the client configuration information.
 
@@ -330,11 +329,11 @@ class Synapse(object):
 
     def setEndpoints(
         self,
-        repoEndpoint=None,
-        authEndpoint=None,
-        fileHandleEndpoint=None,
-        portalEndpoint=None,
-        skip_checks=False,
+        repoEndpoint: str = None,
+        authEndpoint: str = None,
+        fileHandleEndpoint: str = None,
+        portalEndpoint: str = None,
+        skip_checks: bool = False,
     ):
         """
         Sets the locations for each of the Synapse services (mostly useful for testing).
@@ -387,14 +386,14 @@ class Synapse(object):
 
     def login(
         self,
-        email=None,
-        password=None,
-        apiKey=None,
-        sessionToken=None,
-        rememberMe=False,
-        silent=False,
-        forced=False,
-        authToken=None,
+        email: str = None,
+        password: str = None,
+        apiKey: str = None,
+        sessionToken: str = None,
+        rememberMe: bool = False,
+        silent: bool = False,
+        forced: bool = False,
+        authToken: str = None,
     ):
         """
         Valid combinations of login() arguments:
@@ -499,7 +498,7 @@ class Synapse(object):
             cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
-            profile = self.getUserProfile(refresh=True)
+            profile = self.getUserProfile()
             # TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
             self.logger.info(
                 "Welcome, %s!\n"
@@ -510,7 +509,7 @@ class Synapse(object):
                 )
             )
 
-    def _get_config_section_dict(self, section_name):
+    def _get_config_section_dict(self, section_name: str) -> dict:
         config = self.getConfigFile(self.configPath)
         try:
             return dict(config.items(section_name))
@@ -518,18 +517,18 @@ class Synapse(object):
             # section not present
             return {}
 
-    def _get_config_authentication(self):
+    def _get_config_authentication(self) -> str:
         return self._get_config_section_dict(
             config_file_constants.AUTHENTICATION_SECTION_NAME
         )
 
-    def _get_client_authenticated_s3_profile(self, endpoint, bucket):
+    def _get_client_authenticated_s3_profile(self, endpoint: str, bucket: str) -> str:
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get(
             "profile_name", "default"
         )
 
-    def _get_transfer_config(self):
+    def _get_transfer_config(self) -> dict:
         # defaults
         transfer_config = {"max_threads": DEFAULT_NUM_THREADS, "use_boto_sts": False}
 
@@ -554,7 +553,7 @@ class Synapse(object):
 
         return transfer_config
 
-    def _getSessionToken(self, email, password):
+    def _getSessionToken(self, email: str, password: str) -> str:
         """Returns a validated session token."""
         try:
             req = {"email": email, "password": password}
@@ -574,7 +573,7 @@ class Synapse(object):
                 raise SynapseAuthenticationError("Invalid username or password.")
             raise
 
-    def _getAPIKey(self, sessionToken):
+    def _getAPIKey(self, sessionToken: str) -> str:
         """Uses a session token to fetch an API key."""
 
         headers = {"sessionToken": sessionToken, "Accept": "application/json"}
@@ -593,7 +592,7 @@ class Synapse(object):
             return False
         return True
 
-    def logout(self, forgetMe=False):
+    def logout(self, forgetMe: bool = False):
         """
         Removes authentication information from the Synapse client.
 
@@ -613,21 +612,23 @@ class Synapse(object):
         if self._is_logged_in():
             self.restDELETE("/secretKey", endpoint=self.authEndpoint)
 
-    @memoize
-    def getUserProfile(self, id=None, sessionToken=None, refresh=False):
+    @functools.lru_cache()
+    def getUserProfile(
+        self,
+        id: Union[str, int, UserProfile, TeamMember] = None,
+        sessionToken: str = None,
+    ) -> UserProfile:
         """
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted.
         :param id:           The 'userId' (aka 'ownerId') of a user or the userName
         :param sessionToken: The session token to use to find the user profile
-        :param refresh:      If set to True will always fetch the data from Synape otherwise will use cached information
         :returns: The user profile for the user of interest.
 
         Example::
             my_profile = syn.getUserProfile()
             freds_profile = syn.getUserProfile('fredcommo')
         """
-
         try:
             # if id is unset or a userID, this will succeed
             id = "" if id is None else int(id)
@@ -648,14 +649,13 @@ class Synapse(object):
                     else:  # no break
                         raise ValueError('Can\'t find user "%s": ' % id)
         uri = "/userProfile/%s" % id
-
         return UserProfile(
             **self.restGET(
                 uri, headers={"sessionToken": sessionToken} if sessionToken else None
             )
         )
 
-    def _findPrincipals(self, query_string):
+    def _findPrincipals(self, query_string: str) -> typing.List[UserGroupHeader]:
         """
         Find users or groups by name or email.
 
@@ -687,6 +687,22 @@ class Synapse(object):
             https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/quiz/PassingRecord.html
         """
         response = self.restGET(f"/user/{userid}/certifiedUserPassingRecord")
+        return response
+
+    def _get_user_bundle(self, userid: int, mask: int) -> dict:
+        """Retrieve the user bundle for the given user.
+
+        :params userid: Synapse user Id
+        :params mask: Bit field indicating which components to include in the bundle.
+
+        :returns: Synapse User Bundle
+            https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserBundle.html
+        """
+        try:
+            response = self.restGET(f"/user/{userid}/bundle?mask={mask}")
+        except SynapseHTTPError as ex:
+            if ex.response.status_code == 404:
+                return None
         return response
 
     def is_certified(self, user: typing.Union[str, int]) -> bool:
@@ -2057,7 +2073,7 @@ class Synapse(object):
             else:
                 return self.restPOST(uri, json.dumps(acl))
 
-    def _getUserbyPrincipalIdOrName(self, principalId=None):
+    def _getUserbyPrincipalIdOrName(self, principalId: str = None):
         """
         Given either a string, int or None finds the corresponding user where None implies PUBLIC
 
@@ -2088,7 +2104,11 @@ class Synapse(object):
                 "Unknown Synapse user (%s).  %s." % (principalId, supplementalMessage)
             )
 
-    def getPermissions(self, entity, principalId=None):
+    def getPermissions(
+        self,
+        entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
+        principalId: str = None,
+    ):
         """Get the permissions that a user or group has on an Entity.
 
         :param entity:      An Entity or Synapse ID to lookup
@@ -2099,15 +2119,36 @@ class Synapse(object):
                   or an empty array
 
         """
-        # TODO: what if user has permissions by membership in a group?
-        principalId = self._getUserbyPrincipalIdOrName(principalId)
+        principal_id = self._getUserbyPrincipalIdOrName(principalId)
         acl = self._getACL(entity)
+
+        team_list = self._find_teams_for_principal(principal_id)
+        team_ids = [int(team.id) for team in team_list]
+        effective_permission_set = set()
+
+        # This user_profile_bundle is being used to verify that the principal_id is a registered user of the system
+        user_profile_bundle = self._get_user_bundle(principal_id, 1)
+
+        # Loop over all permissions in the returned ACL and add it to the effective_permission_set
+        # if the principalId in the ACL matches
+        # 1) the one we are looking for,
+        # 2) a team the entity is a member of,
+        # 3) PUBLIC
+        # 4) A user_profile_bundle exists for the principal_id
         for permissions in acl["resourceAccess"]:
-            if "principalId" in permissions and permissions["principalId"] == int(
-                principalId
+            if "principalId" in permissions and (
+                permissions["principalId"] == principal_id
+                or permissions["principalId"] in team_ids
+                or permissions["principalId"] == PUBLIC
+                or (
+                    permissions["principalId"] == AUTHENTICATED_USERS
+                    and user_profile_bundle is not None
+                )
             ):
-                return permissions["accessType"]
-        return []
+                effective_permission_set = effective_permission_set.union(
+                    permissions["accessType"]
+                )
+        return list(effective_permission_set)
 
     def setPermissions(
         self,
@@ -2625,7 +2666,7 @@ class Synapse(object):
                     else:
                         mode = "wb"
                         previouslyTransferred = 0
-                        sig = hashlib.md5()
+                        sig = hashlib.new("md5", usedforsecurity=False)
 
                     try:
                         with open(temp_destination, mode) as fd:
@@ -3124,6 +3165,18 @@ class Synapse(object):
         Retrieve a Teams matching the supplied name fragment
         """
         for result in self._GET_paginated("/teams?fragment=%s" % name):
+            yield Team(**result)
+
+    def _find_teams_for_principal(self, principal_id: str) -> typing.Iterator[Team]:
+        """
+        Retrieve a list of teams for the matching principal ID. If the principalId that is passed in is a team itself,
+        or not found, this will return a generator that yields no results.
+
+        :param principal_id: Identifier of a user or group.
+
+        :return:  A generator that yields objects of type :py:class:`synapseclient.team.Team`
+        """
+        for result in self._GET_paginated(f"/user/{principal_id}/team"):
             yield Team(**result)
 
     def getTeam(self, id):
@@ -4735,7 +4788,6 @@ class Synapse(object):
 
         if headers is None:
             headers = dict(self.default_headers)
-
         headers.update(synapseclient.USER_AGENT)
 
         return headers
@@ -4771,6 +4823,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(
             uri, endpoint=endpoint, headers=headers
         )
+
         retryPolicy = self._build_retry_policy(retryPolicy)
         requests_session = requests_session or self._requests_session
 
@@ -4787,6 +4840,7 @@ class Synapse(object):
             verbose=self.debug,
             **retryPolicy,
         )
+
         self._handle_synapse_http_error(response)
         return response
 
