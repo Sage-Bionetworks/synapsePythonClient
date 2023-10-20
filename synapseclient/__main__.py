@@ -1792,7 +1792,10 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
 
     login_attempts = (
         # a username is required when attempting a password login
-        ("password", lambda user, secret: user is not None and secret is not None),
+        (
+            "password",
+            lambda user, secret: user is not None and user != "" and secret is not None,
+        ),
         # auth token login can be attempted without a username.
         # although tokens are technically encoded, the client treats them as opaque so we don't do an encoding check
         # on the secret itself
@@ -1800,10 +1803,12 @@ def _authenticate_login(syn, user, secret, **login_kwargs):
         # username is required for an api key and secret is base 64 encoded
         (
             "apiKey",
-            lambda user, secret: user is not None and utils.is_base64_encoded(secret),
+            lambda user, secret: user is not None
+            and user != ""
+            and utils.is_base64_encoded(secret),
         ),
         # an inputless login (i.e. derived from config or cache)
-        (None, lambda user, secret: user is None and secret is None),
+        (None, lambda user, secret: (user is None or user == "") and secret is None),
     )
 
     first_auth_ex = None
