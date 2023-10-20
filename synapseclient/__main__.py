@@ -937,7 +937,7 @@ def build_parser():
         type=argparse.FileType("r"),
         help=(
             "A tsv file with file locations and metadata to be pushed to Synapse. "
-            "See https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncToSynapse "
+            "See https://python-docs.synapse.org/build/html/articles/synapseutils.html?highlight=synapseutils#synapseutils.sync.syncToSynapse"
             "for details on the format of a manifest."
         ),
     )
