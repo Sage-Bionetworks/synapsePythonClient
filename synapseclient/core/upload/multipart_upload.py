@@ -480,7 +480,7 @@ def multipart_upload_file(
         return _get_file_chunk(file_path, part_number, part_size)
 
     def md5_fn(part, _):
-        md5 = hashlib.md5(usedforsecurity=False)
+        md5 = hashlib.new("md5", usedforsecurity=False)
         md5.update(part)
         return md5.hexdigest()
 
@@ -531,9 +531,14 @@ def multipart_upload_string(
      https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
 
+    def md5_fn(part, _):
+        md5 = hashlib.new("md5", usedforsecurity=False)
+        md5.update(part)
+        return md5.hexdigest()
+
     data = text.encode("utf-8")
     file_size = len(data)
-    md5_hex = hashlib.md5(string=data, usedforsecurity=False).hexdigest()
+    md5_hex = md5_fn(data, None)
 
     if not dest_file_name:
         dest_file_name = "message.txt"
@@ -556,11 +561,6 @@ def multipart_upload_string(
 
     def part_fn(part_number):
         return _get_data_chunk(data, part_number, part_size)
-
-    def md5_fn(part, _):
-        md5 = hashlib.md5(usedforsecurity=False)
-        md5.update(part)
-        return md5.hexdigest()
 
     part_size = _get_part_size(part_size, file_size)
     return _multipart_upload(
