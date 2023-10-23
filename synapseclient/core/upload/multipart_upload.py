@@ -20,7 +20,6 @@ import requests
 import threading
 import time
 from typing import List, Mapping
-from core import utils
 
 from synapseclient.core.retry import with_retry
 from synapseclient.core import pool_provider
@@ -662,7 +661,7 @@ def _multipart_upload(
         except SynapseUploadFailedException as ex:
             syn.logger.error(
                 f"Failed in multipart upload. [retry: {retry < MAX_RETRIES}, \
-                    Error: {utils._synapse_error_msg(ex)}]"
+                    Error: {str(ex)}]"
             )
             if retry < MAX_RETRIES:
                 retry += 1
