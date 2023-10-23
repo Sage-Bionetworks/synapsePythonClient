@@ -122,6 +122,7 @@ def testCustomConfigFile(syn, schedule_for_cleanup):
         )
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_entity_version(syn, project, schedule_for_cleanup):
     # Make an Entity and make sure the version is one
     entity = File(parent=project["id"])
@@ -220,6 +221,7 @@ def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
     syn.get(entity["id"])
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_uploadFileEntity(syn, project, schedule_for_cleanup):
     # Create a FileEntity
     # Dictionaries default to FileEntity as a type

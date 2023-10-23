@@ -601,6 +601,7 @@ def test_store_DockerRepository(syn, project, schedule_for_cleanup):
     assert repo_name == docker_repo.repositoryName
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_store__changing_externalURL_by_changing_path(
     syn, project, schedule_for_cleanup
 ):
@@ -627,6 +628,7 @@ def test_store__changing_externalURL_by_changing_path(
     assert not ext.synapseStore
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_store__changing_from_Synapse_to_externalURL_by_changing_path(
     syn, project, schedule_for_cleanup
 ):
