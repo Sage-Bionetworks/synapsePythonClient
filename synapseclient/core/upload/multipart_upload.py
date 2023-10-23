@@ -20,6 +20,7 @@ import requests
 import threading
 import time
 from typing import List, Mapping
+from core import utils
 
 from synapseclient.core.retry import with_retry
 from synapseclient.core import pool_provider
@@ -480,7 +481,7 @@ def multipart_upload_file(
         return _get_file_chunk(file_path, part_number, part_size)
 
     def md5_fn(part, _):
-        md5 = hashlib.md5()
+        md5 = hashlib.md5(usedforsecurity=False)
         md5.update(part)
         return md5.hexdigest()
 
@@ -533,7 +534,7 @@ def multipart_upload_string(
 
     data = text.encode("utf-8")
     file_size = len(data)
-    md5_hex = hashlib.md5(data).hexdigest()
+    md5_hex = hashlib.md5(data, usedforsecurity=False).hexdigest()
 
     if not dest_file_name:
         dest_file_name = "message.txt"
@@ -558,7 +559,7 @@ def multipart_upload_string(
         return _get_data_chunk(data, part_number, part_size)
 
     def md5_fn(part, _):
-        md5 = hashlib.md5()
+        md5 = hashlib.md5(usedforsecurity=False)
         md5.update(part)
         return md5.hexdigest()
 
@@ -658,7 +659,11 @@ def _multipart_upload(
             # success
             return upload_status_response["resultFileHandleId"]
 
-        except SynapseUploadFailedException:
+        except SynapseUploadFailedException as ex:
+            syn.logger.error(
+                f"Failed in multipart upload. [retry: {retry < MAX_RETRIES}, \
+                    Error: {utils._synapse_error_msg(ex)}]"
+            )
             if retry < MAX_RETRIES:
                 retry += 1
             else:

@@ -133,7 +133,7 @@ def test_mock_download(syn):
     contents = "\n".join(str(i) for i in range(1000))
 
     # compute MD5 of contents
-    m = hashlib.md5()
+    m = hashlib.md5(usedforsecurity=False)
     m.update(contents.encode("utf-8"))
     contents_md5 = m.hexdigest()
 
@@ -724,7 +724,7 @@ def test_download_md5_mismatch_local_file(syn):
     ), patch.object(
         utils, "file_url_to_path", return_value=destination
     ) as mocked_file_url_to_path, patch.object(
-        utils, "md5_for_file", return_value=hashlib.md5()
+        utils, "md5_for_file", return_value=hashlib.md5(usedforsecurity=False)
     ) as mocked_md5_for_file, patch(
         "os.remove"
     ) as mocked_remove:
