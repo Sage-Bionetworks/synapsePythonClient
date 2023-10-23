@@ -4,6 +4,15 @@ Welcome, and thanks for your interest in contributing to the Synapse Python clie
 
 By contributing, you are agreeing that we may redistribute your work under this [license](LICENSE.md).
 
+- [How to contribute](#how-to-contribute)
+  - [Reporting bugs or feature requests](#reporting-bugs-or-feature-requests)
+  - [The development life cycle](#the-development-life-cycle)
+    - [Fork and clone this repository](#fork-and-clone-this-repository)
+    - [Installing the Python Client in a virtual environment with pipenv](#installing-the-python-client-in-a-virtual-environment-with-pipenv)
+    - [Development](#development)
+    - [Testing](#testing)
+- [Repository Admins](#repository-admins)
+
 ## I don't want to read this whole thing I just have a question!
 
 > **Note:** Please don't file an issue to ask a question. You'll get faster results by using the resources below.
@@ -44,6 +53,26 @@ Developing on the Python client starts with picking a issue to work on in JIRA! 
     git pull upstream develop
     ```
 
+#### Installing the Python Client in a virtual environment with pipenv
+Perform the following one-time steps to set up your local environment.
+
+1. This package uses Python, if you have not already, please install [pyenv](https://github.com/pyenv/pyenv#installation) to manage your Python versions. Versions supported by this package are all versions >=3.8 and <=3.11. If you do not install `pyenv` make sure that Python and `pip` are installed correctly and have been added to your PATH by running `python3 --version` and `pip3 --version`. If your installation was successful, your terminal will return the versions of Python and `pip` that you installed.  **Note**: If you have `pyenv` it will install a specific version of Python for you.
+
+2. Install `pipenv` by running `pip install pipenv`.
+    - If you already have `pipenv` installed, ensure that the version is >=2023.9.8 to avoid compatibility issues.
+
+3. Install `synapseclient` locally using pipenv:
+
+    * pipenv
+      ```bash
+      # Verify you are at the root directory for the cloned repository (ie: `cd synapsePythonClient`)
+      pipenv install
+      # To develop locally you want to add --dev
+      # pipenv install --dev
+      pipenv shell
+      ```
+
+4. Once completed you are ready to start developing. Commands run through the CLI, or through an IDE like visual studio code within the virtual environment will have all required dependencies automatically installed. Try running `synapse -h` in your shell to read over the available CLI commands. Or view the `Usage as a library` section in the README.md to get started using the library to write more python.
 #### Development
 
 Now that you have chosen a JIRA ticket and have your own fork of this repository.  It's time to start development!
@@ -129,6 +158,7 @@ You can verify your code matches these expectations by running the **flake8** co
 
 ```
 # ensure that you have the flake8 package installed
+# Note: This is not required if using the pipenv virtual environment
 pip install flake8
 
 flake8

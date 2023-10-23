@@ -1,0 +1,13 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+synapseclient = {file = ".", editable = true, path = "."}
+
+[requires]
+python_version = "3.11.3"
+
+[dev-packages]
+synapseclient = {file = ".", editable = true, path = ".", extras = ["dev", "tests", "pandas", "pysftp", "boto3", "docs"]}

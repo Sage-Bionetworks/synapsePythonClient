@@ -2,6 +2,37 @@
 Release Notes
 =============
 
+3.1.0 (2023-10-20)
+==================
+
+Highlights
+----------
+- A fix to authentication when using a Personal Access token or API Key.
+  `synapse login` and `synapse config` correctly work as a result.
+- Replacement of custom `@memoize` decorator with `@functools.lru_cache` decorator.
+- Introduction of pipfile for easy creation of a virtual environment for development.
+
+Bug Fixes
+---------
+-  [`SYNPY-1283 <https://sagebionetworks.jira.com/browse/SYNPY-1283>`__] -
+   Fix dead link in docs
+-  [`SYNPY-1296 <https://sagebionetworks.jira.com/browse/SYNPY-1296>`__] -
+   Unable to log into synapse only with auth token
+
+Stories
+-------
+-  [`SYNPY-49 <https://sagebionetworks.jira.com/browse/SYNPY-49>`__] -
+   py: getPermissions and permissions via group membership
+-  [`SYNPY-967 <https://sagebionetworks.jira.com/browse/SYNPY-967>`__] -
+   Replace @memoize annotation in python client with @functools.lru_cache
+-  [`SYNPY-1282 <https://sagebionetworks.jira.com/browse/SYNPY-1282>`__] -
+   Add type hints to 5 functions in client.py
+-  [`SYNPY-1285 <https://sagebionetworks.jira.com/browse/SYNPY-1285>`__] -
+   Create pipenv lock file for synapsePythonClient
+-  [`SYNPY-1293 <https://sagebionetworks.jira.com/browse/SYNPY-1293>`__] -
+   Address Dependabot security vulnerabilities
+-  [`SYNPY-1295 <https://sagebionetworks.jira.com/browse/SYNPY-1295>`__] -
+   Doc: Add config command to authentication section in Synapse doc
 
 3.0.0 (2023-09-09)
 ==================
