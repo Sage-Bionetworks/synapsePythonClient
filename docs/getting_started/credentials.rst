@@ -64,7 +64,16 @@ Use :code:`.synapseConfig`
 
 For writing code using the Synapse Python client that is easy to share with others, please do not include your credentials in the code. Instead, please use `.synapseConfig` file to manage your credentials.
 
-When installing the Synapse Python client, the `.synapseConfig` is added to your home directory. Open the `.synapseConfig` file and find the following section::
+When installing the Synapse Python client, the :code:`.synapseConfig` is added to your home directory.
+
+You may also create the :code:`~/.synapseConfig` file by utilizing the command line client command and following the interactive prompts::
+
+    synapse config
+
+
+The following describes how to add your credentials to the :code:`.synapseConfig` file without the use of the :code:`synapse config` command.
+
+Open the :code:`.synapseConfig` file and find the following section::
 
     #[authentication]
     #username = <username>
@@ -92,3 +101,4 @@ For more information, see:
 - :py:class:`synapseclient.Synapse`
 - :py:func:`synapseclient.Synapse.login`
 - :py:func:`synapseclient.Synapse.logout`
+- `synapse config <../articles/cli.html#config>`__
