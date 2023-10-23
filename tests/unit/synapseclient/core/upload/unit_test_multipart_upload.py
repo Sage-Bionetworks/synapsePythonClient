@@ -310,7 +310,7 @@ class TestUploadAttempt:
     ):
         mock_session = mock.Mock()
 
-        md5_hex = hashlib.md5(chunk, usedforsecurity=False).hexdigest()
+        md5_hex = hashlib.md5(string=chunk, usedforsecurity=False).hexdigest()
 
         with mock.patch.object(
             multipart_upload, "_get_file_chunk"
@@ -797,7 +797,7 @@ class TestMultipartUpload:
             "_multipart_upload",
         ) as mock_multipart_upload:
             encoded = upload_text.encode("utf-8")
-            md5_hex = hashlib.md5(encoded, usedforsecurity=False).hexdigest()
+            md5_hex = hashlib.md5(string=encoded, usedforsecurity=False).hexdigest()
 
             # call w/ default args
             multipart_upload_string(

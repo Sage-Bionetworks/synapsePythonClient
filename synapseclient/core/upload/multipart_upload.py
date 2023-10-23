@@ -533,7 +533,7 @@ def multipart_upload_string(
 
     data = text.encode("utf-8")
     file_size = len(data)
-    md5_hex = hashlib.md5(data, usedforsecurity=False).hexdigest()
+    md5_hex = hashlib.md5(string=data, usedforsecurity=False).hexdigest()
 
     if not dest_file_name:
         dest_file_name = "message.txt"

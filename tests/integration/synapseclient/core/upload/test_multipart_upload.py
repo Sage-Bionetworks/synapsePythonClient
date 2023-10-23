@@ -207,7 +207,7 @@ def _multipart_copy_test(syn, project, schedule_for_cleanup, part_size):
         part_content = file_content[content_pos:next_pos]
         content_pos = next_pos
 
-        md5 = hashlib.md5(part_content.encode("utf-8"), usedforsecurity=False)
+        md5 = hashlib.md5(part_content.encode("utf-8"))
         part_md5_hexes.append(md5.hexdigest())
 
     tmp = tempfile.NamedTemporaryFile(delete=False)
