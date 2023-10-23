@@ -614,7 +614,11 @@ def test_command_get_recursive_and_query(test_state):
     cols = [Column(name="id", columnType="ENTITYID")]
 
     schema1 = test_state.syn.store(
-        Schema(name="Foo Table", columns=cols, parent=project_entity)
+        Schema(
+            name="Foo Table_test_command_get_recursive_and_query",
+            columns=cols,
+            parent=project_entity,
+        )
     )
     test_state.schedule_for_cleanup(schema1.id)
 

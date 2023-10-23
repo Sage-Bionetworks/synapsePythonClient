@@ -225,7 +225,9 @@ def test_rowset_tables(syn, project):
         Column(name="description", columnType="LARGETEXT"),
     ]
 
-    schema1 = syn.store(Schema(name="Foo Table", columns=cols, parent=project))
+    schema1 = syn.store(
+        Schema(name="Foo Table_test_rowset_tables", columns=cols, parent=project)
+    )
 
     data1 = [
         ["Chris", "bar", 11.23, 45, False, "a"],
