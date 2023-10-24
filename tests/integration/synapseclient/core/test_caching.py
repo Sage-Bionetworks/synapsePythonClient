@@ -41,7 +41,7 @@ def syn_state(syn):
     del syn.test_threadsRunning
 
 
-@pytest.mark.timeout(120, method="signal", func_only=True)
+@pytest.mark.timeout(120, func_only=True)
 @pytest.mark.flaky(reruns=3)
 def test_threaded_access(
     syn: synapseclient.Synapse, project: Project, schedule_for_cleanup

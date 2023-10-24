@@ -10,8 +10,7 @@ import synapseutils
 
 # This test is marked with a timeout and flaky. In some cases this test is running
 # for 6+ hours and is killed by the time limit placed on how long the pipeline can run.
-# signal and func_only allow for the cleanup finalizer to run even if the test is killed.
-@pytest.mark.timeout(120, method="signal", func_only=True)
+@pytest.mark.timeout(120, func_only=True)
 @pytest.mark.flaky(reruns=3)
 def test_walk(syn, schedule_for_cleanup):
     walked = []
