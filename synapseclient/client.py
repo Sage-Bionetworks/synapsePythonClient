@@ -1437,7 +1437,9 @@ class Synapse(object):
             self._createAccessRequirementIfNone(properties)
 
         # Update annotations
-        if not bundle or check_annotations_changed(bundle["annotations"], annotations):
+        if (not bundle and annotations) or (
+            bundle and check_annotations_changed(bundle["annotations"], annotations)
+        ):
             annotations = self.set_annotations(
                 Annotations(properties["id"], properties["etag"], annotations)
             )

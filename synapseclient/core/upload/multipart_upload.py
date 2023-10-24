@@ -345,7 +345,7 @@ class UploadAttempt:
 
                 if isinstance(cause, KeyboardInterrupt):
                     raise SynapseUploadAbortedException("User interrupted upload")
-
+                self._syn.logger.exception(cause)
                 raise SynapseUploadFailedException("Part upload failed") from cause
 
     def _complete_upload(self):
@@ -660,8 +660,7 @@ def _multipart_upload(
 
         except SynapseUploadFailedException as ex:
             syn.logger.error(
-                f"Failed in multipart upload. [retry: {retry < MAX_RETRIES}, \
-                    Error: {str(ex)}]"
+                f"Failed in multipart upload. [retry: {retry < MAX_RETRIES}, Error: {str(ex)}]"
             )
             if retry < MAX_RETRIES:
                 retry += 1

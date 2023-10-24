@@ -10,6 +10,7 @@ import _thread as thread
 from queue import Queue
 
 import pytest
+import synapseclient
 
 import synapseclient.core.utils as utils
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
@@ -40,7 +41,11 @@ def syn_state(syn):
     del syn.test_threadsRunning
 
 
-def test_threaded_access(syn, project, schedule_for_cleanup):
+@pytest.mark.timeout(120, method="signal", func_only=True)
+@pytest.mark.flaky(reruns=3)
+def test_threaded_access(
+    syn: synapseclient.Synapse, project: Project, schedule_for_cleanup
+):
     """Starts multiple threads to perform store and get calls randomly."""
     # Doesn't this test look like a DOS attack on Synapse?
     # Maybe it should be called explicity...
@@ -76,6 +81,9 @@ def test_threaded_access(syn, project, schedule_for_cleanup):
 
     syn.test_keepRunning = False
     while syn.test_threadsRunning > 0:
+        syn.logger.info(
+            f"Waiting on test_threaded_access() to finish ({syn.test_threadsRunning} threads remaining)"
+        )
         time.sleep(1)
 
     # Reset the requests logging level
