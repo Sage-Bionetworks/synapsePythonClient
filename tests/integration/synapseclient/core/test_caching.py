@@ -15,6 +15,7 @@ import synapseclient
 import synapseclient.core.utils as utils
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
 from synapseclient import File, Project
+from func_timeout import FunctionTimedOut, func_set_timeout
 
 
 @pytest.fixture(scope="module")
@@ -41,11 +42,19 @@ def syn_state(syn):
     del syn.test_threadsRunning
 
 
-@pytest.mark.timeout(120, func_only=True)
 @pytest.mark.flaky(reruns=3)
 def test_threaded_access(
     syn: synapseclient.Synapse, project: Project, schedule_for_cleanup
 ):
+    try:
+        execute_test_threaded_access(syn, project, schedule_for_cleanup)
+    except FunctionTimedOut:
+        syn.logger.warning("test_threaded_access timed out")
+        pytest.fail("test_threaded_access timed out")
+
+
+@func_set_timeout(120)
+def execute_test_threaded_access(syn, project, schedule_for_cleanup):
     """Starts multiple threads to perform store and get calls randomly."""
     # Doesn't this test look like a DOS attack on Synapse?
     # Maybe it should be called explicity...
