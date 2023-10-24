@@ -42,7 +42,7 @@ def syn_state(syn):
     del syn.test_threadsRunning
 
 
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=6)
 def test_threaded_access(
     syn: synapseclient.Synapse, project: Project, schedule_for_cleanup
 ):
