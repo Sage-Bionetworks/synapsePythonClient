@@ -505,7 +505,8 @@ def test_download_file_false(syn, project, schedule_for_cleanup):
     filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(filepath)
     schedule_for_cleanup(filepath + RENAME_SUFFIX)
-    file = File(filepath, name="SYNR 619", parent=project)
+    file_name = "SYNR-619-" + str(uuid.uuid4())
+    file = File(filepath, name=file_name, parent=project)
     file = syn.store(file)
 
     # Now hide the file from the cache and download with downloadFile=False
