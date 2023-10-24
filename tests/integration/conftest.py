@@ -20,6 +20,7 @@ pytest session level fixtures shared by all integration tests.
 def syn():
     """
     Create a logged in Synapse instance that can be shared by all tests in the session.
+    If xdist is being used a syn is created for each worker node.
     """
     print("Python version:", sys.version)
 
@@ -38,7 +39,8 @@ def syn():
 @pytest.fixture(scope="session")
 def project(request, syn):
     """
-    Create a project to be shared by all tests in the session.
+    Create a project to be shared by all tests in the session. If xdist is being used
+    a project is created for each worker node.
     """
 
     # Make one project for all the tests to use
