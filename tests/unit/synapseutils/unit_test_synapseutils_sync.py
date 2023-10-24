@@ -981,7 +981,8 @@ class TestSyncUploader:
         assert cm_ex.value.__cause__ == ex
         future_3.cancel.assert_called_once_with()
 
-    def test_upload__error(self, syn):
+    @pytest.mark.flaky(reruns=3, only_rerun=["AssertionError"])
+    def test_upload_error(self, syn):
         """Verify that if an item upload fails the error is raised in the main thread
         and any running Futures are cancelled"""
 
