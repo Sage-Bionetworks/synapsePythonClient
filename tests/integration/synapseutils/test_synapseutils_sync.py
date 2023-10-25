@@ -7,15 +7,15 @@ import pandas as pd
 import pytest
 
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient import Entity, File, Folder, Link, Project, Schema
+from synapseclient import Entity, File, Folder, Link, Project, Schema, Synapse
 import synapseclient.core.utils as utils
 import synapseutils
 
 from tests.integration import QUERY_TIMEOUT_SEC
 
 
-@pytest.fixture(scope="module", autouse=True)
-def test_state(syn, schedule_for_cleanup):
+@pytest.fixture(scope="function", autouse=True)
+def test_state(syn: Synapse, schedule_for_cleanup):
     class TestState:
         def __init__(self):
             self.syn = syn
@@ -307,7 +307,7 @@ def test_write_manifest_data__unicode_characters_in_rows(test_state):
         assert datarow["col_B"] == dfrow.col_B
 
 
-def test_syncFromSynapse__given_file_id(test_state):
+def test_syncFromSynapse_given_file_id(test_state):
     file_path = utils.make_bogus_data_file()
     test_state.schedule_for_cleanup(file_path)
     file = test_state.syn.store(

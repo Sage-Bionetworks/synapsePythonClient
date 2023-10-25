@@ -60,6 +60,34 @@ def project(request, syn):
     return proj
 
 
+@pytest.fixture(scope="function")
+def project_function(request, syn):
+    """
+    Create a project to be shared at a function level scope.
+    """
+
+    # Make one project
+    proj = syn.store(
+        Project(
+            name="integration_test_project_for_individual_functions_"
+            + str(uuid.uuid4())
+        )
+    )
+
+    # set the working directory to a temp directory
+    _old_working_directory = os.getcwd()
+    working_directory = tempfile.mkdtemp(prefix="someTestFolder")
+    os.chdir(working_directory)
+
+    def project_teardown():
+        _cleanup(syn, [working_directory, proj])
+        os.chdir(_old_working_directory)
+
+    request.addfinalizer(project_teardown)
+
+    return proj
+
+
 @pytest.fixture(scope="module")
 def schedule_for_cleanup(request, syn):
     """Returns a closure that takes an item that should be scheduled for cleanup.

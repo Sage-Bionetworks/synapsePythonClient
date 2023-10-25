@@ -27,6 +27,8 @@ from synapseclient import (
     Schema,
     Table,
     Dataset,
+    Project,
+    Synapse,
 )
 import synapseclient.core.utils as utils
 
@@ -44,10 +46,12 @@ def _init_query_timeout(request, syn):
     request.addfinalizer(revert_timeout)
 
 
-def test_create_and_update_file_view(syn, project, schedule_for_cleanup):
+def test_create_and_update_file_view(
+    syn: Synapse, project_function: Project, schedule_for_cleanup
+):
     # Create a folder
     folder = Folder(
-        str(uuid.uuid4()), parent=project, description="creating a file-view"
+        str(uuid.uuid4()), parent=project_function, description="creating a file-view"
     )
     folder = syn.store(folder)
 
@@ -86,7 +90,7 @@ def test_create_and_update_file_view(syn, project, schedule_for_cleanup):
         addAnnotationColumns=False,
         type="file",
         columns=my_added_cols,
-        parent=project,
+        parent=project_function,
     )
 
     entity_view = syn.store(entity_view)
@@ -540,10 +544,12 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe(
     assert_frame_equal(df, df2)
 
 
-def test_store_table_datetime(syn, project):
+def test_store_table_datetime(syn, project_function):
     current_datetime = datetime.fromtimestamp(round(time.time(), 3))
     schema = syn.store(
-        Schema("testTable", [Column(name="testerino", columnType="DATE")], project)
+        Schema(
+            "testTable", [Column(name="testerino", columnType="DATE")], project_function
+        )
     )
     rowset = RowSet(rows=[Row([current_datetime])], schema=schema)
     syn.store(Table(schema, rowset))

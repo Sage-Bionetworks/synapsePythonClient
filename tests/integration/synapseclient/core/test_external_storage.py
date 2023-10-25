@@ -3,7 +3,7 @@ import os
 import tempfile
 import uuid
 
-from synapseclient import File
+from synapseclient import File, Synapse, Project
 from synapseclient.core.retry import with_retry
 
 import pytest
@@ -48,12 +48,12 @@ def get_aws_env():
 @unittest.skipIf(*check_test_preconditions())
 class ExernalStorageTest(unittest.TestCase):
     @pytest.fixture(autouse=True)
-    def _syn(self, syn):
+    def _syn(self, syn: Synapse):
         self.syn = syn
 
     @pytest.fixture(autouse=True)
-    def _project(self, project):
-        self.project = project
+    def _project(self, project_function: Project):
+        self.project = project_function
 
     @classmethod
     def _make_temp_file(cls, contents=None, **kwargs):

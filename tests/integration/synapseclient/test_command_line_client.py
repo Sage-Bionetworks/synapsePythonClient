@@ -31,12 +31,12 @@ import synapseclient.core.utils as utils
 from io import StringIO
 
 
-@pytest.fixture(scope="module")
-def test_state(syn, project, schedule_for_cleanup):
+@pytest.fixture(scope="function")
+def test_state(syn, project_function, schedule_for_cleanup):
     class State:
         def __init__(self):
             self.syn = syn
-            self.project = project
+            self.project = project_function
             self.schedule_for_cleanup = schedule_for_cleanup
             self.parser = cmdline.build_parser()
             self.upload_filename = _create_temp_file_with_cleanup(schedule_for_cleanup)
@@ -1169,7 +1169,7 @@ def test_create__same_project_name(test_state):
 
 
 @patch.object(utils.sys.stdin, "isatty")
-def test_storeTable__csv(mock_sys, test_state):
+def test_storeTable_csv(mock_sys, test_state):
     # when running on windows os with multiple CPU, the sys.stdin.isatty will return True
     # Thus we mock the utils.sys.stdin.
     mock_sys.return_value = False

@@ -11,7 +11,7 @@ from io import open
 
 from unittest import mock, skip
 
-from synapseclient import File
+from synapseclient import File, Project, Synapse
 import synapseclient.core.config
 import synapseclient.core.utils as utils
 from synapseclient.core.upload.multipart_upload import (
@@ -22,14 +22,14 @@ from synapseclient.core.upload.multipart_upload import (
 )
 
 
-def test_round_trip(syn, project, schedule_for_cleanup):
+def test_round_trip(syn: Synapse, project_function: Project, schedule_for_cleanup):
     fhid = None
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE + 777771)
     try:
         fhid = multipart_upload_file(syn, filepath)
 
         # Download the file and compare it with the original
-        junk = File(parent=project, dataFileHandleId=fhid)
+        junk = File(parent=project_function, dataFileHandleId=fhid)
         junk.properties.update(syn._createEntity(junk.properties))
         (tmp_f, tmp_path) = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
@@ -49,7 +49,7 @@ def test_round_trip(syn, project, schedule_for_cleanup):
             print(traceback.format_exc())
 
 
-def test_single_thread_upload(syn):
+def test_single_thread_upload(syn: Synapse):
     synapseclient.core.config.single_threaded = True
     try:
         filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + 1)
@@ -58,7 +58,7 @@ def test_single_thread_upload(syn):
         synapseclient.core.config.single_threaded = False
 
 
-def test_randomly_failing_parts(syn, project, schedule_for_cleanup):
+def test_randomly_failing_parts(syn: Synapse, project: Project, schedule_for_cleanup):
     """Verify that we can recover gracefully with some randomly inserted errors
     while uploading parts."""
 
@@ -115,7 +115,9 @@ def test_randomly_failing_parts(syn, project, schedule_for_cleanup):
                 print(traceback.format_exc())
 
 
-def test_multipart_upload_big_string(syn, project, schedule_for_cleanup):
+def test_multipart_upload_big_string(
+    syn: Synapse, project: Project, schedule_for_cleanup
+):
     cities = [
         "Seattle",
         "Portland",
@@ -174,7 +176,9 @@ def test_multipart_upload_big_string(syn, project, schedule_for_cleanup):
     assert retrieved_text == text
 
 
-def _multipart_copy_test(syn, project, schedule_for_cleanup, part_size):
+def _multipart_copy_test(
+    syn: Synapse, project: Project, schedule_for_cleanup, part_size
+):
     import logging
 
     logging.basicConfig()
@@ -257,11 +261,13 @@ def _multipart_copy_test(syn, project, schedule_for_cleanup, part_size):
     assert file_content == dest_file_content
 
 
-def test_multipart_copy(syn, project, schedule_for_cleanup):
+def test_multipart_copy(syn: Synapse, project: Project, schedule_for_cleanup):
     """Test multi part copy using the minimum part size."""
     _multipart_copy_test(syn, project, schedule_for_cleanup, MIN_PART_SIZE)
 
 
 @skip("Skip in normal testing because the large size makes it slow")
-def test_multipart_copy__big_parts(syn, project, schedule_for_cleanup):
+def test_multipart_copy__big_parts(
+    syn: Synapse, project: Project, schedule_for_cleanup
+):
     _multipart_copy_test(syn, project, schedule_for_cleanup, 100 * utils.MB)

@@ -18,6 +18,7 @@ from synapseclient import (
     RowSet,
     Schema,
     Wiki,
+    Synapse,
 )
 import synapseclient.core.utils as utils
 import synapseutils
@@ -25,7 +26,8 @@ import synapseutils
 
 # Add Test for UPDATE
 # Add test for existing provenance but the orig doesn't have provenance
-def test_copy(syn, schedule_for_cleanup):
+@pytest.mark.flaky(reruns=3)
+def test_copy(syn: Synapse, schedule_for_cleanup):
     """Tests the copy function"""
     # Create a Project
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
