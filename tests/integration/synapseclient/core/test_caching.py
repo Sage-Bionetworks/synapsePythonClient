@@ -115,12 +115,16 @@ def wrap_function_as_child_thread(syn, function, *args, **kwargs):
         syn.test_runCountMutex.acquire()
         syn.test_threadsRunning += 1
         syn.test_runCountMutex.release()
+        unique_uuid = str(uuid.uuid4())
 
         try:
-            function(*args, **kwargs)
+            syn.logger.warning(f"Starting thread uuid: {unique_uuid}")
+            function(*args, **kwargs, unique_uuid=unique_uuid)
         except Exception:
+            syn.logger.warning(f"Exception in thread uuid: {unique_uuid}")
             syn.test_errors.put(traceback.format_exc())
 
+        syn.logger.warning(f"Finished thread uuid: {unique_uuid}")
         syn.test_runCountMutex.acquire()
         syn.test_threadsRunning -= 1
         syn.test_runCountMutex.release()
@@ -142,7 +146,7 @@ def collect_errors_and_fail(syn):
 ######################
 
 
-def thread_keep_storing_one_File(syn, project, schedule_for_cleanup):
+def thread_keep_storing_one_File(syn, project, schedule_for_cleanup, unique_uuid):
     """Makes one file and stores it over and over again."""
 
     # Make a local file to continuously store
@@ -153,7 +157,9 @@ def thread_keep_storing_one_File(syn, project, schedule_for_cleanup):
     )
 
     while syn.test_keepRunning:
-        syn.logger.warning(f"thread_keep_storing_one_File(), storing {myPrecious.path}")
+        syn.logger.warning(
+            f"thread_keep_storing_one_File(): [storing {myPrecious.path}, uuid: {unique_uuid}]"
+        )
         stored = store_catch_412_HTTPError(syn, myPrecious)
         if stored is not None:
             myPrecious = stored
@@ -162,27 +168,46 @@ def thread_keep_storing_one_File(syn, project, schedule_for_cleanup):
             # and thus has a retrievable synapse id
             myPrecious = syn.get(myPrecious)
 
-        sleep_for_a_bit()
+        syn.logger.warning(
+            f"Starting sleep - thread_keep_storing_one_File(), uuid: {unique_uuid}"
+        )
+        time_slept = sleep_for_a_bit()
+        syn.logger.warning(
+            f"Slept {time_slept}s - thread_keep_storing_one_File(), uuid: {unique_uuid}"
+        )
 
 
-def thread_get_files_from_Project(syn, project):
+def thread_get_files_from_Project(syn, project, unique_uuid):
     """Continually polls and fetches items from the Project."""
 
     while syn.test_keepRunning:
-        syn.logger.warning(f"thread_get_files_from_Project(), Project: {project.id}")
+        syn.logger.warning(
+            f"thread_get_files_from_Project(), Project: {project.id}, uuid: {unique_uuid}"
+        )
         for id in get_all_ids_from_Project(syn, project):
             syn.logger.warning(
-                f"thread_get_files_from_Project(), retrieved id: [Project: {project.id}, id: {id}]"
+                f"thread_get_files_from_Project(), retrieved id: [Project: {project.id}, id: {id}, uuid: {unique_uuid}]"
             )
             pass
 
-        sleep_for_a_bit()
+        syn.logger.warning(
+            f"Starting sleep thread_get_files_from_Project(), uuid: {unique_uuid}"
+        )
+        time_slept = sleep_for_a_bit()
+        syn.logger.warning(
+            f"Slept {time_slept} thread_get_files_from_Project(), uuid: {unique_uuid}"
+        )
 
 
-def thread_get_and_update_file_from_Project(syn, project, schedule_for_cleanup):
+def thread_get_and_update_file_from_Project(
+    syn, project, schedule_for_cleanup, unique_uuid
+):
     """Fetches one item from the Project and updates it with a new file."""
 
     while syn.test_keepRunning:
+        syn.logger.warning(
+            f"Running thread_get_and_update_file_from_Project(), uuid: {unique_uuid}"
+        )
         id = get_all_ids_from_Project(syn, project)
         if len(id) <= 0:
             continue
@@ -194,14 +219,20 @@ def thread_get_and_update_file_from_Project(syn, project, schedule_for_cleanup):
         path = utils.make_bogus_data_file()
         schedule_for_cleanup(path)
         syn.logger.warning(
-            f"thread_get_and_update_file_from_Project(), Updating: [project: {project.id}, entity: {entity.id}, path: {path}]]"
+            f"thread_get_and_update_file_from_Project(), Updating: [project: {project.id}, entity: {entity.id}, path: {path}, uuid: {unique_uuid}]]"
         )
         entity.path = path
         entity = store_catch_412_HTTPError(syn, entity)
         if entity is not None:
             assert os.stat(entity.path) == os.stat(path)
 
-        sleep_for_a_bit()
+        syn.logger.warning(
+            f"Starting sleep thread_get_and_update_file_from_Project(), uuid: {unique_uuid}"
+        )
+        time_slept = sleep_for_a_bit()
+        syn.logger.warning(
+            f"Slept {time_slept} thread_get_and_update_file_from_Project(), uuid: {unique_uuid}"
+        )
 
 
 ####################
@@ -209,10 +240,11 @@ def thread_get_and_update_file_from_Project(syn, project, schedule_for_cleanup):
 ####################
 
 
-def sleep_for_a_bit():
+def sleep_for_a_bit() -> int:
     """Sleeps for a random amount of seconds between 1 and 5 inclusive."""
-
-    time.sleep(random.randint(1, 5))
+    time_to_sleep = random.randint(1, 5)
+    time.sleep(time_to_sleep)
+    return time_to_sleep
 
 
 def get_all_ids_from_Project(syn, project):
