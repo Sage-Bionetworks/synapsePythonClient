@@ -9,7 +9,7 @@ from datetime import datetime
 import pytest
 from unittest.mock import patch
 
-from synapseclient import Entity, Team, UserProfile, client
+from synapseclient import Entity, Team, UserProfile, client, Synapse
 from synapseclient import Activity, Annotations, File, Folder, login, Project, Synapse
 import synapseclient
 from synapseclient.core.credentials import credential_provider
@@ -420,7 +420,7 @@ def test_annotations(syn, project, schedule_for_cleanup):
 
 
 def test_annotations_on_file_during_create_no_annotations(
-    syn: synapseclient.Synapse, project: Project, schedule_for_cleanup
+    syn: Synapse, project: Project, schedule_for_cleanup
 ):
     # GIVEN a bogus file
     path = utils.make_bogus_data_file()
@@ -447,7 +447,7 @@ def test_annotations_on_file_during_create_no_annotations(
 
 
 def test_annotations_on_file_during_create_with_annotations(
-    syn: synapseclient.Synapse, project: Project, schedule_for_cleanup
+    syn: Synapse, project: Project, schedule_for_cleanup
 ):
     # GIVEN a bogus file
     path = utils.make_bogus_data_file()
