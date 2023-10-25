@@ -499,7 +499,7 @@ def test_create_or_update_project(syn, project, schedule_for_cleanup):
 
 
 def test_download_file_false(syn, project, schedule_for_cleanup):
-    RENAME_SUFFIX = "blah"
+    RENAME_SUFFIX = "blah" + str(uuid.uuid4())
 
     # Upload a file
     filepath = utils.make_bogus_binary_file()
@@ -514,7 +514,7 @@ def test_download_file_false(syn, project, schedule_for_cleanup):
     file = syn.get(file.id, downloadFile=False)
 
     # Change something and reupload the file's metadata
-    file.name = "Only change the name, not the file"
+    file.name = "Only change the name, not the file" + str(uuid.uuid4())
     reupload = syn.store(file)
     assert reupload.path is None, "Path field should be null: %s" % reupload.path
 
