@@ -74,23 +74,25 @@ def execute_test_threaded_access(syn, project, schedule_for_cleanup):
     update_thread = wrap_function_as_child_thread(
         syn, thread_get_and_update_file_from_Project, syn, project, schedule_for_cleanup
     )
-    thread.start_new_thread(store_thread, ())
-    thread.start_new_thread(store_thread, ())
+    # thread.start_new_thread(store_thread, ())
+    # thread.start_new_thread(store_thread, ())
     thread.start_new_thread(store_thread, ())
     thread.start_new_thread(store_thread, ())
     thread.start_new_thread(get_thread, ())
     thread.start_new_thread(get_thread, ())
-    thread.start_new_thread(get_thread, ())
+    # thread.start_new_thread(get_thread, ())
     thread.start_new_thread(update_thread, ())
     thread.start_new_thread(update_thread, ())
-    thread.start_new_thread(update_thread, ())
+    # thread.start_new_thread(update_thread, ())
 
+    syn.logger.warning(f"execute_test_threaded_access Starting sleep for 20 seconds")
     # Give the threads some time to wreak havoc on the cache
     time.sleep(20)
+    syn.logger.warning(f"execute_test_threaded_access Slept for 20 seconds")
 
     syn.test_keepRunning = False
     while syn.test_threadsRunning > 0:
-        syn.logger.info(
+        syn.logger.warning(
             f"Waiting on test_threaded_access() to finish ({syn.test_threadsRunning} threads remaining)"
         )
         time.sleep(1)
@@ -151,6 +153,7 @@ def thread_keep_storing_one_File(syn, project, schedule_for_cleanup):
     )
 
     while syn.test_keepRunning:
+        syn.logger.warning(f"thread_keep_storing_one_File(), storing {myPrecious.path}")
         stored = store_catch_412_HTTPError(syn, myPrecious)
         if stored is not None:
             myPrecious = stored
@@ -166,7 +169,11 @@ def thread_get_files_from_Project(syn, project):
     """Continually polls and fetches items from the Project."""
 
     while syn.test_keepRunning:
+        syn.logger.warning(f"thread_get_files_from_Project(), Project: {project.id}")
         for id in get_all_ids_from_Project(syn, project):
+            syn.logger.warning(
+                f"thread_get_files_from_Project(), retrieved id: [Project: {project.id}, id: {id}]"
+            )
             pass
 
         sleep_for_a_bit()
@@ -186,6 +193,9 @@ def thread_get_and_update_file_from_Project(syn, project, schedule_for_cleanup):
         # Replace the file and re-store
         path = utils.make_bogus_data_file()
         schedule_for_cleanup(path)
+        syn.logger.warning(
+            f"thread_get_and_update_file_from_Project(), Updating: [project: {project.id}, entity: {entity.id}, path: {path}]]"
+        )
         entity.path = path
         entity = store_catch_412_HTTPError(syn, entity)
         if entity is not None:
