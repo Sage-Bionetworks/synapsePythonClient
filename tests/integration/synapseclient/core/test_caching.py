@@ -160,6 +160,7 @@ def thread_keep_storing_one_File(
         syn.logger.warning(
             f"thread_keep_storing_one_File(): [storing {myPrecious.path}, uuid: {unique_uuid}]"
         )
+        stored = None
         try:
             stored = store_catch_412_HTTPError(syn, myPrecious)
         except FunctionTimedOut:
@@ -190,7 +191,7 @@ def thread_get_files_from_Project(syn: Synapse, project: Project, unique_uuid: s
         syn.logger.warning(
             f"thread_get_files_from_Project(), Project: {project.id}, uuid: {unique_uuid}"
         )
-
+        ids = []
         try:
             ids = get_all_ids_from_Project(syn, project)
         except FunctionTimedOut:
@@ -221,12 +222,12 @@ def thread_get_and_update_file_from_Project(
         syn.logger.warning(
             f"Running thread_get_and_update_file_from_Project(), uuid: {unique_uuid}"
         )
-
+        id = []
         try:
             id = get_all_ids_from_Project(syn, project)
         except FunctionTimedOut:
             syn.logger.warning(
-                f"thread_get_and_update_file_from_Project()::get_all_ids_from_Project timed out, [project: {project.id}, entity: {entity.id}, path: {path}, uuid: {unique_uuid}]"
+                f"thread_get_and_update_file_from_Project()::get_all_ids_from_Project timed out, [project: {project.id}, uuid: {unique_uuid}]"
             )
         if len(id) <= 0:
             syn.logger.warning(
@@ -247,7 +248,7 @@ def thread_get_and_update_file_from_Project(
         syn.logger.warning(
             f"thread_get_and_update_file_from_Project(), Updating: [project: {project.id}, entity: {entity.id}, path: {path}, uuid: {unique_uuid}]"
         )
-        entity.path = path()
+        entity.path = path
         try:
             entity = store_catch_412_HTTPError(syn, entity)
         except FunctionTimedOut:
