@@ -14,15 +14,8 @@ import synapseclient
 
 import synapseclient.core.utils as utils
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
-from synapseclient import File, Project
+from synapseclient import File, Project, Synapse, Entity
 from func_timeout import FunctionTimedOut, func_set_timeout
-
-
-@pytest.fixture(scope="module")
-def project(syn, schedule_for_cleanup):
-    project = syn.store(Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project)
-    return project
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -43,18 +36,19 @@ def syn_state(syn):
 
 
 @pytest.mark.flaky(reruns=6)
-def test_threaded_access(
-    syn: synapseclient.Synapse, project: Project, schedule_for_cleanup
-):
+def test_threaded_access(syn: Synapse, schedule_for_cleanup):
+    project = syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project)
     try:
         execute_test_threaded_access(syn, project, schedule_for_cleanup)
     except FunctionTimedOut:
+        syn.test_keepRunning = False
         syn.logger.warning("test_threaded_access timed out")
         pytest.fail("test_threaded_access timed out")
 
 
 @func_set_timeout(120)
-def execute_test_threaded_access(syn, project, schedule_for_cleanup):
+def execute_test_threaded_access(syn: Synapse, project: Project, schedule_for_cleanup):
     """Starts multiple threads to perform store and get calls randomly."""
     # Doesn't this test look like a DOS attack on Synapse?
     # Maybe it should be called explicity...
@@ -108,7 +102,7 @@ def execute_test_threaded_access(syn, project, schedule_for_cleanup):
 #############
 
 
-def wrap_function_as_child_thread(syn, function, *args, **kwargs):
+def wrap_function_as_child_thread(syn: Synapse, function, *args, **kwargs):
     """Wraps the given function so that it ties into the main thread."""
 
     def child_thread():
@@ -122,8 +116,10 @@ def wrap_function_as_child_thread(syn, function, *args, **kwargs):
                 f"Starting thread uuid: {unique_uuid}, function: {str(function)}"
             )
             function(*args, **kwargs, unique_uuid=unique_uuid)
-        except Exception:
-            syn.logger.warning(f"Exception in thread uuid: {unique_uuid}")
+        except Exception as ex:
+            syn.logger.warning(
+                f"Exception in thread uuid: {unique_uuid}, exception: {ex}"
+            )
             syn.test_errors.put(traceback.format_exc())
 
         syn.logger.warning(f"Finished thread uuid: {unique_uuid}")
@@ -134,7 +130,7 @@ def wrap_function_as_child_thread(syn, function, *args, **kwargs):
     return child_thread
 
 
-def collect_errors_and_fail(syn):
+def collect_errors_and_fail(syn: Synapse):
     """Pulls error traces from the error queue and fails if the queue is not empty."""
     failures = []
     for i in range(syn.test_errors.qsize()):
@@ -148,7 +144,9 @@ def collect_errors_and_fail(syn):
 ######################
 
 
-def thread_keep_storing_one_File(syn, project, schedule_for_cleanup, unique_uuid):
+def thread_keep_storing_one_File(
+    syn: Synapse, project: Project, schedule_for_cleanup, unique_uuid: str
+):
     """Makes one file and stores it over and over again."""
 
     # Make a local file to continuously store
@@ -162,7 +160,13 @@ def thread_keep_storing_one_File(syn, project, schedule_for_cleanup, unique_uuid
         syn.logger.warning(
             f"thread_keep_storing_one_File(): [storing {myPrecious.path}, uuid: {unique_uuid}]"
         )
-        stored = store_catch_412_HTTPError(syn, myPrecious)
+        try:
+            stored = store_catch_412_HTTPError(syn, myPrecious)
+        except FunctionTimedOut:
+            syn.logger.warning(
+                f"thread_keep_storing_one_File()::store_catch_412_HTTPError timed out, Path: {myPrecious.path}, uuid: {unique_uuid}"
+            )
+
         if stored is not None:
             myPrecious = stored
         elif "id" in myPrecious:
@@ -179,7 +183,7 @@ def thread_keep_storing_one_File(syn, project, schedule_for_cleanup, unique_uuid
         )
 
 
-def thread_get_files_from_Project(syn, project, unique_uuid):
+def thread_get_files_from_Project(syn: Synapse, project: Project, unique_uuid: str):
     """Continually polls and fetches items from the Project."""
 
     while syn.test_keepRunning:
@@ -202,7 +206,7 @@ def thread_get_files_from_Project(syn, project, unique_uuid):
 
 
 def thread_get_and_update_file_from_Project(
-    syn, project, schedule_for_cleanup, unique_uuid
+    syn: Synapse, project: Project, schedule_for_cleanup, unique_uuid: str
 ):
     """Fetches one item from the Project and updates it with a new file."""
 
@@ -223,8 +227,13 @@ def thread_get_and_update_file_from_Project(
         syn.logger.warning(
             f"thread_get_and_update_file_from_Project(), Updating: [project: {project.id}, entity: {entity.id}, path: {path}, uuid: {unique_uuid}]]"
         )
-        entity.path = path
-        entity = store_catch_412_HTTPError(syn, entity)
+        entity.path = path()
+        try:
+            entity = store_catch_412_HTTPError(syn, entity)
+        except FunctionTimedOut:
+            syn.logger.warning(
+                f"thread_get_and_update_file_from_Project()::store_catch_412_HTTPError timed out, path: {entity.path}, uuid: {unique_uuid}"
+            )
         if entity is not None:
             assert os.stat(entity.path) == os.stat(path)
 
@@ -249,12 +258,13 @@ def sleep_for_a_bit() -> int:
     return time_to_sleep
 
 
-def get_all_ids_from_Project(syn, project):
+def get_all_ids_from_Project(syn: Synapse, project: Project):
     """Fetches all currently available Synapse IDs from the parent Project."""
     return [result["id"] for result in syn.getChildren(project.id)]
 
 
-def store_catch_412_HTTPError(syn, entity):
+@func_set_timeout(20)
+def store_catch_412_HTTPError(syn: Synapse, entity: Entity):
     """Returns the stored Entity if the function succeeds or None if the 412 is caught."""
     try:
         return syn.store(entity)
