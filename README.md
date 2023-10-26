@@ -93,7 +93,7 @@ The Synapse client can be used to write software that interacts with the Sage Bi
 
     syn = synapseclient.Synapse()
 
-    ## log in using username and password
+    ## log in using auth token
     syn.login(authToken='auth_token')
 
     ## retrieve a 100 by 4 matrix
@@ -123,6 +123,8 @@ Authentication
 Authentication toward [Synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished with the clients using personal access tokens. Learn more about [Synapse personal access tokens](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens)
 
 Authentication via passwords and API keys will be deprecated early 2024.
+
+Learn about the multiple ways one can login to Synapse [here](https://python-docs.synapse.org/build/html/getting_started/credentials.html).
 
 
 Synapse Utilities (synapseutils)
