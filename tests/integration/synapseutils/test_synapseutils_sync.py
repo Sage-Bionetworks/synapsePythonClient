@@ -2,6 +2,7 @@ import uuid
 import os
 import time
 import tempfile
+from func_timeout import FunctionTimedOut, func_set_timeout
 import pandas as pd
 
 import pytest
@@ -102,6 +103,7 @@ def test_readManifest(test_state):
     pytest.raises(IOError, synapseutils.sync.readManifestFile, test_state.syn, manifest)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_syncToSynapse(test_state):
     # Test upload of accurate manifest
     manifest = _makeManifest(
@@ -116,7 +118,11 @@ def test_syncToSynapse(test_state):
     # Download using syncFromSynapse
     tmpdir = tempfile.mkdtemp()
     test_state.schedule_for_cleanup(tmpdir)
-    synapseutils.syncFromSynapse(test_state.syn, test_state.project, path=tmpdir)
+    try:
+        execute_sync_from_synapse(test_state.syn, test_state.project, path=tmpdir)
+    except FunctionTimedOut:
+        test_state.syn.logger.warning("test_syncToSynapse timed out")
+        pytest.fail("test_syncToSynapse timed out")
 
     orig_df = pd.read_csv(manifest, sep="\t")
     orig_df.index = [os.path.basename(p) for p in orig_df.path]
@@ -168,6 +174,7 @@ def test_syncToSynapse(test_state):
                 assert set(orig_list) == set(new_list)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_syncFromSynapse(test_state):
     """This function tests recursive download as defined in syncFromSynapse
     most of the functionality of this function are already tested in the
@@ -205,14 +212,19 @@ def test_syncFromSynapse(test_state):
         time.sleep(2)
 
     # Test recursive get
-    output = synapseutils.syncFromSynapse(test_state.syn, project_entity)
+    try:
+        output = execute_sync_from_synapse(test_state.syn, project_entity)
+    except FunctionTimedOut:
+        test_state.syn.logger.warning("test_syncFromSynapse timed out")
+        pytest.fail("test_syncFromSynapse timed out")
 
     assert len(output) == len(uploaded_paths)
     for f in output:
         assert utils.normalize_path(f.path) in uploaded_paths
 
 
-def test_syncFromSynapse__children_contain_non_file(test_state):
+@pytest.mark.flaky(reruns=3)
+def test_syncFromSynapse_children_contain_non_file(test_state):
     proj = test_state.syn.store(
         Project(name="test_syncFromSynapse_children_non_file" + str(uuid.uuid4()))
     )
@@ -233,11 +245,18 @@ def test_syncFromSynapse__children_contain_non_file(test_state):
     temp_folder = tempfile.mkdtemp()
     test_state.schedule_for_cleanup(temp_folder)
 
-    files_list = synapseutils.syncFromSynapse(test_state.syn, proj, temp_folder)
+    try:
+        files_list = execute_sync_from_synapse(test_state.syn, proj, temp_folder)
+    except FunctionTimedOut:
+        test_state.syn.logger.warning(
+            "test_syncFromSynapse_children_contain_non_file timed out"
+        )
+        pytest.fail("test_syncFromSynapse_children_contain_non_file timed out")
     assert 1 == len(files_list)
     assert file_entity == files_list[0]
 
 
+@pytest.mark.flaky(reruns=3)
 def test_syncFromSynapse_Links(test_state):
     """This function tests recursive download of links as defined in syncFromSynapse
     most of the functionality of this function are already tested in the
@@ -280,9 +299,13 @@ def test_syncFromSynapse_Links(test_state):
     test_state.syn.store(Link(file_entity.id, parent=inner_folder_entity))
 
     # Test recursive get
-    output = synapseutils.syncFromSynapse(
-        test_state.syn, folder_entity, followLink=True
-    )
+    try:
+        output = execute_sync_from_synapse(
+            test_state.syn, folder_entity, followLink=True
+        )
+    except FunctionTimedOut:
+        test_state.syn.logger.warning("test_syncFromSynapse_Links timed out")
+        pytest.fail("test_syncFromSynapse_Links timed out")
 
     assert len(output) == len(uploaded_paths)
     for f in output:
@@ -307,6 +330,7 @@ def test_write_manifest_data__unicode_characters_in_rows(test_state):
         assert datarow["col_B"] == dfrow.col_B
 
 
+@pytest.mark.flaky(reruns=3)
 def test_syncFromSynapse_given_file_id(test_state):
     file_path = utils.make_bogus_data_file()
     test_state.schedule_for_cleanup(file_path)
@@ -318,6 +342,16 @@ def test_syncFromSynapse_given_file_id(test_state):
             synapseStore=False,
         )
     )
-    all_files = synapseutils.syncFromSynapse(test_state.syn, file.id)
+    try:
+        all_files = execute_sync_from_synapse(test_state.syn, file.id)
+    except FunctionTimedOut:
+        test_state.syn.logger.warning("test_syncFromSynapse_given_file_id timed out")
+        pytest.fail("test_syncFromSynapse_given_file_id timed out")
+
     assert 1 == len(all_files)
     assert file == all_files[0]
+
+
+@func_set_timeout(120)
+def execute_sync_from_synapse(*args, **kwargs):
+    return synapseutils.syncFromSynapse(*args, **kwargs)
