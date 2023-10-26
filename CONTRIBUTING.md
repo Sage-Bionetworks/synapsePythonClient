@@ -181,7 +181,7 @@ fileHandleEndpoint=https://repo-dev.dev.sagebase.org/file/v1
 ```
 
 #### Integration testing for external collaborators
-As an external collaborator you will not have access to a development account and environment to run the integration tests agaisnt. Either request that a Sage Bionetworks staff member run your integration tests via a pull request, or, contact us via the [Help Forum](https://www.synapse.org/#!SynapseForum:default) to requisition a development account for integration testing only.
+As an external collaborator you will not have access to a development account and environment to run the integration tests agaisnt. Either request that a Sage Bionetworks staff member run your integration tests via a pull request, or, contact us via the [Service Desk](https://sagebionetworks.jira.com/servicedesk/customer/portal/9) to requisition a development account for integration testing only.
 
 ### Code style
 
