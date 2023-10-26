@@ -167,7 +167,7 @@ To test a specific feature, specify the full path to the function to run:
 pytest -vs tests/integration/synapseclient/test_command_line_client.py::test_table_query
 ````
 
-#### Integration testing agaisnt the `dev` synapse server
+#### Integration testing against the `dev` synapse server
 The easiest way to specify the HTTP endpoints to use for all synapse requests is to modify the `~/.synapseConfig` file and modify a few key-value pairs such as below. Not this is also where you will specify the dev authentication:
 ```
 [authentication]
