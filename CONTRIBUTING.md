@@ -156,7 +156,7 @@ Here's how to run the test suite:
 # Unit tests
 pytest -vs tests/unit
 
-# Integration tests - The integration tests should be run agaisnt the `dev` synapse server
+# Integration tests - The integration tests should be run against the `dev` synapse server
 pytest -vs tests/integration
 ```
 
