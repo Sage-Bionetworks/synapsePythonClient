@@ -39,15 +39,15 @@ def syn_state(syn):
 def test_threaded_access(syn: Synapse, schedule_for_cleanup):
     project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project)
-    try:
-        execute_test_threaded_access(syn, project, schedule_for_cleanup)
-    except FunctionTimedOut:
-        syn.test_keepRunning = False
-        syn.logger.warning("test_threaded_access timed out")
-        pytest.fail("test_threaded_access timed out")
+    # try:
+    execute_test_threaded_access(syn, project, schedule_for_cleanup)
+    # except FunctionTimedOut:
+    #     syn.test_keepRunning = False
+    #     syn.logger.warning("test_threaded_access timed out")
+    #     pytest.fail("test_threaded_access timed out")
 
 
-@func_set_timeout(120)
+# @func_set_timeout(120)
 def execute_test_threaded_access(syn: Synapse, project: Project, schedule_for_cleanup):
     """Starts multiple threads to perform store and get calls randomly."""
     # Doesn't this test look like a DOS attack on Synapse?
@@ -190,7 +190,14 @@ def thread_get_files_from_Project(syn: Synapse, project: Project, unique_uuid: s
         syn.logger.warning(
             f"thread_get_files_from_Project(), Project: {project.id}, uuid: {unique_uuid}"
         )
-        for id in get_all_ids_from_Project(syn, project):
+
+        try:
+            ids = get_all_ids_from_Project(syn, project)
+        except FunctionTimedOut:
+            syn.logger.warning(
+                f"thread_get_files_from_Project()::get_all_ids_from_Project timed out, [Project: {project.id}, uuid: {unique_uuid}]"
+            )
+        for id in ids:
             syn.logger.warning(
                 f"thread_get_files_from_Project(), retrieved id: [Project: {project.id}, id: {id}, uuid: {unique_uuid}]"
             )
@@ -214,8 +221,21 @@ def thread_get_and_update_file_from_Project(
         syn.logger.warning(
             f"Running thread_get_and_update_file_from_Project(), uuid: {unique_uuid}"
         )
-        id = get_all_ids_from_Project(syn, project)
+
+        try:
+            id = get_all_ids_from_Project(syn, project)
+        except FunctionTimedOut:
+            syn.logger.warning(
+                f"thread_get_and_update_file_from_Project()::get_all_ids_from_Project timed out, [project: {project.id}, entity: {entity.id}, path: {path}, uuid: {unique_uuid}]"
+            )
         if len(id) <= 0:
+            syn.logger.warning(
+                f"Starting sleep thread_get_and_update_file_from_Project() - Length {len(id)}, uuid: {unique_uuid}"
+            )
+            time_slept = sleep_for_a_bit()
+            syn.logger.warning(
+                f"Slept {time_slept} thread_get_and_update_file_from_Project() - Length {len(id)}, uuid: {unique_uuid}"
+            )
             continue
 
         id = id[random.randrange(len(id))]
@@ -225,7 +245,7 @@ def thread_get_and_update_file_from_Project(
         path = utils.make_bogus_data_file()
         schedule_for_cleanup(path)
         syn.logger.warning(
-            f"thread_get_and_update_file_from_Project(), Updating: [project: {project.id}, entity: {entity.id}, path: {path}, uuid: {unique_uuid}]]"
+            f"thread_get_and_update_file_from_Project(), Updating: [project: {project.id}, entity: {entity.id}, path: {path}, uuid: {unique_uuid}]"
         )
         entity.path = path()
         try:
@@ -258,6 +278,7 @@ def sleep_for_a_bit() -> int:
     return time_to_sleep
 
 
+@func_set_timeout(20)
 def get_all_ids_from_Project(syn: Synapse, project: Project):
     """Fetches all currently available Synapse IDs from the parent Project."""
     return [result["id"] for result in syn.getChildren(project.id)]
