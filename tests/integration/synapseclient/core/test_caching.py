@@ -118,7 +118,9 @@ def wrap_function_as_child_thread(syn, function, *args, **kwargs):
         unique_uuid = str(uuid.uuid4())
 
         try:
-            syn.logger.warning(f"Starting thread uuid: {unique_uuid}")
+            syn.logger.warning(
+                f"Starting thread uuid: {unique_uuid}, function: {str(function)}"
+            )
             function(*args, **kwargs, unique_uuid=unique_uuid)
         except Exception:
             syn.logger.warning(f"Exception in thread uuid: {unique_uuid}")
