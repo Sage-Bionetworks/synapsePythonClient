@@ -101,7 +101,7 @@ def wrap_function_as_child_thread(syn: Synapse, function, *args, **kwargs):
 
         try:
             function(*args, **kwargs)
-        except Exception as ex:
+        except Exception:
             syn.test_errors.put(traceback.format_exc())
 
         syn.test_runCountMutex.acquire()
@@ -216,12 +216,14 @@ def sleep_for_a_bit() -> int:
     return time_to_sleep
 
 
+# When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
 @func_set_timeout(20)
 def get_all_ids_from_Project(syn: Synapse, project: Project):
     """Fetches all currently available Synapse IDs from the parent Project."""
     return [result["id"] for result in syn.getChildren(project.id)]
 
 
+# When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
 @func_set_timeout(20)
 def store_catch_412_HTTPError(syn: Synapse, entity: Entity):
     """Returns the stored Entity if the function succeeds or None if the 412 is caught."""

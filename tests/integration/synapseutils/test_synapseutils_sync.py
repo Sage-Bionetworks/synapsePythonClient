@@ -352,6 +352,7 @@ def test_syncFromSynapse_given_file_id(test_state):
     assert file == all_files[0]
 
 
+# When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
 @func_set_timeout(120)
 def execute_sync_from_synapse(*args, **kwargs):
     return synapseutils.syncFromSynapse(*args, **kwargs)

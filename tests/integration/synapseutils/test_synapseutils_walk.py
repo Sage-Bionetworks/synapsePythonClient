@@ -9,8 +9,6 @@ import synapseclient.core.utils as utils
 import synapseutils
 
 
-# This test has a timeout and is marked with flaky. In some cases this test is running
-# for 6+ hours and is killed by the time limit placed on how long the pipeline can run.
 @pytest.mark.flaky(reruns=3)
 def test_walk(syn, schedule_for_cleanup):
     try:
@@ -20,6 +18,7 @@ def test_walk(syn, schedule_for_cleanup):
         pytest.fail("test_walk timed out")
 
 
+# When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
 @func_set_timeout(120)
 def execute_test_walk(syn, schedule_for_cleanup):
     walked = []

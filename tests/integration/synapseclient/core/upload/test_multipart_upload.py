@@ -179,7 +179,7 @@ def test_multipart_upload_big_string(
 
 
 def _multipart_copy_test(
-    syn: Synapse, project: Project, schedule_for_cleanup, part_size
+    syn: Synapse, project: Project, schedule_for_cleanup, part_size: int
 ):
     import logging
 
