@@ -2,6 +2,7 @@ import uuid
 import time
 import re
 import json
+from func_timeout import FunctionTimedOut, func_set_timeout
 
 import pytest
 
@@ -28,6 +29,16 @@ import synapseutils
 # Add test for existing provenance but the orig doesn't have provenance
 @pytest.mark.flaky(reruns=3)
 def test_copy(syn: Synapse, schedule_for_cleanup):
+    try:
+        execute_test_copy(syn, schedule_for_cleanup)
+    except FunctionTimedOut:
+        syn.logger.warning("test_copy timed out")
+        pytest.fail("test_copy timed out")
+
+
+# When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
+@func_set_timeout(120)
+def execute_test_copy(syn: Synapse, schedule_for_cleanup):
     """Tests the copy function"""
     # Create a Project
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
