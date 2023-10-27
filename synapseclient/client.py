@@ -4845,7 +4845,6 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
-        self.logger.warning(f"Calling restGET: {uri}")
         response = self._rest_call(
             "get", uri, None, endpoint, headers, retryPolicy, requests_session, **kwargs
         )
@@ -4874,7 +4873,6 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
-        self.logger.warning(f"Calling restPOST: {uri}")
         response = self._rest_call(
             "post",
             uri,
@@ -4910,7 +4908,6 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
-        self.logger.warning(f"Calling restPUT: {uri}")
         response = self._rest_call(
             "put", uri, body, endpoint, headers, retryPolicy, requests_session, **kwargs
         )
@@ -4935,7 +4932,6 @@ class Synapse(object):
         :param kwargs:              Any other arguments taken by a
                                     `requests <http://docs.python-requests.org/en/latest/>`_ method
         """
-        self.logger.warning(f"Calling restDELETE: {uri}")
         self._rest_call(
             "delete",
             uri,

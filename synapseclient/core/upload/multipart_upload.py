@@ -658,10 +658,7 @@ def _multipart_upload(
             # success
             return upload_status_response["resultFileHandleId"]
 
-        except SynapseUploadFailedException as ex:
-            syn.logger.error(
-                f"Failed in multipart upload. [retry: {retry < MAX_RETRIES}, Error: {str(ex)}]"
-            )
+        except SynapseUploadFailedException:
             if retry < MAX_RETRIES:
                 retry += 1
             else:
