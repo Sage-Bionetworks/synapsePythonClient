@@ -78,9 +78,6 @@ def test_threaded_access(syn: Synapse, project: Project, schedule_for_cleanup):
 
     syn.test_keepRunning = False
     while syn.test_threadsRunning > 0:
-        syn.logger.warning(
-            f"Waiting on test_threaded_access() to finish ({syn.test_threadsRunning} threads remaining)"
-        )
         time.sleep(1)
 
     # Reset the requests logging level
@@ -101,20 +98,12 @@ def wrap_function_as_child_thread(syn: Synapse, function, *args, **kwargs):
         syn.test_runCountMutex.acquire()
         syn.test_threadsRunning += 1
         syn.test_runCountMutex.release()
-        unique_uuid = str(uuid.uuid4())
 
         try:
-            syn.logger.warning(
-                f"Starting thread uuid: {unique_uuid}, function: {str(function)}"
-            )
-            function(*args, **kwargs, unique_uuid=unique_uuid)
+            function(*args, **kwargs)
         except Exception as ex:
-            syn.logger.warning(
-                f"Exception in thread uuid: {unique_uuid}, exception: {ex}"
-            )
             syn.test_errors.put(traceback.format_exc())
 
-        syn.logger.warning(f"Finished thread uuid: {unique_uuid}")
         syn.test_runCountMutex.acquire()
         syn.test_threadsRunning -= 1
         syn.test_runCountMutex.release()
@@ -136,9 +125,7 @@ def collect_errors_and_fail(syn: Synapse):
 ######################
 
 
-def thread_keep_storing_one_File(
-    syn: Synapse, project: Project, schedule_for_cleanup, unique_uuid: str
-):
+def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cleanup):
     """Makes one file and stores it over and over again."""
 
     # Make a local file to continuously store
@@ -149,15 +136,12 @@ def thread_keep_storing_one_File(
     )
 
     while syn.test_keepRunning:
-        syn.logger.warning(
-            f"thread_keep_storing_one_File(): [storing {myPrecious.path}, uuid: {unique_uuid}]"
-        )
         stored = None
         try:
             stored = store_catch_412_HTTPError(syn, myPrecious)
         except FunctionTimedOut:
             syn.logger.warning(
-                f"thread_keep_storing_one_File()::store_catch_412_HTTPError timed out, Path: {myPrecious.path}, uuid: {unique_uuid}"
+                f"thread_keep_storing_one_File()::store_catch_412_HTTPError timed out, [Path: {myPrecious.path}]"
             )
 
         if stored is not None:
@@ -167,68 +151,38 @@ def thread_keep_storing_one_File(
             # and thus has a retrievable synapse id
             myPrecious = syn.get(myPrecious)
 
-        syn.logger.warning(
-            f"Starting sleep - thread_keep_storing_one_File(), uuid: {unique_uuid}"
-        )
-        time_slept = sleep_for_a_bit()
-        syn.logger.warning(
-            f"Slept {time_slept}s - thread_keep_storing_one_File(), uuid: {unique_uuid}"
-        )
+        sleep_for_a_bit()
 
 
-def thread_get_files_from_Project(syn: Synapse, project: Project, unique_uuid: str):
+def thread_get_files_from_Project(syn: Synapse, project: Project):
     """Continually polls and fetches items from the Project."""
 
     while syn.test_keepRunning:
-        syn.logger.warning(
-            f"thread_get_files_from_Project(), Project: {project.id}, uuid: {unique_uuid}"
-        )
-        ids = []
         try:
-            ids = get_all_ids_from_Project(syn, project)
+            get_all_ids_from_Project(syn, project)
         except FunctionTimedOut:
             syn.logger.warning(
-                f"thread_get_files_from_Project()::get_all_ids_from_Project timed out, [Project: {project.id}, uuid: {unique_uuid}]"
+                f"thread_get_files_from_Project()::get_all_ids_from_Project timed out, [Project: {project.id}]"
             )
-        for id in ids:
-            syn.logger.warning(
-                f"thread_get_files_from_Project(), retrieved id: [Project: {project.id}, id: {id}, uuid: {unique_uuid}]"
-            )
-            pass
 
-        syn.logger.warning(
-            f"Starting sleep thread_get_files_from_Project(), uuid: {unique_uuid}"
-        )
-        time_slept = sleep_for_a_bit()
-        syn.logger.warning(
-            f"Slept {time_slept} thread_get_files_from_Project(), uuid: {unique_uuid}"
-        )
+        sleep_for_a_bit()
 
 
 def thread_get_and_update_file_from_Project(
-    syn: Synapse, project: Project, schedule_for_cleanup, unique_uuid: str
+    syn: Synapse, project: Project, schedule_for_cleanup
 ):
     """Fetches one item from the Project and updates it with a new file."""
 
     while syn.test_keepRunning:
-        syn.logger.warning(
-            f"Running thread_get_and_update_file_from_Project(), uuid: {unique_uuid}"
-        )
         id = []
         try:
             id = get_all_ids_from_Project(syn, project)
         except FunctionTimedOut:
             syn.logger.warning(
-                f"thread_get_and_update_file_from_Project()::get_all_ids_from_Project timed out, [project: {project.id}, uuid: {unique_uuid}]"
+                f"thread_get_and_update_file_from_Project()::get_all_ids_from_Project timed out, [project: {project.id}]"
             )
         if len(id) <= 0:
-            syn.logger.warning(
-                f"Starting sleep thread_get_and_update_file_from_Project() - Length {len(id)}, uuid: {unique_uuid}"
-            )
-            time_slept = sleep_for_a_bit()
-            syn.logger.warning(
-                f"Slept {time_slept} thread_get_and_update_file_from_Project() - Length {len(id)}, uuid: {unique_uuid}"
-            )
+            sleep_for_a_bit()
             continue
 
         id = id[random.randrange(len(id))]
@@ -237,26 +191,17 @@ def thread_get_and_update_file_from_Project(
         # Replace the file and re-store
         path = utils.make_bogus_data_file()
         schedule_for_cleanup(path)
-        syn.logger.warning(
-            f"thread_get_and_update_file_from_Project(), Updating: [project: {project.id}, entity: {entity.id}, path: {path}, uuid: {unique_uuid}]"
-        )
         entity.path = path
         try:
             entity = store_catch_412_HTTPError(syn, entity)
         except FunctionTimedOut:
             syn.logger.warning(
-                f"thread_get_and_update_file_from_Project()::store_catch_412_HTTPError timed out, path: {entity.path}, uuid: {unique_uuid}"
+                f"thread_get_and_update_file_from_Project()::store_catch_412_HTTPError timed out, [project: {project.id}, path: {entity.path}]"
             )
         if entity is not None:
             assert os.stat(entity.path) == os.stat(path)
 
-        syn.logger.warning(
-            f"Starting sleep thread_get_and_update_file_from_Project(), uuid: {unique_uuid}"
-        )
-        time_slept = sleep_for_a_bit()
-        syn.logger.warning(
-            f"Slept {time_slept} thread_get_and_update_file_from_Project(), uuid: {unique_uuid}"
-        )
+        sleep_for_a_bit()
 
 
 ####################

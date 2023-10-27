@@ -345,7 +345,6 @@ class UploadAttempt:
 
                 if isinstance(cause, KeyboardInterrupt):
                     raise SynapseUploadAbortedException("User interrupted upload")
-                self._syn.logger.exception(cause)
                 raise SynapseUploadFailedException("Part upload failed") from cause
 
     def _complete_upload(self):
