@@ -52,8 +52,8 @@ class ExernalStorageTest(unittest.TestCase):
         self.syn = syn
 
     @pytest.fixture(autouse=True)
-    def _project(self, project_function: Project):
-        self.project = project_function
+    def _project(self, project: Project):
+        self.project = project
 
     @classmethod
     def _make_temp_file(cls, contents=None, **kwargs):

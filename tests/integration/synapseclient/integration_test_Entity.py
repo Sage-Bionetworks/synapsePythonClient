@@ -388,11 +388,11 @@ def test_store_activity(syn, project, schedule_for_cleanup):
     assert honking["id"] == honking2["id"]
 
 
-def test_store_isRestricted_flag(syn, project_function, schedule_for_cleanup):
+def test_store_isRestricted_flag(syn, project, schedule_for_cleanup):
     # Store a file with access requirements
     path = utils.make_bogus_binary_file()
     schedule_for_cleanup(path)
-    entity = File(path, name="Secret human data", parent=project_function)
+    entity = File(path, name="Secret human data", parent=project)
 
     # We don't want to spam ACT with test emails
     with patch(

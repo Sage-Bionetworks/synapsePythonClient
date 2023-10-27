@@ -31,12 +31,12 @@ import synapseclient.core.utils as utils
 from io import StringIO
 
 
-@pytest.fixture(scope="function")
-def test_state(syn, project_function, schedule_for_cleanup):
+@pytest.fixture(scope="module")
+def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
     class State:
         def __init__(self):
             self.syn = syn
-            self.project = project_function
+            self.project = project
             self.schedule_for_cleanup = schedule_for_cleanup
             self.parser = cmdline.build_parser()
             self.upload_filename = _create_temp_file_with_cleanup(schedule_for_cleanup)

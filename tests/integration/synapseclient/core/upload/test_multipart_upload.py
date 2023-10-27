@@ -24,14 +24,14 @@ from synapseclient.core.upload.multipart_upload import (
 
 
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
-def test_round_trip(syn: Synapse, project_function: Project, schedule_for_cleanup):
+def test_round_trip(syn: Synapse, project: Project, schedule_for_cleanup):
     fhid = None
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE + 777771)
     try:
         fhid = multipart_upload_file(syn, filepath)
 
         # Download the file and compare it with the original
-        junk = File(parent=project_function, dataFileHandleId=fhid)
+        junk = File(parent=project, dataFileHandleId=fhid)
         junk.properties.update(syn._createEntity(junk.properties))
         (tmp_f, tmp_path) = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
