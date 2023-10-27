@@ -2,6 +2,7 @@ import filecmp
 import hashlib
 import os
 import random
+import pytest
 import requests
 import string
 import tempfile
@@ -22,6 +23,7 @@ from synapseclient.core.upload.multipart_upload import (
 )
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_round_trip(syn: Synapse, project_function: Project, schedule_for_cleanup):
     fhid = None
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE + 777771)
