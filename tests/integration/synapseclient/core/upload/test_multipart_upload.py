@@ -263,6 +263,7 @@ def _multipart_copy_test(
     assert file_content == dest_file_content
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_multipart_copy(syn: Synapse, project: Project, schedule_for_cleanup):
     """Test multi part copy using the minimum part size."""
     _multipart_copy_test(syn, project, schedule_for_cleanup, MIN_PART_SIZE)
