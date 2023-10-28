@@ -15,7 +15,7 @@ import synapseutils
 from tests.integration import QUERY_TIMEOUT_SEC
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def test_state(syn: Synapse, schedule_for_cleanup):
     class TestState:
         def __init__(self):
