@@ -46,6 +46,7 @@ def _init_query_timeout(request, syn):
     request.addfinalizer(revert_timeout)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_create_and_update_file_view(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
@@ -327,6 +328,7 @@ def test_dataset(syn, project):
     assert all(dataset_df.columns == ["id", "name"])
 
 
+@pytest.mark.flaky(reruns=3)
 def test_tables_csv(syn, project):
     # Define schema
     cols = [
