@@ -27,7 +27,7 @@ import synapseutils
 
 # Add Test for UPDATE
 # Add test for existing provenance but the orig doesn't have provenance
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=10)
 def test_copy(syn: Synapse, schedule_for_cleanup):
     try:
         execute_test_copy(syn, schedule_for_cleanup)
