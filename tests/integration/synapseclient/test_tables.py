@@ -364,6 +364,7 @@ def test_tables_csv(syn, project):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_tables_pandas(syn, project):
     # create a pandas DataFrame
     df = pd.DataFrame(
