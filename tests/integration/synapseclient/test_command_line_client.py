@@ -31,7 +31,7 @@ import synapseclient.core.utils as utils
 from io import StringIO
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
     class State:
         def __init__(self):
