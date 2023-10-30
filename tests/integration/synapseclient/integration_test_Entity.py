@@ -88,7 +88,11 @@ def test_Entity(syn: Synapse, project: Project, schedule_for_cleanup):
     a_file = syn.get(a_file)
     assert filecmp.cmp(path, a_file.path)
 
-    b_file = File(name="blah" + str(uuid.uuid4()), parent=folder, dataFileHandleId=a_file.dataFileHandleId)
+    b_file = File(
+        name="blah" + str(uuid.uuid4()),
+        parent=folder,
+        dataFileHandleId=a_file.dataFileHandleId,
+    )
     b_file = syn.store(b_file)
 
     assert b_file.dataFileHandleId == a_file.dataFileHandleId
@@ -227,7 +231,9 @@ def test_store_with_flags(syn: Synapse, project: Project, schedule_for_cleanup):
     # Store a File
     filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(filepath)
-    origBogus = File(filepath, name="Bogus Test File" + str(uuid.uuid4()), parent=project)
+    origBogus = File(
+        filepath, name="Bogus Test File" + str(uuid.uuid4()), parent=project
+    )
     origBogus = syn.store(origBogus, createOrUpdate=True)
     assert origBogus.versionNumber == 1
 
@@ -259,7 +265,9 @@ def test_store_with_flags(syn: Synapse, project: Project, schedule_for_cleanup):
     # This should be ignored because contents (and md5) are different
     different_filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(different_filepath)
-    mutaBogus = File(different_filepath, name="Bogus Test File" + str(uuid.uuid4()), parent=project)
+    mutaBogus = File(
+        different_filepath, name="Bogus Test File" + str(uuid.uuid4()), parent=project
+    )
     mutaBogus = syn.store(mutaBogus, forceVersion=False)
     assert mutaBogus.versionNumber == 3
 
@@ -284,7 +292,9 @@ def test_store_with_flags(syn: Synapse, project: Project, schedule_for_cleanup):
     # Expected behavior is raising an exception with a 409 error
     newer_filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(newer_filepath)
-    badBogus = File(newer_filepath, name="Bogus Test File" + str(uuid.uuid4()), parent=project)
+    badBogus = File(
+        newer_filepath, name="Bogus Test File" + str(uuid.uuid4()), parent=project
+    )
     pytest.raises(SynapseHTTPError, syn.store, badBogus, createOrUpdate=False)
 
     # -- Storing after syn.get(..., downloadFile=False) --
@@ -361,7 +371,9 @@ def test_get_with_cache_hit_and_miss_with_ifcollision(
     filepath = utils.make_bogus_binary_file()
     original_file_md5 = utils.md5_for_file(filepath).hexdigest()
     bogus_file = File(
-        filepath, name="a_name_that_will_show_up_in_cache" + str(uuid.uuid4()), parent=project
+        filepath,
+        name="a_name_that_will_show_up_in_cache" + str(uuid.uuid4()),
+        parent=project,
     )
     bogus_file = syn.store(bogus_file)
     schedule_for_cleanup(bogus_file)
@@ -415,7 +427,9 @@ def test_store_activity(syn: Synapse, project: Project, schedule_for_cleanup):
     # Create a File and an Activity
     path = utils.make_bogus_binary_file()
     schedule_for_cleanup(path)
-    entity = File(path, name="Hinkle horn honking holes" + str(uuid.uuid4()), parent=project)
+    entity = File(
+        path, name="Hinkle horn honking holes" + str(uuid.uuid4()), parent=project
+    )
     honking = Activity(
         name="Hinkle horn honking" + str(uuid.uuid4()),
         description="Nettlebed Cave is a limestone cave located on the South Island of New Zealand.",
@@ -508,7 +522,12 @@ def test_synapseStore_flag(syn: Synapse, project: Project, schedule_for_cleanup)
     # Store a path to a local file
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    bogus = File(path, name="Totally bogus data" + str(uuid.uuid4()), parent=project, synapseStore=False)
+    bogus = File(
+        path,
+        name="Totally bogus data" + str(uuid.uuid4()),
+        parent=project,
+        synapseStore=False,
+    )
     bogus = syn.store(bogus)
 
     # Verify the thing can be downloaded as a URL
@@ -683,7 +702,9 @@ def test_store__changing_externalURL_by_changing_path(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
     url = "https://www.synapse.org/Portal/clear.cache.gif"
-    ext = syn.store(File(url, name="test" + str(uuid.uuid4()), parent=project, synapseStore=False))
+    ext = syn.store(
+        File(url, name="test" + str(uuid.uuid4()), parent=project, synapseStore=False)
+    )
 
     # perform a syn.get so the filename changes
     ext = syn.get(ext)
