@@ -400,6 +400,7 @@ def test_get_with_cache_hit_and_miss_with_ifcollision(
 
     # GIVEN another bogus file with the same name and non matching MD5 data
     new_bogus_file = utils.make_bogus_binary_file()
+    os.remove(filepath)
     os.rename(new_bogus_file, filepath)
     assert utils.md5_for_file(filepath).hexdigest() != original_file_md5
 
