@@ -231,9 +231,8 @@ def test_store_with_flags(syn: Synapse, project: Project, schedule_for_cleanup):
     # Store a File
     filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(filepath)
-    origBogus = File(
-        filepath, name="Bogus Test File" + str(uuid.uuid4()), parent=project
-    )
+    file_name = "Bogus Test File" + str(uuid.uuid4())
+    origBogus = File(filepath, name=file_name, parent=project)
     origBogus = syn.store(origBogus, createOrUpdate=True)
     assert origBogus.versionNumber == 1
 
@@ -265,9 +264,7 @@ def test_store_with_flags(syn: Synapse, project: Project, schedule_for_cleanup):
     # This should be ignored because contents (and md5) are different
     different_filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(different_filepath)
-    mutaBogus = File(
-        different_filepath, name="Bogus Test File" + str(uuid.uuid4()), parent=project
-    )
+    mutaBogus = File(different_filepath, name=file_name, parent=project)
     mutaBogus = syn.store(mutaBogus, forceVersion=False)
     assert mutaBogus.versionNumber == 3
 
@@ -292,9 +289,7 @@ def test_store_with_flags(syn: Synapse, project: Project, schedule_for_cleanup):
     # Expected behavior is raising an exception with a 409 error
     newer_filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(newer_filepath)
-    badBogus = File(
-        newer_filepath, name="Bogus Test File" + str(uuid.uuid4()), parent=project
-    )
+    badBogus = File(newer_filepath, name=file_name, parent=project)
     pytest.raises(SynapseHTTPError, syn.store, badBogus, createOrUpdate=False)
 
     # -- Storing after syn.get(..., downloadFile=False) --
@@ -430,8 +425,9 @@ def test_store_activity(syn: Synapse, project: Project, schedule_for_cleanup):
     entity = File(
         path, name="Hinkle horn honking holes" + str(uuid.uuid4()), parent=project
     )
+    activity_name = "Hinkle horn honking" + str(uuid.uuid4())
     honking = Activity(
-        name="Hinkle horn honking" + str(uuid.uuid4()),
+        name=activity_name,
         description="Nettlebed Cave is a limestone cave located on the South Island of New Zealand.",
     )
     honking.used("http://www.flickr.com/photos/bevanbfree/3482259379/")
@@ -444,7 +440,7 @@ def test_store_activity(syn: Synapse, project: Project, schedule_for_cleanup):
     honking = syn.getProvenance(entity.id)
 
     # Verify the Activity
-    assert honking["name"] == "Hinkle horn honking"
+    assert honking["name"] == activity_name
     assert len(honking["used"]) == 2
     assert (
         honking["used"][0]["concreteType"]
@@ -522,9 +518,10 @@ def test_synapseStore_flag(syn: Synapse, project: Project, schedule_for_cleanup)
     # Store a path to a local file
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
+    file_name = "Totally bogus data" + str(uuid.uuid4())
     bogus = File(
         path,
-        name="Totally bogus data" + str(uuid.uuid4()),
+        name=file_name,
         parent=project,
         synapseStore=False,
     )
@@ -532,7 +529,7 @@ def test_synapseStore_flag(syn: Synapse, project: Project, schedule_for_cleanup)
 
     # Verify the thing can be downloaded as a URL
     bogus = syn.get(bogus, downloadFile=False)
-    assert bogus.name == "Totally bogus data"
+    assert bogus.name == file_name
     assert bogus.path == path, "Path: %s\nExpected: %s" % (bogus.path, path)
     assert not bogus.synapseStore
 
