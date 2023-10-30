@@ -23,12 +23,7 @@ from synapseclient.core.upload.multipart_upload import (
     pool_provider,
     UploadAttempt,
 )
-
-
-def md5_fn(part, _):
-    md5 = hashlib.new("md5", usedforsecurity=False)
-    md5.update(part)
-    return md5.hexdigest()
+from synapseclient.core.utils import md5_fn
 
 
 class TestUploadAttempt:

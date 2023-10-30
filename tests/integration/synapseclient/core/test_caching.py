@@ -181,7 +181,7 @@ def thread_get_and_update_file_from_Project(
             syn.logger.warning(
                 f"thread_get_and_update_file_from_Project()::get_all_ids_from_Project timed out, [project: {project.id}]"
             )
-        if len(id) <= 0:
+        if len(id) == 0:
             sleep_for_a_bit()
             continue
 

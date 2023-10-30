@@ -615,7 +615,7 @@ def test_command_get_recursive_and_query(test_state):
 
     schema1 = test_state.syn.store(
         Schema(
-            name="Foo Table_test_command_get_recursive_and_query",
+            name=str(uuid.uuid4()),
             columns=cols,
             parent=project_entity,
         )

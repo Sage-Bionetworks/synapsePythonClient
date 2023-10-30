@@ -10,7 +10,6 @@ not need to call any of these functions directly.
 
 import concurrent.futures
 from contextlib import contextmanager
-import hashlib
 import json
 import math
 import mimetypes
@@ -30,7 +29,7 @@ from synapseclient.core.exceptions import (
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
 )
-from synapseclient.core.utils import md5_for_file, MB, Spinner
+from synapseclient.core.utils import md5_fn, md5_for_file, MB, Spinner
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
@@ -478,11 +477,6 @@ def multipart_upload_file(
     def part_fn(part_number):
         return _get_file_chunk(file_path, part_number, part_size)
 
-    def md5_fn(part, _):
-        md5 = hashlib.new("md5", usedforsecurity=False)
-        md5.update(part)
-        return md5.hexdigest()
-
     return _multipart_upload(
         syn,
         dest_file_name,
@@ -529,11 +523,6 @@ def multipart_upload_string(
     .. _contentType:
      https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
-
-    def md5_fn(part, _):
-        md5 = hashlib.new("md5", usedforsecurity=False)
-        md5.update(part)
-        return md5.hexdigest()
 
     data = text.encode("utf-8")
     file_size = len(data)
