@@ -31,8 +31,8 @@ import synapseclient.core.utils as utils
 from io import StringIO
 
 
-@pytest.fixture(scope="module")
-def test_state(syn, project, schedule_for_cleanup):
+@pytest.fixture(scope="function")
+def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
     class State:
         def __init__(self):
             self.syn = syn
@@ -614,7 +614,11 @@ def test_command_get_recursive_and_query(test_state):
     cols = [Column(name="id", columnType="ENTITYID")]
 
     schema1 = test_state.syn.store(
-        Schema(name="Foo Table", columns=cols, parent=project_entity)
+        Schema(
+            name=str(uuid.uuid4()),
+            columns=cols,
+            parent=project_entity,
+        )
     )
     test_state.schedule_for_cleanup(schema1.id)
 
@@ -1165,7 +1169,7 @@ def test_create__same_project_name(test_state):
 
 
 @patch.object(utils.sys.stdin, "isatty")
-def test_storeTable__csv(mock_sys, test_state):
+def test_storeTable_csv(mock_sys, test_state):
     # when running on windows os with multiple CPU, the sys.stdin.isatty will return True
     # Thus we mock the utils.sys.stdin.
     mock_sys.return_value = False

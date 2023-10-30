@@ -23,6 +23,7 @@ from synapseclient.core.upload.multipart_upload import (
     pool_provider,
     UploadAttempt,
 )
+from synapseclient.core.utils import md5_fn
 
 
 class TestUploadAttempt:
@@ -48,11 +49,6 @@ class TestUploadAttempt:
 
         def part_request_body_provider_fn(part_number):
             return (f"{part_number}" * self.part_size).encode("utf-8")
-
-        def md5_fn(part, _):
-            md5 = hashlib.md5()
-            md5.update(part)
-            return md5.hexdigest()
 
         max_threads = 8
         force_restart = True
@@ -310,7 +306,7 @@ class TestUploadAttempt:
     ):
         mock_session = mock.Mock()
 
-        md5_hex = hashlib.md5(chunk).hexdigest()
+        md5_hex = md5_fn(chunk, None)
 
         with mock.patch.object(
             multipart_upload, "_get_file_chunk"
@@ -797,7 +793,7 @@ class TestMultipartUpload:
             "_multipart_upload",
         ) as mock_multipart_upload:
             encoded = upload_text.encode("utf-8")
-            md5_hex = hashlib.md5(encoded).hexdigest()
+            md5_hex = md5_fn(encoded, None)
 
             # call w/ default args
             multipart_upload_string(

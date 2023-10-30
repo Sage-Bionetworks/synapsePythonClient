@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from synapseclient import Entity, Team, UserProfile, client, Synapse
 from synapseclient import Activity, Annotations, File, Folder, login, Project, Synapse
+import synapseclient
 from synapseclient.core.credentials import credential_provider
 from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
@@ -122,6 +123,7 @@ def testCustomConfigFile(syn, schedule_for_cleanup):
         )
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_entity_version(syn, project, schedule_for_cleanup):
     # Make an Entity and make sure the version is one
     entity = File(parent=project["id"])
@@ -220,6 +222,7 @@ def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
     syn.get(entity["id"])
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_uploadFileEntity(syn, project, schedule_for_cleanup):
     # Create a FileEntity
     # Dictionaries default to FileEntity as a type

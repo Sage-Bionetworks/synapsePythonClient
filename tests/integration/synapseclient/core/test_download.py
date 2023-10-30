@@ -27,6 +27,7 @@ def test_download_check_md5(syn, project, schedule_for_cleanup):
     )
 
 
+@pytest.mark.flaky(reruns=3)
 def test_resume_partial_download(syn, project, schedule_for_cleanup):
     original_file = utils.make_bogus_data_file(40000)
 

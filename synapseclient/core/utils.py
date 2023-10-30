@@ -57,6 +57,18 @@ def md5_for_file(filename, block_size=2 * MB, callback=None):
     return md5
 
 
+def md5_fn(part, _):
+    """Calculate the MD5 of a file-like object.
+
+    :part -- A file-like object to read from.
+
+    :returns: The MD5
+    """
+    md5 = hashlib.new("md5", usedforsecurity=False)
+    md5.update(part)
+    return md5.hexdigest()
+
+
 def download_file(url, localFilepath=None):
     """
     Downloads a remote file.

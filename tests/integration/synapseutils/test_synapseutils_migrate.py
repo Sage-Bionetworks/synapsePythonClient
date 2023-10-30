@@ -5,6 +5,7 @@ import tempfile
 import uuid
 
 import synapseclient
+from synapseclient import Synapse
 from synapseclient.core.constants import concrete_types
 import synapseclient.core.utils as utils
 import synapseutils
@@ -12,7 +13,7 @@ from synapseutils.migrate_functions import _MigrationType, _MigrationStatus
 
 
 @pytest.fixture(scope="module")
-def storage_location_id(syn, project):
+def storage_location_id(syn: Synapse):
     storage_location_setting = syn.restPOST(
         "/storageLocation",
         json.dumps(
@@ -52,7 +53,9 @@ def _assert_storage_location(file_handles, storage_location_id):
         assert fh["storageLocationId"] == storage_location_id
 
 
-def test_migrate_project(request, syn, schedule_for_cleanup, storage_location_id):
+def test_migrate_project(
+    request, syn: Synapse, schedule_for_cleanup, storage_location_id
+):
     test_name = request.node.name
     project_name = "{}-{}".format(test_name, uuid.uuid4())
     project = synapseclient.Project(name=project_name)
