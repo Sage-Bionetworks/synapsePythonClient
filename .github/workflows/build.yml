@@ -58,7 +58,7 @@ jobs:
         id: cache-dependencies
         uses: actions/cache@v3
         env:
-          cache-name: cache-py-dependencies-flaky
+          cache-name: cache-py-dependencies
         with:
           path: |
             ${{ steps.get-dependencies.outputs.site_packages_loc }}
