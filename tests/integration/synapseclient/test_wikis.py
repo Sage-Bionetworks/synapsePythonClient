@@ -3,13 +3,13 @@ import uuid
 
 import pytest
 
-from synapseclient import Project, Wiki
+from synapseclient import Project, Wiki, Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload.upload_functions import upload_synapse_s3
 import synapseclient.core.utils as utils
 
 
-def test_wikiAttachment(syn, project, schedule_for_cleanup):
+def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup):
     # Upload a file to be attached to a Wiki
     filename = utils.make_bogus_data_file()
     attachname = utils.make_bogus_data_file()
@@ -36,7 +36,10 @@ def test_wikiAttachment(syn, project, schedule_for_cleanup):
 
     # Create a Wiki sub-page
     subwiki = Wiki(
-        owner=project, title="A sub-wiki", markdown="nothing", parentWikiId=wiki.id
+        owner=project,
+        title="A sub-wiki",
+        markdown="nothing",
+        parentWikiId=wiki.id,
     )
     subwiki = syn.store(subwiki)
 

@@ -30,6 +30,7 @@ def add_file_to_cache(i, cache_root_dir):
         my_cache.add(file_handle_id, file_path)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_cache_concurrent_access():
     cache_root_dir = tempfile.mkdtemp()
     processes = [

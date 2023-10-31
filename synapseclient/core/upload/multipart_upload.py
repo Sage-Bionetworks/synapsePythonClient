@@ -10,7 +10,6 @@ not need to call any of these functions directly.
 
 import concurrent.futures
 from contextlib import contextmanager
-import hashlib
 import json
 import math
 import mimetypes
@@ -30,7 +29,7 @@ from synapseclient.core.exceptions import (
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
 )
-from synapseclient.core.utils import md5_for_file, MB, Spinner
+from synapseclient.core.utils import md5_fn, md5_for_file, MB, Spinner
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
@@ -345,7 +344,6 @@ class UploadAttempt:
 
                 if isinstance(cause, KeyboardInterrupt):
                     raise SynapseUploadAbortedException("User interrupted upload")
-
                 raise SynapseUploadFailedException("Part upload failed") from cause
 
     def _complete_upload(self):
@@ -479,11 +477,6 @@ def multipart_upload_file(
     def part_fn(part_number):
         return _get_file_chunk(file_path, part_number, part_size)
 
-    def md5_fn(part, _):
-        md5 = hashlib.md5()
-        md5.update(part)
-        return md5.hexdigest()
-
     return _multipart_upload(
         syn,
         dest_file_name,
@@ -533,7 +526,7 @@ def multipart_upload_string(
 
     data = text.encode("utf-8")
     file_size = len(data)
-    md5_hex = hashlib.md5(data).hexdigest()
+    md5_hex = md5_fn(data, None)
 
     if not dest_file_name:
         dest_file_name = "message.txt"
@@ -556,11 +549,6 @@ def multipart_upload_string(
 
     def part_fn(part_number):
         return _get_data_chunk(data, part_number, part_size)
-
-    def md5_fn(part, _):
-        md5 = hashlib.md5()
-        md5.update(part)
-        return md5.hexdigest()
 
     part_size = _get_part_size(part_size, file_size)
     return _multipart_upload(

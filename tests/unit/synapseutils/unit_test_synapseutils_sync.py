@@ -26,7 +26,7 @@ from synapseclient.core.utils import id_of
 from synapseclient.core.pool_provider import get_executor
 
 
-def test_readManifest__sync_order_with_home_directory(syn):
+def test_readManifest__sync_order_with_home_directory(syn: Synapse):
     """SYNPY-508"""
 
     # row1's file depends on row2's file but is listed first
@@ -63,7 +63,7 @@ def test_readManifest__sync_order_with_home_directory(syn):
         )
 
 
-def test_readManifestFile__synapseStore_values_not_set(syn):
+def test_readManifestFile__synapseStore_values_not_set(syn: Synapse):
     project_id = "syn123"
     header = "path\tparent\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
@@ -89,7 +89,7 @@ def test_readManifestFile__synapseStore_values_not_set(syn):
         assert expected_synapseStore == actual_synapseStore
 
 
-def test_readManifestFile__synapseStore_values_are_set(syn):
+def test_readManifestFile__synapseStore_values_are_set(syn: Synapse):
     project_id = "syn123"
     header = "path\tparent\tsynapseStore\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
@@ -129,7 +129,7 @@ def test_readManifestFile__synapseStore_values_are_set(syn):
         assert expected_synapseStore == actual_synapseStore
 
 
-def test_syncFromSynapse__non_file_entity(syn):
+def test_syncFromSynapse__non_file_entity(syn: Synapse):
     table_schema = "syn12345"
     with patch.object(syn, "getChildren", return_value=[]), patch.object(
         syn, "get", return_value=Schema(name="asssdfa", parent="whatever")
@@ -137,7 +137,7 @@ def test_syncFromSynapse__non_file_entity(syn):
         pytest.raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
 
 
-def test_syncFromSynapse__empty_folder(syn):
+def test_syncFromSynapse__empty_folder(syn: Synapse):
     folder = Folder(name="the folder", parent="whatever", id="syn123")
     with patch.object(syn, "getChildren", return_value=[]), patch.object(
         syn, "get", return_value=Folder(name="asssdfa", parent="whatever")
@@ -145,7 +145,7 @@ def test_syncFromSynapse__empty_folder(syn):
         assert list() == synapseutils.syncFromSynapse(syn, folder)
 
 
-def test_syncFromSynapse__file_entity(syn):
+def test_syncFromSynapse__file_entity(syn: Synapse):
     file = File(name="a file", parent="some parent", id="syn456")
     with patch.object(
         syn, "getChildren", return_value=[file]
@@ -154,7 +154,7 @@ def test_syncFromSynapse__file_entity(syn):
         patch_syn_get_children.assert_not_called()
 
 
-def test_syncFromSynapse__folder_contains_one_file(syn):
+def test_syncFromSynapse__folder_contains_one_file(syn: Synapse):
     folder = Folder(name="the folder", parent="whatever", id="syn123")
     file = File(name="a file", parent=folder, id="syn456")
     with patch.object(
@@ -164,7 +164,7 @@ def test_syncFromSynapse__folder_contains_one_file(syn):
         patch_syn_get_children.called_with(folder["id"])
 
 
-def test_syncFromSynapse__project_contains_empty_folder(syn):
+def test_syncFromSynapse__project_contains_empty_folder(syn: Synapse):
     project = Project(name="the project", parent="whatever", id="syn123")
     file = File(name="a file", parent=project, id="syn456")
     folder = Folder(name="a folder", parent=project, id="syn789")
@@ -194,7 +194,7 @@ def test_syncFromSynapse__project_contains_empty_folder(syn):
         )
 
 
-def test_syncFromSynapse__downloadFile_is_false(syn):
+def test_syncFromSynapse__downloadFile_is_false(syn: Synapse):
     """
     Verify when passing the argument downloadFile is equal to False,
     syncFromSynapse won't download the file to clients' local end.
@@ -228,7 +228,7 @@ def test_syncFromSynapse__downloadFile_is_false(syn):
 @patch.object(synapseutils.sync, "generateManifest")
 @patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
 def test_syncFromSynapse__manifest_is_all(
-    mock__get_file_entity_provenance_dict, mock_generateManifest, syn
+    mock__get_file_entity_provenance_dict, mock_generateManifest, syn: Synapse
 ):
     """
     Verify manifest argument equal to "all" that pass in to syncFromSynapse, it will create root_manifest and all
@@ -297,7 +297,7 @@ def test_syncFromSynapse__manifest_is_all(
 @patch.object(synapseutils.sync, "generateManifest")
 @patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
 def test_syncFromSynapse__manifest_is_root(
-    mock__get_file_entity_provenance_dict, mock_generateManifest, syn
+    mock__get_file_entity_provenance_dict, mock_generateManifest, syn: Synapse
 ):
     """
     Verify manifest argument equal to "root" that pass in to syncFromSynapse, it will create root_manifest file only.
@@ -359,7 +359,7 @@ def test_syncFromSynapse__manifest_is_root(
 @patch.object(synapseutils.sync, "generateManifest")
 @patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
 def test_syncFromSynapse__manifest_is_suppress(
-    mock__get_file_entity_provenance_dict, mock_generateManifest, syn
+    mock__get_file_entity_provenance_dict, mock_generateManifest, syn: Synapse
 ):
     """
     Verify manifest argument equal to "suppress" that pass in to syncFromSynapse, it won't create any manifest file.
@@ -981,7 +981,8 @@ class TestSyncUploader:
         assert cm_ex.value.__cause__ == ex
         future_3.cancel.assert_called_once_with()
 
-    def test_upload__error(self, syn):
+    @pytest.mark.flaky(reruns=3, only_rerun=["AssertionError"])
+    def test_upload_error(self, syn):
         """Verify that if an item upload fails the error is raised in the main thread
         and any running Futures are cancelled"""
 

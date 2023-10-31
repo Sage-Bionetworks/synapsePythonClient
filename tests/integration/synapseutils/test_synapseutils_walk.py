@@ -1,12 +1,26 @@
 import uuid
 import os
+from func_timeout import FunctionTimedOut, func_set_timeout
+
+import pytest
 
 from synapseclient import File, Folder, Project
 import synapseclient.core.utils as utils
 import synapseutils
 
 
+@pytest.mark.flaky(reruns=3)
 def test_walk(syn, schedule_for_cleanup):
+    try:
+        execute_test_walk(syn, schedule_for_cleanup)
+    except FunctionTimedOut:
+        syn.logger.warning("test_walk timed out")
+        pytest.fail("test_walk timed out")
+
+
+# When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
+@func_set_timeout(120)
+def execute_test_walk(syn, schedule_for_cleanup):
     walked = []
     firstfile = utils.make_bogus_data_file()
     schedule_for_cleanup(firstfile)

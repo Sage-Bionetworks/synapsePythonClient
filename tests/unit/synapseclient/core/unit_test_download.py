@@ -122,7 +122,7 @@ def mock_generate_headers(self, headers=None):
     return {}
 
 
-def test_mock_download(syn):
+def test_mock_download(syn: Synapse):
     temp_dir = tempfile.gettempdir()
 
     fileHandleId = "42"
@@ -388,7 +388,7 @@ def test_mock_download(syn):
 
 class Test__downloadFileHandle(unittest.TestCase):
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse):
         self.syn = syn
 
     def tearDown(self) -> None:
@@ -506,7 +506,7 @@ class Test__downloadFileHandle(unittest.TestCase):
 
 class Test_download_from_url_multi_threaded:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse):
         self.syn = syn
 
     def test_md5_mismatch(self):
@@ -564,7 +564,7 @@ class Test_download_from_url_multi_threaded:
             )
 
 
-def test_download_end_early_retry(syn):
+def test_download_end_early_retry(syn: Synapse):
     """
     -------Test to ensure download retry even if connection ends early--------
     """
@@ -645,7 +645,7 @@ def test_download_end_early_retry(syn):
         mocked_move.assert_called_once_with(temp_destination, destination)
 
 
-def test_download_md5_mismatch__not_local_file(syn):
+def test_download_md5_mismatch__not_local_file(syn: Synapse):
     """
     --------Test to ensure file gets removed on md5 mismatch--------
     """
@@ -712,7 +712,7 @@ def test_download_md5_mismatch__not_local_file(syn):
         mocked_remove.assert_called_once_with(destination)
 
 
-def test_download_md5_mismatch_local_file(syn):
+def test_download_md5_mismatch_local_file(syn: Synapse):
     """
     --------Test to ensure file gets removed on md5 mismatch--------
     """
@@ -743,7 +743,7 @@ def test_download_md5_mismatch_local_file(syn):
         assert not mocked_remove.called
 
 
-def test_download_file_entity__correct_local_state(syn):
+def test_download_file_entity__correct_local_state(syn: Synapse):
     mock_cache_path = utils.normalize_path("/i/will/show/you/the/path/yi.txt")
     file_entity = File(parentId="syn123")
     file_entity.dataFileHandleId = 123
@@ -753,6 +753,7 @@ def test_download_file_entity__correct_local_state(syn):
             entity=file_entity,
             ifcollision="overwrite.local",
             submission=None,
+            expected_md5=None,
         )
         assert mock_cache_path == utils.normalize_path(file_entity.path)
         assert os.path.dirname(mock_cache_path) == file_entity.cacheDir
@@ -760,7 +761,7 @@ def test_download_file_entity__correct_local_state(syn):
         assert os.path.basename(mock_cache_path) == file_entity.files[0]
 
 
-def test_getFileHandleDownload__error_UNAUTHORIZED(syn):
+def test_getFileHandleDownload__error_UNAUTHORIZED(syn: Synapse):
     ret_val = {
         "requestedFiles": [
             {
@@ -772,7 +773,7 @@ def test_getFileHandleDownload__error_UNAUTHORIZED(syn):
         pytest.raises(SynapseError, syn._getFileHandleDownload, "123", "syn456")
 
 
-def test_getFileHandleDownload__error_NOT_FOUND(syn):
+def test_getFileHandleDownload__error_NOT_FOUND(syn: Synapse):
     ret_val = {
         "requestedFiles": [
             {

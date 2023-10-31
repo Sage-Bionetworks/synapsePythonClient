@@ -133,8 +133,11 @@ jobs:
             export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
              # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-            pytest -sv tests/integration -n auto --dist loadscope
+            pytest -sv tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+            # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
+            pytest -sv tests/integration/synapseclient/test_command_line_client.py
           fi
+
   # enforce the code matches the Black code style
   lint:
     runs-on: ubuntu-latest
