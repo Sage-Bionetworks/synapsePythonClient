@@ -36,6 +36,7 @@ jobs:
 
   # run unit (and integration tests if account secrets available) on our build matrix
   test:
+    needs: [pre-commit]
 
     strategy:
       matrix:
