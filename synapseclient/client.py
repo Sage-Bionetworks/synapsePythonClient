@@ -234,29 +234,6 @@ class Synapse(object):
     ):
         self._requests_session = requests_session or requests.Session()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
         cache_root_dir = (
             cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir
         )
