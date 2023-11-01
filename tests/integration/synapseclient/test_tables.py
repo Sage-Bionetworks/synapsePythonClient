@@ -27,6 +27,8 @@ from synapseclient import (
     Schema,
     Table,
     Dataset,
+    Project,
+    Synapse,
 )
 import synapseclient.core.utils as utils
 
@@ -44,7 +46,10 @@ def _init_query_timeout(request, syn):
     request.addfinalizer(revert_timeout)
 
 
-def test_create_and_update_file_view(syn, project, schedule_for_cleanup):
+@pytest.mark.flaky(reruns=3)
+def test_create_and_update_file_view(
+    syn: Synapse, project: Project, schedule_for_cleanup
+):
     # Create a folder
     folder = Folder(
         str(uuid.uuid4()), parent=project, description="creating a file-view"
@@ -225,7 +230,9 @@ def test_rowset_tables(syn, project):
         Column(name="description", columnType="LARGETEXT"),
     ]
 
-    schema1 = syn.store(Schema(name="Foo Table", columns=cols, parent=project))
+    schema1 = syn.store(
+        Schema(name="Foo Table_test_rowset_tables", columns=cols, parent=project)
+    )
 
     data1 = [
         ["Chris", "bar", 11.23, 45, False, "a"],
@@ -321,6 +328,7 @@ def test_dataset(syn, project):
     assert all(dataset_df.columns == ["id", "name"])
 
 
+@pytest.mark.flaky(reruns=3)
 def test_tables_csv(syn, project):
     # Define schema
     cols = [
@@ -358,6 +366,7 @@ def test_tables_csv(syn, project):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_tables_pandas(syn, project):
     # create a pandas DataFrame
     df = pd.DataFrame(

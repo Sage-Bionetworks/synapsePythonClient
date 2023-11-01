@@ -9,8 +9,9 @@ from datetime import datetime
 import pytest
 from unittest.mock import patch
 
-from synapseclient import Entity, Team, UserProfile, client
+from synapseclient import Entity, Team, UserProfile, client, Synapse
 from synapseclient import Activity, Annotations, File, Folder, login, Project, Synapse
+import synapseclient
 from synapseclient.core.credentials import credential_provider
 from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
@@ -122,6 +123,7 @@ def testCustomConfigFile(syn, schedule_for_cleanup):
         )
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_entity_version(syn, project, schedule_for_cleanup):
     # Make an Entity and make sure the version is one
     entity = File(parent=project["id"])
@@ -220,6 +222,7 @@ def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
     syn.get(entity["id"])
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_uploadFileEntity(syn, project, schedule_for_cleanup):
     # Create a FileEntity
     # Dictionaries default to FileEntity as a type
@@ -414,6 +417,61 @@ def test_annotations(syn, project, schedule_for_cleanup):
         "present_time"
     ].strftime("%Y-%m-%d %H:%M:%S")
     assert annotation["maybe"] == [True, False]
+
+
+def test_annotations_on_file_during_create_no_annotations(
+    syn: Synapse, project: Project, schedule_for_cleanup
+):
+    # GIVEN a bogus file
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    file = File(path, parent=project["id"], description="test_annotations_on_file")
+
+    # AND the file is stored
+    with patch.object(syn, "set_annotations") as mock_set_annotations:
+        entity = syn.store(file)
+    schedule_for_cleanup(entity.id)
+
+    # WHEN I get the annotations
+    annotations = syn.get_annotations(entity)
+
+    # THEN I expect the annotations to be empty
+    assert hasattr(annotations, "id")
+    assert hasattr(annotations, "etag")
+    assert annotations.id == entity.id
+    assert annotations.etag == entity.etag
+    assert len(annotations) == 0
+
+    # AND set_annotations has not been called
+    assert not mock_set_annotations.called
+
+
+def test_annotations_on_file_during_create_with_annotations(
+    syn: Synapse, project: Project, schedule_for_cleanup
+):
+    # GIVEN a bogus file
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    # AND annotations have been set on the file
+    file = File(
+        path,
+        parent=project["id"],
+        description="test_annotations_on_file",
+        annotations={"label_1": "value_1", "label_2": "value_2"},
+    )
+
+    # AND the file is stored
+    entity = syn.store(file)
+    schedule_for_cleanup(entity.id)
+
+    # WHEN I get the annotations
+    annotations = syn.get_annotations(entity)
+
+    # THEN I expect the annotations to have been set
+    assert annotations["label_1"] == ["value_1"]
+    assert annotations["label_2"] == ["value_2"]
+    assert len(annotations) == 2
 
 
 def test_get_user_profile(syn):

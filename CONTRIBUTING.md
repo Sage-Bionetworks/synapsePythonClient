@@ -4,14 +4,20 @@ Welcome, and thanks for your interest in contributing to the Synapse Python clie
 
 By contributing, you are agreeing that we may redistribute your work under this [license](LICENSE.md).
 
+# Table of contents
 - [How to contribute](#how-to-contribute)
-  - [Reporting bugs or feature requests](#reporting-bugs-or-feature-requests)
-  - [The development life cycle](#the-development-life-cycle)
-    - [Fork and clone this repository](#fork-and-clone-this-repository)
-    - [Installing the Python Client in a virtual environment with pipenv](#installing-the-python-client-in-a-virtual-environment-with-pipenv)
-    - [Development](#development)
-    - [Testing](#testing)
-- [Repository Admins](#repository-admins)
+   * [Reporting bugs or feature requests](#reporting-bugs-or-feature-requests)
+- [Getting started](#getting-started)
+    + [Fork and clone this repository](#fork-and-clone-this-repository)
+    + [Installing the Python Client in a virtual environment with pipenv](#installing-the-python-client-in-a-virtual-environment-with-pipenv)
+    + [Set up pre-commit](#set-up-pre-commit)
+    + [Authentication](#authentication)
+- [The development life cycle](#the-development-life-cycle)
+   * [Development](#development)
+   * [Testing](#testing)
+      + [Integration testing agaisnt the `dev` synapse server](#integration-testing-agaisnt-the-dev-synapse-server)
+   * [Code style](#code-style)
+   * [Repository Admins](#repository-admins)
 
 ## I don't want to read this whole thing I just have a question!
 
@@ -36,10 +42,7 @@ Bug reports and feature requests can be made in two ways. The first (preferred) 
 
 After a bug report is received, expect a Sage Bionetworks staff member to contact you through the submission method you chose ([Synapse Help Forum](https://www.synapse.org/#!SynapseForum:default)or [Github issue](https://github.com/Sage-Bionetworks/synapsePythonClient/issues)). After ascertaining there is enough detail for the bug report or feature request, a JIRA issue will be opened. If you want to work on fixing the issue or feature yourself, follow the next sections!
 
-### The development life cycle
-
-Developing on the Python client starts with picking a issue to work on in JIRA! The open work items (bugs and new features) are tracked in JIRA in the [SYNPY Project](https://sagebionetworks.jira.com/projects/SYNPY/issues). Issues marked as `Open` are ready for your contributions! Please make sure your assign yourself the ticket and check with the maintainers if the issue you picked is suitable.
-
+## Getting started
 #### Fork and clone this repository
 
 1. See the [Github docs](https://help.github.com/articles/fork-a-repo/) for how to make a copy (a fork) of a repository to your own Github account.
@@ -66,14 +69,35 @@ Perform the following one-time steps to set up your local environment.
     * pipenv
       ```bash
       # Verify you are at the root directory for the cloned repository (ie: `cd synapsePythonClient`)
-      pipenv install
       # To develop locally you want to add --dev
-      # pipenv install --dev
+      pipenv install --dev
+      # Set your active session to the virtual environment you created
       pipenv shell
+      # Note: The 'Python Environment Manager' extension in vscode is reccomended here
       ```
 
 4. Once completed you are ready to start developing. Commands run through the CLI, or through an IDE like visual studio code within the virtual environment will have all required dependencies automatically installed. Try running `synapse -h` in your shell to read over the available CLI commands. Or view the `Usage as a library` section in the README.md to get started using the library to write more python.
-#### Development
+
+#### Set up pre-commit
+Once your virtual environment is created the `pre-commit` command will be available through your terminal. Install `pre-commit` into your git hooks via:
+```
+pre-commit install
+```
+When you commit your files via git it will automatically use the `.pre-commit-config.yaml` to run various checks to enforce style.
+
+If you want to manually run all pre-commit hooks use:
+```
+pre-commit run --all-files
+```
+
+#### Authentication
+Learn about the multiple ways one can login to Synapse [here](https://python-docs.synapse.org/build/html/getting_started/credentials.html).
+
+## The development life cycle
+
+Developing on the Python client starts with picking a issue to work on in JIRA! The open work items (bugs and new features) are tracked in JIRA in the [SYNPY Project](https://sagebionetworks.jira.com/projects/SYNPY/issues). Issues marked as `Open` are ready for your contributions! Please make sure your assign yourself the ticket and check with the maintainers if the issue you picked is suitable.
+
+### Development
 
 Now that you have chosen a JIRA ticket and have your own fork of this repository.  It's time to start development!
 
@@ -83,14 +107,6 @@ Now that you have chosen a JIRA ticket and have your own fork of this repository
 
 
 1. (Assuming you have followed all 4 steps above in the "fork and clone this repository" section). Navigate to your cloned repository on your computer/server.
-1. Make sure your `develop` branch is up to date with the `Sage-Bionetworks/synapsePythonClient` develop branch
-
-    ```
-    cd synapsePythonClient
-    git remote add upstream https://github.com/Sage-Bionetworks/synapsePythonClient.git
-    git checkout develop
-    git pull upstream develop
-    ```
 
 1. Create a feature branch which off the `develop` branch. The branch should be named the same as the JIRA issue you are working on (e.g., `SYNPY-1234-{feature-here}`). I recommend adding details of the actual feature in the branch name so that you don't need to go back and forth between JIRA and GitHub.
 
@@ -112,11 +128,12 @@ Now that you have chosen a JIRA ticket and have your own fork of this repository
     > It is good practice to run `git diff` or `git status` to first view your changes prior to pushing!
 
     ```
+    # Make sure that you have setup `pre-commit` as noted in the getting started section
     git commit changed_file.txt -m "Remove X parameter because it was unused"
     git push
     ```
 
-1. (Make sure you have follow instructions in "Install development dependencies") Once you have made your additions or changes, make sure you write tests and run the test suite. More information on testing below.
+1. Once you have made your additions or changes, make sure you write tests and run the test suite. More information on testing below.
 1. Once you have completed all the steps above, in Github, create a pull request from the feature branch of your fork to the `develop` branch of `Sage-Bionetworks/synapsePythonClient`.
 
     > **Note**
@@ -125,7 +142,7 @@ Now that you have chosen a JIRA ticket and have your own fork of this repository
     >
     > The status of an issue can be tracked in JIRA. Once an issue has passed a code review with a Sage Bionetworks engineer, he/she will update it's status in JIRA appropriately.
 
-#### Testing
+### Testing
 
 All code added to the client must have tests. These might include unit tests (to test specific functionality of code that was added to support fixing the bug or feature), integration tests (to test that the feature is usable - e.g., it should have complete the expected behavior as reported in the feature request or bug report), or both.
 
@@ -139,7 +156,7 @@ Here's how to run the test suite:
 # Unit tests
 pytest -vs tests/unit
 
-# Integration tests
+# Integration tests - The integration tests should be run against the `dev` synapse server
 pytest -vs tests/integration
 ```
 
@@ -149,6 +166,22 @@ To test a specific feature, specify the full path to the function to run:
 # Test table query functionality from the command line client
 pytest -vs tests/integration/synapseclient/test_command_line_client.py::test_table_query
 ````
+
+#### Integration testing against the `dev` synapse server
+The easiest way to specify the HTTP endpoints to use for all synapse requests is to modify the `~/.synapseConfig` file and modify a few key-value pairs such as below. Not this is also where you will specify the dev authentication:
+```
+[authentication]
+username=<dev username>
+authtoken=<dev authtoken>
+
+[endpoints]
+repoEndpoint=https://repo-dev.dev.sagebase.org/repo/v1
+authEndpoint=https://repo-dev.dev.sagebase.org/auth/v1
+fileHandleEndpoint=https://repo-dev.dev.sagebase.org/file/v1
+```
+
+#### Integration testing for external collaborators
+As an external collaborator you will not have access to a development account and environment to run the integration tests agaisnt. Either request that a Sage Bionetworks staff member run your integration tests via a pull request, or, contact us via the [Service Desk](https://sagebionetworks.jira.com/servicedesk/customer/portal/9) to requisition a development account for integration testing only.
 
 ### Code style
 

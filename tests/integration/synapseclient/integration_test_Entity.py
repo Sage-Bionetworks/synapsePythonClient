@@ -7,13 +7,24 @@ from datetime import datetime as Datetime
 import pytest
 from unittest.mock import patch
 
+from pytest_mock import MockerFixture
+
+
 from synapseclient.core.upload.upload_functions import create_external_file_handle
-from synapseclient import Activity, DockerRepository, File, Folder, Link, Project
+from synapseclient import (
+    Activity,
+    DockerRepository,
+    File,
+    Folder,
+    Link,
+    Project,
+    Synapse,
+)
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
 import synapseclient.core.utils as utils
 
 
-def test_Entity(syn, project, schedule_for_cleanup):
+def test_Entity(syn: Synapse, project: Project, schedule_for_cleanup):
     # Update the project
     project_name = str(uuid.uuid4())
     project = Project(name=project_name)
@@ -77,7 +88,11 @@ def test_Entity(syn, project, schedule_for_cleanup):
     a_file = syn.get(a_file)
     assert filecmp.cmp(path, a_file.path)
 
-    b_file = File(name="blah", parent=folder, dataFileHandleId=a_file.dataFileHandleId)
+    b_file = File(
+        name="blah" + str(uuid.uuid4()),
+        parent=folder,
+        dataFileHandleId=a_file.dataFileHandleId,
+    )
     b_file = syn.store(b_file)
 
     assert b_file.dataFileHandleId == a_file.dataFileHandleId
@@ -152,7 +167,7 @@ def test_Entity(syn, project, schedule_for_cleanup):
     assert os.path.basename(a_file_cached.path) == os.path.basename(a_file.path)
 
 
-def test_special_characters(syn, project, schedule_for_cleanup):
+def test_special_characters(syn: Synapse, project: Project):
     folder = syn.store(
         Folder(
             "Special Characters Here",
@@ -174,7 +189,7 @@ def test_special_characters(syn, project, schedule_for_cleanup):
     assert folder.russian_annotation[0] == "Обезьяна прикладом"
 
 
-def test_get_local_file(syn, project, schedule_for_cleanup):
+def test_get_local_file(syn: Synapse, project: Project, schedule_for_cleanup):
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
     folder = Folder(
@@ -204,7 +219,7 @@ def test_get_local_file(syn, project, schedule_for_cleanup):
     pytest.raises(SynapseError, syn.get, new_path, limitSearch="syn1")
 
 
-def test_store_with_flags(syn, project, schedule_for_cleanup):
+def test_store_with_flags(syn: Synapse, project: Project, schedule_for_cleanup):
     # -- CreateOrUpdate flag for Projects --
     # If we store a project with the same name, it should become an update
     projUpdate = Project(project.name)
@@ -216,7 +231,8 @@ def test_store_with_flags(syn, project, schedule_for_cleanup):
     # Store a File
     filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(filepath)
-    origBogus = File(filepath, name="Bogus Test File", parent=project)
+    file_name = "Bogus Test File" + str(uuid.uuid4())
+    origBogus = File(filepath, name=file_name, parent=project)
     origBogus = syn.store(origBogus, createOrUpdate=True)
     assert origBogus.versionNumber == 1
 
@@ -248,7 +264,7 @@ def test_store_with_flags(syn, project, schedule_for_cleanup):
     # This should be ignored because contents (and md5) are different
     different_filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(different_filepath)
-    mutaBogus = File(different_filepath, name="Bogus Test File", parent=project)
+    mutaBogus = File(different_filepath, name=file_name, parent=project)
     mutaBogus = syn.store(mutaBogus, forceVersion=False)
     assert mutaBogus.versionNumber == 3
 
@@ -273,7 +289,7 @@ def test_store_with_flags(syn, project, schedule_for_cleanup):
     # Expected behavior is raising an exception with a 409 error
     newer_filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(newer_filepath)
-    badBogus = File(newer_filepath, name="Bogus Test File", parent=project)
+    badBogus = File(newer_filepath, name=file_name, parent=project)
     pytest.raises(SynapseHTTPError, syn.store, badBogus, createOrUpdate=False)
 
     # -- Storing after syn.get(..., downloadFile=False) --
@@ -287,11 +303,14 @@ def test_store_with_flags(syn, project, schedule_for_cleanup):
     assert ephemeralBogus.shoe_size == [11.5]
 
 
-def test_get_with_downloadLocation_and_ifcollision(syn, project, schedule_for_cleanup):
+def test_get_with_downloadLocation_and_ifcollision(
+    syn: Synapse, project: Project, schedule_for_cleanup
+):
     # Store a File and delete it locally
     filepath = utils.make_bogus_binary_file()
-    bogus = File(filepath, name="Bogus Test File", parent=project)
+    bogus = File(filepath, name="Bogus Test File" + str(uuid.uuid4()), parent=project)
     bogus = syn.store(bogus)
+    schedule_for_cleanup(bogus)
     os.remove(filepath)
 
     # Compare stuff to this one
@@ -339,13 +358,77 @@ def test_get_with_downloadLocation_and_ifcollision(syn, project, schedule_for_cl
     os.remove(renamedBogus.path)
 
 
-def test_store_activity(syn, project, schedule_for_cleanup):
+def test_get_with_cache_hit_and_miss_with_ifcollision(
+    syn: Synapse, project: Project, schedule_for_cleanup, mocker: MockerFixture
+):
+    download_file_function = mocker.spy(obj=syn, name="_downloadFileHandle")
+    # GIVEN a File that is stored in Synapse - and removed from the local machine
+    filepath = utils.make_bogus_binary_file()
+    original_file_md5 = utils.md5_for_file(filepath).hexdigest()
+    bogus_file = File(
+        filepath,
+        name="a_name_that_will_show_up_in_cache" + str(uuid.uuid4()),
+        parent=project,
+    )
+    bogus_file = syn.store(bogus_file)
+    schedule_for_cleanup(bogus_file)
+    os.remove(filepath)
+
+    # WHEN I get the File from synapse
+    unmodified_file_from_server = syn.get(
+        bogus_file,
+        downloadLocation=os.path.dirname(filepath),
+        ifcollision="overwrite.local",
+    )
+
+    # THEN I expect the file to have been downloaded and match the original files MD5
+    assert download_file_function.call_count == 1
+    assert unmodified_file_from_server._file_handle["contentMd5"] == original_file_md5
+    assert utils.md5_for_file(filepath).hexdigest() == original_file_md5
+
+    # AND I expect the file to be in the cache and match the original files MD5
+    copy_of_file_from_server = syn.get(
+        bogus_file,
+        downloadLocation=os.path.dirname(filepath),
+        ifcollision="overwrite.local",
+    )
+    assert copy_of_file_from_server.id == unmodified_file_from_server.id
+    assert filecmp.cmp(copy_of_file_from_server.path, unmodified_file_from_server.path)
+    assert download_file_function.call_count == 1
+    assert copy_of_file_from_server._file_handle["contentMd5"] == original_file_md5
+    assert utils.md5_for_file(filepath).hexdigest() == original_file_md5
+
+    # GIVEN another bogus file with the same name and non matching MD5 data
+    new_bogus_file = utils.make_bogus_binary_file()
+    os.remove(filepath)
+    os.rename(new_bogus_file, filepath)
+    assert utils.md5_for_file(filepath).hexdigest() != original_file_md5
+
+    # WHEN I get the File from synapse
+    copy_of_file_from_server = syn.get(
+        bogus_file,
+        downloadLocation=os.path.dirname(filepath),
+        ifcollision="overwrite.local",
+    )
+
+    # THEN I expect the file to have been downloaded and overwrite the file on my machine with the same name
+    assert copy_of_file_from_server._file_handle["contentMd5"] == original_file_md5
+    assert utils.md5_for_file(filepath).hexdigest() == original_file_md5
+    assert download_file_function.call_count == 2
+
+    os.remove(filepath)
+
+
+def test_store_activity(syn: Synapse, project: Project, schedule_for_cleanup):
     # Create a File and an Activity
     path = utils.make_bogus_binary_file()
     schedule_for_cleanup(path)
-    entity = File(path, name="Hinkle horn honking holes", parent=project)
+    entity = File(
+        path, name="Hinkle horn honking holes" + str(uuid.uuid4()), parent=project
+    )
+    activity_name = "Hinkle horn honking" + str(uuid.uuid4())
     honking = Activity(
-        name="Hinkle horn honking",
+        name=activity_name,
         description="Nettlebed Cave is a limestone cave located on the South Island of New Zealand.",
     )
     honking.used("http://www.flickr.com/photos/bevanbfree/3482259379/")
@@ -358,7 +441,7 @@ def test_store_activity(syn, project, schedule_for_cleanup):
     honking = syn.getProvenance(entity.id)
 
     # Verify the Activity
-    assert honking["name"] == "Hinkle horn honking"
+    assert honking["name"] == activity_name
     assert len(honking["used"]) == 2
     assert (
         honking["used"][0]["concreteType"]
@@ -377,7 +460,7 @@ def test_store_activity(syn, project, schedule_for_cleanup):
     # Store another Entity with the same Activity
     entity = File(
         "http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg",
-        name="Nettlebed Cave",
+        name="Nettlebed Cave" + str(uuid.uuid4()),
         parent=project,
         synapseStore=False,
     )
@@ -388,11 +471,11 @@ def test_store_activity(syn, project, schedule_for_cleanup):
     assert honking["id"] == honking2["id"]
 
 
-def test_store_isRestricted_flag(syn, project, schedule_for_cleanup):
+def test_store_isRestricted_flag(syn: Synapse, project: Project, schedule_for_cleanup):
     # Store a file with access requirements
     path = utils.make_bogus_binary_file()
     schedule_for_cleanup(path)
-    entity = File(path, name="Secret human data", parent=project)
+    entity = File(path, name="Secret human data" + str(uuid.uuid4()), parent=project)
 
     # We don't want to spam ACT with test emails
     with patch(
@@ -402,7 +485,7 @@ def test_store_isRestricted_flag(syn, project, schedule_for_cleanup):
         assert intercepted.called
 
 
-def test_ExternalFileHandle(syn, project, schedule_for_cleanup):
+def test_ExternalFileHandle(syn: Synapse, project: Project):
     # Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
     singapore_url = "http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg"  # noqa
     singapore = File(singapore_url, parent=project, synapseStore=False)
@@ -432,16 +515,22 @@ def test_ExternalFileHandle(syn, project, schedule_for_cleanup):
     assert s2.externalURL == singapore_2_url
 
 
-def test_synapseStore_flag(syn, project, schedule_for_cleanup):
+def test_synapseStore_flag(syn: Synapse, project: Project, schedule_for_cleanup):
     # Store a path to a local file
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    bogus = File(path, name="Totally bogus data", parent=project, synapseStore=False)
+    file_name = "Totally bogus data" + str(uuid.uuid4())
+    bogus = File(
+        path,
+        name=file_name,
+        parent=project,
+        synapseStore=False,
+    )
     bogus = syn.store(bogus)
 
     # Verify the thing can be downloaded as a URL
     bogus = syn.get(bogus, downloadFile=False)
-    assert bogus.name == "Totally bogus data"
+    assert bogus.name == file_name
     assert bogus.path == path, "Path: %s\nExpected: %s" % (bogus.path, path)
     assert not bogus.synapseStore
 
@@ -474,7 +563,7 @@ def test_synapseStore_flag(syn, project, schedule_for_cleanup):
     assert not bogus.synapseStore
 
 
-def test_create_or_update_project(syn, project, schedule_for_cleanup):
+def test_create_or_update_project(syn: Synapse, project: Project, schedule_for_cleanup):
     name = str(uuid.uuid4())
 
     project = Project(name, a=1, b=2)
@@ -498,14 +587,15 @@ def test_create_or_update_project(syn, project, schedule_for_cleanup):
     pytest.raises(Exception, syn.store, project, createOrUpdate=False)
 
 
-def test_download_file_false(syn, project, schedule_for_cleanup):
-    RENAME_SUFFIX = "blah"
+def test_download_file_false(syn: Synapse, project: Project, schedule_for_cleanup):
+    RENAME_SUFFIX = "blah" + str(uuid.uuid4())
 
     # Upload a file
     filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(filepath)
     schedule_for_cleanup(filepath + RENAME_SUFFIX)
-    file = File(filepath, name="SYNR 619", parent=project)
+    file_name = "SYNR-619-" + str(uuid.uuid4())
+    file = File(filepath, name=file_name, parent=project)
     file = syn.store(file)
 
     # Now hide the file from the cache and download with downloadFile=False
@@ -513,7 +603,7 @@ def test_download_file_false(syn, project, schedule_for_cleanup):
     file = syn.get(file.id, downloadFile=False)
 
     # Change something and reupload the file's metadata
-    file.name = "Only change the name, not the file"
+    file.name = "Only change the name, not the file" + str(uuid.uuid4())
     reupload = syn.store(file)
     assert reupload.path is None, "Path field should be null: %s" % reupload.path
 
@@ -523,7 +613,7 @@ def test_download_file_false(syn, project, schedule_for_cleanup):
     assert reupload.name == file.name
 
 
-def test_download_file_URL_false(syn, project, schedule_for_cleanup):
+def test_download_file_URL_false(syn: Synapse, project: Project):
     # Upload an external file handle
     fileThatExists = "http://dev-versions.synapse.sagebase.org/synapsePythonClient"
     reupload = File(fileThatExists, synapseStore=False, parent=project)
@@ -554,7 +644,9 @@ def test_download_file_URL_false(syn, project, schedule_for_cleanup):
 
 
 # SYNPY-366
-def test_download_local_file_URL_path(syn, project, schedule_for_cleanup):
+def test_download_local_file_URL_path(
+    syn: Synapse, project: Project, schedule_for_cleanup
+):
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
 
@@ -566,7 +658,9 @@ def test_download_local_file_URL_path(syn, project, schedule_for_cleanup):
 
 
 # SYNPY-424
-def test_store_file_handle_update_metadata(syn, project, schedule_for_cleanup):
+def test_store_file_handle_update_metadata(
+    syn: Synapse, project: Project, schedule_for_cleanup
+):
     original_file_path = utils.make_bogus_data_file()
     schedule_for_cleanup(original_file_path)
 
@@ -593,7 +687,7 @@ def test_store_file_handle_update_metadata(syn, project, schedule_for_cleanup):
     assert [os.path.basename(replacement_file_path)] == new_entity.files
 
 
-def test_store_DockerRepository(syn, project, schedule_for_cleanup):
+def test_store_DockerRepository(syn: Synapse, project: Project):
     repo_name = "some/repository/path"
     docker_repo = syn.store(DockerRepository(repo_name, parent=project))
     assert isinstance(docker_repo, DockerRepository)
@@ -601,11 +695,14 @@ def test_store_DockerRepository(syn, project, schedule_for_cleanup):
     assert repo_name == docker_repo.repositoryName
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_store__changing_externalURL_by_changing_path(
-    syn, project, schedule_for_cleanup
+    syn: Synapse, project: Project, schedule_for_cleanup
 ):
     url = "https://www.synapse.org/Portal/clear.cache.gif"
-    ext = syn.store(File(url, name="test", parent=project, synapseStore=False))
+    ext = syn.store(
+        File(url, name="test" + str(uuid.uuid4()), parent=project, synapseStore=False)
+    )
 
     # perform a syn.get so the filename changes
     ext = syn.get(ext)
@@ -627,8 +724,9 @@ def test_store__changing_externalURL_by_changing_path(
     assert not ext.synapseStore
 
 
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_store__changing_from_Synapse_to_externalURL_by_changing_path(
-    syn, project, schedule_for_cleanup
+    syn: Synapse, project: Project, schedule_for_cleanup
 ):
     # create a temp file
     temp_path = utils.make_bogus_data_file()
