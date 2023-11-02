@@ -15,6 +15,9 @@ import synapseclient.core.utils as utils
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
 from synapseclient import File, Project, Synapse, Entity
 from func_timeout import FunctionTimedOut, func_set_timeout
+from opentelemetry import trace
+
+tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.fixture(scope="module")
@@ -41,6 +44,7 @@ def syn_state(syn):
     del syn.test_threadsRunning
 
 
+@tracer.start_as_current_span("test_caching::test_threaded_access")
 @pytest.mark.flaky(reruns=6)
 def test_threaded_access(syn: Synapse, project: Project, schedule_for_cleanup):
     """Starts multiple threads to perform store and get calls randomly."""
@@ -125,6 +129,7 @@ def collect_errors_and_fail(syn: Synapse):
 ######################
 
 
+@tracer.start_as_current_span("test_caching::thread_keep_storing_one_File")
 def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cleanup):
     """Makes one file and stores it over and over again."""
 
@@ -154,6 +159,7 @@ def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cl
         sleep_for_a_bit()
 
 
+@tracer.start_as_current_span("test_caching::thread_get_files_from_Project")
 def thread_get_files_from_Project(syn: Synapse, project: Project):
     """Continually polls and fetches items from the Project."""
 
@@ -168,6 +174,7 @@ def thread_get_files_from_Project(syn: Synapse, project: Project):
         sleep_for_a_bit()
 
 
+@tracer.start_as_current_span("test_caching::thread_get_and_update_file_from_Project")
 def thread_get_and_update_file_from_Project(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
@@ -216,6 +223,7 @@ def sleep_for_a_bit() -> int:
     return time_to_sleep
 
 
+@tracer.start_as_current_span("test_caching::get_all_ids_from_Project")
 # When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
 @func_set_timeout(20)
 def get_all_ids_from_Project(syn: Synapse, project: Project):
@@ -223,6 +231,7 @@ def get_all_ids_from_Project(syn: Synapse, project: Project):
     return [result["id"] for result in syn.getChildren(project.id)]
 
 
+@tracer.start_as_current_span("test_caching::store_catch_412_HTTPError")
 # When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
 @func_set_timeout(20)
 def store_catch_412_HTTPError(syn: Synapse, entity: Entity):

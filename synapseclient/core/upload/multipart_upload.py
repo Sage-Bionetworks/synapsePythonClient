@@ -30,6 +30,8 @@ from synapseclient.core.exceptions import (
     SynapseUploadFailedException,
 )
 from synapseclient.core.utils import md5_fn, md5_for_file, MB, Spinner
+from opentelemetry import trace, context
+from opentelemetry.context import Context
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
@@ -41,6 +43,7 @@ MAX_RETRIES = 7
 
 
 _thread_local = threading.local()
+tracer = trace.get_tracer("synapseclient")
 
 
 @contextmanager
@@ -209,78 +212,81 @@ class UploadAttempt:
 
             return refreshed_url
 
-    def _handle_part(self, part_number):
-        with self._lock:
-            if self._aborted:
-                # this upload attempt has already been aborted
-                # so we short circuit the attempt to upload this part
-                raise SynapseUploadAbortedException(
-                    "Upload aborted, skipping part {}".format(part_number)
-                )
-
-            part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
-
-        session = self._get_thread_session()
-
-        # obtain the body (i.e. the upload bytes) for the given part number.
-        body = (
-            self._part_request_body_provider_fn(part_number)
-            if self._part_request_body_provider_fn
-            else None
-        )
-        part_size = len(body) if body else 0
-        for retry in range(2):
-
-            def put_fn():
-                return session.put(part_url, body, headers=signed_headers)
-
-            try:
-                # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
-                response = with_retry(
-                    put_fn, retry_exceptions=[requests.exceptions.ConnectionError]
-                )
-                _raise_for_status(response)
-
-                # completed upload part to s3 successfully
-                break
-
-            except SynapseHTTPError as ex:
-                if ex.response.status_code == 403 and retry < 1:
-                    # we interpret this to mean our pre_signed url expired.
-                    self._syn.logger.debug(
-                        "The pre-signed upload URL for part {} has expired."
-                        "Refreshing urls and retrying.\n".format(part_number)
+    def _handle_part(self, part_number, otel_context: Context):
+        context.attach(otel_context)
+        with tracer.start_as_current_span("UploadAttempt::_handle_part"):
+            with self._lock:
+                if self._aborted:
+                    # this upload attempt has already been aborted
+                    # so we short circuit the attempt to upload this part
+                    raise SynapseUploadAbortedException(
+                        "Upload aborted, skipping part {}".format(part_number)
                     )
 
-                    # we refresh all the urls and obtain this part's
-                    # specific url for the retry
-                    part_url, signed_headers = self._refresh_pre_signed_part_urls(
-                        part_number,
-                        part_url,
+                part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
+
+            session = self._get_thread_session()
+
+            # obtain the body (i.e. the upload bytes) for the given part number.
+            body = (
+                self._part_request_body_provider_fn(part_number)
+                if self._part_request_body_provider_fn
+                else None
+            )
+            part_size = len(body) if body else 0
+            for retry in range(2):
+
+                def put_fn():
+                    return session.put(part_url, body, headers=signed_headers)
+
+                try:
+                    # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
+                    response = with_retry(
+                        put_fn, retry_exceptions=[requests.exceptions.ConnectionError]
                     )
+                    _raise_for_status(response)
 
-                else:
-                    raise
+                    # completed upload part to s3 successfully
+                    break
 
-        md5_hex = self._md5_fn(body, response)
+                except SynapseHTTPError as ex:
+                    if ex.response.status_code == 403 and retry < 1:
+                        # we interpret this to mean our pre_signed url expired.
+                        self._syn.logger.debug(
+                            "The pre-signed upload URL for part {} has expired."
+                            "Refreshing urls and retrying.\n".format(part_number)
+                        )
 
-        # now tell synapse that we uploaded that part successfully
-        self._syn.restPUT(
-            "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}".format(
-                upload_id=self._upload_id,
-                part_number=part_number,
-                md5=md5_hex,
-            ),
-            requests_session=session,
-            endpoint=self._syn.fileHandleEndpoint,
-        )
+                        # we refresh all the urls and obtain this part's
+                        # specific url for the retry
+                        part_url, signed_headers = self._refresh_pre_signed_part_urls(
+                            part_number,
+                            part_url,
+                        )
 
-        # remove so future batch pre_signed url fetches will exclude this part
-        with self._lock:
-            del self._pre_signed_part_urls[part_number]
+                    else:
+                        raise
 
-        return part_number, part_size
+            md5_hex = self._md5_fn(body, response)
 
+            # now tell synapse that we uploaded that part successfully
+            self._syn.restPUT(
+                "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}".format(
+                    upload_id=self._upload_id,
+                    part_number=part_number,
+                    md5=md5_hex,
+                ),
+                requests_session=session,
+                endpoint=self._syn.fileHandleEndpoint,
+            )
+
+            # remove so future batch pre_signed url fetches will exclude this part
+            with self._lock:
+                del self._pre_signed_part_urls[part_number]
+
+            return part_number, part_size
+
+    @tracer.start_as_current_span("UploadAttempt::_upload_parts")
     def _upload_parts(self, part_count, remaining_part_numbers):
         time_upload_started = time.time()
         completed_part_count = part_count - len(remaining_part_numbers)
@@ -315,6 +321,7 @@ class UploadAttempt:
                     executor.submit(
                         self._handle_part,
                         part_number,
+                        context.get_current(),
                     )
                 )
 
@@ -346,6 +353,7 @@ class UploadAttempt:
                     raise SynapseUploadAbortedException("User interrupted upload")
                 raise SynapseUploadFailedException("Part upload failed") from cause
 
+    @tracer.start_as_current_span("UploadAttempt::_complete_upload")
     def _complete_upload(self):
         upload_status_response = self._syn.restPUT(
             "/file/multipart/{upload_id}/complete".format(
@@ -366,6 +374,7 @@ class UploadAttempt:
 
         return upload_status_response
 
+    @tracer.start_as_current_span("UploadAttempt::__call__")
     def __call__(self):
         upload_status_response = self._create_synapse_upload()
         upload_state = upload_status_response.get("state")
@@ -411,6 +420,7 @@ def _get_part_size(part_size, file_size):
     return part_size
 
 
+@tracer.start_as_current_span("multipart_upload::multipart_upload_file")
 def multipart_upload_file(
     syn,
     file_path: str,
@@ -444,6 +454,10 @@ def multipart_upload_file(
     .. _contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
 
     """
+
+    trace.get_current_span().set_attributes(
+        {"synapse.storage_location_id": storage_location_id}
+    )
 
     if not os.path.exists(file_path):
         raise IOError('File "{}" not found.'.format(file_path))
@@ -488,6 +502,7 @@ def multipart_upload_file(
     )
 
 
+@tracer.start_as_current_span("multipart_upload::multipart_upload_string")
 def multipart_upload_string(
     syn,
     text: str,
@@ -562,6 +577,7 @@ def multipart_upload_string(
     )
 
 
+@tracer.start_as_current_span("multipart_upload::multipart_copy")
 def multipart_copy(
     syn,
     source_file_handle_association,
@@ -613,6 +629,7 @@ def multipart_copy(
     )
 
 
+@tracer.start_as_current_span("multipart_upload::_multipart_upload")
 def _multipart_upload(
     syn,
     dest_file_name,

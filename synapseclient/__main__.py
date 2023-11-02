@@ -336,7 +336,7 @@ def cat(args, syn):
 @tracer.start_as_current_span("main::ls")
 def ls(args, syn: synapseclient.Synapse):
     """List entities in a Project or Folder"""
-    trace.get_current_span().set_attributes({"id": args.id})
+    trace.get_current_span().set_attributes({"synapse.id": args.id})
     syn._list(
         args.id,
         recursive=args.recursive,

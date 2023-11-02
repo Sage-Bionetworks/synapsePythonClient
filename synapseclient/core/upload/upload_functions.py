@@ -15,6 +15,9 @@ from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFT
 from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file
 from synapseclient.core.exceptions import SynapseMd5MismatchError
+from opentelemetry import trace
+
+tracer = trace.get_tracer("synapseclient")
 
 
 def log_upload_message(syn, message):
@@ -24,6 +27,7 @@ def log_upload_message(syn, message):
         syn.logger.info(message)
 
 
+@tracer.start_as_current_span("upload_functions::upload_file_handle")
 def upload_file_handle(
     syn,
     parent_entity,
@@ -68,6 +72,12 @@ def upload_file_handle(
     # determine the upload function based on the UploadDestination
     location = syn._getDefaultUploadDestination(entity_parent_id)
     upload_destination_type = location["concreteType"]
+    trace.get_current_span().set_attributes(
+        {
+            "synapse.parent_id": entity_parent_id,
+            "synapse.upload_destination_type": upload_destination_type,
+        }
+    )
 
     if (
         sts_transfer.is_boto_sts_transfer_enabled(syn)
@@ -203,6 +213,9 @@ def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=No
     )
     if is_local_file:
         syn.cache.add(file_handle["id"], file_url_to_path(url))
+    trace.get_current_span().set_attributes(
+        {"synapse.file_handle_id": file_handle["id"]}
+    )
     return file_handle
 
 

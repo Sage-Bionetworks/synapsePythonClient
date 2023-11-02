@@ -312,6 +312,7 @@ class Synapse(object):
         # for backwards compatability when username was a part of the Synapse object and not in credentials
         return self.credentials.username if self.credentials is not None else None
 
+    @tracer.start_as_current_span("Synapse::getConfigFile")
     @functools.lru_cache()
     def getConfigFile(self, configPath: str) -> configparser.RawConfigParser:
         """
@@ -330,6 +331,7 @@ class Synapse(object):
                 "Error parsing Synapse config file: {}".format(configPath)
             ) from ex
 
+    @tracer.start_as_current_span("Synapse::setEndpoints")
     def setEndpoints(
         self,
         repoEndpoint: str = None,
@@ -557,6 +559,7 @@ class Synapse(object):
 
         return transfer_config
 
+    @tracer.start_as_current_span("Synapse::_getSessionToken")
     def _getSessionToken(self, email: str, password: str) -> str:
         """Returns a validated session token."""
         try:
@@ -577,6 +580,7 @@ class Synapse(object):
                 raise SynapseAuthenticationError("Invalid username or password.")
             raise
 
+    @tracer.start_as_current_span("Synapse::_getAPIKey")
     def _getAPIKey(self, sessionToken: str) -> str:
         """Uses a session token to fetch an API key."""
 
@@ -584,6 +588,7 @@ class Synapse(object):
         secret = self.restGET("/secretKey", endpoint=self.authEndpoint, headers=headers)
         return secret["secretKey"]
 
+    @tracer.start_as_current_span("Synapse::_is_logged_in")
     def _is_logged_in(self) -> bool:
         """Test whether the user is logged in to Synapse."""
         # This is a quick sanity check to see if credentials have been
@@ -596,7 +601,6 @@ class Synapse(object):
             return False
         return True
 
-    @tracer.start_as_current_span("Synapse::logout")
     def logout(self, forgetMe: bool = False):
         """
         Removes authentication information from the Synapse client.
@@ -710,6 +714,7 @@ class Synapse(object):
                 return None
         return response
 
+    @tracer.start_as_current_span("Synapse::is_certified")
     def is_certified(self, user: typing.Union[str, int]) -> bool:
         """Determines whether a Synapse user is a certified user.
 
@@ -732,6 +737,7 @@ class Synapse(object):
                 return False
             raise
 
+    @tracer.start_as_current_span("Synapse::is_synapse_id")
     def is_synapse_id(self, syn_id: str) -> bool:
         """Checks if given synID is valid (attached to actual entity?)"""
         if isinstance(syn_id, str):
@@ -771,6 +777,7 @@ class Synapse(object):
                 "%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId)
             )
 
+    @tracer.start_as_current_span("Synapse::printEntity")
     def printEntity(self, entity, ensure_ascii=True):
         """
         Pretty prints an Entity.
@@ -831,6 +838,7 @@ class Synapse(object):
     #                   Get / Store methods                    #
     ############################################################
 
+    @tracer.start_as_current_span("Synapse::get")
     def get(self, entity, **kwargs):
         """
         Gets a Synapse entity from the repository service.
@@ -898,7 +906,16 @@ class Synapse(object):
             bundle, entity, kwargs.get("downloadFile", True)
         )
 
-        return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
+        return_data = self._getWithEntityBundle(
+            entityBundle=bundle, entity=entity, **kwargs
+        )
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.id": return_data.get("id", ""),
+                "synapse.concrete_type": return_data.get("concreteType", ""),
+            }
+        )
+        return return_data
 
     def _check_entity_restrictions(self, bundle, entity, downloadFile):
         restrictionInformation = bundle["restrictionInformation"]
@@ -913,6 +930,7 @@ class Synapse(object):
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
 
+    @tracer.start_as_current_span("Synapse::_getFromFile")
     def _getFromFile(self, filepath, limitSearch=None):
         """
         Gets a Synapse entityBundle based on the md5 of a local file
@@ -954,6 +972,7 @@ class Synapse(object):
 
         return bundle
 
+    @tracer.start_as_current_span("Synapse::move")
     def move(self, entity, new_parent):
         """
         Move a Synapse entity to a new container.
@@ -971,6 +990,12 @@ class Synapse(object):
         entity = self.get(entity, downloadFile=False)
         entity.parentId = id_of(new_parent)
         entity = self.store(entity, forceVersion=False)
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.id": entity.get("id", ""),
+                "synapse.parent_id": entity.get("parentId", ""),
+            }
+        )
 
         return entity
 
@@ -1071,6 +1096,7 @@ class Synapse(object):
             )
         return download_dir
 
+    @tracer.start_as_current_span("Synapse::_download_file_entity")
     def _download_file_entity(
         self,
         downloadLocation: str,
@@ -1198,6 +1224,7 @@ class Synapse(object):
                 )
         return downloadPath
 
+    @tracer.start_as_current_span("Synapse::store")
     def store(
         self,
         obj,
@@ -1278,9 +1305,11 @@ class Synapse(object):
                 return self._storeWiki(obj, createOrUpdate)
 
             if "id" in obj:  # If ID is present, update
+                trace.get_current_span().set_attributes({"synapse.id": obj["id"]})
                 return type(obj)(**self.restPUT(obj.putURI(), obj.json()))
 
             try:  # If no ID is present, attempt to POST the object
+                trace.get_current_span().set_attributes({"synapse.id": ""})
                 return type(obj)(**self.restPOST(obj.postURI(), obj.json()))
 
             except SynapseHTTPError as err:
@@ -1289,6 +1318,7 @@ class Synapse(object):
                     newObj = self.restGET(obj.getByNameURI(obj.name))
                     newObj.update(obj)
                     obj = type(obj)(**newObj)
+                    trace.get_current_span().set_attributes({"synapse.id": obj["id"]})
                     obj.update(self.restPUT(obj.putURI(), obj.json()))
                     return obj
                 raise
@@ -1397,6 +1427,7 @@ class Synapse(object):
 
         # Create or update Entity in Synapse
         if "id" in properties:
+            trace.get_current_span().set_attributes({"synapse.id": properties["id"]})
             properties = self._updateEntity(properties, forceVersion, versionLabel)
         else:
             # If Link, get the target name, version number and concrete type and store in link properties
@@ -1492,8 +1523,17 @@ class Synapse(object):
 
         # Return the updated Entity object
         entity = Entity.create(properties, annotations, local_state)
-        return self.get(entity, downloadFile=False)
+        return_data = self.get(entity, downloadFile=False)
 
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.id": return_data.get("id", ""),
+                "synapse.concrete_type": entity.get("concreteType", ""),
+            }
+        )
+        return return_data
+
+    @tracer.start_as_current_span("Synapse::_createAccessRequirementIfNone")
     def _createAccessRequirementIfNone(self, entity):
         """
         Checks to see if the given entity has access requirements.
@@ -1505,6 +1545,7 @@ class Synapse(object):
         if len(existingRestrictions["results"]) <= 0:
             self.restPOST("/entity/%s/lockAccessRequirement" % id_of(entity), body="")
 
+    @tracer.start_as_current_span("Synapse::_getEntityBundle")
     def _getEntityBundle(self, entity, version=None, requestedObjects=None):
         """
         Gets some information about the Entity.
@@ -1581,6 +1622,7 @@ class Synapse(object):
 
         return bundle
 
+    @tracer.start_as_current_span("Synapse::delete")
     def delete(self, obj, version=None):
         """
         Removes an object from Synapse.
@@ -1591,12 +1633,14 @@ class Synapse(object):
                             delete.
 
         """
+        entity_id = id_of(obj)
+        trace.get_current_span().set_attributes({"synapse.id": entity_id})
         # Handle all strings as the Entity ID for backward compatibility
         if isinstance(obj, str):
             if version:
-                self.restDELETE(uri=f"/entity/{id_of(obj)}/version/{version}")
+                self.restDELETE(uri=f"/entity/{entity_id}/version/{version}")
             else:
-                self.restDELETE(uri=f"/entity/{id_of(obj)}")
+                self.restDELETE(uri=f"/entity/{entity_id}")
         elif hasattr(obj, "_synapse_delete"):
             return obj._synapse_delete(self)
         else:
@@ -1768,6 +1812,7 @@ class Synapse(object):
             uri="/download/list/manifest/async", request=request_body
         )
 
+    @tracer.start_as_current_span("Synapse::get_download_list_manifest")
     def get_download_list_manifest(self):
         """Get the path of the download list manifest file
 
@@ -1787,8 +1832,12 @@ class Synapse(object):
             fileHandleId=file_result["fileHandleId"],
             expected_md5=file_result["fileHandle"].get("contentMd5"),
         )
+        trace.get_current_span().set_attributes(
+            {"synapse.file_handle_id": file_result["fileHandleId"]}
+        )
         return downloaded_path
 
+    @tracer.start_as_current_span("Synapse::get_download_list")
     def get_download_list(self, downloadLocation: str = None) -> str:
         """Download all files from your Synapse download list
 
@@ -1872,6 +1921,7 @@ class Synapse(object):
         """deprecated and replaced with :py:meth:`get_annotations`"""
         return self.get_annotations(entity, version=version)
 
+    @tracer.start_as_current_span("Synapse::get_annotations")
     def get_annotations(
         self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None
     ) -> Annotations:
@@ -1913,6 +1963,7 @@ class Synapse(object):
         annotations.update(kwargs)
 
         id = id_of(entity)
+        trace.get_current_span().set_attributes({"synapse.id": id})
         etag = (
             annotations.etag
             if hasattr(annotations, "etag")
@@ -1929,6 +1980,7 @@ class Synapse(object):
 
         return self.set_annotations(Annotations(id, etag, annotations))
 
+    @tracer.start_as_current_span("Synapse::set_annotations")
     def set_annotations(self, annotations: Annotations):
         """
         Store annotations for an Entity in the Synapse Repository.
@@ -1969,9 +2021,12 @@ class Synapse(object):
 
         synapseAnnos = to_synapse_annotations(annotations)
 
+        entity_id = id_of(annotations)
+        trace.get_current_span().set_attributes({"synapse.id": entity_id})
+
         return from_synapse_annotations(
             self.restPUT(
-                f"/entity/{id_of(annotations)}/annotations2",
+                f"/entity/{entity_id}/annotations2",
                 body=json.dumps(synapseAnnos),
             )
         )
@@ -2017,6 +2072,8 @@ class Synapse(object):
         - :py:func:`synapseutils.walk`
         """
         parentId = id_of(parent) if parent is not None else None
+
+        trace.get_current_span().set_attributes({"synapse.parent_id": parentId})
         entityChildrenRequest = {
             "parentId": parentId,
             "includeTypes": includeTypes,
@@ -2036,6 +2093,7 @@ class Synapse(object):
                     "nextPageToken"
                 ]
 
+    @tracer.start_as_current_span("Synapse::md5Query")
     def md5Query(self, md5):
         """
         Find the Entities which have attached file(s) which have the given MD5 hash.
@@ -2066,6 +2124,7 @@ class Synapse(object):
         else:
             # Get the ACL from the benefactor (which may be the entity itself)
             benefactor = self._getBenefactor(entity)
+            trace.get_current_span().set_attributes({"synapse.id": benefactor["id"]})
             uri = "/entity/%s/acl" % (benefactor["id"])
         return self.restGET(uri)
 
@@ -2131,6 +2190,7 @@ class Synapse(object):
                 "Unknown Synapse user (%s).  %s." % (principalId, supplementalMessage)
             )
 
+    @tracer.start_as_current_span("Synapse::getPermissions")
     def getPermissions(
         self,
         entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
@@ -2147,6 +2207,11 @@ class Synapse(object):
 
         """
         principal_id = self._getUserbyPrincipalIdOrName(principalId)
+
+        trace.get_current_span().set_attributes(
+            {"synapse.id": id_of(entity), "synapse.principal_id": principal_id}
+        )
+
         acl = self._getACL(entity)
 
         team_list = self._find_teams_for_principal(principal_id)
@@ -2177,6 +2242,7 @@ class Synapse(object):
                 )
         return list(effective_permission_set)
 
+    @tracer.start_as_current_span("Synapse::setPermissions")
     def setPermissions(
         self,
         entity,
@@ -2210,16 +2276,18 @@ class Synapse(object):
             # Grant the public view access
             syn.setPermissions('syn1234','273949',['READ'])
         """
+        entity_id = id_of(entity)
+        trace.get_current_span().set_attributes({"synapse.id": entity_id})
 
         benefactor = self._getBenefactor(entity)
-        if benefactor["id"] != id_of(entity):
+        if benefactor["id"] != entity_id:
             if modify_benefactor:
                 entity = benefactor
             elif warn_if_inherits:
                 self.logger.warning(
                     "Creating an ACL for entity %s, which formerly inherited access control from a"
                     ' benefactor entity, "%s" (%s).\n'
-                    % (id_of(entity), benefactor["name"], benefactor["id"])
+                    % (entity_id, benefactor["name"], benefactor["id"])
                 )
 
         acl = self._getACL(entity)
@@ -2258,6 +2326,7 @@ class Synapse(object):
     ############################################################
 
     # TODO: rename these to Activity
+    @tracer.start_as_current_span("Synapse::getProvenance")
     def getProvenance(self, entity, version=None):
         """
         Retrieve provenance information for a Synapse Entity.
@@ -2273,13 +2342,16 @@ class Synapse(object):
         # Get versionNumber from Entity
         if version is None and "versionNumber" in entity:
             version = entity["versionNumber"]
-
+        entity_id = id_of(entity)
         if version:
-            uri = "/entity/%s/version/%d/generatedBy" % (id_of(entity), version)
+            uri = "/entity/%s/version/%d/generatedBy" % (entity_id, version)
         else:
-            uri = "/entity/%s/generatedBy" % id_of(entity)
+            uri = "/entity/%s/generatedBy" % entity_id
+
+        trace.get_current_span().set_attributes({"synapse.id": entity_id})
         return Activity(data=self.restGET(uri))
 
+    @tracer.start_as_current_span("Synapse::setProvenance")
     def setProvenance(self, entity, activity):
         """
         Stores a record of the code and data used to derive a Synapse entity.
@@ -2293,12 +2365,15 @@ class Synapse(object):
         # Assert that the entity was generated by a given Activity.
         activity = self._saveActivity(activity)
 
+        entity_id = id_of(entity)
         # assert that an entity is generated by an activity
-        uri = "/entity/%s/generatedBy?generatedBy=%s" % (id_of(entity), activity["id"])
+        uri = "/entity/%s/generatedBy?generatedBy=%s" % (entity_id, activity["id"])
         activity = Activity(data=self.restPUT(uri))
 
+        trace.get_current_span().set_attributes({"synapse.id": entity_id})
         return activity
 
+    @tracer.start_as_current_span("Synapse::deleteProvenance")
     def deleteProvenance(self, entity):
         """
         Removes provenance information from an Entity and deletes the associated Activity.
@@ -2309,8 +2384,10 @@ class Synapse(object):
         activity = self.getProvenance(entity)
         if not activity:
             return
+        entity_id = id_of(entity)
+        trace.get_current_span().set_attributes({"synapse.id": entity_id})
 
-        uri = "/entity/%s/generatedBy" % id_of(entity)
+        uri = "/entity/%s/generatedBy" % entity_id
         self.restDELETE(uri)
 
         # TODO: what happens if the activity is shared by more than one entity?
@@ -2326,6 +2403,7 @@ class Synapse(object):
             activity = self.restPOST("/activity", body=json.dumps(activity))
         return activity
 
+    @tracer.start_as_current_span("Synapse::updateActivity")
     def updateActivity(self, activity):
         """
         Modifies an existing Activity.
@@ -2336,6 +2414,7 @@ class Synapse(object):
         """
         if "id" not in activity:
             raise ValueError("The activity you want to update must exist on Synapse")
+        trace.get_current_span().set_attributes({"synapse.id": activity["id"]})
         return self._saveActivity(activity)
 
     def _convertProvenanceList(self, usedList, limitSearch=None):
@@ -2400,6 +2479,7 @@ class Synapse(object):
             or isinstance(ex, SynapseMd5MismatchError)  # out of disk space
         )
 
+    @tracer.start_as_current_span("Synapse::_downloadFileHandle")
     def _downloadFileHandle(
         self, fileHandleId, objectId, objectType, destination, retries=5
     ):
@@ -2514,6 +2594,7 @@ class Synapse(object):
 
         raise Exception("should not reach this line")
 
+    @tracer.start_as_current_span("Synapse::_download_from_url_multi_threaded")
     def _download_from_url_multi_threaded(
         self, file_handle_id, object_id, object_type, destination, *, expected_md5=None
     ):
@@ -2559,6 +2640,7 @@ class Synapse(object):
         synapse_repo_domain = urllib_urlparse.urlparse(self.repoEndpoint).netloc
         return uri_domain.lower() == synapse_repo_domain.lower()
 
+    @tracer.start_as_current_span("Synapse::_download_from_URL")
     def _download_from_URL(
         self, url, destination, fileHandleId=None, expected_md5=None
     ):
@@ -2741,6 +2823,7 @@ class Synapse(object):
 
         return destination
 
+    @tracer.start_as_current_span("Synapse::_createExternalFileHandle")
     def _createExternalFileHandle(
         self, externalURL, mimetype=None, md5=None, fileSize=None
     ):
@@ -2762,6 +2845,7 @@ class Synapse(object):
             "/externalFileHandle", json.dumps(fileHandle), self.fileHandleEndpoint
         )
 
+    @tracer.start_as_current_span("Synapse::_createExternalObjectStoreFileHandle")
     def _createExternalObjectStoreFileHandle(
         self, s3_file_key, file_path, storage_location_id, mimetype=None
     ):
@@ -2781,6 +2865,7 @@ class Synapse(object):
             "/externalFileHandle", json.dumps(file_handle), self.fileHandleEndpoint
         )
 
+    @tracer.start_as_current_span("Synapse::create_external_s3_file_handle")
     def create_external_s3_file_handle(
         self,
         bucket_name,
@@ -2835,6 +2920,7 @@ class Synapse(object):
             endpoint=self.fileHandleEndpoint,
         )
 
+    @tracer.start_as_current_span("Synapse::_get_file_handle_as_creator")
     def _get_file_handle_as_creator(self, fileHandle):
         """Retrieve a fileHandle from the fileHandle service.
         You must be the creator of the filehandle to use this method. Otherwise, an 403-Forbidden error will be raised
@@ -2843,6 +2929,7 @@ class Synapse(object):
         uri = "/fileHandle/%s" % (id_of(fileHandle),)
         return self.restGET(uri, endpoint=self.fileHandleEndpoint)
 
+    @tracer.start_as_current_span("Synapse::_deleteFileHandle")
     def _deleteFileHandle(self, fileHandle):
         """
         Delete the given file handle.
@@ -2859,12 +2946,14 @@ class Synapse(object):
     #                    SFTP                                  #
     ############################################################
 
+    @tracer.start_as_current_span("Synapse::_getDefaultUploadDestination")
     def _getDefaultUploadDestination(self, parent_entity):
         return self.restGET(
             "/entity/%s/uploadDestination" % id_of(parent_entity),
             endpoint=self.fileHandleEndpoint,
         )
 
+    @tracer.start_as_current_span("Synapse::_getUserCredentials")
     def _getUserCredentials(self, url, username=None, password=None):
         """Get user credentials for a specified URL by either looking in the configFile or querying the user.
 
@@ -2899,6 +2988,7 @@ class Synapse(object):
     # Project/Folder storage location settings #
     ############################################
 
+    @tracer.start_as_current_span("Synapse::createStorageLocationSetting")
     def createStorageLocationSetting(self, storage_type, **kwargs):
         """
         Creates an IMMUTABLE storage location based on the specified type.
@@ -2951,6 +3041,7 @@ class Synapse(object):
 
         return self.restPOST("/storageLocation", body=json.dumps(kwargs))
 
+    @tracer.start_as_current_span("Synapse::getMyStorageLocationSetting")
     def getMyStorageLocationSetting(self, storage_location_id):
         """
         Get a StorageLocationSetting by its id.
@@ -2962,6 +3053,7 @@ class Synapse(object):
         """
         return self.restGET("/storageLocation/%s" % storage_location_id)
 
+    @tracer.start_as_current_span("Synapse::setStorageLocation")
     def setStorageLocation(self, entity, storage_location_id):
         """
         Sets the storage location for a Project or Folder
@@ -2997,6 +3089,7 @@ class Synapse(object):
                 "/projectSettings", body=json.dumps(project_destination)
             )
 
+    @tracer.start_as_current_span("Synapse::getProjectSetting")
     def getProjectSetting(self, project, setting_type):
         """
         Gets the ProjectSetting for a project.
@@ -3018,6 +3111,7 @@ class Synapse(object):
             response if response else None
         )  # if no project setting, a empty string is returned as the response
 
+    @tracer.start_as_current_span("Synapse::get_sts_storage_token")
     def get_sts_storage_token(
         self, entity, permission, *, output_format="json", min_remaining_life=None
     ):
@@ -3043,6 +3137,7 @@ class Synapse(object):
             min_remaining_life=min_remaining_life,
         )
 
+    @tracer.start_as_current_span("Synapse::create_s3_storage_location")
     def create_s3_storage_location(
         self,
         *,
@@ -3116,6 +3211,7 @@ class Synapse(object):
     #                   CRUD for Evaluations                   #
     ############################################################
 
+    @tracer.start_as_current_span("Synapse::getEvaluation")
     def getEvaluation(self, id):
         """
         Gets an Evaluation object from Synapse.
@@ -3136,6 +3232,7 @@ class Synapse(object):
         return Evaluation(**self.restGET(uri))
 
     # TODO: Should this be combined with getEvaluation?
+    @tracer.start_as_current_span("Synapse::getEvaluationByName")
     def getEvaluationByName(self, name):
         """
         Gets an Evaluation object from Synapse.
@@ -3149,6 +3246,7 @@ class Synapse(object):
         uri = Evaluation.getByNameURI(name)
         return Evaluation(**self.restGET(uri))
 
+    @tracer.start_as_current_span("Synapse::getEvaluationByContentSource")
     def getEvaluationByContentSource(self, entity):
         """
         Returns a generator over evaluations that derive their content from the given entity
@@ -3166,6 +3264,7 @@ class Synapse(object):
         for result in self._GET_paginated(url):
             yield Evaluation(**result)
 
+    @tracer.start_as_current_span("Synapse::_findTeam")
     def _findTeam(self, name):
         """
         Retrieve a Teams matching the supplied name fragment
@@ -3173,6 +3272,7 @@ class Synapse(object):
         for result in self._GET_paginated("/teams?fragment=%s" % name):
             yield Team(**result)
 
+    @tracer.start_as_current_span("Synapse::_find_teams_for_principal")
     def _find_teams_for_principal(self, principal_id: str) -> typing.Iterator[Team]:
         """
         Retrieve a list of teams for the matching principal ID. If the principalId that is passed in is a team itself,
@@ -3185,6 +3285,7 @@ class Synapse(object):
         for result in self._GET_paginated(f"/user/{principal_id}/team"):
             yield Team(**result)
 
+    @tracer.start_as_current_span("Synapse::getTeam")
     def getTeam(self, id):
         """
         Finds a team with a given ID or name.
@@ -3209,6 +3310,7 @@ class Synapse(object):
                 raise ValueError('Can\'t find team "{}"'.format(teamid))
         return Team(**self.restGET("/team/%s" % teamid))
 
+    @tracer.start_as_current_span("Synapse::getTeamMembers")
     def getTeamMembers(self, team):
         """
         Lists the members of the given team.
@@ -3219,6 +3321,7 @@ class Synapse(object):
         for result in self._GET_paginated("/teamMembers/{id}".format(id=id_of(team))):
             yield TeamMember(**result)
 
+    @tracer.start_as_current_span("Synapse::_get_docker_digest")
     def _get_docker_digest(self, entity, docker_tag="latest"):
         """
         Get matching Docker sha-digest of a DockerRepository given a Docker tag
@@ -3243,6 +3346,7 @@ class Synapse(object):
             )
         return docker_digest
 
+    @tracer.start_as_current_span("Synapse::get_team_open_invitations")
     def get_team_open_invitations(self, team):
         """Retrieve the open requests submitted to a Team
         https://rest-docs.synapse.org/rest/GET/team/id/openInvitation.html
@@ -3257,6 +3361,7 @@ class Synapse(object):
         open_requests = self._GET_paginated(request)
         return open_requests
 
+    @tracer.start_as_current_span("Synapse::get_membership_status")
     def get_membership_status(self, userid, team):
         """Retrieve a user's Team Membership Status bundle.
         https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html
@@ -3273,6 +3378,7 @@ class Synapse(object):
         membership_status = self.restGET(request)
         return membership_status
 
+    @tracer.start_as_current_span("Synapse::_delete_membership_invitation")
     def _delete_membership_invitation(self, invitationid):
         """Delete open membership invitation
 
@@ -3280,6 +3386,7 @@ class Synapse(object):
         """
         self.restDELETE("/membershipInvitation/{id}".format(id=invitationid))
 
+    @tracer.start_as_current_span("Synapse::send_membership_invitation")
     def send_membership_invitation(
         self, teamId, inviteeId=None, inviteeEmail=None, message=None
     ):
@@ -3306,6 +3413,7 @@ class Synapse(object):
         )
         return response
 
+    @tracer.start_as_current_span("Synapse::invite_to_team")
     def invite_to_team(
         self, team, user=None, inviteeEmail=None, message=None, force=False
     ):
@@ -3372,6 +3480,7 @@ class Synapse(object):
         # Return None if no invite is sent.
         return None
 
+    @tracer.start_as_current_span("Synapse::submit")
     def submit(
         self,
         evaluation,
@@ -3480,6 +3589,7 @@ class Synapse(object):
 
         return Submission(**submitted)
 
+    @tracer.start_as_current_span("Synapse::_submit")
     def _submit(self, submission, entity_etag, eligibility_hash):
         require_param(submission, "submission")
         require_param(entity_etag, "entity_etag")
@@ -3490,6 +3600,7 @@ class Synapse(object):
         submitted = self.restPOST(uri, json.dumps(submission))
         return submitted
 
+    @tracer.start_as_current_span("Synapse::_get_contributors")
     def _get_contributors(self, evaluation_id, team):
         if not evaluation_id or not team:
             return None, None
@@ -3524,6 +3635,7 @@ class Synapse(object):
         ]
         return contributors, eligibility["eligibilityStateHash"]
 
+    @tracer.start_as_current_span("Synapse::_allowParticipation")
     def _allowParticipation(
         self,
         evaluation,
@@ -3566,6 +3678,7 @@ class Synapse(object):
 
         self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
 
+    @tracer.start_as_current_span("Synapse::getSubmissions")
     def getSubmissions(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
@@ -3601,6 +3714,7 @@ class Synapse(object):
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
             yield Submission(**result)
 
+    @tracer.start_as_current_span("Synapse::_getSubmissionBundles")
     def _getSubmissionBundles(
         self, evaluation, status=None, myOwn=False, limit=20, offset=0
     ):
@@ -3641,6 +3755,7 @@ class Synapse(object):
 
         return self._GET_paginated(url, limit=limit, offset=offset)
 
+    @tracer.start_as_current_span("Synapse::getSubmissionBundles")
     def getSubmissionBundles(
         self, evaluation, status=None, myOwn=False, limit=20, offset=0
     ):
@@ -3682,6 +3797,7 @@ class Synapse(object):
                 SubmissionStatus(**bundle["submissionStatus"]),
             )
 
+    @tracer.start_as_current_span("Synapse::_GET_paginated")
     def _GET_paginated(self, uri, limit=20, offset=0):
         """
         :param uri:     A URI that returns paginated results
@@ -3705,6 +3821,7 @@ class Synapse(object):
                 offset += 1
                 yield result
 
+    @tracer.start_as_current_span("Synapse::_POST_paginated")
     def _POST_paginated(self, uri, body, **kwargs):
         """
         :param uri:     A URI that returns paginated results
@@ -3723,6 +3840,7 @@ class Synapse(object):
             if next_page_token is None:
                 break
 
+    @tracer.start_as_current_span("Synapse::getSubmission")
     def getSubmission(self, id, **kwargs):
         """
         Gets a :py:class:`synapseclient.evaluation.Submission` object by its id.
@@ -3764,6 +3882,7 @@ class Synapse(object):
 
         return submission
 
+    @tracer.start_as_current_span("Synapse::getSubmissionStatus")
     def getSubmissionStatus(self, submission):
         """
         Downloads the status of a Submission.
@@ -3782,6 +3901,7 @@ class Synapse(object):
     #                      CRUD for Wikis                      #
     ############################################################
 
+    @tracer.start_as_current_span("Synapse::getWiki")
     def getWiki(self, owner, subpageId=None, version=None):
         """
         Get a :py:class:`synapseclient.wiki.Wiki` object from Synapse. Uses wiki2 API which supports versioning.
@@ -3827,6 +3947,7 @@ class Synapse(object):
 
         return wiki
 
+    @tracer.start_as_current_span("Synapse::getWikiHeaders")
     def getWikiHeaders(self, owner):
         """
         Retrieves the headers of all Wikis belonging to the owner (the entity to which the Wiki is attached).
@@ -3839,6 +3960,7 @@ class Synapse(object):
         uri = "/entity/%s/wikiheadertree" % id_of(owner)
         return [DictObject(**header) for header in self._GET_paginated(uri)]
 
+    @tracer.start_as_current_span("Synapse::_storeWiki")
     def _storeWiki(self, wiki, createOrUpdate):  # type: (Wiki, bool) -> Wiki
         """
         Stores or updates the given Wiki.
@@ -3894,6 +4016,7 @@ class Synapse(object):
                     raise
         return updated_wiki
 
+    @tracer.start_as_current_span("Synapse::getWikiAttachments")
     def getWikiAttachments(self, wiki):
         """
         Retrieve the attachments to a wiki page.
@@ -3911,6 +4034,7 @@ class Synapse(object):
     #                      Tables                              #
     ############################################################
 
+    @tracer.start_as_current_span("Synapse::_waitForAsync")
     def _waitForAsync(self, uri, request, endpoint=None):
         if endpoint is None:
             endpoint = self.repoEndpoint
@@ -3961,6 +4085,7 @@ class Synapse(object):
             self._print_transfer_progress(total, total, message, isBytes=False)
         return result
 
+    @tracer.start_as_current_span("Synapse::getColumn")
     def getColumn(self, id):
         """
         Gets a Column object from Synapse by ID.
@@ -3977,6 +4102,7 @@ class Synapse(object):
         """
         return Column(**self.restGET(Column.getURI(id)))
 
+    @tracer.start_as_current_span("Synapse::getColumns")
     def getColumns(self, x, limit=100, offset=0):
         """
         Get the columns defined in Synapse either (1) corresponding to a set of column headers, (2) those for a given
@@ -4011,6 +4137,7 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
+    @tracer.start_as_current_span("Synapse::create_snapshot_version")
     def create_snapshot_version(
         self,
         table: typing.Union[
@@ -4058,6 +4185,7 @@ class Synapse(object):
         # supply the snapshot version on an async table update without waiting
         return result["snapshotVersionNumber"] if wait else None
 
+    @tracer.start_as_current_span("Synapse::_create_table_snapshot")
     def _create_table_snapshot(
         self,
         table: typing.Union[Schema, str],
@@ -4097,6 +4225,7 @@ class Synapse(object):
         )
         return snapshot
 
+    @tracer.start_as_current_span("Synapse::_async_table_update")
     def _async_table_update(
         self,
         table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],
@@ -4145,6 +4274,7 @@ class Synapse(object):
 
         return result
 
+    @tracer.start_as_current_span("Synapse::getTableColumns")
     def getTableColumns(self, table):
         """
         Retrieve the column models used in the given table schema.
@@ -4159,6 +4289,7 @@ class Synapse(object):
         for result in self.restGET(uri)["results"]:
             yield Column(**result)
 
+    @tracer.start_as_current_span("Synapse::tableQuery")
     def tableQuery(self, query, resultsAs="csv", **kwargs):
         """
         Query a Synapse Table.
@@ -4214,6 +4345,7 @@ class Synapse(object):
                 "Unknown return type requested from tableQuery: " + str(resultsAs)
             )
 
+    @tracer.start_as_current_span("Synapse::_queryTable")
     def _queryTable(
         self, query, limit=None, offset=None, isConsistent=True, partMask=None
     ):
@@ -4254,10 +4386,12 @@ class Synapse(object):
 
         return self._waitForAsync(uri=uri, request=query_bundle_request)
 
+    @tracer.start_as_current_span("Synapse::_queryTableNext")
     def _queryTableNext(self, nextPageToken, tableId):
         uri = "/entity/{id}/table/query/nextPage/async".format(id=tableId)
         return self._waitForAsync(uri=uri, request=nextPageToken)
 
+    @tracer.start_as_current_span("Synapse::_uploadCsv")
     def _uploadCsv(
         self,
         filepath,
@@ -4307,6 +4441,7 @@ class Synapse(object):
 
         return response
 
+    @tracer.start_as_current_span("Synapse::_check_table_transaction_response")
     def _check_table_transaction_response(self, response):
         for result in response["results"]:
             result_type = result["concreteType"]
@@ -4345,6 +4480,7 @@ class Synapse(object):
                     % (result_type, result)
                 )
 
+    @tracer.start_as_current_span("Synapse::_queryTableCsv")
     def _queryTableCsv(
         self,
         query,
@@ -4421,6 +4557,7 @@ class Synapse(object):
         return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
+    @tracer.start_as_current_span("Synapse::createColumn")
     def createColumn(
         self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None
     ):
@@ -4433,6 +4570,7 @@ class Synapse(object):
         )
         return Column(**self.restPOST("/column", json.dumps(columnModel)))
 
+    @tracer.start_as_current_span("Synapse::createColumns")
     def createColumns(self, columns):
         """
         Creates a batch of :py:class:`synapseclient.table.Column` s within a single request.
@@ -4448,6 +4586,7 @@ class Synapse(object):
         response = self.restPOST("/column/batch", json.dumps(request_body))
         return [Column(**col) for col in response["list"]]
 
+    @tracer.start_as_current_span("Synapse::_getColumnByName")
     def _getColumnByName(self, schema, column_name):
         """
         Given a schema and a column name, get the corresponding py:class:`Column` object.
@@ -4457,6 +4596,7 @@ class Synapse(object):
                 return column
         return None
 
+    @tracer.start_as_current_span("Synapse::downloadTableColumns")
     def downloadTableColumns(self, table, columns, downloadLocation=None, **kwargs):
         """
         Bulk download of table-associated files.
@@ -4595,6 +4735,7 @@ class Synapse(object):
 
         return file_handle_to_path_map
 
+    @tracer.start_as_current_span("Synapse::_build_table_download_file_handle_list")
     def _build_table_download_file_handle_list(self, table, columns, downloadLocation):
         # ------------------------------------------------------------
         # build list of file handles to download
@@ -4636,6 +4777,7 @@ class Synapse(object):
                     warnings.warn("Weird file handle: %s" % file_handle_id)
         return file_handle_associations, file_handle_to_path_map
 
+    @tracer.start_as_current_span("Synapse::_get_default_view_columns")
     def _get_default_view_columns(self, view_type, view_type_mask=None):
         """Get default view columns"""
         uri = f"/column/tableview/defaults?viewEntityType={view_type}"
@@ -4643,6 +4785,7 @@ class Synapse(object):
             uri += f"&viewTypeMask={view_type_mask}"
         return [Column(**col) for col in self.restGET(uri)["list"]]
 
+    @tracer.start_as_current_span("Synapse::_get_annotation_view_columns")
     def _get_annotation_view_columns(
         self, scope_ids: list, view_type: str, view_type_mask: str = None
     ) -> list:
@@ -4680,6 +4823,7 @@ class Synapse(object):
     #              CRUD for Entities (properties)              #
     ############################################################
 
+    @tracer.start_as_current_span("Synapse::_getEntity")
     def _getEntity(self, entity, version=None):
         """
         Get an entity from Synapse.
@@ -4695,6 +4839,7 @@ class Synapse(object):
             uri += "/version/%d" % version
         return self.restGET(uri)
 
+    @tracer.start_as_current_span("Synapse::_createEntity")
     def _createEntity(self, entity):
         """
         Create a new entity in Synapse.
@@ -4706,6 +4851,7 @@ class Synapse(object):
 
         return self.restPOST(uri="/entity", body=json.dumps(get_properties(entity)))
 
+    @tracer.start_as_current_span("Synapse::_updateEntity")
     def _updateEntity(self, entity, incrementVersion=True, versionLabel=None):
         """
         Update an existing entity in Synapse.
@@ -4734,6 +4880,7 @@ class Synapse(object):
 
         return self.restPUT(uri, body=json.dumps(get_properties(entity)), params=params)
 
+    @tracer.start_as_current_span("Synapse::findEntityId")
     def findEntityId(self, name, parent=None):
         """
         Find an Entity given its name and parent.
@@ -4762,6 +4909,7 @@ class Synapse(object):
     ############################################################
     #                       Send Message                       #
     ############################################################
+    @tracer.start_as_current_span("Synapse::sendMessage")
     def sendMessage(
         self, userIds, messageSubject, messageBody, contentType="text/plain"
     ):
@@ -4872,7 +5020,7 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
-        trace.get_current_span().set_attributes({"uri": uri})
+        trace.get_current_span().set_attributes({"url.path": uri})
         response = self._rest_call(
             "get", uri, None, endpoint, headers, retryPolicy, requests_session, **kwargs
         )
@@ -4902,6 +5050,7 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
+        trace.get_current_span().set_attributes({"url.path": uri})
         response = self._rest_call(
             "post",
             uri,
@@ -4938,6 +5087,7 @@ class Synapse(object):
 
         :returns: JSON encoding of response
         """
+        trace.get_current_span().set_attributes({"url.path": uri})
         response = self._rest_call(
             "put", uri, body, endpoint, headers, retryPolicy, requests_session, **kwargs
         )
@@ -4963,6 +5113,7 @@ class Synapse(object):
         :param kwargs:              Any other arguments taken by a
                                     `requests <http://docs.python-requests.org/en/latest/>`_ method
         """
+        trace.get_current_span().set_attributes({"url.path": uri})
         self._rest_call(
             "delete",
             uri,
@@ -4979,6 +5130,8 @@ class Synapse(object):
 
         if endpoint is None:
             endpoint = self.repoEndpoint
+
+        trace.get_current_span().set_attributes({"server.address": endpoint})
 
         # Check to see if the URI is incomplete (i.e. a Synapse URL)
         # In that case, append a Synapse endpoint to the URI
@@ -4999,6 +5152,9 @@ class Synapse(object):
 
     def _return_rest_body(self, response):
         """Returns either a dictionary or a string depending on the 'content-type' of the response."""
+        trace.get_current_span().set_attributes(
+            {"http.response.status_code": response.status_code}
+        )
         if is_json(response.headers.get("content-type", None)):
             return response.json()
         return response.text

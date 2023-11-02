@@ -9,8 +9,12 @@ import unittest
 
 from synapseclient import Evaluation, File, SubmissionViewSchema, Synapse, Team
 from synapseclient.core.exceptions import SynapseHTTPError
+from opentelemetry import trace
+
+tracer = trace.get_tracer("synapseclient")
 
 
+@tracer.start_as_current_span("test_evaluations::test_evaluations")
 def test_evaluations(syn, project, schedule_for_cleanup):
     # Create an Evaluation
     name = "Test Evaluation %s" % str(uuid.uuid4())
@@ -172,6 +176,7 @@ def test_evaluations(syn, project, schedule_for_cleanup):
     pytest.raises(SynapseHTTPError, syn.getEvaluation, ev)
 
 
+@tracer.start_as_current_span("test_evaluations::test_teams")
 @unittest.skip(reason="Unstable timing, particularly on dev stack, SYNPY-816")
 def test_teams(syn, project, schedule_for_cleanup):
     name = "My Uniquely Named Team " + str(uuid.uuid4())

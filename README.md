@@ -155,33 +155,57 @@ The purpose of synapseutils is to create a space filled with convenience functio
 
 OpenTelemetry (OTEL)
 --------------------------------
-[OpenTelemetry](https://opentelemetry.io/) is a tool that can be used to collect telemetry data. The synapseclient is ready to provide metrics should you want them.
+[OpenTelemetry](https://opentelemetry.io/) is a tool that can be used to collect telemetry data. The synapseclient is ready to provide traces should you want them. The Synapse Python client supports OTLP Exports and can be configured via environment variables as defined [here](https://opentelemetry-python.readthedocs.io/en/stable/exporter/otlp/otlp.html).
 
-The Synapse Python client supports OTLP Exports and can be configured via environment variables as defined [here](https://opentelemetry-python.readthedocs.io/en/stable/exporter/otlp/otlp.html).
+Read more about OpenTelemetry in Python [here](https://opentelemetry.io/docs/instrumentation/python/)
 
-#### Sample PoC content (To be cleaned up/moved):
-A sample proof of concept using a jaeger back-end.
+### Quick-start
+The following shows an example of setting up [jaegertracing](https://www.jaegertracing.io/docs/1.50/deployment/#all-in-one) via docker and executing a simple python script that implements the Synapse Python client.
 
-Running the latest jaeger via this docker command allows it to accept OTLP traces allowing for the removal of jaeger to be a dependency within the python project:
+#### Running the jaeger docker container
+Start a docker container with the following options:
 ```
 docker run --name jaeger \
   -e COLLECTOR_OTLP_ENABLED=true \
   -p 16686:16686 \
-  -p 4317:4317 \
   -p 4318:4318 \
   jaegertracing/all-in-one:latest
 ```
 Explanation of ports:
-* `4317` gRPC
 * `4318` HTTP
 * `16686` Jaeger UI
 
 Once the docker container is running you can access the Jaeger UI via: `http://localhost:16686`
 
-Setting the OTEL endpoint to the jaeger docker container via environment variables:
+#### Example
+By default the OTEL exporter sends trace data to `http://localhost:4318/v1/traces`, however you may override this by setting the `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` environment variable.
+
 ```
-export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+import synapseclient
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+trace.set_tracer_provider(
+    TracerProvider(
+        resource=Resource(attributes={SERVICE_NAME: "my_own_code_above_synapse_client"})
+    )
+)
+trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+tracer = trace.get_tracer("my_tracer")
+
+@tracer.start_as_current_span("my_span_name")
+def main():
+    syn = synapseclient.Synapse()
+    syn.login()
+    my_entity = syn.get("syn52569429")
+    print(my_entity)
+
+main()
 ```
+
 
 
 
