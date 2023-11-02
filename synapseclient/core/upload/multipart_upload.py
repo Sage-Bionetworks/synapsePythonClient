@@ -15,6 +15,7 @@ import math
 import mimetypes
 import os
 import re
+import typing
 import requests
 import threading
 import time
@@ -212,8 +213,9 @@ class UploadAttempt:
 
             return refreshed_url
 
-    def _handle_part(self, part_number, otel_context: Context):
-        context.attach(otel_context)
+    def _handle_part(self, part_number, otel_context: typing.Union[Context, None]):
+        if otel_context:
+            context.attach(otel_context)
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
             with self._lock:
                 if self._aborted:

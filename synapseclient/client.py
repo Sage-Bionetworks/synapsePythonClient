@@ -1633,10 +1633,10 @@ class Synapse(object):
                             delete.
 
         """
-        entity_id = id_of(obj)
-        trace.get_current_span().set_attributes({"synapse.id": entity_id})
         # Handle all strings as the Entity ID for backward compatibility
         if isinstance(obj, str):
+            entity_id = id_of(obj)
+            trace.get_current_span().set_attributes({"synapse.id": entity_id})
             if version:
                 self.restDELETE(uri=f"/entity/{entity_id}/version/{version}")
             else:
