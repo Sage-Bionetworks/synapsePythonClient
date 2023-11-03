@@ -451,7 +451,7 @@ class Cache:
 
         count = 0
         for cache_dir in self._cache_dirs():
-            # utils.get_modified_time returns None if the cache map file doesn't
+            # _get_modified_time returns None if the cache map file doesn't
             # exist and n > None evaluates to True in python 2.7(wtf?). I'm guessing it's
             # OK to purge directories in the cache that have no .cacheMap file
 
