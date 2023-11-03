@@ -616,9 +616,10 @@ class TestModificationsToCacheContent:
         my_cache = cache.Cache(cache_root_dir=tmp_dir)
 
         # AND a file created in my cache directory
+        another_tmp_dir = tempfile.mkdtemp()
         file_path = utils.touch(
             os.path.join(
-                my_cache.get_cache_dir(111201),
+                another_tmp_dir,
                 "file1_test_cache_item_unmodified_not_modified.ext",
             )
         )
@@ -627,7 +628,7 @@ class TestModificationsToCacheContent:
         my_cache.add(file_handle_id=111201, path=file_path)
 
         # THEN we expect the file to be unmodified
-        with Lock(my_cache.cache_map_file_name, dir=my_cache.get_cache_dir(111201)):
+        with Lock(my_cache.cache_map_file_name, dir=tmp_dir):
             unmodified = my_cache._cache_item_unmodified(
                 cache_map_entry=my_cache._read_cache_map(
                     cache_dir=my_cache.get_cache_dir(111201)
