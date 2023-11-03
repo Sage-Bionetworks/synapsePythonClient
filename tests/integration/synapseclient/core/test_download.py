@@ -8,8 +8,12 @@ import pytest
 from synapseclient import File
 from synapseclient.core.exceptions import SynapseMd5MismatchError
 import synapseclient.core.utils as utils
+from opentelemetry import trace
+
+tracer = trace.get_tracer("synapseclient")
 
 
+@tracer.start_as_current_span("test_external_storage::test_download_check_md5")
 def test_download_check_md5(syn, project, schedule_for_cleanup):
     tempfile_path = utils.make_bogus_data_file()
     schedule_for_cleanup(tempfile_path)
@@ -27,6 +31,7 @@ def test_download_check_md5(syn, project, schedule_for_cleanup):
     )
 
 
+@tracer.start_as_current_span("test_external_storage::test_resume_partial_download")
 @pytest.mark.flaky(reruns=3)
 def test_resume_partial_download(syn, project, schedule_for_cleanup):
     original_file = utils.make_bogus_data_file(40000)
@@ -69,6 +74,9 @@ def test_resume_partial_download(syn, project, schedule_for_cleanup):
     assert filecmp.cmp(original_file, path), "File comparison failed"
 
 
+@tracer.start_as_current_span(
+    "test_external_storage::test_http_download__range_request_error"
+)
 def test_http_download__range_request_error(syn, project):
     # SYNPY-525
 

@@ -5,6 +5,7 @@ import logging
 from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
 from synapseclient.core.utils import is_json
 from synapseclient.core.dozer import doze
+from opentelemetry import trace
 
 DEFAULT_RETRIES = 3
 DEFAULT_WAIT = 1
@@ -37,7 +38,10 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
     "timeout",
 ]
 
+tracer = trace.get_tracer("synapseclient")
 
+
+@tracer.start_as_current_span("retry::with_retry")
 def with_retry(
     function,
     verbose=False,

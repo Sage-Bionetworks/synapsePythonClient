@@ -11,8 +11,12 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient import Entity, File, Folder, Link, Project, Schema, Synapse
 import synapseclient.core.utils as utils
 import synapseutils
+from opentelemetry import trace
 
 from tests.integration import QUERY_TIMEOUT_SEC
+
+
+tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -64,6 +68,7 @@ def _makeManifest(content, schedule_for_cleanup):
     return filepath
 
 
+@tracer.start_as_current_span("test_synapseutils_sync::test_readManifest")
 def test_readManifest(test_state):
     """Creates multiple manifests and verifies that they validate correctly"""
     # Test manifest with missing columns
@@ -103,6 +108,7 @@ def test_readManifest(test_state):
     pytest.raises(IOError, synapseutils.sync.readManifestFile, test_state.syn, manifest)
 
 
+@tracer.start_as_current_span("test_synapseutils_sync::test_syncToSynapse")
 @pytest.mark.flaky(reruns=3)
 def test_syncToSynapse(test_state):
     # Test upload of accurate manifest
@@ -174,6 +180,7 @@ def test_syncToSynapse(test_state):
                 assert set(orig_list) == set(new_list)
 
 
+@tracer.start_as_current_span("test_synapseutils_sync::test_syncFromSynapse")
 @pytest.mark.flaky(reruns=3)
 def test_syncFromSynapse(test_state):
     """This function tests recursive download as defined in syncFromSynapse
@@ -223,6 +230,9 @@ def test_syncFromSynapse(test_state):
         assert utils.normalize_path(f.path) in uploaded_paths
 
 
+@tracer.start_as_current_span(
+    "test_synapseutils_sync::test_syncFromSynapse_children_contain_non_file"
+)
 @pytest.mark.flaky(reruns=3)
 def test_syncFromSynapse_children_contain_non_file(test_state):
     proj = test_state.syn.store(
@@ -256,6 +266,7 @@ def test_syncFromSynapse_children_contain_non_file(test_state):
     assert file_entity == files_list[0]
 
 
+@tracer.start_as_current_span("test_synapseutils_sync::test_syncFromSynapse_Links")
 @pytest.mark.flaky(reruns=3)
 def test_syncFromSynapse_Links(test_state):
     """This function tests recursive download of links as defined in syncFromSynapse
@@ -312,7 +323,10 @@ def test_syncFromSynapse_Links(test_state):
         assert utils.normalize_path(f.path) in uploaded_paths
 
 
-def test_write_manifest_data__unicode_characters_in_rows(test_state):
+@tracer.start_as_current_span(
+    "test_synapseutils_sync::test_write_manifest_data_unicode_characters_in_rows"
+)
+def test_write_manifest_data_unicode_characters_in_rows(test_state):
     # SYNPY-693
 
     named_temp_file = tempfile.NamedTemporaryFile("w")
@@ -330,6 +344,9 @@ def test_write_manifest_data__unicode_characters_in_rows(test_state):
         assert datarow["col_B"] == dfrow.col_B
 
 
+@tracer.start_as_current_span(
+    "test_synapseutils_sync::test_syncFromSynapse_given_file_id"
+)
 @pytest.mark.flaky(reruns=3)
 def test_syncFromSynapse_given_file_id(test_state):
     file_path = utils.make_bogus_data_file()

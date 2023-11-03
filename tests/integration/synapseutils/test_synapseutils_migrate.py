@@ -10,8 +10,12 @@ from synapseclient.core.constants import concrete_types
 import synapseclient.core.utils as utils
 import synapseutils
 from synapseutils.migrate_functions import _MigrationType, _MigrationStatus
+from opentelemetry import trace
+
+tracer = trace.get_tracer("synapseclient")
 
 
+@tracer.start_as_current_span("test_synapseutils_migrate::storage_location_id")
 @pytest.fixture(scope="module")
 def storage_location_id(syn: Synapse):
     storage_location_setting = syn.restPOST(
@@ -53,6 +57,7 @@ def _assert_storage_location(file_handles, storage_location_id):
         assert fh["storageLocationId"] == storage_location_id
 
 
+@tracer.start_as_current_span("test_synapseutils_migrate::test_migrate_project")
 def test_migrate_project(
     request, syn: Synapse, schedule_for_cleanup, storage_location_id
 ):

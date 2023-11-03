@@ -13,6 +13,9 @@ import unittest
 from synapseclient import File
 import synapseclient.core.utils as utils
 from synapseclient.core.remote_file_storage_wrappers import SFTPWrapper
+from opentelemetry import trace
+
+tracer = trace.get_tracer("synapseclient")
 
 
 def get_sftp_server_prefix():
@@ -74,6 +77,7 @@ def project_setting_id(request, syn, project):
     request.addfinalizer(delete_project_setting)
 
 
+@tracer.start_as_current_span("test_sftp_upload::test_synStore_sftpIntegration")
 @unittest.skipIf(*check_test_preconditions())
 def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
     """Creates a File Entity on an sftp server and add the external url."""
@@ -99,6 +103,7 @@ def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
             print(traceback.format_exc())
 
 
+@tracer.start_as_current_span("test_sftp_upload::test_synGet_sftpIntegration")
 @unittest.skipIf(*check_test_preconditions())
 def test_synGet_sftpIntegration(syn, project):
     # Create file by uploading directly to sftp and creating entity from URL
@@ -121,6 +126,7 @@ def test_synGet_sftpIntegration(syn, project):
     filecmp.cmp(filepath, junk.path)
 
 
+@tracer.start_as_current_span("test_sftp_upload::test_utils_sftp_upload_and_download")
 @unittest.skipIf(*check_test_preconditions())
 def test_utils_sftp_upload_and_download(syn):
     """Tries to upload a file to an sftp file"""

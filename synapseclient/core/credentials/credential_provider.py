@@ -9,6 +9,9 @@ from synapseclient.core.credentials.cred_data import (
     SynapseAuthTokenCredentials,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
+from opentelemetry import trace
+
+tracer = trace.get_tracer("synapseclient")
 
 
 class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
@@ -253,6 +256,7 @@ class SynapseCredentialsProviderChain(object):
         """
         self.cred_providers = list(cred_providers)
 
+    @tracer.start_as_current_span("SynapseCredentialsProviderChain::get_credentials")
     def get_credentials(self, syn, user_login_args):
         """
         Iterates its list of ``SynapseCredentialsProvider`` and returns the first non-None ``SynapseCredential``

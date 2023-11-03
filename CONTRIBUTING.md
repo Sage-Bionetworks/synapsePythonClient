@@ -15,8 +15,12 @@ By contributing, you are agreeing that we may redistribute your work under this 
 - [The development life cycle](#the-development-life-cycle)
    * [Development](#development)
    * [Testing](#testing)
-      + [Integration testing agaisnt the `dev` synapse server](#integration-testing-agaisnt-the-dev-synapse-server)
+      + [Integration testing against the dev synapse server](#integration-testing-against-the-dev-synapse-server)
+      + [Running OpenTelemetry in Integration Tests](#running-opentelemetry-in-integration-tests)
    * [Code style](#code-style)
+   * [OpenTelemetry](#opentelemetry)
+      + [Attributes within traces](#attributes-within-traces)
+      + [Adding new spans](#adding-new-spans)
    * [Repository Admins](#repository-admins)
 
 ## I don't want to read this whole thing I just have a question!
@@ -180,8 +184,11 @@ authEndpoint=https://repo-dev.dev.sagebase.org/auth/v1
 fileHandleEndpoint=https://repo-dev.dev.sagebase.org/file/v1
 ```
 
+#### Running OpenTelemetry in Integration Tests
+`tests/integration/conftest.py` is where we defining which trace provider to use. Set the `SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER` environment variable to `otlp` or `console` depending on your use case.
+
 #### Integration testing for external collaborators
-As an external collaborator you will not have access to a development account and environment to run the integration tests agaisnt. Either request that a Sage Bionetworks staff member run your integration tests via a pull request, or, contact us via the [Service Desk](https://sagebionetworks.jira.com/servicedesk/customer/portal/9) to requisition a development account for integration testing only.
+As an external collaborator you will not have access to a development account and environment to run the integration tests against. Either request that a Sage Bionetworks staff member run your integration tests via a pull request, or, contact us via the [Service Desk](https://sagebionetworks.jira.com/servicedesk/customer/portal/9) to requisition a development account for integration testing only.
 
 ### Code style
 
@@ -196,6 +203,23 @@ pip install flake8
 
 flake8
 ```
+
+### OpenTelemetry
+[OpenTelemetry](https://opentelemetry.io/) helps support the analysis of traces and spans which can provide insights into latency, errors, and other performance metrics. During development it may prove useful to collect information about the execution of your code. The following is meant to be a starting point for additions to the current traces being collected.
+
+To learn more about how to modify trace collection read the documentation [here](https://opentelemetry.io/docs/instrumentation/python/manual/)
+
+#### Attributes within traces
+Attributes that are collected within traces should not contain any sensitive data. We should follow the [Common specification concepts](https://opentelemetry.io/docs/specs/otel/common/) defined by OpenTelemetry when it comes to naming attribute keys.
+
+All synapse related attributes should live within the `synapse` namespace, for example: `synapse.id`, `synapse.parent_id`.
+
+#### Adding new spans
+1. All new integration tests should create a new span for the test.
+1. New spans within the Synapse Python Client should only be added if it will bring value to those looking at the spans. Some initial questions to ask yourself are:
+    * "Will this information help someone in the future to review an error in the code?"
+    * "Is this an external call or an entry point into the python client?"
+    * "Is it useful to know how long this section of code takes to execute?"
 
 ### Repository Admins
 

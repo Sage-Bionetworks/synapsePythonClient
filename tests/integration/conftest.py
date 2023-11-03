@@ -11,12 +11,22 @@ from synapseclient import Entity, Synapse, Project
 from synapseclient.core import utils
 from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
+
+tracer = trace.get_tracer("synapseclient")
+
 """
 pytest session level fixtures shared by all integration tests.
 """
 
 
 @pytest.fixture(scope="session")
+@tracer.start_as_current_span("conftest::syn")
 def syn():
     """
     Create a logged in Synapse instance that can be shared by all tests in the session.
@@ -37,6 +47,7 @@ def syn():
 
 
 @pytest.fixture(scope="session")
+@tracer.start_as_current_span("conftest::project")
 def project(request, syn):
     """
     Create a project to be shared by all tests in the session. If xdist is being used
@@ -79,6 +90,7 @@ def schedule_for_cleanup(request, syn):
     return _append_cleanup
 
 
+@tracer.start_as_current_span("conftest::_cleanup")
 def _cleanup(syn, items):
     """cleanup junk created during testing"""
     for item in reversed(items):
@@ -105,3 +117,22 @@ def _cleanup(syn, items):
                     print(ex)
         else:
             sys.stderr.write("Don't know how to clean: %s" % str(item))
+
+
+provider_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER", None)
+if provider_type:
+    trace.set_tracer_provider(
+        TracerProvider(
+            resource=Resource(attributes={SERVICE_NAME: "syn_int_tests"}),
+        )
+    )
+    if provider_type == "otlp":
+        trace.get_tracer_provider().add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter())
+        )
+    elif provider_type == "console":
+        trace.get_tracer_provider().add_span_processor(
+            BatchSpanProcessor(ConsoleSpanExporter())
+        )
+else:
+    trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
