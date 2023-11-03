@@ -9,6 +9,7 @@ import random
 from unittest.mock import patch, call
 from collections import OrderedDict
 from multiprocessing import Process
+from synapseclient.core.lock import Lock
 
 import synapseclient.core.cache as cache
 import synapseclient.core.utils as utils
@@ -569,12 +570,13 @@ class TestModificationsToCacheContent:
         utils.touch(file_path, (new_time_stamp, new_time_stamp))
 
         # THEN we expect the file to be modified
-        unmodified = my_cache._cache_item_unmodified(
-            cache_map_entry=my_cache._read_cache_map(
-                cache_dir=my_cache.get_cache_dir(131201)
-            ).get(file_path),
-            path=file_path,
-        )
+        with Lock(my_cache.cache_map_file_name, dir=my_cache.get_cache_dir(111201)):
+            unmodified = my_cache._cache_item_unmodified(
+                cache_map_entry=my_cache._read_cache_map(
+                    cache_dir=my_cache.get_cache_dir(131201)
+                ).get(file_path),
+                path=file_path,
+            )
         assert unmodified is False
 
     def test_cache_item_unmodified_modified_items_is_modified_timestamp(self):
@@ -599,12 +601,13 @@ class TestModificationsToCacheContent:
         utils.make_bogus_binary_file(filepath=file_path)
 
         # THEN we expect the file to be modified
-        unmodified = my_cache._cache_item_unmodified(
-            cache_map_entry=my_cache._read_cache_map(
-                cache_dir=my_cache.get_cache_dir(121201)
-            ).get(file_path),
-            path=file_path,
-        )
+        with Lock(my_cache.cache_map_file_name, dir=my_cache.get_cache_dir(111201)):
+            unmodified = my_cache._cache_item_unmodified(
+                cache_map_entry=my_cache._read_cache_map(
+                    cache_dir=my_cache.get_cache_dir(121201)
+                ).get(file_path),
+                path=file_path,
+            )
         assert unmodified is False
 
     def test_cache_item_unmodified_not_modified(self):
@@ -624,10 +627,11 @@ class TestModificationsToCacheContent:
         my_cache.add(file_handle_id=111201, path=file_path)
 
         # THEN we expect the file to be unmodified
-        unmodified = my_cache._cache_item_unmodified(
-            cache_map_entry=my_cache._read_cache_map(
-                cache_dir=my_cache.get_cache_dir(111201)
-            ).get(file_path),
-            path=file_path,
-        )
+        with Lock(my_cache.cache_map_file_name, dir=my_cache.get_cache_dir(111201)):
+            unmodified = my_cache._cache_item_unmodified(
+                cache_map_entry=my_cache._read_cache_map(
+                    cache_dir=my_cache.get_cache_dir(111201)
+                ).get(file_path),
+                path=file_path,
+            )
         assert unmodified is True
