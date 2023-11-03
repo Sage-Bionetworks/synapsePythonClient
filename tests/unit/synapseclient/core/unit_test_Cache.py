@@ -1,5 +1,6 @@
 import datetime
 import json
+import math
 import re
 import os
 import pytest
@@ -9,7 +10,6 @@ import random
 from unittest.mock import patch, call
 from collections import OrderedDict
 from multiprocessing import Process
-from synapseclient.core.lock import Lock
 
 import synapseclient.core.cache as cache
 import synapseclient.core.utils as utils
@@ -561,22 +561,22 @@ class TestModificationsToCacheContent:
                 "file1_test_cache_item_unmodified_modified_items_is_modified_timestamp.ext",
             )
         )
-
-        # AND the file is added to the cache
-        my_cache.add(file_handle_id=131201, path=file_path)
+        file_modification_time = cache.epoch_time_to_iso(
+            math.floor(cache._get_modified_time(file_path))
+        )
 
         # WHEN we modify the file timestamp
         new_time_stamp = cache._get_modified_time(file_path) + 1
         utils.touch(file_path, (new_time_stamp, new_time_stamp))
 
         # THEN we expect the file to be modified
-        with Lock(my_cache.cache_map_file_name, dir=my_cache.get_cache_dir(111201)):
-            unmodified = my_cache._cache_item_unmodified(
-                cache_map_entry=my_cache._read_cache_map(
-                    cache_dir=my_cache.get_cache_dir(131201)
-                ).get(file_path),
-                path=file_path,
-            )
+        unmodified = my_cache._cache_item_unmodified(
+            cache_map_entry={
+                "modified_time": file_modification_time,
+                "content_md5": utils.md5_for_file(file_path).hexdigest(),
+            },
+            path=file_path,
+        )
         assert unmodified is False
 
     def test_cache_item_unmodified_modified_items_is_modified_timestamp(self):
@@ -591,23 +591,24 @@ class TestModificationsToCacheContent:
         )
         utils.touch(file_path)
         utils.make_bogus_binary_file(filepath=file_path)
-
-        # AND the file is added to the cache
-        my_cache.add(file_handle_id=121201, path=file_path)
+        original_file_md5 = utils.md5_for_file(file_path).hexdigest()
 
         # WHEN we replace the file with another of the same name
         os.remove(file_path)
         utils.touch(file_path)
         utils.make_bogus_binary_file(filepath=file_path)
+        file_modification_time = cache.epoch_time_to_iso(
+            math.floor(cache._get_modified_time(file_path))
+        )
 
         # THEN we expect the file to be modified
-        with Lock(my_cache.cache_map_file_name, dir=my_cache.get_cache_dir(111201)):
-            unmodified = my_cache._cache_item_unmodified(
-                cache_map_entry=my_cache._read_cache_map(
-                    cache_dir=my_cache.get_cache_dir(121201)
-                ).get(file_path),
-                path=file_path,
-            )
+        unmodified = my_cache._cache_item_unmodified(
+            cache_map_entry={
+                "modified_time": file_modification_time,
+                "content_md5": original_file_md5,
+            },
+            path=file_path,
+        )
         assert unmodified is False
 
     def test_cache_item_unmodified_not_modified(self):
@@ -623,16 +624,16 @@ class TestModificationsToCacheContent:
                 "file1_test_cache_item_unmodified_not_modified.ext",
             )
         )
-
-        # AND the file is added to the cache
-        my_cache.add(file_handle_id=111201, path=file_path)
+        file_modification_time = cache.epoch_time_to_iso(
+            math.floor(cache._get_modified_time(file_path))
+        )
 
         # THEN we expect the file to be unmodified
-        with Lock(my_cache.cache_map_file_name, dir=tmp_dir):
-            unmodified = my_cache._cache_item_unmodified(
-                cache_map_entry=my_cache._read_cache_map(
-                    cache_dir=my_cache.get_cache_dir(111201)
-                ).get(file_path),
-                path=file_path,
-            )
+        unmodified = my_cache._cache_item_unmodified(
+            cache_map_entry={
+                "modified_time": file_modification_time,
+                "content_md5": utils.md5_for_file(file_path).hexdigest(),
+            },
+            path=file_path,
+        )
         assert unmodified is True
