@@ -155,7 +155,7 @@ The purpose of synapseutils is to create a space filled with convenience functio
 
 OpenTelemetry (OTEL)
 --------------------------------
-[OpenTelemetry](https://opentelemetry.io/) helps support the analysis of traces and spans which can provide insights into latency, errors, and other performance metrics. The synapseclient is ready to provide traces should you want them. The Synapse Python client supports OTLP Exports and can be configured via environment variables as defined [here](https://opentelemetry-python.readthedocs.io/en/stable/exporter/otlp/otlp.html).
+[OpenTelemetry](https://opentelemetry.io/) is a tool that can be used to collect telemetry data. The synapseclient is ready to provide traces should you want them. The Synapse Python client supports OTLP Exports and can be configured via environment variables as defined [here](https://opentelemetry-python.readthedocs.io/en/stable/exporter/otlp/otlp.html).
 
 Read more about OpenTelemetry in Python [here](https://opentelemetry.io/docs/instrumentation/python/)
 

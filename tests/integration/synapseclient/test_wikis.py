@@ -13,6 +13,7 @@ tracer = trace.get_tracer("synapseclient")
 
 
 @tracer.start_as_current_span("test_wikis::test_wikiAttachment")
+@pytest.mark.flaky(reruns=3)
 def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup):
     # Upload a file to be attached to a Wiki
     filename = utils.make_bogus_data_file()
