@@ -1070,7 +1070,6 @@ class Synapse(object):
                         entity,
                         ifcollision,
                         submission,
-                        file_handle.get("contentMd5", None),
                     )
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = (
@@ -1103,7 +1102,6 @@ class Synapse(object):
         entity: Entity,
         ifcollision: str,
         submission: str,
-        expected_md5: typing.Union[str, None],
     ):
         # set the initial local state
         entity.path = None
@@ -1114,15 +1112,6 @@ class Synapse(object):
         # this location could be either in .synapseCache or a user specified location to which the user previously
         # downloaded the file
         cached_file_path = self.cache.get(entity.dataFileHandleId, downloadLocation)
-
-        # This is to handle for cases where the names of the files in the cache and the
-        # requested file name match - But there is a difference in content.
-        if (
-            expected_md5 is not None
-            and cached_file_path is not None
-            and utils.md5_for_file(cached_file_path).hexdigest() != expected_md5
-        ):
-            cached_file_path = None
 
         # location in .synapseCache where the file would be corresponding to its FileHandleId
         synapseCache_location = self.cache.get_cache_dir(entity.dataFileHandleId)

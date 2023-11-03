@@ -14,7 +14,6 @@ import collections.abc
 import datetime
 import json
 import math
-import operator
 import os
 import re
 import shutil
@@ -22,6 +21,9 @@ import typing
 
 from synapseclient.core.lock import Lock
 from synapseclient.core import utils
+from opentelemetry import trace
+
+tracer = trace.get_tracer("synapseclient")
 
 CACHE_ROOT_DIR = os.path.join("~", ".synapseCache")
 
@@ -94,7 +96,9 @@ class Cache:
         self.fanout = fanout
         self.cache_map_file_name = ".cacheMap"
 
-    def get_cache_dir(self, file_handle_id):
+    def get_cache_dir(
+        self, file_handle_id: typing.Union[collections.abc.Mapping, str]
+    ) -> str:
         if isinstance(file_handle_id, collections.abc.Mapping):
             if "dataFileHandleId" in file_handle_id:
                 file_handle_id = file_handle_id["dataFileHandleId"]
@@ -112,7 +116,7 @@ class Cache:
             str(file_handle_id),
         )
 
-    def _read_cache_map(self, cache_dir):
+    def _read_cache_map(self, cache_dir: str) -> dict:
         cache_map_file = os.path.join(cache_dir, self.cache_map_file_name)
 
         if not os.path.exists(cache_map_file):
@@ -128,7 +132,7 @@ class Cache:
 
         return cache_map
 
-    def _write_cache_map(self, cache_dir, cache_map):
+    def _write_cache_map(self, cache_dir: str, cache_map: dict) -> None:
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
 
@@ -138,7 +142,63 @@ class Cache:
             json.dump(cache_map, f)
             f.write("\n")  # For compatibility with R's JSON parser
 
-    def contains(self, file_handle_id, path):
+    def _get_cache_modified_time(
+        self, cache_map_entry: typing.Union[str, dict, None]
+    ) -> typing.Union[str, None]:
+        """
+        Retrieve the `modified_time` from the cache_map_entry. This needed to be
+        backwards-compatible any cache entries that do not have the new JSON structure
+        for data. That means that if the cache_map_entry has a `modified_time` key,
+        then it is a new entry and we can return the value. If it does not, then it
+        is an old entry and we should return the cache_map_entry itself.
+
+        :param cache_map_entry: The entry from the cache map
+
+        :returns: The modified time if it exists, otherwise the cache_map_entry
+        """
+        if cache_map_entry is not None and "modified_time" in cache_map_entry:
+            return cache_map_entry.get("modified_time", None)
+        else:
+            return cache_map_entry
+
+    def _get_cache_content_md5(
+        self, cache_map_entry: typing.Union[str, dict, None]
+    ) -> typing.Union[str, None]:
+        """
+        Retrieve the `content_md5` from the cache_map_entry.
+
+        :param cache_map_entry: The entry from the cache map
+
+        :returns: The content md5 if it exists, otherwise None
+        """
+        if cache_map_entry is not None and "content_md5" in cache_map_entry:
+            return cache_map_entry.get("content_md5", None)
+        else:
+            return None
+
+    def _cache_item_unmodified(
+        self, cache_map_entry: typing.Union[str, dict], path: str
+    ) -> bool:
+        """
+        Determine if the cache_map_entry is unmodified by comparing the modified_time
+        and content_md5 to the file at the given path.
+
+        :param cache_map_entry: The entry from the cache map
+        :param path: The path to the file to compare to
+
+        :returns: True if the cache_map_entry is unmodified, otherwise False
+        """
+        cached_time = self._get_cache_modified_time(cache_map_entry)
+        cached_md5 = self._get_cache_content_md5(cache_map_entry)
+
+        # compare_timestamps has an implicit check for whether the path exists
+        return compare_timestamps(_get_modified_time(path), cached_time) and (
+            cached_md5 is None or cached_md5 == utils.md5_for_file(path).hexdigest()
+        )
+
+    def contains(
+        self, file_handle_id: typing.Union[collections.abc.Mapping, str], path: str
+    ) -> bool:
         """
         Given a file and file_handle_id, return True if an unmodified cached
         copy of the file exists at the exact path given or False otherwise.
@@ -154,12 +214,18 @@ class Cache:
 
             path = utils.normalize_path(path)
 
-            cached_time = cache_map.get(path, None)
+            cached_time = self._get_cache_modified_time(cache_map.get(path, None))
+
             if cached_time:
                 return compare_timestamps(_get_modified_time(path), cached_time)
         return False
 
-    def get(self, file_handle_id, path=None):
+    @tracer.start_as_current_span("cache::get")
+    def get(
+        self,
+        file_handle_id: typing.Union[collections.abc.Mapping, str],
+        path: str = None,
+    ) -> typing.Union[str, None]:
         """
         Retrieve a file with the given file handle from the cache.
 
@@ -174,7 +240,14 @@ class Cache:
                   exists in the specified location or None if it does not
         """
         cache_dir = self.get_cache_dir(file_handle_id)
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.cache.dir": cache_dir,
+                "synapse.cache.file_handle_id": file_handle_id,
+            }
+        )
         if not os.path.exists(cache_dir):
+            trace.get_current_span().set_attributes({"synapse.cache.hit": False})
             return None
 
         with Lock(self.cache_map_file_name, dir=cache_dir):
@@ -196,11 +269,10 @@ class Cache:
                     )
 
                     # iterate a copy of cache_map to allow modifying original cache_map
-                    for cached_file_path, cached_time in dict(cache_map).items():
+                    for cached_file_path, cache_map_entry in dict(cache_map).items():
                         if path == os.path.dirname(cached_file_path):
-                            # compare_timestamps has an implicit check for whether the path exists
-                            if compare_timestamps(
-                                _get_modified_time(cached_file_path), cached_time
+                            if self._cache_item_unmodified(
+                                cache_map_entry, cached_file_path
                             ):
                                 # "break" instead of "return" to write removed invalid entries to disk if necessary
                                 matching_unmodified_directory = cached_file_path
@@ -216,30 +288,44 @@ class Cache:
                         self._write_cache_map(cache_dir, cache_map)
 
                     if matching_unmodified_directory is not None:
+                        trace.get_current_span().set_attributes(
+                            {"synapse.cache.hit": True}
+                        )
                         return matching_unmodified_directory
 
                 # if we're given a full file path, look up a matching file in the cache
                 else:
-                    cached_time = cache_map.get(path, None)
-                    if cached_time:
-                        return (
+                    cache_map_entry = cache_map.get(path, None)
+                    if cache_map_entry:
+                        matching_file_path = (
                             path
-                            if compare_timestamps(_get_modified_time(path), cached_time)
+                            if self._cache_item_unmodified(cache_map_entry, path)
                             else None
                         )
+                        trace.get_current_span().set_attributes(
+                            {"synapse.cache.hit": matching_file_path is not None}
+                        )
+                        return matching_file_path
 
             # return most recently cached and unmodified file OR
             # None if there are no unmodified files
-            for cached_file_path, cached_time in sorted(
-                cache_map.items(), key=operator.itemgetter(1), reverse=True
+            for cached_file_path, cache_map_entry in sorted(
+                cache_map.items(),
+                key=lambda item: item[1]["modified_time"]
+                if isinstance(item[1], dict)
+                else item[1],
+                reverse=True,
             ):
-                if compare_timestamps(
-                    _get_modified_time(cached_file_path), cached_time
-                ):
+                if self._cache_item_unmodified(cache_map_entry, cached_file_path):
+                    trace.get_current_span().set_attributes({"synapse.cache.hit": True})
                     return cached_file_path
+
+            trace.get_current_span().set_attributes({"synapse.cache.hit": False})
             return None
 
-    def add(self, file_handle_id, path):
+    def add(
+        self, file_handle_id: typing.Union[collections.abc.Mapping, str], path: str
+    ) -> dict:
         """
         Add a file to the cache
         """
@@ -252,12 +338,22 @@ class Cache:
 
             path = utils.normalize_path(path)
             # write .000 milliseconds for backward compatibility
-            cache_map[path] = epoch_time_to_iso(math.floor(_get_modified_time(path)))
+            cache_map[path] = {
+                "modified_time": epoch_time_to_iso(
+                    math.floor(_get_modified_time(path))
+                ),
+                "content_md5": utils.md5_for_file(path).hexdigest(),
+            }
             self._write_cache_map(cache_dir, cache_map)
 
         return cache_map
 
-    def remove(self, file_handle_id, path=None, delete=None):
+    def remove(
+        self,
+        file_handle_id: typing.Union[collections.abc.Mapping, str],
+        path: str = None,
+        delete: bool = None,
+    ) -> list[str]:
         """
         Remove a file from the cache.
 
@@ -265,6 +361,7 @@ class Cache:
         :param path: If the given path is None, remove (and potentially delete)
                      all cached copies. If the path is that of a file in the
                      .cacheMap file, remove it.
+        :param delete: If True, delete the file from disk as well as removing it from the cache
 
         :returns: A list of files removed
         """
@@ -318,7 +415,7 @@ class Cache:
         before_date: typing.Union[datetime.datetime, int] = None,
         after_date: typing.Union[datetime.datetime, int] = None,
         dry_run: bool = False,
-    ):
+    ) -> int:
         """
         Purge the cache. Use with caution. Deletes files whose cache maps were last updated in a specified period.
 
@@ -354,7 +451,7 @@ class Cache:
 
         count = 0
         for cache_dir in self._cache_dirs():
-            # _get_modified_time returns None if the cache map file doesn't
+            # utils.get_modified_time returns None if the cache map file doesn't
             # exist and n > None evaluates to True in python 2.7(wtf?). I'm guessing it's
             # OK to purge directories in the cache that have no .cacheMap file
 

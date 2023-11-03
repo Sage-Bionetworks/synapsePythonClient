@@ -477,3 +477,148 @@ def test_purge_raise_value_error():
     with pytest.raises(ValueError) as ve:
         my_cache.purge(before_date=mock_before_date, after_date=mock_after_date)
     assert str(ve.value) == "Before date should be larger than after date"
+
+
+class TestModificationsToCacheContent:
+    def test_get_cache_modified_time_no_cache_entry(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # WHEN we call _get_cache_modified_time with None
+        cache_modified_time = my_cache._get_cache_modified_time(None)
+
+        # THEN we expect None to be returned
+        assert cache_modified_time is None
+
+    def test_get_cache_modified_time_has_cache_entry(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # WHEN we call _get_cache_modified_time with a cache entry
+        cache_modified_time = my_cache._get_cache_modified_time("1111")
+
+        # THEN we expect the cache entry to be returned
+        assert "1111" == cache_modified_time
+
+    def test_get_cache_modified_time_has_cache_entry_dict(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # WHEN we call _get_cache_modified_time with a cache entry
+        cache_modified_time = my_cache._get_cache_modified_time(
+            {"modified_time": "1111"}
+        )
+
+        # THEN we expect the cache entry to be returned
+        assert "1111" == cache_modified_time
+
+    def test_get_cache_content_md5_no_cache_entry(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # WHEN we call _get_cache_content_md5 with None
+        cache_modified_time = my_cache._get_cache_content_md5(None)
+
+        # THEN we expect None to be returned
+        assert cache_modified_time is None
+
+    def test_get_cache_content_md5_is_not_in_expected_format(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # WHEN we call _get_cache_content_md5 with a cache entry
+        cache_modified_time = my_cache._get_cache_content_md5("2222")
+
+        # THEN we expect None to be returned
+        assert cache_modified_time is None
+
+    def test_get_cache_content_md5_has_cache_entry_dict(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # WHEN we call _get_cache_content_md5 with a cache entry
+        cache_modified_time = my_cache._get_cache_content_md5({"content_md5": "2222"})
+
+        # THEN we expect the cache entry to be returned
+        assert "2222" == cache_modified_time
+
+    def test_cache_item_unmodified_modified_items_is_modified_timestamp(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # AND a file created in my cache directory
+        file_path = utils.touch(
+            os.path.join(my_cache.get_cache_dir(101201), "file1.ext")
+        )
+
+        # AND the file is added to the cache
+        my_cache.add(file_handle_id=101201, path=file_path)
+
+        # WHEN we modify the file timestamp
+        new_time_stamp = cache._get_modified_time(file_path) + 1
+        utils.touch(file_path, (new_time_stamp, new_time_stamp))
+
+        # THEN we expect the file to be modified
+        unmodified = my_cache._cache_item_unmodified(
+            cache_map_entry=my_cache._read_cache_map(
+                cache_dir=my_cache.get_cache_dir(101201)
+            ).get(file_path),
+            path=file_path,
+        )
+        assert unmodified is False
+
+    def test_cache_item_unmodified_modified_items_is_modified_timestamp(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # AND a file created in my cache directory
+        file_path = os.path.join(my_cache.get_cache_dir(101201), "file1.ext")
+        utils.touch(file_path)
+        utils.make_bogus_binary_file(filepath=file_path)
+
+        # AND the file is added to the cache
+        my_cache.add(file_handle_id=101201, path=file_path)
+
+        # WHEN we replace the file with another of the same name
+        os.remove(file_path)
+        utils.touch(file_path)
+        utils.make_bogus_binary_file(filepath=file_path)
+
+        # THEN we expect the file to be modified
+        unmodified = my_cache._cache_item_unmodified(
+            cache_map_entry=my_cache._read_cache_map(
+                cache_dir=my_cache.get_cache_dir(101201)
+            ).get(file_path),
+            path=file_path,
+        )
+        assert unmodified is False
+
+    def test_cache_item_unmodified_not_modified(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # AND a file created in my cache directory
+        file_path = utils.touch(
+            os.path.join(my_cache.get_cache_dir(101201), "file1.ext")
+        )
+
+        # AND the file is added to the cache
+        my_cache.add(file_handle_id=101201, path=file_path)
+
+        # THEN we expect the file to be unmodified
+        unmodified = my_cache._cache_item_unmodified(
+            cache_map_entry=my_cache._read_cache_map(
+                cache_dir=my_cache.get_cache_dir(101201)
+            ).get(file_path),
+            path=file_path,
+        )
+        assert unmodified is True
