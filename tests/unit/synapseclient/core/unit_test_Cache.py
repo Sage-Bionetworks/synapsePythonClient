@@ -555,7 +555,10 @@ class TestModificationsToCacheContent:
 
         # AND a file created in my cache directory
         file_path = utils.touch(
-            os.path.join(my_cache.get_cache_dir(131201), "file1.ext")
+            os.path.join(
+                my_cache.get_cache_dir(131201),
+                "file1_test_cache_item_unmodified_modified_items_is_modified_timestamp.ext",
+            )
         )
 
         # AND the file is added to the cache
@@ -580,7 +583,10 @@ class TestModificationsToCacheContent:
         my_cache = cache.Cache(cache_root_dir=tmp_dir)
 
         # AND a file created in my cache directory
-        file_path = os.path.join(my_cache.get_cache_dir(121201), "file1.ext")
+        file_path = os.path.join(
+            my_cache.get_cache_dir(121201),
+            "file1_test_cache_item_unmodified_modified_items_is_modified_timestamp.ext",
+        )
         utils.touch(file_path)
         utils.make_bogus_binary_file(filepath=file_path)
 
@@ -608,7 +614,10 @@ class TestModificationsToCacheContent:
 
         # AND a file created in my cache directory
         file_path = utils.touch(
-            os.path.join(my_cache.get_cache_dir(111201), "file1.ext")
+            os.path.join(
+                my_cache.get_cache_dir(111201),
+                "file1_test_cache_item_unmodified_not_modified.ext",
+            )
         )
 
         # AND the file is added to the cache
