@@ -555,11 +555,11 @@ class TestModificationsToCacheContent:
 
         # AND a file created in my cache directory
         file_path = utils.touch(
-            os.path.join(my_cache.get_cache_dir(101201), "file1.ext")
+            os.path.join(my_cache.get_cache_dir(131201), "file1.ext")
         )
 
         # AND the file is added to the cache
-        my_cache.add(file_handle_id=101201, path=file_path)
+        my_cache.add(file_handle_id=131201, path=file_path)
 
         # WHEN we modify the file timestamp
         new_time_stamp = cache._get_modified_time(file_path) + 1
@@ -568,7 +568,7 @@ class TestModificationsToCacheContent:
         # THEN we expect the file to be modified
         unmodified = my_cache._cache_item_unmodified(
             cache_map_entry=my_cache._read_cache_map(
-                cache_dir=my_cache.get_cache_dir(101201)
+                cache_dir=my_cache.get_cache_dir(131201)
             ).get(file_path),
             path=file_path,
         )
@@ -580,12 +580,12 @@ class TestModificationsToCacheContent:
         my_cache = cache.Cache(cache_root_dir=tmp_dir)
 
         # AND a file created in my cache directory
-        file_path = os.path.join(my_cache.get_cache_dir(101201), "file1.ext")
+        file_path = os.path.join(my_cache.get_cache_dir(121201), "file1.ext")
         utils.touch(file_path)
         utils.make_bogus_binary_file(filepath=file_path)
 
         # AND the file is added to the cache
-        my_cache.add(file_handle_id=101201, path=file_path)
+        my_cache.add(file_handle_id=121201, path=file_path)
 
         # WHEN we replace the file with another of the same name
         os.remove(file_path)
@@ -595,7 +595,7 @@ class TestModificationsToCacheContent:
         # THEN we expect the file to be modified
         unmodified = my_cache._cache_item_unmodified(
             cache_map_entry=my_cache._read_cache_map(
-                cache_dir=my_cache.get_cache_dir(101201)
+                cache_dir=my_cache.get_cache_dir(121201)
             ).get(file_path),
             path=file_path,
         )
@@ -608,16 +608,16 @@ class TestModificationsToCacheContent:
 
         # AND a file created in my cache directory
         file_path = utils.touch(
-            os.path.join(my_cache.get_cache_dir(101201), "file1.ext")
+            os.path.join(my_cache.get_cache_dir(111201), "file1.ext")
         )
 
         # AND the file is added to the cache
-        my_cache.add(file_handle_id=101201, path=file_path)
+        my_cache.add(file_handle_id=111201, path=file_path)
 
         # THEN we expect the file to be unmodified
         unmodified = my_cache._cache_item_unmodified(
             cache_map_entry=my_cache._read_cache_map(
-                cache_dir=my_cache.get_cache_dir(101201)
+                cache_dir=my_cache.get_cache_dir(111201)
             ).get(file_path),
             path=file_path,
         )
