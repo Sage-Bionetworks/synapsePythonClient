@@ -353,7 +353,7 @@ class Cache:
         file_handle_id: typing.Union[collections.abc.Mapping, str],
         path: str = None,
         delete: bool = None,
-    ) -> list[str]:
+    ) -> typing.List[str]:
         """
         Remove a file from the cache.
 
