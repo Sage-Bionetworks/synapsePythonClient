@@ -2,6 +2,20 @@
 Release Notes
 =============
 
+3.1.1 (2023-10-30)
+==================
+
+Highlights
+----------
+- A fix to dowloads when file names match but content does not when `ifcollision=overwrite.local`
+
+Bug Fixes
+---------
+-  [`SYNPY-1316 <https://sagebionetworks.jira.com/browse/SYNPY-1316>`__] -
+   Calling `syn.get` with `ifcollision='overwrite.local` does not always overwrite previous file
+-  [`SYNPY-1298 <https://sagebionetworks.jira.com/browse/SYNPY-1298>`__] -
+   Resolve unstable integration tests
+
 3.1.0 (2023-10-20)
 ==================
 

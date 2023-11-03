@@ -26,8 +26,19 @@ on:
 
 jobs:
 
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - uses: pre-commit/action@v3.0.0
+
+
   # run unit (and integration tests if account secrets available) on our build matrix
   test:
+    needs: [pre-commit]
 
     strategy:
       matrix:
@@ -39,7 +50,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v4
         with:
@@ -65,7 +76,7 @@ jobs:
             ${{ steps.get-dependencies.outputs.site_bin_dir }}
           key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v7-otel
 
-      - name: install-py-dependencies
+      - name: Install py-dependencies
         if: steps.cache-dependencies.outputs.cache-hit != 'true'
         shell: bash
         run: |
@@ -79,11 +90,6 @@ jobs:
             pip install setuptools
             pip install numpy
           fi
-
-      # - name: lint
-      #   shell: bash
-      #   run: |
-      #     flake8
 
       - name: run-unit-tests
         shell: bash
@@ -138,15 +144,9 @@ jobs:
             pytest -sv tests/integration/synapseclient/test_command_line_client.py
           fi
 
-  # enforce the code matches the Black code style
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: psf/black@stable
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
-    needs: [test,lint]
+    needs: [test,pre-commit]
 
     runs-on: ubuntu-20.04
 
@@ -157,7 +157,7 @@ jobs:
       bdist-package-name: ${{ steps.build-package.outputs.bdist-package-name }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v4
         with:
