@@ -108,7 +108,7 @@ jobs:
           fi
       - name: Install AWS Tools
         id: aws-check
-        if: ${{ steps.secret-check.outputs.secrets_available == 'true' && !(startsWith(matrix.os, 'windows')) }}
+        if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
         shell: bash
         run: |
           echo "run_opentelemetry=true" >> $GITHUB_OUTPUT;
