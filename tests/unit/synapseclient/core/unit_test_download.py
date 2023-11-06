@@ -753,7 +753,6 @@ def test_download_file_entity__correct_local_state(syn: Synapse):
             entity=file_entity,
             ifcollision="overwrite.local",
             submission=None,
-            expected_md5=None,
         )
         assert mock_cache_path == utils.normalize_path(file_entity.path)
         assert os.path.dirname(mock_cache_path) == file_entity.cacheDir
