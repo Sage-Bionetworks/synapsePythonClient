@@ -38,7 +38,7 @@ jobs:
 
   # run unit (and integration tests if account secrets available) on our build matrix
   test:
-    needs: [pre-commit]
+    # needs: [pre-commit]
 
     strategy:
       matrix:
@@ -52,44 +52,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
+      # - uses: actions/setup-python@v4
+      #   with:
+      #     python-version: ${{ matrix.python }}
 
-      - name: get-dependencies-location
-        shell: bash
-        run: |
-          SITE_PACKAGES_LOCATION=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
-          SITE_BIN_DIR=$(python3 -c "import os; import platform; import distutils.sysconfig; pre = distutils.sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
-          echo "site_packages_loc=$SITE_PACKAGES_LOCATION" >> $GITHUB_OUTPUT
-          echo "site_bin_dir=$SITE_BIN_DIR" >> $GITHUB_OUTPUT
-        id: get-dependencies
+      # - name: get-dependencies-location
+      #   shell: bash
+      #   run: |
+      #     SITE_PACKAGES_LOCATION=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+      #     SITE_BIN_DIR=$(python3 -c "import os; import platform; import distutils.sysconfig; pre = distutils.sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
+      #     echo "site_packages_loc=$SITE_PACKAGES_LOCATION" >> $GITHUB_OUTPUT
+      #     echo "site_bin_dir=$SITE_BIN_DIR" >> $GITHUB_OUTPUT
+      #   id: get-dependencies
 
-      - name: Cache py-dependencies
-        id: cache-dependencies
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-py-dependencies
-        with:
-          path: |
-            ${{ steps.get-dependencies.outputs.site_packages_loc }}
-            ${{ steps.get-dependencies.outputs.site_bin_dir }}
-          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v7
+      # - name: Cache py-dependencies
+      #   id: cache-dependencies
+      #   uses: actions/cache@v3
+      #   env:
+      #     cache-name: cache-py-dependencies
+      #   with:
+      #     path: |
+      #       ${{ steps.get-dependencies.outputs.site_packages_loc }}
+      #       ${{ steps.get-dependencies.outputs.site_bin_dir }}
+      #     key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v7
 
-      - name: Install py-dependencies
-        if: steps.cache-dependencies.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          pip install -e ".[boto3,pandas,pysftp,tests]"
+      # - name: Install py-dependencies
+      #   if: steps.cache-dependencies.outputs.cache-hit != 'true'
+      #   shell: bash
+      #   run: |
+      #     pip install -e ".[boto3,pandas,pysftp,tests]"
 
-          # ensure that numpy c extensions are installed on windows
-          # https://stackoverflow.com/a/59346525
-          if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
-            pip uninstall -y numpy
-            pip uninstall -y setuptools
-            pip install setuptools
-            pip install numpy
-          fi
+      #     # ensure that numpy c extensions are installed on windows
+      #     # https://stackoverflow.com/a/59346525
+      #     if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
+      #       pip uninstall -y numpy
+      #       pip uninstall -y setuptools
+      #       pip install setuptools
+      #       pip install numpy
+      #     fi
 
       # - name: run-unit-tests
       #   shell: bash
@@ -106,26 +106,42 @@ jobs:
           else
             echo "secrets_available=true" >> $GITHUB_OUTPUT;
           fi
+      - name: Install AWS Tools
+        if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
+        shell: bash
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+
+          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+          sudo dpkg -i session-manager-plugin.deb
       - name: Decrypt AWS Config
         if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
         shell: bash
         run: |
           openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.awsConfig.enc -out test.awsConfig -d
           chmod +x tests/integration/synapse_creds.sh
-      - name: SSM Port Forward
+      - name: SSM Port Forward Start
         if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
+        shell: bash
         env:
           AWS_REGION: "us-east-1"
           AWS_CONFIG_FILE: "test.awsConfig"
-        uses: gian2dchris/aws-ssm-port-forwarding-session-action@v1.0.0
-        with:
-          target-id: 'i-0ffcdecd1edf375ee'
-          portNumber: 4318
-          localPortNumber:  4318
+        run: |
+          aws ssm start-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"] > /dev/null
       - name: Execute curl to EC2 instance
         shell: bash
         run: |
           curl http://localhost:4318/v1/traces
+      - name: SSM Port Forward Stop
+        if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
+        shell: bash
+        env:
+          AWS_REGION: "us-east-1"
+          AWS_CONFIG_FILE: "test.awsConfig"
+        run: |
+          aws ssm terminate-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"]
 
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
