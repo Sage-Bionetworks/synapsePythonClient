@@ -130,19 +130,13 @@ jobs:
           AWS_REGION: "us-east-1"
           AWS_CONFIG_FILE: "test.awsConfig"
         run: |
-          aws ssm start-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"] > /dev/null
+          aws ssm start-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"] & disown
+          sleep 15
       - name: Execute curl to EC2 instance
         shell: bash
         run: |
-          curl http://localhost:4318/v1/traces
-      - name: SSM Port Forward Stop
-        if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
-        shell: bash
-        env:
-          AWS_REGION: "us-east-1"
-          AWS_CONFIG_FILE: "test.awsConfig"
-        run: |
-          aws ssm terminate-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"]
+          curl http://host.docker.internal:4318/v1/traces
+
 
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
