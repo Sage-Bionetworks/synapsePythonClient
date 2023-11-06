@@ -108,7 +108,7 @@ jobs:
           fi
       - name: Install AWS Tools
         id: aws-check
-        if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
+        if: ${{ steps.secret-check.outputs.secrets_available == 'true' && !(startsWith(matrix.os, 'windows')) }}
         shell: bash
         run: |
           echo "run_opentelemetry=true" >> $GITHUB_OUTPUT;
@@ -116,8 +116,6 @@ jobs:
           # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           # unzip awscliv2.zip
           # sudo ./aws/install
-
-          # Ubunutu specific install
           # curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
           # sudo dpkg -i session-manager-plugin.deb
       - name: Decrypt AWS Config
