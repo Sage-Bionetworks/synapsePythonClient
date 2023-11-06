@@ -147,8 +147,9 @@ jobs:
             pytest -sv tests/integration/synapseclient/test_command_line_client.py
           fi
       - uses: actions/upload-artifact@v3
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) }}
         with:
-          name: opentelemetry_traces
+          name: opentelemetry_traces_${{ matrix.os }}
           path: tests/integration/otel
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset

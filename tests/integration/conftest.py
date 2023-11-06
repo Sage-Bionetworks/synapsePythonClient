@@ -149,9 +149,8 @@ def setup_otel():
             path = f"tests/integration/otel/{file_name}"
             utils.touch(path)
             export_file = open(path, "w", encoding="utf-8")
-            trace.get_tracer_provider().add_span_processor(
-                BatchSpanProcessor(ConsoleSpanExporter(out=export_file))
-            )
+            span_processor = BatchSpanProcessor(ConsoleSpanExporter(out=export_file))
+            trace.get_tracer_provider().add_span_processor(span_processor)
     else:
         trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
 
@@ -159,4 +158,6 @@ def setup_otel():
 
     # Teardown
     if export_file:
+        span_processor.force_flush()
+        span_processor.shutdown()
         export_file.close()
