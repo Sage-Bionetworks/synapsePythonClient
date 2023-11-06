@@ -146,9 +146,9 @@ def setup_otel():
             file_name = os.environ.get(
                 "SYNAPSE_OTEL_INTEGRATION_TEST_FILE_NAME", "traces.txt"
             )
-            export_file = open(
-                f"tests/integration/otel/{file_name}", "w", encoding="utf-8"
-            )
+            path = f"tests/integration/otel/{file_name}"
+            utils.touch(path)
+            export_file = open(path, "w", encoding="utf-8")
             trace.get_tracer_provider().add_span_processor(
                 BatchSpanProcessor(ConsoleSpanExporter(out=export_file))
             )
