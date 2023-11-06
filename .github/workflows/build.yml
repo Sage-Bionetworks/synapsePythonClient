@@ -42,10 +42,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-20.04, macos-11, windows-2019]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
-        python: ['3.9']
+        python: [3.8, '3.9', '3.10', '3.11']
 
     runs-on: ${{ matrix.os }}
 
@@ -107,9 +107,11 @@ jobs:
             echo "secrets_available=true" >> $GITHUB_OUTPUT;
           fi
       - name: Install AWS Tools
-        if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
+        id: aws-check
+        if: ${{ steps.secret-check.outputs.secrets_available == 'true' && !(startsWith(matrix.os, 'windows')) }}
         shell: bash
         run: |
+          echo "run_opentelemetry=true" >> $GITHUB_OUTPUT;
           # AWS CLI is pre-installed on github hosted runners
           # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           # unzip awscliv2.zip
@@ -118,18 +120,20 @@ jobs:
           curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
           sudo dpkg -i session-manager-plugin.deb
       - name: Decrypt AWS Config
-        if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
+        if: ${{ steps.aws-check.outputs.run_opentelemetry == 'true' }}
         shell: bash
         run: |
           openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.awsConfig.enc -out test.awsConfig -d
           chmod +x tests/integration/synapse_creds.sh
       - name: SSM Port Forward Start
-        if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
+        if: ${{ steps.aws-check.outputs.run_opentelemetry == 'true' }}
         shell: bash
         env:
           AWS_REGION: "us-east-1"
           AWS_CONFIG_FILE: "test.awsConfig"
         run: |
+          # Start a port-forwarding session in a non-interactive way. AWS will clean-up
+          # stale sessions after 20 minutes of inactivity
           aws ssm start-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"] & disown
           sleep 15
 
@@ -169,7 +173,9 @@ jobs:
           export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
           export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
           export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
-          export SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER="otlp"
+          if [ ${{ steps.aws-check.outputs.run_opentelemetry }} == "true" ]; then
+            export SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER="otlp"
+          fi
 
             # use loadscope to avoid issues running tests concurrently that share scoped fixtures
           pytest -sv tests/integration/synapseclient/integration_test_Entity.py::test_Entity -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
