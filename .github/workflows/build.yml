@@ -42,10 +42,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-20.04, macos-11, windows-2019]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
-        python: ['3.9']
+        python: [3.8, '3.9', '3.10', '3.11']
 
     runs-on: ${{ matrix.os }}
 
@@ -108,7 +108,6 @@ jobs:
           fi
       - name: Decrypt AWS Config
         if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
-        # perform secret check & put boolean result as an output
         shell: bash
         run: |
           openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.awsConfig.enc -out test.awsConfig -d

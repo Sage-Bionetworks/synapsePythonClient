@@ -1,6 +1,5 @@
 import logging
 import platform
-import threading
 import uuid
 import os
 import sys
@@ -29,7 +28,7 @@ pytest session level fixtures shared by all integration tests.
 
 @pytest.fixture(scope="session")
 @tracer.start_as_current_span("conftest::syn")
-def syn():
+def syn() -> Synapse:
     """
     Create a logged in Synapse instance that can be shared by all tests in the session.
     If xdist is being used a syn is created for each worker node.
@@ -50,7 +49,7 @@ def syn():
 
 @pytest.fixture(scope="session")
 @tracer.start_as_current_span("conftest::project")
-def project(request, syn):
+def project(request, syn: Synapse) -> Project:
     """
     Create a project to be shared by all tests in the session. If xdist is being used
     a project is created for each worker node.
@@ -74,7 +73,7 @@ def project(request, syn):
 
 
 @pytest.fixture(scope="module")
-def schedule_for_cleanup(request, syn):
+def schedule_for_cleanup(request, syn: Synapse):
     """Returns a closure that takes an item that should be scheduled for cleanup.
     The cleanup will occur after the module tests finish to limit the residue left behind
     if a test session should be prematurely aborted for any reason."""
@@ -93,7 +92,7 @@ def schedule_for_cleanup(request, syn):
 
 
 @tracer.start_as_current_span("conftest::_cleanup")
-def _cleanup(syn, items):
+def _cleanup(syn: Synapse, items):
     """cleanup junk created during testing"""
     for item in reversed(items):
         if (
