@@ -189,6 +189,8 @@ fileHandleEndpoint=https://repo-dev.dev.sagebase.org/file/v1
 
 When using `file` you may set the `SYNAPSE_OTEL_INTEGRATION_TEST_FILE_NAME` to a specific name for the tests you are running. This is optional and defaults to `traces.txt`
 
+When integration tests are ran in the Github CI/CD pipeline it will upload the trace data as an artifact on the `Summary` page of the build. You may take the zipped file and upload it into your trace explorer of choice.
+
 #### Integration testing for external collaborators
 As an external collaborator you will not have access to a development account and environment to run the integration tests against. Either request that a Sage Bionetworks staff member run your integration tests via a pull request, or, contact us via the [Service Desk](https://sagebionetworks.jira.com/servicedesk/customer/portal/9) to requisition a development account for integration testing only.
 
