@@ -128,8 +128,8 @@ def setup_otel():
     to export to the console, a file, or to an OTLP endpoint.
     """
     # Setup
-    provider_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER", None)
-    if provider_type:
+    exporter_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER", None)
+    if exporter_type:
         trace.set_tracer_provider(
             TracerProvider(
                 resource=Resource(
@@ -141,11 +141,11 @@ def setup_otel():
                 ),
             )
         )
-        if provider_type == "otlp":
+        if exporter_type == "otlp":
             trace.get_tracer_provider().add_span_processor(
                 BatchSpanProcessor(OTLPSpanExporter())
             )
-        elif provider_type == "console":
+        elif exporter_type == "console":
             trace.get_tracer_provider().add_span_processor(
                 BatchSpanProcessor(ConsoleSpanExporter())
             )

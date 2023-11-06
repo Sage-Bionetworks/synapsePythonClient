@@ -38,7 +38,7 @@ jobs:
 
   # run unit (and integration tests if account secrets available) on our build matrix
   test:
-    # needs: [pre-commit]
+    needs: [pre-commit]
 
     strategy:
       matrix:
@@ -91,10 +91,10 @@ jobs:
             pip install numpy
           fi
 
-      # - name: run-unit-tests
-      #   shell: bash
-      #   run: |
-      #     pytest -sv tests/unit
+      - name: run-unit-tests
+        shell: bash
+        run: |
+          pytest -sv tests/unit
       - name: Check for Secret availability
         id: secret-check
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) }}
@@ -112,6 +112,7 @@ jobs:
         shell: bash
         run: |
           echo "run_opentelemetry=true" >> $GITHUB_OUTPUT;
+
           # AWS CLI is pre-installed on github hosted runners
           # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           # unzip awscliv2.zip
@@ -128,7 +129,6 @@ jobs:
         if: ${{ steps.aws-check.outputs.run_opentelemetry == 'true' }}
         shell: bash
         env:
-          AWS_REGION: "us-east-1"
           AWS_CONFIG_FILE: "test.awsConfig"
         run: |
           # Start a port-forwarding session in a non-interactive way. AWS will clean-up
@@ -173,14 +173,14 @@ jobs:
           export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
           export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
           if [ ${{ steps.aws-check.outputs.run_opentelemetry }} == "true" ]; then
-            export SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER="otlp"
+            export SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER="otlp"
           fi
 
-            # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-          pytest -sv tests/integration/synapseclient/integration_test_Entity.py::test_Entity -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+          # use loadscope to avoid issues running tests concurrently that share scoped fixtures
+          pytest -sv tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-          # pytest -sv tests/integration/synapseclient/test_command_line_client.py
+          pytest -sv tests/integration/synapseclient/test_command_line_client.py
 
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
