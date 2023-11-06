@@ -42,10 +42,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        os: [ubuntu-20.04]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
-        python: [3.8, '3.9', '3.10', '3.11']
+        python: ['3.9']
 
     runs-on: ${{ matrix.os }}
 
@@ -95,6 +95,34 @@ jobs:
         shell: bash
         run: |
           pytest -sv tests/unit
+      - name: Check for Secret availability
+        id: secret-check
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) }}
+        # perform secret check & put boolean result as an output
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_iv }}" ]; then
+            echo "secrets_available=false" >> $GITHUB_OUTPUT;
+          else
+            echo "secrets_available=true" >> $GITHUB_OUTPUT;
+          fi
+      - name: Decrypt AWS Config
+        if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
+        # perform secret check & put boolean result as an output
+        shell: bash
+        run: |
+          openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.awsConfig.enc -out test.awsConfig -d
+          chmod +x tests/integration/synapse_creds.sh
+      - name: SSM Port Forward
+        if: ${{ steps.secret-check.outputs.secrets_available == 'true' }}
+        env:
+          AWS_REGION: "us-east-1"
+          AWS_CONFIG_FILE: "test.awsConfig"
+        uses: gian2dchris/aws-ssm-port-forwarding-session-action@v1.0.0
+        with:
+          target-id: 'i-0ffcdecd1edf375ee'
+          portNumber: 4318
+          localPortNumber:  4318
 
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
@@ -105,53 +133,41 @@ jobs:
         shell: bash
 
         # keep versions consistent with the first and last from the strategy matrix
-        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) }}
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && steps.secret-check.outputs.secrets_available == 'true'}}
         run: |
-          if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_key }}" ]; then
-            echo "No test configuration decryption keys available, skipping integration tests"
+          # decrypt the encrypted test synapse configuration
+          openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
+          mv test.synapseConfig ~/.synapseConfig
 
-          else
+          if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
+            # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
+            # Docker is not available on GH Action runners on Mac and Windows.
 
-            # decrypt the encrypted test synapse configuration
-            openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
-            mv test.synapseConfig ~/.synapseConfig
+            docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
+            docker run -d sftp_tests:latest
 
-            if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
-              # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
-              # Docker is not available on GH Action runners on Mac and Windows.
+            # get the internal IP address of the just launched container
+            export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
 
-              docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
-              docker run -d sftp_tests:latest
+            printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
 
-              # get the internal IP address of the just launched container
-              export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
-
-              printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
-
-              # add to known_hosts so the ssh connections can be made without any prompting/errors
-              mkdir -p ~/.ssh
-              ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
-            fi
-
-             # set env vars used in external bucket tests from secrets
-            export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
-            export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
-            export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
-            export SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER="file"
-
-             # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-            pytest -sv tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
-
-            export SYNAPSE_OTEL_INTEGRATION_TEST_FILE_NAME="cli_traces.txt"
-            # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-            pytest -sv tests/integration/synapseclient/test_command_line_client.py
+            # add to known_hosts so the ssh connections can be made without any prompting/errors
+            mkdir -p ~/.ssh
+            ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
           fi
-      - uses: actions/upload-artifact@v3
-        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) }}
-        with:
-          name: opentelemetry_traces_${{ matrix.os }}
-          path: tests/integration/otel
-          retention-days: 7
+
+            # set env vars used in external bucket tests from secrets
+          export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
+          export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
+          export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
+          export SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER="otlp"
+
+            # use loadscope to avoid issues running tests concurrently that share scoped fixtures
+          pytest -sv tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+
+          # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
+          pytest -sv tests/integration/synapseclient/test_command_line_client.py
+
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:

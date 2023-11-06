@@ -1,5 +1,6 @@
 import logging
 import platform
+import threading
 import uuid
 import os
 import sys
@@ -149,22 +150,5 @@ def setup_otel():
             trace.get_tracer_provider().add_span_processor(
                 BatchSpanProcessor(ConsoleSpanExporter())
             )
-        elif provider_type == "file":
-            file_name = os.environ.get(
-                "SYNAPSE_OTEL_INTEGRATION_TEST_FILE_NAME", "traces.txt"
-            )
-            path = f"tests/integration/otel/{file_name}"
-            utils.touch(path)
-            export_file = open(path, "w", encoding="utf-8")
-            span_processor = BatchSpanProcessor(ConsoleSpanExporter(out=export_file))
-            trace.get_tracer_provider().add_span_processor(span_processor)
     else:
         trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
-
-    yield
-
-    # Teardown
-    if export_file:
-        span_processor.force_flush()
-        span_processor.shutdown()
-        export_file.close()
