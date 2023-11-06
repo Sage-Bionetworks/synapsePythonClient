@@ -119,20 +119,44 @@ def _cleanup(syn, items):
             sys.stderr.write("Don't know how to clean: %s" % str(item))
 
 
-provider_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER", None)
-if provider_type:
-    trace.set_tracer_provider(
-        TracerProvider(
-            resource=Resource(attributes={SERVICE_NAME: "syn_int_tests"}),
+@pytest.fixture(scope="session", autouse=True)
+def setup_otel():
+    """
+    Handles setting up the OpenTelemetry tracer provider for integration tests.
+    Depending on the environment variables set, the provider will be configured
+    to export to the console, a file, or to an OTLP endpoint.
+    """
+    # Setup
+    provider_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER", None)
+    if provider_type:
+        trace.set_tracer_provider(
+            TracerProvider(
+                resource=Resource(attributes={SERVICE_NAME: "syn_int_tests"}),
+            )
         )
-    )
-    if provider_type == "otlp":
-        trace.get_tracer_provider().add_span_processor(
-            BatchSpanProcessor(OTLPSpanExporter())
-        )
-    elif provider_type == "console":
-        trace.get_tracer_provider().add_span_processor(
-            BatchSpanProcessor(ConsoleSpanExporter())
-        )
-else:
-    trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
+        if provider_type == "otlp":
+            trace.get_tracer_provider().add_span_processor(
+                BatchSpanProcessor(OTLPSpanExporter())
+            )
+        elif provider_type == "console":
+            trace.get_tracer_provider().add_span_processor(
+                BatchSpanProcessor(ConsoleSpanExporter())
+            )
+        elif provider_type == "file":
+            file_name = os.environ.get(
+                "SYNAPSE_OTEL_INTEGRATION_TEST_FILE_NAME", "traces.txt"
+            )
+            export_file = open(
+                f"tests/integration/otel/{file_name}", "w", encoding="utf-8"
+            )
+            trace.get_tracer_provider().add_span_processor(
+                BatchSpanProcessor(ConsoleSpanExporter(out=export_file))
+            )
+    else:
+        trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
+
+    yield
+
+    # Teardown
+    if export_file:
+        export_file.close()

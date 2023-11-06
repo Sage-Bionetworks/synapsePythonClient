@@ -22,3 +22,6 @@ build/*
 /venv
 
 .vscode/
+
+
+tests/integration/otel

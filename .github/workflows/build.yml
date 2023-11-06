@@ -137,12 +137,19 @@ jobs:
             export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
             export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
             export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
+            export SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER="file"
 
              # use loadscope to avoid issues running tests concurrently that share scoped fixtures
             pytest -sv tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+
+            export SYNAPSE_OTEL_INTEGRATION_TEST_FILE_NAME="cli_traces.txt"
             # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
             pytest -sv tests/integration/synapseclient/test_command_line_client.py
           fi
+      - uses: actions/upload-artifact@v3
+        with:
+          name: opentelemetry_traces
+          path: tests/integration/otel
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
