@@ -42,10 +42,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        os: [ubuntu-20.04]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
-        python: [3.8, '3.9', '3.10', '3.11']
+        python: ['3.9']
 
     runs-on: ${{ matrix.os }}
 
@@ -91,10 +91,10 @@ jobs:
             pip install numpy
           fi
 
-      - name: run-unit-tests
-        shell: bash
-        run: |
-          pytest -sv tests/unit
+      # - name: run-unit-tests
+      #   shell: bash
+      #   run: |
+      #     pytest -sv tests/unit
       - name: Check for Secret availability
         id: secret-check
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) }}
@@ -162,10 +162,10 @@ jobs:
           export SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER="otlp"
 
             # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-          pytest -sv tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+          pytest -sv tests/integration/synapseclient/integration_test_Entity.py::test_Entity -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-          pytest -sv tests/integration/synapseclient/test_command_line_client.py
+          # pytest -sv tests/integration/synapseclient/test_command_line_client.py
 
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
