@@ -151,6 +151,7 @@ jobs:
         with:
           name: opentelemetry_traces_${{ matrix.os }}
           path: tests/integration/otel
+          retention-days: 7
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:

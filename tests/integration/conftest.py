@@ -1,4 +1,5 @@
 import logging
+import platform
 import uuid
 import os
 import sys
@@ -14,7 +15,7 @@ from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import SERVICE_NAME, OS_TYPE, OS_DESCRIPTION, Resource
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 
@@ -131,7 +132,13 @@ def setup_otel():
     if provider_type:
         trace.set_tracer_provider(
             TracerProvider(
-                resource=Resource(attributes={SERVICE_NAME: "syn_int_tests"}),
+                resource=Resource(
+                    attributes={
+                        SERVICE_NAME: "syn_int_tests",
+                        OS_DESCRIPTION: platform.release(),
+                        OS_TYPE: platform.system(),
+                    }
+                ),
             )
         )
         if provider_type == "otlp":
