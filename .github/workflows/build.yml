@@ -106,24 +106,31 @@ jobs:
           else
             echo "secrets_available=true" >> $GITHUB_OUTPUT;
           fi
-      - name: Install AWS Tools
-        id: aws-check
-        if: ${{ steps.secret-check.outputs.secrets_available == 'true' && !(startsWith(matrix.os, 'windows')) }}
+
+          if [ -z "${{ secrets.synapse_personal_access_token }}" ]; then
+            echo "synapse_pat_available=false" >> $GITHUB_OUTPUT;
+          else
+            echo "synapse_pat_available=true" >> $GITHUB_OUTPUT;
+          fi
+      - name: OpenTelemtry pre-check
+        id: otel-check
+        if: ${{ steps.secret-check.outputs.secrets_available == 'true' && steps.secret-check.outputs.synapse_pat_available == 'true' && !(startsWith(matrix.os, 'windows')) }}
         shell: bash
         run: |
           echo "run_opentelemetry=true" >> $GITHUB_OUTPUT;
 
-          # AWS CLI is pre-installed on github hosted runners
-          # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          # unzip awscliv2.zip
-          # sudo ./aws/install
-          # curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
-          # sudo dpkg -i session-manager-plugin.deb
-      - name: Decrypt AWS Config
+          # AWS CLI is pre-installed on github hosted runners - Commented out for GH runs
+            # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            # unzip awscliv2.zip
+            # sudo ./aws/install
+            # curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+            # sudo dpkg -i session-manager-plugin.deb
+      - name: Create AWS Config
         if: ${{ steps.aws-check.outputs.run_opentelemetry == 'true' }}
         shell: bash
         run: |
-          openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.awsConfig.enc -out test.awsConfig -d
+          touch test.awsConfig
+          printf "[default]\nregion = us-east-1\ncredential_process = \"tests/integration/synapse_creds.sh\" \"https://sc.sageit.org\" \"${{ secrets.synapse_personal_access_token }}\"\n" >> test.awsConfig
           chmod +x tests/integration/synapse_creds.sh
       - name: SSM Port Forward Start
         if: ${{ steps.aws-check.outputs.run_opentelemetry == 'true' }}
