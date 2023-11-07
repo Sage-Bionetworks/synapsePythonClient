@@ -185,7 +185,10 @@ fileHandleEndpoint=https://repo-dev.dev.sagebase.org/file/v1
 ```
 
 #### Running OpenTelemetry in Integration Tests
-`tests/integration/conftest.py` is where we defining which trace provider to use. Set the `SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER` environment variable to `otlp` or `console` depending on your use case.
+`tests/integration/conftest.py` is where we defining which trace exporter to use. Set the `SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER` environment variable to `otlp` or `console` depending on your use case.
+
+When integration tests are ran in the Github CI/CD pipeline it will upload the trace data automatically using OLTP.
+
 
 #### Integration testing for external collaborators
 As an external collaborator you will not have access to a development account and environment to run the integration tests against. Either request that a Sage Bionetworks staff member run your integration tests via a pull request, or, contact us via the [Service Desk](https://sagebionetworks.jira.com/servicedesk/customer/portal/9) to requisition a development account for integration testing only.

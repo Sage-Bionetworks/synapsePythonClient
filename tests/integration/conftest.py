@@ -1,4 +1,5 @@
 import logging
+import platform
 import uuid
 import os
 import sys
@@ -14,7 +15,7 @@ from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import SERVICE_NAME, OS_TYPE, OS_DESCRIPTION, Resource
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 
@@ -27,7 +28,7 @@ pytest session level fixtures shared by all integration tests.
 
 @pytest.fixture(scope="session")
 @tracer.start_as_current_span("conftest::syn")
-def syn():
+def syn() -> Synapse:
     """
     Create a logged in Synapse instance that can be shared by all tests in the session.
     If xdist is being used a syn is created for each worker node.
@@ -48,7 +49,7 @@ def syn():
 
 @pytest.fixture(scope="session")
 @tracer.start_as_current_span("conftest::project")
-def project(request, syn):
+def project(request, syn: Synapse) -> Project:
     """
     Create a project to be shared by all tests in the session. If xdist is being used
     a project is created for each worker node.
@@ -72,7 +73,7 @@ def project(request, syn):
 
 
 @pytest.fixture(scope="module")
-def schedule_for_cleanup(request, syn):
+def schedule_for_cleanup(request, syn: Synapse):
     """Returns a closure that takes an item that should be scheduled for cleanup.
     The cleanup will occur after the module tests finish to limit the residue left behind
     if a test session should be prematurely aborted for any reason."""
@@ -91,7 +92,7 @@ def schedule_for_cleanup(request, syn):
 
 
 @tracer.start_as_current_span("conftest::_cleanup")
-def _cleanup(syn, items):
+def _cleanup(syn: Synapse, items):
     """cleanup junk created during testing"""
     for item in reversed(items):
         if (
@@ -119,20 +120,34 @@ def _cleanup(syn, items):
             sys.stderr.write("Don't know how to clean: %s" % str(item))
 
 
-provider_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_PROVIDER", None)
-if provider_type:
-    trace.set_tracer_provider(
-        TracerProvider(
-            resource=Resource(attributes={SERVICE_NAME: "syn_int_tests"}),
+@pytest.fixture(scope="session", autouse=True)
+def setup_otel():
+    """
+    Handles setting up the OpenTelemetry tracer provider for integration tests.
+    Depending on the environment variables set, the provider will be configured
+    to export to the console, a file, or to an OTLP endpoint.
+    """
+    # Setup
+    exporter_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER", None)
+    if exporter_type:
+        trace.set_tracer_provider(
+            TracerProvider(
+                resource=Resource(
+                    attributes={
+                        SERVICE_NAME: "syn_int_tests",
+                        OS_DESCRIPTION: platform.release(),
+                        OS_TYPE: platform.system(),
+                    }
+                ),
+            )
         )
-    )
-    if provider_type == "otlp":
-        trace.get_tracer_provider().add_span_processor(
-            BatchSpanProcessor(OTLPSpanExporter())
-        )
-    elif provider_type == "console":
-        trace.get_tracer_provider().add_span_processor(
-            BatchSpanProcessor(ConsoleSpanExporter())
-        )
-else:
-    trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
+        if exporter_type == "otlp":
+            trace.get_tracer_provider().add_span_processor(
+                BatchSpanProcessor(OTLPSpanExporter())
+            )
+        elif exporter_type == "console":
+            trace.get_tracer_provider().add_span_processor(
+                BatchSpanProcessor(ConsoleSpanExporter())
+            )
+    else:
+        trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
