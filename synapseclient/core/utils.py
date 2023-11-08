@@ -369,7 +369,7 @@ def make_bogus_data_file(n=100, seed=None):
     return normalize_path(f.name)
 
 
-def make_bogus_binary_file(n=1 * MB, filepath=None, printprogress=False):
+def make_bogus_binary_file(n=1 * KB, filepath=None, printprogress=False):
     """
     Makes a bogus binary data file for testing. It is the caller's responsibility to clean up the file when finished.
 
@@ -386,7 +386,7 @@ def make_bogus_binary_file(n=1 * MB, filepath=None, printprogress=False):
         progress = 0
         remaining = n
         while remaining > 0:
-            buff_size = int(min(remaining, 1 * MB))
+            buff_size = int(min(remaining, 1 * KB))
             f.write(os.urandom(buff_size))
             remaining -= buff_size
             if printprogress:
