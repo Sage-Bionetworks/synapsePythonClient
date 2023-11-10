@@ -217,6 +217,9 @@ class UploadAttempt:
         if otel_context:
             context.attach(otel_context)
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
+            trace.get_current_span().set_attributes(
+                {"thread.id": threading.get_ident()}
+            )
             with self._lock:
                 if self._aborted:
                     # this upload attempt has already been aborted
@@ -239,7 +242,8 @@ class UploadAttempt:
             for retry in range(2):
 
                 def put_fn():
-                    return session.put(part_url, body, headers=signed_headers)
+                    with tracer.start_as_current_span("UploadAttempt::put_part"):
+                        return session.put(part_url, body, headers=signed_headers)
 
                 try:
                     # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
@@ -261,10 +265,16 @@ class UploadAttempt:
 
                         # we refresh all the urls and obtain this part's
                         # specific url for the retry
-                        part_url, signed_headers = self._refresh_pre_signed_part_urls(
-                            part_number,
-                            part_url,
-                        )
+                        with tracer.start_as_current_span(
+                            "UploadAttempt::refresh_pre_signed_part_urls"
+                        ):
+                            (
+                                part_url,
+                                signed_headers,
+                            ) = self._refresh_pre_signed_part_urls(
+                                part_number,
+                                part_url,
+                            )
 
                     else:
                         raise
@@ -290,6 +300,7 @@ class UploadAttempt:
 
     @tracer.start_as_current_span("UploadAttempt::_upload_parts")
     def _upload_parts(self, part_count, remaining_part_numbers):
+        trace.get_current_span().set_attributes({"thread.id": threading.get_ident()})
         time_upload_started = time.time()
         completed_part_count = part_count - len(remaining_part_numbers)
         file_size = self._upload_request_payload.get("fileSizeBytes")
@@ -376,7 +387,6 @@ class UploadAttempt:
 
         return upload_status_response
 
-    @tracer.start_as_current_span("UploadAttempt::__call__")
     def __call__(self):
         upload_status_response = self._create_synapse_upload()
         upload_state = upload_status_response.get("state")
@@ -631,7 +641,6 @@ def multipart_copy(
     )
 
 
-@tracer.start_as_current_span("multipart_upload::_multipart_upload")
 def _multipart_upload(
     syn,
     dest_file_name,

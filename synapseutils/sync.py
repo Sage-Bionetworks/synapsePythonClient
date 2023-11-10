@@ -27,6 +27,9 @@ from synapseclient.core.multithread_download.download_threads import (
 from synapseclient.core.upload.multipart_upload import (
     shared_executor as upload_shared_executor,
 )
+from opentelemetry import trace, context
+from opentelemetry.context import Context
+
 
 REQUIRED_FIELDS = ["path", "parent"]
 FILE_CONSTRUCTOR_FIELDS = ["name", "id", "synapseStore", "contentType"]
@@ -47,6 +50,8 @@ DEFAULT_GENERATED_MANIFEST_KEYS = [
     "activityDescription",
 ]
 
+tracer = trace.get_tracer("synapseclient")
+
 
 @contextmanager
 def _sync_executor(syn):
@@ -63,6 +68,7 @@ def _sync_executor(syn):
         executor.shutdown()
 
 
+@tracer.start_as_current_span("sync::syncFromSynapse")
 def syncFromSynapse(
     syn,
     entity,
@@ -569,6 +575,7 @@ class _SyncUploader:
         # if somehow not from None fuctions fine
         raise ValueError("Sync aborted due to upload failure") from exception
 
+    @tracer.start_as_current_span("sync::_SyncUploader::upload")
     def upload(self, items: typing.Iterable[_SyncUploadItem]):
         progress = CumulativeTransferProgress("Uploaded")
 
@@ -618,6 +625,9 @@ class _SyncUploader:
                 # our configured maximum number of files here at once. once we reach the limit
                 # we'll block here until one of the existing file uploads completes
                 self._file_semaphore.acquire()
+                trace.get_current_span().set_attributes(
+                    {"thread.id": threading.get_ident()}
+                )
                 future = self._executor.submit(
                     self._upload_item,
                     item,
@@ -628,6 +638,7 @@ class _SyncUploader:
                     dependency_condition,
                     abort_event,
                     progress,
+                    context.get_current(),
                 )
                 futures.append(future)
 
@@ -665,7 +676,10 @@ class _SyncUploader:
         dependency_condition,
         abort_event,
         progress,
+        otel_context: typing.Union[Context, None],
     ):
+        if otel_context:
+            context.attach(otel_context)
         try:
             with upload_shared_executor(self._executor):
                 # we configure an upload thread local shared executor so that any multipart
@@ -871,6 +885,7 @@ def _check_path_and_normalize(f):
     return path_normalized
 
 
+@tracer.start_as_current_span("sync::readManifestFile")
 def readManifestFile(syn, manifestFile):
     """Verifies a file manifest and returns a reordered dataframe ready for upload.
 
@@ -962,6 +977,7 @@ def readManifestFile(syn, manifestFile):
     return df
 
 
+@tracer.start_as_current_span("sync::syncToSynapse")
 def syncToSynapse(
     syn, manifestFile, dryRun=False, sendMessages=True, retries=MAX_RETRIES
 ):
@@ -1156,6 +1172,7 @@ def _check_size_each_file(df):
                 )
 
 
+@tracer.start_as_current_span("sync::generate_sync_manifest")
 def generate_sync_manifest(syn, directory_path, parent_id, manifest_path):
     """Generate manifest for syncToSynapse() from a local directory."""
     manifest_cols = ["path", "parent"]
