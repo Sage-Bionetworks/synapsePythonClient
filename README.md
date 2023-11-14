@@ -61,7 +61,7 @@ Clone the [source code repository](https://github.com/Sage-Bionetworks/synapsePy
 
     git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
     cd synapsePythonClient
-    python setup.py install
+    pip install .
 
 
 Command line usage
@@ -87,35 +87,137 @@ Usage as a library
 
 The Synapse client can be used to write software that interacts with the Sage Bionetworks Synapse repository.
 
-### Example
+### Examples
 
-    import synapseclient
+#### Log-in and create a Synapse object
+```
+import synapseclient
 
-    syn = synapseclient.Synapse()
+syn = synapseclient.Synapse()
 
-    ## log in using auth token
-    syn.login(authToken='auth_token')
+## log in using auth token
+syn.login(authToken='auth_token')
+```
 
-    ## retrieve a 100 by 4 matrix
-    matrix = syn.get('syn1901033')
+#### Create a manifest TSV and sync a directory to synapse
+This is the recommended way of synchronizing many files and directories to a synapse project is through the use of `synapseutils`. Using this library let's us handle scheduling everything required to sync an entire directory tree. Read more about the manifest file format in [`synapseutils.syncToSynapse`](https://python-docs.synapse.org/build/html/articles/synapseutils.html#synapseutils.sync.syncToSynapse)
+```
+import synapseclient
+import synapseutils
+import os
 
-    ## inspect its properties
-    print(matrix.name)
-    print(matrix.description)
-    print(matrix.path)
+syn = synapseclient.Synapse()
 
-    ## load the data matrix into a dictionary with an entry for each column
-    with open(matrix.path, 'r') as f:
-        labels = f.readline().strip().split('\t')
-        data = {label: [] for label in labels}
-        for line in f:
-            values = [float(x) for x in line.strip().split('\t')]
-            for i in range(len(labels)):
-                data[labels[i]].append(values[i])
+## log in using auth token
+syn.login(authToken='auth_token')
 
-    ## load the data matrix into a numpy array
-    import numpy as np
-    np.loadtxt(fname=matrix.path, skiprows=1)
+path = os.path.expanduser("~/synapse_project")
+manifest_path = f"{path}/my_project_manifest.tsv"
+project_id = "syn1234"
+
+# Create the manifest file on disk
+with open(manifest_path, "w", encoding="utf-8") as f:
+    pass
+
+# Walk the specified directory tree and create a TSV manifest file
+synapseutils.generate_sync_manifest(
+    syn,
+    directory_path=path,
+    parent_id=project_id,
+    manifest_path=manifest_path,
+)
+
+# Using the generated manifest file, sync the files to Synapse
+synapseutils.syncToSynapse(
+    syn,
+    manifestFile=manifest_path,
+    sendMessages=False,
+)
+```
+
+#### Store a Project to Synapse
+```
+import synapseclient
+from synapseclient.entity import Project
+
+syn = synapseclient.Synapse()
+
+## log in using auth token
+syn.login(authToken='auth_token')
+
+project = Project('My uniquely named project')
+project = syn.store(project)
+
+print(project.id)
+print(project)
+```
+
+#### Store a Folder to Synapse (Does not upload files within the folder)
+```
+import synapseclient
+
+syn = synapseclient.Synapse()
+
+## log in using auth token
+syn.login(authToken='auth_token')
+
+folder = Folder(name='my_folder', parent="syn123")
+folder = syn.store(folder)
+
+print(folder.id)
+print(folder)
+
+```
+
+#### Store a File to Synapse
+```
+import synapseclient
+
+syn = synapseclient.Synapse()
+
+## log in using auth token
+syn.login(authToken='auth_token')
+
+file = File(
+    path=filepath,
+    parent="syn123",
+)
+file = syn.store(file)
+
+print(file.id)
+print(file)
+```
+
+#### Get a data matrix
+```
+import synapseclient
+
+syn = synapseclient.Synapse()
+
+## log in using auth token
+syn.login(authToken='auth_token')
+
+## retrieve a 100 by 4 matrix
+matrix = syn.get('syn1901033')
+
+## inspect its properties
+print(matrix.name)
+print(matrix.description)
+print(matrix.path)
+
+## load the data matrix into a dictionary with an entry for each column
+with open(matrix.path, 'r') as f:
+    labels = f.readline().strip().split('\t')
+    data = {label: [] for label in labels}
+    for line in f:
+        values = [float(x) for x in line.strip().split('\t')]
+        for i in range(len(labels)):
+            data[labels[i]].append(values[i])
+
+## load the data matrix into a numpy array
+import numpy as np
+np.loadtxt(fname=matrix.path, skiprows=1)
+```
 
 
 Authentication
