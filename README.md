@@ -99,8 +99,8 @@ syn = synapseclient.Synapse()
 syn.login(authToken='auth_token')
 ```
 
-#### Create a manifest TSV and sync a directory to synapse
-This is the recommended way of synchronizing many files and directories to a synapse project is through the use of `synapseutils`. Using this library let's us handle scheduling everything required to sync an entire directory tree. Read more about the manifest file format in [`synapseutils.syncToSynapse`](https://python-docs.synapse.org/build/html/articles/synapseutils.html#synapseutils.sync.syncToSynapse)
+#### Sync a local directory to synapse
+This is the recommended way of synchronizing more than one file or directory to a synapse project is through the use of `synapseutils`. Using this library let's us handle scheduling everything required to sync an entire directory tree. Read more about the manifest file format in [`synapseutils.syncToSynapse`](https://python-docs.synapse.org/build/html/articles/synapseutils.html#synapseutils.sync.syncToSynapse)
 ```
 import synapseclient
 import synapseutils

@@ -1249,6 +1249,8 @@ class Synapse(object):
                                     the process of adding terms-of-use or review board approval for this entity.
                                     You will be contacted with regards to the specific data being restricted and the
                                     requirements of access.
+        :param opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                      cases where multi-threaded operations need to be linked to parent spans.
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 

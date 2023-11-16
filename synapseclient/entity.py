@@ -556,7 +556,7 @@ class Folder(Entity):
 
     Example::
 
-        folder = Folder('my data', parent=project)
+        folder = Folder(name='my data', parent=project)
         folder = syn.store(folder)
     """
 
