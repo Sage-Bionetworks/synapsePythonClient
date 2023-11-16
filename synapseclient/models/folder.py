@@ -9,11 +9,11 @@ from synapseclient.entity import Folder
 
 from typing import Optional, TYPE_CHECKING
 
+from .file import FileDataClass
 
 # TODO - Is this an issue, is it needed??
 if TYPE_CHECKING:
     from synapseclient import Synapse
-    from .file import FileDataClass
     from .project import ProjectDataClass
 
 MAX_CO_ROUTINES = 2
