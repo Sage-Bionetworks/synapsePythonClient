@@ -85,7 +85,7 @@ Note that a [Synapse account](https://www.synapse.org/#RegisterAccount:0) is req
 Usage as a library
 ------------------
 
-The Synapse client can be used to write software that interacts with the Sage Bionetworks Synapse repository.
+The Synapse client can be used to write software that interacts with the Sage Bionetworks Synapse repository. More examples can be found in the Tutorial section found [here](https://python-docs.synapse.org/build/html/getting_started/basics.html)
 
 ### Examples
 
