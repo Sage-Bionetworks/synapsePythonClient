@@ -41,7 +41,6 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
 tracer = trace.get_tracer("synapseclient")
 
 
-@tracer.start_as_current_span("retry::with_retry")
 def with_retry(
     function,
     verbose=False,

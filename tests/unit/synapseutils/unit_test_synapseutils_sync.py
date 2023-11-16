@@ -895,6 +895,7 @@ class TestSyncUploader:
                 mock_condition,
                 abort_event,
                 progress,
+                None,
             )
 
         mock_store.assert_called_once_with(
@@ -948,6 +949,7 @@ class TestSyncUploader:
                 mock_condition,
                 abort_event,
                 progress,
+                None,
             )
 
         # abort event should have been raised and we shoudl have released threading locks
