@@ -100,7 +100,7 @@ syn.login(authToken='auth_token')
 ```
 
 #### Sync a local directory to synapse
-This is the recommended way of synchronizing more than one file or directory to a synapse project is through the use of `synapseutils`. Using this library let's us handle scheduling everything required to sync an entire directory tree. Read more about the manifest file format in [`synapseutils.syncToSynapse`](https://python-docs.synapse.org/build/html/articles/synapseutils.html#synapseutils.sync.syncToSynapse)
+This is the recommended way of synchronizing more than one file or directory to a synapse project through the use of `synapseutils`. Using this library allows us to handle scheduling everything required to sync an entire directory tree. Read more about the manifest file format in [`synapseutils.syncToSynapse`](https://python-docs.synapse.org/build/html/articles/synapseutils.html#synapseutils.sync.syncToSynapse)
 ```
 import synapseclient
 import synapseutils
