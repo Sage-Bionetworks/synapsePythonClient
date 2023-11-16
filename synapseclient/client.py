@@ -622,6 +622,76 @@ class Synapse(object):
             self.restDELETE("/secretKey", endpoint=self.authEndpoint)
 
     @functools.lru_cache()
+    def get_user_name_profile(
+        self,
+        id: Union[str, UserProfile, TeamMember] = None,
+        sessionToken: str = None,
+    ) -> UserProfile:
+        """
+        Get the details about a Synapse user.
+        Retrieves information on the current user if 'id' is omitted or is empty string.
+        :param id:           The userName, UserProfile, or TeamMember of a user
+        :param sessionToken: The session token to use to find the user profile
+        :returns: The user profile for the user of interest.
+
+        Example::
+            my_profile = syn.get_user_name_profile()
+            freds_profile = syn.get_user_name_profile('fredcommo')
+        """
+        if id:
+            if isinstance(id, collections.abc.Mapping) and "ownerId" in id:
+                id = id.ownerId
+            elif isinstance(id, TeamMember):
+                id = id.member.ownerId
+            elif isinstance(id, str):
+                principals = self._findPrincipals(id)
+                if len(principals) == 1:
+                    id = principals[0]["ownerId"]
+                else:
+                    for principal in principals:
+                        if principal.get("userName", None).lower() == id.lower():
+                            id = principal["ownerId"]
+                            break
+                    else:  # no break
+                        raise ValueError('Can\'t find user "%s": ' % id)
+            else:
+                raise TypeError("id must be a string, UserProfile, or TeamMember")
+        else:
+            id = ""
+        uri = f"/userProfile/{id}"
+        return UserProfile(
+            **self.restGET(
+                uri, headers={"sessionToken": sessionToken} if sessionToken else None
+            )
+        )
+
+    @functools.lru_cache()
+    def get_user_id_profile(
+        self,
+        id: int = None,
+        sessionToken: str = None,
+    ) -> UserProfile:
+        """
+        Get the details about a Synapse user.
+        Retrieves information on the current user if 'id' is omitted or is empty string.
+        :param id:           The ownerId of a user
+        :param sessionToken: The session token to use to find the user profile
+        :returns: The user profile for the user of interest.
+
+        Example::
+            my_profile = syn.getUserProfile()
+            freds_profile = syn.getUserProfile('fredcommo')
+        """
+        if not id:
+            id = ""
+        uri = f"/userProfile/{id}"
+        return UserProfile(
+            **self.restGET(
+                uri, headers={"sessionToken": sessionToken} if sessionToken else None
+            )
+        )
+
+    @functools.lru_cache()
     def getUserProfile(
         self,
         id: Union[str, int, UserProfile, TeamMember] = None,
