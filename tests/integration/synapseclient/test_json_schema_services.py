@@ -26,6 +26,7 @@ def js(syn):
 @tracer.start_as_current_span(
     "test_json_schema_services::test_json_schema_organization"
 )
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_json_schema_organization(js):
     # Schema organizations must start with a string
     js_org = "a" + uuid.uuid4().hex
