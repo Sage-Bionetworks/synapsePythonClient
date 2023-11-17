@@ -622,7 +622,7 @@ class Synapse(object):
             self.restDELETE("/secretKey", endpoint=self.authEndpoint)
 
     @functools.lru_cache()
-    def get_user_name_profile(
+    def get_user_profile(
         self,
         id: Union[str, UserProfile, TeamMember] = None,
         sessionToken: str = None,
@@ -666,7 +666,7 @@ class Synapse(object):
         )
 
     @functools.lru_cache()
-    def get_user_id_profile(
+    def get_user_profile_by_id(
         self,
         id: int = None,
         sessionToken: str = None,
