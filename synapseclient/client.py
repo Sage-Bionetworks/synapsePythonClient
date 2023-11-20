@@ -630,17 +630,19 @@ class Synapse(object):
         """
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted or is empty string.
-        :param username:           The userName of a user
+        :param username:     The userName of a user
         :param sessionToken: The session token to use to find the user profile
         :returns: The user profile for the user of interest.
 
         Example::
-            my_profile = syn.get_user_name_profile()
-            freds_profile = syn.get_user_name_profile('fredcommo')
+            my_profile = syn.get_user_profile_by_username()
+            freds_profile = syn.get_user_profile_by_username('fredcommo')
         """
-        if not isinstance(username, str) and username is not None:
+        is_none = username is None
+        is_str = isinstance(username, str)
+        if not is_str and not is_none:
             raise TypeError("username must be string or None")
-        if isinstance(username, str):
+        if is_str:
             principals = self._findPrincipals(username)
             for principal in principals:
                 if principal.get("userName", None).lower() == username.lower():
