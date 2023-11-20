@@ -8,9 +8,6 @@ from dataclasses import asdict
 
 from typing import TYPE_CHECKING, Optional
 from synapseclient import Synapse
-import httpx
-
-client = httpx.AsyncClient()
 
 if TYPE_CHECKING:
     from synapseclient.models import Annotations
