@@ -673,8 +673,8 @@ class Synapse(object):
         :returns: The user profile for the user of interest.
 
         Example::
-            my_profile = syn.getUserProfile()
-            freds_profile = syn.getUserProfile('fredcommo')
+            my_profile = syn.get_user_profile_by_id()
+            freds_profile = syn.get_user_profile_by_id(1234567)
         """
         if id:
             if not isinstance(id, int):
