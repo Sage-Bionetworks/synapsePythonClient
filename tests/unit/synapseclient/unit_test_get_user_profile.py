@@ -1,8 +1,6 @@
 import pytest
 from unittest.mock import patch
 
-from synapseclient.team import UserProfile
-
 
 test_user_profile = {
     "ownerId": "1234567",
