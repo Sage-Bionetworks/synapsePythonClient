@@ -70,7 +70,7 @@ class TestGetUserProfileByUserName:
             self.syn.get_user_profile_by_username("not_a_user")
 
     def test_that_get_user_profile_raises_type_error_when_id_is_not_allowed_type(self):
-        with pytest.raises(TypeError, match="id must be a 'userName' string"):
+        with pytest.raises(TypeError, match="username must be string or None"):
             self.syn.get_user_profile_by_username(1234567)
 
 

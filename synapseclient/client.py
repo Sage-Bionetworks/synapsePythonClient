@@ -624,13 +624,13 @@ class Synapse(object):
     @functools.lru_cache()
     def get_user_profile_by_username(
         self,
-        id: str = None,
+        username: str = None,
         sessionToken: str = None,
     ) -> UserProfile:
         """
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted or is empty string.
-        :param id:           The userName of a user
+        :param username:           The userName of a user
         :param sessionToken: The session token to use to find the user profile
         :returns: The user profile for the user of interest.
 
@@ -638,17 +638,16 @@ class Synapse(object):
             my_profile = syn.get_user_name_profile()
             freds_profile = syn.get_user_name_profile('fredcommo')
         """
-        if id:
-            if isinstance(id, str):
-                principals = self._findPrincipals(id)
-                for principal in principals:
-                    if principal.get("userName", None).lower() == id.lower():
-                        id = principal["ownerId"]
-                        break
-                else:
-                    raise ValueError(f"Can't find user '{id}'")
+        if not isinstance(username, str) and username is not None:
+            raise TypeError("username must be string or None")
+        if isinstance(username, str):
+            principals = self._findPrincipals(username)
+            for principal in principals:
+                if principal.get("userName", None).lower() == username.lower():
+                    id = principal["ownerId"]
+                    break
             else:
-                raise TypeError("id must be a 'userName' string")
+                raise ValueError(f"Can't find user '{username}'")
         else:
             id = ""
         uri = f"/userProfile/{id}"
