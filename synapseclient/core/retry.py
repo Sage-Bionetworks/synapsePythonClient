@@ -1,11 +1,11 @@
 import random
 import sys
 import logging
+from opentelemetry import trace
 
 from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
 from synapseclient.core.utils import is_json
 from synapseclient.core.dozer import doze
-from opentelemetry import trace
 
 DEFAULT_RETRIES = 3
 DEFAULT_WAIT = 1
@@ -25,7 +25,6 @@ RETRYABLE_CONNECTION_ERRORS = [
     "couldn't connect to host",
     "slowdown",
     "try again",
-    "connection reset by peer",
 ]
 
 # Exceptions that may be retryable. These are socket level exceptions

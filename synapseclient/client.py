@@ -222,6 +222,8 @@ class Synapse(object):
 
     """
 
+    _synapse_client = None
+
     # TODO: add additional boolean for write to disk?
     @tracer.start_as_current_span("Synapse::__init__")
     def __init__(
@@ -299,6 +301,30 @@ class Synapse(object):
         )
         self.logger = logging.getLogger(logger_name)
         logging.getLogger("py.warnings").handlers = self.logger.handlers
+
+    @classmethod
+    def get_client(cls, synapse_client: None) -> "Synapse":
+        """
+        Convience function to get an instance of 'Synapse'. The latest instance created
+        by 'login()' or set via `set_client` will be returned.
+
+        When 'logout()' is called it will delete the instance.
+
+        :param syn: An instance of 'Synapse' or None. This is used to simplify logical checks
+                    in cases where synapse is passed into them.
+        """
+        if synapse_client:
+            return synapse_client
+
+        if not cls._synapse_client:
+            raise SynapseError(
+                "No instance has been created - Please use login() first"
+            )
+        return cls._synapse_client
+
+    @classmethod
+    def set_client(cls, synapse_client) -> None:
+        cls._synapse_client = synapse_client
 
     @property
     def max_threads(self) -> int:
@@ -401,6 +427,7 @@ class Synapse(object):
         silent: bool = False,
         forced: bool = False,
         authToken: str = None,
+        cache_client: bool = True,
     ):
         """
         Valid combinations of login() arguments:
@@ -428,6 +455,9 @@ class Synapse(object):
                              credential storage.
         :param authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
                              password or apiKey
+        :param cache_client: Whether to cache the Synapse client object in the Synapse module. Defaults to True.
+                             When set to True anywhere a `Synapse` object is optional you do not need to pass an
+                             instance of `Synapse` to that function, method, or class.
 
         **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
         **Linux** systems.
@@ -515,6 +545,8 @@ class Synapse(object):
                     else self.credentials.username
                 )
             )
+        if cache_client:
+            Synapse().set_client(self)
 
     def _get_config_section_dict(self, section_name: str) -> dict:
         config = self.getConfigFile(self.configPath)
@@ -614,6 +646,7 @@ class Synapse(object):
             self.credentials.delete_from_keyring()
 
         self.credentials = None
+        Synapse().set_client(None)
 
     def invalidateAPIKey(self):
         """Invalidates authentication across all clients."""
