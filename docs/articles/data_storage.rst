@@ -19,7 +19,7 @@ More information on this feature can be found
 The most common implementation of this is to configure a folder to store data in a user controlled AWS S3 bucket
 rather than Synapse's default internal S3 storage.
 
-The following illustrates creating a new folder backed by a user specified S3 bucket.
+The following illustrates creating a new folder backed by a user specified S3 bucket. Note: An existing folder also works.
 
 #. Ensure that the bucket is `properly configured
    <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html#CustomStorageLocations-SettingUpanExternalAWSS3Bucket>`__.
@@ -30,6 +30,8 @@ The following illustrates creating a new folder backed by a user specified S3 bu
 
     # create a new folder to use with external S3 storage
     folder = syn.store(Folder(name=folder_name, parent=parent))
+    # You may also use an existing folder like:
+    # folder = syn.get("syn123")
     folder, storage_location, project_setting = syn.create_s3_storage_location(
         folder=folder,
         bucket_name='my-external-synapse-bucket',
@@ -256,6 +258,71 @@ Note that above the *force* parameter is necessary if running from a non-interac
 with a migration requires confirmation in the form of user prompt. If running programatically this parameter
 instead confirms your intention to proceed with the migration.
 
+Putting it all together
+  .. code-block::
+
+    import os
+    import synapseutils
+    import synapseclient
+
+    my_synapse_folder_to_migrate = "syn53013644"
+
+    external_bucket_name = "sc-237179673806-pp-ykwqcwr4uh2d2-s3bucket-x4gs5zpkj47k"
+    external_bucket_base_key = "my_external_synapse_folder/"
+
+    # # a path on disk where this utility can create a sqlite database to store its index.
+    # # nothing needs to exist at this path, but it must be a valid path on a volume with sufficient
+    # # disk space to store a meta data listing of all the contents in the indexed entity.
+    # # a rough rule of thumb is 100kB per 1000 entities indexed.
+    db_path = os.path.expanduser("~/synapseMigration/my.db")
+
+    syn = synapseclient.Synapse()
+
+    # # Log-in with ~.synapseConfig `authToken`
+    syn.login()
+
+    # The folder I want to migrate everything to this S3 storage location
+    folder = syn.get(my_synapse_folder_to_migrate)
+
+    folder, storage_location, project_setting = syn.create_s3_storage_location(
+        folder=folder,
+        bucket_name=external_bucket_name,
+        base_key=external_bucket_base_key,
+    )
+
+    # The id of the destination storage location being migrated to
+    storage_location_id = storage_location["storageLocationId"]
+    print(
+        f"Indexing: {folder.id} for migration to storage_id: {storage_location_id} at: {db_path}"
+    )
+
+    result = synapseutils.index_files_for_migration(
+        syn,
+        folder.id,
+        storage_location_id,
+        db_path,
+        file_version_strategy="all",
+    )
+
+    print(f"Indexing result: {result.get_counts_by_status()}")
+
+    print("Migrating files...")
+
+    result = synapseutils.migrate_indexed_files(
+        syn,
+        db_path,
+        force=True,
+    )
+
+    print(f"Migration result: {result.get_counts_by_status()}")
+
+The result of running this should look like
+  .. code-block::
+
+    Indexing: syn123 for migration to storage_id: 11111 at: /home/user/synapseMigration/my.db
+    Indexing result: {'INDEXED': 100, 'MIGRATED': 0, 'ALREADY_MIGRATED': 0, 'ERRORED': 0}
+    Migrating files...
+    Migration result: {'INDEXED': 0, 'MIGRATED': 100, 'ALREADY_MIGRATED': 0, 'ERRORED': 0}
 
 Migrating from the command line
 -------------------------------
