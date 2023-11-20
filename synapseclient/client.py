@@ -639,10 +639,13 @@ class Synapse(object):
             freds_profile = syn.get_user_name_profile('fredcommo')
         """
         if id:
+            # For UserProfile
             if isinstance(id, collections.abc.Mapping) and "ownerId" in id:
                 id = id.ownerId
+            # For TeamMember
             elif isinstance(id, TeamMember):
                 id = id.member.ownerId
+            # For userName
             elif isinstance(id, str):
                 principals = self._findPrincipals(id)
                 if len(principals) == 1:
@@ -653,7 +656,7 @@ class Synapse(object):
                             id = principal["ownerId"]
                             break
                     else:  # no break
-                        raise ValueError('Can\'t find user "%s": ' % id)
+                        raise ValueError(f"Can't find user '{id}'")
             else:
                 raise TypeError("id must be a string, UserProfile, or TeamMember")
         else:
@@ -682,7 +685,7 @@ class Synapse(object):
             my_profile = syn.getUserProfile()
             freds_profile = syn.getUserProfile('fredcommo')
         """
-        if not id:
+        if id is None:
             id = ""
         uri = f"/userProfile/{id}"
         return UserProfile(
