@@ -666,7 +666,7 @@ class Synapse(object):
     ) -> UserProfile:
         """
         Get the details about a Synapse user.
-        Retrieves information on the current user if 'id' is omitted or is empty string.
+        Retrieves information on the current user if 'id' is omitted.
         :param id:           The ownerId of a user
         :param sessionToken: The session token to use to find the user profile
         :returns: The user profile for the user of interest.
