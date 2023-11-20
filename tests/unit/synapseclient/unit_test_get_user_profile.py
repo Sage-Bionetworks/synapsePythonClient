@@ -23,7 +23,7 @@ test_user_profile = {
 }
 
 
-class TestGetUserProfile:
+class TestGetUserProfileByUserName:
     principals = [
         {
             "ownerId": "7654321",
@@ -56,32 +56,22 @@ class TestGetUserProfile:
         self.syn._findPrincipals.stop()
 
     def test_that_get_user_profile_returns_expected_with_no_id(self):
-        result = self.syn.get_user_profile()
+        result = self.syn.get_user_profile_by_username()
         self.syn.restGET.assert_called_once_with("/userProfile/", headers=None)
         assert result == test_user_profile
 
     def test_that_get_user_profile_returns_expected_with_username(self):
-        result = self.syn.get_user_profile("test_user")
+        result = self.syn.get_user_profile_by_username("test_user")
         self.syn.restGET.assert_called_once_with("/userProfile/1234567", headers=None)
         assert result == test_user_profile
 
-    # def test_that_get_user_profile_returns_expected_with_user_profile(self):
-    #     ...
-
-    # def test_that_get_user_profile_returns_expected_with_team_member(self):
-    #     ...
-
-    def test_that_get_user_profile_raises_value_error_when_user_does_not_exist(
-        self, syn
-    ):
+    def test_that_get_user_profile_raises_value_error_when_user_does_not_exist(self):
         with pytest.raises(ValueError, match="Can't find user *"):
-            self.syn.get_user_profile("not_a_user")
+            self.syn.get_user_profile_by_username("not_a_user")
 
     def test_that_get_user_profile_raises_type_error_when_id_is_not_allowed_type(self):
-        with pytest.raises(
-            TypeError, match="id must be a string, UserProfile, or TeamMember"
-        ):
-            self.syn.get_user_profile(1234567)
+        with pytest.raises(TypeError, match="id must be a 'userName' string"):
+            self.syn.get_user_profile_by_username(1234567)
 
 
 class TestGetUserProfileByID:
@@ -95,12 +85,16 @@ class TestGetUserProfileByID:
     def teardown_method(self):
         self.syn.restGET.stop()
 
-    def test_that_get_user_profile_by_id_returns_expected_when_id_id_defined(self):
+    def test_that_get_user_profile_by_id_returns_expected_when_id_is_defined(self):
         result = self.syn.get_user_profile_by_id(1234567)
         self.syn.restGET.assert_called_once_with("/userProfile/1234567", headers=None)
         assert result == test_user_profile
 
-    def test_that_get_user_profile_by_id_raises_type_error_when_id_is_not_defined(self):
+    def test_that_get_user_profile_by_id_returns_expected_when_id_is_not_defined(self):
         result = self.syn.get_user_profile_by_id()
         self.syn.restGET.assert_called_once_with("/userProfile/", headers=None)
         assert result == test_user_profile
+
+    def test_that_get_user_profile_by_id_raises_type_error_when_id_is_not_int(self):
+        with pytest.raises(TypeError, match="id must be an 'ownerId' integer"):
+            self.syn.get_user_profile_by_id("1234567")

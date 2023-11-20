@@ -622,15 +622,15 @@ class Synapse(object):
             self.restDELETE("/secretKey", endpoint=self.authEndpoint)
 
     @functools.lru_cache()
-    def get_user_profile(
+    def get_user_profile_by_username(
         self,
-        id: Union[str, UserProfile, TeamMember] = None,
+        id: str = None,
         sessionToken: str = None,
     ) -> UserProfile:
         """
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted or is empty string.
-        :param id:           The userName, UserProfile, or TeamMember of a user
+        :param id:           The userName of a user
         :param sessionToken: The session token to use to find the user profile
         :returns: The user profile for the user of interest.
 
@@ -639,26 +639,16 @@ class Synapse(object):
             freds_profile = syn.get_user_name_profile('fredcommo')
         """
         if id:
-            # For UserProfile
-            if isinstance(id, collections.abc.Mapping) and "ownerId" in id:
-                id = id.ownerId
-            # For TeamMember
-            elif isinstance(id, TeamMember):
-                id = id.member.ownerId
-            # For userName
-            elif isinstance(id, str):
+            if isinstance(id, str):
                 principals = self._findPrincipals(id)
-                if len(principals) == 1:
-                    id = principals[0]["ownerId"]
+                for principal in principals:
+                    if principal.get("userName", None).lower() == id.lower():
+                        id = principal["ownerId"]
+                        break
                 else:
-                    for principal in principals:
-                        if principal.get("userName", None).lower() == id.lower():
-                            id = principal["ownerId"]
-                            break
-                    else:  # no break
-                        raise ValueError(f"Can't find user '{id}'")
+                    raise ValueError(f"Can't find user '{id}'")
             else:
-                raise TypeError("id must be a string, UserProfile, or TeamMember")
+                raise TypeError("id must be a 'userName' string")
         else:
             id = ""
         uri = f"/userProfile/{id}"
@@ -685,7 +675,10 @@ class Synapse(object):
             my_profile = syn.getUserProfile()
             freds_profile = syn.getUserProfile('fredcommo')
         """
-        if id is None:
+        if id:
+            if not isinstance(id, int):
+                raise TypeError("id must be an 'ownerId' integer")
+        else:
             id = ""
         uri = f"/userProfile/{id}"
         return UserProfile(
