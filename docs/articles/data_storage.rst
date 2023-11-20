@@ -265,10 +265,10 @@ Putting it all together
     import synapseutils
     import synapseclient
 
-    my_synapse_folder_to_migrate = "syn53013644"
+    my_synapse_folder_to_migrate = "syn123"
 
-    external_bucket_name = "sc-237179673806-pp-ykwqcwr4uh2d2-s3bucket-x4gs5zpkj47k"
-    external_bucket_base_key = "my_external_synapse_folder/"
+    external_bucket_name = "my-external-synapse-bucket"
+    external_bucket_base_key = "path/within/bucket/"
 
     # # a path on disk where this utility can create a sqlite database to store its index.
     # # nothing needs to exist at this path, but it must be a valid path on a volume with sufficient
