@@ -8,18 +8,28 @@ S3 Storage Features
 
 Synapse can use a variety of storage mechanisms to store content, however the most common
 storage solution is AWS S3. This article illustrates some special features that can be used with S3 storage
-and how they interact with the Python client.
+and how they interact with the Python client. In particular it covers:
+
+#. Linking External storage locations to new/existing projects or folders
+#. Migration of existing projects or folders to new external storage locations
+#. Creating STS enabled storage locations
+#. Using SFTP
 
 External storage locations
 ==========================
 
-Synapse folders can be configured to use custom implementations for their underlying data storage.
+Synapse projects or folders can be configured to use custom implementations for their underlying data storage.
 More information on this feature can be found
 `here <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html>`__.
 The most common implementation of this is to configure a folder to store data in a user controlled AWS S3 bucket
 rather than Synapse's default internal S3 storage.
 
-The following illustrates creating a new folder backed by a user specified S3 bucket.
+The following illustrates creating a new folder backed by a user specified S3 bucket. Note: An existing folder also works.
+
+If you are changing the storage location of an existing folder to a user specified S3 bucket none
+of the files will be migrated. In order to migrate the files to the new storage location see the documentation
+further down in this article labeled 'Migrating programmatically'. When you change the storage location
+for a folder only NEW files uploaded to the folder are uploaded to the user specific S3 bucket.
 
 #. Ensure that the bucket is `properly configured
    <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html#CustomStorageLocations-SettingUpanExternalAWSS3Bucket>`__.
@@ -30,6 +40,8 @@ The following illustrates creating a new folder backed by a user specified S3 bu
 
     # create a new folder to use with external S3 storage
     folder = syn.store(Folder(name=folder_name, parent=parent))
+    # You may also use an existing folder like:
+    # folder = syn.get("syn123")
     folder, storage_location, project_setting = syn.create_s3_storage_location(
         folder=folder,
         bucket_name='my-external-synapse-bucket',
@@ -39,6 +51,31 @@ The following illustrates creating a new folder backed by a user specified S3 bu
     # if needed the unique storage location identifier can be obtained e.g.
     storage_location_id = storage_location['storageLocationId']
 
+The following illustrates creating a new project backed by a user specified S3 bucket. Note: An existing project also works.
+
+If you are changing the storage location of an existing project to a user specified S3 bucket none
+of the files will be migrated. In order to migrate the files to the new storage location see the documentation
+further down in this article labeled 'Migrating programmatically'. When you change the storage location
+for a project only NEW files uploaded to the project are uploaded to the user specific S3 bucket.
+
+#. Ensure that the bucket is `properly configured
+   <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html#CustomStorageLocations-SettingUpanExternalAWSS3Bucket>`__.
+
+#. Create a project and configure it to use external S3 storage:
+
+  .. code-block::
+
+    # create a new, or retrieve an existing project to use with external S3 storage
+    project = syn.store(Project(name="my_project_name"))
+    project_storage, storage_location, project_setting = syn.create_s3_storage_location(
+        # Despite the KW argument name, this can be a project or folder
+        folder=project,
+        bucket_name='my-external-synapse-bucket',
+        base_key='path/within/bucket',
+     )
+
+    # if needed the unique storage location identifier can be obtained e.g.
+    storage_location_id = storage_location['storageLocationId']
 
 Once an external S3 storage folder exists, you can interact with it as you would any other folder using
 Synapse tools. If you wish to add an object that is stored within the bucket to Synapse you can do that by adding
@@ -68,6 +105,189 @@ a file handle for that object using the Python client and then storing the file 
     )
     file = File(parentId=folder['id'], dataFileHandleId=file_handle['id'])
     file_entity = syn.store(file)
+
+
+Storage location migration
+==========================
+
+There are circumstances where it can be useful to move the files underlying Synapse entities from one storage
+location to another without impacting the structure or identifiers of the Synapse entities themselves. An example
+scenario is needing to use `STS <S3Storage.html#sts-storage-locations>`__ features with an existing Synapse Project
+that was not initially configured with an STS enabled
+`custom storage location <S3Storage.html#external-storage-locations>`__.
+
+The Synapse client has utilities for migrating entities to a new storage location without having to download
+the content locally and re-uploading it which can be slow, and may alter the meta data associated with the entities
+in undesirable ways.
+
+During the migration it is reccomended that uploads and downloads are blocked to prevent possible conflicts
+or race conditions. This can be done by setting permissions to `Can view` for the project or folder being migrated.
+After the migration is complete set the permissions back to their original values.
+
+Expected time to migrate data is around 13 minutes per 100Gb as of 11/21/2023.
+
+Migrating programmatically
+--------------------------
+
+Migrating a Synapse project or folder programatically is a two step process.
+
+First ensure that you know the id of the storage location you want to migrate to. More info on storage
+locations can be found above and `here <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html>`__.
+
+Once the storage location is known, the first step to migrate the project or folder is to create a migratable index
+of its contents using the
+`index_files_for_migration <synapseutils.html#synapseutils.migrate_functions.index_files_for_migration>`__ function, e.g.
+
+  .. code-block::
+
+    import synapseutils
+
+    entity_id = 'syn123'  # a Synapse entity whose contents need to be migrated, e.g. a Project or Folder
+    dest_storage_location_id = '12345'  # the id of the destination storage location being migrated to
+
+    # a path on disk where this utility can create a sqlite database to store its index.
+    # nothing needs to exist at this path, but it must be a valid path on a volume with sufficient
+    # disk space to store a meta data listing of all the contents in the indexed entity.
+    # a rough rule of thumb is 100kB per 1000 entities indexed.
+    db_path = '/tmp/foo/bar.db'
+
+    result = synapseutils.index_files_for_migration(
+        syn,
+        entity_id,
+        dest_storage_location_id,
+        db_path,
+
+        # optional args, see function documentation linked above for a description of these parameters
+        source_storage_location_ids=['54321', '98765'],
+        file_version_strategy='new',
+        include_table_files=False,
+        continue_on_error=True
+    )
+
+If called on a container (e.g. a Project or Folder) the *index_files_for_migration* function will recursively
+index all of the children of that container (including its subfolders). Once the entity has been indexed you can
+optionally programmatically inspect the the contents of the index or output its contents to a csv file in order to
+manually inspect it using the `available methods <synapseutils.html#synapseutils.migrate_functions.MigrationResult>`__
+on the returned result object.
+
+The next step to trigger the migration from the indexed files is using the `migrate_indexed_files <synapseutils.html#synapseutils.migrate_functions.migrate_indexed_files>`__ function, e.g.
+
+  .. code-block::
+
+    result = synapseutils.migrate_indexed_files(
+        syn,
+        db_path,
+
+        # optional args, see function documentation linked above for a description of these parameters
+        create_table_snapshots=True,
+        continue_on_error=False,
+        force=True
+    )
+
+The result can be again be inspected as above to see the results of the migration.
+
+Note that above the *force* parameter is necessary if running from a non-interactive shell. Proceeding
+with a migration requires confirmation in the form of user prompt. If running programatically this parameter
+instead confirms your intention to proceed with the migration.
+
+Putting all the migration pieces together
+-----------------------------------------
+  .. code-block::
+
+    import os
+    import synapseutils
+    import synapseclient
+
+    my_synapse_project_or_folder_to_migrate = "syn123"
+
+    external_bucket_name = "my-external-synapse-bucket"
+    external_bucket_base_key = "path/within/bucket/"
+
+    # # a path on disk where this utility can create a sqlite database to store its index.
+    # # nothing needs to exist at this path, but it must be a valid path on a volume with sufficient
+    # # disk space to store a meta data listing of all the contents in the indexed entity.
+    # # a rough rule of thumb is 100kB per 1000 entities indexed.
+    db_path = os.path.expanduser("~/synapseMigration/my.db")
+
+    syn = synapseclient.Synapse()
+
+    # # Log-in with ~.synapseConfig `authToken`
+    syn.login()
+
+    # The project or folder I want to migrate everything to this S3 storage location
+    project_or_folder = syn.get(my_synapse_project_or_folder_to_migrate)
+
+    project_or_folder, storage_location, project_setting = syn.create_s3_storage_location(
+        # Despite the KW argument name, this can be a project or folder
+        folder=project_or_folder,
+        bucket_name=external_bucket_name,
+        base_key=external_bucket_base_key,
+    )
+
+    # The id of the destination storage location being migrated to
+    storage_location_id = storage_location["storageLocationId"]
+    print(
+        f"Indexing: {project_or_folder.id} for migration to storage_id: {storage_location_id} at: {db_path}"
+    )
+
+    result = synapseutils.index_files_for_migration(
+        syn,
+        project_or_folder.id,
+        storage_location_id,
+        db_path,
+        file_version_strategy="all",
+    )
+
+    print(f"Indexing result: {result.get_counts_by_status()}")
+
+    print("Migrating files...")
+
+    result = synapseutils.migrate_indexed_files(
+        syn,
+        db_path,
+        force=True,
+    )
+
+    print(f"Migration result: {result.get_counts_by_status()}")
+
+The result of running this should look like
+  .. code-block::
+
+    Indexing: syn123 for migration to storage_id: 11111 at: /home/user/synapseMigration/my.db
+    Indexing result: {'INDEXED': 100, 'MIGRATED': 0, 'ALREADY_MIGRATED': 0, 'ERRORED': 0}
+    Migrating files...
+    Migration result: {'INDEXED': 0, 'MIGRATED': 100, 'ALREADY_MIGRATED': 0, 'ERRORED': 0}
+
+Migrating from the command line
+-------------------------------
+
+Synapse entities can also be migrated from the command line. The options are similar to above.
+Whereas migrating programatically involves two separate function calls, from the command line
+there is a single `migrate <CommandLineClient.html#migrate>`__ command with the *dryRun* argument providing the option
+to generate the index only without proceeding onto the migration.
+
+Note that as above, confirmation is required before a migration starts. As above, this must either be
+in the form of confirming via a prompt if running the command from an interactive shell, or using the *force*
+command.
+
+The optional *csv_log_path* argument will output the results to a csv file for record keeping, and is recommended.
+
+  .. code-block::
+
+    synapse migrate syn123 54321 /tmp/migrate.db --csv_log_path /tmp/migrate.csv
+
+Sample output:
+  .. code-block::
+
+    Indexing Project syn123
+    Indexing file entity syn888
+    Indexing file entity syn999
+    Indexed 2 items, 2 needing migration, 0 already stored in destination storage location (54321). Encountered 0 errors.
+    21 items for migration to 54321. Proceed? (y/n)? y
+    Creating new version for file entity syn888
+    Creating new version for file entity syn999
+    Completed migration of syn123. 2 files migrated. 0 errors encountered
+    Writing csv log to /tmp/migrate.csv
 
 
 .. _sts_storage_locations:
@@ -177,117 +397,6 @@ To enable STS/boto3 transfers on all `get` and `store` operations, do the follow
     syn.use_boto_sts_transfers = True
 
 Note that if boto3 is not installed, then these settings will have no effect.
-
-
-Storage location migration
-==========================
-
-There are circumstances where it can be useful to move the files underlying Synapse entities from one storage
-location to another without impacting the structure or identifiers of the Synapse entities themselves. An example
-scenario is needing to use `STS <S3Storage.html#sts-storage-locations>`__ features with an existing Synapse Project
-that was not initially configured with an STS enabled
-`custom storage location <S3Storage.html#external-storage-locations>`__.
-
-The Synapse client has utilities for migrating entities to a new storage location without having to download
-the content locally and re-uploading it which can be slow, and may alter the meta data associated with the entities
-in undesirable ways.
-
-Migrating programmatically
---------------------------
-
-Migrating a Synapse project or folder programatically is a two step process.
-
-First ensure that you know the id of the storage location you want to migrate to. More info on storage
-locations can be found above and `here <https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html>`__.
-
-Once the storage location is known, the first step to migrate an entity is create a migratable index
-of its contents using the
-`index_files_for_migration <synapseutils.html#synapseutils.migrate_functions.index_files_for_migration>`__ function, e.g.
-
-  .. code-block::
-
-    import synapseutils
-
-    entity_id = 'syn123'  # a Synapse entity whose contents need to be migrated, e.g. a Project or Folder
-    dest_storage_location_id = '12345'  # the id of the destination storage location being migrated to
-
-    # a path on disk where this utility can create a sqlite database to store its index.
-    # nothing needs to exist at this path, but it must be a valid path on a volume with sufficient
-    # disk space to store a meta data listing of all the contents in the indexed entity.
-    # a rough rule of thumb is 100kB per 1000 entities indexed.
-    db_path = '/tmp/foo/bar.db'
-
-    result = synapseutils.index_files_for_migration(
-        syn,
-        entity_id,
-        dest_storage_location_id,
-        db_path,
-
-        # optional args, see function documentation linked above for a description of these parameters
-        source_storage_location_ids=['54321', '98765'],
-        file_version_strategy='new',
-        include_table_files=False,
-        continue_on_error=True
-    )
-
-If called on a container (e.g. a Project or Folder) the *index_files_for_migration* function will recursively
-index all of the children of that container (including its subfolders). Once the entity has been indexed you can
-optionally programmatically inspect the the contents of the index or output its contents to a csv file in order to
-manually inspect it using the `available methods <synapseutils.html#synapseutils.migrate_functions.MigrationResult>`__
-on the returned result object.
-
-The next step to trigger the migration from the indexed files is using the `migrate_indexed_files <synapseutils.html#synapseutils.migrate_functions.migrate_indexed_files>`__ function, e.g.
-
-  .. code-block::
-
-    result = synapseutils.migrate_indexed_files(
-        syn,
-        db_path,
-
-        # optional args, see function documentation linked above for a description of these parameters
-        create_table_snapshots=True,
-        continue_on_error=False,
-        force=True
-    )
-
-The result can be again be inspected as above to see the results of the migration.
-
-Note that above the *force* parameter is necessary if running from a non-interactive shell. Proceeding
-with a migration requires confirmation in the form of user prompt. If running programatically this parameter
-instead confirms your intention to proceed with the migration.
-
-
-Migrating from the command line
--------------------------------
-
-Synapse entities can also be migrated from the command line. The options are similar to above.
-Whereas migrating programatically involves two separate function calls, from the command line
-there is a single `migrate <CommandLineClient.html#migrate>`__ command with the *dryRun* argument providing the option
-to generate the index only without proceeding onto the migration.
-
-Note that as above, confirmation is required before a migration starts. As above, this must either be
-in the form of confirming via a prompt if running the command from an interactive shell, or using the *force*
-command.
-
-The optional *csv_log_path* argument will output the results to a csv file for record keeping, and is recommended.
-
-  .. code-block::
-
-    synapse migrate syn123 54321 /tmp/migrate.db --csv_log_path /tmp/migrate.csv
-
-Sample output:
-  .. code-block::
-
-    Indexing Project syn123
-    Indexing file entity syn888
-    Indexing file entity syn999
-    Indexed 2 items, 2 needing migration, 0 already stored in destination storage location (54321). Encountered 0 errors.
-    21 items for migration to 54321. Proceed? (y/n)? y
-    Creating new version for file entity syn888
-    Creating new version for file entity syn999
-    Completed migration of syn123. 2 files migrated. 0 errors encountered
-    Writing csv log to /tmp/migrate.csv
-
 
 ====
 SFTP
