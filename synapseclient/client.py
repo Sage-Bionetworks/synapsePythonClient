@@ -623,6 +623,73 @@ class Synapse(object):
             self.restDELETE("/secretKey", endpoint=self.authEndpoint)
 
     @functools.lru_cache()
+    def get_user_profile_by_username(
+        self,
+        username: str = None,
+        sessionToken: str = None,
+    ) -> UserProfile:
+        """
+        Get the details about a Synapse user.
+        Retrieves information on the current user if 'id' is omitted or is empty string.
+        :param username:     The userName of a user
+        :param sessionToken: The session token to use to find the user profile
+        :returns: The user profile for the user of interest.
+
+        Example::
+            my_profile = syn.get_user_profile_by_username()
+            freds_profile = syn.get_user_profile_by_username('fredcommo')
+        """
+        is_none = username is None
+        is_str = isinstance(username, str)
+        if not is_str and not is_none:
+            raise TypeError("username must be string or None")
+        if is_str:
+            principals = self._findPrincipals(username)
+            for principal in principals:
+                if principal.get("userName", None).lower() == username.lower():
+                    id = principal["ownerId"]
+                    break
+            else:
+                raise ValueError(f"Can't find user '{username}'")
+        else:
+            id = ""
+        uri = f"/userProfile/{id}"
+        return UserProfile(
+            **self.restGET(
+                uri, headers={"sessionToken": sessionToken} if sessionToken else None
+            )
+        )
+
+    @functools.lru_cache()
+    def get_user_profile_by_id(
+        self,
+        id: int = None,
+        sessionToken: str = None,
+    ) -> UserProfile:
+        """
+        Get the details about a Synapse user.
+        Retrieves information on the current user if 'id' is omitted.
+        :param id:           The ownerId of a user
+        :param sessionToken: The session token to use to find the user profile
+        :returns: The user profile for the user of interest.
+
+        Example::
+            my_profile = syn.get_user_profile_by_id()
+            freds_profile = syn.get_user_profile_by_id(1234567)
+        """
+        if id:
+            if not isinstance(id, int):
+                raise TypeError("id must be an 'ownerId' integer")
+        else:
+            id = ""
+        uri = f"/userProfile/{id}"
+        return UserProfile(
+            **self.restGET(
+                uri, headers={"sessionToken": sessionToken} if sessionToken else None
+            )
+        )
+
+    @functools.lru_cache()
     def getUserProfile(
         self,
         id: Union[str, int, UserProfile, TeamMember] = None,
