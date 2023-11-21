@@ -124,6 +124,8 @@ During the migration it is reccomended that uploads and downloads are blocked to
 or race conditions. This can be done by setting permissions to `Can view` for the project or folder being migrated.
 After the migration is complete set the permissions back to their original values.
 
+Expected time to migrate data is around 13 minutes per 100Gb as of 11/21/2023.
+
 Migrating programmatically
 --------------------------
 
