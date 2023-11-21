@@ -188,7 +188,8 @@ Note that above the *force* parameter is necessary if running from a non-interac
 with a migration requires confirmation in the form of user prompt. If running programatically this parameter
 instead confirms your intention to proceed with the migration.
 
-Putting it all together
+Putting all the migration pieces together
+-----------------------------------------
   .. code-block::
 
     import os
