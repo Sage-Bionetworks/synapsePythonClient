@@ -138,6 +138,10 @@ Once the storage location is known, the first step to migrate the project or fol
 of its contents using the
 `index_files_for_migration <synapseutils.html#synapseutils.migrate_functions.index_files_for_migration>`__ function, e.g.
 
+When specifying the `.db` file for the migratable indexes you need to specify a `.db` file that does not already exist
+for another synapse project or folder on disk. It is the best practice to specify a unique name for the file by including
+the synapse id in the name of the file, or other unique identifier.
+
   .. code-block::
 
     import synapseutils
@@ -149,7 +153,7 @@ of its contents using the
     # nothing needs to exist at this path, but it must be a valid path on a volume with sufficient
     # disk space to store a meta data listing of all the contents in the indexed entity.
     # a rough rule of thumb is 100kB per 1000 entities indexed.
-    db_path = '/tmp/foo/bar.db'
+    db_path = '/tmp/foo/syn123_bar.db'
 
     result = synapseutils.index_files_for_migration(
         syn,
@@ -203,11 +207,15 @@ Putting all the migration pieces together
     external_bucket_name = "my-external-synapse-bucket"
     external_bucket_base_key = "path/within/bucket/"
 
+    my_user_id = "1234"
+
     # # a path on disk where this utility can create a sqlite database to store its index.
     # # nothing needs to exist at this path, but it must be a valid path on a volume with sufficient
     # # disk space to store a meta data listing of all the contents in the indexed entity.
     # # a rough rule of thumb is 100kB per 1000 entities indexed.
-    db_path = os.path.expanduser("~/synapseMigration/my.db")
+    db_path = os.path.expanduser(
+        f"~/synapseMigration/{my_synapse_project_or_folder_to_migrate}_my.db"
+    )
 
     syn = synapseclient.Synapse()
 
@@ -230,30 +238,43 @@ Putting all the migration pieces together
         f"Indexing: {project_or_folder.id} for migration to storage_id: {storage_location_id} at: {db_path}"
     )
 
-    result = synapseutils.index_files_for_migration(
-        syn,
-        project_or_folder.id,
-        storage_location_id,
-        db_path,
-        file_version_strategy="all",
-    )
+    try:
+        result = synapseutils.index_files_for_migration(
+            syn,
+            project_or_folder.id,
+            storage_location_id,
+            db_path,
+            file_version_strategy="all",
+        )
 
-    print(f"Indexing result: {result.get_counts_by_status()}")
+        print(f"Indexing result: {result.get_counts_by_status()}")
 
-    print("Migrating files...")
+        print("Migrating files...")
 
-    result = synapseutils.migrate_indexed_files(
-        syn,
-        db_path,
-        force=True,
-    )
+        result = synapseutils.migrate_indexed_files(
+            syn,
+            db_path,
+            force=True,
+        )
 
-    print(f"Migration result: {result.get_counts_by_status()}")
+        print(f"Migration result: {result.get_counts_by_status()}")
+        syn.sendMessage(
+            userIds=[my_user_id],
+            messageSubject=f"Migration success for {project_or_folder.id}",
+            messageBody=f"Migration result: {result.get_counts_by_status()}",
+        )
+    except Exception as e:
+        syn.sendMessage(
+            userIds=[my_user_id],
+            messageSubject=f"Migration failed for {project_or_folder.id}",
+            messageBody=f"Migration failed with error: {e}",
+        )
+
 
 The result of running this should look like
   .. code-block::
 
-    Indexing: syn123 for migration to storage_id: 11111 at: /home/user/synapseMigration/my.db
+    Indexing: syn123 for migration to storage_id: 11111 at: /home/user/synapseMigration/syn123_my.db
     Indexing result: {'INDEXED': 100, 'MIGRATED': 0, 'ALREADY_MIGRATED': 0, 'ERRORED': 0}
     Migrating files...
     Migration result: {'INDEXED': 0, 'MIGRATED': 100, 'ALREADY_MIGRATED': 0, 'ERRORED': 0}
