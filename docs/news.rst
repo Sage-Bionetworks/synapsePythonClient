@@ -6,6 +6,7 @@ Release Notes
 
 Highlights
 ----------
+- Introduction of OpenTelemetry within the client. See information in the README for further details.
 - Added 2 new functions `get_user_profile_by_username` and `get_user_profile_by_id` to handle
   for use cases when a username is a number.
 - Updated the local .cacheMap that is used to track local files downloaded from Synapse to include
@@ -33,6 +34,8 @@ Stories
    Set up pre-commit in github actions
 -  [`SYNPY-1305 <https://sagebionetworks.jira.com/browse/SYNPY-1305>`__] -
    Collect trace data for integration tests
+-  [`SYNPY-1304 <https://sagebionetworks.jira.com/browse/SYNPY-1304>`__] -
+   Introduction of OpenTelemetry
 -  [`SYNPY-1320 <https://sagebionetworks.jira.com/browse/SYNPY-1320>`__] -
    Benchmark upload speeds
 
