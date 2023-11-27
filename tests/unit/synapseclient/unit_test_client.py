@@ -486,7 +486,9 @@ class TestDownloadFileHandle:
                 destination=destination,
             )
 
-            mock_url_retrieve.assert_called_once_with(url, expected_destination)
+            mock_url_retrieve.assert_called_once_with(
+                url=url, filename=expected_destination, reporthook=ANY
+            )
             assert download_path == expected_destination
 
     def test_download_from_url__synapse_auth(self, mocker):
