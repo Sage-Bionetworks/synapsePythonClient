@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Access Control &mdash; Synapse Python Client 3.2.0 documentation</title>
+  <title>Benchmarking &mdash; Synapse Python Client 3.2.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -92,9 +92,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Access Control</li>
+      <li class="breadcrumb-item active">Benchmarking</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/articles/permissions.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/articles/benchmarking.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -102,15 +102,63 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="access-control">
-<h1>Access Control<a class="headerlink" href="#access-control" title="Permalink to this headline"></a></h1>
-<p>By default, data sets in Synapse are private to your user account, but they can easily be shared with specific users,
-groups, or the public.</p>
-<p>See:</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.getPermissions" title="synapseclient.Synapse.getPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getPermissions()</span></code></a></p></li>
-<li><p><a class="reference internal" href="../api/Client.html#synapseclient.Synapse.setPermissions" title="synapseclient.Synapse.setPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.setPermissions()</span></code></a></p></li>
-</ul>
+  <section id="benchmarking">
+<h1>Benchmarking<a class="headerlink" href="#benchmarking" title="Permalink to this headline"></a></h1>
+<p>Periodically we will be publishing results of benchmarking the Synapse Python Client
+compared to directly working with AWS S3. The purpose of these benchmarks is to make
+data driven decisions on where to spend time optimizing the client. Additionally, it will
+give us a way to measure the impact of changes to the client.</p>
+<section id="results">
+<h2>Results<a class="headerlink" href="#results" title="Permalink to this headline"></a></h2>
+<section id="id1">
+<h3>11/14/2023<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h3>
+<p>The results were created on a <cite>t3a.micro</cite> EC2 instance with a 200GB disk size running in us-east-1.
+The script that was run can be found in <cite>docs/scripts</cite>. The time to create the files on disk is not included.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 21%" />
+<col style="width: 23%" />
+<col style="width: 10%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Test</p></th>
+<th class="head"><p>Synapseutils Sync</p></th>
+<th class="head"><p>os.walk + syn.store</p></th>
+<th class="head"><p>S3 Sync</p></th>
+<th class="head"><p>Per file size</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>25 Files 1MB total size</p></td>
+<td><p>10.43s</p></td>
+<td><p>8.99s</p></td>
+<td><p>1.83s</p></td>
+<td><p>40KB</p></td>
+</tr>
+<tr class="row-odd"><td><p>775 Files 10MB total size</p></td>
+<td><p>243.57s</p></td>
+<td><p>257.27s</p></td>
+<td><p>7.64s</p></td>
+<td><p>12.9KB</p></td>
+</tr>
+<tr class="row-even"><td><p>10 Files 1GB total size</p></td>
+<td><p>27.18s</p></td>
+<td><p>33.73s</p></td>
+<td><p>16.31s</p></td>
+<td><p>100MB</p></td>
+</tr>
+<tr class="row-odd"><td><p>10 Files 100GB total size</p></td>
+<td><p>3211s</p></td>
+<td><p>3047s</p></td>
+<td><p>3245s</p></td>
+<td><p>10GB</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
 </section>
 
 
