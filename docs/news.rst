@@ -13,7 +13,7 @@ Highlights
   the MD5 of the file when there is a cache miss. This is used to determine if the file has changed
   since we cannot fully rely on the file's modified date only.
 - Include a progress indicator when downloading files via FTP.
-- Benchmarking of download speeds to allow us to make data driven decisions and comparisons.
+- Benchmarking of upload speeds to allow us to make data driven decisions and comparisons.
 
 Bug Fixes
 ---------
