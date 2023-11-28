@@ -51,6 +51,7 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    articles/synapseutils
    articles/validate_annotations
    articles/api
+   articles/benchmarking
 
 .. toctree::
    :caption: Python API
