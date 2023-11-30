@@ -144,7 +144,7 @@ class Project:
                 Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
                 print("I hit an exception")
 
-            print(f"Saved all files and folders  in {self.name}")
+            print(f"Saved all files and folders in {self.name}")
 
             return self
 

@@ -546,7 +546,7 @@ class Synapse(object):
                 )
             )
         if cache_client:
-            Synapse().set_client(self)
+            Synapse.set_client(self)
 
     def _get_config_section_dict(self, section_name: str) -> dict:
         config = self.getConfigFile(self.configPath)
@@ -646,7 +646,7 @@ class Synapse(object):
             self.credentials.delete_from_keyring()
 
         self.credentials = None
-        Synapse().set_client(None)
+        Synapse.set_client(None)
 
     def invalidateAPIKey(self):
         """Invalidates authentication across all clients."""
