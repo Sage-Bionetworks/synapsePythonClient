@@ -4,6 +4,7 @@ The following actions are shown in this script:
 2. Storing a table
 3. Getting a table
 4. Storing rows in a table
+5. Deleting a row from a table
 """
 import asyncio
 import os
