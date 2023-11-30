@@ -5,6 +5,7 @@ The following actions are shown in this script:
 3. Getting a table
 4. Storing rows in a table
 5. Deleting a row from a table
+6. Deleting a table
 """
 import asyncio
 import os
@@ -133,6 +134,15 @@ async def store_table():
 
     # Deleting rows from a table =========================================================
     await copy_of_table.delete_rows(rows=[Row(row_id=1)])
+
+    # Deleting a table ===================================================================
+    table_to_delete = await Table(
+        name="my_test_table_I_want_to_delete",
+        columns=columns,
+        parent_id=PROJECT_ID,
+    ).store_schema()
+
+    await table_to_delete.delete()
 
 
 asyncio.run(store_table())
