@@ -156,8 +156,5 @@ async def store_table():
 
     await table_to_delete.delete()
 
-    # Querying for data from a table =====================================================
-    # TODO: Add me
-
 
 asyncio.run(store_table())
