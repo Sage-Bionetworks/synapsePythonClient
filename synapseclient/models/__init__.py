@@ -7,6 +7,15 @@ from synapseclient.models.annotations import (
 from synapseclient.models.file import File
 from synapseclient.models.folder import Folder
 from synapseclient.models.project import Project
+from synapseclient.models.table import (
+    Table,
+    Column,
+    ColumnType,
+    FacetType,
+    CsvResultFormat,
+    RowsetResultFormat,
+    Row,
+)
 
 __all__ = [
     "File",
@@ -15,4 +24,11 @@ __all__ = [
     "Annotations",
     "AnnotationsValue",
     "AnnotationsValueType",
+    "Table",
+    "Column",
+    "ColumnType",
+    "FacetType",
+    "CsvResultFormat",
+    "RowsetResultFormat",
+    "Row",
 ]

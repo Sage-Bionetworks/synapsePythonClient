@@ -468,7 +468,11 @@ def multipart_upload_file(
     """
 
     trace.get_current_span().set_attributes(
-        {"synapse.storage_location_id": storage_location_id}
+        {
+            "synapse.storage_location_id": storage_location_id
+            if storage_location_id is not None
+            else ""
+        }
     )
 
     if not os.path.exists(file_path):

@@ -317,6 +317,7 @@ import enum
 import json
 from builtins import zip
 from typing import List, Dict, TypeVar
+import typing
 
 from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
@@ -739,6 +740,23 @@ def _delete_rows(syn, schema, row_id_vers_list):
     delete_row_csv_filepath = _create_row_delete_csv(row_id_vers_list)
     try:
         syn._uploadCsv(delete_row_csv_filepath, schema)
+    finally:
+        os.remove(delete_row_csv_filepath)
+
+
+def delete_rows(
+    syn, table_id: str, row_id_vers_list: typing.List[typing.Tuple[int, int]]
+):
+    """
+    Deletes rows from a synapse table
+    :param syn: an instance of py:class:`synapseclient.client.Synapse`
+    :param row_id_vers_list: an iterable containing tuples with format: (row_id, row_version)
+    """
+    delete_row_csv_filepath = _create_row_delete_csv(
+        row_id_vers_iterable=row_id_vers_list
+    )
+    try:
+        syn._uploadCsv(filepath=delete_row_csv_filepath, schema=table_id)
     finally:
         os.remove(delete_row_csv_filepath)
 

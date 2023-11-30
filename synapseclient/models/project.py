@@ -27,9 +27,6 @@ class Project:
     letters, numbers, spaces, underscores, hyphens, periods, plus signs, apostrophes,
     and parentheses"""
 
-    syn: Optional[Synapse] = None
-    """Optional: If passed in this session will be used"""
-
     description: Optional[str] = None
     etag: Optional[str] = None
     created_on: Optional[str] = None

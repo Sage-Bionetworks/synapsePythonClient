@@ -63,13 +63,14 @@ class Annotations:
         print(f"Storing annotations for id: {self.id}, etag: {self.etag}")
         with tracer.start_as_current_span(f"Annotation_store: {self.id}"):
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
+            result = await loop.run_in_executor(
                 None,
                 lambda: set_annotations(
                     annotations=self, synapse_client=synapse_client
                 ),
             )
             print(f"annotations store for {self.id} complete")
+            self.annotations = Annotations.convert_from_api_parameters(result)
             # TODO: From the returned call do we need to update anything in the root object?
         return self
 
@@ -78,3 +79,29 @@ class Annotations:
         print(f"Getting annotations for id: {self.id}, etag: {self.etag}")
         await asyncio.sleep(1)
         self.is_loaded = True
+
+    @classmethod
+    def convert_from_api_parameters(
+        self, synapse_annotations: dict
+    ) -> Dict[str, AnnotationsValue]:
+        """Convert the annotations from the synapse API to the model."""
+        # TODO: This is not great logic and needs to be revisted. Ideally the annotations
+        # TODO: returned as the same during a `.get` and `.store` call. Currently they are not
+        annotations = {}
+        dict_to_convert = (
+            synapse_annotations["annotations"]
+            if "annotations" in synapse_annotations
+            else synapse_annotations
+        )
+        for key in dict_to_convert:
+            # TODO: How can we determine which type is being used when it is not provided in the response from the python client.
+            value = (
+                dict_to_convert[key]["value"]
+                if "value" in dict_to_convert[key]
+                else dict_to_convert[key]
+            )
+            annotations[key] = AnnotationsValue(
+                type=None,
+                value=value,
+            )
+        return annotations
