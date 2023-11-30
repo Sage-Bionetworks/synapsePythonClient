@@ -6,7 +6,7 @@ from synapseclient.models import AnnotationsValue, Annotations
 
 # import uuid
 
-from synapseclient.entity import File as SynapseFile
+from synapseclient.entity import File as Synapse_File
 from synapseclient import Synapse
 
 from typing import Optional, TYPE_CHECKING
@@ -21,34 +21,61 @@ tracer = trace.get_tracer("synapseclient")
 
 @dataclass()
 class File:
-    id: str
+    id: Optional[str] = None
     """The unique immutable ID for this file. A new ID will be generated for new Files.
     Once issued, this ID is guaranteed to never change or be re-issued"""
 
-    name: str
+    name: Optional[str] = None
     """The name of this entity. Must be 256 characters or less.
     Names may only contain: letters, numbers, spaces, underscores, hyphens, periods,
     plus signs, apostrophes, and parentheses"""
 
-    path: str
+    path: Optional[str] = None
     # TODO - Should a file also have a folder, or a method that figures out the folder class?
 
+    # TODO: Description doesn't seem to be working properly
     description: Optional[str] = None
     """The description of this file. Must be 1000 characters or less."""
 
     etag: Optional[str] = None
+    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    concurrent updates. Since the E-Tag changes every time an entity is updated it
+    is used to detect when a client's current representation of an entity is out-of-date."""
+
     created_on: Optional[str] = None
+    """The date this entity was created."""
+
     modified_on: Optional[str] = None
+    """"The date this entity was last modified."""
+
     created_by: Optional[str] = None
+    """The ID of the user that created this entity."""
+
     modified_by: Optional[str] = None
+    """The ID of the user that last modified this entity."""
+
     parent_id: Optional[str] = None
-    concrete_type: Optional[str] = None
+    """The ID of the Entity that is the parent of this Entity."""
+
     version_number: Optional[int] = None
+    """Indicates which implementation of Entity this object represents. The value is
+    the fully qualified class name, e.g. org.sagebionetworks.repo.model.FileEntity."""
+
     version_label: Optional[str] = None
+    """The version label for this entity"""
+
     version_comment: Optional[str] = None
+    """The version comment for this entity"""
+
     is_latest_version: Optional[bool] = False
+    """If this is the latest version of the object."""
+
     data_file_handle_id: Optional[str] = None
+    """ID of the file associated with this entity."""
+
     file_name_override: Optional[str] = None
+    """An optional replacement for the name of the uploaded file. This is distinct
+    from the entity name. If omitted the file will retain its original name."""
 
     annotations: Optional[Dict[str, AnnotationsValue]] = None
     """Additional metadata associated with the folder. The key is the name of your
@@ -56,45 +83,125 @@ class File:
     (use empty list to represent no values for key) and the value type associated with
     all values in the list."""
 
+    # TODO: We need to provide functionality for folks to store the file in Synapse, but
+    # TODO: Not upload the file.
+
     is_loaded: bool = False
+
+    def convert_from_api_parameters(
+        self, synapse_file: Synapse_File, set_annotations: bool = True
+    ) -> "File":
+        self.id = synapse_file.get("id", None)
+        self.name = synapse_file.get("name", None)
+        self.path = synapse_file.get("path", None)
+        self.description = synapse_file.get("description", None)
+        self.etag = synapse_file.get("etag", None)
+        self.created_on = synapse_file.get("createdOn", None)
+        self.modified_on = synapse_file.get("modifiedOn", None)
+        self.created_by = synapse_file.get("createdBy", None)
+        self.modified_by = synapse_file.get("modifiedBy", None)
+        self.parent_id = synapse_file.get("parentId", None)
+        self.version_number = synapse_file.get("versionNumber", None)
+        self.version_label = synapse_file.get("versionLabel", None)
+        self.version_comment = synapse_file.get("versionComment", None)
+        self.is_latest_version = synapse_file.get("isLatestVersion", None)
+        self.data_file_handle_id = synapse_file.get("dataFileHandleId", None)
+        self.file_name_override = synapse_file.get("fileNameOverride", None)
+        if set_annotations:
+            self.annotations = Annotations.convert_from_api_parameters(
+                synapse_file.get("annotations", None)
+            )
+        return self
 
     # TODO: How the parent is stored/referenced needs to be thought through
     async def store(
         self,
-        parent: Union["Folder", "Project"],
+        parent: Optional[Union["Folder", "Project"]] = None,
         synapse_client: Optional[Synapse] = None,
-    ):
-        """Storing file to synapse."""
+    ) -> "File":
+        """Store the file in Synapse.
+
+        :param parent: The parent folder or project to store the file in.
+        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        :return: The file object.
+        """
         with tracer.start_as_current_span(f"File_Store: {self.path}"):
             # TODO - We need to add in some validation before the store to verify we have enough
             # information to store the data
 
             # Call synapse
-            loop = asyncio.get_event_loop()
-            synapse_file = SynapseFile(path=self.path, name=self.name, parent=parent.id)
-            # TODO: Propogating OTEL context is not working in this case
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse()
-                .get_client(synapse_client=synapse_client)
-                .store(obj=synapse_file, opentelemetry_context=context.get_current()),
-            )
-            print(entity)
-            self.id = entity.id
-            self.etag = entity.etag
+            if self.path:
+                loop = asyncio.get_event_loop()
+                synapse_file = Synapse_File(
+                    path=self.path,
+                    name=self.name,
+                    parent=parent.id if parent else self.parent_id,
+                )
+                # TODO: Propogating OTEL context is not working in this case
+                entity = await loop.run_in_executor(
+                    None,
+                    lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                        obj=synapse_file, opentelemetry_context=context.get_current()
+                    ),
+                )
 
-            print(f"Stored file {self.name}, id: {self.id}: {self.path}")
+                self.convert_from_api_parameters(
+                    synapse_file=entity, set_annotations=False
+                )
+
+                print(f"Stored file {self.name}, id: {self.id}: {self.path}")
+            elif self.id and not self.etag:
+                # This elif is to handle if only annotations are being stored without
+                # a file path.
+                annotations_to_persist = self.annotations
+                await self.get(synapse_client=synapse_client, download_file=False)
+                self.annotations = annotations_to_persist
 
             if self.annotations:
                 result = await Annotations(
                     id=self.id, etag=self.etag, annotations=self.annotations
                 ).store(synapse_client=synapse_client)
-                print(result)
+                self.annotations = result.annotations
 
             return self
 
-    async def get(self):
-        """Get metadata about the folder from synapse."""
-        print(f"Getting file {self.name}")
-        await asyncio.sleep(1)
-        self.is_loaded = True
+    # TODO: We need to provide all the other options that can be provided here, like collision, follow link ect...
+    async def get(
+        self,
+        download_file: Optional[bool] = True,
+        download_location: Optional[str] = None,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "File":
+        """Get the file metadata from Synapse.
+
+        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        :return: The file object.
+        """
+        with tracer.start_as_current_span(f"File_Get: {self.id}"):
+            loop = asyncio.get_event_loop()
+            # TODO: Propogating OTEL context is not working in this case
+            entity = await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                    entity=self.id,
+                    downloadFile=download_file,
+                    downloadLocation=download_location,
+                ),
+            )
+
+            self.convert_from_api_parameters(synapse_file=entity, set_annotations=True)
+            return self
+
+    async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+        """Delete the file from Synapse.
+
+        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        """
+        with tracer.start_as_current_span(f"File_Delete: {self.id}"):
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                    obj=self.id,
+                ),
+            )

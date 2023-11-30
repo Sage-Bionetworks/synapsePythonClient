@@ -4,8 +4,9 @@ The following actions are shown in this script:
 2. Storing a table
 3. Getting a table
 4. Storing rows in a table
-5. Deleting a row from a table
-6. Deleting a table
+5. Querying for data from a table
+6. Deleting a row from a table
+7. Deleting a table
 """
 import asyncio
 import os
@@ -19,6 +20,7 @@ from synapseclient.models import (
     Column,
     ColumnType,
     Row,
+    CsvResultFormat,
 )
 import synapseclient
 
@@ -132,6 +134,16 @@ async def store_table():
 
     print(csv_path)
 
+    # Querying for data from a table =====================================================
+    destination_csv_location = os.path.expanduser("~/temp/my_query_results")
+
+    await Table.query(
+        query=f"SELECT * FROM {copy_of_table.id}",
+        result_format=CsvResultFormat(download_location=destination_csv_location),
+    )
+
+    print(f"Created results at: {destination_csv_location}")
+
     # Deleting rows from a table =========================================================
     await copy_of_table.delete_rows(rows=[Row(row_id=1)])
 
@@ -143,6 +155,9 @@ async def store_table():
     ).store_schema()
 
     await table_to_delete.delete()
+
+    # Querying for data from a table =====================================================
+    # TODO: Add me
 
 
 asyncio.run(store_table())

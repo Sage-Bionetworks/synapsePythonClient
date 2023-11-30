@@ -87,6 +87,11 @@ class Annotations:
         """Convert the annotations from the synapse API to the model."""
         # TODO: This is not great logic and needs to be revisted. Ideally the annotations
         # TODO: returned as the same during a `.get` and `.store` call. Currently they are not
+        # TODO: This also prevents us from using the annotations returned from a `.get` call to store them again.
+        # TODO: Also there is difference in timestamp being transferred - The API is expecting milliseconds
+        # TODO: But in most cases the python client is returning datetime.
+        if synapse_annotations is None:
+            return None
         annotations = {}
         dict_to_convert = (
             synapse_annotations["annotations"]

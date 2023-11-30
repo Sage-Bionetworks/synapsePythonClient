@@ -315,9 +315,9 @@ class Column:
             # TODO: Propogating OTEL context is not working in this case
             entity = await loop.run_in_executor(
                 None,
-                lambda: Synapse()
-                .get_client(synapse_client=synapse_client)
-                .createColumn(name=self.name, columnType=self.column_type),
+                lambda: Synapse.get_client(synapse_client=synapse_client).createColumn(
+                    name=self.name, columnType=self.column_type
+                ),
             )
             print(entity)
             self.convert_from_api_parameters(entity)
@@ -396,20 +396,20 @@ class Table:
 
         :param synapse_table: The data coming from the Synapse API
         """
-        self.id = synapse_table.id
-        self.name = synapse_table.name
-        self.parent_id = synapse_table.parentId
+        self.id = synapse_table.get("id", None)
+        self.name = synapse_table.get("name", None)
+        self.parent_id = synapse_table.get("parentId", None)
         # TODO: Description doesn't seem to be returned from the API. Look into why.
         # self.description = synapse_table.description
-        self.etag = synapse_table.etag
-        self.created_on = synapse_table.createdOn
-        self.created_by = synapse_table.createdBy
-        self.modified_on = synapse_table.modifiedOn
-        self.modified_by = synapse_table.modifiedBy
-        self.version_number = synapse_table.versionNumber
-        self.version_label = synapse_table.versionLabel
-        self.version_comment = synapse_table.versionComment
-        self.is_latest_version = synapse_table.isLatestVersion
+        self.etag = synapse_table.get("etag", None)
+        self.created_on = synapse_table.get("createdOn", None)
+        self.created_by = synapse_table.get("createdBy", None)
+        self.modified_on = synapse_table.get("modifiedOn", None)
+        self.modified_by = synapse_table.get("modifiedBy", None)
+        self.version_number = synapse_table.get("versionNumber", None)
+        self.version_label = synapse_table.get("versionLabel", None)
+        self.version_comment = synapse_table.get("versionComment", None)
+        self.is_latest_version = synapse_table.get("isLatestVersion", None)
         self.is_search_enabled = synapse_table.get("isSearchEnabled", False)
         self.columns = [
             Column(id=columnId, name=None, column_type=None)
@@ -417,7 +417,7 @@ class Table:
         ]
         if set_annotations:
             self.annotations = Annotations.convert_from_api_parameters(
-                synapse_table.annotations
+                synapse_table.get("annotations", None)
             )
         return self
 
@@ -436,9 +436,9 @@ class Table:
             # TODO: Propogating OTEL context is not working in this case
             entity = await loop.run_in_executor(
                 None,
-                lambda: Synapse()
-                .get_client(synapse_client=synapse_client)
-                .store(obj=synapse_table),
+                lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                    obj=synapse_table
+                ),
             )
             print(entity)
             # TODO: What should this return?
@@ -456,7 +456,7 @@ class Table:
             await loop.run_in_executor(
                 None,
                 lambda: delete_rows(
-                    syn=Synapse().get_client(synapse_client=synapse_client),
+                    syn=Synapse.get_client(synapse_client=synapse_client),
                     table_id=self.id,
                     row_id_vers_list=rows_to_delete,
                 ),
@@ -485,9 +485,9 @@ class Table:
                         else:
                             raise ValueError(f"Unknown type: {type(result)}")
                 except Exception as ex:
-                    Synapse().get_client(
-                        synapse_client=synapse_client
-                    ).logger.exception(ex)
+                    Synapse.get_client(synapse_client=synapse_client).logger.exception(
+                        ex
+                    )
                     print("I hit an exception")
 
             synapse_schema = Synapse_Schema(
@@ -500,9 +500,9 @@ class Table:
             # TODO: Propogating OTEL context is not working in this case
             entity = await loop.run_in_executor(
                 None,
-                lambda: Synapse()
-                .get_client(synapse_client=synapse_client)
-                .store(obj=synapse_schema),
+                lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                    obj=synapse_schema
+                ),
             )
 
             self.convert_from_api_parameters(
@@ -532,9 +532,9 @@ class Table:
                         else:
                             raise ValueError(f"Unknown type: {type(result)}")
                 except Exception as ex:
-                    Synapse().get_client(
-                        synapse_client=synapse_client
-                    ).logger.exception(ex)
+                    Synapse.get_client(synapse_client=synapse_client).logger.exception(
+                        ex
+                    )
                     print("I hit an exception")
             return self
 
@@ -550,9 +550,9 @@ class Table:
             # TODO: Propogating OTEL context is not working in this case
             entity = await loop.run_in_executor(
                 None,
-                lambda: Synapse()
-                .get_client(synapse_client=synapse_client)
-                .get(entity=self.id),
+                lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                    entity=self.id
+                ),
             )
             self.convert_from_api_parameters(synapse_table=entity, set_annotations=True)
             return self
@@ -568,9 +568,9 @@ class Table:
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 None,
-                lambda: Synapse()
-                .get_client(synapse_client=synapse_client)
-                .delete(obj=self.id, version=self.version_number),
+                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                    obj=self.id
+                ),
             )
 
     @classmethod
@@ -587,9 +587,9 @@ class Table:
             # TODO: Future Idea - We stream back a CSV, and let those reading this to handle the CSV however they want
             results = await loop.run_in_executor(
                 None,
-                lambda: Synapse()
-                .get_client(synapse_client=synapse_client)
-                .tableQuery(query=query, **result_format.convert_into_api_parameters()),
+                lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
+                    query=query, **result_format.convert_into_api_parameters()
+                ),
             )
             print(results)
             return results
