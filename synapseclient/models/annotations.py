@@ -26,6 +26,8 @@ class AnnotationsValueType(str, Enum):
 class AnnotationsValue:
     """A specific type of annotation and the values that are of that type."""
 
+    # TODO: Currently this is required - However, we do have the ability to make some assumptions based
+    # TODO: On the value types. For example, if it's a str, datetime, bool, etc...
     type: AnnotationsValueType
     # TODO: What are all the python types we are going to accept here
     value: List[Union[str, bool]]
