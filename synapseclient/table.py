@@ -324,6 +324,10 @@ from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, entity_type_to_class
 from synapseclient.core.constants import concrete_types
+from opentelemetry import trace
+
+
+tracer = trace.get_tracer("synapseclient")
 
 aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
 
@@ -745,20 +749,26 @@ def _delete_rows(syn, schema, row_id_vers_list):
 
 
 def delete_rows(
-    syn, table_id: str, row_id_vers_list: typing.List[typing.Tuple[int, int]]
+    syn,
+    table_id: str,
+    row_id_vers_list: typing.List[typing.Tuple[int, int]],
+    opentelemetry_context=None,
 ):
     """
     Deletes rows from a synapse table
     :param syn: an instance of py:class:`synapseclient.client.Synapse`
     :param row_id_vers_list: an iterable containing tuples with format: (row_id, row_version)
     """
-    delete_row_csv_filepath = _create_row_delete_csv(
-        row_id_vers_iterable=row_id_vers_list
-    )
-    try:
-        syn._uploadCsv(filepath=delete_row_csv_filepath, schema=table_id)
-    finally:
-        os.remove(delete_row_csv_filepath)
+    with tracer.start_as_current_span(
+        "Synapse::delete_rows", context=opentelemetry_context
+    ):
+        delete_row_csv_filepath = _create_row_delete_csv(
+            row_id_vers_iterable=row_id_vers_list
+        )
+        try:
+            syn._uploadCsv(filepath=delete_row_csv_filepath, schema=table_id)
+        finally:
+            os.remove(delete_row_csv_filepath)
 
 
 class SchemaBase(Entity, metaclass=abc.ABCMeta):

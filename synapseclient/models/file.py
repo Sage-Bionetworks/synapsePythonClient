@@ -46,7 +46,7 @@ class File:
     """The date this entity was created."""
 
     modified_on: Optional[str] = None
-    """"The date this entity was last modified."""
+    """The date this entity was last modified."""
 
     created_by: Optional[str] = None
     """The ID of the user that created this entity."""
@@ -125,7 +125,9 @@ class File:
         :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
         :return: The file object.
         """
-        with tracer.start_as_current_span(f"File_Store: {self.path}"):
+        with tracer.start_as_current_span(
+            f"File_Store: {self.path if self.path else self.id}"
+        ):
             # TODO - We need to add in some validation before the store to verify we have enough
             # information to store the data
 
@@ -138,10 +140,11 @@ class File:
                     parent=parent.id if parent else self.parent_id,
                 )
                 # TODO: Propogating OTEL context is not working in this case
+                current_context = context.get_current()
                 entity = await loop.run_in_executor(
                     None,
                     lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                        obj=synapse_file, opentelemetry_context=context.get_current()
+                        obj=synapse_file, opentelemetry_context=current_context
                     ),
                 )
 
@@ -179,13 +182,14 @@ class File:
         """
         with tracer.start_as_current_span(f"File_Get: {self.id}"):
             loop = asyncio.get_event_loop()
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).get(
                     entity=self.id,
                     downloadFile=download_file,
                     downloadLocation=download_location,
+                    opentelemetry_context=current_context,
                 ),
             )
 
@@ -199,9 +203,11 @@ class File:
         """
         with tracer.start_as_current_span(f"File_Delete: {self.id}"):
             loop = asyncio.get_event_loop()
+            current_context = context.get_current()
             await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).delete(
                     obj=self.id,
+                    opentelemetry_context=current_context,
                 ),
             )

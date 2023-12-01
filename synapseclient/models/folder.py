@@ -105,11 +105,11 @@ class Folder:
             synapse_folder = Synapse_Folder(
                 self.name, parent=parent.id if parent else self.parent_id
             )
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_folder, opentelemetry_context=context.get_current()
+                    obj=synapse_folder, opentelemetry_context=current_context
                 ),
             )
 
@@ -175,11 +175,12 @@ class Folder:
         """
         with tracer.start_as_current_span(f"Folder_Get: {self.id}"):
             loop = asyncio.get_event_loop()
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).get(
                     entity=self.id,
+                    opentelemetry_context=current_context,
                 ),
             )
 
@@ -194,6 +195,7 @@ class Folder:
                     ).getChildren(
                         parent=self.id,
                         includeTypes=["folder", "file"],
+                        opentelemetry_context=current_context,
                     ),
                 )
 
@@ -230,9 +232,11 @@ class Folder:
         """
         with tracer.start_as_current_span(f"Folder_Delete: {self.id}"):
             loop = asyncio.get_event_loop()
+            current_context = context.get_current()
             await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).delete(
                     obj=self.id,
+                    opentelemetry_context=current_context,
                 ),
             )

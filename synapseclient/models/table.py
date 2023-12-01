@@ -15,7 +15,7 @@ from synapseclient.table import (
     delete_rows,
 )
 from synapseclient.models import Annotations, AnnotationsValue
-from opentelemetry import trace
+from opentelemetry import trace, context
 
 
 tracer = trace.get_tracer("synapseclient")
@@ -312,11 +312,13 @@ class Column:
 
             # Call synapse
             loop = asyncio.get_event_loop()
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).createColumn(
-                    name=self.name, columnType=self.column_type
+                    name=self.name,
+                    columnType=self.column_type,
+                    opentelemetry_context=current_context,
                 ),
             )
             print(entity)
@@ -433,11 +435,11 @@ class Table:
         with tracer.start_as_current_span(f"Store_rows_by_csv: {csv_path}"):
             synapse_table = Synapse_Table(schema=self.id, values=csv_path)
             loop = asyncio.get_event_loop()
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_table
+                    obj=synapse_table, opentelemetry_context=current_context
                 ),
             )
             print(entity)
@@ -452,13 +454,14 @@ class Table:
             for row in rows:
                 rows_to_delete.append([row.row_id, row.version_number])
             loop = asyncio.get_event_loop()
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
             await loop.run_in_executor(
                 None,
                 lambda: delete_rows(
                     syn=Synapse.get_client(synapse_client=synapse_client),
                     table_id=self.id,
                     row_id_vers_list=rows_to_delete,
+                    opentelemetry_context=current_context,
                 ),
             )
 
@@ -497,11 +500,11 @@ class Table:
             )
 
             loop = asyncio.get_event_loop()
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_schema
+                    obj=synapse_schema, opentelemetry_context=current_context
                 ),
             )
 
@@ -547,11 +550,11 @@ class Table:
         # TODO: How do we want to support retriving the table? Do we want to support by name, and parent?
         with tracer.start_as_current_span(f"Table_Get: {self.name}"):
             loop = asyncio.get_event_loop()
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                    entity=self.id
+                    entity=self.id, opentelemetry_context=current_context
                 ),
             )
             self.convert_from_api_parameters(synapse_table=entity, set_annotations=True)
@@ -566,10 +569,11 @@ class Table:
         """
         with tracer.start_as_current_span(f"Table_Delete: {self.name}"):
             loop = asyncio.get_event_loop()
+            current_context = context.get_current()
             await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                    obj=self.id
+                    obj=self.id, opentelemetry_context=current_context
                 ),
             )
 
@@ -582,13 +586,15 @@ class Table:
     ) -> Union[Synapse_CsvFileTable, Synaspe_TableQueryResult]:
         with tracer.start_as_current_span("Table_query"):
             loop = asyncio.get_event_loop()
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
 
             # TODO: Future Idea - We stream back a CSV, and let those reading this to handle the CSV however they want
             results = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
-                    query=query, **result_format.convert_into_api_parameters()
+                    query=query,
+                    **result_format.convert_into_api_parameters(),
+                    opentelemetry_context=current_context,
                 ),
             )
             print(results)

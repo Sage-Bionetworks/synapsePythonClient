@@ -46,10 +46,9 @@ def create_random_file(
         f.write(os.urandom(1))
 
 
-@tracer.start_as_current_span("Project")
 async def store_project():
     # Creating annotations for my project ==================================================
-    annotations_for_my_project = {
+    my_annotations = {
         "my_key_string": AnnotationsValue(
             type=AnnotationsValueType.STRING, value=["b", "a", "c"]
         ),
@@ -67,74 +66,87 @@ async def store_project():
         ),
     }
 
-    # Creating a project ==================================================================
-    project = Project(
-        name="bfauble_my_new_project_for_testing",
-        annotations=annotations_for_my_project,
-        description="This is a project with random data.",
-    )
-
-    project = await project.store()
-
-    print(project)
-
-    # Storing several files to a project ==================================================
-    files_to_store = []
-    for loop in range(1, 10):
-        name_of_file = f"my_file_with_random_data_{loop}.txt"
-        path_to_file = os.path.join(os.path.expanduser("~/temp"), name_of_file)
-        create_random_file(path_to_file)
-
-        # Creating and uploading a file to a project =========================================
-        file = File(
-            path=path_to_file,
-            name=name_of_file,
+    with tracer.start_as_current_span("Creating a project"):
+        # Creating a project =============================================================
+        project = Project(
+            name="bfauble_my_new_project_for_testing",
+            annotations=my_annotations,
+            description="This is a project with random data.",
         )
-        files_to_store.append(file)
-    project.files = files_to_store
-    project = await project.store()
 
-    # Storing several folders in a project ==================================================
-    folders_to_store = []
-    for loop in range(1, 10):
-        folder_to_store = Folder(
-            name=f"my_new_folder_for_this_project_{loop}",
-        )
-        folders_to_store.append(folder_to_store)
-    project.folders = folders_to_store
-    project = await project.store()
+        project = await project.store()
 
-    # Getting metadata about a project =====================================================
-    project_copy = await Project(id=project.id).get(include_children=True)
+        print(project)
 
-    print(project_copy)
-    for file in project_copy.files:
-        print(f"File: {file.name}")
+    with tracer.start_as_current_span("Storing several files to a project"):
+        # Storing several files to a project =============================================
+        files_to_store = []
+        for loop in range(1, 10):
+            name_of_file = f"my_file_with_random_data_{loop}.txt"
+            path_to_file = os.path.join(os.path.expanduser("~/temp"), name_of_file)
+            create_random_file(path_to_file)
 
-    for folder in project_copy.folders:
-        print(f"Folder: {folder.name}")
+            # Creating and uploading a file to a project =================================
+            file = File(
+                path=path_to_file,
+                name=name_of_file,
+                annotations=my_annotations,
+            )
+            files_to_store.append(file)
+        project.files = files_to_store
+        project = await project.store()
 
-    # Updating the annotations in bulk for a number of folders and files ==================
-    new_annotations = {
-        "my_new_key_string": AnnotationsValue(
-            type=AnnotationsValueType.STRING, value=["b", "a", "c"]
-        ),
-    }
+    with tracer.start_as_current_span("Storing several folders in a project"):
+        # Storing several folders in a project ===========================================
+        folders_to_store = []
+        for loop in range(1, 10):
+            folder_to_store = Folder(
+                name=f"my_new_folder_for_this_project_{loop}",
+                annotations=my_annotations,
+            )
+            folders_to_store.append(folder_to_store)
+        project.files = []
+        project.folders = folders_to_store
+        project = await project.store()
 
-    for file in project_copy.files:
-        file.annotations = new_annotations
+    with tracer.start_as_current_span("Getting metadata about a project"):
+        # Getting metadata about a project ===============================================
+        project_copy = await Project(id=project.id).get(include_children=True)
 
-    for folder in project_copy.folders:
-        folder.annotations = new_annotations
+        print(project_copy)
+        for file in project_copy.files:
+            print(f"File: {file.name}")
 
-    await project_copy.store()
+        for folder in project_copy.folders:
+            print(f"Folder: {folder.name}")
 
-    # Deleting a project ==================================================================
-    project_to_delete = await Project(
-        name="my_new_project_I_want_to_delete",
-    ).store()
+    with tracer.start_as_current_span(
+        "Updating the annotations in bulk for a number of folders and files"
+    ):
+        # Updating the annotations in bulk for a number of folders and files =============
+        new_annotations = {
+            "my_new_key_string": AnnotationsValue(
+                type=AnnotationsValueType.STRING, value=["b", "a", "c"]
+            ),
+        }
 
-    await project_to_delete.delete()
+        project_copy = await Project(id=project.id).get(include_children=True)
+
+        for file in project_copy.files:
+            file.annotations = new_annotations
+
+        for folder in project_copy.folders:
+            folder.annotations = new_annotations
+
+        await project_copy.store()
+
+    with tracer.start_as_current_span("Deleting a project"):
+        # Deleting a project =============================================================
+        project_to_delete = await Project(
+            name="my_new_project_I_want_to_delete",
+        ).store()
+
+        await project_to_delete.delete()
 
 
 asyncio.run(store_project())

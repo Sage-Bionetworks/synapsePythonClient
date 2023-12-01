@@ -91,11 +91,11 @@ class Project:
             # Call synapse
             loop = asyncio.get_event_loop()
             synapse_project = Synapse_Project(self.name)
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_project, opentelemetry_context=context.get_current()
+                    obj=synapse_project, opentelemetry_context=current_context
                 ),
             )
             self.convert_from_api_parameters(
@@ -160,11 +160,12 @@ class Project:
         """
         with tracer.start_as_current_span(f"Project_Get: {self.id}"):
             loop = asyncio.get_event_loop()
-            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).get(
                     entity=self.id,
+                    opentelemetry_context=current_context,
                 ),
             )
 
@@ -179,6 +180,7 @@ class Project:
                     ).getChildren(
                         parent=self.id,
                         includeTypes=["folder", "file"],
+                        opentelemetry_context=current_context,
                     ),
                 )
 
@@ -215,9 +217,11 @@ class Project:
         """
         with tracer.start_as_current_span(f"Project_Delete: {self.id}"):
             loop = asyncio.get_event_loop()
+            current_context = context.get_current()
             await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).delete(
                     obj=self.id,
+                    opentelemetry_context=current_context,
                 ),
             )
