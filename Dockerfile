@@ -11,8 +11,10 @@ RUN apt-get update \
 
 RUN pip3 install --upgrade pip
 
-COPY . /synapsePythonClient
 WORKDIR /synapsePythonClient
-RUN python3 setup.py install
+COPY . .
+
+RUN pip install --no-cache-dir .
+
 
 LABEL org.opencontainers.image.source='https://github.com/Sage-Bionetworks/synapsePythonClient'
