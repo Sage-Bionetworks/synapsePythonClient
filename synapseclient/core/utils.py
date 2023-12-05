@@ -424,11 +424,18 @@ def to_unix_epoch_time(dt: typing.Union[datetime.date, datetime.datetime, str]) 
             tzinfo=current_timezone
         )
     else:
+        # If the datetime is not timezone aware, assume it is in the local timezone.
+        # This is required in order for windows to work with the `astimezone` method.
+        if dt.tzinfo is None:
+            current_timezone = datetime.datetime.now().astimezone().tzinfo
+            dt = dt.replace(tzinfo=current_timezone)
         datetime_utc = dt.astimezone(datetime.timezone.utc)
     return int((datetime_utc - UNIX_EPOCH).total_seconds() * 1000)
 
 
-def to_unix_epoch_time_secs(dt: typing.Union[datetime.date, datetime.datetime]) -> int:
+def to_unix_epoch_time_secs(
+    dt: typing.Union[datetime.date, datetime.datetime]
+) -> float:
     """
     Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
     to UNIX time.
@@ -439,6 +446,11 @@ def to_unix_epoch_time_secs(dt: typing.Union[datetime.date, datetime.datetime]) 
             tzinfo=current_timezone
         )
     else:
+        # If the datetime is not timezone aware, assume it is in the local timezone.
+        # This is required in order for windows to work with the `astimezone` method.
+        if dt.tzinfo is None:
+            current_timezone = datetime.datetime.now().astimezone().tzinfo
+            dt = dt.replace(tzinfo=current_timezone)
         datetime_utc = dt.astimezone(datetime.timezone.utc)
     return (datetime_utc - UNIX_EPOCH).total_seconds()
 
