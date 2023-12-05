@@ -340,15 +340,16 @@ def is_date(dt):
 
 def to_list(value):
     """Convert the value (an iterable or a scalar value) to a list."""
-    possible_datetime = None
     if isinstance(value, collections.abc.Iterable) and not isinstance(value, str):
         values = []
         for val in value:
+            possible_datetime = None
             if isinstance(val, str):
                 possible_datetime = datetime_or_none(value)
             values.append(val if possible_datetime is None else possible_datetime)
         return values
     else:
+        possible_datetime = None
         if isinstance(value, str):
             possible_datetime = datetime_or_none(value)
         return [value if possible_datetime is None else possible_datetime]
