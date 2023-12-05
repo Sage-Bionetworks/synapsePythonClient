@@ -1,4 +1,5 @@
 import logging
+import platform
 import urllib.request
 
 from unittest import mock
@@ -46,7 +47,8 @@ def test_confirm_connections_blocked():
 @pytest.fixture(autouse=True)
 def set_timezone():
     os.environ["TZ"] = "UTC"
-    time.tzset()
+    if platform.system() != "Windows":
+        time.tzset()
 
 
 @pytest.fixture(scope="session")

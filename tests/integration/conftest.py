@@ -156,4 +156,5 @@ def setup_otel():
 @pytest.fixture(autouse=True)
 def set_timezone():
     os.environ["TZ"] = "UTC"
-    time.tzset()
+    if platform.system() != "Windows":
+        time.tzset()
