@@ -18,12 +18,13 @@ import requests
 import sys
 import tempfile
 import threading
+import typing
 import urllib.parse as urllib_parse
 import uuid
 import warnings
 
 
-UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0)
+UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
 ISO_FORMAT_MICROS = "%Y-%m-%dT%H:%M:%S.%fZ"
 GB = 2**30
@@ -325,6 +326,13 @@ def is_synapse_id_str(obj):
     return None
 
 
+def datetime_or_none(datetime_str: str) -> typing.Union[datetime.datetime, None]:
+    try:
+        return datetime.datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
 def is_date(dt):
     """Objects of class datetime.date and datetime.datetime will be recognized as dates"""
     return isinstance(dt, datetime.date) or isinstance(dt, datetime.datetime)
@@ -332,10 +340,18 @@ def is_date(dt):
 
 def to_list(value):
     """Convert the value (an iterable or a scalar value) to a list."""
+    possible_datetime = None
     if isinstance(value, collections.abc.Iterable) and not isinstance(value, str):
-        return list(value)
+        values = []
+        for val in value:
+            if isinstance(val, str):
+                possible_datetime = datetime_or_none(value)
+            values.append(val if possible_datetime is None else possible_datetime)
+        return values
     else:
-        return [value]
+        if isinstance(value, str):
+            possible_datetime = datetime_or_none(value)
+        return [value if possible_datetime is None else possible_datetime]
 
 
 def _to_iterable(value):
@@ -395,26 +411,36 @@ def make_bogus_binary_file(n=1 * KB, filepath=None, printprogress=False):
         return normalize_path(filepath)
 
 
-def to_unix_epoch_time(dt):
+def to_unix_epoch_time(dt: typing.Union[datetime.date, datetime.datetime, str]) -> int:
     """
     Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
     to UNIX time.
     """
-
+    if type(dt) == str:
+        dt = datetime.datetime.fromisoformat(dt.replace("Z", "+00:00"))
     if type(dt) == datetime.date:
-        return (dt - UNIX_EPOCH.date()).total_seconds() * 1000
-    return int((dt - UNIX_EPOCH).total_seconds() * 1000)
+        current_timezone = datetime.datetime.now().astimezone().tzinfo
+        datetime_utc = datetime.datetime.combine(dt, datetime.time(0, 0, 0, 0)).replace(
+            tzinfo=current_timezone
+        )
+    else:
+        datetime_utc = dt.astimezone(datetime.timezone.utc)
+    return int((datetime_utc - UNIX_EPOCH).total_seconds() * 1000)
 
 
-def to_unix_epoch_time_secs(dt):
+def to_unix_epoch_time_secs(dt: typing.Union[datetime.date, datetime.datetime]) -> int:
     """
     Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
     to UNIX time.
     """
-
     if type(dt) == datetime.date:
-        return (dt - UNIX_EPOCH.date()).total_seconds()
-    return (dt - UNIX_EPOCH).total_seconds()
+        current_timezone = datetime.datetime.now().astimezone().tzinfo
+        datetime_utc = datetime.datetime.combine(dt, datetime.time(0, 0, 0, 0)).replace(
+            tzinfo=current_timezone
+        )
+    else:
+        datetime_utc = dt.astimezone(datetime.timezone.utc)
+    return (datetime_utc - UNIX_EPOCH).total_seconds()
 
 
 def from_unix_epoch_time_secs(secs):
@@ -426,12 +452,23 @@ def from_unix_epoch_time_secs(secs):
     # so, here's a hack that enables ancient events, such as Chris's birthday to be
     # converted from milliseconds since the UNIX epoch to higher level Datetime objects. Ha!
     if platform.system() == "Windows" and secs < 0:
-        mirror_date = datetime.datetime.utcfromtimestamp(abs(secs))
-        return UNIX_EPOCH - (mirror_date - UNIX_EPOCH)
-    return datetime.datetime.utcfromtimestamp(secs)
+        mirror_date = datetime.datetime.utcfromtimestamp(abs(secs)).replace(
+            tzinfo=datetime.timezone.utc
+        )
+
+        result = (UNIX_EPOCH - (mirror_date - UNIX_EPOCH)).replace(
+            tzinfo=datetime.timezone.utc
+        )
+
+        return result
+    datetime_instance = datetime.datetime.utcfromtimestamp(secs).replace(
+        tzinfo=datetime.timezone.utc
+    )
+
+    return datetime_instance
 
 
-def from_unix_epoch_time(ms):
+def from_unix_epoch_time(ms) -> datetime.datetime:
     """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
 
     if isinstance(ms, str):

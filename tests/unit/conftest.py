@@ -3,6 +3,7 @@ import urllib.request
 
 from unittest import mock
 import pytest
+import os, time
 
 from synapseclient import Synapse
 from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
@@ -40,6 +41,12 @@ def test_confirm_connections_blocked():
     with pytest.raises(ValueError) as cm_ex:
         urllib.request.urlopen("http://example.com")
     assert _BLOCKED_CONNECTION_MESSAGE == str(cm_ex.value)
+
+
+@pytest.fixture(autouse=True)
+def set_timezone():
+    os.environ["TZ"] = "UTC"
+    time.tzset()
 
 
 @pytest.fixture(scope="session")

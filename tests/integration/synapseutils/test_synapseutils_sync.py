@@ -4,6 +4,7 @@ import time
 import tempfile
 from func_timeout import FunctionTimedOut, func_set_timeout
 import pandas as pd
+import numpy as np
 
 import pytest
 
@@ -33,12 +34,15 @@ def test_state(syn: Synapse, schedule_for_cleanup):
             self.f2 = utils.make_bogus_data_file(n=10)
             self.f3 = "https://www.synapse.org"
 
-            self.header = "path	parent	used	executed	activityName	synapseStore	foo\n"
-            self.row1 = '%s	%s	%s	"%s;https://www.example.com"	provName		bar\n' % (
-                self.f1,
-                self.project.id,
-                self.f2,
-                self.f3,
+            self.header = "path	parent	used	executed	activityName	synapseStore	foo	date_1	datetime_1	datetime_2	datetime_3\n"
+            self.row1 = (
+                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02.995000+00:00	2023-12-05 07:00:00+00:00\n'
+                % (
+                    self.f1,
+                    self.project.id,
+                    self.f2,
+                    self.f3,
+                )
             )
             self.row2 = (
                 '%s	%s	"syn12"	" syn123 ;https://www.example.com"	provName2		bar\n'
@@ -157,9 +161,30 @@ def test_syncToSynapse(test_state):
     assert (
         orig_anots.shape[1] == new_anots.shape[1]
     )  # Verify that we have the same number of cols
-    assert new_anots.equals(
-        orig_anots.loc[:, new_anots.columns]
-    ), "Annotations different"
+
+    assert new_anots.loc[:]["foo"].equals(orig_anots.loc[:]["foo"])
+    # The dates in the manifest can accept a variety of formats, however we are always writing
+    # them back in the same expected format. Verify they're converted correctly.
+    assert new_anots.loc[:]["date_1"].tolist() == [
+        "2020-01-01 00:00:00+00:00",
+        np.nan,
+        np.nan,
+    ]
+    assert new_anots.loc[:]["datetime_1"].tolist() == [
+        "2023-12-04 07:00:00+00:00",
+        np.nan,
+        np.nan,
+    ]
+    assert new_anots.loc[:]["datetime_2"].tolist() == [
+        "2023-12-05 23:37:02.995000+00:00",
+        np.nan,
+        np.nan,
+    ]
+    assert new_anots.loc[:]["datetime_3"].tolist() == [
+        "2023-12-05 07:00:00+00:00",
+        np.nan,
+        np.nan,
+    ]
 
     # Validate that provenance is correct
     for provenanceType in ["executed", "used"]:

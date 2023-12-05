@@ -5,7 +5,7 @@ import random
 import tempfile
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pandas.testing import assert_frame_equal
 import pytest
@@ -564,7 +564,9 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe(
 
 @tracer.start_as_current_span("test_tables::test_store_table_datetime")
 def test_store_table_datetime(syn, project):
-    current_datetime = datetime.fromtimestamp(round(time.time(), 3))
+    current_datetime = datetime.fromtimestamp(round(time.time(), 3)).replace(
+        tzinfo=timezone.utc
+    )
     schema = syn.store(
         Schema("testTable", [Column(name="testerino", columnType="DATE")], project)
     )

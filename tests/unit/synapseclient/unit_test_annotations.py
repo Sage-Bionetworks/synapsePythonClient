@@ -2,6 +2,7 @@
 ############################################################
 
 from datetime import datetime as Datetime
+import datetime
 from math import pi
 import time
 import uuid
@@ -155,10 +156,10 @@ def test_round_trip_annotations():
             "zoo": [123.1, 456.2, 789.3],
             "species": ["Moose"],
             "birthdays": [
-                Datetime(1969, 4, 28),
-                Datetime(1973, 12, 8),
-                Datetime(2008, 1, 3),
-                Datetime(2013, 3, 15),
+                Datetime(1969, 4, 28, tzinfo=datetime.timezone.utc),
+                Datetime(1973, 12, 8, tzinfo=datetime.timezone.utc),
+                Datetime(2008, 1, 3, tzinfo=datetime.timezone.utc),
+                Datetime(2013, 3, 15, tzinfo=datetime.timezone.utc),
             ],
             "facts": [
                 True,
@@ -206,7 +207,7 @@ def test_idempotent_annotations():
 
 
 def test_submission_status_annotations_round_trip():
-    april_28_1969 = Datetime(1969, 4, 28)
+    april_28_1969 = Datetime(1969, 4, 28, tzinfo=datetime.timezone.utc)
     a = Annotations(
         "syn123",
         "7bdb83e9-a50a-46e4-987a-4962559f090f",
