@@ -1,7 +1,7 @@
 import logging
 import platform
 import uuid
-import os
+import os, time
 import sys
 import shutil
 import tempfile
@@ -151,3 +151,10 @@ def setup_otel():
             )
     else:
         trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
+
+
+@pytest.fixture(autouse=True)
+def set_timezone():
+    os.environ["TZ"] = "UTC"
+    if platform.system() != "Windows":
+        time.tzset()
