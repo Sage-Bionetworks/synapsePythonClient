@@ -11,7 +11,7 @@ import typing
 from .monitor import notifyMe
 from synapseclient.entity import is_container
 from synapseclient.core import config
-from synapseclient.core.utils import id_of, is_url, is_synapse_id_str
+from synapseclient.core.utils import id_of, is_url, is_synapse_id_str, datetime_or_none
 from synapseclient import File, table
 from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core import utils
@@ -1059,12 +1059,13 @@ def syncToSynapse(
 
     **Example manifest file**
 
-    ===============   ========    =======   =======   ===========================    ============================
-    path              parent      annot1    annot2    used                           executed
-    ===============   ========    =======   =======   ===========================    ============================
-    /path/file1.txt   syn1243     "bar"     3.1415    "syn124;/path/file2.txt"       "https://github.org/foo/bar"
-    /path/file2.txt   syn12433    "baz"     2.71      ""                             "https://github.org/foo/baz"
-    ===============   ========    =======   =======   ===========================    ============================
+    ===============   ========    =======   =======   =========================   ===========================    ============================
+    path              parent      annot1    annot2    collection_date             used                           executed
+    ===============   ========    =======   =======   =========================   ===========================    ============================
+    /path/file1.txt   syn1243     "bar"     3.1415    2023-12-04 07:00:00+00:00   "syn124;/path/file2.txt"       "https://github.org/foo/bar"
+    /path/file2.txt   syn12433    "baz"     2.71      2001-01-01 15:00:00+07:00   ""                             "https://github.org/foo/baz"
+    /path/file3.txt   syn12455    "zzz"     3.52      2023-12-04T07:00:00Z        ""                             "https://github.org/foo/zzz"
+    ===============   ========    =======   =======   =========================   ===========================    ============================
 
     """
     df = readManifestFile(syn, manifestFile)
@@ -1115,7 +1116,18 @@ def _manifest_upload(syn, df):
 
         # if a item in the manifest upload is an empty string we do not want to upload that
         # as an empty string annotation
-        file.annotations = {k: v for k, v in annotations.items() if v != ""}
+        file_annotations = {}
+
+        for annotation_key, annotation_value in annotations.items():
+            if annotation_value is None or annotation_value == "":
+                continue
+            possible_datetime = None
+            if isinstance(annotation_value, str):
+                possible_datetime = datetime_or_none(annotation_value)
+            file_annotations[annotation_key] = (
+                annotation_value if possible_datetime is None else possible_datetime
+            )
+        file.annotations = file_annotations
 
         item = _SyncUploadItem(
             file,
