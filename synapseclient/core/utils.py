@@ -327,6 +327,18 @@ def is_synapse_id_str(obj):
 
 
 def datetime_or_none(datetime_str: str) -> typing.Union[datetime.datetime, None]:
+    """Attempts to convert a string to a datetime object. Returns None if it fails.
+
+    Some of the expected formats of datetime_str are:
+    - 2023-12-04T07:00:00Z
+    - 2001-01-01 15:00:00+07:00
+    - 2001-01-01 15:00:00-07:00
+    - 2023-12-04 07:00:00+00:00
+    - 2019-01-01
+
+    :param datetime_str: The string to convert to a datetime object
+    :return: The datetime object or None if the conversion fails
+    """
     try:
         return datetime.datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
     except Exception:
