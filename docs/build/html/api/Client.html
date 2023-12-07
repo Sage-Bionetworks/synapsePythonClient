@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Client &mdash; Synapse Python Client 3.1.1 documentation</title>
+  <title>Client &mdash; Synapse Python Client 3.2.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -12,7 +12,7 @@
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
-
+  
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
@@ -21,23 +21,23 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Entity" href="Entity.html" />
-    <link rel="prev" title="Accessing the API" href="../articles/api.html" />
+    <link rel="prev" title="Accessing the API" href="../articles/api.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
 
-
-
+          
+          
           <a href="../index.html">
-
+            
               <img src="../_static/synapse_logo.png" class="logo" alt="Logo"/>
           </a>
               <div class="version">
-                3.1.1
+                3.2.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -107,7 +107,7 @@
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-
+             
   <section id="module-synapseclient.client">
 <span id="client"></span><h1>Client<a class="headerlink" href="#module-synapseclient.client" title="Permalink to this headline"></a></h1>
 <p>The <cite>Synapse</cite> object encapsulates a connection to the Synapse service and is used for building projects, uploading and
@@ -927,6 +927,36 @@ team’s ID.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.Synapse.get_user_profile_by_id">
+<span class="sig-name descname"><span class="pre">get_user_profile_by_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sessionToken</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="Team.html#synapseclient.team.UserProfile" title="synapseclient.team.UserProfile"><span class="pre">synapseclient.team.UserProfile</span></a></span></span><a class="headerlink" href="#synapseclient.Synapse.get_user_profile_by_id" title="Permalink to this definition"></a></dt>
+<dd><p>Get the details about a Synapse user.
+Retrieves information on the current user if ‘id’ is omitted.
+:param id:           The ownerId of a user
+:param sessionToken: The session token to use to find the user profile
+:returns: The user profile for the user of interest.</p>
+<dl class="simple">
+<dt>Example::</dt><dd><p>my_profile = syn.get_user_profile_by_id()
+freds_profile = syn.get_user_profile_by_id(1234567)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="synapseclient.Synapse.get_user_profile_by_username">
+<span class="sig-name descname"><span class="pre">get_user_profile_by_username</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sessionToken</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="Team.html#synapseclient.team.UserProfile" title="synapseclient.team.UserProfile"><span class="pre">synapseclient.team.UserProfile</span></a></span></span><a class="headerlink" href="#synapseclient.Synapse.get_user_profile_by_username" title="Permalink to this definition"></a></dt>
+<dd><p>Get the details about a Synapse user.
+Retrieves information on the current user if ‘id’ is omitted or is empty string.
+:param username:     The userName of a user
+:param sessionToken: The session token to use to find the user profile
+:returns: The user profile for the user of interest.</p>
+<dl class="simple">
+<dt>Example::</dt><dd><p>my_profile = syn.get_user_profile_by_username()
+freds_profile = syn.get_user_profile_by_username(‘fredcommo’)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="synapseclient.Synapse.invalidateAPIKey">
 <span class="sig-name descname"><span class="pre">invalidateAPIKey</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.invalidateAPIKey" title="Permalink to this definition"></a></dt>
 <dd><p>Invalidates authentication across all clients.</p>
@@ -1435,7 +1465,7 @@ with the id and etag attribute set</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="synapseclient.Synapse.store">
-<span class="sig-name descname"><span class="pre">store</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">createOrUpdate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forceVersion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versionLabel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isRestricted</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">used</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">executed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activityName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activityDescription</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.store" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">store</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">createOrUpdate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forceVersion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versionLabel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isRestricted</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">used</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">executed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activityName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activityDescription</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">opentelemetry_context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.Synapse.store" title="Permalink to this definition"></a></dt>
 <dd><p>Creates a new Entity or updates an existing Entity, uploading any files in the process.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1457,6 +1487,8 @@ nothing has changed.  Defaults to True.</p></li>
 the process of adding terms-of-use or review board approval for this entity.
 You will be contacted with regards to the specific data being restricted and the
 requirements of access.</p></li>
+<li><p><strong>opentelemetry_context</strong> – OpenTelemetry context to propogate to this function to use for tracing. Used
+cases where multi-threaded operations need to be linked to parent spans.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1643,14 +1675,14 @@ calculated automatically.</p></li>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2012-2023, Sage Bionetworks.
-      <span class="lastupdated">Last updated on Oct 30, 2023.
+      <span class="lastupdated">Last updated on Nov 27, 2023.
       </span></p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     provided by <a href="https://readthedocs.org">Read the Docs</a>.
-
+   
 
 </footer>
         </div>
@@ -1664,7 +1696,7 @@ calculated automatically.</p></li>
   </script>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Oct 30, 2023.
+      Last updated on Nov 27, 2023.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
     </div>
     <script type="text/javascript">

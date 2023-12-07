@@ -1,3 +1,4 @@
+import datetime
 import uuid
 import filecmp
 import os
@@ -82,7 +83,7 @@ def test_Entity(syn: Synapse, project: Project, schedule_for_cleanup):
     ), ("description= %s" % a_file.description)
     assert a_file["foo"][0] == "An arbitrary value", "foo= %s" % a_file["foo"][0]
     assert a_file["bar"] == [33, 44, 55]
-    assert a_file["bday"][0] == Datetime(2013, 3, 15)
+    assert a_file["bday"][0] == Datetime(2013, 3, 15, tzinfo=datetime.timezone.utc)
     assert a_file.contentType == "text/flapdoodle", (
         "contentType= %s" % a_file.contentType
     )
@@ -107,7 +108,7 @@ def test_Entity(syn: Synapse, project: Project, schedule_for_cleanup):
     a_file = syn.store(a_file, forceVersion=False)
     assert a_file["foo"][0] == "Another arbitrary chunk of text data"
     assert a_file["bar"] == [33, 44, 55]
-    assert a_file["bday"][0] == Datetime(2013, 3, 15)
+    assert a_file["bday"][0] == Datetime(2013, 3, 15, tzinfo=datetime.timezone.utc)
     assert a_file.new_key[0] == "A newly created value"
     assert a_file.path == path
     assert a_file.versionNumber == 1, "unexpected version number: " + str(
@@ -134,7 +135,7 @@ def test_Entity(syn: Synapse, project: Project, schedule_for_cleanup):
     link = syn.get(link, followLink=True)
     assert link["foo"][0] == "Another arbitrary chunk of text data"
     assert link["bar"] == [33, 44, 55]
-    assert link["bday"][0] == Datetime(2013, 3, 15)
+    assert link["bday"][0] == Datetime(2013, 3, 15, tzinfo=datetime.timezone.utc)
     assert link.new_key[0] == "A newly created value"
     assert utils.equal_paths(link.path, path)
     assert link.versionNumber == 1, "unexpected version number: " + str(

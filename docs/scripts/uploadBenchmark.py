@@ -2,11 +2,14 @@
 Handle running a few tests for benchmark upload times to synapse and S3. This has the ability
 to create a directory and file structure, sync to synapse using synapseutils, sync to synapse
 using os.walk, and sync to S3 using the AWS CLI.
+
+For the Synapse tests we are also adding annotations to the uploaded files.
 """
 import os
 import shutil
 from time import perf_counter
 from synapseclient.entity import File, Folder
+from synapseclient.annotations import Annotations
 import synapseclient
 import synapseutils
 import subprocess  # nosec
@@ -151,6 +154,23 @@ def execute_synapseutils_test(
             f"\nTime to generate sync manifest: {perf_counter() - time_before_generate_sync_manifest}"
         )
 
+        # Write annotations to the manifest file -----------------------------------------
+        # Open the `manifest_path` tab-delimited file and read its contents
+        with open(manifest_path, "r") as file:
+            lines = file.readlines()
+
+        # Append 3 columns "annot1", "annot2", "annot3" to the header
+        lines[0] = lines[0].strip() + "\tannot1\tannot2\tannot3\tannot4\tannot5\n"
+
+        # Append the values to each line
+        for i in range(1, len(lines)):
+            lines[i] = lines[i].strip() + "\tvalue1\t1\t1.2\ttrue\t2020-01-01\n"
+
+        # Write the modified contents back to the file
+        with open(manifest_path, "w") as file:
+            file.writelines(lines)
+        # Finish writing annotations to the manifest file --------------------------------
+
         time_before_syncToSynapse = perf_counter()
         synapseutils.syncToSynapse(
             syn,
@@ -199,7 +219,24 @@ def execute_walk_test(
                     path=filepath,
                     parent=parents[directory_path],
                 )
-                saved_files.append(syn.store(file))
+                saved_file = syn.store(file)
+                saved_files.append(saved_file)
+
+                # Store annotations on the file ------------------------------------------
+                syn.set_annotations(
+                    annotations=Annotations(
+                        id=saved_file.id,
+                        etag=saved_file.etag,
+                        **{
+                            "annot1": "value1",
+                            "annot2": 1,
+                            "annot3": 1.2,
+                            "annot4": True,
+                            "annot5": "2020-01-01",
+                        },
+                    )
+                )
+                # Finish storing annotations on the file ---------------------------------
         print(
             f"\nTime to walk and sync tree: {perf_counter() - time_before_walking_tree}"
         )

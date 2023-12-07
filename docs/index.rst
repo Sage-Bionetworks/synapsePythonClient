@@ -40,6 +40,7 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    getting_started/installation
    getting_started/credentials
    getting_started/basics
+   getting_started/configuration
 
 .. toctree::
    :caption: Articles
@@ -51,6 +52,7 @@ If you're just getting started with Synapse, have a look at the Getting Started 
    articles/synapseutils
    articles/validate_annotations
    articles/api
+   articles/benchmarking
 
 .. toctree::
    :caption: Python API

@@ -2,6 +2,44 @@
 Release Notes
 =============
 
+3.2.0 (2023-11-27)
+
+Highlights
+----------
+- Introduction of OpenTelemetry within the client. See information in the README for further details.
+- Added 2 new functions `get_user_profile_by_username` and `get_user_profile_by_id` to handle
+  for use cases when a username is a number.
+- Updated the local .cacheMap that is used to track local files downloaded from Synapse to include
+  the MD5 of the file when there is a cache miss. This is used to determine if the file has changed
+  since we cannot fully rely on the file's modified date only.
+- Include a progress indicator when downloading files via FTP.
+- Benchmarking of upload speeds to allow us to make data driven decisions and comparisons.
+
+Bug Fixes
+---------
+-  [`SYNPY-1186 <https://sagebionetworks.jira.com/browse/SYNPY-1186>`__] -
+   When a username is a number,  getUserProfile cannot retrieve the user.
+-  [`SYNPY-1316 <https://sagebionetworks.jira.com/browse/SYNPY-1316>`__] -
+   Calling `syn.get` with `ifcollision='overwrite.local` does not always overwrite previous file
+-  [`SYNPY-1319 <https://sagebionetworks.jira.com/browse/SYNPY-1319>`__] -
+   Unstable test: test_download_file_false
+-  [`SYNPY-1333 <https://sagebionetworks.jira.com/browse/SYNPY-1333>`__] -
+   synapse get on a file in a ftp server doesn't seem to be downloading
+
+Stories
+-------
+-  [`SYNPY-816 <https://sagebionetworks.jira.com/browse/SYNPY-816>`__] -
+   Unstable test: integration.test_evaluations.test_teams
+-  [`SYNPY-1274 <https://sagebionetworks.jira.com/browse/SYNPY-1274>`__] -
+   Set up pre-commit in github actions
+-  [`SYNPY-1305 <https://sagebionetworks.jira.com/browse/SYNPY-1305>`__] -
+   Collect trace data for integration tests
+-  [`SYNPY-1304 <https://sagebionetworks.jira.com/browse/SYNPY-1304>`__] -
+   Introduction of OpenTelemetry
+-  [`SYNPY-1320 <https://sagebionetworks.jira.com/browse/SYNPY-1320>`__] -
+   Benchmark upload speeds
+
+
 3.1.1 (2023-10-30)
 ==================
 
