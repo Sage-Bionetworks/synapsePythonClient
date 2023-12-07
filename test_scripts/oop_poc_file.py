@@ -9,12 +9,12 @@ The following actions are shown in this script:
 """
 import asyncio
 import os
+
 from synapseclient.models import (
     File,
     Folder,
-    AnnotationsValueType,
-    AnnotationsValue,
 )
+from datetime import date, datetime, timedelta, timezone
 import synapseclient
 
 from opentelemetry import trace
@@ -50,21 +50,19 @@ def create_random_file(
 async def store_file():
     # Creating annotations for my file ==================================================
     annotations_for_my_file = {
-        "my_key_string": AnnotationsValue(
-            type=AnnotationsValueType.STRING, value=["b", "a", "c"]
-        ),
-        "my_key_bool": AnnotationsValue(
-            type=AnnotationsValueType.BOOLEAN, value=[False, False, False]
-        ),
-        "my_key_double": AnnotationsValue(
-            type=AnnotationsValueType.DOUBLE, value=[1.2, 3.4, 5.6]
-        ),
-        "my_key_long": AnnotationsValue(
-            type=AnnotationsValueType.LONG, value=[1, 2, 3]
-        ),
-        "my_key_timestamp": AnnotationsValue(
-            type=AnnotationsValueType.TIMESTAMP_MS, value=[1701362964066, 1577862000000]
-        ),
+        "my_single_key_string": "a",
+        "my_key_string": ["b", "a", "c"],
+        "my_key_bool": [False, False, False],
+        "my_key_double": [1.2, 3.4, 5.6],
+        "my_key_long": [1, 2, 3],
+        "my_key_date": [date.today(), date.today() - timedelta(days=1)],
+        "my_key_datetime": [
+            datetime.today(),
+            datetime.today() - timedelta(days=1),
+            datetime.now(tz=timezone(timedelta(hours=-5))),
+            datetime(2023, 12, 7, 13, 0, 0, tzinfo=timezone(timedelta(hours=0))),
+            datetime(2023, 12, 7, 13, 0, 0, tzinfo=timezone(timedelta(hours=-7))),
+        ],
     }
 
     name_of_file = "my_file_with_random_data.txt"
@@ -83,6 +81,12 @@ async def store_file():
     file = await file.store()
 
     print(file)
+
+    # Updating and storing an annotation =================================================
+    file_copy = await File(id=file.id).get()
+    file_copy.annotations["my_key_string"] = ["new", "values", "here"]
+    stored_file = await file_copy.store()
+    print(stored_file)
 
     # Downloading a file =================================================================
     downloaded_file_copy = await File(id=file.id).get(

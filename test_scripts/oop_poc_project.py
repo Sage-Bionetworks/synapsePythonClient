@@ -14,10 +14,9 @@ from synapseclient.models import (
     File,
     Folder,
     Project,
-    AnnotationsValueType,
-    AnnotationsValue,
 )
 import synapseclient
+from datetime import date, datetime, timedelta, timezone
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -49,21 +48,19 @@ def create_random_file(
 async def store_project():
     # Creating annotations for my project ==================================================
     my_annotations = {
-        "my_key_string": AnnotationsValue(
-            type=AnnotationsValueType.STRING, value=["b", "a", "c"]
-        ),
-        "my_key_bool": AnnotationsValue(
-            type=AnnotationsValueType.BOOLEAN, value=[False, False, False]
-        ),
-        "my_key_double": AnnotationsValue(
-            type=AnnotationsValueType.DOUBLE, value=[1.2, 3.4, 5.6]
-        ),
-        "my_key_long": AnnotationsValue(
-            type=AnnotationsValueType.LONG, value=[1, 2, 3]
-        ),
-        "my_key_timestamp": AnnotationsValue(
-            type=AnnotationsValueType.TIMESTAMP_MS, value=[1701362964066, 1577862000000]
-        ),
+        "my_single_key_string": "a",
+        "my_key_string": ["b", "a", "c"],
+        "my_key_bool": [False, False, False],
+        "my_key_double": [1.2, 3.4, 5.6],
+        "my_key_long": [1, 2, 3],
+        "my_key_date": [date.today(), date.today() - timedelta(days=1)],
+        "my_key_datetime": [
+            datetime.today(),
+            datetime.today() - timedelta(days=1),
+            datetime.now(tz=timezone(timedelta(hours=-5))),
+            datetime(2023, 12, 7, 13, 0, 0, tzinfo=timezone(timedelta(hours=0))),
+            datetime(2023, 12, 7, 13, 0, 0, tzinfo=timezone(timedelta(hours=-7))),
+        ],
     }
 
     with tracer.start_as_current_span("Creating a project"):
@@ -77,6 +74,13 @@ async def store_project():
         project = await project.store()
 
         print(project)
+
+    with tracer.start_as_current_span("Updating and storing an annotation"):
+        # Updating and storing an annotation =============================================
+        project_copy = await Project(id=project.id).get()
+        project_copy.annotations["my_key_string"] = ["new", "values", "here"]
+        stored_project = await project_copy.store()
+        print(stored_project)
 
     with tracer.start_as_current_span("Storing several files to a project"):
         # Storing several files to a project =============================================
@@ -125,9 +129,7 @@ async def store_project():
     ):
         # Updating the annotations in bulk for a number of folders and files =============
         new_annotations = {
-            "my_new_key_string": AnnotationsValue(
-                type=AnnotationsValueType.STRING, value=["b", "a", "c"]
-            ),
+            "my_new_key_string": ["b", "a", "c"],
         }
 
         project_copy = await Project(id=project.id).get(include_children=True)

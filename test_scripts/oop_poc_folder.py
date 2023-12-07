@@ -13,10 +13,9 @@ import os
 from synapseclient.models import (
     File,
     Folder,
-    AnnotationsValueType,
-    AnnotationsValue,
 )
 import synapseclient
+from datetime import date, datetime, timedelta, timezone
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -51,21 +50,19 @@ def create_random_file(
 async def store_folder():
     # Creating annotations for my folder ==================================================
     annotations_for_my_folder = {
-        "my_key_string": AnnotationsValue(
-            type=AnnotationsValueType.STRING, value=["b", "a", "c"]
-        ),
-        "my_key_bool": AnnotationsValue(
-            type=AnnotationsValueType.BOOLEAN, value=[False, False, False]
-        ),
-        "my_key_double": AnnotationsValue(
-            type=AnnotationsValueType.DOUBLE, value=[1.2, 3.4, 5.6]
-        ),
-        "my_key_long": AnnotationsValue(
-            type=AnnotationsValueType.LONG, value=[1, 2, 3]
-        ),
-        "my_key_timestamp": AnnotationsValue(
-            type=AnnotationsValueType.TIMESTAMP_MS, value=[1701362964066, 1577862000000]
-        ),
+        "my_single_key_string": "a",
+        "my_key_string": ["b", "a", "c"],
+        "my_key_bool": [False, False, False],
+        "my_key_double": [1.2, 3.4, 5.6],
+        "my_key_long": [1, 2, 3],
+        "my_key_date": [date.today(), date.today() - timedelta(days=1)],
+        "my_key_datetime": [
+            datetime.today(),
+            datetime.today() - timedelta(days=1),
+            datetime.now(tz=timezone(timedelta(hours=-5))),
+            datetime(2023, 12, 7, 13, 0, 0, tzinfo=timezone(timedelta(hours=0))),
+            datetime(2023, 12, 7, 13, 0, 0, tzinfo=timezone(timedelta(hours=-7))),
+        ],
     }
 
     # Creating a folder ==================================================================
@@ -79,6 +76,12 @@ async def store_folder():
     folder = await folder.store()
 
     print(folder)
+
+    # Updating and storing an annotation =================================================
+    folder_copy = await Folder(id=folder.id).get()
+    folder_copy.annotations["my_key_string"] = ["new", "values", "here"]
+    stored_folder = await folder_copy.store()
+    print(stored_folder)
 
     # Storing several files to a folder ==================================================
     files_to_store = []
@@ -117,9 +120,7 @@ async def store_folder():
 
     # Updating the annotations in bulk for a number of folders and files ==================
     new_annotations = {
-        "my_new_key_string": AnnotationsValue(
-            type=AnnotationsValueType.STRING, value=["b", "a", "c"]
-        ),
+        "my_new_key_string": ["b", "a", "c"],
     }
 
     for file in folder_copy.files:

@@ -1,5 +1,6 @@
 import asyncio
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from typing import Dict, List, Union
 from typing import Optional, TYPE_CHECKING
 from opentelemetry import trace, context
@@ -8,7 +9,7 @@ from opentelemetry import trace, context
 
 from synapseclient import Synapse
 from synapseclient.entity import Folder as Synapse_Folder
-from synapseclient.models import File, Annotations, AnnotationsValue
+from synapseclient.models import File, Annotations
 
 if TYPE_CHECKING:
     from synapseclient.models import Project
@@ -57,7 +58,19 @@ class Folder:
     folders: Optional[List["Folder"]] = field(default_factory=list)
     """Folders that exist within this folder."""
 
-    annotations: Optional[Dict[str, AnnotationsValue]] = None
+    annotations: Optional[
+        Dict[
+            str,
+            Union[
+                List[str],
+                List[bool],
+                List[float],
+                List[int],
+                List[date],
+                List[datetime],
+            ],
+        ]
+    ] = None
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with

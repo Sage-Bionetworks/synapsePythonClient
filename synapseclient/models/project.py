@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass, field
-from typing import List, Dict
+from datetime import date, datetime
+from typing import List, Dict, Union
 
 # import uuid
 
@@ -9,7 +10,7 @@ from opentelemetry import trace, context
 
 from typing import Optional
 
-from synapseclient.models import Folder, File, Annotations, AnnotationsValue
+from synapseclient.models import Folder, File, Annotations
 from synapseclient import Synapse
 
 
@@ -54,7 +55,19 @@ class Project:
     folders: Optional[List["Folder"]] = field(default_factory=list)
     """Any folders that are at the root directory of the project."""
 
-    annotations: Optional[Dict[str, AnnotationsValue]] = None
+    annotations: Optional[
+        Dict[
+            str,
+            Union[
+                List[str],
+                List[bool],
+                List[float],
+                List[int],
+                List[date],
+                List[datetime],
+            ],
+        ]
+    ] = None
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with

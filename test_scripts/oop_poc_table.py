@@ -14,8 +14,6 @@ import csv
 import random
 import string
 from synapseclient.models import (
-    AnnotationsValueType,
-    AnnotationsValue,
     Table,
     Column,
     ColumnType,
@@ -23,6 +21,7 @@ from synapseclient.models import (
     CsvResultFormat,
 )
 import synapseclient
+from datetime import date, datetime, timedelta, timezone
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -81,21 +80,19 @@ def write_random_csv_with_data(path: str):
 async def store_table():
     # Creating annotations for my table ==================================================
     annotations_for_my_table = {
-        "my_key_string": AnnotationsValue(
-            type=AnnotationsValueType.STRING, value=["b", "a", "c"]
-        ),
-        "my_key_bool": AnnotationsValue(
-            type=AnnotationsValueType.BOOLEAN, value=[False, False, False]
-        ),
-        "my_key_double": AnnotationsValue(
-            type=AnnotationsValueType.DOUBLE, value=[1.2, 3.4, 5.6]
-        ),
-        "my_key_long": AnnotationsValue(
-            type=AnnotationsValueType.LONG, value=[1, 2, 3]
-        ),
-        "my_key_timestamp": AnnotationsValue(
-            type=AnnotationsValueType.TIMESTAMP_MS, value=[1701362964066, 1577862000000]
-        ),
+        "my_single_key_string": "a",
+        "my_key_string": ["b", "a", "c"],
+        "my_key_bool": [False, False, False],
+        "my_key_double": [1.2, 3.4, 5.6],
+        "my_key_long": [1, 2, 3],
+        "my_key_date": [date.today(), date.today() - timedelta(days=1)],
+        "my_key_datetime": [
+            datetime.today(),
+            datetime.today() - timedelta(days=1),
+            datetime.now(tz=timezone(timedelta(hours=-5))),
+            datetime(2023, 12, 7, 13, 0, 0, tzinfo=timezone(timedelta(hours=0))),
+            datetime(2023, 12, 7, 13, 0, 0, tzinfo=timezone(timedelta(hours=-7))),
+        ],
     }
 
     # Creating columns for my table ======================================================
@@ -126,6 +123,12 @@ async def store_table():
         copy_of_table = await copy_of_table.get()
 
         print(copy_of_table)
+
+    with tracer.start_as_current_span("Updating annotations on my table"):
+        # Updating annotations on my table ===============================================
+        copy_of_table.annotations["my_key_string"] = ["new", "values", "here"]
+        stored_table = await copy_of_table.store_schema()
+        print(stored_table)
 
     with tracer.start_as_current_span("Storing data to a table"):
         # Storing data to a table =========================================================
