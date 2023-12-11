@@ -331,7 +331,37 @@ class Column:
 
 @dataclass()
 class Table:
-    """A Table represents the metadata of a table."""
+    """A Table represents the metadata of a table.
+
+    Attributes:
+        id: The unique immutable ID for this table. A new ID will be generated for new
+            Tables. Once issued, this ID is guaranteed to never change or be re-issued
+        name: The name of this table. Must be 256 characters or less. Names may only
+            contain: letters, numbers, spaces, underscores, hyphens, periods, plus signs,
+            apostrophes, and parentheses
+        parent_id: The ID of the Entity that is the parent of this table.
+        columns: The columns of this table.
+        description: The description of this entity. Must be 1000 characters or less.
+        etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+            concurrent updates. Since the E-Tag changes every time an entity is updated it
+            is used to detect when a client's current representation of an entity is out-of-date.
+        created_on: The date this table was created.
+        created_by: The ID of the user that created this table.
+        modified_on: The date this table was last modified. In YYYY-MM-DD-Thh:mm:ss.sssZ format
+        modified_by: The ID of the user that last modified this table.
+        version_number: The version number issued to this version on the object.
+        version_label: The version label for this table
+        version_comment: The version comment for this table
+        is_latest_version: If this is the latest version of the object.
+        is_search_enabled: When creating or updating a table or view specifies if full text search
+            should be enabled. Note that enabling full text search might slow down the
+            indexing of the table or view.
+        annotations: Additional metadata associated with the table. The key is the name of your
+            desired annotations. The value is an object containing a list of values
+            (use empty list to represent no values for key) and the value type associated with
+            all values in the list.
+
+    """
 
     id: Optional[str] = None
     """The unique immutable ID for this table. A new ID will be generated for new
@@ -428,9 +458,12 @@ class Table:
     ) -> str:
         """Takes in a path to a CSV and stores the rows to Synapse.
 
-        :param csv_path: The path to the CSV to store.
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
-        :return: The path to the CSV that was stored.
+        Args:
+            csv_path: The path to the CSV to store.
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            The path to the CSV that was stored.
         """
         with tracer.start_as_current_span(f"Store_rows_by_csv: {csv_path}"):
             synapse_table = Synapse_Table(schema=self.id, values=csv_path)
@@ -449,6 +482,15 @@ class Table:
     async def delete_rows(
         self, rows: List[Row], synapse_client: Optional[Synapse] = None
     ) -> None:
+        """Delete rows from a table.
+
+        Args:
+            rows: The rows to delete.
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            None
+        """
         with tracer.start_as_current_span(f"Delete_rows: {self.name}"):
             rows_to_delete = []
             for row in rows:
@@ -468,8 +510,11 @@ class Table:
     async def store_schema(self, synapse_client: Optional[Synapse] = None) -> "Table":
         """Store non-row information about a table including the columns and annotations.
 
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
-        :return: A table that was stored to synapse.
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            The Table instance stored in synapse.
         """
         with tracer.start_as_current_span(f"Table_Schema_Store: {self.name}"):
             tasks = []
@@ -544,8 +589,11 @@ class Table:
     async def get(self, synapse_client: Optional[Synapse] = None) -> "Table":
         """Get the metadata about the table from synapse.
 
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
-        :return: A table that was retrieved from synapse.
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            The Table instance stored in synapse.
         """
         # TODO: How do we want to support retriving the table? Do we want to support by name, and parent?
         with tracer.start_as_current_span(f"Table_Get: {self.name}"):
@@ -565,7 +613,11 @@ class Table:
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the table from synapse.
 
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            None
         """
         with tracer.start_as_current_span(f"Table_Delete: {self.name}"):
             loop = asyncio.get_event_loop()
@@ -584,6 +636,16 @@ class Table:
         result_format: Union[CsvResultFormat, RowsetResultFormat] = CsvResultFormat(),
         synapse_client: Optional[Synapse] = None,
     ) -> Union[Synapse_CsvFileTable, Synaspe_TableQueryResult]:
+        """Query for data on a table stored in Synapse.
+
+        Args:
+            query: The query to run.
+            result_format: The format of the results. Defaults to CsvResultFormat().
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            The results of the query.
+        """
         with tracer.start_as_current_span("Table_query"):
             loop = asyncio.get_event_loop()
             current_context = context.get_current()

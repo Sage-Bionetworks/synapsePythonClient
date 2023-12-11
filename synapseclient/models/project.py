@@ -2,8 +2,6 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import List, Dict
 
-# import uuid
-
 from synapseclient.entity import Project as Synapse_Project
 from opentelemetry import trace, context
 
@@ -18,6 +16,88 @@ tracer = trace.get_tracer("synapseclient")
 
 @dataclass()
 class Project:
+    """A Project is a top-level container for organizing data in Synapse.
+
+    Attributes:
+        id: The unique immutable ID for this project. A new ID will be generated for new
+            Projects. Once issued, this ID is guaranteed to never change or be re-issued
+        name: The name of this project. Must be 256 characters or less. Names may only contain:
+                letters, numbers, spaces, underscores, hyphens, periods, plus signs, apostrophes,
+                and parentheses
+        description: The description of this entity. Must be 1000 characters or less.
+        etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+                concurrent updates. Since the E-Tag changes every time an entity is updated it
+                is used to detect when a client's current representation of an entity is out-of-date.
+        created_on: The date this entity was created.
+        modified_on: The date this entity was last modified.
+        created_by: The ID of the user that created this entity.
+        modified_by: The ID of the user that last modified this entity.
+        alias: The project alias for use in friendly project urls.
+        files: Any files that are at the root directory of the project.
+        folders: Any folders that are at the root directory of the project.
+        annotations: Additional metadata associated with the folder. The key is the name of your
+                        desired annotations. The value is an object containing a list of values
+                        (use empty list to represent no values for key) and the value type associated with
+                        all values in the list.
+        is_loaded: A flag to indicate if the project has been loaded from Synapse.
+
+    Functions:
+        store: Store project, files, and folders to synapse.
+        get: Get the project metadata from Synapse.
+        delete: Delete the project from Synapse.
+
+
+    Example: Creating a project
+        This example shows how to create a project
+
+            project = Project(
+                name="bfauble_my_new_project_for_testing",
+                annotations=my_annotations,
+                description="This is a project with random data.",
+            )
+
+            project = await project.store()
+
+            print(project)
+
+    Example: Storing several files to a project
+        This example shows how to store several files to a project
+
+            file_1 = File(
+                path=path_to_file_1,
+                name=name_of_file_1,
+            )
+            file_2 = File(
+                path=path_to_file_2,
+                name=name_of_file_2,
+            )
+            project.files = [file_1, file_2]
+            project = await project.store()
+
+    Note:
+        Testing what a note looks like.
+
+    Tip: Title for my tip.
+        Testing what a tip looks like.
+
+    Todo:
+        * Testing what a todo looks like.
+        * Testing what a todo looks like.
+
+    Deprecated:
+        Testing what a deprecated section looks like.
+
+    I can put anything here for the title of a section:
+        askldjfghasdkljfghasdklfhasd;ofgyadilfghadfklhgdklghdsklfghksdhfaglkh
+
+    Raises:
+        Exception: Testing what an exception looks like.
+
+    Yields:
+        Testing what a yield section looks like.
+
+    """
+
     id: Optional[str] = None
     """The unique immutable ID for this project. A new ID will be generated for new
     Projects. Once issued, this ID is guaranteed to never change or be re-issued"""
@@ -31,7 +111,9 @@ class Project:
     """The description of this entity. Must be 1000 characters or less."""
 
     etag: Optional[str] = None
-    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates. Since the E-Tag changes every time an entity is updated it is used to detect when a client's current representation of an entity is out-of-date."""
+    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    concurrent updates. Since the E-Tag changes every time an entity is updated it
+    is used to detect when a client's current representation of an entity is out-of-date."""
 
     created_on: Optional[str] = None
     """The date this entity was created."""
@@ -84,8 +166,15 @@ class Project:
             )
         return self
 
-    async def store(self, synapse_client: Optional[Synapse] = None):
-        """Storing project, files, and folders to synapse."""
+    async def store(self, synapse_client: Optional[Synapse] = None) -> "Project":
+        """Store project, files, and folders to synapse.
+
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            The project object.
+        """
 
         with tracer.start_as_current_span(f"Project_Store: {self.name}"):
             # Call synapse
@@ -155,8 +244,12 @@ class Project:
     ) -> "Project":
         """Get the project metadata from Synapse.
 
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
-        :return: The project object.
+        Args:
+            include_children: If True, will also get the children of the project.
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            The project object.
         """
         with tracer.start_as_current_span(f"Project_Get: {self.id}"):
             loop = asyncio.get_event_loop()
@@ -213,7 +306,11 @@ class Project:
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the project from Synapse.
 
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            None
         """
         with tracer.start_as_current_span(f"Project_Delete: {self.id}"):
             loop = asyncio.get_event_loop()

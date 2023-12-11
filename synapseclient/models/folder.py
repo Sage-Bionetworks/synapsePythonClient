@@ -18,7 +18,33 @@ tracer = trace.get_tracer("synapseclient")
 
 @dataclass()
 class Folder:
-    """Folder is a hierarchical container for organizing data in Synapse."""
+    """Folder is a hierarchical container for organizing data in Synapse.
+
+    Attributes:
+        id: The unique immutable ID for this folder. A new ID will be generated for new
+            Folders. Once issued, this ID is guaranteed to never change or be re-issued.
+        name: The name of this folder. Must be 256 characters or less. Names may only contain:
+            letters, numbers, spaces, underscores, hyphens, periods, plus signs, apostrophes,
+            and parentheses.
+        parent_id: The ID of the Project or Folder that is the parent of this Folder.
+        description: The description of this entity. Must be 1000 characters or less.
+        etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent
+            updates. Since the E-Tag changes every time an entity is updated it is used to detect
+            when a client's current representation of an entity is out-of-date.
+        created_on: The date this entity was created.
+        modified_on: The date this entity was last modified.
+        created_by: The ID of the user that created this entity.
+        modified_by: The ID of the user that last modified this entity.
+        files: Files that exist within this folder.
+        folders: Folders that exist within this folder.
+        annotations: Additional metadata associated with the folder. The key is the name of your
+            desired annotations. The value is an object containing a list of values
+            (use empty list to represent no values for key) and the value type associated with
+            all values in the list.
+        is_loaded: Whether or not the folder has been loaded from Synapse.
+
+
+    """
 
     id: Optional[str] = None
     """The unique immutable ID for this folder. A new ID will be generated for new
@@ -94,8 +120,16 @@ class Folder:
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
         synapse_client: Optional[Synapse] = None,
-    ):
-        """Storing folder and files to synapse."""
+    ) -> "Folder":
+        """Storing folder and files to synapse.
+
+        Args:
+            parent: The parent folder or project to store the folder in.
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            The folder object.
+        """
         with tracer.start_as_current_span(f"Folder_Store: {self.name}"):
             # TODO - We need to add in some validation before the store to verify we have enough
             # information to store the data
@@ -103,7 +137,7 @@ class Folder:
             # Call synapse
             loop = asyncio.get_event_loop()
             synapse_folder = Synapse_Folder(
-                self.name, parent=parent.id if parent else self.parent_id
+                name=self.name, parent=parent.id if parent else self.parent_id
             )
             current_context = context.get_current()
             entity = await loop.run_in_executor(
@@ -170,8 +204,12 @@ class Folder:
     ) -> "Folder":
         """Get the folder metadata from Synapse.
 
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
-        :return: The folder object.
+        Args:
+            include_children: Whether or not to include the children of this folder.
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            The folder object.
         """
         with tracer.start_as_current_span(f"Folder_Get: {self.id}"):
             loop = asyncio.get_event_loop()
@@ -225,10 +263,14 @@ class Folder:
 
             return self
 
-    async def delete(self, synapse_client: Optional[Synapse] = None):
+    async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the folder from Synapse.
 
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            None
         """
         with tracer.start_as_current_span(f"Folder_Delete: {self.id}"):
             loop = asyncio.get_event_loop()

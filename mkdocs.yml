@@ -1,0 +1,227 @@
+# Project
+site_name: Synapse Python/Command Line Client Documentation
+site_author: Bryan Fauble
+site_description: >-
+  A Python client for Sage Bionetworks' Synapse, a collaborative, open-source research
+  platform that allows teams to share data, track analyses, and collaborate. The Python
+  client can be used as a library for development of software that communicates with
+  Synapse or as a command-line utility.
+
+# Repository
+repo_url: https://github.com/Sage-Bionetworks/synapsePythonClient
+repo_name: synapsePythonClient
+
+# Navigation
+nav:
+  - Home: index.md
+  - Tutorials:
+    # TODO:
+    # From no-knowledge provide learning steps for the user to get started with Synapse.
+    # Assume no knowledge is already known
+    # Each document should have a clear lesson, steps, and a goal.
+    - Installation: tutorials/installation.md
+    - Authentication: tutorials/authentication.md
+    - Configuration: tutorials/configuration.md
+    - Python:
+      - Creating a project: tutorials/python/create_project.md
+      - Creating a folder: tutorials/python/create_folder.md
+      - Uploading a file: tutorials/python/uploading_file.md
+      - Adding an annotation: tutorials/python/adding_annotations.md
+      - Adding an activity: tutorials/python/adding_activities.md
+      - Using file views: tutorials/python/using_file_views.md
+      - Downloading a file: tutorials/python/downloading_file.md
+      - Creating a table: tutorials/python/create_table.md
+      - Storing data in a table: tutorials/python/storing_data_in_a_table.md
+      - Querying data from a table: tutorials/python/querying_data_from_a_table.md
+      - Using views: tutorials/python/using_views.md
+      - Update sharing settings: tutorials/python/update_sharing_settings.md
+      - Downloading data in bulk: tutorials/python/downloading_data_in_bulk.md
+      - Uploading data in bulk: tutorials/python/uploading_data_in_bulk.md
+      - Retrieving versioned resources: tutorials/python/retrieving_versioned_resources.md
+      - Moving files and folders: tutorials/python/moving_files_and_folders.md
+      - Managing storage locations: tutorials/python/managing_storage_locations.md
+      - Migrating data to other storage locations: tutorials/python/migrating_data_to_other_storage_locations.md
+
+    # Some of this functionality may not exist in the CLI yet. If so - remove it.
+    - Command Line Interface:
+      - Creating a project: tutorials/cli/create_project.md
+      - Creating a folder: tutorials/cli/create_folder.md
+      - Uploading a file: tutorials/cli/uploading_file.md
+      - Adding an annotation: tutorials/cli/adding_annotations.md
+      - Adding an activity: tutorials/cli/adding_activities.md
+      - Using file views: tutorials/cli/using_file_views.md
+      - Downloading a file: tutorials/cli/downloading_file.md
+      - Creating a table: tutorials/cli/create_table.md
+      - Storing data in a table: tutorials/cli/storing_data_in_a_table.md
+      - Querying data from a table: tutorials/cli/querying_data_from_a_table.md
+      - Using views: tutorials/cli/using_views.md
+      - Update sharing settings: tutorials/cli/update_sharing_settings.md
+      - Downloading data in bulk: tutorials/cli/downloading_data_in_bulk.md
+      - Uploading data in bulk: tutorials/cli/uploading_data_in_bulk.md
+      - Retrieving versioned resources: tutorials/cli/retrieving_versioned_resources.md
+      - Moving files and folders: tutorials/cli/moving_files_and_folders.md
+      - Managing storage locations: tutorials/cli/managing_storage_locations.md
+      - Migrating data to other storage locations: tutorials/cli/migrating_data_to_other_storage_locations.md
+  - Python - How-To Guides:
+    # TODO:
+    # Quick reference guides on how to accomplish all of these tasks.
+    # This is meant to be something that folks reference to recall how to do something.
+    # The purpose is to provide steps to solve a real problem.
+    - Project:
+      - Creating a project: guides/project/create_project.md
+      - Storing annotations: guides/project/storing_annotations.md
+      - Storing an activity: guides/project/storing_activities.md
+      - Getting metadata: guides/project/getting_metadata.md
+      - Downloading content: guides/project/downloading_content.md
+      - Uploding content: guides/project/uploading_content.md
+      - Deleting content: guides/project/deleting_content.md
+      - Deleting a project: guides/project/deleting_project.md
+      - Sharing a project: guides/project/sharing_project.md
+      - Storage settings: guides/project/storage_settings.md
+    - Folder:
+      - Creating a folder: guides/folder/create_folder.md
+      - Storing annotations: guides/folder/storing_annotations.md
+      - Storing an activity: guides/folder/storing_activities.md
+      - Getting metadata: guides/folder/getting_metadata.md
+      - Downloading content: guides/folder/downloading_content.md
+      - Uploding content: guides/folder/uploading_content.md
+      - Deleting content: guides/folder/deleting_content.md
+      - Deleting a folder: guides/folder/deleting_folder.md
+      - Sharing a folder: guides/folder/sharing_folder.md
+      - Storage settings: guides/folder/storage_settings.md
+    - File:
+      - Creating a file: guides/file/create_file.md
+      - Storing annotations: guides/file/storing_annotations.md
+      - Storing an activity: guides/file/storing_activities.md
+      - Getting metadata: guides/file/getting_metadata.md
+      - Downloading content: guides/file/downloading_content.md
+      - Uploding content: guides/file/uploading_content.md
+      - Deleting content: guides/file/deleting_content.md
+      - Deleting a file: guides/file/deleting_file.md
+      - Sharing a file: guides/file/sharing_file.md
+      - Storage settings: guides/file/storage_settings.md
+    - Table:
+      - Creating a table: guides/table/create_table.md
+      - Managing columns: guides/table/managing_columns.md
+      - Storing an annotation: guides/table/storing_annotations.md
+      - Storing an activity: guides/table/storing_activities.md
+      - Getting metadata: guides/table/getting_metadata.md
+      - Downloading content: guides/table/downloading_content.md
+      - Uploding content: guides/table/uploading_content.md
+      - Deleting content: guides/table/deleting_content.md
+      - Deleting a table: guides/table/deleting_table.md
+      - Sharing a table: guides/table/sharing_table.md
+      - Storage settings: guides/table/storage_settings.md
+      - Creating a view: guides/table/creating_view.md
+  - API Reference:
+    # TODO:
+  # This API Reference section is meant to be a direct representation of the doc strings.
+  # That means we need to make sure that the doc strings are up to date and accurate.
+    - Models:
+    # todo: Restructure this section
+      - current:
+        - synapseclient: reference/synapseclient.md
+      - oop:
+        - Combined(Which looks best??): reference/oop/models.md
+        - Project: reference/oop/project.md
+        - Folder: reference/oop/folder.md
+        - File: reference/oop/file.md
+        - Table: reference/oop/table.md
+    - Command Line Interface: reference/cli.md
+  - Further Reading:
+    # TODO:
+    # Snippet of what synapse is, and links to further reading.
+    - What is Synapse?: nowhere.md
+    # What are use cases for annotations, how is it used in the real-world?
+    - Annotations: nowhere.md
+    # How does activity link to the concept of Provenance?
+    - Activity/Provenance: nowhere.md
+    # What storage options do we offer? S3, IBM, GCP ect...
+    - Storage Options: nowhere.md
+    # How is access control handled, how does it interact with things like open data?
+    - Access Control: nowhere.md
+    # Dive into how we handle versioning and anything that is 'cool to know'
+    - Versioning: nowhere.md
+    # What is an entity in terms of Synapse?
+    - Entity: nowhere.md
+    # Discuss what we are offering in the utils package
+    - SynapseUtils: nowhere.md
+    # Dive into how we handle caching for LRU cache and local file caching
+    - Caching: nowhere.md
+    # Dive into the manifest TSV for bulk actions
+    - Manifest Files: nowhere.md
+    # Dive deeper into how we handle the authentication on behalf of the user
+    - Authentication: nowhere.md
+    # Dive into the configuration file and how it works
+    - Configuration: nowhere.md
+  - News:
+    - news.md
+
+# Theme configuration
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+  icon:
+    admonition:
+      note: octicons/tag-16
+      info: octicons/info-16
+  logo: assets/synapse_logo.png
+  favicon: assets/favicon.png
+  features:
+    - content.code.copy
+    - navigation.footer
+    - navigation.sections
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+
+extra_css:
+- css/custom.css
+
+plugins:
+- search
+- autorefs
+- mkdocstrings:
+    default_handler: python
+    handlers:
+      python:
+        options:
+          members_order: source
+          show_if_no_docstring: False
+          show_root_heading: True
+          show_category_heading: True
+          docstring_style: google
+          docstring_section_style: spacy
+          filters:
+          - "!^_"
+- termynal
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Sage-Bionetworks/synapsePythonClient
+    - icon: fontawesome/brands/docker
+      link: https://github.com/Sage-Bionetworks/synapsePythonClient/pkgs/container/synapsepythonclient
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/synapseclient/
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
+  - toc:
+      permalink: true
