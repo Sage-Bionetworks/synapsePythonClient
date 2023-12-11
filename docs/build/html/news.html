@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Release Notes &mdash; Synapse Python Client 3.2.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="shortcut icon" href="_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Core" href="api/core.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html">
+            
+              <img src="_static/synapse_logo.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                3.2.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/credentials.html">Authentication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/basics.html">Tutorial</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Articles</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="articles/cli.html">Command Line Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/data_storage.html">Data Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/synapseutils.html">Synapse Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/validate_annotations.html">Validate Annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="articles/api.html">Accessing the API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/Client.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/Entity.html">Entity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/Evaluation.html">Evaluations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/Activity.html">Provenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/Annotations.html">Annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/Wiki.html">Wiki</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/Table.html">Tables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/Team.html">Teams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/Views.html">Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/JsonSchema.html">JSON Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/core.html">Core</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">News</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Release Notes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#highlights">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#stories">Stories</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">3.1.1 (2023-10-30)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id3">Bug Fixes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id4">3.1.0 (2023-10-20)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id5">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id6">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id7">Stories</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id8">3.0.0 (2023-09-09)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id9">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id10">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id11">Stories</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id12">2.7.2 (2023-06-02)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id13">Highlights</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id14">2.7.1 (2023-04-11)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id15">Highlights</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id16">2.7.0 (2022-09-16)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id17">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id18">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id19">Stories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tasks">Tasks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id20">2.6.0 (2022-04-19)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id21">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id22">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id23">Stories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id24">Tasks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id25">2.5.1 (2021-12-02)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id26">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id27">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id28">Stories</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id29">2.5.0 (2021-10-05)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id30">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id31">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id32">Stories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id33">Tasks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id34">2.4.0 (2021-07-08)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id35">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id36">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#improvements">Improvements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id37">Tasks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id38">2.3.1 (2021-04-13)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id39">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id40">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id41">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id42">2.3.0 (2021-03-03)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id43">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id44">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#new-features">New Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id45">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id46">2.2.2 (2020-10-18)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id47">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id48">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id49">New Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id50">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id51">2.2.0 (2020-08-31)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id52">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id53">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id54">Improvements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id55">Tasks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id56">2.1.1 (2020-07-10)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id57">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id58">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id59">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id60">2.1.0 (2020-06-16)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id61">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id62">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id63">Improvements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id64">Tasks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id65">2.0.0 (2020-03-23)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id66">Highlights:</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#bugs-fixes">Bugs Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id67">Tasks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id68">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id69">1.9.4 (2019-06-28)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id70">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id71">New Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id72">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id73">1.9.3 (2019-06-28)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id74">Bug Fixes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id75">1.9.2 (2019-02-15)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id76">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id77">Tasks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id78">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id79">1.9.1 (2019-01-20)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id80">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id81">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id82">Tasks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id83">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id84">1.9.0 (2018-09-28)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id85">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id86">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id87">Tasks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id88">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id89">1.8.2 (2018-08-17)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id90">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id91">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id92">Tasks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id93">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id94">1.8.1 (2018-05-17)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id95">Bug Fixes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id96">1.8.0 (2018-05-07)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id97">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id98">Tasks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id99">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id100">1.7.5 (2018-01-31)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id101">1.7.4 (2018-01-29)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id102">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id103">Improvements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id104">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id105">Tasks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id106">1.7.3 (2017-12-08)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id107">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id108">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id110">Tasks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id111">Improvements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id114">1.7.1 (2017-11-17)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id115">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id116">Improvements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id117">Bug Fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id118">Tasks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id119">1.6.1 (2016-11-02)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#what-is-new">What is New</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id120">Improvements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id121">Bug Fixes</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Synapse Python Client</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Release Notes</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/news.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="release-notes">
+<h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this headline"></a></h1>
+<p>3.2.0 (2023-11-27)</p>
+<section id="highlights">
+<h2>Highlights<a class="headerlink" href="#highlights" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>Added 2 new functions <cite>get_user_profile_by_username</cite> and <cite>get_user_profile_by_id</cite> to handle
+for use cases when a username is a number.</p></li>
+<li><p>Updated the local .cacheMap that is used to track local files downloaded from Synapse to include
+the MD5 of the file when there is a cache miss. This is used to determine if the file has changed
+since we cannot fully rely on the file’s modified date only.</p></li>
+<li><p>Include a progress indicator when downloading files via FTP.</p></li>
+<li><p>Benchmarking of download speeds to allow us to make data driven decisions and comparisons.</p></li>
+</ul>
+</section>
+<section id="bug-fixes">
+<h2>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1186">SYNPY-1186</a>] -
+When a username is a number,  getUserProfile cannot retrieve the user.</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1316">SYNPY-1316</a>] -
+Calling <cite>syn.get</cite> with <cite>ifcollision=’overwrite.local</cite> does not always overwrite previous file</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1319">SYNPY-1319</a>] -
+Unstable test: test_download_file_false</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1333">SYNPY-1333</a>] -
+synapse get on a file in a ftp server doesn’t seem to be downloading</p></li>
+</ul>
+</section>
+<section id="stories">
+<h2>Stories<a class="headerlink" href="#stories" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-816">SYNPY-816</a>] -
+Unstable test: integration.test_evaluations.test_teams</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1274">SYNPY-1274</a>] -
+Set up pre-commit in github actions</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1305">SYNPY-1305</a>] -
+Collect trace data for integration tests</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1320">SYNPY-1320</a>] -
+Benchmark upload speeds</p></li>
+</ul>
+<section id="id1">
+<h3>3.1.1 (2023-10-30)<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id2">
+<h2>Highlights<a class="headerlink" href="#id2" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>A fix to dowloads when file names match but content does not when <cite>ifcollision=overwrite.local</cite></p></li>
+</ul>
+</section>
+<section id="id3">
+<h2>Bug Fixes<a class="headerlink" href="#id3" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1316">SYNPY-1316</a>] -
+Calling <cite>syn.get</cite> with <cite>ifcollision=’overwrite.local</cite> does not always overwrite previous file</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1298">SYNPY-1298</a>] -
+Resolve unstable integration tests</p></li>
+</ul>
+<section id="id4">
+<h3>3.1.0 (2023-10-20)<a class="headerlink" href="#id4" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id5">
+<h2>Highlights<a class="headerlink" href="#id5" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>A fix to authentication when using a Personal Access token or API Key.
+<cite>synapse login</cite> and <cite>synapse config</cite> correctly work as a result.</p></li>
+<li><p>Replacement of custom <cite>&#64;memoize</cite> decorator with <cite>&#64;functools.lru_cache</cite> decorator.</p></li>
+<li><p>Introduction of pipfile for easy creation of a virtual environment for development.</p></li>
+</ul>
+</section>
+<section id="id6">
+<h2>Bug Fixes<a class="headerlink" href="#id6" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1283">SYNPY-1283</a>] -
+Fix dead link in docs</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1296">SYNPY-1296</a>] -
+Unable to log into synapse only with auth token</p></li>
+</ul>
+</section>
+<section id="id7">
+<h2>Stories<a class="headerlink" href="#id7" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-49">SYNPY-49</a>] -
+py: getPermissions and permissions via group membership</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-967">SYNPY-967</a>] -
+Replace &#64;memoize annotation in python client with &#64;functools.lru_cache</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1282">SYNPY-1282</a>] -
+Add type hints to 5 functions in client.py</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1285">SYNPY-1285</a>] -
+Create pipenv lock file for synapsePythonClient</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1293">SYNPY-1293</a>] -
+Address Dependabot security vulnerabilities</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1295">SYNPY-1295</a>] -
+Doc: Add config command to authentication section in Synapse doc</p></li>
+</ul>
+<section id="id8">
+<h3>3.0.0 (2023-09-09)<a class="headerlink" href="#id8" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id9">
+<h2>Highlights<a class="headerlink" href="#id9" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>Removed all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
+<li><p>Remove support for Python 3.7 due to its end of life and support Python 3.11</p></li>
+<li><p>Support Synapse JSON schema services</p></li>
+</ul>
+</section>
+<section id="id10">
+<h2>Bug Fixes<a class="headerlink" href="#id10" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-570">SYNPY-570</a>] -
+warning messages when downloading if files in the cache already</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-622">SYNPY-622</a>] -
+Constructor for SubmissionStatus is not correctly implemented</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1242">SYNPY-1242</a>] -
+_loggedIn() function doesn’t work</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1269">SYNPY-1269</a>] -
+Integration test failures against release-456</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1271">SYNPY-1271</a>] -
+Integration test failure against release-458</p></li>
+</ul>
+</section>
+<section id="id11">
+<h2>Stories<a class="headerlink" href="#id11" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-737">SYNPY-737</a>] -
+deprecate single dash, multi-letter named params in command line client</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1012">SYNPY-1012</a>] -
+Synapse Command Line documentation is not distinct from Synapse Python Client documentations</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1213">SYNPY-1213</a>] -
+Add “public” and “registered users” group to setPermissions doc</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1245">SYNPY-1245</a>] -
+Fix old links to synapse docs</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1246">SYNPY-1246</a>] -
+Support Python 3.11</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1122">SYNPY-1122</a>] -
+JSON Schema support</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1255">SYNPY-1255</a>] -
+Support pandas 2.0 in python client</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1270">SYNPY-1270</a>] -
+Deprecate the use of <cite>date_parser</cite> and <cite>parse_date</cite> in <cite>pd.read_csv</cite> in table module</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-716">SYNPY-716</a>] -
+Deprecate and remove asInteger()</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1227">SYNPY-1227</a>] -
+Run <cite>black</cite> the Python auto formatter on the files</p></li>
+</ul>
+<section id="id12">
+<h3>2.7.2 (2023-06-02)<a class="headerlink" href="#id12" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id13">
+<h2>Highlights<a class="headerlink" href="#id13" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1267">SYNPY-1267</a>] -
+Lock down urllib3</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1268">SYNPY-1268</a>] -
+Add deprecation warning for non-support login arguments</p></li>
+<li><p>Next major release (3.0.0)…</p>
+<ul>
+<li><p>Support only pandas <cite>&gt;=</cite> 1.5</p></li>
+<li><p>Remove support for Python 3.7 due to its end of life.</p></li>
+<li><p>There will be major cosmetic changes to the cli such as
+removing all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
+</ul>
+</li>
+</ul>
+<section id="id14">
+<h3>2.7.1 (2023-04-11)<a class="headerlink" href="#id14" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id15">
+<h2>Highlights<a class="headerlink" href="#id15" title="Permalink to this headline"></a></h2>
+<ul>
+<li><p>Locked down pandas version to only support pandas <cite>&lt;</cite> 1.5</p></li>
+<li><p>Next major release (3.0.0)…</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Support only pandas <cite>&gt;=</cite> 1.5</p></li>
+<li><p>Remove support for Python 3.7 due to its end of life.</p></li>
+<li><p>There will be major cosmetic changes to the cli such as
+removing all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+<section id="id16">
+<h3>2.7.0 (2022-09-16)<a class="headerlink" href="#id16" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id17">
+<h2>Highlights<a class="headerlink" href="#id17" title="Permalink to this headline"></a></h2>
+<ul>
+<li><p>Added support for Datasets</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># from python</span>
+<span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">import</span> <span class="nn">synapseutils</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">dataset_items</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn000&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="p">{</span><span class="o">...</span><span class="p">},</span>
+<span class="p">]</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My Dataset&quot;</span><span class="p">,</span>
+    <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span>
+    <span class="n">dataset_items</span><span class="o">=</span><span class="n">dataset_items</span>
+<span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+<span class="c1"># Add/remove specific Synapse IDs to/from the Dataset</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_item</span><span class="p">({</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn111&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">remove_item</span><span class="p">(</span><span class="s2">&quot;syn000&quot;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+<span class="c1"># Add a single Folder to the Dataset</span>
+<span class="c1"># this will recursively add all the files in the folder</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_folder</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+<span class="c1"># Add a list of Folders, overwriting any existing files in the dataset</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_folders</span><span class="p">([</span><span class="s2">&quot;syn456&quot;</span><span class="p">,</span> <span class="s2">&quot;syn789&quot;</span><span class="p">],</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+<span class="c1"># Create snapshot version of dataset</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">create_snapshot_version</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;v1.0&quot;</span><span class="p">,</span>
+    <span class="n">comment</span><span class="o">=</span><span class="s2">&quot;This is version 1&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Added support for downloading from download cart.
+You can use this feature by first adding items to your download cart on Synapse.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># from python</span>
+<span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">import</span> <span class="nn">synapseutils</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">manifest_path</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get_download_list</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from command line</span>
+synapse<span class="w"> </span>get-download-list
+</pre></div>
+</div>
+</li>
+<li><p>Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+removing all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
+</ul>
+</section>
+<section id="id18">
+<h2>Bug Fixes<a class="headerlink" href="#id18" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-226">SYNPY-226</a>] -
+isConsistent fails as parameter for table query</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-562">SYNPY-562</a>] -
+Make sure SQL functions, including “year”, are quoted correctly</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1031">SYNPY-1031</a>] -
+File version increments with 400 client error</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1219">SYNPY-1219</a>] -
+Update Entity class to be compatible with the new Dataset entity</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1224">SYNPY-1224</a>] -
+Correct SynapseUnmetAccessRestrictions message</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1237">SYNPY-1237</a>] -
+as_table_columns function is mishandling mixed data types</p></li>
+</ul>
+</section>
+<section id="id19">
+<h2>Stories<a class="headerlink" href="#id19" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-63">SYNPY-63</a>] -
+py: use metaclass to replace the _entity_type_to_class hack</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-992">SYNPY-992</a>] -
+synapseutils changeFileMetadata missing syn parameter docstring</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1175">SYNPY-1175</a>] -
+Programmatic Support for Download V2 via Py Client</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1193">SYNPY-1193</a>] -
+Support Datasets functionality</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1221">SYNPY-1221</a>] -
+Set up gh-action: black, the python auto formatter on the python client</p></li>
+</ul>
+</section>
+<section id="tasks">
+<h2>Tasks<a class="headerlink" href="#tasks" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-566">SYNPY-566</a>] -
+Clarify expected list format for sync manifest</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1053">SYNPY-1053</a>] -
+Increase documentation of forceVersion in syncToSynapse</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1145">SYNPY-1145</a>] -
+Link to manifest format in CLI sync command usage help</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1226">SYNPY-1226</a>] -
+Leverage <cite>ViewBase</cite> for Datasets instead of <cite>SchemaBase</cite></p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1235">SYNPY-1235</a>] -
+Create codeql scanning workflow</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1207">SYNPY-1207</a>] -
+Support syn.get() on a dataset</p></li>
+</ul>
+<section id="id20">
+<h3>2.6.0 (2022-04-19)<a class="headerlink" href="#id20" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id21">
+<h2>Highlights<a class="headerlink" href="#id21" title="Permalink to this headline"></a></h2>
+<ul>
+<li><p>Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+removing all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
+<li><p>Added support for materialized views</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># from python</span>
+<span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">import</span> <span class="nn">synapseutils</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">view</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">MaterializedViewSchema</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;test-material-view&quot;</span><span class="p">,</span>
+    <span class="n">parent</span><span class="o">=</span><span class="s2">&quot;syn34234&quot;</span><span class="p">,</span>
+    <span class="n">definingSQL</span><span class="o">=</span><span class="s2">&quot;SELECT * FROM syn111 F JOIN syn2222 P on (F.PATIENT_ID = P.PATIENT_ID)&quot;</span>
+<span class="p">)</span>
+<span class="n">view_ent</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">view</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Removed support for Python 3.6 and added support for Python 3.10</p></li>
+<li><p>Add function to create Synapse config file</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from the command line</span>
+synapse<span class="w"> </span>config
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="id22">
+<h2>Bug Fixes<a class="headerlink" href="#id22" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1204">SYNPY-1204</a>] -
+Python 3.10 compatibility</p></li>
+</ul>
+</section>
+<section id="id23">
+<h2>Stories<a class="headerlink" href="#id23" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-728">SYNPY-728</a>] -
+Improve error message when pandas is not available</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-974">SYNPY-974</a>] -
+Documentation for generateManifest</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1209">SYNPY-1209</a>] -
+Support for MaterializedViews in Py Client</p></li>
+</ul>
+</section>
+<section id="id24">
+<h2>Tasks<a class="headerlink" href="#id24" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1174">SYNPY-1174</a>] -
+Add function to create Synapse config file</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1176">SYNPY-1176</a>] -
+syncToSynapse aborted + silent failure of file upload</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1184">SYNPY-1184</a>] -
+Add <cite>includeTypes</cite> to <cite>synapseutils.walk()</cite></p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1189">SYNPY-1189</a>] -
+Document “maximumListLength” parameter for Column</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1196">SYNPY-1196</a>] -
+Expose <cite>forceVersion</cite> on <cite>changeFileMetadata</cite></p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1205">SYNPY-1205</a>] -
+Python 3.6 EOL - Remove support for 3.6</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1212">SYNPY-1212</a>] -
+Include <cite>dataset</cite> as an entity type to return in getChildren()</p></li>
+</ul>
+<section id="id25">
+<h3>2.5.1 (2021-12-02)<a class="headerlink" href="#id25" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id26">
+<h2>Highlights<a class="headerlink" href="#id26" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+removing all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
+</ul>
+</section>
+<section id="id27">
+<h2>Bug Fixes<a class="headerlink" href="#id27" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1197">SYNPY-1197</a>] -
+Schema is a string and strings don’t have columns_to_store attributes</p></li>
+</ul>
+</section>
+<section id="id28">
+<h2>Stories<a class="headerlink" href="#id28" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-772">SYNPY-772</a>] -
+update statement that appears on PyPi about Synapse to be consistent</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-997">SYNPY-997</a>] -
+Typos in Views documentation</p></li>
+</ul>
+<section id="id29">
+<h3>2.5.0 (2021-10-05)<a class="headerlink" href="#id29" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id30">
+<h2>Highlights<a class="headerlink" href="#id30" title="Permalink to this headline"></a></h2>
+<ul>
+<li><p>Added ability to generate a manifest file from your local directory structure.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from the command line</span>
+<span class="c1"># write the manifest to manifest.tsv</span>
+synapse<span class="w"> </span>manifest<span class="w"> </span>--parent-id<span class="w"> </span>syn123<span class="w"> </span>--manifest-file<span class="w"> </span>./manifest.tsv<span class="w"> </span>/path/to/local/directory
+<span class="c1"># stdout</span>
+synapse<span class="w"> </span>manifest<span class="w"> </span>--parent-id<span class="w"> </span>syn123<span class="w"> </span>/path/to/local/directory
+</pre></div>
+</div>
+</li>
+<li><p>Added ability to pipe manifest stdout into sync function.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from the command line</span>
+synapse<span class="w"> </span>manifest<span class="w"> </span>--parent-id<span class="w"> </span>syn123<span class="w"> </span>./docs/<span class="w"> </span><span class="p">|</span><span class="w"> </span>synapse<span class="w"> </span>sync<span class="w"> </span>-
+</pre></div>
+</div>
+</li>
+<li><p>Added ability to return summary statistics of csv and tsv files stored in Synapse.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from python</span>
+import<span class="w"> </span>synapseclient
+import<span class="w"> </span>synapseutils
+<span class="nv">syn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>synapseclient.login<span class="o">()</span>
+<span class="nv">statistics</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>synapseutils.describe<span class="o">(</span><span class="nv">syn</span><span class="o">=</span>syn,<span class="w"> </span><span class="nv">entity</span><span class="o">=</span><span class="s2">&quot;syn12345&quot;</span><span class="o">)</span>
+print<span class="o">(</span>statistics<span class="o">)</span>
+<span class="o">{</span>
+<span class="w">    </span><span class="s2">&quot;column1&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">        </span><span class="s2">&quot;dtype&quot;</span>:<span class="w"> </span><span class="s2">&quot;object&quot;</span>,
+<span class="w">        </span><span class="s2">&quot;mode&quot;</span>:<span class="w"> </span><span class="s2">&quot;FOOBAR&quot;</span>
+<span class="w">    </span><span class="o">}</span>,
+<span class="w">    </span><span class="s2">&quot;column2&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">        </span><span class="s2">&quot;dtype&quot;</span>:<span class="w"> </span><span class="s2">&quot;int64&quot;</span>,
+<span class="w">        </span><span class="s2">&quot;mode&quot;</span>:<span class="w"> </span><span class="m">1</span>,
+<span class="w">        </span><span class="s2">&quot;min&quot;</span>:<span class="w"> </span><span class="m">1</span>,
+<span class="w">        </span><span class="s2">&quot;max&quot;</span>:<span class="w"> </span><span class="m">2</span>,
+<span class="w">        </span><span class="s2">&quot;mean&quot;</span>:<span class="w"> </span><span class="m">1</span>.4
+<span class="w">    </span><span class="o">}</span>,
+<span class="w">    </span><span class="s2">&quot;column3&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">        </span><span class="s2">&quot;dtype&quot;</span>:<span class="w"> </span><span class="s2">&quot;bool&quot;</span>,
+<span class="w">        </span><span class="s2">&quot;mode&quot;</span>:<span class="w"> </span>false,
+<span class="w">        </span><span class="s2">&quot;min&quot;</span>:<span class="w"> </span>false,
+<span class="w">        </span><span class="s2">&quot;max&quot;</span>:<span class="w"> </span>true,
+<span class="w">        </span><span class="s2">&quot;mean&quot;</span>:<span class="w"> </span><span class="m">0</span>.5
+<span class="w">    </span><span class="o">}</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+</li>
+<li><p>Next major release (3.0.0) there will be major cosmetic changes to the cli such as
+removing all camel case or non-standard single dash long command line interface (cli)
+parameters.
+Example: command line arguments like <cite>-parent</cite> will become
+<cite>–parent</cite>.  Commands that support camel case like <cite>–parentId</cite>
+will be changed to <cite>–parent-id</cite>.</p></li>
+</ul>
+</section>
+<section id="id31">
+<h2>Bug Fixes<a class="headerlink" href="#id31" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-669">SYNPY-669</a>] -
+Signing of Synapse authentication header does not correctly URL encode the URL path</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-770">SYNPY-770</a>] -
+Files failing to upload using syncToSynapse</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1123">SYNPY-1123</a>] -
+All tables erroring when indexing</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1146">SYNPY-1146</a>] -
+Error writing Booleans from Python dataframes into Boolean columns in a Synapse table</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1156">SYNPY-1156</a>] -
+datetimes in a Pandas dataframe are not properly stored to Synapse</p></li>
+</ul>
+</section>
+<section id="id32">
+<h2>Stories<a class="headerlink" href="#id32" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-726">SYNPY-726</a>] -
+mirror local folder structure for bulk upload</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1163">SYNPY-1163</a>] -
+Expose synId with syn get -r</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1165">SYNPY-1165</a>] -
+Generate manifest template from local folder structure</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1167">SYNPY-1167</a>] -
+Support for Quick Summary Statistics on CSV and TSV files</p></li>
+</ul>
+</section>
+<section id="id33">
+<h2>Tasks<a class="headerlink" href="#id33" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1169">SYNPY-1169</a>] -
+Integration tests failures in develop branch against stack-371</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1172">SYNPY-1172</a>] -
+Passing a pandas dataframe with a column called “read” breaks the type parsing in as_table_columns()</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1173">SYNPY-1173</a>] -
+Support DATE_LIST, ENTITYID_LIST, USERID_LIST table columns</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1188">SYNPY-1188</a>] -
+Support piping of <cite>synapse manifest</cite> stdout in <cite>synapse sync</cite> function</p></li>
+</ul>
+<section id="id34">
+<h3>2.4.0 (2021-07-08)<a class="headerlink" href="#id34" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id35">
+<h2>Highlights<a class="headerlink" href="#id35" title="Permalink to this headline"></a></h2>
+<ul>
+<li><p>Added ability to authenticate from a <code class="code docutils literal notranslate"><span class="pre">SYNAPSE_AUTH_TOKEN</span></code> environment variable set with a valid <a class="reference external" href="https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens">personal access token</a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># e.g. set environment variable prior to invoking a Synapse command or running a program that uses synapseclient</span>
+<span class="nv">SYNAPSE_AUTH_TOKEN</span><span class="o">=</span><span class="s1">&#39;&lt;my_personal_access_token&gt;&#39;</span><span class="w"> </span>synapse<span class="w"> </span>&lt;subcommand<span class="w"> </span>options&gt;
+</pre></div>
+</div>
+<p>The environment variable will take priority over credentials in the user’s <code class="code docutils literal notranslate"><span class="pre">.synapseConfig</span></code> file
+or any credentials saved in a prior login using the remember me option.</p>
+<p>See <a class="reference external" href="Credentials.html#use-environment-variable">here</a> for more details on usage.</p>
+</li>
+<li><p>Added ability to silence all console output.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># from the command line, use the --silent option with any synapse subcommand, here it will suppress the download progress indicator</span>
+synapse<span class="w"> </span>--silent<span class="w"> </span>get<span class="w"> </span>&lt;synid&gt;
+</pre></div>
+</div>
+<div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># from code using synapseclient, pass the silent option to the Synapse constructor</span>
+<span class="kn">import</span> <span class="nn">synapseclient</span>
+
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">Synapse</span><span class="p">(</span><span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="o">&lt;</span><span class="n">synid</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Improved robustness during downloads with unstable connections. Specifically the client will automatically recover
+when encoutering some types of network errors that previously would have caused a download to start over as indicated by a
+reset progress bar.</p></li>
+</ul>
+</section>
+<section id="id36">
+<h2>Bug Fixes<a class="headerlink" href="#id36" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-198">SYNPY-198</a>] -
+get: Unmet access requirement should not raise error if entity not downloadable</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-959">SYNPY-959</a>] -
+FileEntity ‘path’ property has wrong separator in Windows</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1113">SYNPY-1113</a>] -
+Confusing error when putting the positional FILE at the end of the synapse store command with an optional n-arg</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1128">SYNPY-1128</a>] -
+failures downloading 14G vcf file</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1130">SYNPY-1130</a>] -
+Migration tool trying to move URL-linked data</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1134">SYNPY-1134</a>] -
+500 error during part copy to AWS presigned url</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1135">SYNPY-1135</a>] -
+Exceeding part limit during AD Migration</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1136">SYNPY-1136</a>] -
+Connection aborted to AWS part copy to presigned  url during AD Migration</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1141">SYNPY-1141</a>] -
+synapse get command line nargs usage/error</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1150">SYNPY-1150</a>] -
+Boolean-like string columns being reformatted (TRUE/FALSE to True/False)</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1158">SYNPY-1158</a>] -
+race condition in test_caching.py#test_threaded_access</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1159">SYNPY-1159</a>] -
+logging in with an email address and an authToken gives spurious error</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1161">SYNPY-1161</a>] -
+ChunkEncodingError encountered from external collaborator during a synapseclient download</p></li>
+</ul>
+</section>
+<section id="improvements">
+<h2>Improvements<a class="headerlink" href="#improvements" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-638">SYNPY-638</a>] -
+add after date to cache purge</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-929">SYNPY-929</a>] -
+silent parameter for all functions which default to writing to stdout</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1068">SYNPY-1068</a>] -
+Should show some progress indicator during upload md5 calculation</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1125">SYNPY-1125</a>] -
+Allow login with environment variables</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1138">SYNPY-1138</a>] -
+When using boto3 client to upload a file, also include ACL to give bucket owner full access</p></li>
+</ul>
+</section>
+<section id="id37">
+<h2>Tasks<a class="headerlink" href="#id37" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-948">SYNPY-948</a>] -
+command line client set-annotations does not return proper error code when there’s a problem</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1024">SYNPY-1024</a>] -
+remove reference to deprecated ‘status’ field from Evaluation</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1143">SYNPY-1143</a>] -
+indicate in CLI doc’s that select statement requires double quotes</p></li>
+</ul>
+<section id="id38">
+<h3>2.3.1 (2021-04-13)<a class="headerlink" href="#id38" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id39">
+<h2>Highlights<a class="headerlink" href="#id39" title="Permalink to this headline"></a></h2>
+<ul>
+<li><p>Entities can be annotated with boolean datatypes, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">file</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;/path/to/file&#39;</span><span class="p">,</span> <span class="n">parentId</span><span class="o">=</span><span class="s1">&#39;syn123&#39;</span><span class="p">,</span> <span class="n">synapse_is_great</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>synapseclient is additionally packaged as a Python wheel.</p></li>
+</ul>
+</section>
+<section id="id40">
+<h2>Bug Fixes<a class="headerlink" href="#id40" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-829">SYNPY-829</a>] -
+syn.store always updates annotations</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1033">SYNPY-1033</a>] -
+If versionComment is left blank, previous version comment populates</p></li>
+</ul>
+</section>
+<section id="id41">
+<h2>Improvements<a class="headerlink" href="#id41" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1120">SYNPY-1120</a>] -
+Build wheel distributions</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1129">SYNPY-1129</a>] -
+Support boolean annotations in Python client</p></li>
+</ul>
+<section id="id42">
+<h3>2.3.0 (2021-03-03)<a class="headerlink" href="#id42" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id43">
+<h2>Highlights<a class="headerlink" href="#id43" title="Permalink to this headline"></a></h2>
+<ul>
+<li><p>The <a class="reference external" href="synapseutils.html#synapseutils.migrate_functions.index_files_for_migration">index_files_for_migration</a> and
+<a class="reference external" href="synapseutils.html#synapseutils.migrate_functions.migrate_indexed_files">migrate_indexed_files</a> functions are added
+to synapseutils to help migrate files in Synapse projects and folders between AWS S3 buckets in the same region.
+More details on using these utilities can be found <a class="reference external" href="S3Storage.html#storage-location-migration">here</a>.</p></li>
+<li><p>This version supports login programatically and from the command line using personal access tokens that can be obtained
+from your synapse.org Settings. Additional documentation on login and be found <a class="reference external" href="Credentials.html">here</a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># programmatic</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">authToken</span><span class="o">=&lt;</span><span class="n">token</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># command line</span>
+<span class="n">synapse</span> <span class="n">login</span> <span class="o">-</span><span class="n">p</span> <span class="o">&lt;</span><span class="n">token</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</li>
+<li><p>The location where downloaded entities are cached can be customized to a location other than the user’s home directory.
+This is useful in environments where writing to a home directory is not appropriate (e.g. an AWS lambda).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">Synapse</span><span class="p">(</span><span class="n">cache_root_dir</span><span class="o">=&lt;</span><span class="n">directory</span> <span class="n">path</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>A <a class="reference external" href="index.html#synapseclient.Synapse.is_certified">helper method</a> on the Synapse object has been added to enable obtaining the Synapse certification quiz status of a user.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">passed</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">is_certified</span><span class="p">(</span><span class="o">&lt;</span><span class="n">username</span> <span class="ow">or</span> <span class="n">user_id</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>This version has been tested with Python 3.9.</p></li>
+</ul>
+</section>
+<section id="id44">
+<h2>Bug Fixes<a class="headerlink" href="#id44" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1039">SYNPY-1039</a>] -
+tableQuery asDataFrame() results with TYPE_LIST columns should be lists and not literal strings</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1109">SYNPY-1109</a>] -
+unparseable synapse cacheMap raises JSONDecodeError</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1110">SYNPY-1110</a>] -
+Cleanup on Windows console login</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1112">SYNPY-1112</a>] -
+Concurrent migration of entities sharing the same file handle can result in an error</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1114">SYNPY-1114</a>] -
+Mitigate new Rust compiler dependency on Linux via transitive cryptography dependency</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1118">SYNPY-1118</a>] -
+Migration tool erroring when it shouldn’t</p></li>
+</ul>
+</section>
+<section id="new-features">
+<h2>New Features<a class="headerlink" href="#new-features" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1058">SYNPY-1058</a>] -
+Accept oauth access token for authentication to use Synapse REST services</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1103">SYNPY-1103</a>] -
+Multipart copy integration</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1111">SYNPY-1111</a>] -
+Add function to get user certification status</p></li>
+</ul>
+</section>
+<section id="id45">
+<h2>Improvements<a class="headerlink" href="#id45" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-885">SYNPY-885</a>] -
+Public interface to customize CACHE_ROOT_DIR</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1102">SYNPY-1102</a>] -
+syncToSynapse adds empty annotation values</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1104">SYNPY-1104</a>] -
+Python 3.9 support</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1119">SYNPY-1119</a>] -
+Add source storage location option to storage migrate functions</p></li>
+</ul>
+<section id="id46">
+<h3>2.2.2 (2020-10-18)<a class="headerlink" href="#id46" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id47">
+<h2>Highlights<a class="headerlink" href="#id47" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>This version addresses an issue with downloads being retried unsuccessfully after encountering certain types of errors.</p></li>
+<li><p>A <a class="reference external" href="index.html#synapseclient.Synapse.create_snapshot_version">create_snapshot_version</a> function is added for making table and view snapshots.</p></li>
+</ul>
+</section>
+<section id="id48">
+<h2>Bug Fixes<a class="headerlink" href="#id48" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1096">SYNPY-1096</a>] -
+Fix link to Synapse on PyPI</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1097">SYNPY-1097</a>] -
+downloaded files are reset when disk space exhausted</p></li>
+</ul>
+</section>
+<section id="id49">
+<h2>New Features<a class="headerlink" href="#id49" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1041">SYNPY-1041</a>] -
+Snapshot feature and programmatic clients</p></li>
+</ul>
+</section>
+<section id="id50">
+<h2>Improvements<a class="headerlink" href="#id50" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1063">SYNPY-1063</a>] -
+Consolidate builds to GitHub Actions</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1099">SYNPY-1099</a>] -
+Replace usage of deprecated PUT /entity/{id}/version endpoint</p></li>
+</ul>
+<section id="id51">
+<h3>2.2.0 (2020-08-31)<a class="headerlink" href="#id51" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id52">
+<h2>Highlights<a class="headerlink" href="#id52" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>Files that are part of
+<a class="reference external" href="https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse">syncFromSynapse</a>
+and
+<a class="reference external" href="https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncToSynapse">syncToSynapse</a>
+operations (<code class="code docutils literal notranslate"><span class="pre">synapse</span> <span class="pre">get</span> <span class="pre">-r</span></code> and <code class="code docutils literal notranslate"><span class="pre">synapse</span> <span class="pre">sync</span></code> in the command line client, respectively) are
+transferred in in parallel threads rather than serially, substantially improving the performance of these operations.</p></li>
+<li><p>Table metadata from <cite>synapse get -q</cite> is automatically downloaded to a users working directory instead of to the Synapse cache (a hidden folder).</p></li>
+<li><p>Users can now pass their API key to <cite>synapse login</cite> in place of a password.</p></li>
+</ul>
+</section>
+<section id="id53">
+<h2>Bug Fixes<a class="headerlink" href="#id53" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1082">SYNPY-1082</a>] -
+Downloading entity linked to URL fails: module ‘urllib.parse’ has no attribute ‘urlretrieve’</p></li>
+</ul>
+</section>
+<section id="id54">
+<h2>Improvements<a class="headerlink" href="#id54" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1072">SYNPY-1072</a>] -
+Improve throughput of multiple small file transfers</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1073">SYNPY-1073</a>] -
+Parellelize upload syncs</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1074">SYNPY-1074</a>] -
+Parallelize download syncs</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1084">SYNPY-1084</a>] -
+Allow anonymous usage for public APIs like GET /teamMembers/{id}</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1088">SYNPY-1088</a>] -
+Manifest is in cache with synapse get -q</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1090">SYNPY-1090</a>] -
+Command line client does not support apikey</p></li>
+</ul>
+</section>
+<section id="id55">
+<h2>Tasks<a class="headerlink" href="#id55" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1080">SYNPY-1080</a>] -
+Remove Versionable from SchemaBase</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1085">SYNPY-1085</a>] -
+Move to pytest testing framework</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1087">SYNPY-1087</a>] -
+Improve synapseclient installation instructions</p></li>
+</ul>
+<section id="id56">
+<h3>2.1.1 (2020-07-10)<a class="headerlink" href="#id56" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id57">
+<h2>Highlights<a class="headerlink" href="#id57" title="Permalink to this headline"></a></h2>
+<ul>
+<li><p>This version includes a performance improvement for
+<a class="reference external" href="https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse">syncFromSynapse</a>
+downloads of deep folder hierarchies to local filesystem locations outside of the
+<a class="reference external" href="https://help.synapse.org/docs/Downloading-Data-Programmatically.2003796248.html#DownloadingDataProgrammatically-DownloadingFiles">Synapse cache</a>.</p></li>
+<li><p>Support is added for <strong>SubmissionViews</strong> that can be used to query and edit
+a set of submissions through table services.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">SubmissionViewSchema</span>
+
+<span class="n">project</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+<span class="n">evaluation_id</span> <span class="o">=</span> <span class="s1">&#39;9876543&#39;</span>
+<span class="n">view</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">SubmissionViewSchema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;My Submission View&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="n">evaluation_id</span><span class="p">]))</span>
+<span class="n">view_table</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;select * from </span><span class="si">{</span><span class="n">view</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="id58">
+<h2>Bug Fixes<a class="headerlink" href="#id58" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1075">SYNPY-1075</a>] -
+Error in Python test (submission annotations)</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1076">SYNPY-1076</a>] -
+Upgrade/fix Pandas dependency</p></li>
+</ul>
+</section>
+<section id="id59">
+<h2>Improvements<a class="headerlink" href="#id59" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1070">SYNPY-1070</a>] -
+Add support for submission views</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1078">SYNPY-1078</a>] -
+Improve syncFromSynapse performance for large folder structures synced to external paths</p></li>
+</ul>
+<section id="id60">
+<h3>2.1.0 (2020-06-16)<a class="headerlink" href="#id60" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id61">
+<h2>Highlights<a class="headerlink" href="#id61" title="Permalink to this headline"></a></h2>
+<ul>
+<li><p>A <code class="code docutils literal notranslate"><span class="pre">max_threads</span></code> property of the Synapse object has been added to customize the number of concurrent threads
+that will be used during file transfers.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">max_threads</span> <span class="o">=</span> <span class="mi">20</span>
+</pre></div>
+</div>
+<p>If not customized the default value is (CPU count + 4). Adjusting this value
+higher may speed up file transfers if the local system resources can take advantage of the higher setting.
+Currently this value applies only to files whose underlying storage is AWS S3.</p>
+<p>Alternately, a value can be stored in the <a class="reference external" href="https://help.synapse.org/docs/Client-Configuration.1985446156.html">synapseConfig configuration file</a> that will automatically apply
+as the default if a value is not explicitly set.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">transfer</span><span class="p">]</span>
+<span class="n">max_threads</span><span class="o">=</span><span class="mi">16</span>
+</pre></div>
+</div>
+</li>
+<li><p>This release includes support for directly accessing S3 storage locations using AWS Security Token Service
+credentials. This allows use of external AWS clients and libraries with Synapse storage, and can be used to
+accelerate file transfers under certain conditions. To create an STS enabled folder and set-up direct access to S3
+storage, see <a class="reference internal" href="articles/data_storage.html#sts-storage-locations"><span class="std std-ref">here</span></a>.</p></li>
+<li><p>The <code class="code docutils literal notranslate"><span class="pre">getAnnotations</span></code> and <code class="code docutils literal notranslate"><span class="pre">setAnnotations</span></code> methods of the Synapse object have been <strong>deprecated</strong> in
+favor of newer <code class="code docutils literal notranslate"><span class="pre">get_annotations</span></code> and <code class="code docutils literal notranslate"><span class="pre">set_annotations</span></code> methods, respectively. The newer versions
+are parameterized with a typed <code class="code docutils literal notranslate"><span class="pre">Annotations</span></code> dictionary rather than a plain Python dictionary to prevent
+existing annotations from being accidentally overwritten. The expected usage for setting annotations is to first
+retrieve the existing <code class="code docutils literal notranslate"><span class="pre">Annotations</span></code> for an entity before saving changes by passing back a modified value.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">annos</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get_annotations</span><span class="p">(</span><span class="s1">&#39;syn123&#39;</span><span class="p">)</span>
+
+<span class="c1"># set key &#39;foo&#39; to have value of &#39;bar&#39; and &#39;baz&#39;</span>
+<span class="n">annos</span><span class="p">[</span><span class="s1">&#39;foo&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;bar&#39;</span><span class="p">,</span> <span class="s1">&#39;baz&#39;</span><span class="p">]</span>
+<span class="c1"># single values will automatically be wrapped in a list once stored</span>
+<span class="n">annos</span><span class="p">[</span><span class="s1">&#39;qwerty&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;asdf&#39;</span>
+
+<span class="n">annos</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">set_annotations</span><span class="p">(</span><span class="n">annos</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The deprecated annotations methods may be removed in a future release.</p>
+</li>
+</ul>
+<p>A full list of issues addressed in this release are below.</p>
+</section>
+<section id="id62">
+<h2>Bug Fixes<a class="headerlink" href="#id62" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-913">SYNPY-913</a>] -
+Travis Build badge for develop branch is pointing to pull request</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-960">SYNPY-960</a>] -
+AppVeyor build badge appears to be failed while the builds are passed</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1036">SYNPY-1036</a>] -
+different users storing same file to same folder results in 403</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1056">SYNPY-1056</a>] -
+syn.getSubmissions fails due to new Annotation class in v2.1.0-rc</p></li>
+</ul>
+</section>
+<section id="id63">
+<h2>Improvements<a class="headerlink" href="#id63" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1029">SYNPY-1036</a>] -
+Make upload speeds comparable to those of the AWS S3 CLI</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1049">SYNPY-1049</a>] -
+Expose STS-related APIs</p></li>
+</ul>
+</section>
+<section id="id64">
+<h2>Tasks<a class="headerlink" href="#id64" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1059">SYNPY-1059</a>] -
+Use collections.abc instead of collections</p></li>
+</ul>
+<section id="id65">
+<h3>2.0.0 (2020-03-23)<a class="headerlink" href="#id65" title="Permalink to this headline"></a></h3>
+<p><strong>Python 2 is no longer supported as of this release.</strong> This release requires Python 3.6+.</p>
+</section>
+</section>
+<section id="id66">
+<h2>Highlights:<a class="headerlink" href="#id66" title="Permalink to this headline"></a></h2>
+<ul>
+<li><p>Multi-threaded download of files from Synapse can be enabled by setting <code class="code docutils literal notranslate"><span class="pre">syn.multi_threaded</span></code> to <code class="code docutils literal notranslate"><span class="pre">True</span></code> on a
+<code class="code docutils literal notranslate"><span class="pre">synapseclient.Synapse</span></code> object. This will become the default implementation in the future,
+but to ensure stability for the first release of this feature, it must be intentionally enabled.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">multi_threaded</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="c1"># syn123 now will be downloaded via the multi-threaded implementation</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Currently, multi-threaded download only works with files stored in AWS S3, where most files on Synapse reside.
+This also includes <a class="reference external" href="https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html">custom storage locations</a>
+that point to an AWS S3 bucket.
+Files not stored in S3 will fall back to single-threaded download even if <code class="code docutils literal notranslate"><span class="pre">syn.multi_threaded==True</span></code>.</p>
+</li>
+<li><dl class="simple">
+<dt><code class="code docutils literal notranslate"><span class="pre">synapseutils.copy()</span></code> now has limitations on what can be copied:</dt><dd><ul class="simple">
+<li><p>A user must have download permissions on the entity they want to copy.</p></li>
+<li><p>Users cannot copy any entities that have <a class="reference external" href="https://help.synapse.org/docs/Sharing-Settings,-Permissions,-and-Conditions-for-Use.2024276030.html">access requirements</a>.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">contentTypes</span></code> and <code class="code docutils literal notranslate"><span class="pre">fileNames</span></code> are optional parameters in <code class="code docutils literal notranslate"><span class="pre">synapseutils.copyFileHandles()</span></code></p></li>
+<li><p>Synapse Docker Repository(<code class="code docutils literal notranslate"><span class="pre">synapseclient.DockerRepository</span></code>) objects can now be submitted to Synapse evaluation
+queues using the <code class="code docutils literal notranslate"><span class="pre">entity</span></code> argument in <code class="code docutils literal notranslate"><span class="pre">synapseclient.Synapse.submit()</span></code>.
+An optional argument <code class="code docutils literal notranslate"><span class="pre">docker_tag=&quot;latest&quot;</span></code> has also been added to <code class="code docutils literal notranslate"><span class="pre">synapseclient.Synapse.submit()</span></code>”
+to designate which tagged Docker image to submit.</p></li>
+</ul>
+<p>A full list of issues addressed in this release are below.</p>
+</section>
+<section id="bugs-fixes">
+<h2>Bugs Fixes<a class="headerlink" href="#bugs-fixes" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-271">SYNPY-271</a>] -
+cache.remove fails to return the file handles we removed</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1032">SYNPY-1032</a>]
+- Support new columnTypes defined in backend</p></li>
+</ul>
+</section>
+<section id="id67">
+<h2>Tasks<a class="headerlink" href="#id67" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-999">SYNPY-999</a>] -
+Remove unsafe copy functions from client</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1027">SYNPY-1027</a>]
+- Copy function should copy things when users are part of a Team that
+has DOWNLOAD access</p></li>
+</ul>
+</section>
+<section id="id68">
+<h2>Improvements<a class="headerlink" href="#id68" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-389">SYNPY-389</a>] -
+submission of Docker repository</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-537">SYNPY-537</a>] -
+synapseutils.copyFileHandles requires fields that does not require at
+rest</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-680">SYNPY-680</a>] -
+synapseutils.changeFileMetaData() needs description in documentation</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-682">SYNPY-682</a>] -
+improve download speeds to be comparable to AWS</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-807">SYNPY-807</a>] -
+Drop support for Python 2</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-907">SYNPY-907</a>] -
+Replace `from &lt;module&gt; import …` with `import &lt;module&gt;`</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-962">SYNPY-962</a>] -
+remove ‘password’ as an option in default synapse config file</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-972">SYNPY-972</a>] -
+Link on Synapse Python Client Documentation points back at itself</p></li>
+</ul>
+<section id="id69">
+<h3>1.9.4 (2019-06-28)<a class="headerlink" href="#id69" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id70">
+<h2>Bug Fixes<a class="headerlink" href="#id70" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-881">SYNPY-881</a>] -
+Synu.copy fails when copying a file with READ permissions</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-888">SYNPY-888</a>] -
+Docker repositories cannot be copied</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-927">SYNPY-927</a>] -
+trying to create a project with name that already exists hangs</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1005">SYNPY-1005</a>]
+- cli docs missing sub-commands</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1018">SYNPY-1018</a>]
+- Synu.copy shouldn’t copy any files with access restrictions</p></li>
+</ul>
+</section>
+<section id="id71">
+<h2>New Features<a class="headerlink" href="#id71" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-851">SYNPY-851</a>] -
+invite user or list of users to a team</p></li>
+</ul>
+</section>
+<section id="id72">
+<h2>Improvements<a class="headerlink" href="#id72" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-608">SYNPY-608</a>] -
+Add how to contribute md to github project</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-735">SYNPY-735</a>] -
+command line for building a table</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-864">SYNPY-864</a>] -
+docstring for the command line client doesn’t have complete list of
+sub-commands available</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-926">SYNPY-926</a>] -
+allow forceVersion false for command line client</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1013">SYNPY-1013</a>]
+- Documentation of “store” command for Synapse command line client</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-1021">SYNPY-1021</a>]
+- change email contact for code of conduct</p></li>
+</ul>
+<section id="id73">
+<h3>1.9.3 (2019-06-28)<a class="headerlink" href="#id73" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id74">
+<h2>Bug Fixes<a class="headerlink" href="#id74" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-993">SYNPY-993</a>] -
+Fix <cite>sendMessage</cite> function</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-989">SYNPY-989</a>] -
+Fix unstable test</p></li>
+</ul>
+<section id="id75">
+<h3>1.9.2 (2019-02-15)<a class="headerlink" href="#id75" title="Permalink to this headline"></a></h3>
+<p>In version 1.9.2, we improved Views’ usability by exposing <cite>set_entity_types()</cite> function to change the entity types that will show up in a View:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">from</span> <span class="nn">synapseclient.table</span> <span class="kn">import</span> <span class="n">EntityViewType</span>
+
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">view</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn12345&quot;</span><span class="p">)</span>
+<span class="n">view</span><span class="o">.</span><span class="n">set_entity_types</span><span class="p">([</span><span class="n">EntityViewType</span><span class="o">.</span><span class="n">FILE</span><span class="p">,</span> <span class="n">EntityViewType</span><span class="o">.</span><span class="n">FOLDER</span><span class="p">])</span>
+<span class="n">view</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">view</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="features">
+<h2>Features<a class="headerlink" href="#features" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-919">SYNPY-919</a>] -
+Expose a way to update entity types in a view using EntityViewType</p></li>
+</ul>
+</section>
+<section id="id76">
+<h2>Bug Fixes<a class="headerlink" href="#id76" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-855">SYNPY-855</a>] -
+Single thread uploading fails in Lambda python3.6 environment</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-910">SYNPY-910</a>] -
+Store Wiki shows deprecation warning</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-920">SYNPY-920</a>] -
+Project View turned into File View after using syndccutils template</p></li>
+</ul>
+</section>
+<section id="id77">
+<h2>Tasks<a class="headerlink" href="#id77" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-790">SYNPY-790</a>] -
+Pin to a fixed version of the request package</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-866">SYNPY-866</a>] -
+Update Synapse logo in Python docs :)</p></li>
+</ul>
+</section>
+<section id="id78">
+<h2>Improvements<a class="headerlink" href="#id78" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-783">SYNPY-783</a>] -
+typos in comments and in stdout</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-916">SYNPY-916</a>] -
+Wonky display on parameters</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-917">SYNPY-917</a>] -
+Add instructions on how to login with API key</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-909">SYNPY-909</a>] -
+Missing columnTypes in Column docstring</p></li>
+</ul>
+<section id="id79">
+<h3>1.9.1 (2019-01-20)<a class="headerlink" href="#id79" title="Permalink to this headline"></a></h3>
+<p>In version 1.9.1, we fix various bugs and added two new features:</p>
+<ul class="simple">
+<li><p>Python 3.7 is supported.</p></li>
+<li><p>Deprecation warnings are visible by default.</p></li>
+</ul>
+</section>
+</section>
+<section id="id80">
+<h2>Features<a class="headerlink" href="#id80" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-802">SYNPY-802</a>] -
+Support Python 3.7</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-849">SYNPY-849</a>] -
+Add deprecation warning that isn’t filtered by Python</p></li>
+</ul>
+</section>
+<section id="id81">
+<h2>Bug Fixes<a class="headerlink" href="#id81" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-454">SYNPY-454</a>] -
+Some integration tests do not clean up after themselves</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-456">SYNPY-456</a>] -
+Problems with updated query system</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-515">SYNPY-515</a>] -
+sphinx documentation not showing for some new classes</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-526">SYNPY-526</a>] -
+deprecate downloadTableFile()</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-578">SYNPY-578</a>] -
+switch away from POST /entity/#/table/deleterows</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-594">SYNPY-594</a>] -
+Getting error from dev branch in integration test against staging</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-796">SYNPY-796</a>] -
+fix or remove PyPI downloads badge in readme</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-799">SYNPY-799</a>] -
+Unstable test: Test PartialRow updates to entity views from rowset
+queries</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-846">SYNPY-846</a>] -
+error if password stored in config file contains a ‘%’</p></li>
+</ul>
+</section>
+<section id="id82">
+<h2>Tasks<a class="headerlink" href="#id82" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-491">SYNPY-491</a>] -
+Figure out custom release note fitlers</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-840">SYNPY-840</a>] -
+Install not working on latest python</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-847">SYNPY-847</a>] -
+uploadFileHandle should not be deprecated nor removed</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-852">SYNPY-852</a>] -
+Check and update help.synapse.org to reflect the change in the Python
+client</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-860">SYNPY-860</a>] -
+vignette for how to upload a new version of a file directly to a
+synapse entity</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-863">SYNPY-863</a>] -
+Update public documentation to move away from the query services</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-866">SYNPY-866</a>] -
+Update Synapse logo in Python docs :)</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-873">SYNPY-873</a>] -
+consolidate integration testing to platform dev account</p></li>
+</ul>
+</section>
+<section id="id83">
+<h2>Improvements<a class="headerlink" href="#id83" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-473">SYNPY-473</a>] -
+Change syn.list to no longer use deprecated function chunkedQuery</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-573">SYNPY-573</a>] -
+synapse list command line shouldn’t list the parent container</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-581">SYNPY-581</a>] -
+&lt;entity&gt;.annotations return object is inconsistent with
+getAnnotations()</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-612">SYNPY-612</a>] -
+Rename view_type to viewType in EntityViewSchema for consistency</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-777">SYNPY-777</a>] -
+Python client _list still uses chunckedQuery and result seem out of
+date</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-804">SYNPY-804</a>] -
+Update styling in the python docs to more closely match the Docs site
+styling</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-815">SYNPY-815</a>] -
+Update the build to use test user instead of migrationAdmin</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-848">SYNPY-848</a>] -
+remove outdated link to confluence for command line query</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-856">SYNPY-856</a>] -
+build_table example in the docs does not look right</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-858">SYNPY-858</a>] -
+Write file view documentation in python client that is similar to
+synapser</p></li>
+<li><p>[<a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-870">SYNPY-870</a>] -
+Submitting to an evaluation queue can’t accept team as int</p></li>
+</ul>
+<section id="id84">
+<h3>1.9.0 (2018-09-28)<a class="headerlink" href="#id84" title="Permalink to this headline"></a></h3>
+<p>In version 1.9.0, we deprecated and removed <cite>query()</cite> and <cite>chunkedQuery()</cite>. These functions used the old query services which does not perform well. To query for entities filter by annotations, please use <cite>EntityViewSchema</cite>.</p>
+<p>We also deprecated the following functions and will remove them in Synapse Python client version 2.0.
+In the <cite>Activity</cite> object:</p>
+<ul class="simple">
+<li><p><cite>usedEntity()</cite></p></li>
+<li><p><cite>usedURL()</cite></p></li>
+</ul>
+<p>In the <cite>Synapse</cite> object:</p>
+<ul class="simple">
+<li><p><cite>getEntity()</cite></p></li>
+<li><p><cite>loadEntity()</cite></p></li>
+<li><p><cite>createEntity()</cite></p></li>
+<li><p><cite>updateEntity()</cite></p></li>
+<li><p><cite>deleteEntity()</cite></p></li>
+<li><p><cite>downloadEntity()</cite></p></li>
+<li><p><cite>uploadFile()</cite></p></li>
+<li><p><cite>uploadFileHandle()</cite></p></li>
+<li><p><cite>uploadSynapseManagedFileHandle()</cite></p></li>
+<li><p><cite>downloadTableFile()</cite></p></li>
+</ul>
+<p>Please see our documentation for more details on how to migrate your code away from these functions.</p>
+</section>
+</section>
+<section id="id85">
+<h2>Features<a class="headerlink" href="#id85" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-806">SYNPY-806</a> - Support Folders and Tables in View</p></li>
+</ul>
+</section>
+<section id="id86">
+<h2>Bug Fixes<a class="headerlink" href="#id86" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-195">SYNPY-195</a> - Dangerous exception handling</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-261">SYNPY-261</a> - error downloading data from synapse (python client)</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-694">SYNPY-694</a> - Uninformative error in <cite>copyWiki</cite> function</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-805">SYNPY-805</a> - Uninformative error when getting View that does not exist</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-819">SYNPY-819</a> - command-line clients need to be updated to replace the EntityView ‘viewType’ with ‘viewTypeMask’</p></li>
+</ul>
+</section>
+<section id="id87">
+<h2>Tasks<a class="headerlink" href="#id87" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-759">SYNPY-759</a> - Look for all functions that are documented as “Deprecated” and apply the deprecation syntax</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-812">SYNPY-812</a> - Add Github issue template</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-824">SYNPY-824</a> - Remove the deprecated function query() and chunkedQuery()</p></li>
+</ul>
+</section>
+<section id="id88">
+<h2>Improvements<a class="headerlink" href="#id88" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-583">SYNPY-583</a> - Better error message for create Link object</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-810">SYNPY-810</a> - simplify docs for deleting rows</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-814">SYNPY-814</a> - fix docs links in python client __init__.py</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-822">SYNPY-822</a> - Switch to use news.rst instead of multiple release notes files</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-759">SYNPY-823</a> - Pin keyring to version 12.0.2 to use SecretStorage 2.x</p></li>
+</ul>
+<section id="id89">
+<h3>1.8.2 (2018-08-17)<a class="headerlink" href="#id89" title="Permalink to this headline"></a></h3>
+<p>In this release, we have been performed some house-keeping on the code base. The two major changes are:</p>
+<blockquote>
+<div><ul>
+<li><p>making <cite>syn.move()</cite> available to move an entity to a new parent in Synapse. For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">Folder</span>
+
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+
+<span class="n">file</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+<span class="n">folder</span> <span class="o">=</span> <span class="n">Folder</span><span class="p">(</span><span class="s2">&quot;new folder&quot;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="s2">&quot;syn456&quot;</span><span class="p">)</span>
+<span class="n">folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+
+<span class="c1"># moving file to the newly created folder</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>exposing the ability to use the Synapse Python client with single threaded. This feature is useful when running Python script in an environment that does not support multi-threading. However, this will negatively impact upload speed. To use single threaded:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="n">synapseclient</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">single_threaded</span> <span class="o">=</span> <span class="kc">True</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+<section id="id90">
+<h2>Bug Fixes<a class="headerlink" href="#id90" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-535">SYNPY-535</a> - Synapse Table update: Connection Reset</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-603">SYNPY-603</a> - Python client and synapser cannot handle table column type LINK</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-688">SYNPY-688</a> - Recursive get (sync) broken for empty folders.</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-744">SYNPY-744</a> - KeyError when trying to download using Synapse Client 1.8.1</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-750">SYNPY-750</a> - Error in downloadTableColumns for file view</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-758">SYNPY-758</a> - docs in Sphinx don’t show for synapseclient.table.RowSet</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-760">SYNPY-760</a> - Keyring related error on Linux</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-766">SYNPY-766</a> - as_table_columns() returns a list of columns out of order for python 3.5 and 2.7</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-776">SYNPY-776</a> - Cannot log in to Synapse - error(54, ‘Connection reset by peer’)</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-795">SYNPY-795</a> - Not recognizable column in query result</p></li>
+</ul>
+</section>
+<section id="id91">
+<h2>Features<a class="headerlink" href="#id91" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-582">SYNPY-582</a> - move file or folder in the client</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-788">SYNPY-788</a> - Add option to use syn.store() without exercising multithreads</p></li>
+</ul>
+</section>
+<section id="id92">
+<h2>Tasks<a class="headerlink" href="#id92" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-729">SYNPY-729</a> - Deprecate query() and chunkedQuery()</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-797">SYNPY-797</a> - Check Python client code base on using PLFM object model</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-798">SYNPY-798</a> - Using github.io to host documentation</p></li>
+</ul>
+</section>
+<section id="id93">
+<h2>Improvements<a class="headerlink" href="#id93" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-646">SYNPY-646</a> - Error output of synGet is non-informative</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-743">SYNPY-743</a> - lint the entire python client code base</p></li>
+</ul>
+<section id="id94">
+<h3>1.8.1 (2018-05-17)<a class="headerlink" href="#id94" title="Permalink to this headline"></a></h3>
+<p>This release is a hotfix for a bug.
+Please refer to 1.8.0 release notes for information about additional changes.</p>
+</section>
+</section>
+<section id="id95">
+<h2>Bug Fixes<a class="headerlink" href="#id95" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-706">SYNPY-706</a> - syn.username can cause attribute not found if user not logged in</p></li>
+</ul>
+<section id="id96">
+<h3>1.8.0 (2018-05-07)<a class="headerlink" href="#id96" title="Permalink to this headline"></a></h3>
+<p>This release has 2 major changes:</p>
+<ul class="simple">
+<li><p>The client will no longer store your saved credentials in your synapse cache (<cite>~/synapseCache/.session</cite>). The python client now relies on <a class="reference external" href="https://pypi.org/project/keyring/">keyring</a> to handle credential storage of your Synapse credentials.</p></li>
+<li><p>The client also now uses connection pooling, which means that all method calls that connect to Synapse should now be faster.</p></li>
+</ul>
+<p>The remaining changes are bug fixes and cleanup of test code.</p>
+<p>Below are the full list of issues addressed by this release:</p>
+</section>
+</section>
+<section id="id97">
+<h2>Bug Fixes<a class="headerlink" href="#id97" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-654">SYNPY-654</a> - syn.getColumns does not terminate</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-658">SYNPY-658</a> - Security vunerability on clusters</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-689">SYNPY-689</a> - Wiki’s attachments cannot be None</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-692">SYNPY-692</a> - synapseutils.sync.generateManifest() sets contentType incorrectly</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-693">SYNPY-693</a> - synapseutils.sync.generateManifest() UnicodeEncodingError in python 2</p></li>
+</ul>
+</section>
+<section id="id98">
+<h2>Tasks<a class="headerlink" href="#id98" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-617">SYNPY-617</a> - Remove use of deprecated service to delete table rows</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-673">SYNPY-673</a> - Fix Integration Tests being run on Appveyor</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-683">SYNPY-683</a> - Clean up print()s used in unit/integration tests</p></li>
+</ul>
+</section>
+<section id="id99">
+<h2>Improvements<a class="headerlink" href="#id99" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-408">SYNPY-408</a> - Add bettter error messages when /filehandle/batch fails.</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-647">SYNPY-647</a> - Use connection pooling for Python client’s requests</p></li>
+</ul>
+<section id="id100">
+<h3>1.7.5 (2018-01-31)<a class="headerlink" href="#id100" title="Permalink to this headline"></a></h3>
+<p>v1.7.4 release was broken for new users that installed from pip. v1.7.5 has the same changes as v1.7.4 but fixes the pip installation.</p>
+</section>
+<section id="id101">
+<h3>1.7.4 (2018-01-29)<a class="headerlink" href="#id101" title="Permalink to this headline"></a></h3>
+<dl class="simple">
+<dt>This release mostly includes bugfixes and improvements for various Table classes:</dt><dd><ul class="simple">
+<li><p>Fixed bug where you couldn’t store a table converted to a <cite>pandas.Dataframe</cite> if it had a INTEGER column with some missing values.</p></li>
+<li><p><cite>EntityViewSchema</cite> can now automatically add all annotations within your defined <cite>scopes</cite> as columns. Just set the view’s <cite>addAnnotationColumns=True</cite> before calling <cite>syn.store()</cite>. This attribute defaults to <cite>True</cite> for all newly created <cite>EntityViewSchemas</cite>. Setting <cite>addAnnotationColumns=True</cite> on existing tables will only add annotation columns that are not already a part of your schema.</p></li>
+<li><p>You can now use <cite>synapseutils.notifyMe</cite> as a decorator to notify you by email when your function has completed. You will also be notified of any Errors if they are thrown while your function runs.</p></li>
+</ul>
+</dd>
+<dt>We also added some new features:</dt><dd><ul class="simple">
+<li><p><cite>syn.findEntityId()</cite> function that allows you to find an Entity by its name and parentId, set parentId to <cite>None</cite> to search for Projects by name.</p></li>
+<li><p>The bulk upload functionality of <cite>synapseutils.syncToSynapse</cite> is available from the command line using: <cite>synapse sync</cite>.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Below are the full list of issues addressed by this release:</p>
+</section>
+</section>
+<section id="id102">
+<h2>Features<a class="headerlink" href="#id102" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-506">SYNPY-506</a> - need convenience function for /entity/child</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-517">SYNPY-517</a> - sync command line</p></li>
+</ul>
+</section>
+<section id="id103">
+<h2>Improvements<a class="headerlink" href="#id103" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-267">SYNPY-267</a> - Update Synapse tables for integer types</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-304">SYNPY-304</a> - Table objects should implement len()</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-416">SYNPY-416</a> - warning message for recursive get when a non-Project of Folder entity is passed</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-482">SYNPY-482</a> - Create a sample synapseConfig if none is present</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-489">SYNPY-489</a> - Add a boolean parameter in EntityViewSchema that will indicate whether the client should create columns based on annotations in the specified scopes</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-494">SYNPY-494</a> - Link should be able to take an entity object as the parameter and derive its id</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-511">SYNPY-511</a> - improve exception handling</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-512">SYNPY-512</a> - Remove the use of PaginatedResult’s totalNumberOfResult</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-539">SYNPY-539</a> - When creating table Schemas, enforce a limit on the number of columns that can be created.</p></li>
+</ul>
+</section>
+<section id="id104">
+<h2>Bug Fixes<a class="headerlink" href="#id104" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-235">SYNPY-235</a> - can’t print Row objects with dates in them</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-272">SYNPY-272</a> - bug syn.storing rowsets containing Python datetime objects</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-297">SYNPY-297</a> - as_table_columns shouldn’t give fractional max size</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-404">SYNPY-404</a> - when we get a SynapseMd5MismatchError we should delete the downloaded file</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-425">SYNPY-425</a> - onweb doesn’t work for tables</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-438">SYNPY-438</a> - Need to change ‘submit’ not to use evaluation/id/accessRequirementUnfulfilled</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-496">SYNPY-496</a> - monitor.NotifyMe can not be used as an annotation decorator</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-521">SYNPY-521</a> - inconsistent error message when username/password is wrong on login</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-536">SYNPY-536</a> - pre-signed upload URL expired warnings using Python client sync function</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-555">SYNPY-555</a> - EntityViewSchema is missing from sphinx documentation</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-558">SYNPY-558</a> - synapseutils.sync.syncFromSynapse throws error when syncing a Table object</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-595">SYNPY-595</a> - Get recursive folders filled with Links fails</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-605">SYNPY-605</a> - Update documentation for getUserProfile to include information about refreshing and memoization</p></li>
+</ul>
+</section>
+<section id="id105">
+<h2>Tasks<a class="headerlink" href="#id105" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-451">SYNPY-451</a> - Add limit and offset for accessApproval and accessRequirement API calls and remove 0x400 flag default when calling GET /entity/{id}/bundle</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-546">SYNPY-546</a> - Change warning message when user does not DOWNLOAD permissions.</p></li>
+</ul>
+<section id="id106">
+<h3>1.7.3 (2017-12-08)<a class="headerlink" href="#id106" title="Permalink to this headline"></a></h3>
+<p>Release 1.7.3 introduces fixes and quality of life changes to Tables and synapseutils:</p>
+<ul>
+<li><p>Changes to Tables:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>You no longer have to include the <cite>etag</cite> column in your SQL query when using a <cite>tableQuery()</cite> to update File/Project Views. just <cite>SELECT</cite> the relevant columns and etags will be resolved automatically.</p></li>
+<li><p>The new <cite>PartialRowSet</cite> class allows you to only have to upload changes to individual cells of a table instead of every row that had a value changed. It is recommended to use the <cite>PartialRowSet.from_mapping()</cite> classmethod instead of the <cite>PartialRowSet</cite> constructor.</p></li>
+</ul>
+</div></blockquote>
+</li>
+<li><p>Changes to synapseutils:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Improved documentation</p></li>
+<li><p>You can now use <cite>~</cite> to refer to your home directory in your manifest.tsv</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+<p>We also added improved debug logging and use Python’s builtin <cite>logging</cite> module instead of printing directly to <cite>sys.stderr</cite></p>
+<p>Below are the full list of issues addressed by this release:</p>
+</section>
+</section>
+<section id="id107">
+<h2>Bug Fixes<a class="headerlink" href="#id107" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-419">SYNPY-419</a> - support object store from client</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-499">SYNPY-499</a> - metadata manifest file name spelled wrong</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-504">SYNPY-504</a> - downloadTableFile changed return type with no change in documentation or mention in release notes</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-508">SYNPY-508</a> - syncToSynapse does not work if “the file path in “used” or “executed” of the manifest.tsv uses home directory shortcut “~”</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-516">SYNPY-516</a> - synapse sync file does not work if file is a URL</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-525">SYNPY-525</a> - Download CSV file of Synapse Table - 416 error</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-572">SYNPY-572</a> - Users should only be prompted for updates if the first or second part of the version number is changed.</p></li>
+</ul>
+</section>
+<section id="id108">
+<h2>Features<a class="headerlink" href="#id108" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-450">SYNPY-450</a> - Create convenience functions for synapse project settings</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-517">SYNPY-517</a> - sync command line</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-519">SYNPY-519</a> - Clean up doc string for Sync</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-545">SYNPY-545</a> - no module botocore</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-577">SYNPY-577</a> - Expose new view etags in command line clients</p></li>
+</ul>
+</section>
+<section id="id110">
+<h2>Tasks<a class="headerlink" href="#id110" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-569">SYNPY-569</a> - ‘includeEntityEtag’ should be True for Async table csv query downloads</p></li>
+</ul>
+</section>
+<section id="id111">
+<h2>Improvements<a class="headerlink" href="#id111" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-304">SYNPY-304</a> - Table objects should implement len()</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-511">SYNPY-511</a> - improve exception handling</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-518">SYNPY-518</a> - Clean up sync interface</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-590">SYNPY-590</a> - Need better logging of errors that occur in the Python client.</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-597">SYNPY-597</a> - Add ability to create PartialRowset updates</p></li>
+</ul>
+<section id="id114">
+<h3>1.7.1 (2017-11-17)<a class="headerlink" href="#id114" title="Permalink to this headline"></a></h3>
+<p>Release 1.7 is a large bugfix release with several new features. The main ones include:</p>
+<ul>
+<li><p>We have expanded the <a class="reference external" href="python-docs.synapse.org/build/html/synapseutils.html#module-synapseutils">synapseutils packages</a> to add the ability to:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Bulk upload files to synapse (synapseutils.syncToSynapse).</p></li>
+<li><p>Notify you via email on the progress of a function (useful for jobs like large file uploads that may take a long time to complete).</p></li>
+<li><p>The syncFromSynapse function now creates a “manifest” which contains the metadata of downloaded files. (These can also be used to update metadata with the bulk upload function.</p></li>
+</ul>
+</div></blockquote>
+</li>
+<li><p>File View tables can now be created from the python client using EntityViewSchema. See <a class="reference external" href="https://help.synapse.org/docs/Views.2011070739.html">fileviews documentation</a>.</p></li>
+<li><p>The python client is now able to upload to user owned S3 Buckets. <a class="reference external" href="https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html">Click here for instructions on linking your S3 bucket to synapse</a>.</p></li>
+</ul>
+<p>We’ve also made various improvements to existing features:</p>
+<ul class="simple">
+<li><p>The LARGETEXT type is now supported in Tables allowing for strings up to 2Mb.</p></li>
+<li><p>The <cite>–description</cite> argument when creating/updating entities from the command line client will now create a <cite>Wiki</cite> for that entity. You can also use <cite>–descriptionFile</cite> to write the contents of a markdown file as the entity’s <cite>Wiki</cite></p></li>
+<li><p>Two member variables of the File object, <cite>file_entity.cacheDir</cite> and <cite>file_entity.files</cite> is being DEPRECATED in favor of <cite>file_entity.path</cite> for finding the location of a downloaded <cite>File</cite></p></li>
+<li><p><cite>pandas</cite> <cite>dataframe`s containing `datetime</cite> values can now be properly converted into csv and uploaded to Synapse.</p></li>
+</ul>
+<p>We also added a optional <cite>convert_to_datetime</cite> parameter to <cite>CsvFileTable.asDataFrame()</cite> that will automatically convert Synapse DATE columns into <cite>datetime</cite> objects instead of leaving them as <cite>long</cite> unix timestamps</p>
+<p>Below are the full list of bugs and issues addressed by this release:</p>
+</section>
+</section>
+<section id="id115">
+<h2>Features<a class="headerlink" href="#id115" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-53">SYNPY-53</a> - support syn.get of external FTP links in py client</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-179">SYNPY-179</a> - Upload to user owned S3 bucket</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-412">SYNPY-412</a> - allow query-based download based on view tables from command line client</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-487">SYNPY-487</a> - Add remote monitoring of long running processes</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-415">SYNPY-415</a> - Add Docker and TableViews into Entity.py</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-89">SYNPY-89</a> - Python client: Bulk upload client/command</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-413">SYNPY-413</a> - Update table views via python client</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-301">SYNPY-301</a> - change actual file name from python client</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-442">SYNPY-442</a> - set config file path on command line</p></li>
+</ul>
+</section>
+<section id="id116">
+<h2>Improvements<a class="headerlink" href="#id116" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-407">SYNPY-407</a> - support LARGETEXT in tables</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-360">SYNPY-360</a> - Duplicate file handles are removed from BulkFileDownloadRequest</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-187">SYNPY-187</a> - Move –description in command line client to create wikis</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-224">SYNPY-224</a> - When uploading to a managed external file handle (e.g. SFTP), fill in storageLocationId</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-315">SYNPY-315</a> - Default behavior for files in cache dir should be replace</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-381">SYNPY-381</a> - Remove references to “files” and “cacheDir”.</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-396">SYNPY-396</a> - Create filehandle copies in synapseutils.copy instead of downloading</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-403">SYNPY-403</a> - Use single endpoint for all downloads</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-435">SYNPY-435</a> - Convenience function for new service to get entity’s children</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-471">SYNPY-471</a> - docs aren’t generated for synapseutils</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-472">SYNPY-472</a> - References to wrong doc site</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-347">SYNPY-347</a> - Missing dtypes in table.DTYPE_2_TABLETYPE</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-463">SYNPY-463</a> - When copying filehandles we should add the files to the cache if we already donwloaded them</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-475">SYNPY-475</a> - Store Tables timeout error</p></li>
+</ul>
+</section>
+<section id="id117">
+<h2>Bug Fixes<a class="headerlink" href="#id117" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-190">SYNPY-190</a> - syn.login(‘asdfasdfasdf’) should fail</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-344">SYNPY-344</a> - weird cache directories</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-346">SYNPY-346</a> - ValueError: cannot insert ROW_ID, already exists in CsvTableFile constructor</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-351">SYNPY-351</a> - Versioning broken for sftp files</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-366">SYNPY-366</a> - file URLs leads to wrong path</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-393">SYNPY-393</a> - New cacheDir causes cache to be ignored(?)</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-409">SYNPY-409</a> - Python client cannot depend on parsing Amazon pre-signed URLs</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-418">SYNPY-418</a> - Integration test failure against 167</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-421">SYNPY-421</a> - syn.getWikiHeaders has a return limit of 50 (Need to return all headers)</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-423">SYNPY-423</a> - upload rate is off or incorrect</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-424">SYNPY-424</a> - File entities don’t handle local_state correctly for setting datafilehandleid</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-426">SYNPY-426</a> - multiple tests failing because of filenameOveride</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-427">SYNPY-427</a> - test dependent on config file</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-428">SYNPY-428</a> - sync function error</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-431">SYNPY-431</a> - download ending early and not restarting from previous spot</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-443">SYNPY-443</a> - tests/integration/integration_test_Entity.py:test_get_with_downloadLocation_and_ifcollision AssertionError</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-461">SYNPY-461</a> - On Windows, command line client login credential prompt fails (python 2.7)</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-465">SYNPY-465</a> - Update tests that set permissions to also include ‘DOWNLOAD’ permission and tests that test functions using queries</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-468">SYNPY-468</a> - Command line client incompatible with cache changes</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-470">SYNPY-470</a> - default should be read, download for setPermissions</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-483">SYNPY-483</a> - integration test fails for most users</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-484">SYNPY-484</a> - URL expires after retries</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-486">SYNPY-486</a> - Error in integration tests</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-488">SYNPY-488</a> - sync tests for command line client puts file in working directory</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-142">SYNPY-142</a> - PY: Error in login with rememberMe=True</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-464">SYNPY-464</a> - synapse get syn4988808 KeyError: u’preSignedURL’</p></li>
+</ul>
+</section>
+<section id="id118">
+<h2>Tasks<a class="headerlink" href="#id118" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-422">SYNPY-422</a> - reduce default page size for GET /evaluation/{evalId}/submission/bundle/all</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-437">SYNPY-437</a> - Remove tests for access restrictions on evaluations</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-402">SYNPY-402</a> - Add release notes to Github release tag</p></li>
+</ul>
+<section id="id119">
+<h3>1.6.1 (2016-11-02)<a class="headerlink" href="#id119" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="what-is-new">
+<h2>What is New<a class="headerlink" href="#what-is-new" title="Permalink to this headline"></a></h2>
+<p>In version 1.6 we introduce a new sub-module _synapseutils_ that
+provide convenience functions for more complicated operations in Synapse such as copying of files wikis and folders. In addition we have introduced several improvements in downloading content from Synapse. As with uploads we are now able to recover from an interrupted download and will retry on network failures.</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-48">SYNPY-48</a>  - Automate build and test of Python client on Python 3.x</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-180">SYNPY-180</a>  - Pass upload destination in chunked file upload</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-349">SYNPY-349</a>  - Link Class</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-350">SYNPY-350</a>  - Copy Function</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-370">SYNPY-370</a>  - Building to new doc site for Synapse</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-371">SYNPY-371</a>  - Support paths in syn.onweb</p></li>
+</ul>
+</section>
+<section id="id120">
+<h2>Improvements<a class="headerlink" href="#id120" title="Permalink to this headline"></a></h2>
+<p>We have improved download robustness and error checking, along with extensive recovery on failed operations. This includes the ability for the client to pause operation when Synapse is updated.</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-270">SYNPY-270</a>  - Synapse READ ONLY mode should cause pause in execution</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-308">SYNPY-308</a>  - Add md5 checking after downloading a new file handle</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-309">SYNPY-309</a>  - Add download recovery by using the ‘Range’: ‘bytes=xxx-xxx’ header</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-353">SYNPY-353</a>  - Speed up downloads of fast connections</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-356">SYNPY-356</a>  - Add support for version flag in synapse cat command line</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-357">SYNPY-357</a>  - Remove failure message on retry in multipart_upload</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-380">SYNPY-380</a>  - Add speed meter to downloads/uploads</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-387">SYNPY-387</a>  - Do exponential backoff on 429 status and print explanatory error message from server</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-390">SYNPY-390</a>  - Move recursive download to Python client utils</p></li>
+</ul>
+</section>
+<section id="id121">
+<h2>Bug Fixes<a class="headerlink" href="#id121" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-154">SYNPY-154</a>  - 500 Server Error when storing new version of file from command line</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-168">SYNPY-168</a>  - Failure on login gives an ugly error message</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-253">SYNPY-253</a>  - Error messages on upload retry inconsistent with behavior</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-261">SYNPY-261</a>  - error downloading data from synapse (python client)</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-274">SYNPY-274</a>  - Trying to use the client without logging in needs to give a reasonable error</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-331">SYNPY-331</a>  - test_command_get_recursive_and_query occasionally fails</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-337">SYNPY-337</a>  - Download error on 10 Gb file.</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-343">SYNPY-343</a>  - Login failure</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-351">SYNPY-351</a>  - Versioning broken for sftp files</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-352">SYNPY-352</a>  - file upload max retries exceeded messages</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-358">SYNPY-358</a>  - upload failure from python client (threading)</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-361">SYNPY-361</a>  - file download fails midway without warning/error</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-362">SYNPY-362</a>  - setAnnotations bug when given synapse ID</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-363">SYNPY-363</a>  - problems using provenance during upload</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-382">SYNPY-382</a>  - Python client is truncating the entity id in download csv from table</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-383">SYNPY-383</a>  - Travis failing with paramiko.ssh_exception.SSHException: No hostkey</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-384">SYNPY-384</a>  - resuming a download after a ChunkedEncodingError created new file with correct size</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-388">SYNPY-388</a>  - Asynchronous creation of Team causes sporadic test failure</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-391">SYNPY-391</a>  - downloadTableColumns() function doesn’t work when resultsAs=rowset is set for for syn.tableQuery()</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-397">SYNPY-397</a>  - Error in syncFromSynapse() integration test on Windows</p></li>
+<li><p><a class="reference external" href="https://sagebionetworks.jira.com/browse/SYNPY-399">SYNPY-399</a> - python client not compatible with newly released Pandas 0.19</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="api/core.html" class="btn btn-neutral float-left" title="Core" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2012-2023, Sage Bionetworks.
+      <span class="lastupdated">Last updated on Nov 27, 2023.
+      </span></p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Nov 27, 2023.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+
+</body>
+</html>
