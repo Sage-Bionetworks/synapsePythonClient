@@ -74,6 +74,8 @@ class Project:
             project.files = [file_1, file_2]
             project = await project.store()
 
+    TODO: Clean up this docstring:
+
     Note:
         Testing what a note looks like.
 

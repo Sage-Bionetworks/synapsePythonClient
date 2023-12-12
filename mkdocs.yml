@@ -163,13 +163,13 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: teal
+      primary: white
       toggle:
         icon: material/toggle-switch-off-outline
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep purple
+      primary: black
       toggle:
         icon: material/toggle-switch
         name: Switch to light mode
@@ -187,6 +187,7 @@ theme:
     - search.share
     - search.suggest
     - toc.follow
+    - navigation.tabs
 
 extra_css:
 - css/custom.css
