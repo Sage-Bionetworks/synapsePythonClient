@@ -1,8 +1,9 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Dict, Union
+from datetime import date, datetime
+from typing import Dict, List, Union
 from opentelemetry import trace, context
-from synapseclient.models import AnnotationsValue, Annotations
+from synapseclient.models import Annotations
 
 # import uuid
 
@@ -77,7 +78,19 @@ class File:
     """An optional replacement for the name of the uploaded file. This is distinct
     from the entity name. If omitted the file will retain its original name."""
 
-    annotations: Optional[Dict[str, AnnotationsValue]] = None
+    annotations: Optional[
+        Dict[
+            str,
+            Union[
+                List[str],
+                List[bool],
+                List[float],
+                List[int],
+                List[date],
+                List[datetime],
+            ],
+        ]
+    ] = None
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with

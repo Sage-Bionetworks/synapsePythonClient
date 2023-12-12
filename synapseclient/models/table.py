@@ -1,5 +1,6 @@
 import asyncio
 from dataclasses import dataclass
+from datetime import date, datetime
 from enum import Enum
 import os
 from typing import Any, Dict, List, Optional, Union
@@ -14,7 +15,7 @@ from synapseclient.table import (
     TableQueryResult as Synaspe_TableQueryResult,
     delete_rows,
 )
-from synapseclient.models import Annotations, AnnotationsValue
+from synapseclient.models import Annotations
 from opentelemetry import trace, context
 
 
@@ -385,7 +386,19 @@ class Table:
     should be enabled. Note that enabling full text search might slow down the
     indexing of the table or view."""
 
-    annotations: Optional[Dict[str, AnnotationsValue]] = None
+    annotations: Optional[
+        Dict[
+            str,
+            Union[
+                List[str],
+                List[bool],
+                List[float],
+                List[int],
+                List[date],
+                List[datetime],
+            ],
+        ]
+    ] = None
     """Additional metadata associated with the table. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
@@ -474,6 +487,11 @@ class Table:
         with tracer.start_as_current_span(f"Table_Schema_Store: {self.name}"):
             tasks = []
             if self.columns:
+                # TODO: When a table is retrieved via `.get()` we create Column objects but
+                # TODO: We only have the ID attribute. THis is causing this if check to eval
+                # TODO: To True, however, we aren't actually modifying the column.
+                # TODO: Perhaps we should have a `has_changed` boolean on all dataclasses
+                # TODO: That we can check to see if we need to store the data.
                 tasks.extend(
                     column.store(synapse_client=synapse_client)
                     for column in self.columns

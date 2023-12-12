@@ -1,44 +1,29 @@
 import asyncio
 
-from enum import Enum
+from datetime import datetime, date
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 from synapseclient.api import set_annotations
 from opentelemetry import trace, context
 
 from synapseclient import Synapse
+from synapseclient.annotations import ANNO_TYPE_TO_FUNC
 
 
 tracer = trace.get_tracer("synapseclient")
-
-
-class AnnotationsValueType(str, Enum):
-    """The acceptable types that an annotation value can be."""
-
-    STRING = "STRING"
-    DOUBLE = "DOUBLE"
-    LONG = "LONG"
-    TIMESTAMP_MS = "TIMESTAMP_MS"
-    BOOLEAN = "BOOLEAN"
-
-
-@dataclass()
-class AnnotationsValue:
-    """A specific type of annotation and the values that are of that type."""
-
-    # TODO: Currently this is required - However, we do have the ability to make some assumptions based
-    # TODO: On the value types. For example, if it's a str, datetime, bool, etc...
-    type: AnnotationsValueType
-    # TODO: What are all the python types we are going to accept here
-    value: List[Union[str, bool]]
 
 
 @dataclass()
 class Annotations:
     """Annotations that can be applied to a number of Synapse resources to provide additional information."""
 
-    annotations: Dict[str, AnnotationsValue]
-    """ Additional metadata associated with the object. The key is the name of your
+    annotations: Dict[
+        str,
+        Union[
+            List[str], List[bool], List[float], List[int], List[date], List[datetime]
+        ],
+    ]
+    """Additional metadata associated with the object. The key is the name of your
     desired annotations. The value is an object containing a list of string values
     (use empty list to represent no values for key) and the value type associated with
     all values in the list
@@ -88,13 +73,13 @@ class Annotations:
     @classmethod
     def convert_from_api_parameters(
         self, synapse_annotations: dict
-    ) -> Dict[str, AnnotationsValue]:
-        """Convert the annotations from the synapse API to the model."""
-        # TODO: This is not great logic and needs to be revisted. Ideally the annotations
-        # TODO: returned as the same during a `.get` and `.store` call. Currently they are not
-        # TODO: This also prevents us from using the annotations returned from a `.get` call to store them again.
-        # TODO: Also there is difference in timestamp being transferred - The API is expecting milliseconds
-        # TODO: But in most cases the python client is returning datetime.
+    ) -> Dict[str, List[Union[str, bool, float, int, date, datetime]]]:
+        """Convert the annotations from the format the synapse rest API works in -
+        to the format used by this class.
+
+        :param synapse_annotations: The annotations from the synapse rest API.
+        :return: The annotations in python class format.
+        """
         if synapse_annotations is None:
             return None
         annotations = {}
@@ -104,14 +89,12 @@ class Annotations:
             else synapse_annotations
         )
         for key in dict_to_convert:
-            # TODO: How can we determine which type is being used when it is not provided in the response from the python client.
-            value = (
-                dict_to_convert[key]["value"]
-                if "value" in dict_to_convert[key]
-                else dict_to_convert[key]
-            )
-            annotations[key] = AnnotationsValue(
-                type=None,
-                value=value,
-            )
+            if isinstance(dict_to_convert[key], dict):
+                conversion_func = ANNO_TYPE_TO_FUNC[dict_to_convert[key]["type"]]
+                annotations[key] = [
+                    conversion_func(v) for v in dict_to_convert[key]["value"]
+                ]
+            else:
+                annotations[key] = dict_to_convert[key]
+
         return annotations
