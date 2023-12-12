@@ -198,27 +198,33 @@ class Synapse(object):
     """
     Constructs a Python client object for the Synapse repository service
 
-    :param repoEndpoint:          Location of Synapse repository
-    :param authEndpoint:          Location of authentication service
-    :param fileHandleEndpoint:    Location of file service
-    :param portalEndpoint:        Location of the website
-    :param serviceTimeoutSeconds: Wait time before timeout (currently unused)
-    :param debug:                 Print debugging messages if True
-    :param skip_checks:           Skip version and endpoint checks
-    :param configPath:            Path to config File with setting for Synapse
-                                  defaults to ~/.synapseConfig
-    :param requests_session:      a custom requests.Session object that this Synapse instance will use
-                                  when making http requests
+    Attributes:
+        repoEndpoint:          Location of Synapse repository
+        authEndpoint:          Location of authentication service
+        fileHandleEndpoint:    Location of file service
+        portalEndpoint:        Location of the website
+        serviceTimeoutSeconds: Wait time before timeout (currently unused)
+        debug:                 Print debugging messages if True
+        skip_checks:           Skip version and endpoint checks
+        configPath:            Path to config File with setting for Synapse
+                                defaults to ~/.synapseConfig
+        requests_session:      a custom requests.Session object that this Synapse instance will use
+                                when making http requests.
+        cache_root_dir:        root directory for storing cache data
+        silent:                Defaults to False.
 
-    Typically, no parameters are needed::
+    Example: Getting started
+        Logging in to Synapse using an authToken
 
-        import synapseclient
-        syn = synapseclient.Synapse()
+            import synapseclient
+            syn = synapseclient.login(authToken="authtoken")
 
-    See:
+        Using environment variable or `.synapseConfig`
 
-    - :py:func:`synapseclient.Synapse.login`
-    - :py:func:`synapseclient.Synapse.setEndpoints`
+            import synapseclient
+            syn = synapseclient.login()
+
+
 
     """
 

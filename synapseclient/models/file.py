@@ -22,14 +22,49 @@ tracer = trace.get_tracer("synapseclient")
 
 @dataclass()
 class File:
+    """A file within Synapse.
+
+    Attributes:
+        id: The unique immutable ID for this file. A new ID will be generated for new Files.
+            Once issued, this ID is guaranteed to never change or be re-issued.
+        name: The name of this entity. Must be 256 characters or less.
+            Names may only contain: letters, numbers, spaces, underscores, hyphens, periods,
+            plus signs, apostrophes, and parentheses.
+        path: The path to the file.
+        description: The description of this file. Must be 1000 characters or less.
+        etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+            concurrent updates. Since the E-Tag changes every time an entity is updated it
+            is used to detect when a client's current representation of an entity is out-of-date.
+        created_on: The date this entity was created.
+        modified_on: The date this entity was last modified.
+        created_by: The ID of the user that created this entity.
+        modified_by: The ID of the user that last modified this entity.
+        parent_id: The ID of the Entity that is the parent of this Entity.
+        version_number: Indicates which implementation of Entity this object represents. The value is
+            the fully qualified class name, e.g. org.sagebionetworks.repo.model.FileEntity.
+        version_label: The version label for this entity.
+        version_comment: The version comment for this entity.
+        is_latest_version: If this is the latest version of the object.
+        data_file_handle_id: ID of the file associated with this entity.
+        file_name_override: An optional replacement for the name of the uploaded file. This is distinct
+            from the entity name. If omitted the file will retain its original name.
+        annotations: Additional metadata associated with the folder. The key is the name of your
+            desired annotations. The value is an object containing a list of values
+            (use empty list to represent no values for key) and the value type associated with
+            all values in the list.
+        is_loaded: If the file has been loaded from Synapse.
+
+
+    """
+
     id: Optional[str] = None
     """The unique immutable ID for this file. A new ID will be generated for new Files.
-    Once issued, this ID is guaranteed to never change or be re-issued"""
+    Once issued, this ID is guaranteed to never change or be re-issued."""
 
     name: Optional[str] = None
     """The name of this entity. Must be 256 characters or less.
     Names may only contain: letters, numbers, spaces, underscores, hyphens, periods,
-    plus signs, apostrophes, and parentheses"""
+    plus signs, apostrophes, and parentheses."""
 
     path: Optional[str] = None
     # TODO - Should a file also have a folder, or a method that figures out the folder class?
@@ -134,9 +169,12 @@ class File:
     ) -> "File":
         """Store the file in Synapse.
 
-        :param parent: The parent folder or project to store the file in.
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
-        :return: The file object.
+        Args:
+            parent: The parent folder or project to store the file in.
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            The file object.
         """
         with tracer.start_as_current_span(
             f"File_Store: {self.path if self.path else self.id}"
@@ -190,8 +228,13 @@ class File:
     ) -> "File":
         """Get the file metadata from Synapse.
 
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
-        :return: The file object.
+        Args:
+            download_file: If True the file will be downloaded.
+            download_location: The location to download the file to.
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            The file object.
         """
         with tracer.start_as_current_span(f"File_Get: {self.id}"):
             loop = asyncio.get_event_loop()
@@ -212,7 +255,11 @@ class File:
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the file from Synapse.
 
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            None
         """
         with tracer.start_as_current_span(f"File_Delete: {self.id}"):
             loop = asyncio.get_event_loop()
