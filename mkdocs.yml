@@ -188,6 +188,7 @@ theme:
     - search.suggest
     - toc.follow
     - navigation.tabs
+    - navigation.tabs.sticky
 
 extra_css:
 - css/custom.css
