@@ -11,6 +11,35 @@ give us a way to measure the impact of changes to the client.
 Results
 ===================
 
+12/12/2023: Downloading files from Synapse
+==========================================
+The results were created on a `t3a.micro` EC2 instance with a 200GB disk size running in us-east-1.
+The script that was run can be found in `docs/scripts/downloadBenchmark.py` and `docs/scripts/uploadTestFiles.py`.
+
+During this download test I tried various thread counts to see what performance looked like at
+different levels. What I found was that going over the default count of threads during download
+of large files (10GB and over) led to signficantly unstable performance. The client would often
+crash or hang during execution. As a result the general reccomendation is as follows:
+
+- For files over 1GB use the default number of threads: `multiprocessing.cpu_count() + 4`
+- For a large number of files 1GB and under 40-50 threads worked best
+
+
++---------------------------+--------------+-------------------+---------------------------+----------+---------------+
+| Test                      | Thread Count | Synapseutils Sync | syn.getChildren + syn.get | S3 Sync  | Per file size |
++===========================+==============+===================+===========================+==========+===============+
+| 25 Files 1MB total size   | 40           | 1.30s             | 5.48s                     | 1.49s    | 40KB          |
++---------------------------+--------------+-------------------+---------------------------+----------+---------------+
+| 775 Files 10MB total size | 40           | 19.17s            | 161.46s                   | 12.02s   | 12.9KB        |
++---------------------------+--------------+-------------------+---------------------------+----------+---------------+
+| 10 Files 1GB total size   | 40           | 14.74s            | 21.91s                    | 11.72s   | 100MB         |
++---------------------------+--------------+-------------------+---------------------------+----------+---------------+
+| 10 Files 100GB total size | 6            | 3859.66s          | 2006.53s                  | 1023.57s | 10GB          |
++---------------------------+--------------+-------------------+---------------------------+----------+---------------+
+| 10 Files 100GB total size | 40           | Wouldn't complete | Wouldn't complete         | N/A      | 10GB          |
++---------------------------+--------------+-------------------+---------------------------+----------+---------------+
+
+
 
 12/06/2023: Uploading files to Synapse, Varying thread count, 5 annotations per file
 ====================================================================================
