@@ -224,6 +224,35 @@ All synapse related attributes should live within the `synapse` namespace, for e
     * "Is this an external call or an entry point into the python client?"
     * "Is it useful to know how long this section of code takes to execute?"
 
+### Python doc pages
+The core of the doc pages is `mkdocstrings`. It is a series to markdown pages that use a few
+plugins to link to other documents (aka: `autorefs`).
+
+#### Running the documents page on your local machine
+At the root directory of the project you'll find a `mkdocs.yml`, this is where all commands
+are ran from.
+
+To start a local HTTP server to host the documents use:
+```bash
+mkdocs serve
+```
+
+If you need to generate the documents again for upload to `Read the Docs` you can run:
+```bash
+mkdocs build
+```
+
+Running this build command will create the required HTML content in `docs_site`.
+
+#### Guidelines for new documents
+In each of the docs folders there articles live there is a README with further information about the expected content in each folder.
+
+
+Some links for further reading:
+
+- https://mkdocstrings.github.io/
+- https://mkdocstrings.github.io/python/
+
 ### Repository Admins
 
 - [Release process](https://sagebionetworks.jira.com/wiki/spaces/SYNPY/pages/643498030/Synapse+Python+Client+Staging+Validation+Production)

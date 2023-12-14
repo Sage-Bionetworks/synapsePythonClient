@@ -1,141 +1,10 @@
 """
-******
-Entity
-******
+# Entity
 
 The Entity class is the base class for all entities, including Project, Folder, File, and Link.
 
-Entities are dictionary-like objects in which both object and dictionary notation (entity.foo or entity['foo']) can be
-used interchangeably.
-
-Imports::
-
-    from synapseclient import Project, Folder, File, Link
-
-.. autoclass:: synapseclient.entity.Entity
-
-~~~~~~~
-Project
-~~~~~~~
-
-.. autoclass:: synapseclient.entity.Project
-
-~~~~~~
-Folder
-~~~~~~
-
-.. autoclass:: synapseclient.entity.Folder
-
-~~~~
-File
-~~~~
-
-.. autoclass:: synapseclient.entity.File
-
-Changing File Names
--------------------
-
-A Synapse File Entity has a name separate from the name of the actual file it represents. When a file is uploaded to
-Synapse, its filename is fixed, even though the name of the entity can be changed at any time. Synapse provides a way
-to change this filename and the content-type of the file for future downloads by creating a new version of the file
-with a modified copy of itself.  This can be done with the synapseutils.copy_functions.changeFileMetaData function.
-
->>> import synapseutils
->>> e = syn.get(synid)
->>> print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
->>> e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
-
-Setting *fileNameOverride* will **not** change the name of a copy of the
-file that's already downloaded into your local cache. Either rename the
-local copy manually or remove it from the cache and re-download.:
-
->>> syn.cache.remove(e.dataFileHandleId)
->>> e = syn.get(e)
->>> print(os.path.basename(e.path))  ## prints "my_newname_file.txt"
-
-~~~~
-Link
-~~~~
-
-.. autoclass:: synapseclient.entity.Link
-
-~~~~~~~~~~~~
-Table Schema
-~~~~~~~~~~~~
-
-.. autoclass:: synapseclient.table.Schema
-
-
-~~~~~~~~~~~~~~~~~~
-Entity View Schema
-~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: synapseclient.table.EntityViewSchema
-
-
-~~~~~~~~~~~~~~~~
-DockerRepository
-~~~~~~~~~~~~~~~~
-
-.. autoclass:: synapseclient.entity.DockerRepository
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Properties and annotations, implementation details
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-In Synapse, entities have both properties and annotations. Properties are used by the system, whereas annotations are
-completely user defined. In the Python client, we try to present this situation as a normal object, with one set of
-properties.
-
-Printing an entity will show the division between properties and annotations.::
-
-    print(entity)
-
-Under the covers, an Entity object has two dictionaries, one for properties and one for annotations. These two
-namespaces are distinct, so there is a possibility of collisions. It is recommended to avoid defining annotations with
-names that collide with properties, but this is not enforced.::
-
-    ## don't do this!
-    entity.properties['description'] = 'One thing'
-    entity.annotations['description'] = 'A different thing'
-
-In case of conflict, properties will take precedence.::
-
-    print(entity.description)
-    #> One thing
-
-Some additional ambiguity is entailed in the use of dot notation. Entity objects have their own internal properties
-which are not persisted to Synapse. As in all Python objects, these properties are held in object.__dict__. For
-example, this dictionary holds the keys 'properties' and 'annotations' whose values are both dictionaries themselves.
-
-The rule, for either getting or setting is: first look in the object then look in properties, then look in annotations.
-If the key is not found in any of these three, a get results in a ``KeyError`` and a set results in a new annotation
-being created. Thus, the following results in a new annotation that will be persisted in Synapse::
-
-    entity.foo = 'bar'
-
-To create an object member variable, which will *not* be persisted in Synapse, this unfortunate notation is required::
-
-    entity.__dict__['foo'] = 'bar'
-
-As mentioned previously, name collisions are entirely possible.
-Keys in the three namespaces can be referred to unambiguously like so::
-
-    entity.__dict__['key']
-
-    entity.properties.key
-    entity.properties['key']
-
-    entity.annotations.key
-    entity.annotations['key']
-
-Most of the time, users should be able to ignore these distinctions and treat Entities like normal Python objects.
-End users should never need to manipulate items in __dict__.
-
-See also:
-
-- :py:mod:`synapseclient.annotations`
-
+Entities are dictionary-like objects in which both object and dictionary notation
+(entity.foo or entity['foo']) can be used interchangeably.
 """
 
 import collections.abc
@@ -152,7 +21,16 @@ from synapseclient.core.utils import id_of, itersubclasses
 
 
 class Versionable(object):
-    """An entity for which Synapse will store a version history."""
+    """An entity for which Synapse will store a version history.
+
+    Attributes:
+        versionNumber: The version number issued to this version on the object.
+        versionLabel:  	The version label for this entity
+        versionComment: The version comment for this entity
+        versionUrl:
+        versions:
+
+    """
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.Versionable"
     _property_keys = [
@@ -180,7 +58,31 @@ class Entity(collections.abc.MutableMapping):
     A Synapse entity is an object that has metadata, access control, and potentially a file. It can represent data,
     source code, or a folder that contains other entities.
 
-    Entities should typically be created using the constructors for specific subclasses such as Project, Folder or File.
+    Entities should typically be created using the constructors for specific subclasses
+    such as [synapseclient.Project][], [synapseclient.Folder][] or [synapseclient.File][].
+
+    Attributes:
+        id: The unique immutable ID for this entity. A new ID will be generated for new
+            Entities. Once issued, this ID is guaranteed to never change or be re-issued
+        name: The name of this entity. Must be 256 characters or less. Names may only
+                contain: letters, numbers, spaces, underscores, hyphens, periods, plus
+                signs, apostrophes, and parentheses
+        description: The description of this entity. Must be 1000 characters or less.
+        parentId: The ID of the Entity that is the parent of this Entity.
+        entityType:
+        concreteType: Indicates which implementation of Entity this object represents.
+                        The value is the fully qualified class name, e.g.
+                        org.sagebionetworks.repo.model.FileEntity.
+        etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+                concurrent updates. Since the E-Tag changes every time an entity is
+                updated it is used to detect when a client's current representation of
+                an entity is out-of-date.
+        annotations: The dict of annotations for this entity.
+        accessControlList:
+        createdOn: The date this entity was created.
+        createdBy: The ID of the user that created this entity.
+        modifiedOn: The date this entity was last modified.
+        modifiedBy: The ID of the user that last modified this entity.
     """
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.Entity"
@@ -208,15 +110,14 @@ class Entity(collections.abc.MutableMapping):
         Create an Entity or a subclass given dictionaries of properties and annotations, as might be received from the
         Synapse Repository.
 
-        :param properties:  A map of Synapse properties
+        Arguments:
+            properties:  A map of Synapse properties
 
-            If 'concreteType' is defined in properties, we create the proper subclass of Entity. If not, give back the
-            type whose constructor was called:
-
-            If passed an Entity as input, create a new Entity using the input entity as a prototype.
-
-        :param annotations: A map of user defined annotations
-        :param local_state: Internal use only
+                - If 'concreteType' is defined in properties, we create the proper subclass of Entity. If not, give back the
+                type whose constructor was called.
+                - If passed an Entity as input, create a new Entity using the input entity as a prototype.
+            annotations: A map of user defined annotations
+            local_state: Internal use only
         """
 
         # Create a new Entity using an existing Entity as a prototype
@@ -348,11 +249,15 @@ class Entity(collections.abc.MutableMapping):
         else:
             return "/entity/%s" % self.id
 
-    def local_state(self, state=None):
+    def local_state(self, state=None) -> dict:
         """
         Set or get the object's internal state, excluding properties, or annotations.
 
-        :param state: A dictionary
+        Arguments:
+            state: A dictionary
+
+        Returns:
+            The object's internal state, excluding properties, or annotations.
         """
         if state:
             for key, value in state.items():
@@ -515,15 +420,18 @@ class Project(Entity):
     Projects in Synapse must be uniquely named. Trying to create a project with a name that's already taken, say
     'My project', will result in an error
 
-    :param name:            The name of the project
-    :param properties:      A map of Synapse properties
-    :param annotations:     A map of user defined annotations
-    :param local_state:     Internal use only
+    Attributes:
+        name: The name of the project
+        properties: A map of Synapse properties
+        annotations: A map of user defined annotations
+        local_state: Internal use only
 
-    Example::
 
-        project = Project('Foobarbat project')
-        project = syn.store(project)
+    Example: Using this class
+        Creating an instance and storing the project
+
+            project = Project('Foobarbat project')
+            project = syn.store(project)
     """
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.Project"
@@ -548,16 +456,18 @@ class Folder(Entity):
 
     Folders must have a name and a parent and can optionally have annotations.
 
-    :param name:            The name of the folder
-    :param parent:          The parent project or folder
-    :param properties:      A map of Synapse properties
-    :param annotations:     A map of user defined annotations
-    :param local_state:     Internal use only
+    Attributes:
+        name: The name of the folder
+        parent: The parent project or folder
+        properties: A map of Synapse properties
+        annotations: A map of user defined annotations
+        local_state: Internal use only
 
-    Example::
+    Example: Using this class
+        Creating an instance and storing the folder
 
-        folder = Folder(name='my data', parent=project)
-        folder = syn.store(folder)
+            folder = Folder(name='my data', parent=project)
+            folder = syn.store(folder)
     """
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.Folder"
@@ -590,17 +500,20 @@ class Link(Entity):
     Links must have a target ID and a parent. When you do :py:func:`synapseclient.Synapse.get` on a Link object,
     the Link object is returned. If the target is desired, specify followLink=True in synapseclient.Synapse.get.
 
-    :param targetId:        The ID of the entity to be linked
-    :param targetVersion:   The version of the entity to be linked
-    :param parent:          The parent project or folder
-    :param properties:      A map of Synapse properties
-    :param annotations:     A map of user defined annotations
-    :param local_state:     Internal use only
+    Attributes:
+        targetId: The ID of the entity to be linked
+        targetVersion: The version of the entity to be linked
+        parent: The parent project or folder
+        properties: A map of Synapse properties
+        annotations: A map of user defined annotations
+        local_state: Internal use only
 
-    Example::
 
-        link = Link('targetID', parent=folder)
-        link = syn.store(link)
+    Example: Using this class
+        Creating an instance and storing the link
+
+            link = Link('targetID', parent=folder)
+            link = syn.store(link)
     """
 
     _property_keys = Entity._property_keys + ["linksTo", "linksToClassName"]
@@ -645,30 +558,53 @@ class File(Entity, Versionable):
     path (or URL) and a parent. By default, the name of the file in Synapse matches the filename, but by specifying
     the `name` attribute, the File Entity name can be different.
 
-    :param path:                Location to be represented by this File
-    :param name:                Name of the file in Synapse, not to be confused with the name within the path
-    :param parent:              Project or Folder where this File is stored
-    :param synapseStore:        Whether the File should be uploaded or if only the path should be stored when
-                                :py:func:`synapseclient.Synapse.store` is called on the File object.
-                                Defaults to True (file should be uploaded)
-    :param contentType:         Manually specify Content-type header, for example "application/png" or
-                                "application/json; charset=UTF-8"
-    :param dataFileHandleId:    Defining an existing dataFileHandleId will use the existing dataFileHandleId
-                                The creator of the file must also be the owner of the dataFileHandleId to have
-                                permission to store the file
-    :param properties:          A map of Synapse properties
-    :param annotations:         A map of user defined annotations
-    :param local_state:         Internal use only
+    ## Changing File Names
 
-    Example::
+    A Synapse File Entity has a name separate from the name of the actual file it represents. When a file is uploaded to
+    Synapse, its filename is fixed, even though the name of the entity can be changed at any time. Synapse provides a way
+    to change this filename and the content-type of the file for future downloads by creating a new version of the file
+    with a modified copy of itself.  This can be done with the synapseutils.copy_functions.changeFileMetaData function.
 
-        # The Entity name is derived from the path and is 'data.xyz'
-        data = File('/path/to/file/data.xyz', parent=folder)
-        data = syn.store(data)
+        import synapseutils
+        e = syn.get(synid)
+        print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
+        e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
 
-        # The Entity name is specified as 'my entity'
-        data = File('/path/to/file/data.xyz', name="my entity", parent=folder)
-        data = syn.store(data)
+    Setting *fileNameOverride* will **not** change the name of a copy of the
+    file that's already downloaded into your local cache. Either rename the
+    local copy manually or remove it from the cache and re-download.:
+
+        syn.cache.remove(e.dataFileHandleId)
+        e = syn.get(e)
+        print(os.path.basename(e.path))  ## prints "my_newname_file.txt"
+
+    Parameters:
+        path: Location to be represented by this File
+        name: Name of the file in Synapse, not to be confused with the name within the path
+        parent: Project or Folder where this File is stored
+        synapseStore: Whether the File should be uploaded or if only the path should be stored when
+                        [synapseclient.Synapse.store][] is called on the File object.
+        contentType: Manually specify Content-type header, for example "application/png" or
+                        "application/json; charset=UTF-8"
+        dataFileHandleId: Defining an existing dataFileHandleId will use the existing dataFileHandleId
+                            The creator of the file must also be the owner of the dataFileHandleId to have
+                            permission to store the file.
+        properties: A map of Synapse properties
+        annotations: A map of user defined annotations
+        local_state: Internal use only
+
+    Example: Creating instances
+        Creating and storing a File
+
+            # The Entity name is derived from the path and is 'data.xyz'
+            data = File('/path/to/file/data.xyz', parent=folder)
+            data = syn.store(data)
+
+        Setting the name of the file in Synapse to 'my entity'
+
+            # The Entity name is specified as 'my entity'
+            data = File('/path/to/file/data.xyz', name="my entity", parent=folder)
+            data = syn.store(data)
     """
 
     # Note: externalURL technically should not be in the keys since it's only a field/member variable of
@@ -841,16 +777,14 @@ class DockerRepository(Entity):
     To upload a docker image that is managed by Synapse please use the official Docker client and read
     https://help.synapse.org/docs/Synapse-Docker-Registry.2011037752.html for instructions on uploading a Docker Image to Synapse
 
-    :param repositoryName: the name of the Docker Repository. Usually in the format: [host[:port]/]path.
-                           If host is not set, it will default to that of DockerHub. port can only be specified
-                           if the host is also specified.
-    :param parent:         the parent project for the Docker repository
-    :param properties:     A map of Synapse properties
-    :param annotations:    A map of user defined annotations
-    :param local_state:    Internal use only
-
-    :return:  an object of type :py:class:`synapseclient.entity.DockerRepository`
-
+    Attributes:
+        repositoryName: The name of the Docker Repository. Usually in the format: [host[:port]/]path.
+                        If host is not set, it will default to that of DockerHub. port can only be specified
+                        if the host is also specified.
+        parent: The parent project or folder
+        properties: A map of Synapse properties
+        annotations: A map of user defined annotations
+        local_state: Internal use only
     """
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.docker.DockerRepository"

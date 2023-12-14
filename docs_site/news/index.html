@@ -1,0 +1,6129 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+
+        <meta name="description" content="A Python client for Sage Bionetworks' Synapse, a collaborative, open-source research platform that allows teams to share data, track analyses, and collaborate. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.">
+
+
+        <meta name="author" content="Bryan Fauble">
+
+
+
+        <link rel="prev" href="../explanations/benchmarking/">
+
+
+
+      <link rel="icon" href="../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.2">
+
+
+
+        <title>Release Notes - Synapse Python/Command Line Client Documentation</title>
+
+
+
+      <link rel="stylesheet" href="../assets/stylesheets/main.50c56a3b.min.css">
+
+
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+
+
+
+
+
+
+
+
+
+
+
+  <style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>');--md-admonition-icon--info:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>');}</style>
+
+
+
+
+
+
+
+
+
+
+
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+
+
+
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+
+      <link rel="stylesheet" href="../css/custom.css">
+
+      <link rel="stylesheet" href="../termynal.css">
+
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+
+
+
+
+
+
+  </head>
+
+
+
+
+
+
+
+
+
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo">
+
+
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+
+
+        <a href="#release-notes" class="md-skip">
+          Skip to content
+        </a>
+
+    </div>
+    <div data-md-component="announce">
+
+    </div>
+
+
+
+
+
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Synapse Python/Command Line Client Documentation" class="md-header__button md-logo" aria-label="Synapse Python/Command Line Client Documentation" data-md-component="logo">
+
+  <img src="../assets/synapse_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Synapse Python/Command Line Client Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+
+              Release Notes
+
+          </span>
+        </div>
+      </div>
+    </div>
+
+
+        <form class="md-header__option" data-md-component="palette">
+
+
+
+
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6zm0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4zM7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </label>
+
+
+
+
+
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3Z"/></svg>
+      </label>
+
+
+</form>
+
+
+
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+
+
+
+      <label class="md-header__button md-icon" for="__search">
+
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7 0-.24-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91 1.61 0 2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08Z"/></svg>
+          </a>
+
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+      <div class="md-header__source">
+        <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    synapsePythonClient
+  </div>
+</a>
+      </div>
+
+  </nav>
+
+
+
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+
+
+
+
+
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+
+
+
+
+  Home
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+      <li class="md-tabs__item">
+        <a href="../tutorials/installation/" class="md-tabs__link">
+
+
+  Tutorials
+
+        </a>
+      </li>
+
+
+
+
+
+
+
+
+
+
+      <li class="md-tabs__item">
+        <a href="../guides/views/" class="md-tabs__link">
+
+
+  How-To Guides
+
+        </a>
+      </li>
+
+
+
+
+
+
+
+
+
+
+      <li class="md-tabs__item">
+        <a href="../reference/client/" class="md-tabs__link">
+
+
+  API Reference
+
+        </a>
+      </li>
+
+
+
+
+
+
+
+
+
+
+      <li class="md-tabs__item">
+        <a href="../explanations/access_control/" class="md-tabs__link">
+
+
+  Further Reading
+
+        </a>
+      </li>
+
+
+
+
+
+
+
+
+
+
+
+
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+
+
+  News
+
+        </a>
+      </li>
+
+
+
+
+    </ul>
+  </div>
+</nav>
+
+
+</header>
+
+    <div class="md-container" data-md-component="container">
+
+
+
+
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+
+
+
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+
+
+
+
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Synapse Python/Command Line Client Documentation" class="md-nav__button md-logo" aria-label="Synapse Python/Command Line Client Documentation" data-md-component="logo">
+
+  <img src="../assets/synapse_logo.png" alt="logo">
+
+    </a>
+    Synapse Python/Command Line Client Documentation
+  </label>
+
+    <div class="md-nav__source">
+      <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    synapsePythonClient
+  </div>
+</a>
+    </div>
+
+  <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+
+
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+
+
+  <span class="md-ellipsis">
+    Tutorials
+  </span>
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../tutorials/installation/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Installation
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../tutorials/authentication/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Authentication
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../tutorials/configuration/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../tutorials/python_client/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Working with the Python client
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../tutorials/command_line_client/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Working with the Command Line Client
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../tutorials/file_versioning/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Working with file versioning
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../tutorials/tables/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Working with tables
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../tutorials/reticulate/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Synapseclient with R through reticulate
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+
+
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+
+
+  <span class="md-ellipsis">
+    How-To Guides
+  </span>
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            How-To Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../guides/views/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Using Entity Views
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../guides/data_storage/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Data Storage
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../guides/accessing_the_rest_api/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Access the REST API
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+
+
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="">
+
+
+  <span class="md-ellipsis">
+    Expermental Features
+  </span>
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Expermental Features
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../guides/validate_annotations/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Validating Annotations
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+
+
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+
+
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/client/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Client
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/synapse_utils/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Synapse Utils
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/entity/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Entity
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/project/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Project
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/folder/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Folder
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/file/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    File
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/annotations/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Annotations
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/tables/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Tables
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/table_schema/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Table Schema
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/view_schema/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Entity View Schema
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/activity/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Activity/Provenance
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/teams/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Teams
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/wiki/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Wiki
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/evaluation/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Evaluation
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/link/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Link
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/docker_repository/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    DockerRepository
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/json_schema/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    JSON Schema
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/exceptions/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Exceptions
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../reference/core/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Core
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+
+
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+
+
+  <span class="md-ellipsis">
+    Further Reading
+  </span>
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Further Reading
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../explanations/access_control/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Access Control
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../explanations/properties_vs_annotations/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Properties vs Annotations
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../explanations/manifest_tsv/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Manifest TSV
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../explanations/benchmarking/" class="md-nav__link">
+
+
+  <span class="md-ellipsis">
+    Benchmarking
+  </span>
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+
+
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+
+
+  <span class="md-ellipsis">
+    News
+  </span>
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            News
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--active">
+
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+
+
+
+
+
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+
+
+  <span class="md-ellipsis">
+    Release Notes
+  </span>
+
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+
+      <a href="./" class="md-nav__link md-nav__link--active">
+
+
+  <span class="md-ellipsis">
+    Release Notes
+  </span>
+
+
+      </a>
+
+
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+
+
+
+
+
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+
+        <li class="md-nav__item">
+  <a href="#320-2023-11-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.2.0 (2023-11-27)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="3.2.0 (2023-11-27)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#311-2023-10-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.1.1 (2023-10-30)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="3.1.1 (2023-10-30)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#310-2023-10-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.1.0 (2023-10-20)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="3.1.0 (2023-10-20)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#300-2023-09-09" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.0.0 (2023-09-09)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="3.0.0 (2023-09-09)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#272-2023-06-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.7.2 (2023-06-02)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.7.2 (2023-06-02)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#271-2023-04-11" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.7.1 (2023-04-11)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.7.1 (2023-04-11)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#270-2022-09-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.7.0 (2022-09-16)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.7.0 (2022-09-16)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#260-2022-04-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.6.0 (2022-04-19)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.6.0 (2022-04-19)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#251-2021-12-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.5.1 (2021-12-02)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.5.1 (2021-12-02)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#250-2021-10-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.5.0 (2021-10-05)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.5.0 (2021-10-05)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#240-2021-07-08" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.4.0 (2021-07-08)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.4.0 (2021-07-08)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#231-2021-04-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.3.1 (2021-04-13)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.3.1 (2021-04-13)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#230-2021-03-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.3.0 (2021-03-03)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.3.0 (2021-03-03)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#new-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      New Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#222-2020-10-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.2.2 (2020-10-18)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.2.2 (2020-10-18)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#new-features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      New Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#220-2020-08-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.2.0 (2020-08-31)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.2.0 (2020-08-31)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#211-2020-07-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.1.1 (2020-07-10)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.1.1 (2020-07-10)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#210-2020-06-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.1.0 (2020-06-16)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.1.0 (2020-06-16)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#200-2020-03-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.0.0 (2020-03-23)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.0.0 (2020-03-23)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights:
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bugs-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bugs Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#194-2019-06-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.9.4 (2019-06-28)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.9.4 (2019-06-28)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#new-features_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      New Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#193-2019-06-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.9.3 (2019-06-28)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.9.3 (2019-06-28)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#192-2019-02-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.9.2 (2019-02-15)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.9.2 (2019-02-15)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#191-2019-01-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.9.1 (2019-01-20)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.9.1 (2019-01-20)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_18" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#190-2018-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.9.0 (2018-09-28)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.9.0 (2018-09-28)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#features_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_19" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#182-2018-08-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.8.2 (2018-08-17)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.8.2 (2018-08-17)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_20" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#features_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#181-2018-05-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.8.1 (2018-05-17)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.8.1 (2018-05-17)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_21" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#180-2018-05-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.8.0 (2018-05-07)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.8.0 (2018-05-07)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_22" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#175-2018-01-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.7.5 (2018-01-31)
+    </span>
+  </a>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#174-2018-01-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.7.4 (2018-01-29)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.7.4 (2018-01-29)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#features_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_23" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#173-2017-12-08" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.7.3 (2017-12-08)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.7.3 (2017-12-08)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_24" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#features_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#171-2017-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.7.1 (2017-11-17)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.7.1 (2017-11-17)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#features_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_25" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#161-2016-11-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.6.1 (2016-11-02)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.6.1 (2016-11-02)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#what-is-new" class="md-nav__link">
+    <span class="md-ellipsis">
+      What is New
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_26" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+    </ul>
+
+</nav>
+
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+
+
+
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+
+
+
+
+
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+
+        <li class="md-nav__item">
+  <a href="#320-2023-11-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.2.0 (2023-11-27)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="3.2.0 (2023-11-27)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#311-2023-10-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.1.1 (2023-10-30)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="3.1.1 (2023-10-30)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#310-2023-10-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.1.0 (2023-10-20)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="3.1.0 (2023-10-20)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#300-2023-09-09" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.0.0 (2023-09-09)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="3.0.0 (2023-09-09)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#272-2023-06-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.7.2 (2023-06-02)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.7.2 (2023-06-02)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#271-2023-04-11" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.7.1 (2023-04-11)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.7.1 (2023-04-11)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#270-2022-09-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.7.0 (2022-09-16)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.7.0 (2022-09-16)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#260-2022-04-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.6.0 (2022-04-19)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.6.0 (2022-04-19)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#251-2021-12-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.5.1 (2021-12-02)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.5.1 (2021-12-02)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#250-2021-10-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.5.0 (2021-10-05)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.5.0 (2021-10-05)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#stories_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stories
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#240-2021-07-08" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.4.0 (2021-07-08)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.4.0 (2021-07-08)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#231-2021-04-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.3.1 (2021-04-13)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.3.1 (2021-04-13)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#230-2021-03-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.3.0 (2021-03-03)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.3.0 (2021-03-03)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#new-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      New Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#222-2020-10-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.2.2 (2020-10-18)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.2.2 (2020-10-18)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#new-features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      New Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#220-2020-08-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.2.0 (2020-08-31)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.2.0 (2020-08-31)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#211-2020-07-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.1.1 (2020-07-10)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.1.1 (2020-07-10)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#210-2020-06-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.1.0 (2020-06-16)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.1.0 (2020-06-16)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#200-2020-03-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.0.0 (2020-03-23)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="2.0.0 (2020-03-23)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#highlights_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      Highlights:
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bugs-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bugs Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#194-2019-06-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.9.4 (2019-06-28)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.9.4 (2019-06-28)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#new-features_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      New Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#193-2019-06-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.9.3 (2019-06-28)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.9.3 (2019-06-28)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#192-2019-02-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.9.2 (2019-02-15)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.9.2 (2019-02-15)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#191-2019-01-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.9.1 (2019-01-20)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.9.1 (2019-01-20)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_18" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#190-2018-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.9.0 (2018-09-28)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.9.0 (2018-09-28)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#features_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_19" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#182-2018-08-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.8.2 (2018-08-17)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.8.2 (2018-08-17)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_20" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#features_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#181-2018-05-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.8.1 (2018-05-17)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.8.1 (2018-05-17)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_21" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#180-2018-05-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.8.0 (2018-05-07)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.8.0 (2018-05-07)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_22" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#175-2018-01-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.7.5 (2018-01-31)
+    </span>
+  </a>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#174-2018-01-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.7.4 (2018-01-29)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.7.4 (2018-01-29)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#features_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_23" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#173-2017-12-08" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.7.3 (2017-12-08)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.7.3 (2017-12-08)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_24" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#features_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#171-2017-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.7.1 (2017-11-17)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.7.1 (2017-11-17)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#features_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Features
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_25" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#tasks_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tasks
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+        <li class="md-nav__item">
+  <a href="#161-2016-11-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.6.1 (2016-11-02)
+    </span>
+  </a>
+
+    <nav class="md-nav" aria-label="1.6.1 (2016-11-02)">
+      <ul class="md-nav__list">
+
+          <li class="md-nav__item">
+  <a href="#what-is-new" class="md-nav__link">
+    <span class="md-ellipsis">
+      What is New
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#improvements_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      Improvements
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#bug-fixes_26" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bug Fixes
+    </span>
+  </a>
+
+</li>
+
+      </ul>
+    </nav>
+
+</li>
+
+    </ul>
+
+</nav>
+                  </div>
+                </div>
+              </div>
+
+
+
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+
+
+
+
+
+
+
+<h1 id="release-notes">Release Notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
+<h2 id="320-2023-11-27">3.2.0 (2023-11-27)<a class="headerlink" href="#320-2023-11-27" title="Permanent link">&para;</a></h2>
+<h3 id="highlights">Highlights<a class="headerlink" href="#highlights" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Introduction of OpenTelemetry within the client. See information in
+    the README for further details.</li>
+<li>Added 2 new functions <code>get_user_profile_by_username</code> and
+    <code>get_user_profile_by_id</code> to handle for use cases when a
+    username is a number.</li>
+<li>Updated the local .cacheMap that is used to track local files
+    downloaded from Synapse to include the MD5 of the file when there is
+    a cache miss. This is used to determine if the file has changed
+    since we cannot fully rely on the file's modified date only.</li>
+<li>Include a progress indicator when downloading files via FTP.</li>
+<li>Benchmarking of upload speeds to allow us to make data driven
+    decisions and comparisons.</li>
+</ul>
+<h3 id="bug-fixes">Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1186">SYNPY-1186</a>]
+    When a username is a number, getUserProfile cannot retrieve the
+    user.</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1316">SYNPY-1316</a>]
+    Calling <code>syn.get</code> with
+    <code>ifcollision='overwrite.local</code> does not always
+    overwrite previous file</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1319">SYNPY-1319</a>]
+    Unstable test: test_download_file_false</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1333">SYNPY-1333</a>]
+    synapse get on a file in a ftp server doesn't seem to be
+    downloading</li>
+</ul>
+<h3 id="stories">Stories<a class="headerlink" href="#stories" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-816">SYNPY-816</a>]
+    Unstable test: integration.test_evaluations.test_teams</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1274">SYNPY-1274</a>]
+    Set up pre-commit in github actions</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1305">SYNPY-1305</a>]
+    Collect trace data for integration tests</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1304">SYNPY-1304</a>]
+    Introduction of OpenTelemetry</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1320">SYNPY-1320</a>]
+    Benchmark upload speeds</li>
+</ul>
+<h2 id="311-2023-10-30">3.1.1 (2023-10-30)<a class="headerlink" href="#311-2023-10-30" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_1">Highlights<a class="headerlink" href="#highlights_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>A fix to dowloads when file names match but content does not when
+    <code>ifcollision=overwrite.local</code></li>
+</ul>
+<h3 id="bug-fixes_1">Bug Fixes<a class="headerlink" href="#bug-fixes_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1316">SYNPY-1316</a>]
+    Calling <code>syn.get</code> with
+    <code>ifcollision='overwrite.local</code> does not always
+    overwrite previous file</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1298">SYNPY-1298</a>]
+    Resolve unstable integration tests</li>
+</ul>
+<h2 id="310-2023-10-20">3.1.0 (2023-10-20)<a class="headerlink" href="#310-2023-10-20" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_2">Highlights<a class="headerlink" href="#highlights_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>A fix to authentication when using a Personal Access token or API
+    Key. <code>synapse login</code> and <code>synapse config</code>
+    correctly work as a result.</li>
+<li>Replacement of custom <code>@memoize</code> decorator with
+    <code>@functools.lru_cache</code> decorator.</li>
+<li>Introduction of pipfile for easy creation of a virtual environment
+    for development.</li>
+</ul>
+<h3 id="bug-fixes_2">Bug Fixes<a class="headerlink" href="#bug-fixes_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1283">SYNPY-1283</a>]
+    Fix dead link in docs</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1296">SYNPY-1296</a>]
+    Unable to log into synapse only with auth token</li>
+</ul>
+<h3 id="stories_1">Stories<a class="headerlink" href="#stories_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-49">SYNPY-49</a>]
+    py: getPermissions and permissions via group membership</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-967">SYNPY-967</a>]
+    Replace @memoize annotation in python client with
+    @functools.lru_cache</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1282">SYNPY-1282</a>]
+    Add type hints to 5 functions in client.py</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1285">SYNPY-1285</a>]
+    Create pipenv lock file for synapsePythonClient</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1293">SYNPY-1293</a>]
+    Address Dependabot security vulnerabilities</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1295">SYNPY-1295</a>]
+    Doc: Add config command to authentication section in Synapse doc</li>
+</ul>
+<h2 id="300-2023-09-09">3.0.0 (2023-09-09)<a class="headerlink" href="#300-2023-09-09" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_3">Highlights<a class="headerlink" href="#highlights_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Removed all camel case or non-standard single dash long command line
+    interface (cli) parameters. Example: command line arguments like
+    <code>-parent</code> will become <code>--parent</code>. Commands
+    that support camel case like <code>--parentId</code> will be
+    changed to <code>--parent-id</code>.</li>
+<li>Remove support for Python 3.7 due to its end of life and support
+    Python 3.11</li>
+<li>Support Synapse JSON schema services</li>
+</ul>
+<h3 id="bug-fixes_3">Bug Fixes<a class="headerlink" href="#bug-fixes_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-570">SYNPY-570</a>]
+    warning messages when downloading if files in the cache already</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-622">SYNPY-622</a>]
+    Constructor for SubmissionStatus is not correctly implemented</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1242">SYNPY-1242</a>]
+    _loggedIn() function doesn't work</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1269">SYNPY-1269</a>]
+    Integration test failures against release-456</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1271">SYNPY-1271</a>]
+    Integration test failure against release-458</li>
+</ul>
+<h3 id="stories_2">Stories<a class="headerlink" href="#stories_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-737">SYNPY-737</a>]
+    deprecate single dash, multi-letter named params in command line
+    client</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1012">SYNPY-1012</a>]
+    Synapse Command Line documentation is not distinct from Synapse
+    Python Client documentations</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1213">SYNPY-1213</a>]
+    Add \"public\" and \"registered users\" group to setPermissions doc</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1245">SYNPY-1245</a>]
+    Fix old links to synapse docs</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1246">SYNPY-1246</a>]
+    Support Python 3.11</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1122">SYNPY-1122</a>]
+    JSON Schema support</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1255">SYNPY-1255</a>]
+    Support pandas 2.0 in python client</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1270">SYNPY-1270</a>]
+    Deprecate the use of <code>date_parser</code> and
+    <code>parse_date</code> in [pd.read_csv` in table
+    module</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-716">SYNPY-716</a>]
+    Deprecate and remove asInteger()</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1227">SYNPY-1227</a>]
+    Run <code>black</code> the Python auto formatter on the files</li>
+</ul>
+<h2 id="272-2023-06-02">2.7.2 (2023-06-02)<a class="headerlink" href="#272-2023-06-02" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_4">Highlights<a class="headerlink" href="#highlights_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1267">SYNPY-1267</a>]
+    -Lock down urllib3</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1268">SYNPY-1268</a>]
+    -Add deprecation warning for non-support login arguments</li>
+<li>Next major release (3.0.0)...<ul>
+<li>Support only pandas <code>\&gt;=</code> 1.5</li>
+<li>Remove support for Python 3.7 due to its end of life.</li>
+<li>There will be major cosmetic changes to the cli such as removing
+    all camel case or non-standard single dash long command line
+    interface (cli) parameters. Example: command line arguments like
+    <code>-parent</code> will become [--parent<code>.
+    Commands that support camel case like</code>--parentId<code>will be changed to</code>--parent-id`.</li>
+</ul>
+</li>
+</ul>
+<h2 id="271-2023-04-11">2.7.1 (2023-04-11)<a class="headerlink" href="#271-2023-04-11" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_5">Highlights<a class="headerlink" href="#highlights_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>Locked down pandas version to only support pandas <code>\&lt;</code>
+    1.5</p>
+</li>
+<li>
+<p>Next major release (3.0.0)...</p>
+<blockquote>
+<ul>
+<li>Support only pandas <code>\&gt;=</code> 1.5</li>
+<li>Remove support for Python 3.7 due to its end of life.</li>
+<li>There will be major cosmetic changes to the cli such as
+    removing all camel case or non-standard single dash long
+    command line interface (cli) parameters. Example: command line
+    arguments like <code>-parent</code> will become
+    <code>\--parent</code>. Commands that support camel case like
+    <code>\--parentId</code> will be changed to
+    <code>\--parent-id</code>.</li>
+</ul>
+</blockquote>
+</li>
+</ul>
+<h2 id="270-2022-09-16">2.7.0 (2022-09-16)<a class="headerlink" href="#270-2022-09-16" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_6">Highlights<a class="headerlink" href="#highlights_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>Added support for Datasets</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># from python</span>
+<span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">import</span> <span class="nn">synapseutils</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">dataset_items</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn000&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="p">{</span><span class="o">...</span><span class="p">},</span>
+<span class="p">]</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My Dataset&quot;</span><span class="p">,</span>
+    <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span>
+    <span class="n">dataset_items</span><span class="o">=</span><span class="n">dataset_items</span>
+<span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+<span class="c1"># Add/remove specific Synapse IDs to/from the Dataset</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_item</span><span class="p">({</span><span class="s1">&#39;entityId&#39;</span><span class="p">:</span> <span class="s2">&quot;syn111&quot;</span><span class="p">,</span> <span class="s1">&#39;versionNumber&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">remove_item</span><span class="p">(</span><span class="s2">&quot;syn000&quot;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+<span class="c1"># Add a single Folder to the Dataset</span>
+<span class="c1"># this will recursively add all the files in the folder</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_folder</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+<span class="c1"># Add a list of Folders, overwriting any existing files in the dataset</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">add_folders</span><span class="p">([</span><span class="s2">&quot;syn456&quot;</span><span class="p">,</span> <span class="s2">&quot;syn789&quot;</span><span class="p">],</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+<span class="c1"># Create snapshot version of dataset</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">create_snapshot_version</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;v1.0&quot;</span><span class="p">,</span>
+    <span class="n">comment</span><span class="o">=</span><span class="s2">&quot;This is version 1&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+</li>
+<li>
+<p>Added support for downloading from download cart. You can use this
+    feature by first adding items to your download cart on Synapse.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># from python</span>
+<span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">import</span> <span class="nn">synapseutils</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">manifest_path</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get_download_list</span><span class="p">()</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># from command line</span>
+synapse<span class="w"> </span>get-download-list
+</code></pre></div>
+</li>
+<li>
+<p>Next major release (3.0.0) there will be major cosmetic changes to
+    the cli such as removing all camel case or non-standard single dash
+    long command line interface (cli) parameters. Example: command line
+    arguments like <code>-parent</code> will become
+    <code>\--parent</code>. Commands that support camel case like
+    <code>\--parentId</code> will be changed to
+    <code>\--parent-id</code>.</p>
+</li>
+</ul>
+<h3 id="bug-fixes_4">Bug Fixes<a class="headerlink" href="#bug-fixes_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-226">SYNPY-226</a>]
+    -isConsistent fails as parameter for table query</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-562">SYNPY-562</a>]
+    -Make sure SQL functions, including \"year\", are quoted correctly</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1031">SYNPY-1031</a>]
+    -File version increments with 400 client error</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1219">SYNPY-1219</a>]
+    -Update Entity class to be compatible with the new Dataset entity</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1224">SYNPY-1224</a>]
+    -Correct SynapseUnmetAccessRestrictions message</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1237">SYNPY-1237</a>]
+    -as_table_columns function is mishandling mixed data types</li>
+</ul>
+<h3 id="stories_3">Stories<a class="headerlink" href="#stories_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-63">SYNPY-63</a>]
+    -py: use metaclass to replace the _entity_type_to_class hack</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-992">SYNPY-992</a>]
+    -synapseutils changeFileMetadata missing syn parameter docstring</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1175">SYNPY-1175</a>]
+    -Programmatic Support for Download V2 via Py Client</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1193">SYNPY-1193</a>]
+    -Support Datasets functionality</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1221">SYNPY-1221</a>]
+    -Set up gh-action: black, the python auto formatter on the python
+    client</li>
+</ul>
+<h3 id="tasks">Tasks<a class="headerlink" href="#tasks" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-566">SYNPY-566</a>]
+    -Clarify expected list format for sync manifest</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1053">SYNPY-1053</a>]
+    -Increase documentation of forceVersion in syncToSynapse</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1145">SYNPY-1145</a>]
+    -Link to manifest format in CLI sync command usage help</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1226">SYNPY-1226</a>]
+    -Leverage <code>ViewBase</code> for Datasets instead of
+    <code>SchemaBase</code></li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1235">SYNPY-1235</a>]
+    -Create codeql scanning workflow</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1207">SYNPY-1207</a>]
+    -Support syn.get() on a dataset</li>
+</ul>
+<h2 id="260-2022-04-19">2.6.0 (2022-04-19)<a class="headerlink" href="#260-2022-04-19" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_7">Highlights<a class="headerlink" href="#highlights_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>Next major release (3.0.0) there will be major cosmetic changes to
+    the cli such as removing all camel case or non-standard single dash
+    long command line interface (cli) parameters. Example: command line
+    arguments like <code>-parent</code> will become
+    <code>\--parent</code>. Commands that support camel case like
+    <code>\--parentId</code> will be changed to
+    <code>\--parent-id</code>.</p>
+</li>
+<li>
+<p>Added support for materialized views</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># from python</span>
+<span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">import</span> <span class="nn">synapseutils</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">view</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">MaterializedViewSchema</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;test-material-view&quot;</span><span class="p">,</span>
+    <span class="n">parent</span><span class="o">=</span><span class="s2">&quot;syn34234&quot;</span><span class="p">,</span>
+    <span class="n">definingSQL</span><span class="o">=</span><span class="s2">&quot;SELECT * FROM syn111 F JOIN syn2222 P on (F.PATIENT_ID = P.PATIENT_ID)&quot;</span>
+<span class="p">)</span>
+<span class="n">view_ent</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">view</span><span class="p">)</span>
+</code></pre></div>
+</li>
+<li>
+<p>Removed support for Python 3.6 and added support for Python 3.10</p>
+</li>
+<li>
+<p>Add function to create Synapse config file</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># from the command line</span>
+synapse<span class="w"> </span>config
+</code></pre></div>
+</li>
+</ul>
+<h3 id="bug-fixes_5">Bug Fixes<a class="headerlink" href="#bug-fixes_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1204">SYNPY-1204</a>]
+    -Python 3.10 compatibility</li>
+</ul>
+<h3 id="stories_4">Stories<a class="headerlink" href="#stories_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-728">SYNPY-728</a>]
+    -Improve error message when pandas is not available</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-974">SYNPY-974</a>]
+    -Documentation for generateManifest</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1209">SYNPY-1209</a>]
+    -Support for MaterializedViews in Py Client</li>
+</ul>
+<h3 id="tasks_1">Tasks<a class="headerlink" href="#tasks_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1174">SYNPY-1174</a>]
+    -Add function to create Synapse config file</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1176">SYNPY-1176</a>]
+    -syncToSynapse aborted + silent failure of file upload</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1184">SYNPY-1184</a>]
+    -Add <code>includeTypes</code> to <code>synapseutils.walk()</code></li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1189">SYNPY-1189</a>]
+    -Document \"maximumListLength\" parameter for Column</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1196">SYNPY-1196</a>]
+    -Expose <code>forceVersion</code> on
+    <code>changeFileMetadata</code></li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1205">SYNPY-1205</a>]
+    -Python 3.6 EOL - Remove support for 3.6</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1212">SYNPY-1212</a>]
+    -Include <code>dataset</code> as an entity type to return in
+    getChildren()</li>
+</ul>
+<h2 id="251-2021-12-02">2.5.1 (2021-12-02)<a class="headerlink" href="#251-2021-12-02" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_8">Highlights<a class="headerlink" href="#highlights_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Next major release (3.0.0) there will be major cosmetic changes to
+    the cli such as removing all camel case or non-standard single dash
+    long command line interface (cli) parameters. Example: command line
+    arguments like <code>-parent</code> will become
+    <code>\--parent</code>. Commands that support camel case like
+    <code>\--parentId</code> will be changed to
+    <code>\--parent-id</code>.</li>
+</ul>
+<h3 id="bug-fixes_6">Bug Fixes<a class="headerlink" href="#bug-fixes_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1197">SYNPY-1197</a>]
+    -Schema is a string and strings don't have columns_to_store
+    attributes</li>
+</ul>
+<h3 id="stories_5">Stories<a class="headerlink" href="#stories_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-772">SYNPY-772</a>]
+    -update statement that appears on PyPi about Synapse to be
+    consistent</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-997">SYNPY-997</a>]
+    -Typos in Views documentation</li>
+</ul>
+<h2 id="250-2021-10-05">2.5.0 (2021-10-05)<a class="headerlink" href="#250-2021-10-05" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_9">Highlights<a class="headerlink" href="#highlights_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>Added ability to generate a manifest file from your local directory
+    structure.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># from the command line</span>
+<span class="c1"># write the manifest to manifest.tsv</span>
+synapse<span class="w"> </span>manifest<span class="w"> </span>--parent-id<span class="w"> </span>syn123<span class="w"> </span>--manifest-file<span class="w"> </span>./manifest.tsv<span class="w"> </span>/path/to/local/directory
+<span class="c1"># stdout</span>
+synapse<span class="w"> </span>manifest<span class="w"> </span>--parent-id<span class="w"> </span>syn123<span class="w"> </span>/path/to/local/directory
+</code></pre></div>
+</li>
+<li>
+<p>Added ability to pipe manifest stdout into sync function.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># from the command line</span>
+synapse<span class="w"> </span>manifest<span class="w"> </span>--parent-id<span class="w"> </span>syn123<span class="w"> </span>./docs/<span class="w"> </span><span class="p">|</span><span class="w"> </span>synapse<span class="w"> </span>sync<span class="w"> </span>-
+</code></pre></div>
+</li>
+<li>
+<p>Added ability to return summary statistics of csv and tsv files
+    stored in Synapse.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># from python</span>
+import<span class="w"> </span>synapseclient
+import<span class="w"> </span>synapseutils
+<span class="nv">syn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>synapseclient.login<span class="o">()</span>
+<span class="nv">statistics</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>synapseutils.describe<span class="o">(</span><span class="nv">syn</span><span class="o">=</span>syn,<span class="w"> </span><span class="nv">entity</span><span class="o">=</span><span class="s2">&quot;syn12345&quot;</span><span class="o">)</span>
+print<span class="o">(</span>statistics<span class="o">)</span>
+<span class="o">{</span>
+<span class="w">    </span><span class="s2">&quot;column1&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">        </span><span class="s2">&quot;dtype&quot;</span>:<span class="w"> </span><span class="s2">&quot;object&quot;</span>,
+<span class="w">        </span><span class="s2">&quot;mode&quot;</span>:<span class="w"> </span><span class="s2">&quot;FOOBAR&quot;</span>
+<span class="w">    </span><span class="o">}</span>,
+<span class="w">    </span><span class="s2">&quot;column2&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">        </span><span class="s2">&quot;dtype&quot;</span>:<span class="w"> </span><span class="s2">&quot;int64&quot;</span>,
+<span class="w">        </span><span class="s2">&quot;mode&quot;</span>:<span class="w"> </span><span class="m">1</span>,
+<span class="w">        </span><span class="s2">&quot;min&quot;</span>:<span class="w"> </span><span class="m">1</span>,
+<span class="w">        </span><span class="s2">&quot;max&quot;</span>:<span class="w"> </span><span class="m">2</span>,
+<span class="w">        </span><span class="s2">&quot;mean&quot;</span>:<span class="w"> </span><span class="m">1</span>.4
+<span class="w">    </span><span class="o">}</span>,
+<span class="w">    </span><span class="s2">&quot;column3&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">        </span><span class="s2">&quot;dtype&quot;</span>:<span class="w"> </span><span class="s2">&quot;bool&quot;</span>,
+<span class="w">        </span><span class="s2">&quot;mode&quot;</span>:<span class="w"> </span>false,
+<span class="w">        </span><span class="s2">&quot;min&quot;</span>:<span class="w"> </span>false,
+<span class="w">        </span><span class="s2">&quot;max&quot;</span>:<span class="w"> </span>true,
+<span class="w">        </span><span class="s2">&quot;mean&quot;</span>:<span class="w"> </span><span class="m">0</span>.5
+<span class="w">    </span><span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+</li>
+<li>
+<p>Next major release (3.0.0) there will be major cosmetic changes to
+    the cli such as removing all camel case or non-standard single dash
+    long command line interface (cli) parameters. Example: command line
+    arguments like <code>-parent</code> will become
+    <code>\--parent</code>. Commands that support camel case like
+    <code>\--parentId</code> will be changed to
+    <code>\--parent-id</code>.</p>
+</li>
+</ul>
+<h3 id="bug-fixes_7">Bug Fixes<a class="headerlink" href="#bug-fixes_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-669">SYNPY-669</a>]
+    -Signing of Synapse authentication header does not correctly URL
+    encode the URL path</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-770">SYNPY-770</a>]
+    -Files failing to upload using syncToSynapse</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1123">SYNPY-1123</a>]
+    -All tables erroring when indexing</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1146">SYNPY-1146</a>]
+    -Error writing Booleans from Python dataframes into Boolean columns
+    in a Synapse table</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1156">SYNPY-1156</a>]
+    -datetimes in a Pandas dataframe are not properly stored to Synapse</li>
+</ul>
+<h3 id="stories_6">Stories<a class="headerlink" href="#stories_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-726">SYNPY-726</a>]
+    -mirror local folder structure for bulk upload</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1163">SYNPY-1163</a>]
+    -Expose synId with syn get -r</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1165">SYNPY-1165</a>]
+    -Generate manifest template from local folder structure</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1167">SYNPY-1167</a>]
+    -Support for Quick Summary Statistics on CSV and TSV files</li>
+</ul>
+<h3 id="tasks_2">Tasks<a class="headerlink" href="#tasks_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1169">SYNPY-1169</a>]
+    -Integration tests failures in develop branch against stack-371</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1172">SYNPY-1172</a>]
+    -Passing a pandas dataframe with a column called \"read\" breaks the
+    type parsing in as_table_columns()</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1173">SYNPY-1173</a>]
+    -Support DATE_LIST, ENTITYID_LIST, USERID_LIST table columns</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1188">SYNPY-1188</a>]
+    -Support piping of <code>synapse manifest</code> stdout in <code>synapse sync</code> function</li>
+</ul>
+<h2 id="240-2021-07-08">2.4.0 (2021-07-08)<a class="headerlink" href="#240-2021-07-08" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_10">Highlights<a class="headerlink" href="#highlights_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>Added ability to authenticate from a <code>SYNAPSE_AUTH_TOKEN</code>
+    environment variable set with a valid <a href="https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens">personal access
+    token</a>.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># e.g. set environment variable prior to invoking a Synapse command or running a program that uses synapseclient</span>
+<span class="nv">SYNAPSE_AUTH_TOKEN</span><span class="o">=</span><span class="s1">&#39;&lt;my_personal_access_token&gt;&#39;</span><span class="w"> </span>synapse<span class="w"> </span>&lt;subcommand<span class="w"> </span>options&gt;
+</code></pre></div>
+<p>The environment variable will take priority over credentials in the
+user's <code>.synapseConfig</code> file or any credentials saved in a prior
+login using the remember me option.</p>
+<p>See <a href="Credentials.html#use-environment-variable">here</a> for more
+details on usage.</p>
+</li>
+<li>
+<p>Added ability to silence all console output.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># from the command line, use the --silent option with any synapse subcommand, here it will suppress the download progress indicator</span>
+synapse<span class="w"> </span>--silent<span class="w"> </span>get<span class="w"> </span>&lt;synid&gt;
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># from code using synapseclient, pass the silent option to the Synapse constructor</span>
+<span class="kn">import</span> <span class="nn">synapseclient</span>
+
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">Synapse</span><span class="p">(</span><span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="o">&lt;</span><span class="n">synid</span><span class="o">&gt;</span><span class="p">)</span>
+</code></pre></div>
+</li>
+<li>
+<p>Improved robustness during downloads with unstable connections.
+    Specifically the client will automatically recover when encoutering
+    some types of network errors that previously would have caused a
+    download to start over as indicated by a reset progress bar.</p>
+</li>
+</ul>
+<h3 id="bug-fixes_8">Bug Fixes<a class="headerlink" href="#bug-fixes_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-198">SYNPY-198</a>]
+    -get: Unmet access requirement should not raise error if entity not
+    downloadable</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-959">SYNPY-959</a>]
+    -FileEntity 'path' property has wrong separator in Windows</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1113">SYNPY-1113</a>]
+    -Confusing error when putting the positional FILE at the end of the
+    synapse store command with an optional n-arg</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1128">SYNPY-1128</a>]
+    -failures downloading 14G vcf file</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1130">SYNPY-1130</a>]
+    -Migration tool trying to move URL-linked data</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1134">SYNPY-1134</a>]
+    -500 error during part copy to AWS presigned url</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1135">SYNPY-1135</a>]
+    -Exceeding part limit during AD Migration</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1136">SYNPY-1136</a>]
+    -Connection aborted to AWS part copy to presigned url during AD
+    Migration</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1141">SYNPY-1141</a>]
+    -synapse get command line nargs usage/error</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1150">SYNPY-1150</a>]
+    -Boolean-like string columns being reformatted (TRUE/FALSE to
+    True/False)</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1158">SYNPY-1158</a>]
+    -race condition in test_caching.py#test_threaded_access</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1159">SYNPY-1159</a>]
+    -logging in with an email address and an authToken gives spurious
+    error</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1161">SYNPY-1161</a>]
+    -ChunkEncodingError encountered from external collaborator during a
+    synapseclient download</li>
+</ul>
+<h3 id="improvements">Improvements<a class="headerlink" href="#improvements" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-638">SYNPY-638</a>]
+    -add after date to cache purge</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-929">SYNPY-929</a>]
+    -silent parameter for all functions which default to writing to
+    stdout</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1068">SYNPY-1068</a>]
+    -Should show some progress indicator during upload md5 calculation</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1125">SYNPY-1125</a>]
+    -Allow login with environment variables</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1138">SYNPY-1138</a>]
+    -When using boto3 client to upload a file, also include ACL to give
+    bucket owner full access</li>
+</ul>
+<h3 id="tasks_3">Tasks<a class="headerlink" href="#tasks_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-948">SYNPY-948</a>]
+    -command line client set-annotations does not return proper error
+    code when there's a problem</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1024">SYNPY-1024</a>]
+    -remove reference to deprecated 'status' field from Evaluation</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1143">SYNPY-1143</a>]
+    -indicate in CLI doc's that select statement requires double quotes</li>
+</ul>
+<h2 id="231-2021-04-13">2.3.1 (2021-04-13)<a class="headerlink" href="#231-2021-04-13" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_11">Highlights<a class="headerlink" href="#highlights_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>Entities can be annotated with boolean datatypes, for example:</p>
+<div class="highlight"><pre><span></span><code>file = synapseclient.File(&#39;/path/to/file&#39;, parentId=&#39;syn123&#39;, synapse_is_great=True)
+syn.store(file)
+</code></pre></div>
+</li>
+<li>
+<p>synapseclient is additionally packaged as a Python wheel.</p>
+</li>
+</ul>
+<h3 id="bug-fixes_9">Bug Fixes<a class="headerlink" href="#bug-fixes_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-829">SYNPY-829</a>]
+    -syn.store always updates annotations</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1033">SYNPY-1033</a>]
+    -If versionComment is left blank, previous version comment populates</li>
+</ul>
+<h3 id="improvements_1">Improvements<a class="headerlink" href="#improvements_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1120">SYNPY-1120</a>]
+    -Build wheel distributions</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1129">SYNPY-1129</a>]
+    -Support boolean annotations in Python client</li>
+</ul>
+<h2 id="230-2021-03-03">2.3.0 (2021-03-03)<a class="headerlink" href="#230-2021-03-03" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_12">Highlights<a class="headerlink" href="#highlights_12" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>The
+    <a href="synapseutils.html#synapseutils.migrate_functions.index_files_for_migration">index_files_for_migration</a>
+    and
+    <a href="synapseutils.html#synapseutils.migrate_functions.migrate_indexed_files">migrate_indexed_files</a>
+    functions are added to synapseutils to help migrate files in Synapse
+    projects and folders between AWS S3 buckets in the same region. More
+    details on using these utilities can be found
+    <a href="S3Storage.html#storage-location-migration">here</a>.</p>
+</li>
+<li>
+<p>This version supports login programatically and from the command
+    line using personal access tokens that can be obtained from your
+    synapse.org Settings. Additional documentation on login and be found
+    <a href="Credentials.html">here</a>.</p>
+<div class="highlight"><pre><span></span><code># programmatic
+syn = synapseclient.login(authToken=&lt;token&gt;)
+</code></pre></div>
+<div class="highlight"><pre><span></span><code># command line
+synapse login -p &lt;token&gt;
+</code></pre></div>
+</li>
+<li>
+<p>The location where downloaded entities are cached can be customized
+    to a location other than the user's home directory. This is useful
+    in environments where writing to a home directory is not appropriate
+    (e.g. an AWS lambda).</p>
+<div class="highlight"><pre><span></span><code>syn = synapseclient.Synapse(cache_root_dir=&lt;directory path&gt;)
+</code></pre></div>
+</li>
+<li>
+<p>A <a href="index.html#synapseclient.Synapse.is_certified">helper method</a> on
+    the Synapse object has been added to enable obtaining the Synapse
+    certification quiz status of a user.</p>
+<div class="highlight"><pre><span></span><code>passed = syn.is_certified(&lt;username or user_id&gt;)
+</code></pre></div>
+</li>
+<li>
+<p>This version has been tested with Python 3.9.</p>
+</li>
+</ul>
+<h3 id="bug-fixes_10">Bug Fixes<a class="headerlink" href="#bug-fixes_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1039">SYNPY-1039</a>]
+    -tableQuery asDataFrame() results with TYPE_LIST columns should be
+    lists and not literal strings</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1109">SYNPY-1109</a>]
+    -unparseable synapse cacheMap raises JSONDecodeError</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1110">SYNPY-1110</a>]
+    -Cleanup on Windows console login</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1112">SYNPY-1112</a>]
+    -Concurrent migration of entities sharing the same file handle can
+    result in an error</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1114">SYNPY-1114</a>]
+    -Mitigate new Rust compiler dependency on Linux via transitive
+    cryptography dependency</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1118">SYNPY-1118</a>]
+    -Migration tool erroring when it shouldn't</li>
+</ul>
+<h3 id="new-features">New Features<a class="headerlink" href="#new-features" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1058">SYNPY-1058</a>]
+    -Accept oauth access token for authentication to use Synapse REST
+    services</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1103">SYNPY-1103</a>]
+    -Multipart copy integration</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1111">SYNPY-1111</a>]
+    -Add function to get user certification status</li>
+</ul>
+<h3 id="improvements_2">Improvements<a class="headerlink" href="#improvements_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-885">SYNPY-885</a>]
+    -Public interface to customize CACHE_ROOT_DIR</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1102">SYNPY-1102</a>]
+    -syncToSynapse adds empty annotation values</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1104">SYNPY-1104</a>]
+    -Python 3.9 support</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1119">SYNPY-1119</a>]
+    -Add source storage location option to storage migrate functions</li>
+</ul>
+<h2 id="222-2020-10-18">2.2.2 (2020-10-18)<a class="headerlink" href="#222-2020-10-18" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_13">Highlights<a class="headerlink" href="#highlights_13" title="Permanent link">&para;</a></h3>
+<ul>
+<li>This version addresses an issue with downloads being retried
+    unsuccessfully after encountering certain types of errors.</li>
+<li>A
+    <a href="index.html#synapseclient.Synapse.create_snapshot_version">create_snapshot_version</a>
+    function is added for making table and view snapshots.</li>
+</ul>
+<h3 id="bug-fixes_11">Bug Fixes<a class="headerlink" href="#bug-fixes_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1096">SYNPY-1096</a>]
+    -Fix link to Synapse on PyPI</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1097">SYNPY-1097</a>]
+    -downloaded files are reset when disk space exhausted</li>
+</ul>
+<h3 id="new-features_1">New Features<a class="headerlink" href="#new-features_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1041">SYNPY-1041</a>]
+    -Snapshot feature and programmatic clients</li>
+</ul>
+<h3 id="improvements_3">Improvements<a class="headerlink" href="#improvements_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1063">SYNPY-1063</a>]
+    -Consolidate builds to GitHub Actions</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1099">SYNPY-1099</a>]
+    -Replace usage of deprecated PUT /entity/{id}/version endpoint</li>
+</ul>
+<h2 id="220-2020-08-31">2.2.0 (2020-08-31)<a class="headerlink" href="#220-2020-08-31" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_14">Highlights<a class="headerlink" href="#highlights_14" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Files that are part of
+    <a href="https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse">syncFromSynapse</a>
+    and
+    <a href="https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncToSynapse">syncToSynapse</a>
+    operations (<code>synapse get -r</code> and <code>synapse sync</code> in the command line
+    client, respectively) are transferred in in parallel threads rather
+    than serially, substantially improving the performance of these
+    operations.</li>
+<li>Table metadata from [synapse get -q` is automatically
+    downloaded to a users working directory instead of to the Synapse
+    cache (a hidden folder).</li>
+<li>Users can now pass their API key to [synapse login` in
+    place of a password.</li>
+</ul>
+<h3 id="bug-fixes_12">Bug Fixes<a class="headerlink" href="#bug-fixes_12" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1082">SYNPY-1082</a>]
+    -Downloading entity linked to URL fails: module 'urllib.parse' has
+    no attribute 'urlretrieve'</li>
+</ul>
+<h3 id="improvements_4">Improvements<a class="headerlink" href="#improvements_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1072">SYNPY-1072</a>]
+    -Improve throughput of multiple small file transfers</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1073">SYNPY-1073</a>]
+    -Parellelize upload syncs</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1074">SYNPY-1074</a>]
+    -Parallelize download syncs</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1084">SYNPY-1084</a>]
+    -Allow anonymous usage for public APIs like GET /teamMembers/{id}</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1088">SYNPY-1088</a>]
+    -Manifest is in cache with synapse get -q</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1090">SYNPY-1090</a>]
+    -Command line client does not support apikey</li>
+</ul>
+<h3 id="tasks_4">Tasks<a class="headerlink" href="#tasks_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1080">SYNPY-1080</a>]
+    -Remove Versionable from SchemaBase</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1085">SYNPY-1085</a>]
+    -Move to pytest testing framework</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1087">SYNPY-1087</a>]
+    -Improve synapseclient installation instructions</li>
+</ul>
+<h2 id="211-2020-07-10">2.1.1 (2020-07-10)<a class="headerlink" href="#211-2020-07-10" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_15">Highlights<a class="headerlink" href="#highlights_15" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>This version includes a performance improvement for
+    <a href="https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse">syncFromSynapse</a>
+    downloads of deep folder hierarchies to local filesystem locations
+    outside of the <a href="https://help.synapse.org/docs/Downloading-Data-Programmatically.2003796248.html#DownloadingDataProgrammatically-DownloadingFiles">Synapse
+    cache</a>.</p>
+</li>
+<li>
+<p>Support is added for <strong>SubmissionViews</strong> that can be used to query
+    and edit a set of submissions through table services.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="kn">import</span> <span class="n">SubmissionViewSchema</span>
+
+<span class="n">project</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+<span class="n">evaluation_id</span> <span class="o">=</span> <span class="s1">&#39;9876543&#39;</span>
+<span class="n">view</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">SubmissionViewSchema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;My Submission View&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="n">evaluation_id</span><span class="p">]))</span>
+<span class="n">view_table</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;select * from </span><span class="si">{</span><span class="n">view</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+</li>
+</ul>
+<h3 id="bug-fixes_13">Bug Fixes<a class="headerlink" href="#bug-fixes_13" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1075">SYNPY-1075</a>]
+    -Error in Python test (submission annotations)</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1076">SYNPY-1076</a>]
+    -Upgrade/fix Pandas dependency</li>
+</ul>
+<h3 id="improvements_5">Improvements<a class="headerlink" href="#improvements_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1070">SYNPY-1070</a>]
+    -Add support for submission views</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1078">SYNPY-1078</a>]
+    -Improve syncFromSynapse performance for large folder structures
+    synced to external paths</li>
+</ul>
+<h2 id="210-2020-06-16">2.1.0 (2020-06-16)<a class="headerlink" href="#210-2020-06-16" title="Permanent link">&para;</a></h2>
+<h3 id="highlights_16">Highlights<a class="headerlink" href="#highlights_16" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>A <code>max_threads</code> property of the Synapse object has been added to
+    customize the number of concurrent threads that will be used during
+    file transfers.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">max_threads</span> <span class="o">=</span> <span class="mi">20</span>
+</code></pre></div>
+<p>If not customized the default value is (CPU count + 4). Adjusting
+this value higher may speed up file transfers if the local system
+resources can take advantage of the higher setting. Currently this
+value applies only to files whose underlying storage is AWS S3.</p>
+<p>Alternately, a value can be stored in the <a href="https://help.synapse.org/docs/Client-Configuration.1985446156.html">synapseConfig
+configuration
+file</a>
+that will automatically apply as the default if a value is not
+explicitly set.</p>
+<div class="highlight"><pre><span></span><code>[transfer]
+max_threads=16
+</code></pre></div>
+</li>
+<li>
+<p>This release includes support for directly accessing S3 storage
+    locations using AWS Security Token Service credentials. This allows
+    use of external AWS clients and libraries with Synapse storage, and
+    can be used to accelerate file transfers under certain conditions.
+    To create an STS enabled folder and set-up direct access to S3
+    storage, see <code>here &lt;sts_storage_locations&gt;</code>{.interpreted-text
+    role="ref"}.</p>
+</li>
+<li>
+<p>The <code>getAnnotations</code> and <code>setAnnotations</code> methods of the Synapse
+    object have been <strong>deprecated</strong> in favor of newer <code>get_annotations</code>
+    and <code>set_annotations</code> methods, respectively. The newer versions are
+    parameterized with a typed <code>Annotations</code> dictionary rather than a
+    plain Python dictionary to prevent existing annotations from being
+    accidentally overwritten. The expected usage for setting annotations
+    is to first retrieve the existing <code>Annotations</code> for an entity before
+    saving changes by passing back a modified value.</p>
+<div class="highlight"><pre><span></span><code>annos = syn.get_annotations(&#39;syn123&#39;)
+
+# set key &#39;foo&#39; to have value of &#39;bar&#39; and &#39;baz&#39;
+annos[&#39;foo&#39;] = [&#39;bar&#39;, &#39;baz&#39;]
+# single values will automatically be wrapped in a list once stored
+annos[&#39;qwerty&#39;] = &#39;asdf&#39;
+
+annos = syn.set_annotations(annos)
+</code></pre></div>
+<p>The deprecated annotations methods may be removed in a future
+release.</p>
+</li>
+</ul>
+<p>A full list of issues addressed in this release are below.</p>
+<h3 id="bug-fixes_14">Bug Fixes<a class="headerlink" href="#bug-fixes_14" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-913">SYNPY-913</a>]
+    -Travis Build badge for develop branch is pointing to pull request</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-960">SYNPY-960</a>]
+    -AppVeyor build badge appears to be failed while the builds are
+    passed</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1036">SYNPY-1036</a>]
+    -different users storing same file to same folder results in 403</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1056">SYNPY-1056</a>]
+    -syn.getSubmissions fails due to new Annotation class in v2.1.0-rc</li>
+</ul>
+<h3 id="improvements_6">Improvements<a class="headerlink" href="#improvements_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1029">SYNPY-1036</a>]
+    -Make upload speeds comparable to those of the AWS S3 CLI</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1049">SYNPY-1049</a>]
+    -Expose STS-related APIs</li>
+</ul>
+<h3 id="tasks_5">Tasks<a class="headerlink" href="#tasks_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1059">SYNPY-1059</a>]
+    -Use collections.abc instead of collections</li>
+</ul>
+<h2 id="200-2020-03-23">2.0.0 (2020-03-23)<a class="headerlink" href="#200-2020-03-23" title="Permanent link">&para;</a></h2>
+<p><strong>Python 2 is no longer supported as of this release.</strong> This release
+requires Python 3.6+.</p>
+<h3 id="highlights_17">Highlights:<a class="headerlink" href="#highlights_17" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>Multi-threaded download of files from Synapse can be enabled by
+    setting <code>syn.multi_threaded</code> to <code>True</code> on a <code>synapseclient.Synapse</code>
+    object. This will become the default implementation in the future,
+    but to ensure stability for the first release of this feature, it
+    must be intentionally enabled.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">multi_threaded</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="c1"># syn123 now will be downloaded via the multi-threaded implementation</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>Currently, multi-threaded download only works with files stored in
+AWS S3, where most files on Synapse reside. This also includes
+<a href="https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html">custom storage
+locations</a>
+that point to an AWS S3 bucket. Files not stored in S3 will fall
+back to single-threaded download even if <code>syn.multi_threaded==True</code>.</p>
+</li>
+</ul>
+<p>-</p>
+<pre><code>`synapseutils.copy()` now has limitations on what can be copied:
+
+:   -   A user must have download permissions on the entity they
+        want to copy.
+    -   Users cannot copy any entities that have [access
+        requirements](https://help.synapse.org/docs/Sharing-Settings,-Permissions,-and-Conditions-for-Use.2024276030.html).
+</code></pre>
+<ul>
+<li>
+<p><code>contentTypes</code> and <code>fileNames</code> are optional parameters in
+    <code>synapseutils.copyFileHandles()</code></p>
+</li>
+<li>
+<p>Synapse Docker Repository(<code>synapseclient.DockerRepository</code>) objects
+    can now be submitted to Synapse evaluation queues using the <code>entity</code>
+    argument in <code>synapseclient.Synapse.submit()</code>. An optional argument
+    <code>docker_tag="latest"</code> has also been added to
+    <code>synapseclient.Synapse.submit()</code>\" to designate which tagged Docker
+    image to submit.</p>
+</li>
+</ul>
+<p>A full list of issues addressed in this release are below.</p>
+<h3 id="bugs-fixes">Bugs Fixes<a class="headerlink" href="#bugs-fixes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-271">SYNPY-271</a>]
+    -cache.remove fails to return the file handles we removed</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1032">SYNPY-1032</a>]<ul>
+<li>Support new columnTypes defined in backend</li>
+</ul>
+</li>
+</ul>
+<h3 id="tasks_6">Tasks<a class="headerlink" href="#tasks_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-999">SYNPY-999</a>]
+    -Remove unsafe copy functions from client</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1027">SYNPY-1027</a>]
+    - Copy function should copy things when users are part of a Team
+    that has DOWNLOAD access</li>
+</ul>
+<h3 id="improvements_7">Improvements<a class="headerlink" href="#improvements_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-389">SYNPY-389</a>]
+    -submission of Docker repository</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-537">SYNPY-537</a>]
+    -synapseutils.copyFileHandles requires fields that does not require
+    at rest</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-680">SYNPY-680</a>]
+    -synapseutils.changeFileMetaData() needs description in
+    documentation</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-682">SYNPY-682</a>]
+    -improve download speeds to be comparable to AWS</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-807">SYNPY-807</a>]
+    -Drop support for Python 2</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-907">SYNPY-907</a>]
+    -Replace `from \&lt;module&gt; import ...` with `import \&lt;module&gt;`</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-962">SYNPY-962</a>]
+    -remove 'password' as an option in default synapse config file</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-972">SYNPY-972</a>]
+    -Link on Synapse Python Client Documentation points back at itself</li>
+</ul>
+<h2 id="194-2019-06-28">1.9.4 (2019-06-28)<a class="headerlink" href="#194-2019-06-28" title="Permanent link">&para;</a></h2>
+<h3 id="bug-fixes_15">Bug Fixes<a class="headerlink" href="#bug-fixes_15" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-881">SYNPY-881</a>]
+    -Synu.copy fails when copying a file with READ permissions</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-888">SYNPY-888</a>]
+    -Docker repositories cannot be copied</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-927">SYNPY-927</a>]
+    -trying to create a project with name that already exists hangs</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1005">SYNPY-1005</a>]<ul>
+<li>cli docs missing sub-commands</li>
+</ul>
+</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1018">SYNPY-1018</a>]<ul>
+<li>Synu.copy shouldn't copy any files with access restrictions</li>
+</ul>
+</li>
+</ul>
+<h3 id="new-features_2">New Features<a class="headerlink" href="#new-features_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-851">SYNPY-851</a>]
+    -invite user or list of users to a team</li>
+</ul>
+<h3 id="improvements_8">Improvements<a class="headerlink" href="#improvements_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-608">SYNPY-608</a>]
+    -Add how to contribute md to github project</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-735">SYNPY-735</a>]
+    -command line for building a table</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-864">SYNPY-864</a>]
+    -docstring for the command line client doesn't have complete list
+    of sub-commands available</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-926">SYNPY-926</a>]
+    -allow forceVersion false for command line client</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1013">SYNPY-1013</a>]<ul>
+<li>Documentation of \"store\" command for Synapse command line
+    client</li>
+</ul>
+</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-1021">SYNPY-1021</a>]<ul>
+<li>change email contact for code of conduct</li>
+</ul>
+</li>
+</ul>
+<h2 id="193-2019-06-28">1.9.3 (2019-06-28)<a class="headerlink" href="#193-2019-06-28" title="Permanent link">&para;</a></h2>
+<h3 id="bug-fixes_16">Bug Fixes<a class="headerlink" href="#bug-fixes_16" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-993">SYNPY-993</a>]
+    -Fix [sendMessage` function</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-989">SYNPY-989</a>]
+    -Fix unstable test</li>
+</ul>
+<h2 id="192-2019-02-15">1.9.2 (2019-02-15)<a class="headerlink" href="#192-2019-02-15" title="Permanent link">&para;</a></h2>
+<p>In version 1.9.2, we improved Views' usability by exposing
+[set_entity_types()` function to change the entity types
+that will show up in a View:</p>
+<pre><code>import synapseclient
+from synapseclient.table import EntityViewType
+
+syn = synapseclient.login()
+view = syn.get("syn12345")
+view.set_entity_types([EntityViewType.FILE, EntityViewType.FOLDER])
+view = syn.store(view)
+</code></pre>
+<h3 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-919">SYNPY-919</a>]
+    -Expose a way to update entity types in a view using EntityViewType</li>
+</ul>
+<h3 id="bug-fixes_17">Bug Fixes<a class="headerlink" href="#bug-fixes_17" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-855">SYNPY-855</a>]
+    -Single thread uploading fails in Lambda python3.6 environment</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-910">SYNPY-910</a>]
+    -Store Wiki shows deprecation warning</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-920">SYNPY-920</a>]
+    -Project View turned into File View after using syndccutils template</li>
+</ul>
+<h3 id="tasks_7">Tasks<a class="headerlink" href="#tasks_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-790">SYNPY-790</a>]
+    -Pin to a fixed version of the request package</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-866">SYNPY-866</a>]
+    -Update Synapse logo in Python docs :)</li>
+</ul>
+<h3 id="improvements_9">Improvements<a class="headerlink" href="#improvements_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-783">SYNPY-783</a>]
+    -typos in comments and in stdout</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-916">SYNPY-916</a>]
+    -Wonky display on parameters</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-917">SYNPY-917</a>]
+    -Add instructions on how to login with API key</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-909">SYNPY-909</a>]
+    -Missing columnTypes in Column docstring</li>
+</ul>
+<h2 id="191-2019-01-20">1.9.1 (2019-01-20)<a class="headerlink" href="#191-2019-01-20" title="Permanent link">&para;</a></h2>
+<p>In version 1.9.1, we fix various bugs and added two new features:</p>
+<ul>
+<li>Python 3.7 is supported.</li>
+<li>Deprecation warnings are visible by default.</li>
+</ul>
+<h3 id="features_1">Features<a class="headerlink" href="#features_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-802">SYNPY-802</a>]
+    -Support Python 3.7</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-849">SYNPY-849</a>]
+    -Add deprecation warning that isn't filtered by Python</li>
+</ul>
+<h3 id="bug-fixes_18">Bug Fixes<a class="headerlink" href="#bug-fixes_18" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-454">SYNPY-454</a>]
+    -Some integration tests do not clean up after themselves</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-456">SYNPY-456</a>]
+    -Problems with updated query system</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-515">SYNPY-515</a>]
+    -sphinx documentation not showing for some new classes</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-526">SYNPY-526</a>]
+    -deprecate downloadTableFile()</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-578">SYNPY-578</a>]
+    -switch away from POST /entity/#/table/deleterows</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-594">SYNPY-594</a>]
+    -Getting error from dev branch in integration test against staging</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-796">SYNPY-796</a>]
+    -fix or remove PyPI downloads badge in readme</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-799">SYNPY-799</a>]
+    -Unstable test: Test PartialRow updates to entity views from rowset
+    queries</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-846">SYNPY-846</a>]
+    -error if password stored in config file contains a '%'</li>
+</ul>
+<h3 id="tasks_8">Tasks<a class="headerlink" href="#tasks_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-491">SYNPY-491</a>]
+    -Figure out custom release note fitlers</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-840">SYNPY-840</a>]
+    -Install not working on latest python</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-847">SYNPY-847</a>]
+    -uploadFileHandle should not be deprecated nor removed</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-852">SYNPY-852</a>]
+    -Check and update help.synapse.org to reflect the change in the
+    Python client</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-860">SYNPY-860</a>]
+    -vignette for how to upload a new version of a file directly to a
+    synapse entity</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-863">SYNPY-863</a>]
+    -Update public documentation to move away from the query services</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-866">SYNPY-866</a>]
+    -Update Synapse logo in Python docs :)</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-873">SYNPY-873</a>]
+    -consolidate integration testing to platform dev account</li>
+</ul>
+<h3 id="improvements_10">Improvements<a class="headerlink" href="#improvements_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-473">SYNPY-473</a>]
+    -Change syn.list to no longer use deprecated function chunkedQuery</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-573">SYNPY-573</a>]
+    -synapse list command line shouldn't list the parent container</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-581">SYNPY-581</a>]
+    -\&lt;entity&gt;.annotations return object is inconsistent with
+    getAnnotations()</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-612">SYNPY-612</a>]
+    -Rename view_type to viewType in EntityViewSchema for consistency</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-777">SYNPY-777</a>]
+    -Python client _list still uses chunckedQuery and result seem out
+    of date</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-804">SYNPY-804</a>]
+    -Update styling in the python docs to more closely match the Docs
+    site styling</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-815">SYNPY-815</a>]
+    -Update the build to use test user instead of migrationAdmin</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-848">SYNPY-848</a>]
+    -remove outdated link to confluence for command line query</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-856">SYNPY-856</a>]
+    -build_table example in the docs does not look right</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-858">SYNPY-858</a>]
+    -Write file view documentation in python client that is similar to
+    synapser</li>
+<li>[<a href="https://sagebionetworks.jira.com/browse/SYNPY-870">SYNPY-870</a>]
+    -Submitting to an evaluation queue can't accept team as int</li>
+</ul>
+<h2 id="190-2018-09-28">1.9.0 (2018-09-28)<a class="headerlink" href="#190-2018-09-28" title="Permanent link">&para;</a></h2>
+<p>In version 1.9.0, we deprecated and removed <code>query()</code> and
+<code>chunkedQuery()</code>. These functions used the old query
+services which does not perform well. To query for entities filter by
+annotations, please use <code>EntityViewSchema</code>.</p>
+<p>We also deprecated the following functions and will remove them in
+Synapse Python client version 2.0. In the <code>Activity</code> object:</p>
+<ul>
+<li><code>usedEntity()</code></li>
+<li><code>usedURL()</code></li>
+</ul>
+<p>In the <code>Synapse</code> object:</p>
+<ul>
+<li><code>getEntity()</code></li>
+<li><code>loadEntity()</code></li>
+<li><code>createEntity()</code></li>
+<li><code>updateEntity()</code></li>
+<li><code>deleteEntity()</code></li>
+<li><code>downloadEntity()</code></li>
+<li><code>uploadFile()</code></li>
+<li><code>uploadFileHandle()</code></li>
+<li><code>uploadSynapseManagedFileHandle()</code></li>
+<li><code>downloadTableFile()</code></li>
+</ul>
+<p>Please see our documentation for more details on how to migrate your
+code away from these functions.</p>
+<h3 id="features_2">Features<a class="headerlink" href="#features_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-806">SYNPY-806</a> -
+    Support Folders and Tables in View</li>
+</ul>
+<h3 id="bug-fixes_19">Bug Fixes<a class="headerlink" href="#bug-fixes_19" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-195">SYNPY-195</a> -
+    Dangerous exception handling</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-261">SYNPY-261</a> -
+    error downloading data from synapse (python client)</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-694">SYNPY-694</a> -
+    Uninformative error in <code>copyWiki</code> function</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-805">SYNPY-805</a> -
+    Uninformative error when getting View that does not exist</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-819">SYNPY-819</a> -
+    command-line clients need to be updated to replace the EntityView
+    'viewType' with 'viewTypeMask'</li>
+</ul>
+<h3 id="tasks_9">Tasks<a class="headerlink" href="#tasks_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-759">SYNPY-759</a> -
+    Look for all functions that are documented as \"Deprecated\" and
+    apply the deprecation syntax</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-812">SYNPY-812</a> - Add
+    Github issue template</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-824">SYNPY-824</a> -
+    Remove the deprecated function query() and chunkedQuery()</li>
+</ul>
+<h3 id="improvements_11">Improvements<a class="headerlink" href="#improvements_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-583">SYNPY-583</a> -
+    Better error message for create Link object</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-810">SYNPY-810</a> -
+    simplify docs for deleting rows</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-814">SYNPY-814</a> - fix
+    docs links in python client __init__.py</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-822">SYNPY-822</a> -
+    Switch to use news.rst instead of multiple release notes files</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-759">SYNPY-823</a> - Pin
+    keyring to version 12.0.2 to use SecretStorage 2.x</li>
+</ul>
+<h2 id="182-2018-08-17">1.8.2 (2018-08-17)<a class="headerlink" href="#182-2018-08-17" title="Permanent link">&para;</a></h2>
+<p>In this release, we have been performed some house-keeping on the code
+base. The two major changes are:</p>
+<blockquote>
+<ul>
+<li>
+<p>making <code>syn.move()</code> available to move an entity to a
+    new parent in Synapse. For example:</p>
+<pre><code>import synapseclient
+from synapseclient import Folder
+
+syn = synapseclient.login()
+
+file = syn.get("syn123")
+folder = Folder("new folder", parent="syn456")
+folder = syn.store(folder)
+
+# moving file to the newly created folder
+syn.move(file, folder)
+</code></pre>
+</li>
+<li>
+<p>exposing the ability to use the Synapse Python client with single
+    threaded. This feature is useful when running Python script in an
+    environment that does not support multi-threading. However, this
+    will negatively impact upload speed. To use single threaded:</p>
+<pre><code>import synapseclient
+synapseclient.config.single_threaded = True
+</code></pre>
+</li>
+</ul>
+</blockquote>
+<h3 id="bug-fixes_20">Bug Fixes<a class="headerlink" href="#bug-fixes_20" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-535">SYNPY-535</a> -
+    Synapse Table update: Connection Reset</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-603">SYNPY-603</a> -
+    Python client and synapser cannot handle table column type LINK</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-688">SYNPY-688</a> -
+    Recursive get (sync) broken for empty folders.</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-744">SYNPY-744</a> -
+    KeyError when trying to download using Synapse Client 1.8.1</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-750">SYNPY-750</a> -
+    Error in downloadTableColumns for file view</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-758">SYNPY-758</a> -
+    docs in Sphinx don't show for synapseclient.table.RowSet</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-760">SYNPY-760</a> -
+    Keyring related error on Linux</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-766">SYNPY-766</a> -
+    as_table_columns() returns a list of columns out of order for python
+    3.5 and 2.7</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-776">SYNPY-776</a> -
+    Cannot log in to Synapse - error(54, 'Connection reset by peer')</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-795">SYNPY-795</a> - Not
+    recognizable column in query result</li>
+</ul>
+<h3 id="features_3">Features<a class="headerlink" href="#features_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-582">SYNPY-582</a> -
+    move file or folder in the client</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-788">SYNPY-788</a> - Add
+    option to use syn.store() without exercising multithreads</li>
+</ul>
+<h3 id="tasks_10">Tasks<a class="headerlink" href="#tasks_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-729">SYNPY-729</a> -
+    Deprecate query() and chunkedQuery()</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-797">SYNPY-797</a> -
+    Check Python client code base on using PLFM object model</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-798">SYNPY-798</a> -
+    Using github.io to host documentation</li>
+</ul>
+<h3 id="improvements_12">Improvements<a class="headerlink" href="#improvements_12" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-646">SYNPY-646</a> -
+    Error output of synGet is non-informative</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-743">SYNPY-743</a> -
+    lint the entire python client code base</li>
+</ul>
+<h2 id="181-2018-05-17">1.8.1 (2018-05-17)<a class="headerlink" href="#181-2018-05-17" title="Permanent link">&para;</a></h2>
+<p>This release is a hotfix for a bug. Please refer to 1.8.0 release notes
+for information about additional changes.</p>
+<h3 id="bug-fixes_21">Bug Fixes<a class="headerlink" href="#bug-fixes_21" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-706">SYNPY-706</a> -
+    syn.username can cause attribute not found if user not logged in</li>
+</ul>
+<h2 id="180-2018-05-07">1.8.0 (2018-05-07)<a class="headerlink" href="#180-2018-05-07" title="Permanent link">&para;</a></h2>
+<p>This release has 2 major changes:</p>
+<ul>
+<li>The client will no longer store your saved credentials in your
+    synapse cache (<code>\~/synapseCache/.session</code>). The python
+    client now relies on <a href="https://pypi.org/project/keyring/">keyring</a> to
+    handle credential storage of your Synapse credentials.</li>
+<li>The client also now uses connection pooling, which means that all
+    method calls that connect to Synapse should now be faster.</li>
+</ul>
+<p>The remaining changes are bug fixes and cleanup of test code.</p>
+<p>Below are the full list of issues addressed by this release:</p>
+<h3 id="bug-fixes_22">Bug Fixes<a class="headerlink" href="#bug-fixes_22" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-654">SYNPY-654</a> -
+    syn.getColumns does not terminate</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-658">SYNPY-658</a> -
+    Security vunerability on clusters</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-689">SYNPY-689</a> -
+    Wiki's attachments cannot be None</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-692">SYNPY-692</a> -
+    synapseutils.sync.generateManifest() sets contentType incorrectly</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-693">SYNPY-693</a> -
+    synapseutils.sync.generateManifest() UnicodeEncodingError in python
+    2</li>
+</ul>
+<h3 id="tasks_11">Tasks<a class="headerlink" href="#tasks_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-617">SYNPY-617</a> -
+    Remove use of deprecated service to delete table rows</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-673">SYNPY-673</a> - Fix
+    Integration Tests being run on Appveyor</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-683">SYNPY-683</a> -
+    Clean up print()s used in unit/integration tests</li>
+</ul>
+<h3 id="improvements_13">Improvements<a class="headerlink" href="#improvements_13" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-408">SYNPY-408</a> - Add
+    bettter error messages when /filehandle/batch fails.</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-647">SYNPY-647</a> - Use
+    connection pooling for Python client's requests</li>
+</ul>
+<h2 id="175-2018-01-31">1.7.5 (2018-01-31)<a class="headerlink" href="#175-2018-01-31" title="Permanent link">&para;</a></h2>
+<p>v1.7.4 release was broken for new users that installed from pip. v1.7.5
+has the same changes as v1.7.4 but fixes the pip installation.</p>
+<h2 id="174-2018-01-29">1.7.4 (2018-01-29)<a class="headerlink" href="#174-2018-01-29" title="Permanent link">&para;</a></h2>
+<p>This release mostly includes bugfixes and improvements for various Table classes:</p>
+<p>:   -   Fixed bug where you couldn't store a table converted to a
+        <code>pandas.Dataframe</code> if it had a INTEGER column with
+        some missing values.
+    -   <code>EntityViewSchema</code> can now automatically add all
+        annotations within your defined <code>scopes</code> as columns.
+        Just set the view's <code>addAnnotationColumns=True</code>
+        before calling <code>syn.store()</code>. This attribute
+        defaults to <code>True</code> for all newly created
+        <code>EntityViewSchemas</code>. Setting
+        <code>addAnnotationColumns=True</code> on existing tables will
+        only add annotation columns that are not already a part of your
+        schema.
+    -   You can now use <code>synapseutils.notifyMe</code> as a
+        decorator to notify you by email when your function has
+        completed. You will also be notified of any Errors if they are
+        thrown while your function runs.</p>
+<p>We also added some new features:</p>
+<p>:   -   <code>syn.findEntityId()</code> function that allows you to
+        find an Entity by its name and parentId, set parentId to
+        <code>None</code> to search for Projects by name.
+    -   The bulk upload functionality of
+        <code>synapseutils.syncToSynapse</code> is available from the
+        command line using: <code>synapse sync</code>.</p>
+<p>Below are the full list of issues addressed by this release:</p>
+<h3 id="features_4">Features<a class="headerlink" href="#features_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-506">SYNPY-506</a> -
+    need convenience function for /entity/child</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-517">SYNPY-517</a> -
+    sync command line</li>
+</ul>
+<h3 id="improvements_14">Improvements<a class="headerlink" href="#improvements_14" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-267">SYNPY-267</a> -
+    Update Synapse tables for integer types</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-304">SYNPY-304</a> -
+    Table objects should implement len()</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-416">SYNPY-416</a> -
+    warning message for recursive get when a non-Project of Folder
+    entity is passed</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-482">SYNPY-482</a> -
+    Create a sample synapseConfig if none is present</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-489">SYNPY-489</a> - Add
+    a boolean parameter in EntityViewSchema that will indicate whether
+    the client should create columns based on annotations in the
+    specified scopes</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-494">SYNPY-494</a> -
+    Link should be able to take an entity object as the parameter and
+    derive its id</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-511">SYNPY-511</a> -
+    improve exception handling</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-512">SYNPY-512</a> -
+    Remove the use of PaginatedResult's totalNumberOfResult</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-539">SYNPY-539</a> -
+    When creating table Schemas, enforce a limit on the number of
+    columns that can be created.</li>
+</ul>
+<h3 id="bug-fixes_23">Bug Fixes<a class="headerlink" href="#bug-fixes_23" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-235">SYNPY-235</a> -
+    can't print Row objects with dates in them</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-272">SYNPY-272</a> - bug
+    syn.storing rowsets containing Python datetime objects</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-297">SYNPY-297</a> -
+    as_table_columns shouldn't give fractional max size</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-404">SYNPY-404</a> -
+    when we get a SynapseMd5MismatchError we should delete the
+    downloaded file</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-425">SYNPY-425</a> -
+    onweb doesn't work for tables</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-438">SYNPY-438</a> -
+    Need to change 'submit' not to use
+    evaluation/id/accessRequirementUnfulfilled</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-496">SYNPY-496</a> -
+    monitor.NotifyMe can not be used as an annotation decorator</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-521">SYNPY-521</a> -
+    inconsistent error message when username/password is wrong on login</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-536">SYNPY-536</a> -
+    pre-signed upload URL expired warnings using Python client sync
+    function</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-555">SYNPY-555</a> -
+    EntityViewSchema is missing from sphinx documentation</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-558">SYNPY-558</a> -
+    synapseutils.sync.syncFromSynapse throws error when syncing a Table
+    object</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-595">SYNPY-595</a> - Get
+    recursive folders filled with Links fails</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-605">SYNPY-605</a> -
+    Update documentation for getUserProfile to include information about
+    refreshing and memoization</li>
+</ul>
+<h3 id="tasks_12">Tasks<a class="headerlink" href="#tasks_12" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-451">SYNPY-451</a> - Add
+    limit and offset for accessApproval and accessRequirement API calls
+    and remove 0x400 flag default when calling GET /entity/{id}/bundle</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-546">SYNPY-546</a> -
+    Change warning message when user does not DOWNLOAD permissions.</li>
+</ul>
+<h2 id="173-2017-12-08">1.7.3 (2017-12-08)<a class="headerlink" href="#173-2017-12-08" title="Permanent link">&para;</a></h2>
+<p>Release 1.7.3 introduces fixes and quality of life changes to Tables and
+synapseutils:</p>
+<ul>
+<li>
+<p>Changes to Tables:</p>
+<blockquote>
+<ul>
+<li>You no longer have to include the <code>etag</code> column in
+    your SQL query when using a <code>tableQuery()</code> to
+    update File/Project Views. just <code>SELECT</code> the
+    relevant columns and etags will be resolved automatically.</li>
+<li>The new <code>PartialRowSet</code> class allows you to only
+    have to upload changes to individual cells of a table instead
+    of every row that had a value changed. It is recommended to
+    use the <code>PartialRowSet.from_mapping()</code> classmethod
+    instead of the <code>PartialRowSet</code> constructor.</li>
+</ul>
+</blockquote>
+</li>
+<li>
+<p>Changes to synapseutils:</p>
+<blockquote>
+<ul>
+<li>Improved documentation</li>
+<li>You can now use <code>\~</code> to refer to your home
+    directory in your manifest.tsv</li>
+</ul>
+</blockquote>
+</li>
+</ul>
+<p>We also added improved debug logging and use Python's builtin
+<code>logging</code> module instead of printing directly to
+<code>sys.stderr</code></p>
+<p>Below are the full list of issues addressed by this release:</p>
+<h3 id="bug-fixes_24">Bug Fixes<a class="headerlink" href="#bug-fixes_24" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-419">SYNPY-419</a> -
+    support object store from client</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-499">SYNPY-499</a> -
+    metadata manifest file name spelled wrong</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-504">SYNPY-504</a> -
+    downloadTableFile changed return type with no change in
+    documentation or mention in release notes</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-508">SYNPY-508</a> -
+    syncToSynapse does not work if \"the file path in \"used\" or
+    \"executed\" of the manifest.tsv uses home directory shortcut \"\~\"</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-516">SYNPY-516</a> -
+    synapse sync file does not work if file is a URL</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-525">SYNPY-525</a> -
+    Download CSV file of Synapse Table - 416 error</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-572">SYNPY-572</a> -
+    Users should only be prompted for updates if the first or second
+    part of the version number is changed.</li>
+</ul>
+<h3 id="features_5">Features<a class="headerlink" href="#features_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-450">SYNPY-450</a> -
+    Create convenience functions for synapse project settings</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-517">SYNPY-517</a> -
+    sync command line</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-519">SYNPY-519</a> -
+    Clean up doc string for Sync</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-545">SYNPY-545</a> - no
+    module botocore</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-577">SYNPY-577</a> -
+    Expose new view etags in command line clients</li>
+</ul>
+<h3 id="tasks_13">Tasks<a class="headerlink" href="#tasks_13" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-569">SYNPY-569</a> -
+    'includeEntityEtag' should be True for Async table csv query
+    downloads</li>
+</ul>
+<h3 id="improvements_15">Improvements<a class="headerlink" href="#improvements_15" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-304">SYNPY-304</a> -
+    Table objects should implement len()</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-511">SYNPY-511</a> -
+    improve exception handling</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-518">SYNPY-518</a> -
+    Clean up sync interface</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-590">SYNPY-590</a> -
+    Need better logging of errors that occur in the Python client.</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-597">SYNPY-597</a> - Add
+    ability to create PartialRowset updates</li>
+</ul>
+<h2 id="171-2017-11-17">1.7.1 (2017-11-17)<a class="headerlink" href="#171-2017-11-17" title="Permanent link">&para;</a></h2>
+<p>Release 1.7 is a large bugfix release with several new features. The
+main ones include:</p>
+<ul>
+<li>
+<p>We have expanded the <a href="python-docs.synapse.org/build/html/synapseutils.html#module-synapseutils">synapseutils
+    packages</a>
+    to add the ability to:</p>
+<blockquote>
+<ul>
+<li>Bulk upload files to synapse (synapseutils.syncToSynapse).</li>
+<li>Notify you via email on the progress of a function (useful for
+    jobs like large file uploads that may take a long time to
+    complete).</li>
+<li>The syncFromSynapse function now creates a \"manifest\" which
+    contains the metadata of downloaded files. (These can also be
+    used to update metadata with the bulk upload function.</li>
+</ul>
+</blockquote>
+</li>
+<li>
+<p>File View tables can now be created from the python client using
+    EntityViewSchema. See <a href="https://help.synapse.org/docs/Views.2011070739.html">fileviews
+    documentation</a>.</p>
+</li>
+<li>
+<p>The python client is now able to upload to user owned S3 Buckets.
+    <a href="https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html">Click here for instructions on linking your S3 bucket to
+    synapse</a>.</p>
+</li>
+</ul>
+<p>We've also made various improvements to existing features:</p>
+<ul>
+<li>The LARGETEXT type is now supported in Tables allowing for strings
+    up to 2Mb.</li>
+<li>The <code>\--description</code> argument when creating/updating
+    entities from the command line client will now create a
+    <code>Wiki</code> for that entity. You can also use
+    <code>\--descriptionFile</code> to write the contents of a markdown
+    file as the entity's <code>Wiki</code></li>
+<li>Two member variables of the File object,
+    <code>file_entity.cacheDir</code> and
+    <code>file_entity.files</code> is being DEPRECATED in favor of
+    <code>file_entity.path</code> for finding the location of a
+    downloaded <code>File</code></li>
+<li><code>pandas</code> <code>dataframe\</code>s containing
+    `datetime` values can now be properly converted into
+    csv and uploaded to Synapse.</li>
+</ul>
+<p>We also added a optional <code>convert_to_datetime</code> parameter to
+<code>CsvFileTable.asDataFrame()</code> that will automatically convert
+Synapse DATE columns into <code>datetime</code> objects instead of
+leaving them as <code>long</code> unix timestamps</p>
+<p>Below are the full list of bugs and issues addressed by this release:</p>
+<h3 id="features_6">Features<a class="headerlink" href="#features_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-53">SYNPY-53</a> -
+    support syn.get of external FTP links in py client</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-179">SYNPY-179</a> -
+    Upload to user owned S3 bucket</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-412">SYNPY-412</a> -
+    allow query-based download based on view tables from command line
+    client</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-487">SYNPY-487</a> - Add
+    remote monitoring of long running processes</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-415">SYNPY-415</a> - Add
+    Docker and TableViews into Entity.py</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-89">SYNPY-89</a> -
+    Python client: Bulk upload client/command</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-413">SYNPY-413</a> -
+    Update table views via python client</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-301">SYNPY-301</a> -
+    change actual file name from python client</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-442">SYNPY-442</a> - set
+    config file path on command line</li>
+</ul>
+<h3 id="improvements_16">Improvements<a class="headerlink" href="#improvements_16" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-407">SYNPY-407</a> -
+    support LARGETEXT in tables</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-360">SYNPY-360</a> -
+    Duplicate file handles are removed from BulkFileDownloadRequest</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-187">SYNPY-187</a> -
+    Move --description in command line client to create wikis</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-224">SYNPY-224</a> -
+    When uploading to a managed external file handle (e.g. SFTP), fill
+    in storageLocationId</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-315">SYNPY-315</a> -
+    Default behavior for files in cache dir should be replace</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-381">SYNPY-381</a> -
+    Remove references to \"files\" and \"cacheDir\".</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-396">SYNPY-396</a> -
+    Create filehandle copies in synapseutils.copy instead of downloading</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-403">SYNPY-403</a> - Use
+    single endpoint for all downloads</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-435">SYNPY-435</a> -
+    Convenience function for new service to get entity's children</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-471">SYNPY-471</a> -
+    docs aren't generated for synapseutils</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-472">SYNPY-472</a> -
+    References to wrong doc site</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-347">SYNPY-347</a> -
+    Missing dtypes in table.DTYPE_2_TABLETYPE</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-463">SYNPY-463</a> -
+    When copying filehandles we should add the files to the cache if we
+    already donwloaded them</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-475">SYNPY-475</a> -
+    Store Tables timeout error</li>
+</ul>
+<h3 id="bug-fixes_25">Bug Fixes<a class="headerlink" href="#bug-fixes_25" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-190">SYNPY-190</a> -
+    syn.login('asdfasdfasdf') should fail</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-344">SYNPY-344</a> -
+    weird cache directories</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-346">SYNPY-346</a> -
+    ValueError: cannot insert ROW_ID, already exists in CsvTableFile
+    constructor</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-351">SYNPY-351</a> -
+    Versioning broken for sftp files</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-366">SYNPY-366</a> -
+    file URLs leads to wrong path</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-393">SYNPY-393</a> - New
+    cacheDir causes cache to be ignored(?)</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-409">SYNPY-409</a> -
+    Python client cannot depend on parsing Amazon pre-signed URLs</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-418">SYNPY-418</a> -
+    Integration test failure against 167</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-421">SYNPY-421</a> -
+    syn.getWikiHeaders has a return limit of 50 (Need to return all
+    headers)</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-423">SYNPY-423</a> -
+    upload rate is off or incorrect</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-424">SYNPY-424</a> -
+    File entities don't handle local_state correctly for setting
+    datafilehandleid</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-426">SYNPY-426</a> -
+    multiple tests failing because of filenameOveride</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-427">SYNPY-427</a> -
+    test dependent on config file</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-428">SYNPY-428</a> -
+    sync function error</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-431">SYNPY-431</a> -
+    download ending early and not restarting from previous spot</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-443">SYNPY-443</a> -
+    tests/integration/integration_test_Entity.py:test_get_with_downloadLocation_and_ifcollision
+    AssertionError</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-461">SYNPY-461</a> - On
+    Windows, command line client login credential prompt fails (python
+    2.7)</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-465">SYNPY-465</a> -
+    Update tests that set permissions to also include 'DOWNLOAD'
+    permission and tests that test functions using queries</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-468">SYNPY-468</a> -
+    Command line client incompatible with cache changes</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-470">SYNPY-470</a> -
+    default should be read, download for setPermissions</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-483">SYNPY-483</a> -
+    integration test fails for most users</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-484">SYNPY-484</a> - URL
+    expires after retries</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-486">SYNPY-486</a> -
+    Error in integration tests</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-488">SYNPY-488</a> -
+    sync tests for command line client puts file in working directory</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-142">SYNPY-142</a> - PY:
+    Error in login with rememberMe=True</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-464">SYNPY-464</a> -
+    synapse get syn4988808 KeyError: u'preSignedURL'</li>
+</ul>
+<h3 id="tasks_14">Tasks<a class="headerlink" href="#tasks_14" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-422">SYNPY-422</a> -
+    reduce default page size for GET
+    /evaluation/{evalId}/submission/bundle/all</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-437">SYNPY-437</a> -
+    Remove tests for access restrictions on evaluations</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-402">SYNPY-402</a> - Add
+    release notes to Github release tag</li>
+</ul>
+<h2 id="161-2016-11-02">1.6.1 (2016-11-02)<a class="headerlink" href="#161-2016-11-02" title="Permanent link">&para;</a></h2>
+<h3 id="what-is-new">What is New<a class="headerlink" href="#what-is-new" title="Permanent link">&para;</a></h3>
+<p>In version 1.6 we introduce a new sub-module _<a href="">synapseutils</a> that
+provide convenience functions for more complicated operations in Synapse
+such as copying of files wikis and folders. In addition we have
+introduced several improvements in downloading content from Synapse. As
+with uploads we are now able to recover from an interrupted download and
+will retry on network failures.</p>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-48">SYNPY-48</a> -
+    Automate build and test of Python client on Python 3.x</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-180">SYNPY-180</a> -
+    Pass upload destination in chunked file upload</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-349">SYNPY-349</a> -
+    Link Class</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-350">SYNPY-350</a> -
+    Copy Function</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-370">SYNPY-370</a> -
+    Building to new doc site for Synapse</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-371">SYNPY-371</a> -
+    Support paths in syn.onweb</li>
+</ul>
+<h3 id="improvements_17">Improvements<a class="headerlink" href="#improvements_17" title="Permanent link">&para;</a></h3>
+<p>We have improved download robustness and error checking, along with
+extensive recovery on failed operations. This includes the ability for
+the client to pause operation when Synapse is updated.</p>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-270">SYNPY-270</a> -
+    Synapse READ ONLY mode should cause pause in execution</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-308">SYNPY-308</a> - Add
+    md5 checking after downloading a new file handle</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-309">SYNPY-309</a> - Add
+    download recovery by using the 'Range': 'bytes=xxx-xxx' header</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-353">SYNPY-353</a> -
+    Speed up downloads of fast connections</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-356">SYNPY-356</a> - Add
+    support for version flag in synapse cat command line</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-357">SYNPY-357</a> -
+    Remove failure message on retry in multipart_upload</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-380">SYNPY-380</a> - Add
+    speed meter to downloads/uploads</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-387">SYNPY-387</a> - Do
+    exponential backoff on 429 status and print explanatory error
+    message from server</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-390">SYNPY-390</a> -
+    Move recursive download to Python client utils</li>
+</ul>
+<h3 id="bug-fixes_26">Bug Fixes<a class="headerlink" href="#bug-fixes_26" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-154">SYNPY-154</a> - 500
+    Server Error when storing new version of file from command line</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-168">SYNPY-168</a> -
+    Failure on login gives an ugly error message</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-253">SYNPY-253</a> -
+    Error messages on upload retry inconsistent with behavior</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-261">SYNPY-261</a> -
+    error downloading data from synapse (python client)</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-274">SYNPY-274</a> -
+    Trying to use the client without logging in needs to give a
+    reasonable error</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-331">SYNPY-331</a> -
+    test_command_get_recursive_and_query occasionally fails</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-337">SYNPY-337</a> -
+    Download error on 10 Gb file.</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-343">SYNPY-343</a> -
+    Login failure</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-351">SYNPY-351</a> -
+    Versioning broken for sftp files</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-352">SYNPY-352</a> -
+    file upload max retries exceeded messages</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-358">SYNPY-358</a> -
+    upload failure from python client (threading)</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-361">SYNPY-361</a> -
+    file download fails midway without warning/error</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-362">SYNPY-362</a> -
+    setAnnotations bug when given synapse ID</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-363">SYNPY-363</a> -
+    problems using provenance during upload</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-382">SYNPY-382</a> -
+    Python client is truncating the entity id in download csv from table</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-383">SYNPY-383</a> -
+    Travis failing with paramiko.ssh_exception.SSHException: No hostkey</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-384">SYNPY-384</a> -
+    resuming a download after a ChunkedEncodingError created new file
+    with correct size</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-388">SYNPY-388</a> -
+    Asynchronous creation of Team causes sporadic test failure</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-391">SYNPY-391</a> -
+    downloadTableColumns() function doesn't work when resultsAs=rowset
+    is set for for syn.tableQuery()</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-397">SYNPY-397</a> -
+    Error in syncFromSynapse() integration test on Windows</li>
+<li><a href="https://sagebionetworks.jira.com/browse/SYNPY-399">SYNPY-399</a> -
+    python client not compatible with newly released Pandas 0.19</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+              </article>
+            </div>
+
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+
+      </main>
+
+        <footer class="md-footer">
+
+
+
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+
+
+          <a href="../explanations/benchmarking/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Benchmarking">
+            <div class="md-footer__button md-icon">
+
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Benchmarking
+              </div>
+            </div>
+          </a>
+
+
+      </nav>
+
+
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+
+
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+
+</div>
+
+        <div class="md-social">
+
+
+
+
+
+
+
+
+    <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+    </a>
+
+
+
+
+
+
+
+
+    <a href="https://github.com/Sage-Bionetworks/synapsePythonClient/pkgs/container/synapsepythonclient" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M349.9 236.3h-66.1v-59.4h66.1v59.4zm0-204.3h-66.1v60.7h66.1V32zm78.2 144.8H362v59.4h66.1v-59.4zm-156.3-72.1h-66.1v60.1h66.1v-60.1zm78.1 0h-66.1v60.1h66.1v-60.1zm276.8 100c-14.4-9.7-47.6-13.2-73.1-8.4-3.3-24-16.7-44.9-41.1-63.7l-14-9.3-9.3 14c-18.4 27.8-23.4 73.6-3.7 103.8-8.7 4.7-25.8 11.1-48.4 10.7H2.4c-8.7 50.8 5.8 116.8 44 162.1 37.1 43.9 92.7 66.2 165.4 66.2 157.4 0 273.9-72.5 328.4-204.2 21.4.4 67.6.1 91.3-45.2 1.5-2.5 6.6-13.2 8.5-17.1l-13.3-8.9zm-511.1-27.9h-66v59.4h66.1v-59.4zm78.1 0h-66.1v59.4h66.1v-59.4zm78.1 0h-66.1v59.4h66.1v-59.4zm-78.1-72.1h-66.1v60.1h66.1v-60.1z"/></svg>
+    </a>
+
+
+
+
+
+
+
+
+    <a href="https://pypi.org/project/synapseclient/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6zM286.2 404c11.1 0 20.1 9.1 20.1 20.3 0 11.3-9 20.4-20.1 20.4-11 0-20.1-9.2-20.1-20.4.1-11.3 9.1-20.3 20.1-20.3zM167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4zm-6.7-142.6c-11.1 0-20.1-9.1-20.1-20.3.1-11.3 9-20.4 20.1-20.4 11 0 20.1 9.2 20.1 20.4s-9 20.3-20.1 20.3z"/></svg>
+    </a>
+
+</div>
+
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+
+
+    <script id="__config" type="application/json">{"base": "..", "features": ["content.code.copy", "navigation.footer", "navigation.sections", "search.highlight", "search.share", "search.suggest", "toc.follow", "navigation.tabs", "navigation.tabs.sticky"], "search": "../assets/javascripts/workers/search.f886a092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+
+
+      <script src="../assets/javascripts/bundle.d7c377c4.min.js"></script>
+
+        <script src="../termynal.js"></script>
+
+
+  </body>
+</html>

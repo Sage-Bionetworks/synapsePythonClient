@@ -82,26 +82,18 @@ def syncFromSynapse(
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
     metadata.
 
-    :param syn:          A synapse object as obtained with syn = synapseclient.login()
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        entity:  A Synapse ID, a Synapse Entity object of type file, folder or project.
+        path: An optional path where the file hierarchy will be reproduced. If not specified the files will by default be placed in the synapseCache.
+        ifcollision: Determines how to handle file collisions. Maybe "overwrite.local", "keep.local", or "keep.both".
+        followLink: Determines whether the link returns the target Entity.
+        manifest: Determines whether creating manifest file automatically. The optional values here (`all`, `root`, `suppress`).
+        downloadFile: Determines whether downloading the files.
 
-    :param entity:       A Synapse ID, a Synapse Entity object of type file, folder or project.
+    Returns:
+        List of entities ([files][synapseclient.File], [tables][synapseclient.Table], [links][synapseclient.Link])
 
-    :param path:         An optional path where the file hierarchy will be reproduced. If not specified the files will by
-                         default be placed in the synapseCache.
-
-    :param ifcollision:  Determines how to handle file collisions. Maybe "overwrite.local", "keep.local", or "keep.both".
-                         Defaults to "overwrite.local".
-
-    :param followLink:   Determines whether the link returns the target Entity.
-                         Defaults to False
-
-    :param manifest:     Determines whether creating manifest file automatically.
-                         The optional values here ("all", "root", "suppress").
-
-    :param downloadFile: Determines whether downloading the files.
-                         Defaults to True
-
-    :returns: list of entities (files, tables, links)
 
     This function will crawl all subfolders of the project/folder specified by `entity` and download all files that have
     not already been downloaded.  If there are newer files in Synapse (or a local file has been edited outside of the
@@ -112,14 +104,15 @@ def syncFromSynapse(
     location and provenance of all downloaded files).
 
     See also:
-    - :py:func:`synapseutils.sync.syncToSynapse`
 
-    Example - Download and print the paths of all downloaded files::
+    - [synapseutils.sync.syncToSynapse][]
 
-        entities = syncFromSynapse(syn, "syn1234")
-        for f in entities:
-            print(f.path)
+    Example: Using this function
+        Download and print the paths of all downloaded files:
 
+            entities = syncFromSynapse(syn, "syn1234")
+            for f in entities:
+                print(f.path)
     """
 
     if manifest not in ("all", "root", "suppress"):
@@ -715,14 +708,19 @@ class _SyncUploader:
             self._file_semaphore.release()
 
 
-def generateManifest(syn, allFiles, filename, provenance_cache=None):
+def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
     """Generates a manifest file based on a list of entities objects.
 
-    :param syn:   A synapse object as obtained with syn = synapseclient.login()
-    :param allFiles:   A list of File Entity objects on Synapse (can't be Synapse IDs)
-    :param filename: file where manifest will be written
-    :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
+    [Read more about the manifest file format](../../explanations/manifest_tsv/)
 
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        allFiles: A list of File Entity objects on Synapse (can't be Synapse IDs)
+        filename: file where manifest will be written
+        provenance_cache: an optional dict of known provenance dicts keyed by entity ids
+
+    Returns:
+        None
     """
     keys, data = _extract_file_entity_metadata(
         syn, allFiles, provenance_cache=provenance_cache
@@ -889,15 +887,14 @@ def _check_path_and_normalize(f):
 def readManifestFile(syn, manifestFile):
     """Verifies a file manifest and returns a reordered dataframe ready for upload.
 
-    :param syn:             A synapse object as obtained with syn = synapseclient.login()
+    [Read more about the manifest file format](../../explanations/manifest_tsv/)
 
-    :param manifestFile:    A tsv file with file locations and metadata to be pushed to Synapse.
-                            See below for details
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        manifestFile: A tsv file with file locations and metadata to be pushed to Synapse.
 
-    :returns: A pandas dataframe if the manifest is validated.
-
-    See also for a description of the file format:
-        - :py:func:`synapseutils.sync.syncToSynapse`
+    Returns:
+        A pandas dataframe if the manifest is validated.
     """
     table.test_import_pandas()
     import pandas as pd
@@ -980,93 +977,22 @@ def readManifestFile(syn, manifestFile):
 @tracer.start_as_current_span("sync::syncToSynapse")
 def syncToSynapse(
     syn, manifestFile, dryRun=False, sendMessages=True, retries=MAX_RETRIES
-):
-    """Synchronizes files specified in the manifest file to Synapse
-
-    :param syn:             A synapse object as obtained with syn = synapseclient.login()
-
-    :param manifestFile:    A tsv file with file locations and metadata to be pushed to Synapse.
-                            See below for details
-
-    :param dryRun: Performs validation without uploading if set to True (default is False)
+) -> None:
+    """Synchronizes files specified in the manifest file to Synapse.
 
     Given a file describing all of the uploads uploads the content to Synapse and optionally notifies you via Synapse
     messagging (email) at specific intervals, on errors and on completion.
 
-    **Manifest file format**
+    [Read more about the manifest file format](../../explanations/manifest_tsv/)
 
-    The format of the manifest file is a tab delimited file with one row per file to upload and columns describing the
-    file. The minimum required columns are **path** and **parent** where path is the local file path and parent is the
-    Synapse Id of the project or folder where the file is uploaded to. In addition to these columns you can specify any
-    of the parameters to the File constructor (**name**, **synapseStore**, **contentType**) as well as parameters to the
-    syn.store command (**used**, **executed**, **activityName**, **activityDescription**, **forceVersion**).  For only
-    updating annotations without uploading new versions of unchanged files, the syn.store parameter forceVersion
-    should be included in the manifest with the value set to False.
-    Used and executed can be semi-colon (";") separated lists of Synapse ids, urls and/or local filepaths of files
-    already stored in Synapse (or being stored in Synapse by the manifest).  If you leave a space, like
-    "syn1234; syn2345" the white space from " syn2345" will be stripped.
-    Any additional columns will be added as annotations.
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        manifestFile: A tsv file with file locations and metadata to be pushed to Synapse.
+        dryRun: Performs validation without uploading if set to True.
+        sendMessages: Sends out messages on completion if set to True.
 
-    **Required fields:**
-
-    ======   ======================                  ============================
-    Field    Meaning                                 Example
-    ======   ======================                  ============================
-    path     local file path or URL                  /path/to/local/file.txt
-    parent   synapse id                              syn1235
-    ======   ======================                  ============================
-
-    **Common fields:**
-
-    ===============        ===========================                   ============
-    Field                  Meaning                                       Example
-    ===============        ===========================                   ============
-    name                   name of file in Synapse                       Example_file
-    forceVersion           whether to update version                     False
-    ===============        ===========================                   ============
-
-    **Provenance fields:**
-
-    Each of these are individual examples and is what you would find in a row in each of these columns. To
-    clarify, "syn1235;/path/to_local/file.txt" below states that you would like both
-    "syn1234" and "/path/to_local/file.txt" added as items used to generate a file. You can also specify one item
-    by specifying "syn1234"
-
-    ====================   =====================================  ============================================
-    Field                  Meaning                                Example
-    ====================   =====================================  ============================================
-    used                   List of items used to generate file    "syn1235;/path/to_local/file.txt"
-    executed               List of items exectued                 "https://github.org/;/path/to_local/code.py"
-    activityName           Name of activity in provenance         "Ran normalization"
-    activityDescription    Text description on what was done      "Ran algorithm xyx with parameters..."
-    ====================   =====================================  ============================================
-
-    Annotations:
-
-    **Annotations:**
-
-    Any columns that are not in the reserved names described above will be interpreted as annotations of the file
-
-    **Other optional fields:**
-
-    ===============          ==========================================  ============
-    Field                    Meaning                                     Example
-    ===============          ==========================================  ============
-    synapseStore             Boolean describing whether to upload files  True
-    contentType              content type of file to overload defaults   text/html
-    ===============          ==========================================  ============
-
-
-    **Example manifest file**
-
-    ===============   ========    =======   =======   =========================   ===========================    ============================
-    path              parent      annot1    annot2    collection_date             used                           executed
-    ===============   ========    =======   =======   =========================   ===========================    ============================
-    /path/file1.txt   syn1243     "bar"     3.1415    2023-12-04 07:00:00+00:00   "syn124;/path/file2.txt"       "https://github.org/foo/bar"
-    /path/file2.txt   syn12433    "baz"     2.71      2001-01-01 15:00:00+07:00   ""                             "https://github.org/foo/baz"
-    /path/file3.txt   syn12455    "zzz"     3.52      2023-12-04T07:00:00Z        ""                             "https://github.org/foo/zzz"
-    ===============   ========    =======   =======   =========================   ===========================    ============================
-
+    Returns:
+        None
     """
     df = readManifestFile(syn, manifestFile)
     # have to check all size of single file
@@ -1185,8 +1111,20 @@ def _check_size_each_file(df):
 
 
 @tracer.start_as_current_span("sync::generate_sync_manifest")
-def generate_sync_manifest(syn, directory_path, parent_id, manifest_path):
-    """Generate manifest for syncToSynapse() from a local directory."""
+def generate_sync_manifest(syn, directory_path, parent_id, manifest_path) -> None:
+    """Generate manifest for syncToSynapse() from a local directory.
+
+    [Read more about the manifest file format](../../explanations/manifest_tsv/)
+
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        directory_path: Path to local directory to be pushed to Synapse.
+        parent_id: Synapse ID of the parent folder/project on Synapse.
+        manifest_path: Path to the manifest file to be generated.
+
+    Returns:
+        None
+    """
     manifest_cols = ["path", "parent"]
     manifest_rows = _walk_directory_tree(syn, directory_path, parent_id)
     _write_manifest_data(manifest_path, manifest_cols, manifest_rows)

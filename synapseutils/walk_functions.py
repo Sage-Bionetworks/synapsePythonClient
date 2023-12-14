@@ -20,22 +20,21 @@ def walk(
     """
     Traverse through the hierarchy of files and folders stored under the synId. Has the same behavior as os.walk()
 
-    :param syn:     A synapse object: syn = synapseclient.login()- Must be logged into synapse
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        synId: A synapse ID of a folder or project
+        includeTypes: Must be a list of entity types (ie.["file", "table"])
+                        The "folder" type is always included so the hierarchy can be traversed
 
-    :param synId:   A synapse ID of a folder or project
+    Example: Using this function
+        Traversing through a project and printing out the directory path, folders, and files
 
-    :param includeTypes:    Must be a list of entity types (ie. ["file", "table"]) which can be found here:
-                            http://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
-                            The "folder" type is always included so the hierarchy can be traversed
+            walkedPath = walk(syn, "syn1234", ["file"]) #Exclude tables and views
 
-    Example::
-
-        walkedPath = walk(syn, "syn1234", ["file"]) #Exclude tables and views
-
-        for dirpath, dirname, filename in walkedPath:
-            print(dirpath)
-            print(dirname) #All the folders in the directory path
-            print(filename) #All the files in the directory path
+            for dirpath, dirname, filename in walkedPath:
+                print(dirpath)
+                print(dirname) #All the folders in the directory path
+                print(filename) #All the files in the directory path
 
     """
     # Ensure that "folder" is included so the hierarchy can be traversed
