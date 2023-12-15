@@ -127,7 +127,7 @@ synapse sync [-h] [--dryRun] [--sendMessages] [--retries INT] FILE
 
 | Name                | Type    | Description                                                               | Default               |
 |---------------------|---------|---------------------------------------------------------------------------|-----------------------|
-| `FILE`              | Positional | A tsv file with file locations and metadata to be pushed to Synapse. See [synapseutils.sync.syncToSynapse](https://python-docs.synapse.org/build/html/articles/synapseutils.html?highlight=synapseutils#synapseutils.sync.syncToSynapse) for details on the format of a manifest. |                       |
+| `FILE`              | Positional | A tsv file with file locations and metadata to be pushed to Synapse. See [synapseutils.sync.syncToSynapse][] for details on the format of a manifest. |                       |
 | `--dryRun`          | Named  | Perform validation without uploading.                                     | False                 |
 | `--sendMessages`    | Named  | Send notifications via Synapse messaging (email) at specific intervals, on errors and on completion. | False                 |
 | `--retries`         | Named  | Number of retries for failed uploads.                                     | 4                     |

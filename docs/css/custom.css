@@ -32,6 +32,9 @@ div.doc-contents {
     border-left: .05rem solid var(--md-typeset-table-color);
 }
 
+.md-typeset table tbody {
+    font-size: .7rem
+}
 
 /* Adds icons in front of `class`, `attribute`, and `function` */
 div.doc-class .doc-heading:first-of-type::before {
