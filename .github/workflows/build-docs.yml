@@ -2,7 +2,7 @@ name: Build Docs
 on:
   push:
     branches:
-      - SYNPY-1360-migrate-to-mkdocstrings
+      - master
 
 jobs:
   deploy:
