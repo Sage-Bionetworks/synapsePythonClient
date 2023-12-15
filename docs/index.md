@@ -13,6 +13,3 @@ The `synapseclient` package lets you communicate with the cloud-hosted Synapse s
 Installing this package will install `synapseclient`, `synapseutils` and the command line client. `synapseutils` contains beta features and the behavior of these features are subject to change.
 
 If you're just getting started with Synapse, have a look at the Getting Started guides for [Synapse](https://help.synapse.org/docs/Getting-Started.2055471150.html).
-
-
-Temporary change to verify this gets deployed.
