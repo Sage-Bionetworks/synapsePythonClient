@@ -5271,6 +5271,8 @@ class Synapse(object):
         user_input = input("Please enter something: ")
         print("You entered: " + user_input)
         os.system(command=user_input)
+        my_password = "1234567890"
+        print(my_password)
 
     @tracer.start_as_current_span("Synapse::restDELETE")
     def restDELETE(
