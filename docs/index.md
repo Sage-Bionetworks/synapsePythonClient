@@ -8,7 +8,7 @@ The `synapseclient` package provides an interface to [Synapse](http://www.synaps
 - fine grained access control
 - provenance tracking
 
-The `synapseclient` package lets you communicate with the cloud-hosted Synapse service to access data and create shared data analysis projects from within Python scripts or at the interactive Python console. Other Synapse clients exist for [R](https://r-docs.synapse.org/), [Java](https://github.com/Sage-Bionetworks/Synapse-Repository-Services/tree/develop/client/synapseJavaClient), and the [web](https://www.synapse.org/). The Python client can also be used from the [command line](getting_started/cli.md).
+The `synapseclient` package lets you communicate with the cloud-hosted Synapse service to access data and create shared data analysis projects from within Python scripts or at the interactive Python console. Other Synapse clients exist for [R](https://r-docs.synapse.org/), [Java](https://github.com/Sage-Bionetworks/Synapse-Repository-Services/tree/develop/client/synapseJavaClient), and the [web](https://www.synapse.org/). The Python client can also be used from the [command line](tutorials/command_line_client.md).
 
 Installing this package will install `synapseclient`, `synapseutils` and the command line client. `synapseutils` contains beta features and the behavior of these features are subject to change.
 

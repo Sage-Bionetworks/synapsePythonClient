@@ -237,12 +237,8 @@ To start a local HTTP server to host the documents use:
 mkdocs serve
 ```
 
-If you need to generate the documents again for upload to `Read the Docs` you can run:
-```bash
-mkdocs build
-```
-
-Running this build command will create the required HTML content in `docs_site`.
+On push to the master branch the github workflow `build-docs.yml` is set to automatically
+use the `mkdocs gh-deploy` command to build and deploy changes to the live doc site.
 
 #### Guidelines for new documents
 In each of the docs folders there articles live there is a README with further information about the expected content in each folder.

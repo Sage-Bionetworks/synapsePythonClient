@@ -2,7 +2,7 @@
 
 ## Authentication
 
-Most operations in Synapse require you to be logged in. Please follow instructions in [credentials](credentials.md) to configure your client:
+Most operations in Synapse require you to be logged in. Please follow instructions in [authentication](authentication.md) to configure your client:
 
 ```python
 import synapseclient
