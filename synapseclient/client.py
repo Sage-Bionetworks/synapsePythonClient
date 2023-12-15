@@ -5357,6 +5357,44 @@ class Permissions:
 
     @property
     def access_types(self):
+        """
+        Determine from the permissions set on this object what the access types are.
+
+
+        Returns:
+            A list of access type strings for this object based off of what permissions are set.
+
+        Example: Using this property
+            A permission that has nothing set
+
+                no_permissions = Permissions()
+                print(no_permissions.access_types)
+                # Prints: []
+
+            A permission that has can_view set to True and nothing else set
+
+                read_permission = Permissions()
+                read_permission.can_view = True
+                print(read_permission.access_types)
+                # Prints: ['READ']
+
+            Special Case: a permission that has can_view set to True and nothing else set on an entity created by you.
+            CHANGE_SETTINGS is bound to ownerId. Since the entity is created by you, the CHANGE_SETTINGS will always be True.
+               read_permission = Permissions()
+               read_permission.can_view = True
+               print(read_permission.access_types)
+               # Prints: ['READ','CHANGE_SETTINGS']
+
+
+            A permission that has can_view and can_edit set to True and nothing else set
+
+                read_write_permission = Permissions()
+                read_write_permission.can_view = True
+                read_write_permission.can_edit = True
+                print(read_write_permission.access_types)
+                # Prints: ['READ', 'UPDATE']
+
+        """
         access_types = []
         if self.can_view:
             access_types.append("READ")
