@@ -21,6 +21,7 @@ By contributing, you are agreeing that we may redistribute your work under this 
    * [OpenTelemetry](#opentelemetry)
       + [Attributes within traces](#attributes-within-traces)
       + [Adding new spans](#adding-new-spans)
+   * [Python doc pages](#python-doc-pages)
    * [Repository Admins](#repository-admins)
 
 ## I don't want to read this whole thing I just have a question!
@@ -206,6 +207,38 @@ pip install flake8
 
 flake8
 ```
+
+In addition it is expected that all docstrings follow the google python style
+guide [here](https://google.github.io/styleguide/pyguide.html). In particular this is
+needed as this is how our auto-doc creates our python documentation pages. We should
+be creating the docstrings without types.
+
+#### Some additional expectations:
+- Any new dataclasses should document the class attributes in both a docstring and under the class attribute itself. This is in effect until pylance resolves: https://github.com/microsoft/pylance-release/discussions/4759
+- Create 1 or more examples of all new functions you create. An example format of a function is below. Not the specific spacing and tabbing is required for it to show up as a code block.:
+```
+@dataclass
+class MyDataClass:
+    """
+    The description of this class
+
+    Attributes:
+        my_attribute: My attribute description.
+
+    Example: Example
+        Doing something cool
+
+            my_instance = MyDataClass()
+
+        Doing something else cool
+
+            my_instance = MyDataClass()
+    """
+
+    my_attribute: bool = None
+    """My attribute description."""
+```
+- mkdocstrings has an autorefs plugin that allows you to link to other resources like: `[synapseclient.entity.Project][]`
 
 ### OpenTelemetry
 [OpenTelemetry](https://opentelemetry.io/) helps support the analysis of traces and spans which can provide insights into latency, errors, and other performance metrics. During development it may prove useful to collect information about the execution of your code. The following is meant to be a starting point for additions to the current traces being collected.
