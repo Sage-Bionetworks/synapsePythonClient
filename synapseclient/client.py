@@ -120,6 +120,7 @@ from synapseclient.core.upload.upload_functions import (
 from synapseclient.core.dozer import doze
 from typing import Union
 from opentelemetry import trace
+from dataclasses import dataclass
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -2312,6 +2313,28 @@ class Synapse(object):
                     permissions["accessType"]
                 )
         return list(effective_permission_set)
+
+    @tracer.start_as_current_span("Synapse::get_permissions")
+    def get_permissions(
+        self, entity: Union[Entity, Evaluation, str, collections.abc.Mapping]
+    ):
+        """Get the permissions that the caller has on an Entity.
+        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/auth/UserEntityPermissions.html
+
+        :param entity:      An Entity or Synapse ID to lookup
+
+        :returns:           An Permission object
+        Example::
+            permissions = syn.get_permissions("syn12345")
+            permissions = syn.get_permissions(Entity Object)
+            permissions.access_types # to view the access types
+
+        """
+        entity_id = id_of(entity)
+        trace.get_current_span().set_attributes({"synapse.id": entity_id})
+        url = f"/entity/{entity_id}/permissions"
+        data = self.restGET(url)
+        return Permissions(data)
 
     @tracer.start_as_current_span("Synapse::setPermissions")
     def setPermissions(
@@ -5247,3 +5270,108 @@ class Synapse(object):
         if is_json(response.headers.get("content-type", None)):
             return response.json()
         return response.text
+
+
+@dataclass
+class Permissions:
+    """
+    The permission a User has for a given Entity.
+
+    Attributes:
+        can_view (Boolean): Can the user view this entity?
+        can_edit (Boolean): Can the user edit this entity?
+        can_move (Boolean): (Read Only) Can the user move this entity by changing its parentId?
+        can_add_child (Boolean): Can the user add a child entity to this entity?
+        can_certified_user_edit (Boolean): (Read Only) Can the user edit this entity once they become a Certified User?
+        can_certified_user_add_child (Boolean): (Read Only) Can the user add a child entity to this entity once they become a Certified User?
+        is_certified_user (Boolean): (Read Only) True, if the user has passed the user certification quiz.
+        can_change_permissions (Boolean): Can the user change the permissions of this entity?
+        can_change_settings (Boolean): Can the user change the settings of this entity?
+        can_delete (Boolean): Can the user delete this entity?
+        can_download (Boolean): Are there any access requirements precluding the user from downloading this entity?
+        can_upload (Boolean): (Read Only) Are there any access requirements precluding the user from uploading into this entity (folder or project)?
+        can_enable_inheritance (Boolean): (Read Only) Can the user delete the entity's access control list (so it inherits settings from an ancestor)?
+        owner_principal_id (Integer): (Read Only) The principal ID of the entity's owner (i.e. the entity's 'createdBy')
+        can_public_read (Boolean): (Read Only) Is this entity considered public?
+        can_moderate (Boolean): Can the user moderate the forum associated with this entity? Note that only project entity has forum.
+        is_certification_required (Boolean): (Read Only) Is the certification requirement enabled for the project of the entity?
+        is_entity_open_data (Boolean): (Read Only) Returns true if the Entity's DateType equals 'OPEN_DATA', indicating that the data is safe to be released to the public.
+    """
+
+    can_view: bool = None
+    """Can the user view this entity?"""
+    can_edit: bool = None
+    """Can the user edit this entity?"""
+    can_move: bool = None
+    """(Read Only) Can the user move this entity by changing its parentId?"""
+    can_add_child: bool = None
+    """Can the user add a child entity to this entity?"""
+    can_certified_user_edit: bool = None
+    """(Read Only) Can the user edit this entity once they become a Certified User?"""
+    can_certified_user_add_child: bool = None
+    """(Read Only) Can the user add a child entity to this entity once they become a Certified User?"""
+    is_certified_user: bool = None
+    """(Read Only) True, if the user has passed the user certification quiz."""
+    can_change_permissions: bool = None
+    """Can the user change the permissions of this entity?"""
+    can_change_settings: bool = None
+    """Can the user change the settings of this entity?"""
+    can_delete: bool = None
+    """Can the user delete this entity?"""
+    can_download: bool = None
+    """Are there any access requirements precluding the user from downloading this entity?"""
+    can_upload: bool = None
+    """(Read Only) Are there any access requirements precluding the user from uploading into this entity (folder or project)?"""
+    can_enable_inheritance: bool = None
+    """(Read Only) Can the user delete the entity's access control list (so it inherits settings from an ancestor)?"""
+    owner_principal_id: int = None
+    """(Read Only) The principal ID of the entity's owner (i.e. the entity's 'createdBy')"""
+    can_public_read: bool = None
+    """(Read Only) Is this entity considered public?"""
+    can_moderate: bool = None
+    """Can the user moderate the forum associated with this entity? Note that only project entity has forum."""
+    is_certification_required: bool = None
+    """(Read Only) Is the certification requirement enabled for the project of the entity?"""
+    is_entity_open_data: bool = None
+    """(Read Only) Returns true if the Entity's DateType equals 'OPEN_DATA', indicating that the data is safe to be released to the public."""
+
+    def __init__(self, data: dict):
+        self.can_view = data["canView"]
+        self.can_edit = data["canEdit"]
+        self.can_move = data["canMove"]
+        self.can_add_child = data["canAddChild"]
+        self.can_certified_user_edit = data["canCertifiedUserEdit"]
+        self.can_certified_user_add_child = data["canCertifiedUserAddChild"]
+        self.is_certified_user = data["isCertifiedUser"]
+        self.can_change_permissions = data["canChangePermissions"]
+        self.can_change_settings = data["canChangeSettings"]
+        self.can_delete = data["canDelete"]
+        self.can_download = data["canDownload"]
+        self.can_upload = data["canUpload"]
+        self.can_enable_inheritance = data["canEnableInheritance"]
+        self.owner_principal_id = data["ownerPrincipalId"]
+        self.can_public_read = data["canPublicRead"]
+        self.can_moderate = data["canModerate"]
+        self.is_certification_required = data["isCertificationRequired"]
+        self.is_entity_open_data = data["isEntityOpenData"]
+
+    @property
+    def access_types(self):
+        access_types = []
+        if self.can_view:
+            access_types.append("READ")
+        if self.can_edit:
+            access_types.append("UPDATE")
+        if self.can_add_child:
+            access_types.append("CREATE")
+        if self.can_delete:
+            access_types.append("DELETE")
+        if self.can_download:
+            access_types.append("DOWNLOAD")
+        if self.can_moderate:
+            access_types.append("MODERATE")
+        if self.can_change_permissions:
+            access_types.append("CHANGE_PERMISSIONS")
+        if self.can_change_settings:
+            access_types.append("CHANGE_SETTINGS")
+        return access_types
