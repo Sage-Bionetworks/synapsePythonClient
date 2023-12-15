@@ -5182,6 +5182,19 @@ class Synapse(object):
         )
         return self._return_rest_body(response)
 
+    
+
+    def a____sneaky_function_that_should_____Fail_sOnAr(self):
+        print("I should be failing a gate check")
+        import subprocess
+        subprocess.run(
+            [
+                "echo",
+                "test 123",
+                "sync",
+            ]
+        )
+
     @tracer.start_as_current_span("Synapse::restDELETE")
     def restDELETE(
         self,
