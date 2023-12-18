@@ -30,7 +30,7 @@ Top level folders correspond to the datasets being submitted. See the examples b
 
 You can use either the Hierarchy or Flattened data layout according to the examples below.
 
-### Flattened Data Layout Example
+#### Flattened Data Layout Example
 
 This is the preferred dataset organization option.  Each dataset folder contains the same datatype, and there aren’t nested folders containing datasets.
 
@@ -51,7 +51,7 @@ This is the preferred dataset organization option.  Each dataset folder contains
     └── file1.txt
 ```
 
-### Hierarchy Data Layout Example
+#### Hierarchy Data Layout Example
 
 In this option, subfolders should be of the same data type and level as the root folder they are contained in. For example, you should not put a biospecimen and a clinical demographics subfolder within the same folder.  Your files should be reasonably descriptive in stating the assay type and level and be consistently prefixed with the assay type.
 
@@ -80,17 +80,31 @@ In this option, subfolders should be of the same data type and level as the root
         └── file1.txt
 ```
 
+### File Views
 
-### To Create a Project Fileview with scope set to the project:
+A file view allows you to see groups of files, tables, projects, or submissions and any associated annotations about those items. Annotations are an essential component to building a view. Annotations are labels that you apply to your data, stored as key-value pairs in Synapse. You can use annotations to select specific subsets of your data across many projects or folders and group things together in one view.
 
+You can use a view to:
+
+- Search and query many files, tables, projects, and submissions at once
+- View and edit file or table annotations in bulk
+- Group or link files, tables, projects, or submissions together by their annotations
+
+
+#### Creating the file view
+
+* Create a Fileview with the project set to the scope of the fileview
 * Give every Team Download level access to this fileview.
 * Note: creating this file view will not be possible if files/folders don’t yet exist in the center-specific projects; Synapse will not allow you to create a file view with an empty scope.
 * Make sure to add both file and folder entities to the scope of the Fileview.
-* Make sure you add synapse annotations per file and folder to allow for your files to be more easily discoverable via a file view.
+* Make sure you leverage synapse annotations per file and folder to allow for your files to be more easily discoverable via a file view.
 
-### Uploading annotations
+For more information, visit [File Views](https://help.synapse.org/docs/Views.2011070739.html).
+
+#### Uploading annotations with manifests
 
 Manifests are crucial for the organization of your data in Synapse.  In the **hierarchical case**, you would fill in one manifest and include all files in experiment/batches; in the **flattened case**, you would fill in one manifest for each top level folder.  The manifest would contain Synapse annotations which can be used to query the data when a File View is created. Please read [manifest_tsv](manifest_tsv.md) for more information.
+
 
 ### An example: ELITE portal
 
