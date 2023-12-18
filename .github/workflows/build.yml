@@ -212,11 +212,17 @@ jobs:
         shell: bash
         run: |
           ls
+          echo "next"
           ls /home/runner/work/
+          echo "next"
           ls /home/runner/
+          echo "next"
           ls ~
+          echo "next"
           ls /home/runner/work/synapsePythonClient/synapsePythonClient/synapseclient
+          echo "next"
           ls /home/runner/work/synapsePythonClient/synapsePythonClient/
+          echo "next"
           ls /home/runner/work/synapsePythonClient/
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
