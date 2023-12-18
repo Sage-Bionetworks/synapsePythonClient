@@ -34,30 +34,27 @@ def copyFileHandles(
     """
     Given a list of fileHandle Ids or Objects, copy the fileHandles
 
-    :param syn:                     A Synapse object with user's login, e.g. syn = synapseclient.login()
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        fileHandles: List of fileHandle Ids or Objects
+        associateObjectTypes: List of associated object types: FileEntity, TableEntity, WikiAttachment,
+                                UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
+                                VerificationSubmission (Must be the same length as fileHandles)
+        associateObjectIds: List of associated object Ids: If copying a file, the objectId is the synapse id,
+                                and if copying a wiki attachment, the object id is the wiki subpage id.
+                                (Must be the same length as fileHandles)
+        newContentTypes: (Optional) List of content types. Set each item to a new content type for each file
+                            handle, or leave the item as None to keep the original content type. Default None,
+                            which keeps all original content types.
+        newFileNames: (Optional) List of filenames. Set each item to a new filename for each file handle,
+                        or leave the item as None to keep the original name. Default None, which keeps all
+                        original file names.
 
-    :param fileHandles:             List of fileHandle Ids or Objects
+    Returns:
+        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and NOT_FOUND
 
-    :param associateObjectTypes:    List of associated object types: FileEntity, TableEntity, WikiAttachment,
-                                    UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
-                                    VerificationSubmission (Must be the same length as fileHandles)
-
-    :param associateObjectIds:      List of associated object Ids: If copying a file, the objectId is the synapse id,
-                                    and if copying a wiki attachment, the object id is the wiki subpage id.
-                                    (Must be the same length as fileHandles)
-
-    :param newContentTypes:         (Optional) List of content types. Set each item to a new content type for each file
-                                    handle, or leave the item as None to keep the original content type. Default None,
-                                    which keeps all original content types.
-
-    :param newFileNames:            (Optional) List of filenames. Set each item to a new filename for each file handle,
-                                    or leave the item as None to keep the original name. Default None, which keeps all
-                                    original file names.
-
-    :return:                        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
-                                    NOT_FOUND
-
-    :raises ValueError: If length of all input arguments are not the same
+    Raises:
+        ValueError: If length of all input arguments are not the same
     """
 
     # Check if length of all inputs are equal
@@ -231,24 +228,22 @@ def changeFileMetaData(
     """
     Change File Entity metadata like the download as name.
 
-    :param syn:           Synapse connection
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        entity: Synapse entity Id or object.
+        contentType: Specify content type to change the content type of a filehandle.
+        downloadAs: Specify filename to change the filename of a filehandle.
+        forceVersion: Indicates whether the method should increment the version of the object even if nothing has changed. Defaults to True.
 
-    :param entity:        Synapse entity Id or object
+    Returns:
+        Synapse Entity
 
-    :param contentType:   Specify content type to change the content type of a filehandle
+    Example: Using this function
+        Can be used to change the filename or the file content-type without downloading:
 
-    :param downloadAs:    Specify filename to change the filename of a filehandle
-
-    :param forceVersion:  Indicates whether the method should increment the version of
-                          the object even if nothing has changed.  Defaults to True.
-
-    :return:              Synapse Entity
-
-    Can be used to change the filename or the file content-type without downloading::
-
-        file_entity = syn.get(synid)
-        print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
-        file_entity = synapseutils.changeFileMetaData(syn, file_entity, "my_new_name_file.txt")
+            file_entity = syn.get(synid)
+            print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
+            file_entity = synapseutils.changeFileMetaData(syn, file_entity, "my_new_name_file.txt")
     """
     ent = syn.get(entity, downloadFile=False)
     fileResult = syn._getFileHandleDownload(ent.dataFileHandleId, ent.id)
@@ -289,57 +284,42 @@ def copy(
     - A Mapping of the old entities to the new entities will be created and all the wikis of each entity
       will also be copied over and links to synapse Ids will be updated.
 
-    :param syn:                 A synapse object: syn = synapseclient.login()- Must be logged into synapse
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        entity: A synapse entity ID
+        destinationId: Synapse ID of a folder/project that the copied entity is being copied to
+        skipCopyWikiPage: Skip copying the wiki pages.
+        skipCopyAnnotations: Skips copying the annotations.
+        version: (File copy only) Can specify version of a file. Default to None
+        updateExisting: (File copy only) When the destination has an entity that has the same name,
+                        users can choose to update that entity. It must be the same entity type
+                        Default to False
+        setProvenance: (File copy only) Has three values to set the provenance of the copied entity:
+                        traceback: Sets to the source entity
+                        existing: Sets to source entity's original provenance (if it exists)
+                        None: No provenance is set
+        excludeTypes: (Folder/Project copy only) Accepts a list of entity types (file, table, link) which determines
+                        which entity types to not copy. Defaults to an empty list.
 
-    :param entity:              A synapse entity ID
+    Returns:
+        A mapping between the original and copied entity: {'syn1234':'syn33455'}
 
-    :param destinationId:       Synapse ID of a folder/project that the copied entity is being copied to
+    Example: Using this function
+        Sample copy:
 
-    :param skipCopyWikiPage:    Skip copying the wiki pages
-                                Default is False
+            import synapseutils
+            import synapseclient
+            syn = synapseclient.login()
+            synapseutils.copy(syn, ...)
 
-    :param skipCopyAnnotations: Skips copying the annotations
-                                Default is False
+        Copying Files:
 
-    Examples::
+            synapseutils.copy(syn, "syn12345", "syn45678", updateExisting=False, setProvenance = "traceback",version=None)
 
-        import synapseutils
-        import synapseclient
-        syn = synapseclient.login()
-        synapseutils.copy(syn, ...)
+        Copying Folders/Projects:
 
-    Examples and extra parameters unique to each copy function
-    -- COPYING FILES
-
-    :param version:         Can specify version of a file.
-                            Default to None
-
-    :param updateExisting:  When the destination has an entity that has the same name,
-                            users can choose to update that entity.
-                            It must be the same entity type
-                            Default to False
-
-    :param setProvenance:   Has three values to set the provenance of the copied entity:
-                            traceback: Sets to the source entity
-                            existing: Sets to source entity's original provenance (if it exists)
-                            None: No provenance is set
-
-    Examples::
-
-        synapseutils.copy(syn, "syn12345", "syn45678", updateExisting=False, setProvenance = "traceback",version=None)
-
-    -- COPYING FOLDERS/PROJECTS
-
-    :param excludeTypes:    Accepts a list of entity types (file, table, link) which determines which entity types to
-                            not copy.
-                            Defaults to an empty list.
-
-    Examples::
-
-        #This will copy everything in the project into the destinationId except files and tables.
-        synapseutils.copy(syn, "syn123450","syn345678",excludeTypes=["file","table"])
-
-    :returns: a mapping between the original and copied entity: {'syn1234':'syn33455'}
+            # This will copy everything in the project into the destinationId except files and tables.
+            synapseutils.copy(syn, "syn123450","syn345678",excludeTypes=["file","table"])
     """
     updateLinks = kwargs.get("updateLinks", True)
     updateSynIds = kwargs.get("updateSynIds", True)
@@ -761,31 +741,22 @@ def copyWiki(
     """
     Copies wikis and updates internal links
 
-    :param syn:                     A synapse object: syn = synapseclient.login()- Must be logged into synapse
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        entity: A synapse ID of an entity whose wiki you want to copy
+        destinationId: Synapse ID of a folder/project that the wiki wants to be copied to
+        updateLinks: Update all the internal links. (e.g. syn1234/wiki/34345 becomes syn3345/wiki/49508)
+        updateSynIds: Update all the synapse ID's referenced in the wikis. (e.g. syn1234 becomes syn2345)
+                        Defaults to True but needs an entityMap
+        entityMap: An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the wiki.
+        entitySubPageId: Can specify subPageId and copy all of its subwikis
+                            Defaults to None, which copies the entire wiki subPageId can be found:
+                            https://www.synapse.org/#!Synapse:syn123/wiki/1234
+                            In this case, 1234 is the subPageId.
+        destinationSubPageId: Can specify destination subPageId to copy wikis to.
 
-    :param entity:                  A synapse ID of an entity whose wiki you want to copy
-
-    :param destinationId:           Synapse ID of a folder/project that the wiki wants to be copied to
-
-    :param updateLinks:             Update all the internal links. (e.g. syn1234/wiki/34345 becomes syn3345/wiki/49508)
-                                    Defaults to True
-
-    :param updateSynIds:            Update all the synapse ID's referenced in the wikis. (e.g. syn1234 becomes syn2345)
-                                    Defaults to True but needs an entityMap
-
-    :param entityMap:               An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the
-                                    wiki.
-                                    Defaults to None
-
-    :param entitySubPageId:         Can specify subPageId and copy all of its subwikis
-                                    Defaults to None, which copies the entire wiki subPageId can be found:
-                                    https://www.synapse.org/#!Synapse:syn123/wiki/1234
-                                    In this case, 1234 is the subPageId.
-
-    :param destinationSubPageId:    Can specify destination subPageId to copy wikis to
-                                    Defaults to None
-
-    :returns: A list of Objects with three fields: id, title and parentId.
+    Returns:
+        A list of Objects with three fields: id, title and parentId.
     """
 
     # Validate input parameters

@@ -1,17 +1,3 @@
-"""
-**********
-Exceptions
-**********
-
-.. autoclass:: synapseclient.exceptions.SynapseError
-.. autoclass:: synapseclient.exceptions.SynapseAuthenticationError
-.. autoclass:: synapseclient.exceptions.SynapseFileCacheError
-.. autoclass:: synapseclient.exceptions.SynapseMalformedEntityError
-.. autoclass:: synapseclient.exceptions.SynapseProvenanceError
-.. autoclass:: synapseclient.exceptions.SynapseHTTPError
-
-"""
-
 import requests
 
 from synapseclient.core import utils
