@@ -1,5 +1,7 @@
 # Structuring Your Synapse Project
 
+Based on the experience on managing data coordination projects for 10+ years at Sage, the below are recommendations on how best to manage your Synapse project for data sharing and management.
+
 ## Permissions Management
 
 We recommend creating Synapse Teams for permission management on your Synapse project.  These are the recommended teams to create:
