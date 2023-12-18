@@ -13,7 +13,7 @@ We recommend creating Synapse Teams for permission management on your Synapse pr
 
 Below are some key permission criterias to consider when setting up your project:
 
-* Create a Synapse Team and Project per data contributor if there are (1) multiple data contributors and (2) the data contributors should not have access to each other's raw data. You would then create a central "public" project that will contain the harmonized data. You can technically leverage local share settings by creating private folders in one project but managing local share settings is more complicated and not recommended.
+* Create a Synapse Team and Project per data contributor if there are (1) multiple data contributors and (2) the data contributors should not have access to each other's raw data. You would then create a central "public" project that will contain the harmonized data. You can technically leverage [local share settings](https://help.synapse.org/docs/Sharing-Settings,-Permissions,-and-Conditions-for-Use.2024276030.html#SharingSettings,Permissions,andConditionsforUse-EditSharingSettingsonFiles,Folders,andTables) by creating private folders in one project but managing local share settings is more complicated and not recommended.
 * Do not mix data that requires different permission models within a folder. For example, if you have a folder that contains both public and private data, you should create two folders, one for public data and one for private data.  You can then grant the appropriate permissions to each folder. You can use local share settings to manage each file's permission, but this is not recommended!
 
 
