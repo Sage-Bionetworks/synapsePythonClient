@@ -42,10 +42,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-20.04, macos-11, windows-2019]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
-        python: ['3.9']
+        python: [3.8, '3.9', '3.10', '3.11']
 
     runs-on: ${{ matrix.os }}
 
@@ -184,10 +184,10 @@ jobs:
           fi
 
           # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-          # pytest -sv --cov-append --cov=. --cov-report xml tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+          pytest -sv --cov-append --cov=. --cov-report xml tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-          # pytest -sv --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+          pytest -sv --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
       - name: Upload coverage report
         uses: actions/upload-artifact@v2
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
