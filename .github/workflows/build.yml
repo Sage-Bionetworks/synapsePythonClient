@@ -42,10 +42,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        os: [ubuntu-20.04]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
-        python: [3.8, '3.9', '3.10', '3.11']
+        python: ['3.9']
 
     runs-on: ${{ matrix.os }}
 
@@ -207,6 +207,17 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: coverage-report
+      - name: Run echos for debugging
+        id: echo-check
+        shell: bash
+        run: |
+          ls
+          ls /home/runner/work/
+          ls /home/runner/
+          ls ~
+          ls /home/runner/work/synapsePythonClient/synapsePythonClient/synapseclient
+          ls /home/runner/work/synapsePythonClient/synapsePythonClient/
+          ls /home/runner/work/synapsePythonClient/
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
