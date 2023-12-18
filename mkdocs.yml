@@ -56,6 +56,7 @@ nav:
     - Properties vs Annotations: explanations/properties_vs_annotations.md
     - Manifest TSV: explanations/manifest_tsv.md
     - Benchmarking: explanations/benchmarking.md
+    - Structing Your Project: explanations/structuring_your_project.md
   - News:
     - news.md
 
