@@ -16,9 +16,9 @@ Below are some key permission criterias to consider when setting up your project
 
 ## Folder Structure
 
-This document will help you understand how to organize your data in Synapse to make it easier for the community to find and use your data. 
+This document will help you understand how to organize your data in Synapse to make it easier for the community to find and use your data.
 
-When organizing your data for upload we have a preferred organization (flattened data layout) and an alternate option (hierarchy data layout) if your project requires that. 
+When organizing your data for upload we have a preferred organization (flattened data layout) and an alternate option (hierarchy data layout) if your project requires that.
 
 > NOTE: If you and your contributing site decide to use a hierarchical file structure within your cloud storage location, please remember that each top-level folder and all of its subfolders must contain data of the same type (see details below).
 
@@ -31,7 +31,7 @@ You can use either the Hierarchy or Flattened data layout according to the examp
 
 ### Flattened Data Layout Example
 
-This is the preferred dataset organization option.  Each dataset folder contains the same datatype, and there aren’t nested folders containing datasets. 
+This is the preferred dataset organization option.  Each dataset folder contains the same datatype, and there aren’t nested folders containing datasets.
 
 ```
 .
@@ -52,12 +52,12 @@ This is the preferred dataset organization option.  Each dataset folder contains
 
 ### Hierarchy Data Layout Example
 
-In this option, subfolders should be of the same data type and level as the root folder they are contained in. For example, you should not put a biospecimen and a clinical demographics subfolder within the same folder.  Your files should be reasonably descriptive in stating the assay type and level and be consistently prefixed with the assay type. 
+In this option, subfolders should be of the same data type and level as the root folder they are contained in. For example, you should not put a biospecimen and a clinical demographics subfolder within the same folder.  Your files should be reasonably descriptive in stating the assay type and level and be consistently prefixed with the assay type.
 
 * each dataset folder must have Synapse annotation contentType:dataset
 * a dataset folder can’t be inside another dataset folder
 * dataset folders must have unique names
-* folder hierarchy may contain non-dataset folders (e.g. storing reports or other kinds of entities) 
+* folder hierarchy may contain non-dataset folders (e.g. storing reports or other kinds of entities)
 
 ```
 .
@@ -81,9 +81,9 @@ In this option, subfolders should be of the same data type and level as the root
 ```
 
 
-### To Create a Project Fileview with scope set to the project: 
+### To Create a Project Fileview with scope set to the project:
 
-* Add column contentType to the Fileview schema (default parameters for the column schema will work). 
+* Add column contentType to the Fileview schema (default parameters for the column schema will work).
 * Give every Team Download level access to this fileview.
 * Note: creating this file view will not be possible if files/folders don’t yet exist in the center-specific projects; Synapse will not allow you to create a file view with an empty scope.
 * Make sure to add both file and folder entities to the scope of the Fileview.
