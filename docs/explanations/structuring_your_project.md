@@ -10,11 +10,11 @@ We recommend creating Synapse Teams for permission management on your Synapse pr
 
 Below are some key permission criterias to consider when setting up your project:
 
-* If you have multiple data contributors but don't want the different data contributors to have access to each other's raw data, we strongly recommend creating teams and projects per data contributor and then creating a project for harmonized data.  You can also leverage local share settings by creating private folders per project but there is currently no tooling to manage local share settings in bulk. You can then grant each data contributor "Can Edit" access to their respective projects.  A harmonization process will then move data from private data contributor projects to a central "public" project.
+* Create a Synapse Team and Project per data contributor if there are (1) multiple data contributors and (2) the data contributors should not have access to each other's raw data. You would then create a central "public" project that will contain the harmonized data. You can technically leverage local share settings by creating private folders in one project but managing local share settings is more complicated and not recommended.
 * Do not mix data that requires different permission models within a folder. For example, if you have a folder that contains both public and private data, you should create two folders, one for public data and one for private data.  You can then grant the appropriate permissions to each folder. You can use local share settings to manage each file's permission, but this is not recommended!
 
 
-## Folder Structure
+## Project Structure
 
 This document will help you understand how to organize your data in Synapse to make it easier for the community to find and use your data.
 
@@ -87,3 +87,9 @@ In this option, subfolders should be of the same data type and level as the root
 * Give every Team Download level access to this fileview.
 * Note: creating this file view will not be possible if files/folders don’t yet exist in the center-specific projects; Synapse will not allow you to create a file view with an empty scope.
 * Make sure to add both file and folder entities to the scope of the Fileview.
+
+### An example: ELITE portal
+
+Synapse Project: https://www.synapse.org/#!Synapse:syn27229419/wiki/623145
+
+This project powers the elite portal: https://eliteportal.synapse.org/.  More information about the studies and the files can be found in this portal.
