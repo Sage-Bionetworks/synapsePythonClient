@@ -37,17 +37,17 @@ This is the preferred dataset organization option.  Each dataset folder contains
 ```
 .
 ├── biospecimen_experiment_1
-    ├── manifest1.csv
+    ├── manifest1.tsv
 ├── biospecimen_experiment_2
-    ├── manifestA.csv
+    ├── manifestA.tsv
 ├── single_cell_RNAseq_batch_1
-    ├── manifestX.csv
+    ├── manifestX.tsv
     ├── fileA.txt
     ├── fileB.txt
     ├── fileC.txt
     └── fileD.txt
 └── single_cell_RNAseq_batch_2
-    ├── manifestY.csv
+    ├── manifestY.tsv
     └── file1.txt
 ```
 
@@ -65,18 +65,18 @@ In this option, subfolders should be of the same data type and level as the root
 ├── clinical_demographics
 ├── biospecimen
    ├── experiment_1
-        ├── manifest1.csv
+        ├── manifest1.tsv
     └── experiment_2
-        ├── manifestA.csv
+        ├── manifestA.tsv
 └── single_cell
     ├── batch_1
-        ├── manifestX.csv
+        ├── manifestX.tsv
         ├── fileA.txt
         ├── fileB.txt
         ├── fileC.txt
         └── fileD.txt
     └── batch_2
-        ├── manifestY.csv
+        ├── manifestY.tsv
         └── file1.txt
 ```
 
@@ -87,6 +87,10 @@ In this option, subfolders should be of the same data type and level as the root
 * Note: creating this file view will not be possible if files/folders don’t yet exist in the center-specific projects; Synapse will not allow you to create a file view with an empty scope.
 * Make sure to add both file and folder entities to the scope of the Fileview.
 * Make sure you add synapse annotations per file and folder to allow for your files to be more easily discoverable via a file view.
+
+### Uploading annotations
+
+Manifests are crucial for the organization of your data in Synapse.  In the **hierarchical case**, you would fill in one manifest and include all files in experiment/batches; in the **flattened case**, you would fill in one manifest for each top level folder.  The manifest would contain Synapse annotations which can be used to query the data when a File View is created. Please read [manifest_tsv](manifest_tsv.md) for more information.
 
 ### An example: ELITE portal
 
