@@ -190,6 +190,7 @@ jobs:
           # pytest -sv --cov-append --cov=synapseclient --cov=synapseutils --cov-report xml tests/integration/synapseclient/test_command_line_client.py
       - name: Upload coverage report
         uses: actions/upload-artifact@v2
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('ubuntu'), matrix.os)}}
         with:
           name: coverage-report
           path: coverage.xml
