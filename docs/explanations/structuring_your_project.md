@@ -6,11 +6,10 @@ Based on the experience on managing data coordination projects for 10+ years at 
 
 ## Permissions Management
 
-We recommend creating Synapse Teams for permission management on your Synapse project.  These are the recommended teams to create:
+We recommend creating Synapse Teams for permission management on your Synapse project so that you manage users that are in these teams instead of granting individual users access to your project.  These are the recommended teams to create:
 
-* **<project> Admin** - This team should have "Administrator" access to the project.  This team should be used to manage the project and grant access to other teams.
-
-* **<project> Users** - Optional: If you want to grant all registered users on Synapse download access to your project, you can click the "Make Public" button in project's sharing settings.  This team should have "Can Download" access to the project.  This team should be used to grant download access to the project.
+* **<project> Admin** - This team should have "Administrator" access to the project and is used to used to manage the project and grant access to other teams.
+* **<project> Users** - This team is optional, but can be used to grant a curated set of users download access to the project, by grant "Can Download" permission to the team. If you want to grant all registered users on Synapse download access to your project, click the "Make Public" button in project's sharing settings instead of creating and managing this team.
 
 Below are some key permission criterias to consider when setting up your project:
 
@@ -20,9 +19,7 @@ Below are some key permission criterias to consider when setting up your project
 
 ## Project Structure
 
-This document will help you understand how to organize your data in Synapse to make it easier for the community to find and use your data.
-
-When organizing your data for upload we have a preferred organization (flattened data layout) and an alternate option (hierarchy data layout) if your project requires that.
+When organizing your data for upload we have a preferred organization (flattened data layout) and an alternate option (hierarchy data layout) if your project requires that. Synapse files are automaticlaly versioned when you create a file with the same filename, so be sure to account for that when organizing your folders.
 
 > NOTE: If you and your contributing site decide to use a hierarchical file structure within your cloud storage location, please remember that each top-level folder and all of its subfolders must contain data of the same type (see details below).
 
@@ -31,7 +28,7 @@ When organizing your data for upload we have a preferred organization (flattened
 
 Top level folders correspond to the datasets being submitted. See the examples below. You can name your datasets in a way that is descriptive for your contributing site.
 
-You can use either the Hierarchy or Flattened data layout according to the examples below. In the hierarchical case, you would fill in one manifest and include all files in experiment/batches; in the flattened case, you would fill in one manifest for each top level folder.  The manifest would be Synapse annotations which can be used to query the data when a File View is created.
+You can use either the Hierarchy or Flattened data layout according to the examples below.
 
 ### Flattened Data Layout Example
 
@@ -58,7 +55,6 @@ This is the preferred dataset organization option.  Each dataset folder contains
 
 In this option, subfolders should be of the same data type and level as the root folder they are contained in. For example, you should not put a biospecimen and a clinical demographics subfolder within the same folder.  Your files should be reasonably descriptive in stating the assay type and level and be consistently prefixed with the assay type.
 
-* each dataset folder must have Synapse annotation contentType:dataset
 * a dataset folder can’t be inside another dataset folder
 * dataset folders must have unique names
 * folder hierarchy may contain non-dataset folders (e.g. storing reports or other kinds of entities)
@@ -87,10 +83,10 @@ In this option, subfolders should be of the same data type and level as the root
 
 ### To Create a Project Fileview with scope set to the project:
 
-* Add column contentType to the Fileview schema (default parameters for the column schema will work).
 * Give every Team Download level access to this fileview.
 * Note: creating this file view will not be possible if files/folders don’t yet exist in the center-specific projects; Synapse will not allow you to create a file view with an empty scope.
 * Make sure to add both file and folder entities to the scope of the Fileview.
+* Make sure you add synapse annotations per file and folder to allow for your files to be more easily discoverable via a file view.
 
 ### An example: ELITE portal
 
