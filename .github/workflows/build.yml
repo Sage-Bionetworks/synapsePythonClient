@@ -189,6 +189,18 @@ jobs:
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
           pytest -sv tests/integration/synapseclient/test_command_line_client.py
 
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
