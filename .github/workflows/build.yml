@@ -207,23 +207,9 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: coverage-report
-      - name: Run echos for debugging
-        id: echo-check
-        shell: bash
-        run: |
-          ls
-          echo "next"
-          ls /home/runner/work/
-          echo "next"
-          ls /home/runner/
-          echo "next"
-          ls ~
-          echo "next"
-          ls /home/runner/work/synapsePythonClient/synapsePythonClient/synapseclient
-          echo "next"
-          ls /home/runner/work/synapsePythonClient/synapsePythonClient/
-          echo "next"
-          ls /home/runner/work/synapsePythonClient/
+        # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
+      - name: Override Coverage Source Path for Sonar
+        run: sed -i "s/<source>\/home\/runner\/work\/synapsePythonClient<\/source>/<source>\/github\/workspace<\/source>/g" coverage.xml
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
