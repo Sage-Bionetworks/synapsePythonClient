@@ -1,30 +1,28 @@
 """
-***********
-Evaluations
-***********
+# Evaluations
 
 An evaluation_ object represents a collection of Synapse Entities that will be processed in a particular way.  This
 could mean scoring Entries in a challenge or executing a processing pipeline.
 
-Imports::
+## Imports:
 
     from synapseclient import Evaluation, Submission, SubmissionStatus
 
-Evaluations can be retrieved by ID::
+## Evaluations can be retrieved by ID:
 
     evaluation = syn.getEvaluation(1901877)
 
-Like entities, evaluations are access controlled via ACLs. The :py:func:`synapseclient.Synapse.getPermissions` and
-:py:func:`synapseclient.Synapse.setPermissions` methods work for evaluations:
+Like entities, evaluations are access controlled via ACLs. The [`synapseclient.Synapse.getPermissions`][synapseclient.Synapse.getPermissions] and
+[`synapseclient.Synapse.setPermissions`][synapseclient.Synapse.setPermissions] methods work for evaluations:
 
     access = syn.getPermissions(evaluation, user_id)
 
-The :py:func:`synapseclient.Synapse.submit` method returns a Submission_ object::
+The [`synapseclient.Synapse.submit`][synapseclient.Synapse.submit] method returns a Submission_ object:
 
     entity = syn.get(synapse_id)
     submission = syn.submit(evaluation, entity, name='My Data', team='My Team')
 
-The Submission object can then be used to check the `status <#submission-status>`_ of the submission::
+The Submission object can then be used to check the `status <#submission-status>`_ of the submission:
 
     status = syn.getSubmissionStatus(submission)
 
@@ -34,8 +32,8 @@ The status of a submission may be:
     - **OPEN** indicating processing *has not* completed
     - **CLOSED** indicating processing *has* completed
 
-Submission status objects can be updated, usually by changing the *status* and *score* fields, and stored back to
-Synapse using :py:func:`synapseclient.Synapse.store`::
+Submission status objects can be updated, usually by changing the `status` and `score` fields, and stored back to
+Synapse using [`synapseclient.Synapse.store`][synapseclient.Synapse.store]:
 
     status.score = 0.99
     status.status = 'SCORED'
@@ -43,19 +41,17 @@ Synapse using :py:func:`synapseclient.Synapse.store`::
 
 See:
 
-- :py:func:`synapseclient.Synapse.getEvaluation`
-- :py:func:`synapseclient.Synapse.getEvaluationByContentSource`
-- :py:func:`synapseclient.Synapse.getEvaluationByName`
-- :py:func:`synapseclient.Synapse.submit`
-- :py:func:`synapseclient.Synapse.getSubmissions`
-- :py:func:`synapseclient.Synapse.getSubmission`
-- :py:func:`synapseclient.Synapse.getSubmissionStatus`
-- :py:func:`synapseclient.Synapse.getPermissions`
-- :py:func:`synapseclient.Synapse.setPermissions`
+- `synapseclient.Synapse.getEvaluation`
+- `synapseclient.Synapse.getEvaluationByContentSource`
+- `synapseclient.Synapse.getEvaluationByName`
+- `synapseclient.Synapse.submit`
+- `synapseclient.Synapse.getSubmissions`
+- `synapseclient.Synapse.getSubmission`
+- `synapseclient.Synapse.getSubmissionStatus`
+- `synapseclient.Synapse.getPermissions`
+- `synapseclient.Synapse.setPermissions`
 
-~~~~~~~~~~
-Evaluation
-~~~~~~~~~~
+## Evaluation
 
 .. autoclass:: synapseclient.evaluation.Evaluation
    :members: __init__
