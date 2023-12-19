@@ -19,7 +19,7 @@ Below are some key permission criterias to consider when setting up your project
 
 ## Project Structure
 
-When organizing your data for upload we have a preferred organization (flattened data layout) and an alternate option (hierarchy data layout) if your project requires that. Synapse files are automaticlaly versioned when you create a file with the same filename, so be sure to account for that when organizing your folders.
+When organizing your data for upload we have a preferred organization (flattened data layout) and an alternate option (hierarchy data layout) if your project requires that. Synapse files are automatically versioned when you create a file with the same filename, so be sure to account for that when organizing your folders.
 
 > NOTE: If you and your contributing site decide to use a hierarchical file structure within your cloud storage location, please remember that each top-level folder and all of its subfolders must contain data of the same type (see details below).
 
