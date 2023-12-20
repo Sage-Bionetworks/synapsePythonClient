@@ -21,8 +21,7 @@ Annotate the entity with location data:
 entity.lat_long = [47.627477, -122.332154]
 ```
 
-Record when we collected the data. **This will use the current timezone of the machine
-running the code.**
+Record when we collected the data. This will use the current timezone of the machine running the code.
 
 ```python
 from datetime import datetime as Datetime
@@ -34,15 +33,6 @@ Record when we collected the data in UTC:
 ```python
 from datetime import datetime as Datetime
 entity.collection_date = Datetime.utcnow()
-```
-
-You may also use a Timezone aware datetime object like the following example. Using the
-[pytz library](https://pypi.org/project/pytz/) is recommended for this purpose.:
-
-```python
-from datetime import datetime as Datetime, timezone as Timezone, timedelta as Timedelta
-
-date = Datetime(2023, 12, 20, 8, 10, 0, tzinfo=Timezone(Timedelta(hours=-5)))
 ```
 
 See:
