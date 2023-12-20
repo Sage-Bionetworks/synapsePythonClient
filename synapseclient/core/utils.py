@@ -326,6 +326,56 @@ def is_synapse_id_str(obj):
     return None
 
 
+def bool_or_none(input_value: str) -> typing.Union[bool, None]:
+    """
+    Attempts to convert a string to a bool. Returns None if it fails.
+
+    Args:
+        input_value: The string to convert to a bool
+
+    Returns:
+        The bool or None if the conversion fails
+    """
+    if input_value == "True" or input_value == "true":
+        return True
+    elif input_value == "False" or input_value == "false":
+        return False
+    else:
+        return None
+
+
+def int_or_none(input_value: str) -> typing.Union[int, None]:
+    """
+    Attempts to convert a string to an int. Returns None if it fails.
+
+    Args:
+        input_value: The string to convert to an int
+
+    Returns:
+        The int or None if the conversion fails
+    """
+    try:
+        return int(input_value)
+    except ValueError:
+        return None
+
+
+def float_or_none(input_value: str) -> typing.Union[float, None]:
+    """
+    Attempts to convert a string to a float. Returns None if it fails.
+
+    Args:
+        input_value: The string to convert to a float
+
+    Returns:
+        The float or None if the conversion fails
+    """
+    try:
+        return float(input_value)
+    except ValueError:
+        return None
+
+
 def datetime_or_none(datetime_str: str) -> typing.Union[datetime.datetime, None]:
     """Attempts to convert a string to a datetime object. Returns None if it fails.
 
@@ -501,7 +551,7 @@ def from_unix_epoch_time(ms) -> datetime.datetime:
     return from_unix_epoch_time_secs(ms / 1000.0)
 
 
-def datetime_to_iso(dt, sep="T"):
+def datetime_to_iso(dt, sep="T", include_milliseconds=True) -> str:
     # Round microseconds to milliseconds (as expected by older clients)
     # and add back the "Z" at the end.
     # see: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
@@ -509,12 +559,21 @@ def datetime_to_iso(dt, sep="T"):
         "{time.year:04}-{time.month:02}-{time.day:02}"
         "{sep}{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
     )
+    fmt_no_mills = (
+        "{time.year:04}-{time.month:02}-{time.day:02}"
+        "{sep}{time.hour:02}:{time.minute:02}:{time.second:02}{tz}"
+    )
     if dt.microsecond >= 999500:
         dt -= datetime.timedelta(microseconds=dt.microsecond)
         dt += datetime.timedelta(seconds=1)
-    return fmt.format(
-        time=dt, millisecond=int(round(dt.microsecond / 1000.0)), tz="Z", sep=sep
-    )
+    if include_milliseconds:
+        return fmt.format(
+            time=dt, millisecond=int(round(dt.microsecond / 1000.0)), tz="Z", sep=sep
+        )
+    else:
+        return fmt_no_mills.format(
+            time=dt, millisecond=int(round(dt.microsecond / 1000.0)), tz="Z", sep=sep
+        )
 
 
 def iso_to_datetime(iso_time):

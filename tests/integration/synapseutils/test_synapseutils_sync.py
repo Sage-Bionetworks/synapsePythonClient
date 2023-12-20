@@ -2,6 +2,7 @@ import uuid
 import os
 import time
 import tempfile
+import datetime
 from func_timeout import FunctionTimedOut, func_set_timeout
 import pandas as pd
 import numpy as np
@@ -34,9 +35,9 @@ def test_state(syn: Synapse, schedule_for_cleanup):
             self.f2 = utils.make_bogus_data_file(n=10)
             self.f3 = "https://www.synapse.org"
 
-            self.header = "path	parent	used	executed	activityName	synapseStore	foo	date_1	datetime_1	datetime_2	datetime_3\n"
+            self.header = "path	parent	used	executed	activityName	synapseStore	foo	date_1	datetime_1	datetime_2	datetime_3	multiple_strings	multiple_dates	multiple_bools	multiple_ints	multiple_floats\n"
             self.row1 = (
-                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02.995000+00:00	2023-12-05 07:00:00+00:00\n'
+                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02+00:00	2023-12-05 07:00:00+00:00	a;b;c;d	2020-01-01;2023-12-04T07:00:00Z;2023-12-05 23:37:02+00:00;2023-12-05 07:00:00+00:00	false;False;true;True	1;2;3;4	1.2;3.4;5.6;7.8\n'
                 % (
                     self.f1,
                     self.project.id,
@@ -113,7 +114,7 @@ def test_readManifest(test_state):
 
 
 @tracer.start_as_current_span("test_synapseutils_sync::test_syncToSynapse")
-@pytest.mark.flaky(reruns=3)
+# @pytest.mark.flaky(reruns=3)
 def test_syncToSynapse(test_state):
     # Test upload of accurate manifest
     manifest = _makeManifest(
@@ -133,6 +134,8 @@ def test_syncToSynapse(test_state):
     except FunctionTimedOut:
         test_state.syn.logger.warning("test_syncToSynapse timed out")
         pytest.fail("test_syncToSynapse timed out")
+
+    # TODO: Use syn.get and verify that the annotations are correct
 
     orig_df = pd.read_csv(manifest, sep="\t")
     orig_df.index = [os.path.basename(p) for p in orig_df.path]
@@ -166,25 +169,78 @@ def test_syncToSynapse(test_state):
     # The dates in the manifest can accept a variety of formats, however we are always writing
     # them back in the same expected format. Verify they're converted correctly.
     assert new_anots.loc[:]["date_1"].tolist() == [
-        "2020-01-01 00:00:00+00:00",
+        "2020-01-01T00:00:00Z",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["datetime_1"].tolist() == [
-        "2023-12-04 07:00:00+00:00",
+        "2023-12-04T07:00:00Z",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["datetime_2"].tolist() == [
-        "2023-12-05 23:37:02.995000+00:00",
+        "2023-12-05T23:37:02Z",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["datetime_3"].tolist() == [
-        "2023-12-05 07:00:00+00:00",
+        "2023-12-05T07:00:00Z",
         np.nan,
         np.nan,
     ]
+    assert new_anots.loc[:]["multiple_strings"].tolist() == [
+        "a;b;c;d",
+        np.nan,
+        np.nan,
+    ]
+    assert new_anots.loc[:]["multiple_dates"].tolist() == [
+        "2020-01-01T00:00:00Z;2023-12-04T07:00:00Z;2023-12-05T23:37:02Z;2023-12-05T07:00:00Z",
+        np.nan,
+        np.nan,
+    ]
+    assert new_anots.loc[:]["multiple_bools"].tolist() == [
+        "False;False;True;True",
+        np.nan,
+        np.nan,
+    ]
+    assert new_anots.loc[:]["multiple_ints"].tolist() == [
+        "1;2;3;4",
+        np.nan,
+        np.nan,
+    ]
+    assert new_anots.loc[:]["multiple_floats"].tolist() == [
+        "1.2;3.4;5.6;7.8",
+        np.nan,
+        np.nan,
+    ]
+
+    # Validate that the Annotations uploaded to Synapse are correct when retrieving
+    # them through syn.get. Also verify that they are parsed into the correct Python type
+    syn_id_first_file = new_df.loc[:]["id"][0]
+    synapse_file_instance = test_state.syn.get(syn_id_first_file, downloadFile=False)
+    assert synapse_file_instance.foo == ["bar"]
+    assert synapse_file_instance.date_1 == [
+        datetime.datetime(2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+    ]
+    assert synapse_file_instance.datetime_1 == [
+        datetime.datetime(2023, 12, 4, 7, 0, 0, tzinfo=datetime.timezone.utc)
+    ]
+    assert synapse_file_instance.datetime_2 == [
+        datetime.datetime(2023, 12, 5, 23, 37, 2, tzinfo=datetime.timezone.utc)
+    ]
+    assert synapse_file_instance.datetime_3 == [
+        datetime.datetime(2023, 12, 5, 7, 0, 0, tzinfo=datetime.timezone.utc)
+    ]
+    assert synapse_file_instance.multiple_strings == ["a", "b", "c", "d"]
+    assert synapse_file_instance.multiple_dates == [
+        datetime.datetime(2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2023, 12, 4, 7, 0, 0, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2023, 12, 5, 23, 37, 2, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2023, 12, 5, 7, 0, 0, tzinfo=datetime.timezone.utc),
+    ]
+    assert synapse_file_instance.multiple_bools == [False, False, True, True]
+    assert synapse_file_instance.multiple_ints == [1, 2, 3, 4]
+    assert synapse_file_instance.multiple_floats == [1.2, 3.4, 5.6, 7.8]
 
     # Validate that provenance is correct
     for provenanceType in ["executed", "used"]:
