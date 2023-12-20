@@ -135,8 +135,6 @@ def test_syncToSynapse(test_state):
         test_state.syn.logger.warning("test_syncToSynapse timed out")
         pytest.fail("test_syncToSynapse timed out")
 
-    # TODO: Use syn.get and verify that the annotations are correct
-
     orig_df = pd.read_csv(manifest, sep="\t")
     orig_df.index = [os.path.basename(p) for p in orig_df.path]
     new_df = pd.read_csv(
