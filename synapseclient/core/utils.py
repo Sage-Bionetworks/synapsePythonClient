@@ -551,10 +551,22 @@ def from_unix_epoch_time(ms) -> datetime.datetime:
     return from_unix_epoch_time_secs(ms / 1000.0)
 
 
-def datetime_to_iso(dt, sep="T", include_milliseconds=True) -> str:
-    # Round microseconds to milliseconds (as expected by older clients)
-    # and add back the "Z" at the end.
-    # see: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
+def datetime_to_iso(
+    dt: datetime.datetime, sep: str = "T", include_milliseconds: bool = True
+) -> str:
+    """
+    Round microseconds to milliseconds (as expected by older clients) and add back
+    the "Z" at the end.
+    See: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
+
+    Args:
+        dt: The datetime to convert
+        sep: Seperator character to use.
+        include_milliseconds: Whether or not to include millseconds in this result.
+
+    Returns:
+        The formatted string.
+    """
     fmt = (
         "{time.year:04}-{time.month:02}-{time.day:02}"
         "{sep}{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"

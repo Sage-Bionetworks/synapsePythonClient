@@ -854,7 +854,7 @@ def _convert_manifest_data_items_to_string_list(
     return items_to_write
 
 
-def _convert_manifest_data_row_to_dict(row: dict, keys: typing.List[str]) -> str:
+def _convert_manifest_data_row_to_dict(row: dict, keys: typing.List[str]) -> dict:
     """
     Convert a row of data to a dict that can be written to a manifest file.
 
