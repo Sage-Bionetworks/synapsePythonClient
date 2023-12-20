@@ -1,6 +1,7 @@
 import csv
 import concurrent.futures
 from contextlib import contextmanager
+import datetime
 import io
 import os
 import re
@@ -11,8 +12,16 @@ import typing
 from .monitor import notifyMe
 from synapseclient.entity import is_container
 from synapseclient.core import config
-from synapseclient.core.utils import id_of, is_url, is_synapse_id_str, datetime_or_none
-from synapseclient import File, table
+from synapseclient.core.utils import (
+    id_of,
+    is_url,
+    is_synapse_id_str,
+    datetime_or_none,
+    float_or_none,
+    int_or_none,
+    bool_or_none,
+)
+from synapseclient import File, table, Synapse
 from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core import utils
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
@@ -81,6 +90,25 @@ def syncFromSynapse(
 ):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
     metadata.
+
+    There are a few conversions around annotations to call out here.
+
+    ## Conversion of objects from the REST API to Python native objects
+
+    The first annotation conversion is to take the annotations from the REST API and
+    convert them into Python native objects. For example the REST API will return a
+    milliseconds since epoch timestamp for a datetime annotation, however, we want to
+    convert that into a Python datetime object. These conversions take place in the
+    [annotations module][synapseclient.annotations].
+
+
+    ## Conversion of Python native objects into strings
+
+    The second annotation conversion occurs when we are writing to the manifest TSV file.
+    In this case we need to convert the Python native objects into strings that can be
+    written to the manifest file. In addition we also need to handle the case where the
+    annotation value is a list of objects. In this case we are converting the list
+    into a single cell of data with a semicolon ";" delimiter.
 
     Arguments:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
@@ -752,7 +780,7 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
         }
         row.update(
             {
-                key: (val[0] if len(val) > 0 else "")
+                key: (val if len(val) > 0 else "")
                 for key, val in entity.annotations.items()
             }
         )
@@ -796,14 +824,78 @@ def _get_file_entity_provenance_dict(syn, entity):
             raise  # unexpected error so we re-raise the exception
 
 
-def _write_manifest_data(filename, keys, data):
+def _convert_manifest_data_items_to_string_list(
+    items: typing.List[str],
+) -> typing.List[str]:
+    """
+    Handle coverting an individual key that contains a list of data into a list of strings
+    that can be written to the manifest file. This has specific logic around how to
+    handle datetime fields and non strings.
+
+    When working with datetime fields we are printing the ISO 8601 UTC representation of
+    the datetime.
+
+    When working with non strings we are printing the repr of the object.
+
+    Args:
+        items: The list of items to convert.
+
+    Returns:
+        The list of items converted to strings.
+    """
+    items_to_write = []
+    for item in items:
+        if isinstance(item, datetime.datetime):
+            items_to_write.append(
+                utils.datetime_to_iso(dt=item, include_milliseconds=False)
+            )
+        else:
+            items_to_write.append(item if isinstance(item, str) else repr(item))
+    return items_to_write
+
+
+def _convert_manifest_data_row_to_dict(row: dict, keys: typing.List[str]) -> str:
+    """
+    Convert a row of data to a dict that can be written to a manifest file.
+
+    Args:
+        row: The row of data to convert.
+        keys: The keys of the manifest. Used to select the rows of data.
+
+    Returns:
+        The dict representation of the row.
+    """
+    data_to_write = {}
+    for key in keys:
+        data_for_key = row.get(key, "")
+        if isinstance(data_for_key, list):
+            items_to_write = _convert_manifest_data_items_to_string_list(data_for_key)
+            data_to_write[key] = ";".join(items_to_write)
+        else:
+            data_to_write[key] = data_for_key
+    return data_to_write
+
+
+def _write_manifest_data(
+    filename: str, keys: typing.List[str], data: typing.List[dict]
+) -> None:
+    """
+    Write a number of keys and a list of data to a manifest file. This will write
+    the data out as a tab separated file.
+
+    Args:
+        filename: The name of the file to write to.
+        keys: The keys of the manifest.
+        data: The data to write to the manifest. This should be a list of dicts where
+            each dict represents a row of data.
+    """
     with io.open(filename, "w", encoding="utf8") if filename else sys.stdout as fp:
         csv_writer = csv.DictWriter(
             fp, keys, restval="", extrasaction="ignore", delimiter="\t"
         )
         csv_writer.writeheader()
         for row in data:
-            csv_writer.writerow(row)
+            csv_writer.writerow(rowdict=_convert_manifest_data_row_to_dict(row, keys))
 
 
 def _sortAndFixProvenance(syn, df):
@@ -985,6 +1077,23 @@ def syncToSynapse(
 
     [Read more about the manifest file format](../../explanations/manifest_tsv/)
 
+    There are a few conversions around annotations to call out here.
+
+    ## Conversion of annotations from the TSV file to Python native objects
+
+    The first annotation conversion is from the TSV file into a Python native object. For
+    example Pandas will read a TSV file and convert the string "True" into a boolean True,
+    however, Pandas will NOT convert our semi-colon delimited list of annotations into
+    their Python native objects. This means that we need to do that conversion here after
+    splitting them apart.
+
+    ## Conversion of Python native objects for the REST API
+
+    The second annotation conversion occurs when we are taking the Python native objects
+    and converting them into a string that can be sent to the REST API. For example
+    the datetime objects which may have timezone information are converted to milliseconds
+    since epoch.
+
     Arguments:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
         manifestFile: A tsv file with file locations and metadata to be pushed to Synapse.
@@ -1021,9 +1130,50 @@ def syncToSynapse(
         _manifest_upload(syn, df)
 
 
-def _manifest_upload(syn, df):
+def _convert_cell_in_manifest_to_python_types(
+    cell: str,
+) -> typing.Union[typing.List, datetime.datetime, float, int, bool, str]:
+    """
+    Takes a possibly semi-colon delimited cell from the manifest TSV file into a list
+    of items to be used as annotations.
+
+    Args:
+        cell: The cell item to convert.
+
+    Returns:
+        The list of items to be used as annotations. Or a single instance if that is
+            all that is present.
+    """
+    values_to_return = []
+
+    cell_values = cell.split(";")
+    for annotation_value in cell_values:
+        if possible_datetime := datetime_or_none(annotation_value):
+            values_to_return.append(possible_datetime)
+        elif (possible_int := int_or_none(annotation_value)) is not None:
+            values_to_return.append(possible_int)
+        elif (possible_float := float_or_none(annotation_value)) is not None:
+            values_to_return.append(possible_float)
+        elif (possible_bool := bool_or_none(annotation_value)) is not None:
+            values_to_return.append(possible_bool)
+        else:
+            values_to_return.append(annotation_value)
+    return values_to_return[0] if len(values_to_return) == 1 else values_to_return
+
+
+def _manifest_upload(syn: Synapse, df) -> bool:
+    """
+    Handles the upload of the manifest file.
+
+    Args:
+        syn: The logged in Synapse client.
+        df: The dataframe of the manifest file.
+
+    Returns:
+        If the manifest upload was successful.
+    """
     items = []
-    for i, row in df.iterrows():
+    for _, row in df.iterrows():
         file = File(
             path=row["path"],
             parent=row["parent"],
@@ -1047,12 +1197,12 @@ def _manifest_upload(syn, df):
         for annotation_key, annotation_value in annotations.items():
             if annotation_value is None or annotation_value == "":
                 continue
-            possible_datetime = None
             if isinstance(annotation_value, str):
-                possible_datetime = datetime_or_none(annotation_value)
-            file_annotations[annotation_key] = (
-                annotation_value if possible_datetime is None else possible_datetime
-            )
+                file_annotations[
+                    annotation_key
+                ] = _convert_cell_in_manifest_to_python_types(cell=annotation_value)
+            else:
+                file_annotations[annotation_key] = annotation_value
         file.annotations = file_annotations
 
         item = _SyncUploadItem(

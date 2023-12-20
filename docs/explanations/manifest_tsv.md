@@ -46,13 +46,15 @@ See:
 
 Any columns that are not in the reserved names described above will be interpreted as annotations of the file
 
-For example this is adding 2 annotations to each row:
+Annotations can be semi-colon (";") separated lists. If you leave a space, like "aaaa; bbbb" the white space from " bbbb" will be stripped.
 
-| path | parent | annot1 | annot2 |
-| --- | --- | --- | --- |
-| /path/file1.txt | syn1243 | "bar" | 3.1415 |
-| /path/file2.txt | syn12433 | "baz" | 2.71 |
-| /path/file3.txt | syn12455 | "zzz" | 3.52 |
+For example this is adding 4 annotations to each row:
+
+| path | parent | annot1 | annot2 | annot3 | annot4 |
+| --- | --- | --- | --- | --- | --- |
+| /path/file1.txt | syn1243 | "bar" | 3.1415 | "aaaa; bbbb" | 14;27;30 |
+| /path/file2.txt | syn12433 | "baz" | 2.71 | "value_1;value_2" | 1;2;3 |
+| /path/file3.txt | syn12455 | "zzz" | 3.52 | "value_3;value_4" | 42; 56; 77 |
 
 See:
 
@@ -73,6 +75,14 @@ See:
 | /path/file2.txt | syn12433 | "baz" | 2.71 | 2001-01-01 15:00:00+07:00 | "" | "https://github.org/foo/baz" |
 | /path/file3.txt | syn12455 | "zzz" | 3.52 | 2023-12-04T07:00:00Z | "" | "https://github.org/foo/zzz" |
 
-## See:
+### Dates in the manifest file
+Dates within the manifest file will always be written as [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format in UTC without milliseconds. For example: `2023-12-20T16:55:08Z`.
 
+Dates can be written in other formats specified in ISO 8601 and it will be reconginzed, however, the [synapseutils.syncFromSynapse][] will always write this in the UTC format specified above. For example you may want to specify a datetime at a specific timezone like: `2023-12-20 23:55:08-07:00` and this will be recognized as a valid datetime.
+
+
+## Refernces:
+
+- [synapseutils.syncFromSynapse][]
+- [synapseutils.syncToSynapse][]
 - [Managing custom metadata at scale](https://help.synapse.org/docs/Managing-Custom-Metadata-at-Scale.2004254976.html#ManagingCustomMetadataatScale-BatchUploadFileswithAnnotations)
