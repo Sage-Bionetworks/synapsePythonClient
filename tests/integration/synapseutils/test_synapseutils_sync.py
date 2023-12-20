@@ -114,7 +114,7 @@ def test_readManifest(test_state):
 
 
 @tracer.start_as_current_span("test_synapseutils_sync::test_syncToSynapse")
-# @pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=3)
 def test_syncToSynapse(test_state):
     # Test upload of accurate manifest
     manifest = _makeManifest(
