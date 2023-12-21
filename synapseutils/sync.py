@@ -59,6 +59,8 @@ DEFAULT_GENERATED_MANIFEST_KEYS = [
 ]
 # This is looking for a comma that is not preceded by a backslash
 COMMA_PATTERN = re.compile(r"(?<!\\),")
+# This is looking for a single non-escaped backslash. \ is selected, \\ is not
+BACKSLASH_PATTERN = re.compile(r"(?<!\\)\\")
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -1182,11 +1184,12 @@ def _convert_cell_in_manifest_to_python_types(
             values_to_return.append(possible_bool)
         else:
             try:
-                values_to_return.append(
-                    ast.literal_eval(node_or_string=annotation_value)
-                )
+                value_to_add = ast.literal_eval(node_or_string=annotation_value)
             except (ValueError, SyntaxError):
-                values_to_return.append(annotation_value)
+                value_to_add = annotation_value
+            if isinstance(value_to_add, str):
+                value_to_add = BACKSLASH_PATTERN.sub(repl="", string=value_to_add)
+            values_to_return.append(value_to_add)
     return values_to_return[0] if len(values_to_return) == 1 else values_to_return
 
 

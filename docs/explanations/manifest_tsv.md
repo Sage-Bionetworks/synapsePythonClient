@@ -46,15 +46,30 @@ See:
 
 Any columns that are not in the reserved names described above will be interpreted as annotations of the file
 
-Annotations can be semi-colon (";") separated lists. If you leave a space, like "aaaa; bbbb" the white space from " bbbb" will be stripped.
-
-For example this is adding 4 annotations to each row:
+Adding 4 annotations to each row:
 
 | path | parent | annot1 | annot2 | annot3 | annot4 |
 | --- | --- | --- | --- | --- | --- |
-| /path/file1.txt | syn1243 | "bar" | 3.1415 | "aaaa; bbbb" | 14;27;30 |
-| /path/file2.txt | syn12433 | "baz" | 2.71 | "value_1;value_2" | 1;2;3 |
-| /path/file3.txt | syn12455 | "zzz" | 3.52 | "value_3;value_4" | 42; 56; 77 |
+| /path/file1.txt | syn1243 | bar | 3.1415 | aaaa, bbbb | 14,27,30 |
+| /path/file2.txt | syn12433 | baz | 2.71 | value_1,value_2 | 1,2,3 |
+| /path/file3.txt | syn12455 | zzz | 3.52 | value_3,value_4 | 42, 56, 77 |
+
+#### Multiple values of annotations per key
+Using multiple values for a single annotation should be used sparingly as it makes it more
+difficult for you to manage the data. However, it is supported.
+
+**Annotations can be comma (",") separated lists. **
+
+If you have a string that requires a `,` to be used in the formatting of the string you
+may escape the comma in your string with a `\`. For example:
+
+`Hello\, my first string, Hello\, my second string`
+
+You can also escape the `\` with another `\`. For example:
+
+`An escaped backslash \\ there`
+
+
 
 See:
 
