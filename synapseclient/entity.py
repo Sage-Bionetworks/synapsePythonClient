@@ -334,7 +334,22 @@ class Entity(collections.abc.MutableMapping):
 
         return key in self.properties or key in self.annotations
 
-    def _write_kvps(self, f, dictionary, key_filter=None, key_aliases=None):
+    def _write_kvps(
+        self,
+        f: io.StringIO,
+        dictionary: dict,
+        key_filter: callable = None,
+        key_aliases: dict = None,
+    ) -> None:
+        """
+        Writes key-value pairs from a dictionary to a file.
+
+        Arguments:
+            f: The file object to write to.
+            dictionary: The dictionary containing the key-value pairs.
+            key_filter: A function that filters the keys. Only keys that pass the filter will be written to the file. Defaults to None.
+            key_aliases: A dictionary mapping keys to their alias names. If provided, the alias names will be used instead of the original keys when writing to the file. Defaults to None.
+        """
         for key in sorted(dictionary.keys()):
             if (not key_filter) or key_filter(key):
                 f.write("  ")
@@ -344,6 +359,12 @@ class Entity(collections.abc.MutableMapping):
                 f.write("\n")
 
     def __str__(self):
+        """Returns a string representation of the object.
+
+        Returns:
+            str: A string representation of the object, including the class name,
+                name property, id property (if available), properties, and annotations.
+        """
         f = io.StringIO()
 
         f.write(
@@ -365,10 +386,11 @@ class Entity(collections.abc.MutableMapping):
 
         return f.getvalue()
 
-    def _str_localstate(self, f):  # type: (io.StringIO) -> None
-        """
-        Helper method for writing the string representation of the local state to a StringIO object
-        :param f: a StringIO object to which the local state string will be written
+    def _str_localstate(self, f: io.StringIO) -> None:
+        """Helper method for writing the string representation of the local state to a StringIO object
+
+        Arguments:
+            f: a StringIO object to which the local state string will be written
         """
         self._write_kvps(
             f,
@@ -497,7 +519,7 @@ class Link(Entity):
     """
     Represents a link in Synapse.
 
-    Links must have a target ID and a parent. When you do :py:func:`synapseclient.Synapse.get` on a Link object,
+    Links must have a target ID and a parent. When you do [synapseclient.Synapse.get][] on a Link object,
     the Link object is returned. If the target is desired, specify followLink=True in synapseclient.Synapse.get.
 
     Attributes:
@@ -682,10 +704,10 @@ class File(Entity, Versionable):
         )
 
     def _update_file_handle(self, file_handle_update_dict=None):
-        """
-        Sets the file handle
+        """Sets the file handle. Should not need to be called by users.
 
-        Should not need to be called by users
+        Args:
+            file_handle_update_dict: A dictionary containing the file handle information.
         """
 
         # replace the file handle dict
