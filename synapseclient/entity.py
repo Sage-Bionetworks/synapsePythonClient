@@ -249,15 +249,15 @@ class Entity(collections.abc.MutableMapping):
         else:
             return "/entity/%s" % self.id
 
-    def local_state(self, state=None) -> dict:
+    def local_state(self, state: dict = None) -> dict:
         """
         Set or get the object's internal state, excluding properties, or annotations.
 
         Arguments:
-            state: A dictionary
+            state: A dictionary containing the object's internal state.
 
         Returns:
-            The object's internal state, excluding properties, or annotations.
+            result: The object's internal state, excluding properties, or annotations.
         """
         if state:
             for key, value in state.items():
