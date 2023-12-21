@@ -1,10 +1,12 @@
-from synapseclient.entity import is_container
 import os
+
+import synapseclient
+from synapseclient.entity import is_container
 
 
 def walk(
-    syn,
-    synId,
+    syn: synapseclient.Synapse,
+    synId: str,
     includeTypes=[
         "folder",
         "file",
@@ -44,17 +46,20 @@ def walk(
 
 
 # Helper function to hide the newpath parameter
-def _helpWalk(syn, synId, includeTypes, newpath=None):
+def _helpWalk(
+    syn: synapseclient.Synapse, synId: str, includeTypes: list, newpath: str = None
+):
     """Helper function that helps build the directory path per result by
     traversing through the hierarchy of files and folders stored under the synId.
     Has the same behavior as os.walk()
 
-    :param syn:     A synapse object: syn = synapseclient.login()- Must be logged into synapse
-    :param synId:   A synapse ID of a folder or project
-    :param includeTypes:    Must be a list of entity types (ie. ["file", "table"]) which can be found here:
-                            http://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
-                            The "folder" type is always included so the hierarchy can be traversed
-    :param newpath: The directory path of the listed files
+    Arguments:
+        syn: A synapse object: syn = synapseclient.login()- Must be logged into synapse
+        synId: A synapse ID of a folder or project
+        includeTypes: Must be a list of entity types (ie. ["file", "table"]) which can be found here:
+                        http://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
+                        The "folder" type is always included so the hierarchy can be traversed
+        newpath: The directory path of the listed files
     """
     starting = syn.get(synId, downloadFile=False)
     # If the first file is not a container, return immediately
