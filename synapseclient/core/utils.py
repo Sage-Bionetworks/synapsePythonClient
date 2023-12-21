@@ -339,12 +339,14 @@ def bool_or_none(input_value: str) -> typing.Union[bool, None]:
     if input_value is None or input_value == "":
         return None
 
+    return_value = None
+
     if input_value.lower() == "true":
-        return True
+        return_value = True
     elif input_value.lower() == "false":
-        return False
-    else:
-        return None
+        return_value = False
+
+    return return_value
 
 
 def datetime_or_none(datetime_str: str) -> typing.Union[datetime.datetime, None]:
