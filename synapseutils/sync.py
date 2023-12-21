@@ -1161,7 +1161,7 @@ def _convert_cell_in_manifest_to_python_types(
     cell: str,
 ) -> typing.Union[typing.List, datetime.datetime, float, int, bool, str]:
     """
-    Takes a possibly semi-colon delimited cell from the manifest TSV file into a list
+    Takes a possibly comma delimited cell from the manifest TSV file into a list
     of items to be used as annotations.
 
     Args:
