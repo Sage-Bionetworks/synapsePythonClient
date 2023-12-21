@@ -60,7 +60,7 @@ DEFAULT_GENERATED_MANIFEST_KEYS = [
 # This is looking for a comma that is not preceded by a backslash
 COMMA_PATTERN = re.compile(r"(?<!\\),")
 # This is looking for a single non-escaped backslash. \ is selected, \\ is not
-BACKSLASH_PATTERN = re.compile(r"(?<!\\)\\")
+BACKSLASH_PATTERN = re.compile(r"(?<!\\\\)(\\)(?!\\)")
 
 tracer = trace.get_tracer("synapseclient")
 
