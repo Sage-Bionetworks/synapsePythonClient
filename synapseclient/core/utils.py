@@ -23,7 +23,6 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
-from synapseclient.entity import Entity
 
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
@@ -170,7 +169,7 @@ def _get_from_members_items_or_properties(obj, key):
 
 
 # TODO: what does this do on an unsaved Synapse Entity object?
-def id_of(obj: typing.Union[str, dict, Entity]) -> str:
+def id_of(obj) -> str:
     """
     Try to figure out the Synapse ID of the given object.
 
