@@ -82,7 +82,7 @@ In this option, subfolders should be of the same data type and level as the root
 
 ### File Views
 
-A file view allows you to see groups of files, tables, projects, or submissions and any associated annotations about those items. Annotations are an essential component to building a view. Annotations are labels that you apply to your data, stored as key-value pairs in Synapse. You can use annotations to select specific subsets of your data across many projects or folders and group things together in one view.
+A File View allows you to see groups of files, tables, projects, or submissions and any associated annotations about those items. Annotations are an essential component to building a view. Annotations are labels that you apply to your data, stored as key-value pairs in Synapse. You can use annotations to select specific subsets of your data across many projects or folders and group things together in one view.
 
 You can use a view to:
 
@@ -91,13 +91,13 @@ You can use a view to:
 - Group or link files, tables, projects, or submissions together by their annotations
 
 
-#### Creating the file view
+#### Creating the File View
 
-* Create a Fileview with the project set to the scope of the fileview
-* Give every Team Download level access to this fileview.
-* Note: creating this file view will not be possible if files/folders don’t yet exist in the center-specific projects; Synapse will not allow you to create a file view with an empty scope.
-* Make sure to add both file and folder entities to the scope of the Fileview.
-* Make sure you leverage synapse annotations per file and folder to allow for your files to be more easily discoverable via a file view.
+* Create a File View with the project set to the scope of the File View
+* Give every Team Download level access to this File View.
+* Note: creating this File View will not be possible if files/folders don’t yet exist in the center-specific projects; Synapse will not allow you to create a File View with an empty scope.
+* Make sure to add both file and folder entities to the scope of the File View.
+* Make sure you leverage synapse annotations per file and folder to allow for your files to be more easily discoverable via a File View.
 
 For more information, visit [File Views](https://help.synapse.org/docs/Views.2011070739.html).
 
