@@ -523,7 +523,7 @@ def from_unix_epoch_time(ms) -> datetime.datetime:
 
 
 def datetime_to_iso(
-    dt: datetime.datetime, sep: str = "T", include_milliseconds: bool = True
+    dt: datetime.datetime, sep: str = "T", include_milliseconds_if_zero: bool = True
 ) -> str:
     """
     Round microseconds to milliseconds (as expected by older clients) and add back
@@ -533,7 +533,8 @@ def datetime_to_iso(
     Args:
         dt: The datetime to convert
         sep: Seperator character to use.
-        include_milliseconds: Whether or not to include millseconds in this result.
+        include_milliseconds_if_zero: Whether or not to include millseconds in this result
+                                        if the number of millseconds is 0.
 
     Returns:
         The formatted string.
@@ -549,13 +550,12 @@ def datetime_to_iso(
     if dt.microsecond >= 999500:
         dt -= datetime.timedelta(microseconds=dt.microsecond)
         dt += datetime.timedelta(seconds=1)
-    if include_milliseconds:
-        return fmt.format(
-            time=dt, millisecond=int(round(dt.microsecond / 1000.0)), tz="Z", sep=sep
-        )
+    rounded_microseconds = int(round(dt.microsecond / 1000.0))
+    if include_milliseconds_if_zero or rounded_microseconds:
+        return fmt.format(time=dt, millisecond=rounded_microseconds, tz="Z", sep=sep)
     else:
         return fmt_no_mills.format(
-            time=dt, millisecond=int(round(dt.microsecond / 1000.0)), tz="Z", sep=sep
+            time=dt, millisecond=rounded_microseconds, tz="Z", sep=sep
         )
 
 

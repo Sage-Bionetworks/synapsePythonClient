@@ -869,7 +869,7 @@ def _convert_manifest_data_items_to_string_list(
     for item in items:
         if isinstance(item, datetime.datetime):
             items_to_write.append(
-                utils.datetime_to_iso(dt=item, include_milliseconds=False)
+                utils.datetime_to_iso(dt=item, include_milliseconds_if_zero=False)
             )
         else:
             items_to_write.append(

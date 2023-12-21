@@ -37,7 +37,7 @@ def test_state(syn: Synapse, schedule_for_cleanup):
 
             self.header = "path	parent	used	executed	activityName	synapseStore	foo	date_1	datetime_1	datetime_2	datetime_3	multiple_strings	multiple_dates	multiple_bools	multiple_ints	multiple_floats\n"
             self.row1 = (
-                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02+00:00	2023-12-05 07:00:00+00:00	a,b,c,d	2020-01-01,2023-12-04T07:00:00Z,2023-12-05 23:37:02+00:00,2023-12-05 07:00:00+00:00	fAlSe,False,tRuE,True	1,2,3,4	1.2,3.4,5.6,7.8\n'
+                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02+00:00	2023-12-05 07:00:00+00:00	a,b,c,d	2020-01-01,2023-12-04T07:00:00.111Z,2023-12-05 23:37:02.333+00:00,2023-12-05 07:00:00+00:00	fAlSe,False,tRuE,True	1,2,3,4	1.2,3.4,5.6,7.8\n'
                 % (
                     self.f1,
                     self.project.id,
@@ -192,7 +192,7 @@ def test_syncToSynapse(test_state):
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_dates"].tolist() == [
-        "2020-01-01T00:00:00Z,2023-12-04T07:00:00Z,2023-12-05T23:37:02Z,2023-12-05T07:00:00Z",
+        "2020-01-01T00:00:00Z,2023-12-04T07:00:00.111Z,2023-12-05T23:37:02.333Z,2023-12-05T07:00:00Z",
         np.nan,
         np.nan,
     ]
@@ -232,8 +232,8 @@ def test_syncToSynapse(test_state):
     assert synapse_file_instance.multiple_strings == ["a", "b", "c", "d"]
     assert synapse_file_instance.multiple_dates == [
         datetime.datetime(2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc),
-        datetime.datetime(2023, 12, 4, 7, 0, 0, tzinfo=datetime.timezone.utc),
-        datetime.datetime(2023, 12, 5, 23, 37, 2, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2023, 12, 4, 7, 0, 0, 111000, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2023, 12, 5, 23, 37, 2, 333000, tzinfo=datetime.timezone.utc),
         datetime.datetime(2023, 12, 5, 7, 0, 0, tzinfo=datetime.timezone.utc),
     ]
     assert synapse_file_instance.multiple_bools == [False, False, True, True]
