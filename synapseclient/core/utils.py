@@ -22,6 +22,8 @@ import typing
 import urllib.parse as urllib_parse
 import uuid
 import warnings
+import synapseclient
+import zipfile
 
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
@@ -33,17 +35,22 @@ KB = 2**10
 BUFFER_SIZE = 8 * KB
 
 
-def md5_for_file(filename, block_size=2 * MB, callback=None):
+def md5_for_file(
+    filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
+) -> str:
     """
     Calculates the MD5 of the given file.
     See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
 
-    :param filename:   The file to read in
-    :param block_size: How much of the file to read in at once (bytes).
-                       Defaults to 2 MB
-    :param callback:   The callback function that help us show loading spinner on terminal.
-                       Defaults to None
-    :returns: The MD5
+    Arguments:
+        filename: The file to read in
+        block_size: How much of the file to read in at once (bytes).
+                    Defaults to 2 MB
+        callback: The callback function that help us show loading spinner on terminal.
+                    Defaults to None
+
+    Returns:
+        The MD5 Checksum
     """
 
     md5 = hashlib.new("md5", usedforsecurity=False)
@@ -58,25 +65,29 @@ def md5_for_file(filename, block_size=2 * MB, callback=None):
     return md5
 
 
-def md5_fn(part, _):
+def md5_fn(part, _) -> str:
     """Calculate the MD5 of a file-like object.
 
-    :part -- A file-like object to read from.
+    Arguments:
+        part: A file-like object to read from.
 
-    :returns: The MD5
+    Returns:
+        The MD5 Checksum
     """
     md5 = hashlib.new("md5", usedforsecurity=False)
     md5.update(part)
     return md5.hexdigest()
 
 
-def download_file(url, localFilepath=None):
+def download_file(url: str, localFilepath: str = None):
     """
     Downloads a remote file.
 
-    :param localFilePath: May be None, in which case a temporary file is created
+    Arguments:
+        localFilePath: May be None, in which case a temporary file is created
 
-    :returns: localFilePath
+    Returns:
+        localFilePath: The path to the downloaded file
     """
 
     f = None
@@ -159,13 +170,18 @@ def _get_from_members_items_or_properties(obj, key):
 
 
 # TODO: what does this do on an unsaved Synapse Entity object?
-def id_of(obj):
+def id_of(obj: typing.Union[str, str, synapseclient.Entity]) -> str:
     """
     Try to figure out the Synapse ID of the given object.
 
-    :param obj: May be a string, Entity object, or dictionary
+    Arguments:
+        obj: May be a string, Entity object, or dictionary
 
-    :returns: The ID or throws an exception
+    Returns:
+        The ID
+
+    Raises:
+        ValueError: if the object doesn't have an ID
     """
     if isinstance(obj, str):
         return str(obj)
@@ -206,13 +222,15 @@ def concrete_type_of(obj: collections.abc.Mapping):
     return concrete_type
 
 
-def is_in_path(id, path):
+def is_in_path(id: str, path) -> bool:
     """Determines whether id is in the path as returned from /entity/{id}/path
 
-    :param id:      synapse id string
-    :param path:    object as returned from '/entity/{id}/path'
+    Arguments:
+    id: synapse id string
+    path: object as returned from '/entity/{id}/path'
 
-    :returns: True or False
+    Returns:
+        True or False
     """
     return id in [item["id"] for item in path["path"]]
 
@@ -280,15 +298,17 @@ def equal_paths(path1, path2):
     return normalize_path(path1) == normalize_path(path2)
 
 
-def file_url_to_path(url, verify_exists=False):
+def file_url_to_path(url: str, verify_exists: bool = False) -> typing.Union[str, None]:
     """
     Convert a file URL to a path, handling some odd cases around Windows paths.
 
-    :param url:             a file URL
-    :param verify_exists:   If true, return an populated dict only if the resulting file path exists on the local file
-                            system.
+    Arguments:
+    url: a file URL
+    verify_exists: If true, return an populated dict only if the resulting file path exists on the local file
+                    system.
 
-    :returns: a path or None if the URL is not a file URL.
+    Returns:
+        a path or None if the URL is not a file URL.
     """
     parts = urllib_parse.urlsplit(url)
     if parts.scheme == "file" or parts.scheme == "":
@@ -304,13 +324,15 @@ def file_url_to_path(url, verify_exists=False):
     return None
 
 
-def is_same_base_url(url1, url2):
+def is_same_base_url(url1: str, url2: str) -> bool:
     """Compares two urls to see if they are the same excluding up to the base path
 
-    :param url1: a URL
-    :param url2: a second URL
+    Arguments:
+    url1: a URL
+    url2: a second URL
 
-    :returns: Boolean
+    Returns:
+        A Boolean
     """
     url1 = urllib_parse.urlsplit(url1)
     url2 = urllib_parse.urlsplit(url2)
@@ -336,8 +358,11 @@ def datetime_or_none(datetime_str: str) -> typing.Union[datetime.datetime, None]
     - 2023-12-04 07:00:00+00:00
     - 2019-01-01
 
-    :param datetime_str: The string to convert to a datetime object
-    :return: The datetime object or None if the conversion fails
+    Arguments:
+        datetime_str: The string to convert to a datetime object
+
+    Returns:
+        The datetime object or None if the conversion fails
     """
     try:
         return datetime.datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
@@ -374,14 +399,16 @@ def _to_iterable(value):
     return (value,)
 
 
-def make_bogus_data_file(n=100, seed=None):
+def make_bogus_data_file(n: int = 100, seed: int = None):
     """
     Makes a bogus data file for testing. It is the caller's responsibility to clean up the file when finished.
 
-    :param n:    How many random floating point numbers to be written into the file, separated by commas
-    :param seed: Random seed for the random numbers
+    Arguments:
+        n: How many random floating point numbers to be written into the file, separated by commas
+        seed: Random seed for the random numbers
 
-    :returns: The name of the file
+    Returns:
+        The name of the file
     """
 
     if seed is not None:
@@ -398,13 +425,19 @@ def make_bogus_data_file(n=100, seed=None):
     return normalize_path(f.name)
 
 
-def make_bogus_binary_file(n=1 * KB, filepath=None, printprogress=False):
+def make_bogus_binary_file(
+    n: int = 1 * KB, filepath: str = None, printprogress: bool = False
+):
     """
     Makes a bogus binary data file for testing. It is the caller's responsibility to clean up the file when finished.
 
-    :param n:       How many bytes to write
+    Arguments:
+        n: How many bytes to write
+        filepath: Where to write the data
+        printprogress: Toggle printing of progress
 
-    :returns: The name of the file
+    Returns:
+        The name of the file
     """
 
     with open(filepath, "wb") if filepath else tempfile.NamedTemporaryFile(
@@ -670,13 +703,14 @@ def _limit_and_offset(uri, limit=None, offset=None):
     )
 
 
-def query_limit_and_offset(query, hard_limit=1000):
+def query_limit_and_offset(query: str, hard_limit: int = 1000):
     """
     Extract limit and offset from the end of a query string.
 
-    :returns:   A triple containing the query with limit and offset removed, the limit at most equal to the hard_limit,
-                and the offset which
-                defaults to 1
+    Returns:
+        A triple containing the query with limit and offset removed,
+        the limit at most equal to the hard_limit,
+        and the offset which defaults to 1
     """
     # Regex a lower-case string to simplify matching
     tempQueryStr = query.lower()
@@ -713,25 +747,25 @@ def extract_synapse_id_from_query(query):
 
 
 def printTransferProgress(
-    transferred,
-    toBeTransferred,
-    prefix="",
-    postfix="",
-    isBytes=True,
-    dt=None,
-    previouslyTransferred=0,
+    transferred: int,
+    toBeTransferred: int,
+    prefix: str = "",
+    postfix: str = "",
+    isBytes: bool = True,
+    dt: float = None,
+    previouslyTransferred: int = 0,
 ):
     """Prints a progress bar
 
-    :param transferred:             a number of items/bytes completed
-    :param toBeTransferred:         total number of items/bytes when completed
-    :param prefix:                  String printed before progress bar
-    :param postfix:                 String printed after progress bar
-    :param isBytes:                 A boolean indicating whether to convert bytes to kB, MB, GB etc.
-    :param dt:                      The time in seconds that has passed since transfer started is used to calculate rate
-    :param previouslyTransferred:   the number of bytes that were already transferred before this transfer began
-                                    (e.g. someone ctrl+c'd out of an upload and restarted it later)
-
+    Arguments:
+        transferred: a number of items/bytes completed
+        toBeTransferred: total number of items/bytes when completed
+        prefix: String printed before progress bar
+        postfix: String printed after progress bar
+        isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
+        dt: The time in seconds that has passed since transfer started is used to calculate rate
+        previouslyTransferred: the number of bytes that were already transferred before this transfer began
+                                (e.g. someone ctrl+c'd out of an upload and restarted it later)
     """
     if not sys.stdout.isatty():
         return
@@ -903,14 +937,19 @@ def temp_download_filename(destination, file_handle_id):
     )
 
 
-def extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
+def extract_zip_file_to_directory(
+    zip_file: zipfile.ZipFile, zip_entry_name: str, target_dir: str
+):
     """
     Extracts a specified file in a zip to the specified directory
-    :param zip_file:        an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
-    :param zip_entry_name:  the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
-    :param target_dir:      the directory to which the file will be extracted
 
-    :return: full path to the extracted file
+    Arguments:
+        zip_file: an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
+        zip_entry_name: the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
+        target_dir: the directory to which the file will be extracted
+
+    Returns:
+        full path to the extracted file
     """
     file_base_name = os.path.basename(zip_entry_name)  # base name of the file
     filepath = os.path.join(
@@ -940,14 +979,15 @@ def is_integer(x):
             return False
 
 
-def topolgical_sort(graph):
+def topolgical_sort(graph: dict):
     """Given a graph in the form of a dictionary returns a sorted list
-
     Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
 
-    :param graph: a dictionary with values containing lists of keys referencing back into the dictionary
+    Arguments:
+        graph: a dictionary with values containing lists of keys referencing back into the dictionary
 
-    :returns: sorted list of items
+    Returns:
+        A sorted list of items
     """
     graph_unsorted = graph.copy()
     graph_sorted = []
@@ -992,9 +1032,15 @@ def topolgical_sort(graph):
 
 def caller_module_name(current_frame):
     """
-    :param current_frame: use inspect.currentframe().
-    :return: the name of the module calling the function, foo(), in which this calling_module() is invoked.
-     Ignores callers that belong in the same module as foo()
+    Returns the name of the module in which the calling function resides.
+
+    Arguments:
+        current_frame: use inspect.currentframe().
+
+    Returns:
+        the name of the module calling the function, foo(),
+        in which this calling_module() is invoked.
+        Ignores callers that belong in the same module as foo()
     """
 
     current_frame_filename = (
@@ -1014,7 +1060,21 @@ def caller_module_name(current_frame):
     return inspect.getmodulename(caller_filename)
 
 
-def attempt_import(module_name, fail_message):
+def attempt_import(module_name: str, fail_message: str):
+    """
+    Attempt to import a module by name and return the imported module if successful.
+
+    Arguments:
+        module_name: The name of the module to import.
+        fail_message: The error message to display if the import fails.
+
+    Returns:
+        The imported module.
+
+    Raises:
+        ImportError: If the module cannot be imported.
+
+    """
     try:
         return importlib.import_module(module_name)
     except ImportError:
