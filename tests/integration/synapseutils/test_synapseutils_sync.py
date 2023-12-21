@@ -37,7 +37,7 @@ def test_state(syn: Synapse, schedule_for_cleanup):
 
             self.header = "path	parent	used	executed	activityName	synapseStore	foo	date_1	datetime_1	datetime_2	datetime_3	multiple_strings	multiple_dates	multiple_bools	multiple_ints	multiple_floats\n"
             self.row1 = (
-                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02+00:00	2023-12-05 07:00:00+00:00	a;b;c;d	2020-01-01;2023-12-04T07:00:00Z;2023-12-05 23:37:02+00:00;2023-12-05 07:00:00+00:00	false;False;true;True	1;2;3;4	1.2;3.4;5.6;7.8\n'
+                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02+00:00	2023-12-05 07:00:00+00:00	a,b,c,d	2020-01-01,2023-12-04T07:00:00Z,2023-12-05 23:37:02+00:00,2023-12-05 07:00:00+00:00	fAlSe,False,tRuE,True	1,2,3,4	1.2,3.4,5.6,7.8\n'
                 % (
                     self.f1,
                     self.project.id,
@@ -114,7 +114,7 @@ def test_readManifest(test_state):
 
 
 @tracer.start_as_current_span("test_synapseutils_sync::test_syncToSynapse")
-@pytest.mark.flaky(reruns=3)
+# @pytest.mark.flaky(reruns=3)
 def test_syncToSynapse(test_state):
     # Test upload of accurate manifest
     manifest = _makeManifest(
@@ -187,27 +187,27 @@ def test_syncToSynapse(test_state):
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_strings"].tolist() == [
-        "a;b;c;d",
+        "a,b,c,d",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_dates"].tolist() == [
-        "2020-01-01T00:00:00Z;2023-12-04T07:00:00Z;2023-12-05T23:37:02Z;2023-12-05T07:00:00Z",
+        "2020-01-01T00:00:00Z,2023-12-04T07:00:00Z,2023-12-05T23:37:02Z,2023-12-05T07:00:00Z",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_bools"].tolist() == [
-        "False;False;True;True",
+        "False,False,True,True",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_ints"].tolist() == [
-        "1;2;3;4",
+        "1,2,3,4",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_floats"].tolist() == [
-        "1.2;3.4;5.6;7.8",
+        "1.2,3.4,5.6,7.8",
         np.nan,
         np.nan,
     ]

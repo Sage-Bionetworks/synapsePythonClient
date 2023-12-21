@@ -1,3 +1,4 @@
+import ast
 import csv
 import concurrent.futures
 from contextlib import contextmanager
@@ -17,8 +18,6 @@ from synapseclient.core.utils import (
     is_url,
     is_synapse_id_str,
     datetime_or_none,
-    float_or_none,
-    int_or_none,
     bool_or_none,
 )
 from synapseclient import File, table, Synapse
@@ -58,6 +57,8 @@ DEFAULT_GENERATED_MANIFEST_KEYS = [
     "activityName",
     "activityDescription",
 ]
+# This is looking for a comma that is not preceded by a backslash
+COMMA_PATTERN = re.compile(r"(?<!\\),")
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -825,17 +826,38 @@ def _get_file_entity_provenance_dict(syn, entity):
 
 
 def _convert_manifest_data_items_to_string_list(
-    items: typing.List[str],
-) -> typing.List[str]:
+    items: typing.List[typing.Union[str, datetime.datetime, bool, int, float]],
+) -> str:
     """
-    Handle coverting an individual key that contains a list of data into a list of strings
-    that can be written to the manifest file. This has specific logic around how to
-    handle datetime fields and non strings.
+    Handle coverting an individual key that contains a possible list of data into a
+    list of strings or objects that can be written to the manifest file.
+
+    This has specific logic around how to handle datetime fields.
 
     When working with datetime fields we are printing the ISO 8601 UTC representation of
     the datetime.
 
-    When working with non strings we are printing the repr of the object.
+    When working with non strings we are printing the non-quoted version of the object.
+
+    Example: Examples
+        Several examples of how this function works.
+
+            >>> _convert_manifest_data_items_to_string_list(["a", "b", "c"])
+            'a,b,c'
+            >>> _convert_manifest_data_items_to_string_list
+                ([datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc)])
+            '2020-01-01T00:00:00Z'
+            >>> _convert_manifest_data_items_to_string_list([True])
+            'True'
+            >>> _convert_manifest_data_items_to_string_list([1])
+            '1'
+            >>> _convert_manifest_data_items_to_string_list([1.0])
+            '1.0'
+            >>> _convert_manifest_data_items_to_string_list
+                ([datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc)])
+            '2020-01-01T00:00:00Z,2021-01-01T00:00:00Z'
+
 
     Args:
         items: The list of items to convert.
@@ -850,8 +872,11 @@ def _convert_manifest_data_items_to_string_list(
                 utils.datetime_to_iso(dt=item, include_milliseconds=False)
             )
         else:
-            items_to_write.append(item if isinstance(item, str) else repr(item))
-    return items_to_write
+            items_to_write.append(
+                item.replace(",", "\\,") if isinstance(item, str) else repr(item)
+            )
+
+    return ",".join(items_to_write)
 
 
 def _convert_manifest_data_row_to_dict(row: dict, keys: typing.List[str]) -> dict:
@@ -870,7 +895,7 @@ def _convert_manifest_data_row_to_dict(row: dict, keys: typing.List[str]) -> dic
         data_for_key = row.get(key, "")
         if isinstance(data_for_key, list):
             items_to_write = _convert_manifest_data_items_to_string_list(data_for_key)
-            data_to_write[key] = ";".join(items_to_write)
+            data_to_write[key] = items_to_write
         else:
             data_to_write[key] = data_for_key
     return data_to_write
@@ -1146,18 +1171,22 @@ def _convert_cell_in_manifest_to_python_types(
     """
     values_to_return = []
 
-    cell_values = cell.split(";")
+    cell_values = re.split(pattern=COMMA_PATTERN, string=cell)
+
     for annotation_value in cell_values:
-        if possible_datetime := datetime_or_none(annotation_value):
+        if (possible_datetime := datetime_or_none(annotation_value)) is not None:
             values_to_return.append(possible_datetime)
-        elif (possible_int := int_or_none(annotation_value)) is not None:
-            values_to_return.append(possible_int)
-        elif (possible_float := float_or_none(annotation_value)) is not None:
-            values_to_return.append(possible_float)
+            # By default `literal_eval` does not convert false or true in different cases
+            # to a bool, however, we want to provide that functionality.
         elif (possible_bool := bool_or_none(annotation_value)) is not None:
             values_to_return.append(possible_bool)
         else:
-            values_to_return.append(annotation_value)
+            try:
+                values_to_return.append(
+                    ast.literal_eval(node_or_string=annotation_value)
+                )
+            except (ValueError, SyntaxError):
+                values_to_return.append(annotation_value)
     return values_to_return[0] if len(values_to_return) == 1 else values_to_return
 
 

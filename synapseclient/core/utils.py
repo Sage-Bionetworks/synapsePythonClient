@@ -336,43 +336,14 @@ def bool_or_none(input_value: str) -> typing.Union[bool, None]:
     Returns:
         The bool or None if the conversion fails
     """
-    if input_value == "True" or input_value == "true":
+    if input_value is None or input_value == "":
+        return None
+
+    if input_value.lower() == "true":
         return True
-    elif input_value == "False" or input_value == "false":
+    elif input_value.lower() == "false":
         return False
     else:
-        return None
-
-
-def int_or_none(input_value: str) -> typing.Union[int, None]:
-    """
-    Attempts to convert a string to an int. Returns None if it fails.
-
-    Args:
-        input_value: The string to convert to an int
-
-    Returns:
-        The int or None if the conversion fails
-    """
-    try:
-        return int(input_value)
-    except ValueError:
-        return None
-
-
-def float_or_none(input_value: str) -> typing.Union[float, None]:
-    """
-    Attempts to convert a string to a float. Returns None if it fails.
-
-    Args:
-        input_value: The string to convert to a float
-
-    Returns:
-        The float or None if the conversion fails
-    """
-    try:
-        return float(input_value)
-    except ValueError:
         return None
 
 
