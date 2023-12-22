@@ -149,6 +149,7 @@ def to_submission_status_annotations(annotations, is_private=True):
 
     Example: Using this function
         Adding and converting annotations
+
             from synapseclient.client import Synapse
             from synapseclient.annotations import to_submission_status_annotations
             from datetime import datetime as Datetime
