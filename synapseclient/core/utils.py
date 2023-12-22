@@ -118,7 +118,8 @@ def extract_filename(content_disposition_header, default_filename=None):
     """
     Extract a filename from an HTTP content-disposition header field.
 
-    See `this memo <http://tools.ietf.org/html/rfc6266>`_ and `this package <http://pypi.python.org/pypi/rfc6266>`_
+    See `this memo <http://tools.ietf.org/html/rfc6266>`_ and
+    `this package <http://pypi.python.org/pypi/rfc6266>`_
     for cryptic details.
     """
 
@@ -303,8 +304,8 @@ def file_url_to_path(url: str, verify_exists: bool = False) -> typing.Union[str,
 
     Arguments:
     url: a file URL
-    verify_exists: If true, return an populated dict only if the resulting file path exists on the local file
-                    system.
+    verify_exists: If true, return an populated dict only if the resulting file
+                    path exists on the local file system.
 
     Returns:
         a path or None if the URL is not a file URL.
@@ -400,10 +401,12 @@ def _to_iterable(value):
 
 def make_bogus_data_file(n: int = 100, seed: int = None):
     """
-    Makes a bogus data file for testing. It is the caller's responsibility to clean up the file when finished.
+    Makes a bogus data file for testing. It is the caller's responsibility
+    to clean up the file when finished.
 
     Arguments:
-        n: How many random floating point numbers to be written into the file, separated by commas
+        n: How many random floating point numbers to be written into the file,
+            separated by commas
         seed: Random seed for the random numbers
 
     Returns:
@@ -428,7 +431,8 @@ def make_bogus_binary_file(
     n: int = 1 * KB, filepath: str = None, printprogress: bool = False
 ):
     """
-    Makes a bogus binary data file for testing. It is the caller's responsibility to clean up the file when finished.
+    Makes a bogus binary data file for testing. It is the caller's responsibility
+    to clean up the file when finished.
 
     Arguments:
         n: How many bytes to write
@@ -458,7 +462,8 @@ def make_bogus_binary_file(
 
 def to_unix_epoch_time(dt: typing.Union[datetime.date, datetime.datetime, str]) -> int:
     """
-    Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
+    Convert either `datetime.date or datetime.datetime objects
+    <http://docs.python.org/2/library/datetime.html>`_
     to UNIX time.
     """
     if type(dt) == str:
@@ -482,7 +487,8 @@ def to_unix_epoch_time_secs(
     dt: typing.Union[datetime.date, datetime.datetime]
 ) -> float:
     """
-    Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
+    Convert either `datetime.date or datetime.datetime objects
+    <http://docs.python.org/2/library/datetime.html>`_
     to UNIX time.
     """
     if type(dt) == datetime.date:
@@ -554,7 +560,10 @@ def iso_to_datetime(iso_time):
 
 
 def format_time_interval(seconds):
-    """Format a time interval given in seconds to a readable value, e.g. \"5 minutes, 37 seconds\"."""
+    """
+    Format a time interval given in seconds to a readable value,
+    e.g. \"5 minutes, 37 seconds\".
+    """
 
     periods = (
         ("year", 60 * 60 * 24 * 365),
@@ -633,7 +642,8 @@ def itersubclasses(cls, _seen=None):
 
 def normalize_whitespace(s):
     """
-    Strips the string and replace all whitespace sequences and other non-printable characters with a single space.
+    Strips the string and replace all whitespace sequences and other
+    non-printable characters with a single space.
     """
     assert isinstance(s, str)
     return re.sub(r"[\x00-\x20\s]+", " ", s.strip())
@@ -735,8 +745,9 @@ def query_limit_and_offset(query: str, hard_limit: int = 1000):
 
 def extract_synapse_id_from_query(query):
     """
-    An unfortunate hack to pull the synapse ID out of a table query of the form "select column1, column2 from syn12345
-    where...." needed to build URLs for table services.
+    An unfortunate hack to pull the synapse ID out of a table query of the form
+    "select column1, column2 from syn12345 where...."
+    needed to build URLs for table services.
     """
     m = re.search(r"from\s+(syn\d+)", query, re.IGNORECASE)
     if m:
@@ -763,8 +774,9 @@ def printTransferProgress(
         postfix: String printed after progress bar
         isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
         dt: The time in seconds that has passed since transfer started is used to calculate rate
-        previouslyTransferred: the number of bytes that were already transferred before this transfer began
-                                (e.g. someone ctrl+c'd out of an upload and restarted it later)
+        previouslyTransferred: the number of bytes that were already transferred before this
+                                transfer began (e.g. someone ctrl+c'd out of an upload and
+                                restarted it later)
     """
     if not sys.stdout.isatty():
         return
@@ -876,8 +888,8 @@ def unique_filename(path):
 
 
 class threadsafe_iter:
-    """Takes an iterator/generator and makes it thread-safe by serializing call to the `next` method of given
-    iterator/generator.
+    """Takes an iterator/generator and makes it thread-safe by serializing call to the
+    `next` method of given iterator/generator.
     See: http://anandology.com/blog/using-iterators-and-generators/
     """
 
@@ -944,7 +956,8 @@ def extract_zip_file_to_directory(
 
     Arguments:
         zip_file: an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
-        zip_entry_name: the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
+        zip_entry_name: the name of the file to be extracted from the zip
+                        e.g. folderInsideZipIfAny/fileName.txt
         target_dir: the directory to which the file will be extracted
 
     Returns:
@@ -983,7 +996,8 @@ def topolgical_sort(graph: dict):
     Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
 
     Arguments:
-        graph: a dictionary with values containing lists of keys referencing back into the dictionary
+        graph: a dictionary with values containing lists of keys
+        referencing back into the dictionary
 
     Returns:
         A sorted list of items
@@ -1050,7 +1064,8 @@ def caller_module_name(current_frame):
     caller_frame = current_frame.f_back
     caller_filename = caller_frame.f_code.co_filename
 
-    # find the first frame that does not have the same filename. this ensures that we don't consider functions within
+    # find the first frame that does not have the same filename.
+    # this ensures that we don't consider functions within
     # the same module as foo() that use foo() as a helper function
     while caller_filename == current_frame_filename:
         caller_frame = caller_frame.f_back
