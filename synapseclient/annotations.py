@@ -442,6 +442,12 @@ def convert_old_annotation_json(annotations):
     entity bundle JSON (Submissions). we don't need to support newer
     types here e.g. BOOLEAN because they did not exist at the time
     that annotation JSON was saved in this form.
+
+    Arguments:
+        annotations: A parsed JSON dictionary of old style annotations.
+
+    Returns:
+        A v2 Annotation-style dictionary.
     """
 
     meta_keys = ("id", "etag", "creationDate", "uri")
