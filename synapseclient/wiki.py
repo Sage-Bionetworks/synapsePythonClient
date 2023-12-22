@@ -1,18 +1,17 @@
 """
-****
-Wiki
-****
+# Wiki
 
 A Wiki page requires a title, markdown and an owner object and can
 also include images.
 
-~~~~~~~~~~~~~~~
-Creating a Wiki
-~~~~~~~~~~~~~~~
+## Creating a Wiki
 
-::
-
+    import synapseclient
     from synapseclient import Wiki
+
+    ## Initialize a Synapse object & authenticate
+    syn = synapseclient.Synapse()
+    syn.login()
 
     entity = syn.get('syn123456')
 
@@ -32,20 +31,23 @@ Creating a Wiki
 
     wiki = syn.store(wiki)
 
-~~~~~~~~~~~~~~~~
-Embedding images
-~~~~~~~~~~~~~~~~
 
-Note that in the above example, we've **attached** a logo graphic and embedded it in the web page.
+## Embedding images
 
-Figures that are more than just decoration can be stored as Synapse entities allowing versioning and provenance
-information to be recorded. This is a better choice for figures with data behind them.
+Note that in the above example, we've **attached** a logo graphic and embedded it
+in the web page.
 
-~~~~~~~~~~~~~~~
-Updating a Wiki
-~~~~~~~~~~~~~~~
+Figures that are more than just decoration can be stored as Synapse entities
+allowing versioning and provenance information to be recorded. This is a better
+choice for figures with data behind them.
 
-::
+## Updating a Wiki
+
+    import synapseclient
+
+    ## Initialize a Synapse object & authenticate
+    syn = synapseclient.Synapse()
+    syn.login()
 
     entity = syn.get('syn123456')
     wiki = syn.getWiki(entity)
@@ -64,24 +66,7 @@ Updating a Wiki
 
     wiki = syn.store(wiki)
 
-~~~~~~~~~~
-Wiki Class
-~~~~~~~~~~
-
-.. autoclass:: synapseclient.wiki.Wiki
-   :members: __init__
-
-~~~~~~~~~~~~
-Wiki methods
-~~~~~~~~~~~~
-
- - :py:meth:`synapseclient.Synapse.getWiki`
- - :py:meth:`synapseclient.Synapse.getWikiHeaders`
- - :py:meth:`synapseclient.Synapse.store`
- - :py:meth:`synapseclient.Synapse.delete`
-
 """
-
 import os
 import json
 
