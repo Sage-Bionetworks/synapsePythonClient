@@ -50,7 +50,7 @@ After a bug report is received, expect a Sage Bionetworks staff member to contac
 
 ## Getting started
 #### Internal Sage collaborators: Clone this repository
-For internal sage collaborators you will have access and permissions to create branches
+For internal Sage collaborators, you will have access and permissions to create branches
 within the central repoistory for this project. As a result instead of creating a fork
 of this repository you should just clone the repository as is and work off a feature
 branch. This is because there is additional overhead required to make sure that
