@@ -26,8 +26,8 @@ The [synapseclient.Synapse.submit][] method returns a [Submission][synapseclient
     entity = syn.get(synapse_id)
     submission = syn.submit(evaluation, entity, name='My Data', team='My Team')
 
-The [getSubmissionStatus][synapseclient.Synapse.getSubmissionStatus] function can then be used to check the [SubmissionStatus][synapseclient.evaluation.SubmissionStatus]
-of the submission:
+The [getSubmissionStatus][synapseclient.Synapse.getSubmissionStatus] function can then be used to check the
+[SubmissionStatus][synapseclient.evaluation.SubmissionStatus] of the submission:
 
     status = syn.getSubmissionStatus(submission)
 
@@ -37,7 +37,7 @@ The status of a submission may be:
     - **OPEN** indicating processing *has not* completed
     - **CLOSED** indicating processing *has* completed
 
-Submission status objects can be updated, usually by changing the *status* and *score* fields, and stored back to
+SubmissionStatus objects can be updated, usually by changing the `status` and `score` fields, and stored back to
 Synapse using [synapseclient.Synapse.store][]:
 
     status.score = 0.99
