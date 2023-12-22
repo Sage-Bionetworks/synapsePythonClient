@@ -347,8 +347,13 @@ class Entity(collections.abc.MutableMapping):
         Arguments:
             f: The file object to write to.
             dictionary: The dictionary containing the key-value pairs.
-            key_filter: A function that filters the keys. Only keys that pass the filter will be written to the file. Defaults to None.
-            key_aliases: A dictionary mapping keys to their alias names. If provided, the alias names will be used instead of the original keys when writing to the file. Defaults to None.
+            key_filter: A function that filters the keys.
+                        Only keys that pass the filter will be written to the file.
+                        Defaults to None.
+            key_aliases: A dictionary mapping keys to their alias names.
+                         If provided, the alias names will be used instead
+                         of the original keys when writing to the file.
+                         Defaults to None.
         """
         for key in sorted(dictionary.keys()):
             if (not key_filter) or key_filter(key):
@@ -387,7 +392,9 @@ class Entity(collections.abc.MutableMapping):
         return f.getvalue()
 
     def _str_localstate(self, f: io.StringIO) -> None:
-        """Helper method for writing the string representation of the local state to a StringIO object
+        """
+        Helper method for writing the string representation
+        of the local state to a StringIO object
 
         Arguments:
             f: a StringIO object to which the local state string will be written
@@ -576,16 +583,18 @@ class File(Entity, Versionable):
     """
     Represents a file in Synapse.
 
-    When a File object is stored, the associated local file or its URL will be stored in Synapse. A File must have a
-    path (or URL) and a parent. By default, the name of the file in Synapse matches the filename, but by specifying
-    the `name` attribute, the File Entity name can be different.
+    When a File object is stored, the associated local file or its URL will be stored in Synapse.
+    A File must have a path (or URL) and a parent. By default, the name of the file in Synapse
+    matches the filename, but by specifying the `name` attribute, the File Entity name can be different.
 
     ## Changing File Names
 
-    A Synapse File Entity has a name separate from the name of the actual file it represents. When a file is uploaded to
-    Synapse, its filename is fixed, even though the name of the entity can be changed at any time. Synapse provides a way
-    to change this filename and the content-type of the file for future downloads by creating a new version of the file
-    with a modified copy of itself.  This can be done with the synapseutils.copy_functions.changeFileMetaData function.
+    A Synapse File Entity has a name separate from the name of the actual file it represents.
+    When a file is uploaded to Synapse, its filename is fixed, even though the name of the entity
+    can be changed at any time. Synapse provides a way to change this filename and the
+    content-type of the file for future downloads by creating a new version of the file
+    with a modified copy of itself. This can be done with the
+    [synapseutils.copy_functions.changeFileMetaData][] function.
 
         import synapseutils
         e = syn.get(synid)
@@ -604,13 +613,13 @@ class File(Entity, Versionable):
         path: Location to be represented by this File
         name: Name of the file in Synapse, not to be confused with the name within the path
         parent: Project or Folder where this File is stored
-        synapseStore: Whether the File should be uploaded or if only the path should be stored when
-                        [synapseclient.Synapse.store][] is called on the File object.
+        synapseStore: Whether the File should be uploaded or if only the path should
+                        be stored when [synapseclient.Synapse.store][] is called on the File object.
         contentType: Manually specify Content-type header, for example "application/png" or
                         "application/json; charset=UTF-8"
         dataFileHandleId: Defining an existing dataFileHandleId will use the existing dataFileHandleId
-                            The creator of the file must also be the owner of the dataFileHandleId to have
-                            permission to store the file.
+                            The creator of the file must also be the owner of the dataFileHandleId
+                            to have permission to store the file.
         properties: A map of Synapse properties
         annotations: A map of user defined annotations
         local_state: Internal use only
@@ -794,15 +803,16 @@ class DockerRepository(Entity):
     """
     A Docker repository is a lightweight virtual machine image.
 
-    NOTE: store()-ing a DockerRepository created in the Python client will always result in it being treated as a
-    reference to an external Docker repository that is not managed by synapse.
-    To upload a docker image that is managed by Synapse please use the official Docker client and read
-    https://help.synapse.org/docs/Synapse-Docker-Registry.2011037752.html for instructions on uploading a Docker Image to Synapse
+    NOTE: store()-ing a DockerRepository created in the Python client will always result
+    in it being treated as a reference to an external Docker repository that is not
+    managed by synapse. To upload a docker image that is managed by Synapse please use the official
+    Docker client and read https://help.synapse.org/docs/Synapse-Docker-Registry.2011037752.html
+    for instructions on uploading a Docker Image to Synapse
 
     Attributes:
         repositoryName: The name of the Docker Repository. Usually in the format: [host[:port]/]path.
-                        If host is not set, it will default to that of DockerHub. port can only be specified
-                        if the host is also specified.
+                        If host is not set, it will default to that of DockerHub.
+                        port can only be specified if the host is also specified.
         parent: The parent project or folder
         properties: A map of Synapse properties
         annotations: A map of user defined annotations
@@ -857,9 +867,9 @@ _entity_types = [
 
 def split_entity_namespaces(entity):
     """
-    Given a plain dictionary or an Entity object, splits the object into properties, annotations and local state.
-    A dictionary will be processed as a specific type of Entity if it has a valid 'concreteType' field, otherwise it is
-    treated as a generic Entity.
+    Given a plain dictionary or an Entity object, splits the object into properties,
+    annotations and local state. A dictionary will be processed as a specific type
+    of Entity if it has a valid 'concreteType' field, otherwise it is treated as a generic Entity.
 
     :returns: a 3-tuple (properties, annotations, local_state).
     """
