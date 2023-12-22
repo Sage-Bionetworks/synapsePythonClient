@@ -1,4 +1,5 @@
 import os
+import typing
 
 import synapseclient
 from synapseclient.entity import is_container
@@ -48,7 +49,10 @@ def walk(
 
 # Helper function to hide the newpath parameter
 def _helpWalk(
-    syn: synapseclient.Synapse, synId: str, includeTypes: list, newpath: str = None
+    syn: synapseclient.Synapse,
+    synId: str,
+    includeTypes: typing.List[str],
+    newpath: str = None,
 ):
     """Helper function that helps build the directory path per result by
     traversing through the hierarchy of files and folders stored under the synId.
