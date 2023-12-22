@@ -49,7 +49,7 @@ Bug reports and feature requests can be made in two ways. The first (preferred) 
 After a bug report is received, expect a Sage Bionetworks staff member to contact you through the submission method you chose ([Synapse Help Forum](https://www.synapse.org/#!SynapseForum:default)or [Github issue](https://github.com/Sage-Bionetworks/synapsePythonClient/issues)). After ascertaining there is enough detail for the bug report or feature request, a JIRA issue will be opened. If you want to work on fixing the issue or feature yourself, follow the next sections!
 
 ## Getting started
-#### Internal sage collaborators: Clone this repository
+#### Internal Sage collaborators: Clone this repository
 For internal sage collaborators you will have access and permissions to create branches
 within the central repoistory for this project. As a result instead of creating a fork
 of this repository you should just clone the repository as is and work off a feature
