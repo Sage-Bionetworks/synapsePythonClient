@@ -399,7 +399,7 @@ def _to_iterable(value):
     return (value,)
 
 
-def make_bogus_data_file(n: int = 100, seed: int = None):
+def make_bogus_data_file(n: int = 100, seed: int = None) -> str:
     """
     Makes a bogus data file for testing. It is the caller's responsibility
     to clean up the file when finished.
@@ -760,7 +760,7 @@ def extract_synapse_id_from_query(query):
 
 def printTransferProgress(
     transferred: int,
-    toBeTransferred: float,
+    toBeTransferred: int,
     prefix: str = "",
     postfix: str = "",
     isBytes: bool = True,
