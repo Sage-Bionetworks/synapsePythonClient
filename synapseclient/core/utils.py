@@ -36,7 +36,7 @@ BUFFER_SIZE = 8 * KB
 
 def md5_for_file(
     filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
-) -> str:
+) -> hashlib._Hash:
     """
     Calculates the MD5 of the given file.
     See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
@@ -78,7 +78,7 @@ def md5_fn(part, _) -> str:
     return md5.hexdigest()
 
 
-def download_file(url: str, localFilepath: str = None):
+def download_file(url: str, localFilepath: str = None) -> str:
     """
     Downloads a remote file.
 
@@ -170,7 +170,7 @@ def _get_from_members_items_or_properties(obj, key):
 
 
 # TODO: what does this do on an unsaved Synapse Entity object?
-def id_of(obj) -> str:
+def id_of(obj: typing.Union[str, collections.abc.Mapping]) -> str:
     """
     Try to figure out the Synapse ID of the given object.
 
@@ -222,7 +222,7 @@ def concrete_type_of(obj: collections.abc.Mapping):
     return concrete_type
 
 
-def is_in_path(id: str, path) -> bool:
+def is_in_path(id: str, path: collections.abc.Mapping) -> bool:
     """Determines whether id is in the path as returned from /entity/{id}/path
 
     Arguments:
@@ -429,7 +429,7 @@ def make_bogus_data_file(n: int = 100, seed: int = None):
 
 def make_bogus_binary_file(
     n: int = 1 * KB, filepath: str = None, printprogress: bool = False
-):
+) -> str:
     """
     Makes a bogus binary data file for testing. It is the caller's responsibility
     to clean up the file when finished.
@@ -712,7 +712,9 @@ def _limit_and_offset(uri, limit=None, offset=None):
     )
 
 
-def query_limit_and_offset(query: str, hard_limit: int = 1000):
+def query_limit_and_offset(
+    query: str, hard_limit: int = 1000
+) -> typing.Tuple[str, int, int]:
     """
     Extract limit and offset from the end of a query string.
 
@@ -758,7 +760,7 @@ def extract_synapse_id_from_query(query):
 
 def printTransferProgress(
     transferred: int,
-    toBeTransferred: int,
+    toBeTransferred: float,
     prefix: str = "",
     postfix: str = "",
     isBytes: bool = True,
@@ -950,7 +952,7 @@ def temp_download_filename(destination, file_handle_id):
 
 def extract_zip_file_to_directory(
     zip_file: zipfile.ZipFile, zip_entry_name: str, target_dir: str
-):
+) -> str:
     """
     Extracts a specified file in a zip to the specified directory
 
@@ -991,9 +993,10 @@ def is_integer(x):
             return False
 
 
-def topolgical_sort(graph: dict):
+def topolgical_sort(graph: typing.Dict[str, typing.List[str]]) -> list:
     """Given a graph in the form of a dictionary returns a sorted list
-    Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
+    Adapted from:
+    http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
 
     Arguments:
         graph: a dictionary with values containing lists of keys
