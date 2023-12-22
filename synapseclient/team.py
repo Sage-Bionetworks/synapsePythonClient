@@ -37,7 +37,8 @@ class UserProfile(DictObject):
 
 class UserGroupHeader(DictObject):
     """
-    Select metadata about a Synapse principal. In practice the constructor is not called directly by the client.
+    Select metadata about a Synapse principal.
+    In practice the constructor is not called directly by the client.
 
     Attributes:
         ownerId A foreign key to the ID of the 'principal' object for the user.
@@ -89,12 +90,13 @@ class Team(DictObject):
 
 class TeamMember(DictObject):
     """
-    Contains information about a user's membership in a Team.  In practice the constructor is not called directly by
-    the client.
+    Contains information about a user's membership in a Team.
+    In practice the constructor is not called directly by the client.
 
     Attributes:
         teamId: The ID of the team
-        member: An object of type :py:class:`org.sagebionetworks.repo.model.UserGroupHeader` describing the member
+        member: An object of type :py:class:`org.sagebionetworks.repo.model.UserGroupHeader`
+                describing the member
         isAdmin: Whether the given member is an administrator of the team
 
     """
