@@ -1,7 +1,8 @@
 """
 # Evaluations
 
-An evaluation_ object represents a collection of Synapse Entities that will be processed in a particular way. This
+An [Evaluation](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
+object represents a collection of Synapse Entities that will be processed in a particular way. This
 could mean scoring Entries in a challenge or executing a processing pipeline.
 
 ## Imports:
@@ -17,12 +18,13 @@ Like entities, evaluations are access controlled via ACLs. The [synapseclient.Sy
 
     access = syn.getPermissions(evaluation, user_id)
 
-The [synapseclient.Synapse.submit][] method returns a Submission_ object:
+The [synapseclient.Synapse.submit][] method returns a [Submission][synapseclient.evaluation.Submission] object:
 
     entity = syn.get(synapse_id)
     submission = syn.submit(evaluation, entity, name='My Data', team='My Team')
 
-The Submission object can then be used to check the `status <#submission-status>`_ of the submission:
+The Submission object can then be used to check the [SubmissionStatus][synapseclient.evaluation.SubmissionStatus]
+of the submission:
 
     status = syn.getSubmissionStatus(submission)
 
