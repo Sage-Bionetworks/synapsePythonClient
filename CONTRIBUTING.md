@@ -8,7 +8,8 @@ By contributing, you are agreeing that we may redistribute your work under this 
 - [How to contribute](#how-to-contribute)
    * [Reporting bugs or feature requests](#reporting-bugs-or-feature-requests)
 - [Getting started](#getting-started)
-    + [Fork and clone this repository](#fork-and-clone-this-repository)
+    + [Internal sage collaborators: Clone this repository](#internal-sage-collaborators-clone-this-repository)
+    + [External collaborators: Fork and clone this repository](#external-collaborators-fork-and-clone-this-repository)
     + [Installing the Python Client in a virtual environment with pipenv](#installing-the-python-client-in-a-virtual-environment-with-pipenv)
     + [Set up pre-commit](#set-up-pre-commit)
     + [Authentication](#authentication)
@@ -48,7 +49,22 @@ Bug reports and feature requests can be made in two ways. The first (preferred) 
 After a bug report is received, expect a Sage Bionetworks staff member to contact you through the submission method you chose ([Synapse Help Forum](https://www.synapse.org/#!SynapseForum:default)or [Github issue](https://github.com/Sage-Bionetworks/synapsePythonClient/issues)). After ascertaining there is enough detail for the bug report or feature request, a JIRA issue will be opened. If you want to work on fixing the issue or feature yourself, follow the next sections!
 
 ## Getting started
-#### Fork and clone this repository
+#### Internal sage collaborators: Clone this repository
+For internal sage collaborators you will have access and permissions to create branches
+within the central repoistory for this project. As a result instead of creating a fork
+of this repository you should just clone the repository as is and work off a feature
+branch. This is because there is additional overhead required to make sure that
+integration and SonarCloud scans run properly in your forked repo (As secrets are not
+copied to forks).
+1. [Clone the repository](https://help.github.com/articles/cloning-a-repository/) to your local machine so you can begin making changes.
+1. On your local machine make sure you have the latest version of the `develop` branch:
+
+    ```
+    git checkout develop
+    git pull origin develop
+    ```
+
+#### External collaborators: Fork and clone this repository
 
 1. See the [Github docs](https://help.github.com/articles/fork-a-repo/) for how to make a copy (a fork) of a repository to your own Github account.
 1. [Clone the repository](https://help.github.com/articles/cloning-a-repository/) to your local machine so you can begin making changes.
