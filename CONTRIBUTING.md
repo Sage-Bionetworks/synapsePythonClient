@@ -8,7 +8,7 @@ By contributing, you are agreeing that we may redistribute your work under this 
 - [How to contribute](#how-to-contribute)
    * [Reporting bugs or feature requests](#reporting-bugs-or-feature-requests)
 - [Getting started](#getting-started)
-    + [Internal sage collaborators: Clone this repository](#internal-sage-collaborators-clone-this-repository)
+    + [Internal Sage collaborators: Clone this repository](#internal-sage-collaborators-clone-this-repository)
     + [External collaborators: Fork and clone this repository](#external-collaborators-fork-and-clone-this-repository)
     + [Installing the Python Client in a virtual environment with pipenv](#installing-the-python-client-in-a-virtual-environment-with-pipenv)
     + [Set up pre-commit](#set-up-pre-commit)
