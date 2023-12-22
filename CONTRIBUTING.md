@@ -51,7 +51,7 @@ After a bug report is received, expect a Sage Bionetworks staff member to contac
 ## Getting started
 #### Internal Sage collaborators: Clone this repository
 For internal Sage collaborators, you will have access and permissions to create branches
-within the central repoistory for this project. As a result instead of creating a fork
+within the central repository for this project. As a result, instead of creating a fork
 of this repository you should just clone the repository as is and work off a feature
 branch. This is because there is additional overhead required to make sure that
 integration tests and SonarCloud scans run properly in your forked repo (As secrets are not
