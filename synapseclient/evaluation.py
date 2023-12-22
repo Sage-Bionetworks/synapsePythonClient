@@ -253,6 +253,12 @@ class SubmissionStatus(DictObject):
     def json(self, ensure_ascii: bool = True):
         """Overloaded json function, turning submissionAnnotations into
         synapse style annotations.
+
+        Arguments:
+            ensure_ascii: (default = True) If false, then the return value can contain non-ASCII
+            characters. Otherwise, all such characters are escaped in JSON strings.
+        Returns:
+            A Synapse-style JSON dictionary of annotations.
         """
 
         json_dict = self
