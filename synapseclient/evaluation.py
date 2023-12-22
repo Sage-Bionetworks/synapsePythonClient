@@ -199,7 +199,7 @@ def _convert_to_annotation_cls(
         values: A synapseclient.Annotations or dict
 
     Returns:
-        A synapseclient.Annotations
+        A synapseclient.Annotations object
     """
     if isinstance(values, Annotations):
         return values
