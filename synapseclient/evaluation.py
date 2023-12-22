@@ -5,14 +5,14 @@ An [Evaluation][synapseclient.evaluation.Evaluation]
 object represents a collection of Synapse Entities that will be processed in a particular way. This
 could mean scoring Entries in a challenge or executing a processing pipeline.
 
-## Imports and Authentication:
+Imports and authentication:
 
     from synapseclient import Evaluation, Submission, SubmissionStatus, Synapse
 
     syn = Synapse()
     syn.login()
 
-## Evaluations can be retrieved by ID:
+Evaluations can be retrieved by ID:
 
     evaluation = syn.getEvaluation(1901877)
 
@@ -37,7 +37,7 @@ The status of a submission may be:
     - **OPEN** indicating processing *has not* completed
     - **CLOSED** indicating processing *has* completed
 
-SubmissionStatus objects can be updated, usually by changing the `status` and `score` fields, and stored back to
+SubmissionStatus objects can be updated, usually by changing the status and score fields, and stored back to
 Synapse using [synapseclient.Synapse.store][]:
 
     status.score = 0.99
@@ -75,14 +75,23 @@ class Evaluation(DictObject):
     """
     An Evaluation Submission queue, allowing submissions, retrieval and scoring.
 
-    :param name:                            Name of the evaluation
-    :param description:                     A short description of the evaluation
-    :param contentSource:                   Synapse Project associated with the evaluation
-    :param submissionReceiptMessage:        Message to display to users upon submission
-    :param submissionInstructionsMessage:   Message to display to users detailing acceptable formatting for submissions.
+    Arguments:
+        name: Name of the evaluation
+        description: A short description of the evaluation
+        contentSource: Synapse Project associated with the evaluation
+        submissionReceiptMessage: Message to display to users upon submission
+        submissionInstructionsMessage: Message to display to users detailing acceptable formatting for submissions.
 
-    `To create an Evaluation <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_
-    and store it in Synapse::
+    Example: Create and store an Evaluation
+        To create an [Evaluation](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
+        and store it in Synapse:
+
+        import synapseclient
+        from synapseclient import Evaluation
+
+        ## Initialize a Synapse object & authenticate
+        syn = synapseclient.Synapse()
+        syn.login()
 
         evaluation = syn.store(Evaluation(
             name="Q1 Final",

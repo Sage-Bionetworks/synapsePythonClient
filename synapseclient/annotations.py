@@ -154,7 +154,7 @@ def to_submission_status_annotations(annotations, is_private=True):
             from synapseclient.annotations import to_submission_status_annotations
             from datetime import datetime as Datetime
 
-            ## Initialize a Synapse object
+            ## Initialize a Synapse object & authenticate
             syn = synapseclient.Synapse()
             syn.login()
 
