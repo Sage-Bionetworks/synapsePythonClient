@@ -152,8 +152,10 @@ class Wiki(DictObject):
     def update_markdown(self, markdown=None, markdown_file=None):
         """
         Updates the wiki's markdown. Specify only one of markdown or markdown_file
-        :param markdown:        text that will become the markdown
-        :param markdown_file:   path to a file. Its contents will be the markdown
+        
+        Arguments:
+            markdown: text that will become the markdown
+            markdown_file: path to a file. Its contents will be the markdown
         """
         if markdown and markdown_file:
             raise ValueError("Please use only one argument: markdown or markdownFile")
@@ -170,10 +172,7 @@ class Wiki(DictObject):
 
 
 class WikiAttachment(DictObject):
-    """
-    Represents a wiki page attachment
-
-    """
+    """Represents a wiki page attachment."""
 
     __PROPERTIES = ("contentType", "fileName", "contentMd5", "contentSize")
 
