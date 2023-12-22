@@ -26,7 +26,7 @@ The [synapseclient.Synapse.submit][] method returns a [Submission][synapseclient
     entity = syn.get(synapse_id)
     submission = syn.submit(evaluation, entity, name='My Data', team='My Team')
 
-The Submission object can then be used to check the [SubmissionStatus][synapseclient.evaluation.SubmissionStatus]
+The [getSubmissionStatus][synapseclient.Synapse.getSubmissionStatus] function can then be used to check the [SubmissionStatus][synapseclient.evaluation.SubmissionStatus]
 of the submission:
 
     status = syn.getSubmissionStatus(submission)
