@@ -36,7 +36,7 @@ BUFFER_SIZE = 8 * KB
 
 def md5_for_file(
     filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
-) -> hashlib._Hash:
+):
     """
     Calculates the MD5 of the given file.
     See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
