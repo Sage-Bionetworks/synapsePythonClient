@@ -37,7 +37,7 @@ The status of a submission may be:
     - **OPEN** indicating processing *has not* completed
     - **CLOSED** indicating processing *has* completed
 
-SubmissionStatus objects can be updated, usually by changing the status and score fields, and stored back to
+SubmissionStatus objects can be updated, usually by changing the *status* and *score* fields, and stored back to
 Synapse using [synapseclient.Synapse.store][]:
 
     status.score = 0.99
@@ -98,19 +98,19 @@ class Evaluation(DictObject):
                 description="Predict progression of MMSE scores for final scoring",
                 contentSource="syn2290704"))
 
-    The contentSource field links the evaluation to its :py:class:`synapseclient.entity.Project`.
-    (Or, really, any synapse ID, but sticking to projects is a good idea.)
+    The *contentSource* field links the evaluation to its [Project][synapseclient.entity.Project]
+    (or, really, any synapse ID, but sticking to projects is a good idea).
 
-    `Evaluations <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_ can be retrieved
-    from Synapse by ID::
+    [Evaluations](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
+    can be retrieved from Synapse by ID:
 
         evaluation = syn.getEvaluation(1901877)
 
-    ...by the Synapse ID of the content source (associated entity)::
+    ...by the Synapse ID of the content source (associated entity):
 
         evaluation = syn.getEvaluationByContentSource('syn12345')
 
-    ...or by the name of the evaluation::
+    ...or by the name of the evaluation:
 
         evaluation = syn.getEvaluationByName('Foo Challenge Question 1')
 
@@ -154,7 +154,7 @@ class Evaluation(DictObject):
 
 class Submission(DictObject):
     """
-    Builds an Synapse submission object.
+    Builds a Synapse submission object.
 
     :param name:             Name of submission
     :param entityId:         Synapse ID of the Entity to submit
