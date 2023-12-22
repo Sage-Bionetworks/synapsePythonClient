@@ -156,14 +156,16 @@ def _generate_chunk_ranges(
     file_size: int,
 ) -> Generator:
     """
-    Creates a generator which yields byte ranges and meta data required to make a range request download of url and
-    write the data to file_name located at path. Download chunk sizes are 8MB by default.
+    Creates a generator which yields byte ranges and meta data required
+    to make a range request download of url and write the data to file_name
+    located at path. Download chunk sizes are 8MB by default.
 
     Arguments:
         file_size: The size of the file
 
     Returns:
-        A generator of byte ranges and meta data needed to download the file in a multi-threaded manner
+        A generator of byte ranges and meta data needed to download
+        the file in a multi-threaded manner
     """
     for start in range(0, file_size, SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE):
         # the start and end of a range in HTTP are both inclusive
@@ -227,13 +229,16 @@ def download_file(
     max_concurrent_parts: int = None,
 ):
     """
-    Main driver for the multi-threaded download. Users an ExecutorService, either set externally onto a thread
-    local by an outside process, or creating one as needed otherwise.
+    Main driver for the multi-threaded download. Users an ExecutorService,
+    either set externally onto a thread local by an outside process,
+    or creating one as needed otherwise.
 
     Arguments:
         client: A synapseclient
-        download_request: A batch of DownloadRequest objects specifying what Synapse files to download
-        max_concurrent_parts: The maximum concurrent number parts to download at once when downloading this file
+        download_request: A batch of DownloadRequest objects specifying what
+                            Synapse files to download
+        max_concurrent_parts: The maximum concurrent number parts to download
+                                at once when downloading this file
     """
 
     # we obtain an executor from a thread local if we are in the context of a Synapse sync
@@ -270,8 +275,8 @@ def _get_thread_session():
 
 class _MultithreadedDownloader:
     """
-    An object to manage the downloading of a Synapse file in concurrent chunks from a URL
-    that supports range headers.
+    An object to manage the downloading of a Synapse file in concurrent chunks
+    from a URL that supports range headers.
     """
 
     def __init__(self, syn, executor, max_concurrent_parts):
@@ -280,11 +285,13 @@ class _MultithreadedDownloader:
 
         Arguments:
             syn: A synapseclient
-            executor: An ExecutorService that will be used to run part downloads in separate threads
-            max_concurrent_parts: An integer to specify the maximum number of concurrent parts that can be
-                                        downloaded at once. If there are more parts than can be run concurrently
-                                        they will be scheduled in the executor when previously running part downloads
-                                        complete.
+            executor: An ExecutorService that will be used to run part downloads
+                         in separate threads
+            max_concurrent_parts: An integer to specify the maximum number of
+                                    concurrent parts that can be downloaded at once.
+                                    If there are more parts than can be run concurrently
+                                    they will be scheduled in the executor when previously
+                                    running part downloads complete.
         """
         self._syn = syn
         self._executor = executor
