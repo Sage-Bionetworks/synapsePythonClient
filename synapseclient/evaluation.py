@@ -1,13 +1,16 @@
 """
 # Evaluations
 
-An [Evaluation](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
+An [Evaluation][synapseclient.evaluation.Evaluation]
 object represents a collection of Synapse Entities that will be processed in a particular way. This
 could mean scoring Entries in a challenge or executing a processing pipeline.
 
-## Imports:
+## Imports and Authentication:
 
-    from synapseclient import Evaluation, Submission, SubmissionStatus
+    from synapseclient import Evaluation, Submission, SubmissionStatus, Synapse
+
+    syn = Synapse()
+    syn.login()
 
 ## Evaluations can be retrieved by ID:
 
