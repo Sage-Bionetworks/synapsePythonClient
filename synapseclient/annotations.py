@@ -154,8 +154,10 @@ def to_submission_status_annotations(annotations, is_private=True):
             from synapseclient.annotations import to_submission_status_annotations
             from datetime import datetime as Datetime
 
-            ## create a submission and get its status
+            ## Initialize a Synapse object
             syn = Synapse()
+
+            ## create a submission and get its status
             submission = syn.submit(evaluation, 'syn11111111')
             submission_status = syn.getSubmissionStatus(submission)
 
@@ -219,6 +221,8 @@ def from_submission_status_annotations(annotations) -> dict:
 
     Example: Using this function
         Converting from submission status annotations
+
+            from synapseclient.annotations import from_submission_status_annotations
 
             submission_status.annotations = from_submission_status_annotations(submission_status.annotations)
     """
@@ -342,8 +346,9 @@ class Annotations(dict):
 
 
 def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.Any]:
-    """Transforms a simple flat dictionary to a Synapse-style Annotation object.
-    https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html
+    """Transforms a simple flat dictionary to a Synapse-style Annotation object. See
+    the [Synapse API](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html)
+    documentation for more information on Synapse-style Annotation objects.
 
     Arguments:
         annotations: A simple flat dictionary of annotations.
