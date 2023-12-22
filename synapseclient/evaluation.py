@@ -193,11 +193,13 @@ def _convert_to_annotation_cls(
 ) -> Annotations:
     """Convert synapse style annotation or dict to synapseclient.Annotation
 
-    :param id:  The id of the entity / submission
-    :param etag: The etag of the entity / submission
-    :param values:  A synapseclient.Annotations or dict
+    Arguments:
+        id: The id of the entity / submission
+        etag: The etag of the entity / submission
+        values: A synapseclient.Annotations or dict
 
-    :returns: A synapseclient.Annotations
+    Returns:
+        A synapseclient.Annotations
     """
     if isinstance(values, Annotations):
         return values
@@ -213,12 +215,13 @@ class SubmissionStatus(DictObject):
     Builds an Synapse submission status object.
     https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatus.html
 
-    :param id: Unique immutable Synapse Id of the Submission
-    :param status: Status can be one of
+    Arguments:
+        id: Unique immutable Synapse Id of the Submission
+        status: Status can be one of
                    https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html.
-    :param submissionAnnotations: synapseclient.Annotations to store annotations of submission
-    :param canCancel: Can this submission be cancelled?
-    :param cancelRequested: Has user requested to cancel this submission?
+        submissionAnnotations: synapseclient.Annotations to store annotations of submission
+        canCancel: Can this submission be cancelled?
+        cancelRequested: Has user requested to cancel this submission?
     """
 
     @classmethod
@@ -249,7 +252,8 @@ class SubmissionStatus(DictObject):
 
     def json(self, ensure_ascii: bool = True):
         """Overloaded json function, turning submissionAnnotations into
-        synapse style annotations"""
+        synapse style annotations.
+        """
 
         json_dict = self
         # If not synapse annotations, turn them into synapseclient.Annotations
