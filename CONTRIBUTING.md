@@ -54,7 +54,7 @@ For internal sage collaborators you will have access and permissions to create b
 within the central repoistory for this project. As a result instead of creating a fork
 of this repository you should just clone the repository as is and work off a feature
 branch. This is because there is additional overhead required to make sure that
-integration and SonarCloud scans run properly in your forked repo (As secrets are not
+integration tests and SonarCloud scans run properly in your forked repo (As secrets are not
 copied to forks).
 1. [Clone the repository](https://help.github.com/articles/cloning-a-repository/) to your local machine so you can begin making changes.
 1. On your local machine make sure you have the latest version of the `develop` branch:
