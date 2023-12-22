@@ -14,7 +14,8 @@ class UserProfile(DictObject):
         ownerId: A foreign key to the ID of the 'principal' object for the user.
         uri: The Uniform Resource Identifier (URI) for this entity.
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates.
-        Since the E-Tag changes every time an entity is updated it is used to detect when a client's current representation
+        Since the E-Tag changes every time an entity is updated it is
+        used to detect when a client's current representation
         of an entity is out-of-date.
         firstName: This person's given name (forename)
         lastName: This person's family name (surname)
