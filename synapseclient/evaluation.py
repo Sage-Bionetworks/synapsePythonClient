@@ -86,17 +86,17 @@ class Evaluation(DictObject):
         To create an [Evaluation](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
         and store it in Synapse:
 
-        import synapseclient
-        from synapseclient import Evaluation
+            import synapseclient
+            from synapseclient import Evaluation
 
-        ## Initialize a Synapse object & authenticate
-        syn = synapseclient.Synapse()
-        syn.login()
+            ## Initialize a Synapse object & authenticate
+            syn = synapseclient.Synapse()
+            syn.login()
 
-        evaluation = syn.store(Evaluation(
-            name="Q1 Final",
-            description="Predict progression of MMSE scores for final scoring",
-            contentSource="syn2290704"))
+            evaluation = syn.store(Evaluation(
+                name="Q1 Final",
+                description="Predict progression of MMSE scores for final scoring",
+                contentSource="syn2290704"))
 
     The contentSource field links the evaluation to its :py:class:`synapseclient.entity.Project`.
     (Or, really, any synapse ID, but sticking to projects is a good idea.)
