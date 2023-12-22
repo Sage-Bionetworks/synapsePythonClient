@@ -280,6 +280,8 @@ class Annotations(dict):
     Example: Creating a few instances
         Creating and setting annotations
 
+            from synapseclient import Annotations
+
             example1 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', {'foo':'bar'})
             example2 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', foo='bar')
             example3 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984')
@@ -308,6 +310,9 @@ class Annotations(dict):
 
         Example: Creating a few instances
             Creating and setting annotations
+
+                from synapseclient import Annotations
+
                 example1 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', {'foo':'bar'})
                 example2 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', foo='bar')
                 example3 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984')
