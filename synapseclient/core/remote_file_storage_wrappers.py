@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 import os
 import time
+import typing
 import multiprocessing
 import urllib.parse as urllib_parse
 
@@ -78,7 +79,7 @@ class S3ClientWrapper:
         download_file_path: str,
         *,
         profile_name: str = None,
-        credentials: dict = None,
+        credentials: typing.Dict[str, str] = None,
         show_progress: bool = True,
         transfer_config_kwargs: dict = None,
     ) -> str:
@@ -156,7 +157,7 @@ class S3ClientWrapper:
         upload_file_path: str,
         *,
         profile_name: str = None,
-        credentials: dict = None,
+        credentials: typing.Dict[str, str] = None,
         show_progress: bool = True,
         transfer_config_kwargs: dict = None,
     ) -> str:
