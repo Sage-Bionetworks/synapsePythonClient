@@ -1,6 +1,11 @@
 # Configuration
 
-The synapse python client can be configured either programmatically or by using a configuration file. When installing the Synapse Python client, the `.synapseConfig` is added to your home directory. This configuration file is used to store a number of configuration options, including your Synapse authtoken, cache, and multi-threading settings.
+The synapse python client can be configured either programmatically or by using a configuration file.
+
+**The default configuration file does not need to be modified for most use-cases**.
+
+
+When installing the Synapse Python client, the `.synapseConfig` is added to your home directory. This configuration file is used to store a number of configuration options, including your Synapse authtoken, cache, and multi-threading settings.
 
 A full example `.synapseConfig` can be found in the [github repository](https://github.com/Sage-Bionetworks/synapsePythonClient/blob/develop/synapseclient/.synapseConfig).
 
@@ -12,7 +17,7 @@ See details on this section in the [authentication](./authentication.md) documen
 
 ### `[cache]`
 
-Your downloaded files are cached to avoid repeat downloads of the same file. change 'location' to use a different folder on your computer as the cache location
+Your downloaded files are cached to avoid repeat downloads of the same file. Change 'location' to use a different folder on your computer as the cache location
 
 ### `[endpoints]`
 
