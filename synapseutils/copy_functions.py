@@ -17,6 +17,7 @@ import re
 import json
 import itertools
 import math
+import typing
 
 ############################################################
 #                  Copy Functions                          #
@@ -24,12 +25,12 @@ import math
 
 
 def copyFileHandles(
-    syn,
-    fileHandles,
-    associateObjectTypes,
-    associateObjectIds,
-    newContentTypes=None,
-    newFileNames=None,
+    syn: synapseclient.Synapse,
+    fileHandles: list,
+    associateObjectTypes: list,
+    associateObjectIds: list,
+    newContentTypes: list = None,
+    newFileNames: list = None,
 ):
     """
     Given a list of fileHandle Ids or Objects, copy the fileHandles
@@ -43,12 +44,12 @@ def copyFileHandles(
         associateObjectIds: List of associated object Ids: If copying a file, the objectId is the synapse id,
                                 and if copying a wiki attachment, the object id is the wiki subpage id.
                                 (Must be the same length as fileHandles)
-        newContentTypes: (Optional) List of content types. Set each item to a new content type for each file
+        newContentTypes: List of content types. Set each item to a new content type for each file
                             handle, or leave the item as None to keep the original content type. Default None,
-                            which keeps all original content types.
-        newFileNames: (Optional) List of filenames. Set each item to a new filename for each file handle,
+                            which keeps all original content types. Defaults to None.
+        newFileNames: List of filenames. Set each item to a new filename for each file handle,
                         or leave the item as None to keep the original name. Default None, which keeps all
-                        original file names.
+                        original file names. Defaults to None.
 
     Returns:
         List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and NOT_FOUND
@@ -106,30 +107,31 @@ def copyFileHandles(
 
 
 def _copy_file_handles_batch(
-    self, file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names
+    self: synapseclient.Synapse,
+    file_handle_ids: list,
+    obj_types: list,
+    obj_ids: list,
+    new_con_types: list,
+    new_file_names: list,
 ):
     """
     Given a list of fileHandle Ids, copy the fileHandles. This helper makes the POST call and returns the
     results as a list.
 
-    :param self:                    A Synapse object with user's login, e.g. syn = synapseclient.login()
-
-    :param file_handle_ids:         List of fileHandle Ids or Objects
-
-    :param obj_types:               List of associated object types: FileEntity, TableEntity, WikiAttachment,
-                                    UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
-                                    VerificationSubmission (Must be the same length as fileHandles)
-
-    :param obj_ids:                 List of associated object Ids: If copying a file, the objectId is the synapse id,
+    Arguments:
+        self: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        file_handle_ids: List of fileHandle Ids or Objects
+        obj_types: List of associated object types: FileEntity, TableEntity, WikiAttachment,
+                    UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
+                    VerificationSubmission (Must be the same length as fileHandles)
+        obj_ids: List of associated object Ids: If copying a file, the objectId is the synapse id,
                                     and if copying a wiki attachment, the object id is the wiki subpage id.
                                     (Must be the same length as fileHandles)
+        new_con_types: List of content types (Can change a filetype of a filehandle). Defaults to None.
+        new_file_names: List of filenames (Can change a filename of a filehandle). Defaults to None.
 
-    :param new_con_types:           (Optional) List of content types (Can change a filetype of a filehandle).
-
-    :param new_file_names:          (Optional) List of filenames (Can change a filename of a filehandle).
-
-    :return:                        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
-                                    NOT_FOUND
+    Returns:
+        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and NOT_FOUND
     """
     copy_file_handle_request = _create_batch_file_handle_copy_request(
         file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names
@@ -144,26 +146,28 @@ def _copy_file_handles_batch(
 
 
 def _create_batch_file_handle_copy_request(
-    file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names
+    file_handle_ids: list,
+    obj_types: list,
+    obj_ids: list,
+    new_con_types: list,
+    new_file_names: list,
 ):
     """
     Returns json for file handle copy request
 
-    :param file_handle_ids:         List of fileHandle Ids
-
-    :param obj_types:               List of associated object types: FileEntity, TableEntity, WikiAttachment,
+    Arguments:
+        file_handle_ids: List of fileHandle Ids
+        obj_types: List of associated object types: FileEntity, TableEntity, WikiAttachment,
                                     UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
                                     VerificationSubmission (Must be the same length as fileHandles)
-
-    :param obj_ids:                 List of associated object Ids: If copying a file, the objectId is the synapse id,
+        obj_ids: List of associated object Ids: If copying a file, the objectId is the synapse id,
                                     and if copying a wiki attachment, the object id is the wiki subpage id.
                                     (Must be the same length as fileHandles)
+        new_con_types: List of content types (Can change a filetype of a filehandle).
+        new_file_names: List of filenames (Can change a filename of a filehandle).
 
-    :param new_con_types:           List of content types (Can change a filetype of a filehandle).
-
-    :param new_file_names:          List of filenames (Can change a filename of a filehandle).
-
-    :return:                        JSON for API call to POST/ filehandles/ copy
+    Returns:
+        JSON for API call to POST/ filehandles/ copy
     """
     copy_file_handle_request = {"copyRequests": []}
     for (
@@ -191,16 +195,23 @@ def _create_batch_file_handle_copy_request(
     return copy_file_handle_request
 
 
-def _batch_iterator_generator(iterables, batch_size):
+def _batch_iterator_generator(iterables: list, batch_size: int):
     """
     Returns a generator over each of the iterable objects in the list iterables
-    :param iterables: List of iterable objects, all must be same length, len(iterables) >= 1
-    :param batch_size: Integer representing the size of the batch, batch_size >= 1
-    :return: Generator which yields a list of batches for each iterable in iterables
-    :raises ValueError: If len(iterables) < 1
 
-    example: _batch_iterator_generator(["ABCDEFG"], 3) --> ["ABC"] ["DEF"] ["G"], on successive calls to next()
-             _batch_iterator_generator([[1, 2, 3], [4, 5, 6]], 2) --> [[1, 2], [4, 5]] [[3], [6]]
+    Arguments:
+        iterables: List of iterable objects, all must be same length, len(iterables) >= 1
+        batch_size: Integer representing the size of the batch, batch_size >= 1
+
+    Returns:
+        A Generator which yields a list of batches for each iterable in iterables
+
+    Raises:
+        ValueError: If len(iterables) < 1
+
+    Example:
+        _batch_iterator_generator(["ABCDEFG"], 3) --> ["ABC"] ["DEF"] ["G"], on successive calls to next()
+        _batch_iterator_generator([[1, 2, 3], [4, 5, 6]], 2) --> [[1, 2], [4, 5]] [[3], [6]]
     """
     if len(iterables) < 1:
         raise ValueError(
@@ -223,8 +234,12 @@ def _copy_cached_file_handles(cache: Cache, copiedFileHandles: dict) -> None:
 
 
 def changeFileMetaData(
-    syn, entity, downloadAs=None, contentType=None, forceVersion=True
-):
+    syn: synapseclient.Synapse,
+    entity: typing.Union[str, synapseclient.entity.Entity],
+    downloadAs=None,
+    contentType=None,
+    forceVersion=True,
+) -> synapseclient.entity.Entity:
     """
     Change File Entity metadata like the download as name.
 
@@ -241,9 +256,9 @@ def changeFileMetaData(
     Example: Using this function
         Can be used to change the filename or the file content-type without downloading:
 
-            file_entity = syn.get(synid)
-            print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
-            file_entity = synapseutils.changeFileMetaData(syn, file_entity, "my_new_name_file.txt")
+        file_entity = syn.get(synid)
+        print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
+        file_entity = synapseutils.changeFileMetaData(syn, file_entity, "my_new_name_file.txt")
     """
     ent = syn.get(entity, downloadFile=False)
     fileResult = syn._getFileHandleDownload(ent.dataFileHandleId, ent.id)
@@ -271,13 +286,13 @@ def changeFileMetaData(
 
 
 def copy(
-    syn,
-    entity,
-    destinationId,
-    skipCopyWikiPage=False,
-    skipCopyAnnotations=False,
+    syn: synapseclient.Synapse,
+    entity: str,
+    destinationId: str,
+    skipCopyWikiPage: bool = False,
+    skipCopyAnnotations: bool = False,
     **kwargs,
-):
+) -> dict:
     """
     - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
       and will recursively copy everything in directories.
@@ -345,19 +360,24 @@ def copy(
 
 
 def _copyRecursive(
-    syn, entity, destinationId, mapping=None, skipCopyAnnotations=False, **kwargs
-):
+    syn: synapseclient.Synapse,
+    entity: str,
+    destinationId: str,
+    mapping: dict = None,
+    skipCopyAnnotations: bool = False,
+    **kwargs,
+) -> dict:
     """
     Recursively copies synapse entites, but does not copy the wikis
 
-    :param entity:              A synapse entity ID
-
-    :param destinationId:       Synapse ID of a folder/project that the copied entity is being copied to
-
-    :param skipCopyAnnotations: Skips copying the annotations
+    Arguments:
+        entity: A synapse entity ID
+        destinationId: Synapse ID of a folder/project that the copied entity is being copied to
+        skipCopyAnnotations: Skips copying the annotations
                                 Default is False
 
-    :returns: a mapping between the original and copied entity: {'syn1234':'syn33455'}
+    Returns:
+        a mapping between the original and copied entity: {'syn1234':'syn33455'}
     """
 
     version = kwargs.get("version", None)
@@ -455,16 +475,20 @@ def _copyRecursive(
 
 
 def _copyFolder(
-    syn, entity, destinationId, mapping=None, skipCopyAnnotations=False, **kwargs
+    syn: synapseclient.Synapse,
+    entity: str,
+    destinationId: str,
+    mapping: dict = None,
+    skipCopyAnnotations: bool = False,
+    **kwargs,
 ):
     """
     Copies synapse folders
 
-    :param entity:              A synapse ID of a Folder entity
-
-    :param destinationId:       Synapse ID of a project/folder that the folder wants to be copied to
-
-    :param skipCopyAnnotations: Skips copying the annotations
+    Arguments:
+        entity: A synapse ID of a Folder entity
+        destinationId: Synapse ID of a project/folder that the folder wants to be copied to
+        skipCopyAnnotations: Skips copying the annotations
                                 Default is False
     """
     oldFolder = syn.get(entity)
@@ -499,32 +523,29 @@ def _copyFolder(
 
 
 def _copyFile(
-    syn,
-    entity,
-    destinationId,
-    version=None,
-    updateExisting=False,
-    setProvenance="traceback",
-    skipCopyAnnotations=False,
+    syn: synapseclient.Synapse,
+    entity: str,
+    destinationId: str,
+    version: int = None,
+    updateExisting: bool = False,
+    setProvenance: str = "traceback",
+    skipCopyAnnotations: bool = False,
 ):
     """
     Copies most recent version of a file to a specified synapse ID.
 
-    :param entity:              A synapse ID of a File entity
-
-    :param destinationId:       Synapse ID of a folder/project that the file wants to be copied to
-
-    :param version:             Can specify version of a file.
-                                Default to None
-
-    :param updateExisting:      Can choose to update files that have the same name
-                                Default to False
-
-    :param setProvenance:       Has three values to set the provenance of the copied entity:
-                                    traceback: Sets to the source entity
-                                    existing: Sets to source entity's original provenance (if it exists)
-                                    None: No provenance is set
-    :param skipCopyAnnotations: Skips copying the annotations
+    Arguments:
+        entity: A synapse ID of a File entity
+        destinationId: Synapse ID of a folder/project that the file wants to be copied to
+        version: Can specify version of a file.
+                        Default to None
+        updateExisting: Can choose to update files that have the same name
+                        Default to False
+        setProvenance: Has three values to set the provenance of the copied entity:
+                        traceback: Sets to the source entity
+                        existing: Sets to source entity's original provenance (if it exists)
+                        None: No provenance is set
+        skipCopyAnnotations: Skips copying the annotations
                                 Default is False
     """
     ent = syn.get(entity, downloadFile=False, version=version, followLink=False)
@@ -602,11 +623,10 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
     """
     Copies synapse Tables
 
-    :param entity:          A synapse ID of Table Schema
-
-    :param destinationId:   Synapse ID of a project that the Table wants to be copied to
-
-    :param updateExisting:  Can choose to update files that have the same name
+    Arguments:
+        entity:          A synapse ID of Table Schema
+        destinationId:   Synapse ID of a project that the Table wants to be copied to
+        updateExisting:  Can choose to update files that have the same name
                             Default to False
     """
 
@@ -640,11 +660,10 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
     """
     Copies Link entities
 
-    :param entity:          A synapse ID of a Link entity
-
-    :param destinationId:   Synapse ID of a folder/project that the file wants to be copied to
-
-    :param updateExisting:  Can choose to update files that have the same name
+    Arguments:
+        entity:          A synapse ID of a Link entity
+        destinationId:   Synapse ID of a folder/project that the file wants to be copied to
+        updateExisting:  Can choose to update files that have the same name
                             Default to False
     """
     ent = syn.get(entity)
