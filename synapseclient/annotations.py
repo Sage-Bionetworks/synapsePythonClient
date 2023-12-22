@@ -156,6 +156,7 @@ def to_submission_status_annotations(annotations, is_private=True):
 
             ## Initialize a Synapse object
             syn = Synapse()
+            syn.login()
 
             ## create a submission and get its status
             submission = syn.submit(evaluation, 'syn11111111')
