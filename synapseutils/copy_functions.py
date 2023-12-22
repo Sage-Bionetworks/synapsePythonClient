@@ -38,18 +38,20 @@ def copyFileHandles(
     Arguments:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
         fileHandles: List of fileHandle Ids or Objects
-        associateObjectTypes: List of associated object types: FileEntity, TableEntity, WikiAttachment,
-                                UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
-                                VerificationSubmission (Must be the same length as fileHandles)
-        associateObjectIds: List of associated object Ids: If copying a file, the objectId is the synapse id,
-                                and if copying a wiki attachment, the object id is the wiki subpage id.
+        associateObjectTypes: List of associated object types: FileEntity, TableEntity,
+                                WikiAttachment, UserProfileAttachment, MessageAttachment,
+                                TeamAttachment, SubmissionAttachment, VerificationSubmission
                                 (Must be the same length as fileHandles)
+        associateObjectIds: List of associated object Ids: If copying a file,
+                            the objectId is the synapse id, and if copying a wiki attachment,
+                            the object id is the wiki subpage id.
+                            (Must be the same length as fileHandles)
         newContentTypes: List of content types. Set each item to a new content type for each file
-                            handle, or leave the item as None to keep the original content type. Default None,
-                            which keeps all original content types. Defaults to None.
+                            handle, or leave the item as None to keep the original content type.
+                            Default None, which keeps all original content types.
         newFileNames: List of filenames. Set each item to a new filename for each file handle,
-                        or leave the item as None to keep the original name. Default None, which keeps all
-                        original file names. Defaults to None.
+                        or leave the item as None to keep the original name. Default None,
+                        which keeps all original file names.
 
     Returns:
         List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and NOT_FOUND
@@ -115,8 +117,8 @@ def _copy_file_handles_batch(
     new_file_names: list,
 ):
     """
-    Given a list of fileHandle Ids, copy the fileHandles. This helper makes the POST call and returns the
-    results as a list.
+    Given a list of fileHandle Ids, copy the fileHandles.
+    This helper makes the POST call and returns the results as a list.
 
     Arguments:
         self: A Synapse object with user's login, e.g. syn = synapseclient.login()
@@ -125,8 +127,8 @@ def _copy_file_handles_batch(
                     UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
                     VerificationSubmission (Must be the same length as fileHandles)
         obj_ids: List of associated object Ids: If copying a file, the objectId is the synapse id,
-                                    and if copying a wiki attachment, the object id is the wiki subpage id.
-                                    (Must be the same length as fileHandles)
+                                    and if copying a wiki attachment, the object id is the wiki
+                                    subpage id. (Must be the same length as fileHandles)
         new_con_types: List of content types (Can change a filetype of a filehandle). Defaults to None.
         new_file_names: List of filenames (Can change a filename of a filehandle). Defaults to None.
 
@@ -158,11 +160,12 @@ def _create_batch_file_handle_copy_request(
     Arguments:
         file_handle_ids: List of fileHandle Ids
         obj_types: List of associated object types: FileEntity, TableEntity, WikiAttachment,
-                                    UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
-                                    VerificationSubmission (Must be the same length as fileHandles)
-        obj_ids: List of associated object Ids: If copying a file, the objectId is the synapse id,
-                                    and if copying a wiki attachment, the object id is the wiki subpage id.
+                                    UserProfileAttachment, MessageAttachment, TeamAttachment,
+                                    SubmissionAttachment, VerificationSubmission
                                     (Must be the same length as fileHandles)
+        obj_ids: List of associated object Ids: If copying a file, the objectId is the synapse id,
+                                    and if copying a wiki attachment, the object id is the wiki
+                                    subpage id. (Must be the same length as fileHandles)
         new_con_types: List of content types (Can change a filetype of a filehandle).
         new_file_names: List of filenames (Can change a filename of a filehandle).
 
@@ -248,7 +251,8 @@ def changeFileMetaData(
         entity: Synapse entity Id or object.
         contentType: Specify content type to change the content type of a filehandle.
         downloadAs: Specify filename to change the filename of a filehandle.
-        forceVersion: Indicates whether the method should increment the version of the object even if nothing has changed. Defaults to True.
+        forceVersion: Indicates whether the method should increment the version of
+                        the object even if nothing has changed. Defaults to True.
 
     Returns:
         Synapse Entity
@@ -313,8 +317,8 @@ def copy(
                         traceback: Sets to the source entity
                         existing: Sets to source entity's original provenance (if it exists)
                         None: No provenance is set
-        excludeTypes: (Folder/Project copy only) Accepts a list of entity types (file, table, link) which determines
-                        which entity types to not copy. Defaults to an empty list.
+        excludeTypes: (Folder/Project copy only) Accepts a list of entity types (file, table, link)
+                        which determines which entity types to not copy. Defaults to an empty list.
 
     Returns:
         A mapping between the original and copied entity: {'syn1234':'syn33455'}
@@ -764,10 +768,13 @@ def copyWiki(
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
         entity: A synapse ID of an entity whose wiki you want to copy
         destinationId: Synapse ID of a folder/project that the wiki wants to be copied to
-        updateLinks: Update all the internal links. (e.g. syn1234/wiki/34345 becomes syn3345/wiki/49508)
-        updateSynIds: Update all the synapse ID's referenced in the wikis. (e.g. syn1234 becomes syn2345)
+        updateLinks: Update all the internal links.
+                     (e.g. syn1234/wiki/34345 becomes syn3345/wiki/49508)
+        updateSynIds: Update all the synapse ID's referenced in the wikis.
+                        (e.g. syn1234 becomes syn2345)
                         Defaults to True but needs an entityMap
-        entityMap: An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the wiki.
+        entityMap: An entity map {'oldSynId','newSynId'} to update the synapse IDs
+                    referenced in the wiki.
         entitySubPageId: Can specify subPageId and copy all of its subwikis
                             Defaults to None, which copies the entire wiki subPageId can be found:
                             https://www.synapse.org/#!Synapse:syn123/wiki/1234
