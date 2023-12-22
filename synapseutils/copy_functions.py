@@ -26,11 +26,11 @@ import typing
 
 def copyFileHandles(
     syn: synapseclient.Synapse,
-    fileHandles: list,
-    associateObjectTypes: list,
-    associateObjectIds: list,
-    newContentTypes: list = None,
-    newFileNames: list = None,
+    fileHandles: typing.List[typing.Union[File, Entity]],
+    associateObjectTypes: typing.List[str],
+    associateObjectIds: typing.List[str],
+    newContentTypes: typing.List[str] = None,
+    newFileNames: typing.List[str] = None,
 ):
     """
     Given a list of fileHandle Ids or Objects, copy the fileHandles
@@ -110,11 +110,11 @@ def copyFileHandles(
 
 def _copy_file_handles_batch(
     self: synapseclient.Synapse,
-    file_handle_ids: list,
-    obj_types: list,
-    obj_ids: list,
-    new_con_types: list,
-    new_file_names: list,
+    file_handle_ids: typing.List[str],
+    obj_types: typing.List[str],
+    obj_ids: typing.List[str],
+    new_con_types: typing.List[str],
+    new_file_names: typing.List[str],
 ):
     """
     Given a list of fileHandle Ids, copy the fileHandles.
@@ -148,11 +148,11 @@ def _copy_file_handles_batch(
 
 
 def _create_batch_file_handle_copy_request(
-    file_handle_ids: list,
-    obj_types: list,
-    obj_ids: list,
-    new_con_types: list,
-    new_file_names: list,
+    file_handle_ids: typing.List[str],
+    obj_types: typing.List[str],
+    obj_ids: typing.List[str],
+    new_con_types: typing.List[str],
+    new_file_names: typing.List[str],
 ):
     """
     Returns json for file handle copy request
@@ -239,9 +239,9 @@ def _copy_cached_file_handles(cache: Cache, copiedFileHandles: dict) -> None:
 def changeFileMetaData(
     syn: synapseclient.Synapse,
     entity: typing.Union[str, synapseclient.entity.Entity],
-    downloadAs=None,
-    contentType=None,
-    forceVersion=True,
+    downloadAs: str = None,
+    contentType: str = None,
+    forceVersion: bool = True,
 ) -> synapseclient.entity.Entity:
     """
     Change File Entity metadata like the download as name.
@@ -296,7 +296,7 @@ def copy(
     skipCopyWikiPage: bool = False,
     skipCopyAnnotations: bool = False,
     **kwargs,
-) -> dict:
+) -> typing.Dict[str, str]:
     """
     - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
       and will recursively copy everything in directories.
@@ -367,16 +367,18 @@ def _copyRecursive(
     syn: synapseclient.Synapse,
     entity: str,
     destinationId: str,
-    mapping: dict = None,
+    mapping: typing.Dict[str, str] = None,
     skipCopyAnnotations: bool = False,
     **kwargs,
-) -> dict:
+) -> typing.Dict[str, str]:
     """
     Recursively copies synapse entites, but does not copy the wikis
 
     Arguments:
+        syn: A Synapse object with user's login
         entity: A synapse entity ID
         destinationId: Synapse ID of a folder/project that the copied entity is being copied to
+        mapping: A mapping of the old entities to the new entities
         skipCopyAnnotations: Skips copying the annotations
                                 Default is False
 
@@ -482,7 +484,7 @@ def _copyFolder(
     syn: synapseclient.Synapse,
     entity: str,
     destinationId: str,
-    mapping: dict = None,
+    mapping: typing.Dict[str, str] = None,
     skipCopyAnnotations: bool = False,
     **kwargs,
 ):
@@ -492,6 +494,7 @@ def _copyFolder(
     Arguments:
         entity: A synapse ID of a Folder entity
         destinationId: Synapse ID of a project/folder that the folder wants to be copied to
+        mapping: A mapping of synapse IDs to new synapse IDs
         skipCopyAnnotations: Skips copying the annotations
                                 Default is False
     """
