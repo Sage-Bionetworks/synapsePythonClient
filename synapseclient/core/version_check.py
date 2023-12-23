@@ -1,18 +1,13 @@
 """
-*****************
-Version Functions
-*****************
+# Version Functions
 
-Check for latest version and recommend upgrade::
+Check for latest version and recommend upgrade:
 
     synapseclient.check_for_updates()
 
-Print release notes for installed version of client::
+Print release notes for installed version of client:
 
     synapseclient.release_notes()
-
-.. automethod:: synapseclient.core.version_check.check_for_updates
-.. automethod:: synapseclient.core.version_check.release_notes
 
 """
 import importlib.resources
@@ -34,8 +29,13 @@ def version_check(
     Gets the latest version information from version_url and check against the current version.
     Recommends upgrade, if a newer version exists.
 
-    :returns: True if current version is the latest release (or higher) version,
-              False otherwise.
+    Arguments:
+        current_version: The current version of the entity
+        version_url: The URL of the entity version
+        check_for_point_releases: Bool.
+
+    Returns:
+        True if current version is the latest release (or higher) version, otherwise False.
     """
 
     try:
@@ -97,8 +97,8 @@ def check_for_updates():
     Check for the existence of newer versions of the client, reporting both current release version and development
     version.
 
-    For help installing development versions of the client, see the docs for
-    :py:mod:`synapseclient` or the `README.md <https://github.com/Sage-Bionetworks/synapsePythonClient>`_.
+    For help installing development versions of the client,
+    see the [README.md](https://github.com/Sage-Bionetworks/synapsePythonClient#installation).
     """
     sys.stderr.write("Python Synapse Client\n")
     sys.stderr.write("currently running version:  %s\n" % synapseclient.__version__)
