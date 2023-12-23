@@ -131,10 +131,9 @@ def release_notes(version_url=None):
     Print release notes for the installed version of the client or latest release or development version if version_url
     is supplied.
 
-    :param version_url: Defaults to None, meaning release notes for the installed version. Alternatives are:
-
-                            - synapseclient.version_check._VERSION_URL
-                            - synapseclient.version_check._DEV_VERSION_URL
+    version_url: Defaults to None, meaning release notes for the installed version. Alternatives are:
+                        - synapseclient.version_check._VERSION_URL
+                        - synapseclient.version_check._DEV_VERSION_URL
 
     """
     version_info = _get_version_info(version_url)
@@ -153,7 +152,7 @@ def _strip_dev_suffix(version):
 def _version_tuple(version, levels=2):
     """
     Take a version number as a string delimited by periods and return a tuple with the desired number of levels.
-    For example::
+    For example:
 
         print(version_tuple('0.5.1.dev1', levels=2))
         ('0', '5')
