@@ -732,11 +732,14 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     """
     Extracts metadata from the list of File Entities and returns them in a form usable by csv.DictWriter
 
-    :param syn:         instance of the Synapse client
-    :param allFiles:    an iterable that provides File entities
-    :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
+    Arguments:
+        syn: instance of the Synapse client
+        allFiles: an iterable that provides File entities
+        provenance_cache: an optional dict of known provenance dicts keyed by entity ids
 
-    :return: (keys: a list column headers, data: a list of dicts containing data from each row)
+    Returns:
+        keys: a list column headers
+        data: a list of dicts containing data from each row
     """
     keys = list(DEFAULT_GENERATED_MANIFEST_KEYS)
     annotKeys = set()
@@ -778,8 +781,13 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
 
 def _get_file_entity_provenance_dict(syn, entity):
     """
-    Returns a dict with a subset of the provenance metadata for the entity.
-    An empty dict is returned if the metadata does not have a provenance record.
+    Arguments:
+        syn: Synapse object
+        entity: Entity object
+
+    Returns:
+        dict: a dict with a subset of the provenance metadata for the entity.
+              An empty dict is returned if the metadata does not have a provenance record.
     """
     try:
         prov = syn.getProvenance(entity)
@@ -980,8 +988,9 @@ def syncToSynapse(
 ) -> None:
     """Synchronizes files specified in the manifest file to Synapse.
 
-    Given a file describing all of the uploads uploads the content to Synapse and optionally notifies you via Synapse
-    messagging (email) at specific intervals, on errors and on completion.
+    Given a file describing all of the uploads, this uploads the content to Synapse and
+    optionally notifies you via Synapse messagging (email) at specific intervals, on
+    errors and on completion.
 
     [Read more about the manifest file format](../../explanations/manifest_tsv/)
 
@@ -1112,7 +1121,7 @@ def _check_size_each_file(df):
 
 @tracer.start_as_current_span("sync::generate_sync_manifest")
 def generate_sync_manifest(syn, directory_path, parent_id, manifest_path) -> None:
-    """Generate manifest for syncToSynapse() from a local directory.
+    """Generate manifest for [syncToSynapse][synapseutils.sync.syncToSynapse] from a local directory.
 
     [Read more about the manifest file format](../../explanations/manifest_tsv/)
 
