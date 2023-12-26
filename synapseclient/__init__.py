@@ -71,7 +71,6 @@ __all__ = [
     # functions
     "login",
     "build_table",
-    "delete_rows",
     "as_table_columns",
     "check_for_updates",
     "release_notes",
