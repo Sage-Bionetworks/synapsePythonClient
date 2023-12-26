@@ -118,6 +118,7 @@ from synapseclient.core.upload.upload_functions import (
     upload_synapse_s3,
 )
 from synapseclient.core.dozer import doze
+from synapseclient.models.permission import Permissions
 from typing import Union
 from opentelemetry import trace
 
@@ -2261,22 +2262,24 @@ class Synapse(object):
                 "Unknown Synapse user (%s).  %s." % (principalId, supplementalMessage)
             )
 
-    @tracer.start_as_current_span("Synapse::getPermissions")
-    def getPermissions(
+    @tracer.start_as_current_span("Synapse::get_acl")
+    def get_acl(
         self,
         entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
         principalId: str = None,
-    ):
-        """Get the permissions that a user or group has on an Entity.
+    ) -> typing.List[str]:
+        """Get the [ACL](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/ACCESS_TYPE.html)that a user or group has on an Entity.
 
-        :param entity:      An Entity or Synapse ID to lookup
-        :param principalId: Identifier of a user or group (defaults to PUBLIC users)
+        Arguments:
+            entity:      An Entity or Synapse ID to lookup
+            principalId: Identifier of a user or group (defaults to PUBLIC users)
 
-        :returns: An array containing some combination of
-                  ['READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS', 'DOWNLOAD']
-                  or an empty array
-
+        Returns:
+            An array containing some combination of
+                ['READ', 'UPDATE', 'CREATE', 'DELETE', 'DOWNLOAD', 'MODERATE', 'CHANGE_PERMISSIONS', 'CHANGE_SETTINGS']
+                or an empty array
         """
+
         principal_id = self._getUserbyPrincipalIdOrName(principalId)
 
         trace.get_current_span().set_attributes(
@@ -2312,6 +2315,71 @@ class Synapse(object):
                     permissions["accessType"]
                 )
         return list(effective_permission_set)
+
+    @tracer.start_as_current_span("Synapse::getPermissions")
+    @deprecated.deprecated(
+        version="3.3.0",
+        reason="deprecated and replaced with synapseclient.Synapse.get_acl",
+    )
+    def getPermissions(
+        self,
+        entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
+        principalId: str = None,
+    ) -> typing.List[str]:
+        """
+        **Deprecated** and replaced with [get_acl][synapseclient.Synapse.get_acl].
+
+
+        Get the permissions that a user or group has on an Entity.
+
+        Arguments:
+            entity:      An Entity or Synapse ID to lookup
+            principalId: Identifier of a user or group (defaults to PUBLIC users)
+
+        Returns:
+            An array containing some combination of
+                ['READ', 'UPDATE', 'CREATE', 'DELETE', 'DOWNLOAD', 'MODERATE', 'CHANGE_PERMISSIONS', 'CHANGE_SETTINGS']
+                or an empty array
+        """
+
+        return self.get_acl(entity=entity, principalId=principalId)
+
+    @tracer.start_as_current_span("Synapse::get_permissions")
+    def get_permissions(
+        self, entity: Union[Entity, Evaluation, str, collections.abc.Mapping]
+    ) -> Permissions:
+        """
+        Get the permissions that the caller has on an Entity.
+        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/auth/UserEntityPermissions.html
+
+        Arguments:
+            entity: An Entity or Synapse ID to lookup
+
+        Returns:
+            An Permissions object
+
+
+        Example: Using this function:
+            Getting permissions for a Synapse Entity
+
+                permissions = syn.get_permissions(Entity)
+
+            Getting permissions for a Synapse ID
+
+                permissions = syn.get_permissions("syn12345")
+
+            Getting access types list from the Permissions object
+
+                permissions.access_types
+        """
+
+        entity_id = id_of(entity)
+
+        trace.get_current_span().set_attributes({"synapse.id": entity_id})
+
+        url = f"/entity/{entity_id}/permissions"
+        data = self.restGET(url)
+        return Permissions.from_dict(data)
 
     @tracer.start_as_current_span("Synapse::setPermissions")
     def setPermissions(
