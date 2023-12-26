@@ -72,7 +72,7 @@ class TestGetPermissionsForCaller:
         """test that entity permission object is created correctly from a dictionary"""
         entity = Entity(parentId="parent", id="fake")
         result = self.syn.get_permissions(entity)
-        self.syn.restGET.assert_called_once_with(f"/entity/fake/permissions")
+        self.syn.restGET.assert_called_once_with("/entity/fake/permissions")
         assert isinstance(result, Permissions)
         self.assert_entity_permission(return_value, result)
 
@@ -80,7 +80,7 @@ class TestGetPermissionsForCaller:
         """test that entity permission object is created correctly from a dictionary"""
         entity = {"parentId": "parent", "id": "fake"}
         result = self.syn.get_permissions(entity)
-        self.syn.restGET.assert_called_once_with(f"/entity/fake/permissions")
+        self.syn.restGET.assert_called_once_with("/entity/fake/permissions")
         assert isinstance(result, Permissions)
         self.assert_entity_permission(return_value, result)
 
@@ -88,6 +88,6 @@ class TestGetPermissionsForCaller:
         """test that entity permission object is created correctly from a dictionary"""
         entity = Evaluation(contentSource="syn1234", id="fake")
         result = self.syn.get_permissions(entity)
-        self.syn.restGET.assert_called_once_with(f"/entity/fake/permissions")
+        self.syn.restGET.assert_called_once_with("/entity/fake/permissions")
         assert isinstance(result, Permissions)
         self.assert_entity_permission(return_value, result)

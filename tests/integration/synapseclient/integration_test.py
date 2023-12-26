@@ -19,7 +19,6 @@ from synapseclient.core.exceptions import (
     SynapseNoCredentialsError,
 )
 import synapseclient.core.utils as utils
-from synapseclient.models import Permissions
 from synapseclient.core.version_check import version_check
 from opentelemetry import trace
 
