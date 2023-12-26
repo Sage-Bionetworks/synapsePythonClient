@@ -1,0 +1,135 @@
+# Project
+site_name: Synapse Python/Command Line Client Documentation
+site_author: Bryan Fauble
+site_description: >-
+  A Python client for Sage Bionetworks' Synapse, a collaborative, open-source research
+  platform that allows teams to share data, track analyses, and collaborate. The Python
+  client can be used as a library for development of software that communicates with
+  Synapse or as a command-line utility.
+site_dir: docs_site
+
+# Repository
+repo_url: https://github.com/Sage-Bionetworks/synapsePythonClient
+repo_name: synapsePythonClient
+
+# Navigation
+nav:
+  - Home: index.md
+  # In each docs folder there is a README containing a guideline to follow when writing documentation.
+  - Tutorials:
+    - Installation: tutorials/installation.md
+    - Authentication: tutorials/authentication.md
+    - Configuration: tutorials/configuration.md
+    - Working with the Python client: tutorials/python_client.md
+    - Working with the Command Line Client: tutorials/command_line_client.md
+    - Working with file versioning: tutorials/file_versioning.md
+    - Working with tables: tutorials/tables.md
+    - Synapseclient with R through reticulate: tutorials/reticulate.md
+  - How-To Guides:
+    - Using Entity Views: guides/views.md
+    - Data Storage: guides/data_storage.md
+    - Access the REST API: guides/accessing_the_rest_api.md
+    - Expermental Features:
+      - Validating Annotations: guides/validate_annotations.md
+  - API Reference:
+    - Client: reference/client.md
+    - Synapse Utils: reference/synapse_utils.md
+    - Entity: reference/entity.md
+    - Project: reference/project.md
+    - Folder: reference/folder.md
+    - File: reference/file.md
+    - Annotations: reference/annotations.md
+    - Tables: reference/tables.md
+    - Table Schema: reference/table_schema.md
+    - Entity View Schema: reference/view_schema.md
+    - Activity/Provenance: reference/activity.md
+    - Teams: reference/teams.md
+    - Wiki: reference/wiki.md
+    - Evaluation: reference/evaluation.md
+    - Link: reference/link.md
+    - DockerRepository: reference/docker_repository.md
+    - JSON Schema: reference/json_schema.md
+    - Exceptions: reference/exceptions.md
+    - Core: reference/core.md
+  - Further Reading:
+    - Access Control: explanations/access_control.md
+    - Properties vs Annotations: explanations/properties_vs_annotations.md
+    - Manifest TSV: explanations/manifest_tsv.md
+    - Benchmarking: explanations/benchmarking.md
+    - Structuring Your Project: explanations/structuring_your_project.md
+  - News:
+    - news.md
+
+# Theme configuration
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: white
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+  icon:
+    admonition:
+      note: octicons/tag-16
+      info: octicons/info-16
+  logo: assets/synapse_logo.png
+  favicon: assets/favicon.png
+  features:
+    - content.code.copy
+    - navigation.footer
+    - navigation.sections
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+    - navigation.tabs
+    - navigation.tabs.sticky
+
+extra_css:
+- css/custom.css
+
+plugins:
+- search
+- mkdocstrings:
+    default_handler: python
+    handlers:
+      python:
+        options:
+          members_order: source
+          show_if_no_docstring: False
+          show_root_heading: True
+          show_category_heading: True
+          docstring_style: google
+          docstring_section_style: spacy
+          filters:
+          - "!^_"
+- autorefs
+- termynal:
+    prompt_literal_start:
+      - "$"
+      - ">"
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Sage-Bionetworks/synapsePythonClient
+    - icon: fontawesome/brands/docker
+      link: https://github.com/Sage-Bionetworks/synapsePythonClient/pkgs/container/synapsepythonclient
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/synapseclient/
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
+  - toc:
+      permalink: true

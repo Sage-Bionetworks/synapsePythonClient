@@ -1,21 +1,9 @@
 """
-********
-Overview
-********
+## Overview
 
 The ``synapseutils`` package provides both higher level beta functions as well as utilities for interacting with
-`Synapse <http://www.synapse.org>`_.  The behavior of these functions are subject to change.
-These functionalities include:
+[Synapse](http://www.synapse.org).  The behavior of these functions are subject to change.
 
-- :py:func:`copy_functions.copy`
-- :py:func:`copy_functions.copyWiki`
-- :py:func:`walk_functions.walk`
-- :py:func:`sync.syncFromSynapse`
-- :py:func:`sync.syncToSynapse`
-- :py:func:`monitor.notifyMe`
-- :py:func:`migrate_functions.index_files_for_migration`
-- :py:func:`migrate_functions.migrate_indexed_files`
-- :py:func:`describe_functions.describe`
 """
 # flake8: noqa F401 unclear who is using these
 from .copy_functions import copy, copyWiki, copyFileHandles, changeFileMetaData
