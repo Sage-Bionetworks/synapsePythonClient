@@ -78,8 +78,8 @@ def _executor(max_threads, shutdown_wait):
 
 
 class UploadAttempt:
-    """
-    """
+    """ """
+
     def __init__(
         self,
         syn,
