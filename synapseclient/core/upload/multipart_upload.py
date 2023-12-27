@@ -1,13 +1,9 @@
-"""
-Implements the client side of `Synapse multipart upload`_, which provides a
-robust means of uploading large files (into the 10s of GB). End users should
-not need to call any of these functions directly.
-
-.. _Synapse multipart upload:
- https://rest-docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController
+"""Implements the client side of
+Synapse's [Multipart File Upload API](https://rest-docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController), which provides a
+robust means of uploading large files (into the 10s of GiB). End users should not need to call any of the methods under
+[UploadAttempt][synapseclient.core.upload.multipart_upload.UploadAttempt] directly.
 
 """
-
 import concurrent.futures
 from contextlib import contextmanager
 import json
@@ -49,8 +45,9 @@ tracer = trace.get_tracer("synapseclient")
 
 @contextmanager
 def shared_executor(executor):
-    """An outside process that will eventually trigger an upload through the this module
-    can configure a shared Executor by running its code within this context manager."""
+    """An outside process that will eventually trigger an upload through this module
+    can configure a shared Executor by running its code within this context manager.
+    """
     _thread_local.executor = executor
     try:
         yield
@@ -63,8 +60,9 @@ def _executor(max_threads, shutdown_wait):
     """Yields an executor for running some asynchronous code, either obtaining the executor
     from the shared_executor or otherwise creating one.
 
-    :param max_threads: the maxmimum number of threads a created executor should use
-    :param shutdown_wait: whether a created executor should shutdown after running the yielded to code
+    Arguments:
+        max_threads: the maxmimum number of threads a created executor should use
+        shutdown_wait: whether a created executor should shutdown after running the yielded to code
     """
     executor = getattr(_thread_local, "executor", None)
     shutdown_after = False
@@ -80,6 +78,8 @@ def _executor(max_threads, shutdown_wait):
 
 
 class UploadAttempt:
+    """
+    """
     def __init__(
         self,
         syn,
@@ -189,10 +189,13 @@ class UploadAttempt:
         will be returned without a refresh (i.e. it is assumed that another
         thread has already refreshed the url since the passed url expired).
 
-        :param part_number: the part number whose refreshed url should
-            be returned
-        :param expired_url: the url that was detected as expired triggering
-            this refresh
+        Arguments:
+            part_number: the part number whose refreshed url should
+                         be returned
+            expired_url: the url that was detected as expired triggering
+                         this refresh
+        Returns:
+            refreshed URL
 
         """
         with self._lock:
@@ -407,18 +410,14 @@ class UploadAttempt:
 
 
 def _get_file_chunk(file_path, part_number, chunk_size):
-    """
-    Read the nth chunk from the file.
-    """
+    """Read the nth chunk from the file."""
     with open(file_path, "rb") as f:
         f.seek((part_number - 1) * chunk_size)
         return f.read(chunk_size)
 
 
 def _get_data_chunk(data, part_number, chunk_size):
-    """
-    Return the nth chunk of a buffer.
-    """
+    """Return the nth chunk of a buffer."""
     return data[(part_number - 1) * chunk_size : part_number * chunk_size]
 
 
@@ -444,29 +443,29 @@ def multipart_upload_file(
     force_restart: bool = False,
     max_threads: int = None,
 ) -> str:
+    """Upload a file to a Synapse upload destination in chunks.
+
+    Arguments:
+        syn: a Synapse object
+        file_path: the file to upload
+        dest_file_name: upload as a different filename
+        content_type: ???
+        part_size: Number of bytes per part. Minimum is 5MiB (5 * 1024 * 1024 bytes).
+        storage_location_id: an id indicating where the file should be
+                             stored. Retrieved from Synapse's UploadDestination
+        preview: True to generate a preview
+        force_restart: True to restart a previously initiated upload
+                       from scratch, False to try to resume
+        max_threads: number of concurrent threads to devote
+                     to upload
+
+    Returns:
+        a File Handle ID
+
+    Keyword arguments are passed down to
+    [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
+
     """
-    Upload a file to a Synapse upload destination in chunks.
-
-    :param syn:                 a Synapse object
-    :param file_path:           the file to upload
-    :param dest_file_name:      upload as a different filename
-    :param content_type:        `contentType`_
-    :param part_size:           Number of bytes per part. Minimum 5MB.
-    :param storage_location_id: an id indicating where the file should be
-                                stored. Retrieved from Synapse's UploadDestination
-    :param preview:             True to generate a preview
-    :param force_restart:       True to restart a previously initiated upload
-                                from scratch, False to try to resume
-    :param max_threads:         number of concurrent threads to devote
-                                to upload
-
-    :returns: a File Handle ID
-
-    Keyword arguments are passed down to :py:func:`_multipart_upload` and :py:func:`_start_multipart_upload`.
-    .. _contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
-
-    """
-
     trace.get_current_span().set_attributes(
         {"synapse.storage_location_id": storage_location_id}
     )
@@ -526,31 +525,29 @@ def multipart_upload_string(
     force_restart: bool = False,
     max_threads: int = None,
 ):
-    """
-    Upload a file to a Synapse upload destination in chunks.
+    """Upload a file to a Synapse upload destination in chunks.
 
-    :param syn:                 a Synapse object
-    :param text:                a string to upload as a file.
-    :param dest_file_name:      upload as a different filename
-    :param content_type:        `contentType`_
-    :param part_size:           number of bytes per part. Minimum 5MB.
-    :param storage_location_id: an id indicating where the file should be
-                                stored. Retrieved from Synapse's UploadDestination
-    :param preview:             True to generate a preview
-    :param force_restart:       True to restart a previously initiated upload
-                                from scratch, False to try to resume
-    :param max_threads:         number of concurrent threads to devote
-                                to upload
+    Arguments:
+        syn: a Synapse object
+        text: a string to upload as a file.
+        dest_file_name: upload as a different filename
+        content_type: `contentType`_
+        part_size: number of bytes per part. Minimum 5MB.
+        storage_location_id: an id indicating where the file should be
+                             stored. Retrieved from Synapse's UploadDestination
+        preview: True to generate a preview
+        force_restart: True to restart a previously initiated upload
+                       from scratch, False to try to resume
+        max_threads: number of concurrent threads to devote
+                     to upload
 
-    :returns: a File Handle ID
+    Returns:
+        a File Handle ID
 
     Keyword arguments are passed down to
-    :py:func:`_multipart_upload` and :py:func:`_start_multipart_upload`.
+    [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
 
-    .. _contentType:
-     https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
-
     data = text.encode("utf-8")
     file_size = len(data)
     md5_hex = md5_fn(data, None)
