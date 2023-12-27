@@ -531,7 +531,7 @@ def multipart_upload_string(
         syn: a Synapse object
         text: a string to upload as a file.
         dest_file_name: upload as a different filename
-        content_type: `contentType`_
+        content_type: Refers to the Content-Type of the API request.
         part_size: number of bytes per part. Minimum 5MB.
         storage_location_id: an id indicating where the file should be
                              stored. Retrieved from Synapse's UploadDestination
