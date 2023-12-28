@@ -17,6 +17,3 @@ functions.  Use at your own risk.
 
 ## Versions
 ::: synapseclient.core.version_check
-
-## Permissions
-::: synapseclient.models.permission
