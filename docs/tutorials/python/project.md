@@ -1,13 +1,16 @@
 # Projects in Synapse
 Projects in Synapse are “containers” that group relevant content and people together. All data must be uploaded into a project. Projects can be private so only you can see the contents, they can be shared with your collaborators, or they can be made public so anyone on the web can view your research.
 
-[Dive into Projects further here](../../explanations/domain_models_of_synapse.md#projects)
+[Read more about Projects](../../explanations/domain_models_of_synapse.md#projects)
+
+
+[Recommendations for Structuring Your Synapse Project](../../explanations/structuring_your_project.md)
 
 ## Tutorial Purpose
 In this tutorial you will:
 
 1. Create a new project
-1. Print stored metadata about your project
+1. Print stored attributes about your project
 1. Get an existing project
 
 ## Prerequisites
