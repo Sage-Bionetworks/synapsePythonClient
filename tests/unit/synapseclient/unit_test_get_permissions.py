@@ -1,3 +1,6 @@
+"""
+Unit test for synapseclient.client.get_permissions
+"""
 from unittest.mock import patch
 
 import pytest
@@ -30,16 +33,16 @@ return_value = {
 
 class TestGetPermissionsForCaller:
     @pytest.fixture(autouse=True, scope="function")
-    def setup_method(self, syn):
+    def setup_method(self, syn) -> None:
         self.syn = syn
         self.syn.restGET = patch.object(
             self.syn, "restGET", return_value=return_value
         ).start()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         self.syn.restGET.stop()
 
-    def assert_entity_permission(self, d: dict, e: Permissions):
+    def assert_entity_permission(self, d: dict[bool], e: Permissions):
         """check if the values match between API output and function output"""
         assert d["canView"] == e.can_view
         assert d["canEdit"] == e.can_edit
@@ -60,7 +63,7 @@ class TestGetPermissionsForCaller:
         assert d["isCertificationRequired"] == e.is_certification_required
         assert d["isEntityOpenData"] == e.is_entity_open_data
 
-    def test_get_permissions_with_input_as_str(self):
+    def test_get_permissions_with_input_as_str(self) -> None:
         """test that entity permission object is created correctly from a dictionary"""
         entity_id = "syn123"
         result = self.syn.get_permissions(entity_id)
@@ -68,7 +71,7 @@ class TestGetPermissionsForCaller:
         assert isinstance(result, Permissions)
         self.assert_entity_permission(return_value, result)
 
-    def test_get_permissions_with_input_as_Entity(self):
+    def test_get_permissions_with_input_as_Entity(self) -> None:
         """test that entity permission object is created correctly from a dictionary"""
         entity = Entity(parentId="parent", id="fake")
         result = self.syn.get_permissions(entity)
@@ -76,7 +79,7 @@ class TestGetPermissionsForCaller:
         assert isinstance(result, Permissions)
         self.assert_entity_permission(return_value, result)
 
-    def test_get_permissions_with_input_as_Mapping(self):
+    def test_get_permissions_with_input_as_Mapping(self) -> None:
         """test that entity permission object is created correctly from a dictionary"""
         entity = {"parentId": "parent", "id": "fake"}
         result = self.syn.get_permissions(entity)
@@ -84,7 +87,7 @@ class TestGetPermissionsForCaller:
         assert isinstance(result, Permissions)
         self.assert_entity_permission(return_value, result)
 
-    def test_get_permissions_with_input_as_Evaluation(self):
+    def test_get_permissions_with_input_as_Evaluation(self) -> None:
         """test that entity permission object is created correctly from a dictionary"""
         entity = Evaluation(contentSource="syn1234", id="fake")
         result = self.syn.get_permissions(entity)

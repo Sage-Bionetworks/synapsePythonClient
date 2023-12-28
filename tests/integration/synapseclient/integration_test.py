@@ -21,6 +21,7 @@ from synapseclient.core.exceptions import (
 import synapseclient.core.utils as utils
 from synapseclient.core.version_check import version_check
 from opentelemetry import trace
+from typing import Callable
 
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
@@ -582,14 +583,14 @@ def testMoveProject(syn, schedule_for_cleanup):
 
 class TestPermissionsOnProject:
     @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup):
+    def init(self, syn: Synapse, schedule_for_cleanup) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @tracer.start_as_current_span(
         "integration_test::TestPermissionsOnProject::test_get_acl_default"
     )
-    def test_get_acl_default(self):
+    def test_get_acl_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions: Entity = self.syn.store(
             Project(name=str(uuid.uuid4()) + "test_get_acl_default_permissions")
@@ -618,7 +619,7 @@ class TestPermissionsOnProject:
     @tracer.start_as_current_span(
         "integration_test::TestPermissionsOnProject::test_get_acl_read_only_permissions_on_entity"
     )
-    def test_get_acl_read_only_permissions_on_entity(self):
+    def test_get_acl_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions: Entity = self.syn.store(
             Project(name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project")
@@ -645,7 +646,7 @@ class TestPermissionsOnProject:
     @tracer.start_as_current_span(
         "integration_test::TestPermissionsOnProject::test_get_acl_through_team_assigned_to_user"
     )
-    def test_get_acl_through_team_assigned_to_user(self):
+    def test_get_acl_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team: Entity = self.syn.store(
             Project(
@@ -666,7 +667,8 @@ class TestPermissionsOnProject:
             )
         )
 
-        # Handle Cleanup - Note: When running this schedule for cleanup order can matter when there are dependent resources
+        # Handle Cleanup - Note: When running this schedule for cleanup order 
+        # can matter when there are dependent resources
         self.schedule_for_cleanup(team)
         self.schedule_for_cleanup(project_with_permissions_through_single_team)
 
@@ -710,7 +712,7 @@ class TestPermissionsOnProject:
     @tracer.start_as_current_span(
         "integration_test::TestPermissionsOnProject::test_get_acl_through_multiple_teams_assigned_to_user"
     )
-    def test_get_acl_through_multiple_teams_assigned_to_user(self):
+    def test_get_acl_through_multiple_teams_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_multiple_teams: Entity = self.syn.store(
             Project(
@@ -740,7 +742,8 @@ class TestPermissionsOnProject:
             )
         )
 
-        # Handle Cleanup - Note: When running this schedule for cleanup order can matter when there are dependent resources
+        # Handle Cleanup - Note: When running this schedule for cleanup order 
+        # can matter when there are dependent resources
         self.schedule_for_cleanup(team_1)
         self.schedule_for_cleanup(team_2)
         self.schedule_for_cleanup(project_with_permissions_through_multiple_teams)
@@ -793,7 +796,7 @@ class TestPermissionsOnProject:
     @tracer.start_as_current_span(
         "integration_test::TestPermissionsOnProject::test_get_acl_for_project_with_public_and_registered_user"
     )
-    def test_get_acl_for_project_with_public_and_registered_user(self):
+    def test_get_acl_for_project_with_public_and_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_public_and_authenticated_users: Entity = (
             self.syn.store(
@@ -868,15 +871,18 @@ class TestPermissionsOnProject:
 
 
 class TestPermissionsOnEntityForCaller:
+    """
+    Test the permissions a caller has for an entity
+    """    
     @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup):
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @tracer.start_as_current_span(
         "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_default"
     )
-    def test_get_permissions_default(self):
+    def test_get_permissions_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions: Entity = self.syn.store(
             Project(name=str(uuid.uuid4()) + "test_get_permissions_default_permissions")
@@ -902,7 +908,7 @@ class TestPermissionsOnEntityForCaller:
     @tracer.start_as_current_span(
         "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_read_only_permissions_on_entity"
     )
-    def test_get_permissions_read_only_permissions_on_entity(self):
+    def test_get_permissions_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions: Entity = self.syn.store(
             Project(
@@ -923,7 +929,8 @@ class TestPermissionsOnEntityForCaller:
         # WHEN I get the permissions for the user on the entity
         permissions = self.syn.get_permissions(project_with_read_only_permissions.id)
 
-        # THEN I expect to see read only permissions. CHANGE_SETTINGS is bound to ownerId. Since the entity is created by the Caller, the CHANGE_SETTINGS will always be True.
+        # THEN I expect to see read only permissions. CHANGE_SETTINGS is bound to ownerId. 
+        # Since the entity is created by the Caller, the CHANGE_SETTINGS will always be True.
         expected_permissions = ["READ", "CHANGE_SETTINGS"]
 
         assert set(expected_permissions) == set(permissions.access_types)
@@ -931,7 +938,7 @@ class TestPermissionsOnEntityForCaller:
     @tracer.start_as_current_span(
         "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_through_team_assigned_to_user"
     )
-    def test_get_permissions_through_team_assigned_to_user(self):
+    def test_get_permissions_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team: Entity = self.syn.store(
             Project(
@@ -996,7 +1003,7 @@ class TestPermissionsOnEntityForCaller:
     @tracer.start_as_current_span(
         "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_through_multiple_teams_assigned_to_user"
     )
-    def test_get_permissions_through_multiple_teams_assigned_to_user(self):
+    def test_get_permissions_through_multiple_teams_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_multiple_teams: Entity = self.syn.store(
             Project(
@@ -1079,7 +1086,7 @@ class TestPermissionsOnEntityForCaller:
     @tracer.start_as_current_span(
         "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_for_project_with_registered_user"
     )
-    def test_get_permissions_for_project_with_registered_user(self):
+    def test_get_permissions_for_project_with_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_authenticated_users: Entity = self.syn.store(
             Project(

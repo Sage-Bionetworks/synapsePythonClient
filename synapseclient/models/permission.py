@@ -1,12 +1,15 @@
+"""
+The `Permissions` object encapsulates a list of permissions a user has for a given entity. The set of permissoins 
+is a calculation based several factors including the permission granted by the Entity's ACL and 
+the User's group membership.
+"""
+
 from dataclasses import dataclass
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
-
+from typing import Optional
 
 @dataclass
 class Permissions:
-    """The permission a User has for a given Entity.
+    """The permission a user has for a given Entity.
 
 
     Attributes:
@@ -15,81 +18,89 @@ class Permissions:
         can_move : (Read Only) Can the user move this entity by changing its parentId?
         can_add_child : Can the user add a child entity to this entity?
         can_certified_user_edit : (Read Only) Can the user edit this entity once they become a Certified User?
-        can_certified_user_add_child : (Read Only) Can the user add a child entity to this entity once they become a Certified User?
+        can_certified_user_add_child : (Read Only) Can the user add a child entity to this entity once they become 
+            a Certified User?
         is_certified_user : (Read Only) True, if the user has passed the user certification quiz.
         can_change_permissions : Can the user change the permissions of this entity?
         can_change_settings : Can the user change the settings of this entity?
         can_delete : Can the user delete this entity?
         can_download : Are there any access requirements precluding the user from downloading this entity?
-        can_upload : (Read Only) Are there any access requirements precluding the user from uploading into this entity (folder or project)?
-        can_enable_inheritance : (Read Only) Can the user delete the entity's access control list (so it inherits settings from an ancestor)?
-        owner_principal_id : (Read Only) The principal ID of the entity's owner (i.e. the entity's 'createdBy')
+        can_upload : (Read Only) Are there any access requirements precluding the user from uploading into this entity 
+            (folder or project)?
+        can_enable_inheritance : (Read Only) Can the user delete the entity's access control list (so it inherits 
+            settings from an ancestor)?
+        owner_principal_id : (Read Only) The principal ID of the entity's owner (i.e. the entity's 'createdBy').
         can_public_read : (Read Only) Is this entity considered public?
-        can_moderate : Can the user moderate the forum associated with this entity? Note that only project entity has forum.
+        can_moderate : Can the user moderate the forum associated with this entity? 
+            Note that only project entity has forum.
         is_certification_required : (Read Only) Is the certification requirement enabled for the project of the entity?
-        is_entity_open_data : (Read Only) Returns true if the Entity's DateType equals 'OPEN_DATA', indicating that the data is safe to be released to the public.
+        is_entity_open_data : (Read Only) Returns true if the Entity's DateType equals 'OPEN_DATA', indicating that the 
+            data is safe to be released to the public.
     """
 
-    can_view: bool = None
+    can_view: Optional[bool] = None
     """Can the user view this entity?"""
 
-    can_edit: bool = None
+    can_edit: Optional[bool] = None
     """Can the user edit this entity?"""
 
-    can_move: bool = None
+    can_move: Optional[bool] = None
     """(Read Only) Can the user move this entity by changing its parentId?"""
 
-    can_add_child: bool = None
+    can_add_child: Optional[bool] = None
     """Can the user add a child entity to this entity?"""
 
-    can_certified_user_edit: bool = None
+    can_certified_user_edit: Optional[bool] = None
     """(Read Only) Can the user edit this entity once they become a Certified User?"""
 
-    can_certified_user_add_child: bool = None
+    can_certified_user_add_child: Optional[bool] = None
     """(Read Only) Can the user add a child entity to this entity once they become a Certified User?"""
 
-    is_certified_user: bool = None
+    is_certified_user: Optional[bool] = None
     """(Read Only) True, if the user has passed the user certification quiz."""
 
-    can_change_permissions: bool = None
+    can_change_permissions: Optional[bool] = None
     """Can the user change the permissions of this entity?"""
 
-    can_change_settings: bool = None
+    can_change_settings: Optional[bool] = None
     """Can the user change the settings of this entity?"""
 
-    can_delete: bool = None
+    can_delete: Optional[bool] = None
     """Can the user delete this entity?"""
 
-    can_download: bool = None
+    can_download: Optional[bool] = None
     """Are there any access requirements precluding the user from downloading this entity?"""
 
-    can_upload: bool = None
-    """(Read Only) Are there any access requirements precluding the user from uploading into this entity (folder or project)?"""
+    can_upload: Optional[bool] = None
+    """(Read Only) Are there any access requirements precluding the user 
+    from uploading into this entity (folder or project)?"""
 
-    can_enable_inheritance: bool = None
+    can_enable_inheritance: Optional[bool] = None
     """(Read Only) Can the user delete the entity's access control list (so it inherits settings from an ancestor)?"""
 
-    owner_principal_id: int = None
-    """(Read Only) The principal ID of the entity's owner (i.e. the entity's 'createdBy')"""
+    owner_principal_id: Optional[int] = None
+    """(Read Only) The principal ID of the entity's owner (i.e. the entity's 'createdBy')."""
 
-    can_public_read: bool = None
+    can_public_read: Optional[bool] = None
     """(Read Only) Is this entity considered public?"""
 
-    can_moderate: bool = None
+    can_moderate: Optional[bool] = None
     """Can the user moderate the forum associated with this entity? Note that only project entity has forum."""
 
-    is_certification_required: bool = None
+    is_certification_required: Optional[bool] = None
     """(Read Only) Is the certification requirement enabled for the project of the entity?"""
 
-    is_entity_open_data: bool = None
-    """(Read Only) Returns true if the Entity's DateType equals 'OPEN_DATA', indicating that the data is safe to be released to the public."""
+    is_entity_open_data: Optional[bool] = None
+    """(Read Only) Returns true if the Entity's DateType equals 'OPEN_DATA', 
+    indicating that the data is safe to be released to the public."""
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Permissions":
+    def from_dict(cls, data: dict[bool]) -> "Permissions":
         """Convert a data dictionary to an instance of this dataclass
 
         Arguments:
-            data: a data dictionary of the [UserEntityPermissions](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/auth/UserEntityPermissions.html)
+            data: a data dictionary of the [UserEntityPermissions](https://rest-docs.synapse.org/rest/org/
+            sagebionetworks/repo/model/auth/UserEntityPermissions.html)
 
         Returns:
             A Permission object
@@ -117,7 +128,7 @@ class Permissions:
         )
 
     @property
-    def access_types(self):
+    def access_types(self) -> list[str]:
         """
         Determine from the permissions set on this object what the access types are.
 
@@ -140,7 +151,8 @@ class Permissions:
                 # Prints: ['READ']
 
             Special Case: a permission that has can_view set to True and nothing else set on an entity created by you.
-            CHANGE_SETTINGS is bound to ownerId. Since the entity is created by you, the CHANGE_SETTINGS will always be True.
+            CHANGE_SETTINGS is bound to ownerId. Since the entity is created by you, 
+            the CHANGE_SETTINGS will always be True.
                read_permission = Permissions()
                read_permission.can_view = True
                print(read_permission.access_types)
