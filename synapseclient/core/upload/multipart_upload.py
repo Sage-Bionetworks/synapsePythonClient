@@ -676,11 +676,12 @@ def _multipart_upload(
 
     Arguments:
         syn: A Synapse object
-        dest_file_name:
-        upload_request:
-        part_fn:
-        md5_fn:
-        max_threads:
+        dest_file_name: upload as a different filename
+        upload_request: A dictionary object with the user-fed logistical
+                        details of the upload/copy request.
+        part_fn: Function to calculate the partSize of each part
+        md5_fn: Function to calculate the MD5 of the file-like object
+        max_threads: number of concurrent threads to devote to upload.
 
     Returns:
         A File Handle ID
