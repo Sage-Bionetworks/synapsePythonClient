@@ -33,7 +33,7 @@ By the end of these tutorials you'll have:
 - Methods to [migrate data to other storage locations](./python/migrate_data_to_other_storage_locations.md)
 
 
-## Current python client documentation below
+## Current python client documentation being split into individual tutorials
 ----
 ## Authentication
 
