@@ -63,35 +63,21 @@ Find all of the available attributes about your project in the
 
 ## 3. Get an existing project
 Each Project only needs to be created once. Since you've already created it you can
-access it again by the synapse ID of the project you printed above:
+access it again by retrieving the synapse ID of the project and retrieving
+the existing project object.
 ```python
-a_copy_of_my_project = syn.get(entity=my_synapse_project_id)
-
-print(f"I just got my project: {a_copy_of_my_project.name}")
+my_project_id = syn.findEntityId(
+    name="My uniquely named project about Alzheimer's Disease"
+)
+my_project_object = syn.get(entity=my_project_id)
+print(f"I just got my project: {my_project_object.name}, id: {my_project_id}")
 ```
 
 <details class="example">
   <summary>The result will look like:</summary>
 
 ```
-I just got my project: My uniquely named project about Alzheimer's Disease
-```
-</details>
-
-You'll also notice if you happen to use `syn.store` on a project that is already created
-you'll recieve a reference to the already created project since name is globally unique.
-```python
-project = Project(name="My uniquely named project about Alzheimer's Disease")
-project = syn.store(obj=project)
-
-print(f"I just got my project: {project.name}")
-```
-
-<details class="example">
-  <summary>You'll recieve the same results as above:</summary>
-
-```
-I just got my project: My uniquely named project about Alzheimer's Disease
+I just got my project: My uniquely named project about Alzheimer's Disease, id: syn12345678
 ```
 </details>
 
@@ -111,3 +97,4 @@ I just got my project: My uniquely named project about Alzheimer's Disease
 - [syn.login][synapseclient.Synapse.login]
 - [syn.store][synapseclient.Synapse.store]
 - [syn.get][synapseclient.Synapse.get]
+- [syn.findEntityId][synapseclient.Synapse.findEntityId]
