@@ -669,9 +669,11 @@ def _multipart_upload(
     force_restart: bool = False,
     max_threads: int = None,
 ):
-    """Calls upon an UploadAttempt object to initiate and/or retry
-    a multipart file upload or copy. This function is wrapped by
-    multipart_upload_file, multipart_upload_string, and multipart_copy.
+    """Calls upon an [UploadAttempt][synapseclient.core.upload.multipart_upload.UploadAttempt]
+    object to initiate and/or retry a multipart file upload or copy. This function is wrapped by
+    [multipart_upload_file][synapseclient.core.upload.multipart_upload.multipart_upload_file],
+    [multipart_upload_string][synapseclient.core.upload.multipart_upload.multipart_upload_string], and
+    [multipart_copy][synapseclient.core.upload.multipart_upload.multipart_copy].
     Retries cannot exceed 7 retries per call.
 
     Arguments:
