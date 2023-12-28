@@ -669,6 +669,23 @@ def _multipart_upload(
     force_restart: bool = False,
     max_threads: int = None,
 ):
+    """Calls upon an UploadAttempt object to initiate and/or retry
+    a multipart file upload or copy. This function is wrapped by
+    multipart_upload_file, multipart_upload_string, and multipart_copy.
+    Retries cannot exceed 7 retries per call.
+
+    Arguments:
+        syn: A Synapse object
+        dest_file_name:
+        upload_request:
+        part_fn:
+        md5_fn:
+        max_threads:
+
+    Returns:
+        A File Handle ID
+
+    """
     if max_threads is None:
         max_threads = pool_provider.DEFAULT_NUM_THREADS
 
