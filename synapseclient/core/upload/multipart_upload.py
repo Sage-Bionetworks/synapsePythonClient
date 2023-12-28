@@ -597,6 +597,28 @@ def multipart_copy(
     force_restart: bool = False,
     max_threads: int = None,
 ):
+    """Makes a
+    [Multipart Upload Copy Request](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadCopyRequest.html).
+    This request performs a copy of an existing file handle without data transfer from the client.
+
+    Arguments:
+        syn: A Synapse object
+        source_file_handle_association: Describes an association of a FileHandle with another object.
+        dest_file_name: The name of the file to be uploaded.
+        part_size: The size that each part will be (in bytes).
+        storage_location_id: The identifier of the storage location where this file should be copied to.
+                             The user must be the owner of the storage location.
+        preview: True to generate a preview of the data.
+        force_restart: True to restart a previously initiated upload from scratch, False to try to resume.
+        max_threads: Number of concurrent threads to devote to copy.
+
+    Returns:
+        a File Handle ID
+
+    Keyword arguments are passed down to
+    [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
+
+    """
     part_size = part_size or DEFAULT_PART_SIZE
 
     upload_request = {
