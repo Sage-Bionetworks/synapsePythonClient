@@ -172,7 +172,7 @@ class S3ClientWrapper:
             endpoint_url: a boto3 compatible endpoint url
             remote_file_key: object key to upload the file to
             upload_file_path: local path of the file to upload
-            profile_name: AWS profile name from local aws config, mutually exclusive with credentials
+            profile_name: AWS profile name from local aws config, **mutually exclusive with credentials**
             credentials: a dictionary of AWS credentials to use, mutually exclusive with profile_name
                         Expected items:
                         - `aws_access_key_id`
