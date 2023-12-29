@@ -210,6 +210,12 @@ File (syn53205690): My uniquely named project about Alzheimer's Disease/single_c
 </details>
 
 
+## Results
+Now that you have created your files you'll be able to inspect this on the Files tab of your project in the synapse web UI. It should look similar to:
+
+![file](./tutorial_screenshots/file.png)
+
+
 ## Source code for this tutorial
 
 <details class="quote">

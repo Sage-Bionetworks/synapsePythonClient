@@ -42,6 +42,18 @@ You can control who has access to files that you upload in two ways. First, you 
 
 - To read more about how to use sharing settings and conditions for use together, see the full article on [Sharing Settings, Permissions, and Conditions for Use](https://help.synapse.org/docs/Sharing-Settings,-Permissions,-and-Conditions-for-Use.2024276030.html).
 
+## [Annotations](../tutorials/python/annotation.md)
+Annotations help users search for and find data, and they are a powerful tool used to systematically group and/or describe things in Synapse.
+
+Annotations are stored as key-value pairs in Synapse, where the key defines a particular aspect of your data, for example (`species`, `assay`, `fileFormat`) and the value defines a variable that belongs to that category (`mouse`, `RNAseq`, `.bam`). You can use annotations to add additional information about a project, file, folder, table, or view. Annotations can be based on an existing ontology or controlled vocabulary, or can be created as needed and modified later as your metadata evolves.
+
+For example, if you have uploaded a collection of alignment files in the BAM file format from an RNA-sequencing experiment, each representing a sample and experimental replicate, you can use annotations to surface this information in a structured way. Sometimes, users encode this information in file names, e.g., sampleA_conditionB.bam, which makes it “human-readable” but not searchable.
+
+In this case, you may want to add annotations that look like this:
+
+![annotation_example_1](./assets/annotation_example_1.png)
+
+
 ## [Activity/Provenance](../tutorials/python/activity.md)
 Reproducible research is a fundamental responsibility of scientists, but the best practices for achieving it are not established in computational biology. The Synapse provenance system is one of many solutions you can use to make your work reproducible by you and others.
 

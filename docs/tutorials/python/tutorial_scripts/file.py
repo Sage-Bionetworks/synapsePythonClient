@@ -2,9 +2,9 @@
 Here is where you'll find the code for the File tutorial.
 """
 # Step 1: Upload several files to Synapse
+import os
 import synapseclient
 import synapseutils
-import os
 from synapseclient import File
 
 syn = synapseclient.login()
