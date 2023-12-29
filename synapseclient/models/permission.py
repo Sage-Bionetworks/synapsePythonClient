@@ -1,7 +1,5 @@
 """
-The `Permissions` object encapsulates a list of permissions a user has for a given entity. The set of permissoins
-is a calculation based several factors including the permission granted by the Entity's ACL and
-the User's group membership.
+The `Permissions` object encapsulates a list of permissions a user has for a given entity.
 """
 
 from dataclasses import dataclass
@@ -10,7 +8,10 @@ from typing import Optional, Dict, List
 
 @dataclass
 class Permissions:
-    """The permission a user has for a given Entity.
+    """
+    The permission a user has for a given Entity. The set of permissoins is a calculation
+    based several factors including the permission granted by the Entity's ACL and the
+    User's group membership.
 
 
     Attributes:
