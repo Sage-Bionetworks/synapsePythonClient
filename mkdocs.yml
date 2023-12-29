@@ -50,6 +50,7 @@ nav:
     - DockerRepository: reference/docker_repository.md
     - JSON Schema: reference/json_schema.md
     - Exceptions: reference/exceptions.md
+    - Permissions: reference/permissions.md
     - Core: reference/core.md
   - Further Reading:
     - Access Control: explanations/access_control.md
