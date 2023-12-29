@@ -10,24 +10,26 @@ class UserProfile(DictObject):
     """
     Information about a Synapse user.  In practice the constructor is not called directly by the client.
 
-    :param ownerId: A foreign key to the ID of the 'principal' object for the user.
-    :param uri: The Uniform Resource Identifier (URI) for this entity.
-    :param etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates.
-     Since the E-Tag changes every time an entity is updated it is used to detect when a client's current representation
-     of an entity is out-of-date.
-    :param firstName: This person's given name (forename)
-    :param lastName: This person's family name (surname)
-    :param emails: The list of user email addresses registered to this user.
-    :param userName: A name chosen by the user that uniquely identifies them.
-    :param summary: A summary description about this person
-    :param position: This person's current position title
-    :param location: This person's location
-    :param industry: "The industry/discipline that this person is associated with
-    :param company: This person's current affiliation
-    :param profilePicureFileHandleId: The File Handle ID of the user's profile picture.
-    :param url: A link to more information about this person
-    :param notificationSettings: An object of type :py:class:`org.sagebionetworks.repo.model.message.Settings`
-     containing the user's preferences regarding when email notifications should be sent
+    Attributes:
+        ownerId: A foreign key to the ID of the 'principal' object for the user.
+        uri: The Uniform Resource Identifier (URI) for this entity.
+        etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates.
+        Since the E-Tag changes every time an entity is updated it is
+        used to detect when a client's current representation
+        of an entity is out-of-date.
+        firstName: This person's given name (forename)
+        lastName: This person's family name (surname)
+        emails: The list of user email addresses registered to this user.
+        userName: A name chosen by the user that uniquely identifies them.
+        summary: A summary description about this person
+        position: This person's current position title
+        location: This person's location
+        industry: "The industry/discipline that this person is associated with
+        company: This person's current affiliation
+        profilePicureFileHandleId: The File Handle ID of the user's profile picture.
+        url: A link to more information about this person
+        notificationSettings: An object of type [org.sagebionetworks.repo.model.message.Settings](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/message/Settings.html)
+        containing the user's preferences regarding when email notifications should be sent
     """
 
     def __init__(self, **kwargs):
@@ -36,14 +38,16 @@ class UserProfile(DictObject):
 
 class UserGroupHeader(DictObject):
     """
-    Select metadata about a Synapse principal.  In practice the constructor is not called directly by the client.
+    Select metadata about a Synapse principal.
+    In practice the constructor is not called directly by the client.
 
-    :param ownerId: A foreign key to the ID of the 'principal' object for the user.
-    :param firstName: First Name
-    :param lastName: Last Name
-    :param userName: A name chosen by the user that uniquely identifies them.
-    :param email:   User's current email address
-    :param isIndividual: True if this is a user, false if it is a group
+    Attributes:
+        ownerId A foreign key to the ID of the 'principal' object for the user.
+        firstName: First Name
+        lastName: Last Name
+        userName: A name chosen by the user that uniquely identifies them.
+        email: User's current email address
+        isIndividual: True if this is a user, false if it is a group
     """
 
     def __init__(self, **kwargs):
@@ -55,10 +59,11 @@ class Team(DictObject):
     Represents a `Synapse Team <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html>`_.
     User definable fields are:
 
-    :param icon:          fileHandleId for icon image of the Team
-    :param description:   A short description of this Team.
-    :param name:          The name of the Team.
-    :param canPublicJoin: true for teams which members can join without an invitation or approval
+    Attibutes:
+        icon: The fileHandleId for icon image of the Team
+        description: A short description of this Team.
+        name: The name of the Team.
+        canPublicJoin: true for teams which members can join without an invitation or approval
     """
 
     def __init__(self, **kwargs):
@@ -86,12 +91,14 @@ class Team(DictObject):
 
 class TeamMember(DictObject):
     """
-    Contains information about a user's membership in a Team.  In practice the constructor is not called directly by
-     the client.
+    Contains information about a user's membership in a Team.
+    In practice the constructor is not called directly by the client.
 
-    :param teamId:  the ID of the team
-    :param member:  An object of type :py:class:`org.sagebionetworks.repo.model.UserGroupHeader` describing the member
-    :param isAdmin: Whether the given member is an administrator of the team
+    Attributes:
+        teamId: The ID of the team
+        member: An object of type [org.sagebionetworks.repo.model.UserGroupHeader](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserGroupHeader.html)
+                describing the member
+        isAdmin: Whether the given member is an administrator of the team
 
     """
 

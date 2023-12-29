@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 import os
 import time
+import typing
 import multiprocessing
 import urllib.parse as urllib_parse
 
@@ -10,6 +11,10 @@ from synapseclient.core.utils import attempt_import
 
 
 class S3ClientWrapper:
+    """
+    Wrapper class for S3 client.
+    """
+
     # These methods are static because in our use case, we always have the bucket and
     # endpoint and usually only call the download/upload once so there is no need to instantiate multiple objects
 
@@ -17,6 +22,9 @@ class S3ClientWrapper:
     def _attempt_import_boto3():
         """
         Check if boto3 installed and give instructions if not.
+
+        Returns:
+            The boto3 module or instructions to install it if unavailable
         """
         return attempt_import(
             "boto3",
@@ -26,11 +34,30 @@ class S3ClientWrapper:
         )
 
     @staticmethod
-    def _create_progress_callback_func(file_size, filename, prefix=None):
+    def _create_progress_callback_func(
+        file_size: int, filename: str, prefix: str = None
+    ) -> callable:
+        """
+        Creates a progress callback function for tracking the progress of a file transfer.
+
+        Arguments:
+            file_size: The total size of the file being transferred.
+            filename: The name of the file being transferred.
+            prefix: A prefix to display before the progress bar. Defaults to None.
+
+        Returns:
+            progress_callback: The progress callback function.
+        """
         bytes_transferred = multiprocessing.Value("d", 0)
         t0 = time.time()
 
-        def progress_callback(bytes):
+        def progress_callback(bytes: int) -> None:
+            """
+            Update the progress of a transfer.
+
+            Arguments:
+                bytes: The number of bytes transferred.
+            """
             with bytes_transferred.get_lock():
                 bytes_transferred.value += bytes
                 printTransferProgress(
@@ -46,29 +73,39 @@ class S3ClientWrapper:
 
     @staticmethod
     def download_file(
-        bucket,
-        endpoint_url,
-        remote_file_key,
-        download_file_path,
+        bucket: str,
+        endpoint_url: str,
+        remote_file_key: str,
+        download_file_path: str,
         *,
-        profile_name=None,
-        credentials=None,
-        show_progress=True,
-        transfer_config_kwargs=None,
-    ):
+        profile_name: str = None,
+        credentials: typing.Dict[str, str] = None,
+        show_progress: bool = True,
+        transfer_config_kwargs: dict = None,
+    ) -> str:
         """
         Download a file from s3 using boto3.
 
-        :param bucket:                  name of bucket to upload to
-        :param endpoint_url:            a boto3 compatible endpoint url
-        :param remote_file_key:         object key to upload the file to
-        :param download_file_path:      local path to save the file to
-        :param profile_name:            AWS profile name from local aws config, mutually exclusive with credentials
-        :param credentials:             a dictionary of AWS credentials to use, mutually exclusive with profile_name
-                                        (aws_access_key_id, aws_secret_access_key, aws_session_token)
-        :param show_progress:           whether to print progress indicator to console
-        :param transfer_config_kwargs:  boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
+        Arguments:
+            bucket: name of bucket to upload to
+            endpoint_url: a boto3 compatible endpoint url
+            remote_file_key: object key to upload the file to
+            download_file_path: local path to save the file to
+            profile_name: AWS profile name from local aws config, **mutually exclusive with credentials**
+            credentials: a dictionary of AWS credentials to use, **mutually exclusive with profile_name**
+                        Expected items:
+                        - `aws_access_key_id`
+                        - `aws_secret_access_key`
+                        - `aws_session_token`
+            show_progress: whether to print progress indicator to console
+            transfer_config_kwargs: boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
 
+        Returns:
+            download_file_path: S3 path of the file
+
+        Raises:
+            ValueError: If the key does not exist in the bucket.
+            botocore.exceptions.ClientError: If there is an error with the S3 client.
         """
 
         S3ClientWrapper._attempt_import_boto3()
@@ -117,28 +154,39 @@ class S3ClientWrapper:
 
     @staticmethod
     def upload_file(
-        bucket,
-        endpoint_url,
-        remote_file_key,
-        upload_file_path,
+        bucket: str,
+        endpoint_url: str,
+        remote_file_key: str,
+        upload_file_path: str,
         *,
-        profile_name=None,
-        credentials=None,
-        show_progress=True,
-        transfer_config_kwargs=None,
-    ):
+        profile_name: str = None,
+        credentials: typing.Dict[str, str] = None,
+        show_progress: bool = True,
+        transfer_config_kwargs: dict = None,
+    ) -> str:
         """
         Upload a file to s3 using boto3.
 
-        :param bucket:                  name of bucket to upload to
-        :param endpoint_url:            a boto3 compatible endpoint url
-        :param remote_file_key:         object key to upload the file to
-        :param upload_file_path:        local path of the file to upload
-        :param profile_name:            AWS profile name from local aws config, mutually exclusive with credentials
-        :param credentials:             a dictionary of AWS credentials to use, mutually exclusive with profile_name
-                                        (aws_access_key_id, aws_secret_access_key, aws_session_token)
-        :param show_progress:           whether to print progress indicator to console
-        :param transfer_config_kwargs:  boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
+        Arguments:
+            bucket: name of bucket to upload to
+            endpoint_url: a boto3 compatible endpoint url
+            remote_file_key: object key to upload the file to
+            upload_file_path: local path of the file to upload
+            profile_name: AWS profile name from local aws config, **mutually exclusive with credentials**
+            credentials: a dictionary of AWS credentials to use, **mutually exclusive with profile_name**
+                        Expected items:
+                        - `aws_access_key_id`
+                        - `aws_secret_access_key`
+                        - `aws_session_token`
+            show_progress: whether to print progress indicator to console
+            transfer_config_kwargs: boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
+
+        Returns:
+            upload_file_path: S3 path of the file
+
+        Raises:
+            ValueError: If the path does not exist or is not a file
+            botocore.exceptions.ClientError: If there is an error with the S3 client.
         """
 
         if not os.path.isfile(upload_file_path):
@@ -181,7 +229,9 @@ class SFTPWrapper:
     def _attempt_import_sftp():
         """
         Check if pysftp is installed and give instructions if not.
-        :return: the pysftp module if available
+
+        Returns:
+            The pysftp module if available
         """
         return attempt_import(
             "pysftp",
@@ -206,17 +256,21 @@ class SFTPWrapper:
         return parsedURL
 
     @staticmethod
-    def upload_file(filepath, url, username=None, password=None):
+    def upload_file(
+        filepath: str, url: str, username: str = None, password: str = None
+    ) -> str:
         """
         Performs upload of a local file to an sftp server.
 
-        :param filepath:    The file to be uploaded
-        :param url:         URL where file will be deposited. Should include path and protocol. e.g.
-                            sftp://sftp.example.com/path/to/file/store
-        :param username:    username on sftp server
-        :param password:    password for authentication on the sftp server
+        Arguments:
+            filepath: The path to the file to be uploaded.
+            url: URL where file will be deposited. Should include path and protocol. e.g.
+                        sftp://sftp.example.com/path/to/file/store
+            username: The username for authentication. Defaults to None.
+            password: The password for authentication. Defaults to None.
 
-        :returns: A URL where file is stored
+        Returns:
+            The URL of the uploaded file.
         """
         parsedURL = SFTPWrapper._parse_for_sftp(url)
         with _retry_pysftp_connection(
@@ -232,20 +286,26 @@ class SFTPWrapper:
 
     @staticmethod
     def download_file(
-        url, localFilepath=None, username=None, password=None, show_progress=True
-    ):
+        url: str,
+        localFilepath: str = None,
+        username: str = None,
+        password: str = None,
+        show_progress: bool = True,
+    ) -> str:
         """
         Performs download of a file from an sftp server.
 
-        :param url:             URL where file will be deposited.  Path will be chopped out.
-        :param localFilepath:   location where to store file
-        :param username:        username on server
-        :param password:        password for authentication on  server
-        :param show_progress:   whether to print progress indicator to console
+        Arguments:
+            url: URL where file will be deposited.  Path will be chopped out.
+            localFilepath: location where to store file
+            username: username on server
+            password: password for authentication on  server
+            show_progress: whether to print progress indicator to console
 
-        :returns: localFilePath
-
+        Returns:
+            The local filepath where the file was saved.
         """
+
         parsedURL = SFTPWrapper._parse_for_sftp(url)
 
         # Create the local file path if it doesn't exist

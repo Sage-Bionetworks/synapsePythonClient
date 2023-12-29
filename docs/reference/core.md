@@ -17,3 +17,9 @@ functions.  Use at your own risk.
 
 ## Versions
 ::: synapseclient.core.version_check
+
+## Remote File Storage Wrappers
+::: synapseclient.core.remote_file_storage_wrappers
+
+## Multithreaded Downloading
+::: synapseclient.core.multithread_download
