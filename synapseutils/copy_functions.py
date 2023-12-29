@@ -298,7 +298,14 @@ def copy(
     **kwargs,
 ) -> typing.Dict[str, str]:
     """
-    - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
+    - This function will assist users in copying entities
+        (
+        [Tables][synapseclient.table.Table],
+        [Links][synapseclient.entity.Link],
+        [Files][synapseclient.entity.File],
+        [Folders][synapseclient.entity.Folder],
+        [Projects][synapseclient.entity.Project]
+        ),
       and will recursively copy everything in directories.
     - A Mapping of the old entities to the new entities will be created and all the wikis of each entity
       will also be copied over and links to synapse Ids will be updated.
