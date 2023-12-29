@@ -118,7 +118,7 @@ def extract_filename(content_disposition_header, default_filename=None):
     """
     Extract a filename from an HTTP content-disposition header field.
 
-    See `this memo <http://tools.ietf.org/html/rfc6266>`_ and
+    See [this memo](http://tools.ietf.org/html/rfc6266) and
     `this package <http://pypi.python.org/pypi/rfc6266>`_
     for cryptic details.
     """
