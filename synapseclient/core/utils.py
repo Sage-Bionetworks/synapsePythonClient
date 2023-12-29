@@ -226,8 +226,8 @@ def is_in_path(id: str, path: collections.abc.Mapping) -> bool:
     """Determines whether id is in the path as returned from /entity/{id}/path
 
     Arguments:
-    id: synapse id string
-    path: object as returned from '/entity/{id}/path'
+        id: synapse id string
+        path: object as returned from '/entity/{id}/path'
 
     Returns:
         True or False
@@ -303,9 +303,9 @@ def file_url_to_path(url: str, verify_exists: bool = False) -> typing.Union[str,
     Convert a file URL to a path, handling some odd cases around Windows paths.
 
     Arguments:
-    url: a file URL
-    verify_exists: If true, return an populated dict only if the resulting file
-                    path exists on the local file system.
+        url: a file URL
+        verify_exists: If true, return an populated dict only if the resulting file
+                        path exists on the local file system.
 
     Returns:
         a path or None if the URL is not a file URL.
@@ -328,8 +328,8 @@ def is_same_base_url(url1: str, url2: str) -> bool:
     """Compares two urls to see if they are the same excluding up to the base path
 
     Arguments:
-    url1: a URL
-    url2: a second URL
+        url1: a URL
+        url2: a second URL
 
     Returns:
         A Boolean
