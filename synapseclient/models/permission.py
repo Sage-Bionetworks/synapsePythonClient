@@ -5,7 +5,7 @@ the User's group membership.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 
 @dataclass
@@ -129,7 +129,7 @@ class Permissions:
         )
 
     @property
-    def access_types(self) -> list[str]:
+    def access_types(self) -> List[str]:
         """
         Determine from the permissions set on this object what the access types are.
 
