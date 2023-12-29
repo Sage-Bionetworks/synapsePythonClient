@@ -8,6 +8,7 @@ import pytest
 from synapseclient.models import Permissions
 from synapseclient.entity import Entity
 from synapseclient.evaluation import Evaluation
+from typing import Dict
 
 return_value = {
     "canEdit": True,
@@ -42,7 +43,7 @@ class TestGetPermissionsForCaller:
     def teardown_method(self) -> None:
         self.syn.restGET.stop()
 
-    def assert_entity_permission(self, d: dict[bool], e: Permissions):
+    def assert_entity_permission(self, d: Dict[str, bool], e: Permissions):
         """check if the values match between API output and function output"""
         assert d["canView"] == e.can_view
         assert d["canEdit"] == e.can_edit
