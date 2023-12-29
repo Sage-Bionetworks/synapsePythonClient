@@ -100,8 +100,8 @@ class Permissions:
         """Convert a data dictionary to an instance of this dataclass
 
         Arguments:
-            data: a data dictionary of the [UserEntityPermissions](https://rest-docs.synapse.org/rest/org/
-            sagebionetworks/repo/model/auth/UserEntityPermissions.html)
+            data: a data dictionary of the
+                [UserEntityPermissions](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/auth/UserEntityPermissions.html)
 
         Returns:
             A Permission object
