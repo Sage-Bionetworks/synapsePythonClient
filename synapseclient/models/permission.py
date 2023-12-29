@@ -154,10 +154,11 @@ class Permissions:
             Special Case: a permission that has can_view set to True and nothing else set on an entity created by you.
             CHANGE_SETTINGS is bound to ownerId. Since the entity is created by you,
             the CHANGE_SETTINGS will always be True.
-               read_permission = Permissions()
-               read_permission.can_view = True
-               print(read_permission.access_types)
-               # Prints: ['READ','CHANGE_SETTINGS']
+
+                read_permission = Permissions()
+                read_permission.can_view = True
+                print(read_permission.access_types)
+                # Prints: ['READ','CHANGE_SETTINGS']
 
             A permission that has can_view and can_edit set to True and nothing else set
 
