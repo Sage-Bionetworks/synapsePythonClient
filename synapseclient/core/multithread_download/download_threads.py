@@ -163,7 +163,7 @@ def _generate_chunk_ranges(
     Arguments:
         file_size: The size of the file
 
-    Returns:
+    Yields:
         A generator of byte ranges and meta data needed to download
         the file in a multi-threaded manner
     """
