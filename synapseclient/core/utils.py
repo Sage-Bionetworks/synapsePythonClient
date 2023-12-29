@@ -119,7 +119,7 @@ def extract_filename(content_disposition_header, default_filename=None):
     Extract a filename from an HTTP content-disposition header field.
 
     See [this memo](http://tools.ietf.org/html/rfc6266) and
-    `this package <http://pypi.python.org/pypi/rfc6266>`_
+    [this package](http://pypi.python.org/pypi/rfc6266)
     for cryptic details.
     """
 
@@ -462,9 +462,7 @@ def make_bogus_binary_file(
 
 def to_unix_epoch_time(dt: typing.Union[datetime.date, datetime.datetime, str]) -> int:
     """
-    Convert either `datetime.date or datetime.datetime objects
-    <http://docs.python.org/2/library/datetime.html>`_
-    to UNIX time.
+    Convert either [datetime.date or datetime.datetime objects](http://docs.python.org/2/library/datetime.html) to UNIX time.
     """
     if type(dt) == str:
         dt = datetime.datetime.fromisoformat(dt.replace("Z", "+00:00"))
@@ -487,9 +485,7 @@ def to_unix_epoch_time_secs(
     dt: typing.Union[datetime.date, datetime.datetime]
 ) -> float:
     """
-    Convert either `datetime.date or datetime.datetime objects
-    <http://docs.python.org/2/library/datetime.html>`_
-    to UNIX time.
+    Convert either [datetime.date or datetime.datetime objects](http://docs.python.org/2/library/datetime.html) to UNIX time.
     """
     if type(dt) == datetime.date:
         current_timezone = datetime.datetime.now().astimezone().tzinfo
