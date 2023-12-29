@@ -92,7 +92,7 @@ class S3ClientWrapper:
             remote_file_key: object key to upload the file to
             download_file_path: local path to save the file to
             profile_name: AWS profile name from local aws config, **mutually exclusive with credentials**
-            credentials: a dictionary of AWS credentials to use, mutually exclusive with profile_name
+            credentials: a dictionary of AWS credentials to use, **mutually exclusive with profile_name**
                                             (aws_access_key_id, aws_secret_access_key, aws_session_token)
             show_progress: whether to print progress indicator to console
             transfer_config_kwargs: boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
