@@ -96,7 +96,7 @@ class TeamMember(DictObject):
 
     Attributes:
         teamId: The ID of the team
-        member: An object of type :py:class:`org.sagebionetworks.repo.model.UserGroupHeader`
+        member: An object of type [org.sagebionetworks.repo.model.UserGroupHeader](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserGroupHeader.html)
                 describing the member
         isAdmin: Whether the given member is an administrator of the team
 
