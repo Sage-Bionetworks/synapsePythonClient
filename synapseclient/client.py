@@ -2376,7 +2376,7 @@ class Synapse(object):
 
         Returns:
             An array containing some combination of
-                ['READ', 'UPDATE', 'CREATE', 'DELETE', 'DOWNLOAD', 'MODERATE', 
+                ['READ', 'UPDATE', 'CREATE', 'DELETE', 'DOWNLOAD', 'MODERATE',
                 'CHANGE_PERMISSIONS', 'CHANGE_SETTINGS']
                 or an empty array
         """
@@ -2440,7 +2440,7 @@ class Synapse(object):
 
         Returns:
             An array containing some combination of
-                ['READ', 'UPDATE', 'CREATE', 'DELETE', 'DOWNLOAD', 'MODERATE', 
+                ['READ', 'UPDATE', 'CREATE', 'DELETE', 'DOWNLOAD', 'MODERATE',
                 'CHANGE_PERMISSIONS', 'CHANGE_SETTINGS']
                 or an empty array
         """
@@ -2455,7 +2455,7 @@ class Synapse(object):
         Get the [permissions](https://rest-docs.synapse.org/rest/org/
         sagebionetworks/repo/model/auth/UserEntityPermissions.html)
         that the caller has on an Entity.
-        
+
         Arguments:
             entity: An Entity or Synapse ID to lookup
 

@@ -1,11 +1,12 @@
 """
-The `Permissions` object encapsulates a list of permissions a user has for a given entity. The set of permissoins 
-is a calculation based several factors including the permission granted by the Entity's ACL and 
+The `Permissions` object encapsulates a list of permissions a user has for a given entity. The set of permissoins
+is a calculation based several factors including the permission granted by the Entity's ACL and
 the User's group membership.
 """
 
 from dataclasses import dataclass
 from typing import Optional
+
 
 @dataclass
 class Permissions:
@@ -18,23 +19,23 @@ class Permissions:
         can_move : (Read Only) Can the user move this entity by changing its parentId?
         can_add_child : Can the user add a child entity to this entity?
         can_certified_user_edit : (Read Only) Can the user edit this entity once they become a Certified User?
-        can_certified_user_add_child : (Read Only) Can the user add a child entity to this entity once they become 
+        can_certified_user_add_child : (Read Only) Can the user add a child entity to this entity once they become
             a Certified User?
         is_certified_user : (Read Only) True, if the user has passed the user certification quiz.
         can_change_permissions : Can the user change the permissions of this entity?
         can_change_settings : Can the user change the settings of this entity?
         can_delete : Can the user delete this entity?
         can_download : Are there any access requirements precluding the user from downloading this entity?
-        can_upload : (Read Only) Are there any access requirements precluding the user from uploading into this entity 
+        can_upload : (Read Only) Are there any access requirements precluding the user from uploading into this entity
             (folder or project)?
-        can_enable_inheritance : (Read Only) Can the user delete the entity's access control list (so it inherits 
+        can_enable_inheritance : (Read Only) Can the user delete the entity's access control list (so it inherits
             settings from an ancestor)?
         owner_principal_id : (Read Only) The principal ID of the entity's owner (i.e. the entity's 'createdBy').
         can_public_read : (Read Only) Is this entity considered public?
-        can_moderate : Can the user moderate the forum associated with this entity? 
+        can_moderate : Can the user moderate the forum associated with this entity?
             Note that only project entity has forum.
         is_certification_required : (Read Only) Is the certification requirement enabled for the project of the entity?
-        is_entity_open_data : (Read Only) Returns true if the Entity's DateType equals 'OPEN_DATA', indicating that the 
+        is_entity_open_data : (Read Only) Returns true if the Entity's DateType equals 'OPEN_DATA', indicating that the
             data is safe to be released to the public.
     """
 
@@ -72,7 +73,7 @@ class Permissions:
     """Are there any access requirements precluding the user from downloading this entity?"""
 
     can_upload: Optional[bool] = None
-    """(Read Only) Are there any access requirements precluding the user 
+    """(Read Only) Are there any access requirements precluding the user
     from uploading into this entity (folder or project)?"""
 
     can_enable_inheritance: Optional[bool] = None
@@ -91,7 +92,7 @@ class Permissions:
     """(Read Only) Is the certification requirement enabled for the project of the entity?"""
 
     is_entity_open_data: Optional[bool] = None
-    """(Read Only) Returns true if the Entity's DateType equals 'OPEN_DATA', 
+    """(Read Only) Returns true if the Entity's DateType equals 'OPEN_DATA',
     indicating that the data is safe to be released to the public."""
 
     @classmethod
@@ -151,7 +152,7 @@ class Permissions:
                 # Prints: ['READ']
 
             Special Case: a permission that has can_view set to True and nothing else set on an entity created by you.
-            CHANGE_SETTINGS is bound to ownerId. Since the entity is created by you, 
+            CHANGE_SETTINGS is bound to ownerId. Since the entity is created by you,
             the CHANGE_SETTINGS will always be True.
                read_permission = Permissions()
                read_permission.can_view = True

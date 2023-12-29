@@ -667,7 +667,7 @@ class TestPermissionsOnProject:
             )
         )
 
-        # Handle Cleanup - Note: When running this schedule for cleanup order 
+        # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
         self.schedule_for_cleanup(team)
         self.schedule_for_cleanup(project_with_permissions_through_single_team)
@@ -742,7 +742,7 @@ class TestPermissionsOnProject:
             )
         )
 
-        # Handle Cleanup - Note: When running this schedule for cleanup order 
+        # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
         self.schedule_for_cleanup(team_1)
         self.schedule_for_cleanup(team_2)
@@ -873,7 +873,8 @@ class TestPermissionsOnProject:
 class TestPermissionsOnEntityForCaller:
     """
     Test the permissions a caller has for an entity
-    """    
+    """
+
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
@@ -929,7 +930,7 @@ class TestPermissionsOnEntityForCaller:
         # WHEN I get the permissions for the user on the entity
         permissions = self.syn.get_permissions(project_with_read_only_permissions.id)
 
-        # THEN I expect to see read only permissions. CHANGE_SETTINGS is bound to ownerId. 
+        # THEN I expect to see read only permissions. CHANGE_SETTINGS is bound to ownerId.
         # Since the entity is created by the Caller, the CHANGE_SETTINGS will always be True.
         expected_permissions = ["READ", "CHANGE_SETTINGS"]
 
