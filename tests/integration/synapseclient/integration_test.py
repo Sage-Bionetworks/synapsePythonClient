@@ -583,7 +583,7 @@ def testMoveProject(syn, schedule_for_cleanup):
 
 class TestPermissionsOnProject:
     @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup) -> None:
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 

@@ -33,6 +33,10 @@ return_value = {
 
 
 class TestGetPermissionsForCaller:
+    """
+    Test the permissions a caller has for an entity
+    """
+
     @pytest.fixture(autouse=True, scope="function")
     def setup_method(self, syn) -> None:
         self.syn = syn
@@ -43,7 +47,7 @@ class TestGetPermissionsForCaller:
     def teardown_method(self) -> None:
         self.syn.restGET.stop()
 
-    def assert_entity_permission(self, d: Dict[str, bool], e: Permissions):
+    def assert_entity_permission(self, d: Dict[str, bool], e: Permissions) -> None:
         """check if the values match between API output and function output"""
         assert d["canView"] == e.can_view
         assert d["canEdit"] == e.can_edit
