@@ -719,7 +719,7 @@ def query_limit_and_offset(
     Extract limit and offset from the end of a query string.
 
     Returns:
-        A triple containing the query with limit and offset removed,
+        A tuple containing the query with limit and offset removed,
         the limit at most equal to the hard_limit,
         and the offset which defaults to 1
     """
