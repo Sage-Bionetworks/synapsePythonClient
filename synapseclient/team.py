@@ -28,7 +28,7 @@ class UserProfile(DictObject):
         company: This person's current affiliation
         profilePicureFileHandleId: The File Handle ID of the user's profile picture.
         url: A link to more information about this person
-        notificationSettings: An object of type :py:class:`org.sagebionetworks.repo.model.message.Settings`
+        notificationSettings: An object of type [org.sagebionetworks.repo.model.message.Settings](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/message/Settings.html)
         containing the user's preferences regarding when email notifications should be sent
     """
 
