@@ -27,8 +27,8 @@ class Versionable(object):
         versionNumber: The version number issued to this version on the object.
         versionLabel:  	The version label for this entity
         versionComment: The version comment for this entity
-        versionUrl:
-        versions:
+        versionUrl:     The URL for this version
+        versions:       A list of all versions
 
     """
 
@@ -69,7 +69,7 @@ class Entity(collections.abc.MutableMapping):
                 signs, apostrophes, and parentheses
         description: The description of this entity. Must be 1000 characters or less.
         parentId: The ID of the Entity that is the parent of this Entity.
-        entityType:
+        entityType: The type of this entity.
         concreteType: Indicates which implementation of Entity this object represents.
                         The value is the fully qualified class name, e.g.
                         org.sagebionetworks.repo.model.FileEntity.
@@ -78,7 +78,7 @@ class Entity(collections.abc.MutableMapping):
                 updated it is used to detect when a client's current representation of
                 an entity is out-of-date.
         annotations: The dict of annotations for this entity.
-        accessControlList:
+        accessControlList: The access control list for this entity.
         createdOn: The date this entity was created.
         createdBy: The ID of the user that created this entity.
         modifiedOn: The date this entity was last modified.
