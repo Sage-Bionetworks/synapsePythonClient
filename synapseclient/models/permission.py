@@ -5,7 +5,7 @@ the User's group membership.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
 
 
 @dataclass
@@ -96,7 +96,7 @@ class Permissions:
     indicating that the data is safe to be released to the public."""
 
     @classmethod
-    def from_dict(cls, data: dict[bool]) -> "Permissions":
+    def from_dict(cls, data: Dict[str, bool]) -> "Permissions":
         """Convert a data dictionary to an instance of this dataclass
 
         Arguments:
