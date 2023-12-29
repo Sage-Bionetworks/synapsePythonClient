@@ -20,7 +20,7 @@ combination of data and code which are either **used** or **executed**.
 Here, syn1234 and syn1235 might be two types of measurements on a common set of samples. Some whizzy clustering code
 might be referred to by syn4567.  The used and executed can reference entities in Synapse or URLs.
 
-Alternatively, you can build an activity up piecemeal::
+Alternatively, you can build an activity up piecemeal:
 
     act = Activity(name='clustering', description='whizzy clustering')
     act.used(['syn12345', 'syn12346'])
@@ -31,7 +31,7 @@ Alternatively, you can build an activity up piecemeal::
 ## Storing entities with provenance
 
 
-The activity can be passed in when storing an Entity to set the Entity's provenance::
+The activity can be passed in when storing an Entity to set the Entity's provenance:
 
     clustered_samples = syn.store(clustered_samples, activity=act)
 
@@ -43,7 +43,7 @@ in syn1234 and syn1235.
 
 
 The [synapseclient.Synapse.store][] has shortcuts for specifying the used and executed lists directly.
-For example, when storing a data entity, it's a good idea to record its source::
+For example, when storing a data entity, it's a good idea to record its source:
 
     excellent_data = syn.store(excellent_data,
                                activityName='data-r-us'
@@ -174,11 +174,11 @@ class Activity(dict):
         To add multiple UsedEntities and UsedURLs, make a separate call for each or pass in a list.
 
         In case of conflicting settings for wasExecuted both inside an object and with a parameter, the parameter wins.
-        For example, this UsedURL will have wasExecuted set to False::
+        For example, this UsedURL will have wasExecuted set to False:
 
             activity.used({'url':'http://google.com', 'name':'Goog', 'wasExecuted':True}, wasExecuted=False)
 
-        Entity examples::
+        Entity examples:
 
             activity.used('syn12345')
             activity.used(entity)
@@ -186,14 +186,14 @@ class Activity(dict):
             activity.used(codeEntity, wasExecuted=True)
             activity.used({'reference':{'target':'syn12345', 'targetVersion':1}, 'wasExecuted':False})
 
-        URL examples::
+        URL examples:
 
             activity.used('http://mydomain.com/my/awesome/data.RData')
             activity.used(url='http://mydomain.com/my/awesome/data.RData', name='Awesome Data')
             activity.used(url='https://github.com/joe_hacker/code_repo', name='Gnarly hacks', wasExecuted=True)
             activity.used({'url':'https://github.com/joe_hacker/code_repo', 'name':'Gnarly hacks'}, wasExecuted=True)
 
-        List example::
+        List example:
 
             activity.used(['syn12345', 'syn23456', entity, \
                           {'reference':{'target':'syn100009', 'targetVersion':2}, 'wasExecuted':True}, \
