@@ -337,9 +337,9 @@ jobs:
     needs: package
 
     runs-on: ubuntu-20.04
-    env:
-      url: https://test.pypi.org/p/synapseclient
-      # https://pypi.org/p/synapseclient
+    environment:
+      url: ${{ github.event.release.prerelease == 'true' && 'https://test.pypi.org/p/synapseclient' || 'https://pypi.org/p/synapseclient' }}
+      name: pypi
     permissions:
       id-token: write
     steps:
@@ -398,7 +398,7 @@ jobs:
 
   # on each of our matrix platforms, download the newly uploaded package from pypi and confirm its version
   check-deploy:
-    needs: deploy
+    needs: deploy-test
 
     strategy:
       matrix:
