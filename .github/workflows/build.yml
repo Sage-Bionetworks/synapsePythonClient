@@ -398,7 +398,7 @@ jobs:
 
   # on each of our matrix platforms, download the newly uploaded package from pypi and confirm its version
   check-deploy:
-    needs: deploy-test
+    needs: deploy
 
     strategy:
       matrix:
