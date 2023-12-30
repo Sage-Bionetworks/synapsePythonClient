@@ -334,7 +334,7 @@ jobs:
   # we upload prereleases to test.pypi.org and releases to pypi.org.
   deploy-test:
     needs: package
-    if: github.event.release.prerelease == 'true'
+    if: 'github.event.release.prerelease'
     runs-on: ubuntu-latest
     environment:
       url: 'https://test.pypi.org/p/synapseclient'
@@ -360,7 +360,7 @@ jobs:
 
   deploy-prod:
     needs: package
-    if: github.event.release.prerelease == 'false'
+    if: '!github.event.release.prerelease'
     runs-on: ubuntu-latest
     environment:
       url: 'https://pypi.org/p/synapseclient'
@@ -380,7 +380,6 @@ jobs:
           name: ${{ needs.package.outputs.bdist-package-name }}
           path: dist
       - name: deploy-to-prod-pypi
-        if: ${{ github.event.release.prerelease == 'false' }}
         uses: pypa/gh-action-pypi-publish@release/v1
       # - name: deploy-to-pypi
       #   shell: bash
