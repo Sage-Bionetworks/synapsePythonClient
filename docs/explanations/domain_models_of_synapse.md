@@ -3,7 +3,7 @@ Here you'll find more information about how all of the models/concepts of Synaps
 work together and what their purpose is.
 
 ## Entity
-Any distinct item in Synapse that has its own synID, including a Project, Folder, File, Wiki, Dataset, and View, among other items.
+Any distinct item in Synapse that has its own Synapse ID, including a Project, Folder, File, Wiki, Dataset, and View, among other items.
 
 Synapse entities are identified by a unique identifier called a Synapse ID, or synID. The synID is represented by the prefix “syn” followed by numbers (for example, syn12345678). This identifier can be used to refer to a specific entity on the web and through the programmatic clients.
 
