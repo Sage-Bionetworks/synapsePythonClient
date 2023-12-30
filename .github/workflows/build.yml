@@ -354,12 +354,12 @@ jobs:
           name: ${{ needs.package.outputs.bdist-package-name }}
           path: dist
       - name: deploy-to-test-pypi
-        if: github.event.release.prerelease == 'true'
+        if: ${{ github.event.release.prerelease == 'true' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
       - name: deploy-to-prod-pypi
-        if: github.event.release.prerelease == 'false'
+        if: ${{ github.event.release.prerelease == 'false' }}
         uses: pypa/gh-action-pypi-publish@release/v1
       # - name: deploy-to-pypi
       #   shell: bash
