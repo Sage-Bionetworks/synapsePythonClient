@@ -332,7 +332,6 @@ jobs:
 
   # re-download the built package to the appropriate pypi server.
   # we upload prereleases to test.pypi.org and releases to pypi.org.
-  # TODO: This will likely need to change to a `deploy-prod` and `deploy-test` step
   deploy:
     needs: package
 
@@ -354,7 +353,13 @@ jobs:
         with:
           name: ${{ needs.package.outputs.bdist-package-name }}
           path: dist
-      - name: deploy-to-pypi
+      - name: deploy-to-test-pypi
+        if: github.event.release.prerelease == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+      - name: deploy-to-prod-pypi
+        if: github.event.release.prerelease == 'false'
         uses: pypa/gh-action-pypi-publish@release/v1
       # - name: deploy-to-pypi
       #   shell: bash
