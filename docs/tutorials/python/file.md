@@ -34,7 +34,7 @@ In this tutorial you will:
 
 ## Prerequisites
 * Make sure that you have completed the [Folder](./folder.md) tutorial.
-* The tutorial assumes you have a number of files ready to upload. If you do not, create test or dummy files. You may also use [these dummy files used during the creation of these tutorials](https://github.com/Sage-Bionetworks/synapsePythonClient/tree/develop/docs/tutorials/sample_files/my_ad_project).
+* The tutorial assumes you have a number of files ready to upload. If you do not, create test or dummy files. You may also use [these dummy files used during the creation of these tutorials](https://github.com/Sage-Bionetworks/synapsePythonClient/tree/develop/docs/tutorials/sample_files/my_ad_project). These are text files with example file extensions that a researcher may be using.
 
 
 ## 1. Upload several files to Synapse

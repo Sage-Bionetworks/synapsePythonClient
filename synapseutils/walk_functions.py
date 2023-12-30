@@ -44,7 +44,7 @@ def walk(
                 for file in file_name:
                     print(f"File ({file[1]}): {directory_path[0]}/{file[0]}")
 
-        The output will look like this:
+        The output will look like this assuming only 1 folder and 1 file in the directory:
 
             Directory (syn12345678): My Project Name/my_directory_name
             File (syn23456789): My Project Name/my_directory_name/fileA.txt
