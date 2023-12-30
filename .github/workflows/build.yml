@@ -336,18 +336,13 @@ jobs:
   deploy:
     needs: package
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     environment:
       url: ${{ github.event.release.prerelease == 'true' && 'https://test.pypi.org/p/synapseclient' || 'https://pypi.org/p/synapseclient' }}
       name: pypi
     permissions:
       id-token: write
     steps:
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.8
-
       - name: download-sdist
         uses: actions/download-artifact@v2
         with:
