@@ -5,7 +5,8 @@ There are multiple ways one can login to Synapse. We recommend users to choose t
 ## Prerequisites
 
 * Create a [personal access token](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens) token obtained from synapse.org under your Settings.
-    * Note that a token must minimally have the *view* scope to be used with the Synapse Python Client.
+    * Note that a token must minimally have the **view** scope to be used with the Synapse Python Client.
+    * Include **Download** and **Modify** permissions if you are using the Synapse Python Client to follow any subsequent tutorials.
 * Once a personal access token has been created it can be used for any of the options below.
 
 ## One Time Login

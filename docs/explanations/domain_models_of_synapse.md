@@ -3,7 +3,7 @@ Here you'll find more information about how all of the models/concepts of Synaps
 work together and what their purpose is.
 
 ## Entity
-Any distinct item in Synapse that has its own Synapse ID, including a Project, Folder, File, Wiki, Dataset, and View, among other items.
+Any distinct item in Synapse that has its own Synapse ID, including a project, folder, file, wiki, dataset, and view, among other items.
 
 Synapse entities are identified by a unique identifier called a Synapse ID, or synID. The synID is represented by the prefix “syn” followed by numbers (for example, syn12345678). This identifier can be used to refer to a specific entity on the web and through the programmatic clients.
 
@@ -25,7 +25,7 @@ Projects help you to:
 * **Attach figures and documents**: Upload documents and images via the website or programmatically.
 
 ## [Folders](../tutorials/python/folder.md)
-Similar to Projects, Folders are “containers” that offer an additional way to organize your data. Instead of uploading a bunch of single files into your project, you can create folders to separate your data in a systematic way.
+Similar to projects, folders are “containers” that offer an additional way to organize your data. Instead of uploading a bunch of single files into your project, you can create folders to separate your data in a systematic way.
 
 Folders in Synapse always have a “parent”, which could be a project or a folder. You can organize collections of folders and sub-folders, just as you would on your local computer.
 
