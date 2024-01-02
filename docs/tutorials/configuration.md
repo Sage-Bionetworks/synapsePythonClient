@@ -1,6 +1,6 @@
 # Configuration
 
-The synapse python client can be configured either programmatically or by using a configuration file.
+The Synapse Python client can be configured either programmatically or by using a configuration file.
 
 **The default configuration file does not need to be modified for most use-cases**.
 
