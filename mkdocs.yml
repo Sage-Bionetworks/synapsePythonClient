@@ -17,15 +17,36 @@ nav:
   - Home: index.md
   # In each docs folder there is a README containing a guideline to follow when writing documentation.
   - Tutorials:
-    - Installation: tutorials/installation.md
-    - Authentication: tutorials/authentication.md
-    - Configuration: tutorials/configuration.md
-    - Working with the Python client: tutorials/python_client.md
+    - Home: tutorials/home.md
+    - Setup:
+      - Installation: tutorials/installation.md
+      - Authentication: tutorials/authentication.md
+      - Configuration: tutorials/configuration.md
+    - Working with the Python client:
+      - Python client: tutorials/python_client.md
+      - Project: tutorials/python/project.md
+      - Folder: tutorials/python/folder.md
+      - File: tutorials/python/file.md
+      - Annotation: tutorials/python/annotation.md
+      - Versions: tutorials/python/versions.md
+      - Activity/Provenance: tutorials/python/activity.md
+      - File View: tutorials/python/file_view.md
+      - Table: tutorials/python/table.md
+      - Using a Table: tutorials/python/table_crud.md
+      - Dataset: tutorials/python/dataset.md
+      - Sharing Settings: tutorials/python/sharing_settings.md
+      - Wiki: tutorials/python/wiki.md
+      - Team: tutorials/python/team.md
+      - Download data in bulk: tutorials/python/download_data_in_bulk.md
+      - Upload data in bulk: tutorials/python/upload_data_in_bulk.md
+      - Move Files and Folders: tutorials/python/move_files_and_folders.md
+      - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
     - Working with the Command Line Client: tutorials/command_line_client.md
     - Working with file versioning: tutorials/file_versioning.md
     - Working with tables: tutorials/tables.md
     - Synapseclient with R through reticulate: tutorials/reticulate.md
   - How-To Guides:
+    - Home: guides/home.md
     - Using Entity Views: guides/views.md
     - Data Storage: guides/data_storage.md
     - Access the REST API: guides/accessing_the_rest_api.md
@@ -53,6 +74,8 @@ nav:
     - Permissions: reference/permissions.md
     - Core: reference/core.md
   - Further Reading:
+    - Home: explanations/home.md
+    - Domain Models of Synapse: explanations/domain_models_of_synapse.md
     - Access Control: explanations/access_control.md
     - Properties vs Annotations: explanations/properties_vs_annotations.md
     - Manifest TSV: explanations/manifest_tsv.md
@@ -117,6 +140,8 @@ plugins:
     prompt_literal_start:
       - "$"
       - ">"
+# Allows external links to open in a new tab
+- open-in-new-tab
 
 extra:
   social:
@@ -131,6 +156,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+# Lets us include source code from any files
+  - markdown_include.include:
 
   - toc:
       permalink: true

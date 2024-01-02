@@ -18,7 +18,7 @@ A [Schema][synapseclient.table.Schema] defines a series of [Column][synapseclien
 - LARGETEXT
 - USERID
 
-[Read more information about using Table in synapse in the tutorials section](../../tutorials/tables/).
+[Read more information about using Table in synapse in the tutorials section](/tutorials/tables).
 """
 import collections.abc
 import csv

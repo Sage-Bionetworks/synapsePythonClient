@@ -30,6 +30,29 @@ def walk(
         includeTypes: Must be a list of entity types (ie.["file", "table"])
                         The "folder" type is always included so the hierarchy can be traversed
 
+    Example: Print Project & Files in slash delimited format
+        Traversing through a project and print out each Folder and File
+
+            import synapseclient
+            import synapseutils
+            syn = synapseclient.login()
+
+            for directory_path, directory_names, file_name in synapseutils.walk(
+                syn=syn, synId="syn1234", includeTypes=["file"]
+            ):
+                for directory_name in directory_names:
+                    print(
+                        f"Directory ({directory_name[1]}): {directory_path[0]}/{directory_name[0]}"
+                    )
+
+                for file in file_name:
+                    print(f"File ({file[1]}): {directory_path[0]}/{file[0]}")
+
+        The output will look like this assuming only 1 folder and 1 file in the directory:
+
+            Directory (syn12345678): My Project Name/my_directory_name
+            File (syn23456789): My Project Name/my_directory_name/fileA.txt
+
     Example: Using this function
         Traversing through a project and printing out the directory path, folders, and files
 
