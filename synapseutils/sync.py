@@ -315,8 +315,9 @@ class _SyncDownloader:
             # these context managers ensure that we are using some shared state
             # when conducting that download (shared progress bar, ExecutorService shared
             # by all multi threaded downloads in this sync)
-            with progress.accumulate_progress(), download_shared_executor(
-                self._executor
+            with (
+                progress.accumulate_progress(),
+                download_shared_executor(self._executor),
             ):
                 entity = self._syn.get(
                     entity_id,
@@ -525,7 +526,8 @@ class _SyncUploader:
                     if provenance_dependency not in items_by_path:
                         # an upload lists provenance of a file that is not itself included in the upload
                         raise ValueError(
-                            f"{item.entity.path} depends on {provenance_dependency} which is not being uploaded"
+                            f"{item.entity.path} depends on"
+                            f" {provenance_dependency} which is not being uploaded"
                         )
 
                     item_file_provenance.append(provenance_dependency)
@@ -753,12 +755,10 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
             "synapseStore": entity.synapseStore,
             "contentType": entity["contentType"],
         }
-        row.update(
-            {
-                key: (val[0] if len(val) > 0 else "")
-                for key, val in entity.annotations.items()
-            }
-        )
+        row.update({
+            key: val[0] if len(val) > 0 else ""
+            for key, val in entity.annotations.items()
+        })
 
         entity_id = entity["id"]
         row_provenance = (
@@ -835,21 +835,16 @@ def _sortAndFixProvenance(syn, df):
                     return bundle
                 except SynapseFileNotFoundError:
                     # TODO absence of a raise here appears to be a bug and yet tests fail if this is raised
-                    SynapseProvenanceError(
-                        (
-                            "The provenance record for file: %s is incorrect.\n"
-                            "Specifically %s is not being uploaded and is not in Synapse."
-                            % (path, item)
-                        )
-                    )
+                    SynapseProvenanceError((
+                        "The provenance record for file: %s is incorrect.\n"
+                        "Specifically %s is not being uploaded and is not in Synapse."
+                        % (path, item)
+                    ))
 
         elif not utils.is_url(item) and (utils.is_synapse_id_str(item) is None):
             raise SynapseProvenanceError(
-                (
-                    "The provenance record for file: %s is incorrect.\n"
-                    "Specifically %s, is neither a valid URL or synapseId."
-                )
-                % (path, item)
+                "The provenance record for file: %s is incorrect.\n"
+                "Specifically %s, is neither a valid URL or synapseId." % (path, item)
             )
         return item
 
@@ -915,12 +910,12 @@ def readManifestFile(syn, manifestFile):
     df = pd.read_csv(manifestFile, sep="\t")
     if "synapseStore" not in df:
         df = df.assign(synapseStore=None)
-    df.loc[
-        df["path"].apply(is_url), "synapseStore"
-    ] = False  # override synapseStore values to False when path is a url
-    df.loc[
-        df["synapseStore"].isnull(), "synapseStore"
-    ] = True  # remaining unset values default to True
+    df.loc[df["path"].apply(is_url), "synapseStore"] = (
+        False  # override synapseStore values to False when path is a url
+    )
+    df.loc[df["synapseStore"].isnull(), "synapseStore"] = (
+        True  # remaining unset values default to True
+    )
     df.synapseStore = df.synapseStore.astype(bool)
     df = df.fillna("")
 
@@ -1092,14 +1087,15 @@ def _check_file_name(df):
             )
         if not compiled.match(file_name):
             raise ValueError(
-                "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
-                "underscores, hyphens, periods, plus signs, apostrophes, "
-                "and parentheses".format(file_name)
+                "File name {} cannot be stored to Synapse. Names may contain letters,"
+                " numbers, spaces, underscores, hyphens, periods, plus signs,"
+                " apostrophes, and parentheses".format(file_name)
             )
     if df[["name", "parent"]].duplicated().any():
         raise ValueError(
-            "All rows in manifest must contain a path with a unique file name and parent to upload. "
-            "Files uploaded to the same folder/project (parent) must have unique file names."
+            "All rows in manifest must contain a path with a unique file name and"
+            " parent to upload. Files uploaded to the same folder/project (parent) must"
+            " have unique file names."
         )
 
 
@@ -1113,9 +1109,8 @@ def _check_size_each_file(df):
             ).st_size
             if single_file_size == 0:
                 raise ValueError(
-                    "File {} is empty, empty files cannot be uploaded to Synapse".format(
-                        file_name
-                    )
+                    "File {} is empty, empty files cannot be uploaded to Synapse"
+                    .format(file_name)
                 )
 
 

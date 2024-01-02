@@ -57,6 +57,7 @@ See:
 - [synapseclient.Synapse.setPermissions][]
 
 """
+
 import json
 from typing import Union
 
@@ -131,8 +132,8 @@ class Evaluation(DictObject):
             "syn"
         ):  # Verify that synapse Id given
             raise ValueError(
-                'The "contentSource" parameter must be specified as a Synapse Entity when creating an'
-                " Evaluation"
+                'The "contentSource" parameter must be specified as a Synapse'
+                " Entity when creating an Evaluation"
             )
         super(Evaluation, self).__init__(kwargs)
 
@@ -238,7 +239,10 @@ class SubmissionStatus(DictObject):
         )
         # In Python 3, the super(SubmissionStatus, self) call is equivalent to the parameterless super()
         super().__init__(
-            id=id, etag=etag, submissionAnnotations=submission_annotations, **kwargs
+            id=id,
+            etag=etag,
+            submissionAnnotations=submission_annotations,
+            **kwargs,
         )
 
     # def postURI(self):

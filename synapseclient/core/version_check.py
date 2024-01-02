@@ -10,6 +10,7 @@ Print release notes for installed version of client:
     synapseclient.release_notes()
 
 """
+
 import importlib.resources
 import re
 import sys
@@ -52,9 +53,9 @@ def version_check(
             or current_version in version_info["blacklist"]
         ):
             msg = (
-                "\nPLEASE UPGRADE YOUR CLIENT\n\nUpgrading your SynapseClient is required. "
-                "Please upgrade your client by typing:\n"
-                "    pip install --upgrade synapseclient\n\n"
+                "\nPLEASE UPGRADE YOUR CLIENT\n\nUpgrading your SynapseClient is"
+                " required. Please upgrade your client by typing:\n    pip install"
+                " --upgrade synapseclient\n\n"
             )
             raise SystemExit(msg)
 
@@ -68,9 +69,9 @@ def version_check(
             version_info["latestVersion"], levels=levels
         ):
             sys.stderr.write(
-                "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) "
-                "is available. Your version (%s) can be upgraded by typing:\n"
-                "    pip install --upgrade synapseclient\n\n"
+                "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client"
+                " (%s) is available. Your version (%s) can be upgraded by typing:\n   "
+                " pip install --upgrade synapseclient\n\n"
                 % (
                     version_info["latestVersion"],
                     current_version,
@@ -112,11 +113,9 @@ def check_for_updates():
         release_version_info["latestVersion"], levels=3
     ):
         print(
-            (
-                "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. "
-                "Your version (%s) can be upgraded by typing:\n"
-                "    pip install --upgrade synapseclient\n\n"
-            )
+            "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is"
+            " available. Your version (%s) can be upgraded by typing:\n    pip install"
+            " --upgrade synapseclient\n\n"
             % (
                 release_version_info["latestVersion"],
                 synapseclient.__version__,

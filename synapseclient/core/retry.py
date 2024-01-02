@@ -5,11 +5,15 @@ i.e. for certain status codes, connection errors, and/or connection exceptions.
 
 
 """
+
 import random
 import sys
 import logging
 
-from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
+from synapseclient.core.logging_setup import (
+    DEBUG_LOGGER_NAME,
+    DEFAULT_LOGGER_NAME,
+)
 from synapseclient.core.utils import is_json
 from synapseclient.core.dozer import doze
 from opentelemetry import trace
@@ -159,11 +163,9 @@ def with_retry(
         if retries >= 0 and retry:
             randomized_wait = wait * random.uniform(0.5, 1.5)
             logger.debug(
-                (
-                    "total wait time {total_wait:5.0f} seconds\n "
-                    "... Retrying in {wait:5.1f} seconds...".format(
-                        total_wait=total_wait, wait=randomized_wait
-                    )
+                "total wait time {total_wait:5.0f} seconds\n "
+                "... Retrying in {wait:5.1f} seconds...".format(
+                    total_wait=total_wait, wait=randomized_wait
                 )
             )
             total_wait += randomized_wait

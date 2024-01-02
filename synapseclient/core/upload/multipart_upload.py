@@ -4,6 +4,7 @@ robust means of uploading large files (into the 10s of GiB). End users should no
 [UploadAttempt][synapseclient.core.upload.multipart_upload.UploadAttempt] directly.
 
 """
+
 import concurrent.futures
 from contextlib import contextmanager
 import json

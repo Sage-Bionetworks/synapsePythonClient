@@ -67,6 +67,7 @@ choice for figures with data behind them.
     wiki = syn.store(wiki)
 
 """
+
 import os
 import json
 

@@ -21,7 +21,8 @@ Annotate the entity with location data:
 entity.lat_long = [47.627477, -122.332154]
 ```
 
-Record when we collected the data. This will use the current timezone of the machine running the code.
+Record when we collected the data. This will use the current timezone of the machine
+running the code.
 
 ```python
 from datetime import datetime as Datetime
@@ -42,7 +43,8 @@ See:
 
 ## Annotating data sources
 
-Data sources are best recorded using Synapse's [Activity/Provenance][synapseclient.Activity] tools.
+Data sources are best recorded using Synapse's
+[Activity/Provenance][synapseclient.Activity] tools.
 
 ## Implementation details
 
@@ -99,10 +101,12 @@ def is_synapse_annotations(annotations: typing.Mapping) -> bool:
     """Tests if the given object is a Synapse-style Annotations object.
 
     Arguments:
-        annotations: A key-value mapping that may or may not be a Synapse-style Annotations object.
+        annotations: A key-value mapping that may or may not be a Synapse-style
+        Annotations object.
 
     Returns:
-        True if the given object is a Synapse-style Annotations object, False otherwise.
+        True if the given object is a Synapse-style Annotations object, False
+        otherwise.
     """
     if not isinstance(annotations, collections.abc.Mapping):
         return False
@@ -122,13 +126,16 @@ def _annotation_value_list_element_type(annotation_values: typing.List):
 
 
 def is_submission_status_annotations(annotations: collections.abc.Mapping) -> bool:
-    """Tests if the given dictionary is in the form of annotations to submission status
+    """Tests if the given dictionary is in the form of annotations to submission
+    status.
 
     Arguments:
-        annotations: A key-value mapping that may or may not be a submission status annotations object.
+        annotations: A key-value mapping that may or may not be a submission status
+        annotations object.
 
     Returns:
-        True if the given object is a submission status annotations object, False otherwise.
+        True if the given object is a submission status annotations object, False
+        otherwise.
     """
     keys = ["objectId", "scopeId", "stringAnnos", "longAnnos", "doubleAnnos"]
     if not isinstance(annotations, collections.abc.Mapping):
@@ -369,7 +376,8 @@ def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.
 
     if not isinstance(annotations, Annotations):
         raise TypeError(
-            "annotations must be a synapseclient.Annotations object with 'id' and 'etag' attributes"
+            "annotations must be a synapseclient.Annotations object with 'id' and"
+            " 'etag' attributes"
         )
 
     synapse_annos["id"] = annotations.id
@@ -418,7 +426,8 @@ def from_synapse_annotations(
     """
     if not is_synapse_annotations(raw_annotations):
         raise ValueError(
-            'Unexpected format of annotations from Synapse. Must include keys: "id", "etag", and "annotations"'
+            'Unexpected format of annotations from Synapse. Must include keys: "id",'
+            ' "etag", and "annotations"'
         )
 
     annos = Annotations(raw_annotations["id"], raw_annotations["etag"])
