@@ -1,3 +1,10 @@
+"""A helper tool that allows the Python client to
+make more than one attempt at connecting to the server if initially met
+with an error. These retry attempts can be made under certain conditions,
+i.e. for certain status codes, connection errors, and/or connection exceptions.
+
+
+"""
 import random
 import sys
 import logging
