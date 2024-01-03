@@ -331,9 +331,8 @@ class _SyncDownloader:
             # these context managers ensure that we are using some shared state
             # when conducting that download (shared progress bar, ExecutorService shared
             # by all multi threaded downloads in this sync)
-            with (
-                progress.accumulate_progress(),
-                download_shared_executor(self._executor),
+            with progress.accumulate_progress(), download_shared_executor(
+                self._executor
             ):
                 entity = self._syn.get(
                     entity_id,
