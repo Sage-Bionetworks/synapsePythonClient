@@ -750,7 +750,7 @@ def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
         allFiles: A list of File Entity objects on Synapse (can't be Synapse IDs)
         filename: file where manifest will be written
         provenance_cache: an optional dict of known provenance dicts keyed by entity
-        ids
+                          ids
 
     Returns:
         None
