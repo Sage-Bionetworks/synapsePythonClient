@@ -7,7 +7,19 @@ functions.  Use at your own risk.
 ## Multipart Upload
 
 ::: synapseclient.core.upload.multipart_upload
-::: synapseclient.core.upload.multipart_upload._multipart_upload
+    options:
+        members:
+        - UploadAttempt
+        - executor
+        - multipart_upload_file
+        - multipart_upload_string
+        - multipart_copy
+        - _multipart_upload
+
+
+## Retry
+
+::: synapseclient.core.retry
 
 
 ## Utils

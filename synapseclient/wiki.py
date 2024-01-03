@@ -1,18 +1,17 @@
 """
-****
-Wiki
-****
+# Wiki
 
 A Wiki page requires a title, markdown and an owner object and can
 also include images.
 
-~~~~~~~~~~~~~~~
-Creating a Wiki
-~~~~~~~~~~~~~~~
+## Creating a Wiki
 
-::
-
+    import synapseclient
     from synapseclient import Wiki
+
+    ## Initialize a Synapse object & authenticate
+    syn = synapseclient.Synapse()
+    syn.login()
 
     entity = syn.get('syn123456')
 
@@ -32,20 +31,23 @@ Creating a Wiki
 
     wiki = syn.store(wiki)
 
-~~~~~~~~~~~~~~~~
-Embedding images
-~~~~~~~~~~~~~~~~
 
-Note that in the above example, we've **attached** a logo graphic and embedded it in the web page.
+## Embedding images
 
-Figures that are more than just decoration can be stored as Synapse entities allowing versioning and provenance
-information to be recorded. This is a better choice for figures with data behind them.
+Note that in the above example, we've **attached** a logo graphic and embedded it
+in the web page.
 
-~~~~~~~~~~~~~~~
-Updating a Wiki
-~~~~~~~~~~~~~~~
+Figures that are more than just decoration can be stored as Synapse entities
+allowing versioning and provenance information to be recorded. This is a better
+choice for figures with data behind them.
 
-::
+## Updating a Wiki
+
+    import synapseclient
+
+    ## Initialize a Synapse object & authenticate
+    syn = synapseclient.Synapse()
+    syn.login()
 
     entity = syn.get('syn123456')
     wiki = syn.getWiki(entity)
@@ -64,22 +66,6 @@ Updating a Wiki
 
     wiki = syn.store(wiki)
 
-~~~~~~~~~~
-Wiki Class
-~~~~~~~~~~
-
-.. autoclass:: synapseclient.wiki.Wiki
-   :members: __init__
-
-~~~~~~~~~~~~
-Wiki methods
-~~~~~~~~~~~~
-
- - :py:meth:`synapseclient.Synapse.getWiki`
- - :py:meth:`synapseclient.Synapse.getWikiHeaders`
- - :py:meth:`synapseclient.Synapse.store`
- - :py:meth:`synapseclient.Synapse.delete`
-
 """
 
 import os
@@ -93,13 +79,14 @@ class Wiki(DictObject):
     """
     Represents a wiki page in Synapse with content specified in markdown.
 
-    :param title:           Title of the Wiki
-    :param owner:           Parent Entity that the Wiki will belong to
-    :param markdown:        Content of the Wiki (cannot be defined if markdownFile is defined)
-    :param markdownFile:    Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)
-    :param attachments:     List of paths to files to attach
-    :param fileHandles:     List of file handle IDs representing files to be attached
-    :param parentWikiId:    (optional) For sub-pages, specify parent wiki page
+    Arguments:
+        title: Title of the Wiki
+        owner: Parent Entity that the Wiki will belong to
+        markdown: Content of the Wiki (cannot be defined if markdownFile is defined)
+        markdownFile: Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)
+        attachments: List of paths to files to attach
+        fileHandles: List of file handle IDs representing files to be attached
+        parentWikiId: (optional) For sub-pages, specify parent wiki page
     """
 
     __PROPERTIES = (
@@ -166,8 +153,10 @@ class Wiki(DictObject):
     def update_markdown(self, markdown=None, markdown_file=None):
         """
         Updates the wiki's markdown. Specify only one of markdown or markdown_file
-        :param markdown:        text that will become the markdown
-        :param markdown_file:   path to a file. Its contents will be the markdown
+
+        Arguments:
+            markdown: text that will become the markdown
+            markdown_file: path to a file. Its contents will be the markdown
         """
         if markdown and markdown_file:
             raise ValueError("Please use only one argument: markdown or markdownFile")
@@ -184,10 +173,7 @@ class Wiki(DictObject):
 
 
 class WikiAttachment(DictObject):
-    """
-    Represents a wiki page attachment
-
-    """
+    """Represents a wiki page attachment."""
 
     __PROPERTIES = ("contentType", "fileName", "contentMd5", "contentSize")
 
