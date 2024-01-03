@@ -79,7 +79,9 @@ def _executor(max_threads, shutdown_wait):
 
 
 class UploadAttempt:
-    """ """
+    """
+    Used to handle multi-threaded operations for uploading one or parts of a file.
+    """
 
     def __init__(
         self,
