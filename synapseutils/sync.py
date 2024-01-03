@@ -790,7 +790,7 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
         }
         row.update(
             {
-                key: val[0] if len(val) > 0 else ""
+                key: (val[0] if len(val) > 0 else "")
                 for key, val in entity.annotations.items()
             }
         )
