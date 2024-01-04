@@ -803,7 +803,7 @@ def build_parser():
         "-p",
         "--password",
         dest="synapse_auth_token",
-        help="Auth Token used to connect to Synapse.",
+        help="Personal Access Token (aka: Synapse Auth Token) used to connect to Synapse.",
     )
     parser.add_argument(
         "-c",
@@ -1670,7 +1670,7 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
         "-p",
         "--password",
         dest="synapse_auth_token",
-        help="Auth Token used to connect to Synapse.",
+        help="Personal Access Token (aka: Synapse Auth Token) used to connect to Synapse.",
     )
     parser_login.set_defaults(func=login)
 

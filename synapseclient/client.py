@@ -422,7 +422,8 @@ class Synapse(object):
          information from these sources (in order of preference):
 
         1. User defined arguments during a CLI session
-        2. User's personal access token from environment the variable: SYNAPSE_AUTH_TOKEN
+        2. User's Personal Access Token (aka: Synapse Auth Token)
+            from environment the variable: SYNAPSE_AUTH_TOKEN
         3. .synapseConfig file (in user home folder unless configured otherwise)
         4. Retrieves user's authentication token from AWS SSM Parameter store (if configured)
 

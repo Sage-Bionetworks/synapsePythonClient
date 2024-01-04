@@ -481,7 +481,7 @@ synapse login [-h] [-u SYNAPSEUSER] [-p SYNAPSE_AUTH_TOKEN]
 | Name                | Type    | Description                                                               | Default               |
 |---------------------|---------|---------------------------------------------------------------------------|-----------------------|
 | `-u, --username`    | Named  | Username used to connect to Synapse.                                       |                       |
-| `-p, --password`    | Named  | Auth Token used to connect to Synapse                                      |                       |
+| `-p, --password`    | Named  | Synapse Auth Token (aka: Personal Access Token) used to connect to Synapse |                       |
 
 
 ### `test-encoding`
