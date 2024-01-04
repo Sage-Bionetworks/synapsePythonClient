@@ -14,14 +14,15 @@ repo_name: synapsePythonClient
 
 # Navigation
 nav:
-  - Home: index.md
-  # In each docs folder there is a README containing a guideline to follow when writing documentation.
-  - Tutorials:
-    - Home: tutorials/home.md
+  - Home:
+    - Home: index.md
     - Setup:
       - Installation: tutorials/installation.md
       - Authentication: tutorials/authentication.md
       - Configuration: tutorials/configuration.md
+  # In each docs folder there is a README containing a guideline to follow when writing documentation.
+  - Tutorials:
+    - Home: tutorials/home.md
     - Working with the Python client:
       - Python client: tutorials/python_client.md
       - Project: tutorials/python/project.md

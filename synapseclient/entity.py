@@ -326,7 +326,10 @@ class Entity(collections.abc.MutableMapping):
 
     # TODO shouldn't these include local_state as well? -jcb
     def keys(self):
-        """Returns a set of property and annotation keys"""
+        """
+        Returns:
+            A set of property and annotation keys
+        """
         return set(self.properties.keys()) | set(self.annotations.keys())
 
     def has_key(self, key):

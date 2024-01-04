@@ -24,7 +24,7 @@ class UserProfile(DictObject):
         summary: A summary description about this person
         position: This person's current position title
         location: This person's location
-        industry: "The industry/discipline that this person is associated with
+        industry: The industry/discipline that this person is associated with
         company: This person's current affiliation
         profilePicureFileHandleId: The File Handle ID of the user's profile picture.
         url: A link to more information about this person
@@ -56,10 +56,10 @@ class UserGroupHeader(DictObject):
 
 class Team(DictObject):
     """
-    Represents a `Synapse Team <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html>`_.
+    Represents a [Synapse Team](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html).
     User definable fields are:
 
-    Attibutes:
+    Attributes:
         icon: The fileHandleId for icon image of the Team
         description: A short description of this Team.
         name: The name of the Team.
