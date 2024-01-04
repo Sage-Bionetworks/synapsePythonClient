@@ -39,7 +39,7 @@ def md5_for_file(
 ):
     """
     Calculates the MD5 of the given file.
-    See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
+    See source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>.
 
     Arguments:
         filename: The file to read in
@@ -352,6 +352,7 @@ def datetime_or_none(datetime_str: str) -> typing.Union[datetime.datetime, None]
     """Attempts to convert a string to a datetime object. Returns None if it fails.
 
     Some of the expected formats of datetime_str are:
+
     - 2023-12-04T07:00:00Z
     - 2001-01-01 15:00:00+07:00
     - 2001-01-01 15:00:00-07:00
@@ -593,7 +594,7 @@ def _find_used(activity, predicate):
 
 def itersubclasses(cls, _seen=None):
     """
-    http://code.activestate.com/recipes/576949/ (r3)
+    <http://code.activestate.com/recipes/576949/> (r3)
 
     itersubclasses(cls)
 
@@ -888,7 +889,7 @@ def unique_filename(path):
 class threadsafe_iter:
     """Takes an iterator/generator and makes it thread-safe by serializing call to the
     `next` method of given iterator/generator.
-    See: http://anandology.com/blog/using-iterators-and-generators/
+    See: <http://anandology.com/blog/using-iterators-and-generators/>
     """
 
     def __init__(self, it):
@@ -905,7 +906,7 @@ class threadsafe_iter:
 
 def threadsafe_generator(f):
     """A decorator that takes a generator function and makes it thread-safe.
-    See: http://anandology.com/blog/using-iterators-and-generators/
+    See: <http://anandology.com/blog/using-iterators-and-generators/>
     """
 
     def g(*a, **kw):
@@ -992,7 +993,7 @@ def is_integer(x):
 def topolgical_sort(graph: typing.Dict[str, typing.List[str]]) -> list:
     """Given a graph in the form of a dictionary returns a sorted list
     Adapted from:
-    http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
+    <http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/>
 
     Arguments:
         graph: a dictionary with values containing lists of keys

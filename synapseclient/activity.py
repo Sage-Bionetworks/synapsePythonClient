@@ -59,8 +59,11 @@ from synapseclient.core.utils import is_url, is_synapse_id_str
 from synapseclient.entity import is_synapse_entity
 
 
-def is_used_entity(x):
-    """Returns True if the given object represents a UsedEntity."""
+def is_used_entity(x) -> bool:
+    """
+    Returns:
+        True if the given object represents a UsedEntity.
+    """
 
     # A UsedEntity must be a dictionary with a 'reference' field, with a 'targetId' field
     if (
@@ -83,8 +86,11 @@ def is_used_entity(x):
     return True
 
 
-def is_used_url(x):
-    """Returns True if the given object represents a UsedURL."""
+def is_used_url(x) -> bool:
+    """
+    Returns:
+        True if the given object represents a UsedURL.
+    """
 
     # A UsedURL must be a dictionary with a 'url' field
     if not isinstance(x, collections.abc.Mapping) or "url" not in x:
@@ -305,7 +311,7 @@ class Activity(dict):
     def executed(self, target=None, targetVersion=None, url=None, name=None):
         """
         Add a code resource that was executed during the activity.
-        See :py:func:`synapseclient.activity.Activity.used`
+        See [synapseclient.activity.Activity.used][]
         """
         self.used(
             target=target,
