@@ -41,8 +41,10 @@ tracer = trace.get_tracer("synapseclient")
 
 def _init_console_logging():
     # init a stdout logger for purposes of logging cli activity.
-    # logging is preferred to writing directly to stdout since it can be configured/formatted/suppressed
-    # but this is not yet universal across the client so it is initialized here from cli commands that
+    # logging is preferred to writing directly to stdout since it can be
+    # configured/formatted/suppressed
+    # but this is not yet universal across the client so it is initialized here
+    # from cli commands that
     # don't still have other direct stdout calls
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
@@ -50,7 +52,8 @@ def _init_console_logging():
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)
 
-    # message only for these cli stdout messages, meant for output directly to be viewed by interactive user
+    # message only for these cli stdout messages, meant for output directly to be
+    # viewed by interactive user
     formatter = logging.Formatter("%(message)s")
     handler.setFormatter(formatter)
     root.addHandler(handler)
@@ -77,7 +80,8 @@ def query(args, syn):
             sys.stdout.write("%s\n" % ("\t".join(row)))
     else:
         sys.stderr.write(
-            "Input query cannot be parsed. Please see our documentation for writing Synapse query:"
+            "Input query cannot be parsed. Please see our documentation for "
+            "writing Synapse query:"
             " https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html"
         )
 
@@ -95,7 +99,8 @@ def _getIdsFromQuery(queryString, syn, downloadLocation):
         return ids
     else:
         raise ValueError(
-            "Input query cannot be parsed. Please see our documentation for writing Synapse query:"
+            "Input query cannot be parsed. Please see our documentation for "
+            "writing Synapse query:"
             " https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html"
         )
 
@@ -439,17 +444,17 @@ def setAnnotations(args, syn):
         newannots = json.loads(args.annotations)
     except Exception as e:
         sys.stderr.write(
-            "Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). "
-            "For example, to set an annotations called 'foo' to the value 1, the format should be "
-            '\'{"foo": 1, "bar":"quux"}\'.'
+            "Please check that your JSON string is properly formed and evaluates to a "
+            "dictionary (key/value pairs). For example, to set an annotations called "
+            '\'foo\' to the value 1, the format should be \'{"foo": 1, "bar":"quux"}\'.'
         )
         raise e
 
     if type(newannots) is not dict:
         raise TypeError(
-            "Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). "
-            "For example, to set an annotations called 'foo' to the value 1, the format should be "
-            '\'{"foo": 1, "bar":"quux"}\'.'
+            "Please check that your JSON string is properly formed and evaluates to a "
+            "dictionary (key/value pairs). For example, to set an annotations called "
+            '\'foo\' to the value 1, the format should be \'{"foo": 1, "bar":"quux"}\'.'
         )
 
     annots = syn.get_annotations(args.id)
@@ -573,12 +578,13 @@ def submit(args, syn):
     Method to allow challenge participants to submit to an evaluation queue.
 
     Examples::
-    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt --parentId syn2345030 \
-    --used syn2351967 --executed syn2351968
-    synapse submit --evaluation 2343117 -f ~/testing/testing.txt --parentId syn2345030 --used syn2351967 \
-    --executed syn2351968
+    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt \
+        --parentId syn2345030 --used syn2351967 --executed syn2351968
+    synapse submit --evaluation 2343117 -f ~/testing/testing.txt --parentId syn2345030 \
+        --used syn2351967 --executed syn2351968
     """
-    # check if evaluation is a number, if so it is assumed to be a evaluationId else it is a evaluationName
+    # check if evaluation is a number, if so it is assumed to be a evaluationId else
+    # it is a evaluationName
     if args.evaluation is not None:
         try:
             args.evaluationID = str(int(args.evaluation))
@@ -590,7 +596,8 @@ def submit(args, syn):
         raise ValueError("Evaluation ID or Evaluation Name is required\n")
     elif args.evaluationID is not None and args.evaluationName is not None:
         sys.stderr.write(
-            "[Warning]: Both Evaluation ID & Evaluation Name are specified \n EvaluationID will be used\n"
+            "[Warning]: Both Evaluation ID & Evaluation Name are specified \n "
+            "EvaluationID will be used\n"
         )
     elif args.evaluationID is None:  # get evalID from evalName
         try:
@@ -605,7 +612,8 @@ def submit(args, syn):
         raise ValueError("Either entityID or filename is required for a submission\n")
     elif args.entity is not None and args.file is not None:
         sys.stderr.write(
-            "[Warning]: Both entityID and filename are specified \n entityID will be used\n"
+            "[Warning]: Both entityID and filename are specified \n "
+            "entityID will be used\n"
         )
     elif (
         args.entity is None
@@ -652,7 +660,8 @@ def login(args, syn: synapseclient.Synapse) -> None:
     )
     profile = syn.getUserProfile()
     syn.logger.info(
-        f"Logged in as: {profile.userName} ({profile.ownerId})\n\n"
+        f"Logged in as: {profile.get('userName', '')} "
+        f"({profile.get('ownerId', '')})\n\n"
         "Use `synapse config` to create or modify a Synapse configuration file. "
         "This will allow all commands to authenticate without passing in an Auth Token.\n"
         "`synapse login` is only used to verify your credentials are valid to login."
@@ -717,13 +726,10 @@ def migrate(args, syn):
     errored_count = counts["ERRORED"]
 
     logging.info(
-        "Indexed %s items, %s needing migration, %s already stored in destination storage location (%s). "
-        "Encountered %s errors.",
-        indexed_count + already_migrated_count,
-        indexed_count,
-        already_migrated_count,
-        args.dest_storage_location_id,
-        errored_count,
+        f"Indexed {indexed_count + already_migrated_count} items, {indexed_count} "
+        f"needing migration, {already_migrated_count} already stored in destination "
+        f"storage location ({args.dest_storage_location_id}). "
+        f"Encountered {errored_count} errors.",
     )
 
     if indexed_count == 0:
@@ -731,8 +737,8 @@ def migrate(args, syn):
 
     elif args.dryRun:
         logging.info(
-            "Dry run, index created at %s but skipping migration. Can proceed with migration by running "
-            "the same command without the dry run option."
+            "Dry run, index created at %s but skipping migration. Can proceed with "
+            "migration by running the same command without the dry run option."
         )
 
     else:
@@ -802,14 +808,16 @@ def build_parser():
         "--configPath",
         dest="configPath",
         default=synapseclient.client.CONFIG_FILE,
-        help="Path to configuration file used to connect to Synapse [default: %(default)s]",
+        help="Path to configuration file used to connect to Synapse "
+        "[default: %(default)s]",
     )
 
     parser.add_argument(
         "--debug",
         dest="debug",
         action="store_true",
-        help='"Set to debug mode, additional output and error messages are printed to the console"',
+        help="Set to debug mode, additional output and error messages are printed to "
+        "the console",
     )
 
     parser.add_argument(
@@ -850,8 +858,8 @@ def build_parser():
         dest="queryString",
         type=str,
         default=None,
-        help="Optional query parameter, will fetch all of the entities returned by a query "
-        "(see query for help).",
+        help="Optional query parameter, will fetch all of the entities returned by a "
+        "query (see query for help).",
     )
     parser_get.add_argument(
         "-v",
@@ -859,14 +867,16 @@ def build_parser():
         metavar="VERSION",
         type=int,
         default=None,
-        help="Synapse version number of entity to retrieve. Defaults to most recent version.",
+        help="Synapse version number of entity to retrieve. Defaults to most "
+        "recent version.",
     )
     parser_get.add_argument(
         "-r",
         "--recursive",
         action="store_true",
         default=False,
-        help="Fetches content in Synapse recursively contained in the parentId specified by id.",
+        help="Fetches content in Synapse recursively contained in the parentId "
+        "specified by id.",
     )
     parser_get.add_argument(
         "--followLink",
@@ -878,8 +888,8 @@ def build_parser():
         "--limitSearch",
         metavar="projId",
         type=str,
-        help="Synapse ID of a container such as project or folder to limit search for files "
-        "if using a path.",
+        help="Synapse ID of a container such as project or folder to limit search for "
+        "files if using a path.",
     )
     parser_get.add_argument(
         "--downloadLocation",
@@ -933,7 +943,8 @@ def build_parser():
     parser_manifest.add_argument(
         "--manifest-file",
         metavar="OUTPUT",
-        help="A TSV output file path where the generated manifest is stored. (default: stdout)",
+        help="A TSV output file path where the generated manifest is stored. "
+        "(default: stdout)",
     )
     parser_manifest.set_defaults(func=manifest)
 
@@ -1026,13 +1037,14 @@ def build_parser():
         "--limitSearch",
         metavar="projId",
         type=str,
-        help="Synapse ID of a container such as project or folder to limit search for provenance "
-        "files.",
+        help="Synapse ID of a container such as project or folder to limit search for "
+        "provenance files.",
     )
     parser_store.add_argument(
         "--noForceVersion",
         action="store_true",
-        help="Do not force a new version to be created if the contents of the file have not changed. The default is a new version is created.",
+        help="Do not force a new version to be created if the contents of the file have "
+        "not changed. The default is a new version is created.",
     )  # noqa: E501
     parser_store.add_argument(
         "--annotations",
@@ -1040,8 +1052,8 @@ def build_parser():
         type=str,
         required=False,
         default=None,
-        help="Annotations to add as a JSON formatted string, should evaluate to a dictionary "
-        '(key/value pairs). Example: \'{"foo": 1, "bar":"quux"}\'',
+        help="Annotations to add as a JSON formatted string, should evaluate to a "
+        'dictionary (key/value pairs). Example: \'{"foo": 1, "bar":"quux"}\'',
     )
     parser_store.add_argument(
         "--replace",
@@ -1068,8 +1080,8 @@ def build_parser():
         type=str,
         required=False,
         dest="parentid",
-        help="Synapse ID of project or folder where to upload data (must be specified if --id "
-        "is not used.",
+        help="Synapse ID of project or folder where to upload data (must be specified "
+        "if --id is not used).",
     )
     parent_id_group.add_argument(
         "--id",
@@ -1116,13 +1128,14 @@ def build_parser():
         "--limitSearch",
         metavar="projId",
         type=str,
-        help="Synapse ID of a container such as project or folder to limit search for provenance "
-        "files.",
+        help="Synapse ID of a container such as project or folder to limit search for "
+        "provenance files.",
     )
     parser_add.add_argument(
         "--noForceVersion",
         action="store_true",
-        help="Do not force a new version to be created if the contents of the file have not changed. The default is a new version is created.",
+        help="Do not force a new version to be created if the contents of the file "
+        "have not changed. The default is a new version is created.",
     )  # noqa: E501
     parser_add.add_argument(
         "--annotations",
@@ -1130,8 +1143,8 @@ def build_parser():
         type=str,
         required=False,
         default=None,
-        help="Annotations to add as a JSON formatted string, should evaluate to a dictionary "
-        '(key/value pairs). Example: \'{"foo": 1, "bar":"quux"}\'',
+        help="Annotations to add as a JSON formatted string, should evaluate to a "
+        'dictionary (key/value pairs). Example: \'{"foo": 1, "bar":"quux"}\'',
     )
     parser_add.add_argument(
         "--replace",
@@ -1205,8 +1218,8 @@ def build_parser():
     parser_cp.add_argument(
         "--updateExisting",
         action="store_true",
-        help="Will update the file if there is already a file that is named the same in the "
-        "destination",
+        help="Will update the file if there is already a file that is named the same in "
+        "the destination",
     )
     parser_cp.add_argument(
         "--skipCopyAnnotations", action="store_true", help="Do not copy the annotations"
@@ -1217,8 +1230,8 @@ def build_parser():
         metavar="file table",
         type=str,
         default=list(),
-        help="Accepts a list of entity types (file, table, link) which determines which entity"
-        " types to not copy.",
+        help="Accepts a list of entity types (file, table, link) which determines which "
+        "entity types to not copy.",
     )
     parser_cp.add_argument(
         "--skipCopyWiki", action="store_true", help="Do not copy the wiki pages"
@@ -1283,13 +1296,18 @@ def build_parser():
         metavar="string",
         type=str,
         nargs="*",
-        help="""A query string. Note that when using the command line query strings must be
-passed intact as a single string. In most shells this can mean wrapping the query in quotes as appropriate and escaping
-any quotes that may appear within the query string itself.
-Example::
+        help="""
+        A query string. Note that when using the command line query strings must be
+        passed intact as a single string. In most shells this can mean wrapping the
+        query in quotes as appropriate and escaping any quotes that may appear within
+        the query string itself.
 
-    synapse query "select \\"column has spaces\\" from syn123"
-See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html' for more information""",
+        Example::
+
+            synapse query "select \\"column has spaces\\" from syn123"
+        See
+https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html
+        for more information""",
     )
     parser_query.set_defaults(func=query)
 
@@ -1368,8 +1386,8 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
         "--limitSearch",
         metavar="projId",
         type=str,
-        help="Synapse ID of a container such as project or folder to limit search for provenance "
-        "files.",
+        help="Synapse ID of a container such as project or folder to limit search for "
+        "provenance files.",
     )
     parser_show.set_defaults(func=show)
 
@@ -1386,7 +1404,8 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
         metavar="VERSION",
         type=int,
         default=None,
-        help="Synapse version number of entity to display. Defaults to most recent version.",
+        help="Synapse version number of entity to display. Defaults to most recent "
+        "version.",
     )
     parser_cat.set_defaults(func=cat)
 
@@ -1404,7 +1423,8 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
         action="store_true",
         default=False,
         required=False,
-        help="recursively list contents of the subtree descending from the given Synapse ID",
+        help="recursively list contents of the subtree descending from the given "
+        "Synapse ID",
     )
     parser_list.add_argument(
         "-l",
@@ -1567,7 +1587,8 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
         type=str,
         dest="parentid",
         required=False,
-        help="Synapse ID of project or folder where to place folder [not used with project]",
+        help="Synapse ID of project or folder where to place folder "
+        "[not used with project]",
     )
     parser_create.add_argument(
         "--name",
@@ -1693,8 +1714,8 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
         "--source_storage_location_ids",
         type=str,
         nargs="*",
-        help="Source Synapse storage location ids. If specified only files in these storage "
-        "locations will be migrated.",
+        help="Source Synapse storage location ids. If specified only files in these "
+        "storage locations will be migrated.",
     )
     parser_migrate.add_argument(
         "--file_version_strategy",
@@ -1704,7 +1725,8 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
                                      new creates a new version of each entity,
                                      latest migrates the most recent version,
                                      all migrates all versions,
-                                     skip avoids migrating file entities (use when exclusively
+                                     skip avoids migrating file entities
+                                     (use when exclusively
                                      targeting table attached files""",
     )
     parser_migrate.add_argument(
@@ -1762,7 +1784,8 @@ def perform_main(args, syn):
                 sys.exit(1)
     else:
         # if no command provided print out help and quit
-        # if we require python 3.7 or above, we can use required argument tp add_subparsers instead
+        # if we require python 3.7 or above, we can use required argument tp
+        # add_subparsers instead
         build_parser().print_help()
 
 
@@ -1821,7 +1844,8 @@ def _authenticate_login(syn: synapseclient.Synapse, user, secret, **login_kwargs
                 syn.login(user, **login_kwargs_with_secret)
                 return login_key
             except SynapseNoCredentialsError:
-                # SynapseNoCredentialsError is a SynapseAuthenticationError but we don't want to handle it here
+                # SynapseNoCredentialsError is a SynapseAuthenticationError but we
+                # don't want to handle it here
                 raise
             except SynapseAuthenticationError as ex:
                 if not first_auth_ex:
