@@ -142,7 +142,7 @@ class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
     ENVIRONMENT_VAR_NAME = "SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME"
 
     def _get_auth_info(
-        self, syn, user_login_args: Dict[str, str]
+        self, syn: "Synapse", user_login_args: Dict[str, str]
     ) -> Tuple[Union[str, None], Union[str, None]]:
         ssm_param_name = os.environ.get(self.ENVIRONMENT_VAR_NAME)
         token = None

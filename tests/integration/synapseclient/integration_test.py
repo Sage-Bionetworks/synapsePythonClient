@@ -10,11 +10,8 @@ import pytest
 from unittest.mock import patch
 
 from synapseclient import Entity, Team, UserProfile, client, Synapse
-from synapseclient import Activity, Annotations, File, Folder, login, Project, Synapse
-import synapseclient
-from synapseclient.core.credentials import credential_provider
+from synapseclient import Activity, Annotations, File, Folder, Project, Synapse
 from synapseclient.core.exceptions import (
-    SynapseAuthenticationError,
     SynapseHTTPError,
     SynapseNoCredentialsError,
 )

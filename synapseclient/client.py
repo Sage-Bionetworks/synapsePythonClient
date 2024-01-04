@@ -533,7 +533,7 @@ class Synapse(object):
             return False
         return True
 
-    def logout(self):
+    def logout(self) -> None:
         """
         Removes authentication information from the Synapse client.
 
@@ -1996,7 +1996,9 @@ class Synapse(object):
         version="2.1.0",
         reason="deprecated and replaced with `get_annotations`",
     )
-    def getAnnotations(self, entity, version=None) -> Annotations:
+    def getAnnotations(
+        self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None
+    ) -> Annotations:
         """deprecated and replaced with [get_annotations][]"""
         return self.get_annotations(entity, version=version)
 

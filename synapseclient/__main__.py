@@ -669,6 +669,7 @@ def login(args, syn: synapseclient.Synapse) -> None:
 
 
 def test_encoding() -> None:
+    """Test character encoding to help diagnose problems"""
     import locale
     import platform
 
@@ -737,7 +738,8 @@ def migrate(args, syn):
 
     elif args.dryRun:
         logging.info(
-            "Dry run, index created at %s but skipping migration. Can proceed with "
+            f"Dry run, index created at {args.db_path} but "
+            "skipping migration. Can proceed with "
             "migration by running the same command without the dry run option."
         )
 
@@ -1791,7 +1793,7 @@ def perform_main(args, syn):
 
 @tracer.start_as_current_span("main::login_with_prompt")
 def login_with_prompt(
-    syn: synapseclient.Synapse, user: str, password: str, silent=False
+    syn: synapseclient.Synapse, user: str, password: str, silent: bool = False
 ) -> None:
     try:
         _authenticate_login(syn=syn, user=user, secret=password, silent=silent)
@@ -1825,9 +1827,13 @@ def _prompt_for_credentials(user=None):
 
 
 @tracer.start_as_current_span("main::_authenticate_login")
-def _authenticate_login(syn: synapseclient.Synapse, user, secret, **login_kwargs):
-    # login using the given secret.
-    # We try logging in using the secret as a auth bearer token or an inputless login.
+def _authenticate_login(
+    syn: synapseclient.Synapse, user: str, secret: str, **login_kwargs
+):
+    """
+    Login using the given secret. We try logging in using the secret as a auth bearer
+    token or an inputless login.
+    """
 
     login_attempts = (
         ("authToken", lambda user, secret: secret is not None),
