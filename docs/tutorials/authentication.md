@@ -44,7 +44,7 @@ You may modify the `~/.synapseConfig` file by utilizing the [command line client
 <!-- termynal -->
 ```
 > synapse config
-Synapse username (leave blank if using an auth token):
+Synapse username (Optional):
 
 Auth token: $MY_SYNAPSE_TOKEN
 ```
@@ -72,8 +72,6 @@ Now, you can login without specifying any arguments:
 import synapseclient
 syn = synapseclient.login()
 ```
-
-For legacy compatibility, the `.synapseConfig` `[authentication]` section will continue to support `apikey` or `username` + `password` pair until early 2024 when they are both deprecated in favor of personal access tokens (`authtoken`) which can be scoped to certain functions and are revocable.
 
 ## Use Environment Variable
 

@@ -16,6 +16,10 @@ functions.  Use at your own risk.
         - multipart_copy
         - _multipart_upload
 
+## Credentials
+::: synapseclient.core.credentials.cred_data.SynapseCredentials
+::: synapseclient.core.credentials.cred_data.SynapseAuthTokenCredentials
+::: synapseclient.core.credentials.credential_provider
 
 ## Retry
 

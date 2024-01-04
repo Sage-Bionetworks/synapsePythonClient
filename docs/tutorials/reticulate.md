@@ -110,10 +110,7 @@ synapseclient accessed through reticulate supports the same authentication optio
 syn <- synapseclient$synapse()
 
 # one time login
-syn$login('<username', '<password>')
-
-# login and store credentials for future use
-syn$login('<username', '<password>', rememberMe=TRUE)
+syn$login('<username', '<authToken>')
 ```
 
 See [Managing Synapse Credentials](./authentication.md) for complete documentation on how synapseclient handles credentials and authentication.

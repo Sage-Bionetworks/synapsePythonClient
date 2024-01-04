@@ -248,10 +248,8 @@ def test_authenticate_login__username_password(syn):
     """Verify happy path for _authenticate_login"""
 
     with patch.object(syn, "login"):
-        cmdline._authenticate_login(syn, "foo", "bar", rememberMe=True, silent=True)
-        syn.login.assert_called_once_with(
-            "foo", password="bar", rememberMe=True, silent=True
-        )
+        cmdline._authenticate_login(syn, "foo", "bar", silent=True)
+        syn.login.assert_called_once_with("foo", password="bar", silent=True)
 
 
 def test_authenticate_login__api_key(syn):
@@ -261,7 +259,7 @@ def test_authenticate_login__api_key(syn):
 
     username = "foo"
     password = base64.b64encode(b"bar").decode("utf-8")
-    login_kwargs = {"rememberMe": True}
+    login_kwargs = {}
 
     expected_login_calls = [
         call(username, password=password, **login_kwargs),
@@ -298,7 +296,7 @@ def test_authenticate_login__auth_token(syn):
 
     username = "foo"
     auth_token = "auth_bearer_token"
-    login_kwargs = {"rememberMe": True}
+    login_kwargs = {}
 
     expected_login_calls = [
         call(username, password=auth_token, **login_kwargs),
@@ -333,7 +331,7 @@ def test_authenticate_login__no_input(mocker, syn):
     """Verify attempting to authenticate with a bare login command (i.e. expecting
     to derive credentials from config for cache)"""
 
-    login_kwargs = {"rememberMe": True}
+    login_kwargs = {}
 
     call(**login_kwargs),
 
@@ -347,7 +345,7 @@ def test_authenticate_login__failure(mocker, syn):
     """Verify that a login with invalid credentials raises an error (the
     first error when multiple login methods were attempted."""
 
-    login_kwargs = {"rememberMe": True}
+    login_kwargs = {}
 
     call(**login_kwargs),
 
@@ -370,9 +368,7 @@ def test_login_with_prompt(mock_authenticate_login, syn):
     user = "foo"
     password = "bar"
     login_kwargs = {
-        "rememberMe": False,
         "silent": True,
-        "forced": True,
     }
 
     cmdline.login_with_prompt(syn, user, password, **login_kwargs)
@@ -400,9 +396,7 @@ def test_login_with_prompt__getpass(mocker, username, expected_pass_prompt, syn)
 
     password = "bar"
     login_kwargs = {
-        "rememberMe": False,
         "silent": True,
-        "forced": True,
     }
 
     def authenticate_side_effect(*args, **kwargs):
@@ -421,9 +415,7 @@ def test_login_with_prompt__getpass(mocker, username, expected_pass_prompt, syn)
 
     cmdline.login_with_prompt(syn, None, None, **login_kwargs)
 
-    mock_input.assert_called_once_with(
-        "Synapse username (leave blank if using an auth token): "
-    )
+    mock_input.assert_called_once_with("Synapse username (Optional): ")
     mock_getpass.getpass.assert_called_once_with(expected_pass_prompt)
 
     expected_authenticate_calls = [
@@ -481,9 +473,7 @@ def test_login_with_prompt_no_tty(mock_authenticate_login, mock_input, mock_sys,
 
     user = "test_user"
     login_kwargs = {
-        "rememberMe": False,
         "silent": True,
-        "forced": True,
     }
 
     mock_authenticate_login.side_effect = SynapseNoCredentialsError()
@@ -517,9 +507,6 @@ def test_login_with_prompt__user_supplied(mocker, syn):
     mock_authenticate_login.assert_called_with(
         syn,
         username,
-        password,
-        forced=False,
-        rememberMe=False,
     )
 
 

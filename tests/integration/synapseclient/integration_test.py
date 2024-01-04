@@ -36,87 +36,39 @@ def test_login(syn):
         config.read(client.CONFIG_FILE)
         # keep password authentication tests until fully deprecated
         # Added a section in the synapse config
-        username = config.get("oldAuthentication", "username")
-        password = config.get("oldAuthentication", "password")
+        username = config.get("authentication", "username")
         authtoken = config.get("authentication", "authtoken")
-        sessionToken = syn._getSessionToken(username, password)
 
-        syn.logout(forgetMe=True)
-
-        # Simple login with ID + PW
-        syn.login(username, password, silent=True)
-
-        api_key = syn.credentials.secret
-
-        # Login with ID + API key
-        syn.login(email=username, apiKey=api_key, silent=True)
-
-        # login with session token
-        syn.login(sessionToken=sessionToken)
+        syn.logout()
+        assert syn.credentials == None
 
         # login with config file no username
         syn.login(silent=True)
+        assert syn.credentials.username == username
 
         # Login with ID only from config file
         syn.login(username, silent=True)
+        assert syn.credentials.username == username
 
         # Login with auth token
         syn.login(authToken=authtoken, silent=True)
+        assert syn.credentials.username == username
 
         # Login with ID not matching username
         pytest.raises(SynapseNoCredentialsError, syn.login, "fakeusername")
 
-        # login using cache
-        # mock to make the config file empty
-        with patch.object(
-            syn, "_get_config_authentication", return_value={}
-        ), patch.object(credential_provider, "cached_sessions") as mock_cached_sessions:
-            mock_cached_sessions.get_most_recent_user.return_value = None
-
-            # Login with no credentials
-            with pytest.raises(SynapseNoCredentialsError):
-                syn.login()
-
-        # remember login info in cache
-        syn.login(username, password, rememberMe=True, silent=True)
-
-        # login using cached info
-        syn.login(username, silent=True)
-        assert syn.credentials.username == username
-
-        syn.login(silent=True)
-        assert syn.credentials.username == username
-
     except configparser.Error:
         raise ValueError(
-            "Please supply a username and password in the configuration file."
+            "Please supply a username and authToken in the configuration file."
         )
 
     finally:
         # Login with config file
-        syn.login(rememberMe=True, silent=True)
-
-
-@tracer.start_as_current_span("integration_test::test_login__bad_credentials")
-def test_login__bad_credentials(syn):
-    # nonexistant username and password
-    pytest.raises(
-        SynapseAuthenticationError,
-        login,
-        email=str(uuid.uuid4()),
-        password="In the end, it doens't even matter",
-    )
-    # existing username and bad password
-    pytest.raises(
-        SynapseAuthenticationError,
-        login,
-        email=syn.username,
-        password=str(uuid.uuid4()),
-    )
+        syn.login(silent=True)
 
 
 @tracer.start_as_current_span("integration_test::testCustomConfigFile")
-def testCustomConfigFile(syn, schedule_for_cleanup):
+def testCustomConfigFile(schedule_for_cleanup):
     if os.path.isfile(client.CONFIG_FILE):
         configPath = "./CONFIGFILE"
         shutil.copyfile(client.CONFIG_FILE, configPath)
@@ -126,7 +78,7 @@ def testCustomConfigFile(syn, schedule_for_cleanup):
         syn2.login()
     else:
         raise ValueError(
-            "Please supply a username and password in the configuration file."
+            "Please supply a username and authToken in the configuration file."
         )
 
 

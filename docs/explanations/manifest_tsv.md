@@ -76,3 +76,5 @@ See:
 ## See:
 
 - [Managing custom metadata at scale](https://help.synapse.org/docs/Managing-Custom-Metadata-at-Scale.2004254976.html#ManagingCustomMetadataatScale-BatchUploadFileswithAnnotations)
+- [synapseutils.sync.syncToSynapse][]
+- [synapseutils.sync.syncFromSynapse][]

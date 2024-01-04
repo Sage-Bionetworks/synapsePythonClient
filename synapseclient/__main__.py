@@ -643,20 +643,23 @@ def get_download_list(args, syn):
 
 
 @tracer.start_as_current_span("main::login")
-def login(args, syn):
-    """Log in to Synapse, optionally caching credentials"""
+def login(args, syn: synapseclient.Synapse) -> None:
+    """Log in to Synapse"""
     login_with_prompt(
         syn,
         args.synapseUser,
-        args.synapsePassword,
-        rememberMe=args.rememberMe,
-        forced=True,
+        args.synapse_auth_token,
     )
     profile = syn.getUserProfile()
-    syn.logger.info("Logged in as: {userName} ({ownerId})".format(**profile))
+    syn.logger.info(
+        f"Logged in as: {profile.userName} ({profile.ownerId})\n\n"
+        "Use `synapse config` to create or modify a Synapse configuration file. "
+        "This will allow all commands to authenticate without passing in an Auth Token.\n"
+        "`synapse login` is only used to verify your credentials are valid to login."
+    )
 
 
-def test_encoding(args, syn):
+def test_encoding() -> None:
     import locale
     import platform
 
@@ -791,8 +794,8 @@ def build_parser():
     parser.add_argument(
         "-p",
         "--password",
-        dest="synapsePassword",
-        help="Password, api key, or token used to connect to Synapse",
+        dest="synapse_auth_token",
+        help="Auth Token used to connect to Synapse.",
     )
     parser.add_argument(
         "-c",
@@ -1628,9 +1631,11 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
     parser_onweb.set_defaults(func=onweb)
 
     # the purpose of the login command (as opposed to just using the -u and -p args) is
-    # to allow the command line user to cache credentials
+    # to allow the command line user to verify stored auth token
     parser_login = subparsers.add_parser(
-        "login", help="login to Synapse and (optionally) cache credentials"
+        "login",
+        help="Verify credentials can be used to login to Synapse. "
+        "This does not need to be used prior to executing other commands.",
     )
     parser_login.add_argument(
         "-u",
@@ -1641,16 +1646,8 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
     parser_login.add_argument(
         "-p",
         "--password",
-        dest="synapsePassword",
-        help="This will be deprecated. Password or api key used to connect to Synapse.",
-    )
-    parser_login.add_argument(
-        "--rememberMe",
-        "--remember-me",
-        dest="rememberMe",
-        action="store_true",
-        default=False,
-        help="Cache credentials for automatic authentication on future interactions with Synapse",
+        dest="synapse_auth_token",
+        help="Auth Token used to connect to Synapse.",
     )
     parser_login.set_defaults(func=login)
 
@@ -1749,7 +1746,12 @@ See https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/T
 def perform_main(args, syn):
     if "func" in args:
         if args.func != login and args.func != config:
-            login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
+            login_with_prompt(
+                syn=syn,
+                user=args.synapseUser,
+                password=args.synapse_auth_token,
+                silent=True,
+            )
         try:
             args.func(args, syn)
         except Exception as ex:
@@ -1766,28 +1768,23 @@ def perform_main(args, syn):
 
 @tracer.start_as_current_span("main::login_with_prompt")
 def login_with_prompt(
-    syn, user, password, rememberMe=False, silent=False, forced=False
-):
+    syn: synapseclient.Synapse, user: str, password: str, silent=False
+) -> None:
     try:
-        _authenticate_login(
-            syn, user, password, silent=silent, rememberMe=rememberMe, forced=forced
-        )
+        _authenticate_login(syn=syn, user=user, secret=password, silent=silent)
     except SynapseNoCredentialsError:
         # there were no complete credentials in the cache nor provided
         user, passwd = _prompt_for_credentials(user=user)
 
-        _authenticate_login(syn, user, passwd, rememberMe=rememberMe, forced=forced)
+        _authenticate_login(syn=syn, user=user, secret=passwd)
 
 
 def _prompt_for_credentials(user=None):
     if not user:
         # if username was passed then we use that username
-        user = input("Synapse username (leave blank if using an auth token): ")
+        user = input("Synapse username (Optional): ")
 
-    # if no username was provided then prompt for auth token, since no other secret will suffice without a user
-    secret_prompt = (
-        f"Password, api key, or auth token for user {user}:" if user else "Auth token:"
-    )
+    secret_prompt = f"Auth token for user {user}:" if user else "Auth token:"
 
     passwd = None
     while not passwd:
@@ -1796,7 +1793,7 @@ def _prompt_for_credentials(user=None):
         # https://stackoverflow.com/questions/49858821/python-getpass-doesnt-work-on-windows-git-bash-mingw64
         if not sys.stdin.isatty():
             raise SynapseAuthenticationError(
-                "No password, key, or token was provided and unable to read from standard input"
+                "No Auth token was provided and unable to read from standard input"
             )
         else:
             passwd = getpass.getpass(secret_prompt)
@@ -1805,32 +1802,13 @@ def _prompt_for_credentials(user=None):
 
 
 @tracer.start_as_current_span("main::_authenticate_login")
-def _authenticate_login(syn, user, secret, **login_kwargs):
+def _authenticate_login(syn: synapseclient.Synapse, user, secret, **login_kwargs):
     # login using the given secret.
-    # we try logging in using the secret as a password, a auth bearer token, an api key in that order.
-    # each attempt results in a call to the services, which can mean extra calls than if we explicitly knew
-    # which type of secret we had, but the alternative of defining separate commands/parameters for the different
-    # types of secrets would pollute the top level argument space and make the stdin input option more complex
-    # for the user (e.g. first ask them to specify which type of secret they have rather than just an input prompt)
+    # We try logging in using the secret as a auth bearer token or an inputless login.
 
     login_attempts = (
-        # a username is required when attempting a password login
-        (
-            "password",
-            lambda user, secret: user is not None and user != "" and secret is not None,
-        ),
-        # auth token login can be attempted without a username.
-        # although tokens are technically encoded, the client treats them as opaque so we don't do an encoding check
-        # on the secret itself
         ("authToken", lambda user, secret: secret is not None),
-        # username is required for an api key and secret is base 64 encoded
-        (
-            "apiKey",
-            lambda user, secret: user is not None
-            and user != ""
-            and utils.is_base64_encoded(secret),
-        ),
-        # an inputless login (i.e. derived from config or cache)
+        # an inputless login (i.e. derived from config)
         (None, lambda user, secret: (user is None or user == "") and secret is None),
     )
 
