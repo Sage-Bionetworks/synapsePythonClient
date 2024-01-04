@@ -548,7 +548,7 @@ def config(args, syn):
     user, secret = _prompt_for_credentials()
 
     # validate the credentials provided and determine what login
-    # mechanism was used (password, authToken, apiKey)
+    # mechanism was used (authToken)
     # this means that writing a config requires connectivity
     # (and that the endpoints in the current config point to
     # the endpoints of the credentials)
