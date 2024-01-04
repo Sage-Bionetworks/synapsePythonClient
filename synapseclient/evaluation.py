@@ -214,12 +214,12 @@ def _convert_to_annotation_cls(
 class SubmissionStatus(DictObject):
     """
     Builds an Synapse submission status object.
-    https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatus.html
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatus.html>
 
     Arguments:
         id: Unique immutable Synapse Id of the Submission
         status: Status can be one of
-                   https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html.
+                   <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html>.
         submissionAnnotations: synapseclient.Annotations to store annotations of submission
         canCancel: Can this submission be cancelled?
         cancelRequested: Has user requested to cancel this submission?

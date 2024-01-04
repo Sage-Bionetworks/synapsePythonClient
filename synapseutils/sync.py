@@ -97,7 +97,7 @@ def syncFromSynapse(
 
     Returns:
         List of entities ([files][synapseclient.File],
-        [tables][synapseclient.Table], [links][synapseclient.Link])
+            [tables][synapseclient.Table], [links][synapseclient.Link])
 
 
     This function will crawl all subfolders of the project/folder specified by
