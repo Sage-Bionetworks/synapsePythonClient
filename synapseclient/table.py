@@ -41,7 +41,6 @@ from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, entity_type_to_class
 from synapseclient.core.constants import concrete_types
-from synapseclient.client import Synapse
 
 aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
 
@@ -472,7 +471,7 @@ def _create_row_delete_csv(row_id_vers_iterable: Tuple[str, int]) -> str:
         return temp_csv.name
 
 
-def _delete_rows(syn: Synapse, schema, row_id_vers_list: Tuple[str, int]) -> None:
+def _delete_rows(syn, schema, row_id_vers_list: Tuple[str, int]) -> None:
     """
     Deletes rows from a synapse table
 
@@ -713,7 +712,7 @@ class ViewBase(SchemaBase):
         else:
             self.scopeIds.append(id_of(entities))
 
-    def _filter_duplicate_columns(self, syn: Synapse, columns_to_add):
+    def _filter_duplicate_columns(self, syn, columns_to_add):
         """
         If a column to be added has the same name and same type as an existing column, it will be considered a duplicate
          and not added.
