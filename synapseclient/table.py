@@ -32,14 +32,16 @@ import collections
 import abc
 import enum
 import json
+
 from builtins import zip
-from typing import List, Dict, TypeVar
+from typing import List, Dict, TypeVar, Union, Tuple
 
 from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, entity_type_to_class
 from synapseclient.core.constants import concrete_types
+from synapseclient.client import Synapse
 
 aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
 
@@ -136,17 +138,20 @@ def test_import_pandas():
         raise
 
 
-def as_table_columns(values):
+def as_table_columns(values: Union[str, DataFrameType]):
     """
-    Return a list of Synapse table :py:class:`Column` objects that correspond to the columns in the given values.
+    Return a list of Synapse table [Column][synapseclient.table.Column] objects
+    that correspond to the columns in the given values.
 
-    :params values: an object that holds the content of the tables
-      - a string holding the path to a CSV file, a filehandle, or StringIO containing valid csv content
-      - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+    Arguments:
+        values: An object that holds the content of the tables.
+                - A string holding the path to a CSV file, a filehandle, or StringIO containing valid csv content
+                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
-    :returns: A list of Synapse table :py:class:`Column` objects
+    Returns:
+        A list of Synapse table [Column][synapseclient.table.Column] objects
 
-    Example::
+    Example:
 
         import pandas as pd
 
@@ -327,9 +332,16 @@ def cast_row_set(rowset):
     return rowset
 
 
-def escape_column_name(column):
-    """Escape the name of the given column for use in a Synapse table query statement
-    :param column: a string or column dictionary object with a 'name' key"""
+def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
+    """
+    Escape the name of the given column for use in a Synapse table query statement
+
+    Arguments:
+        column: a string or column dictionary object with a 'name' key
+
+    Returns:
+        Escaped column name
+    """
     col_name = (
         column["name"] if isinstance(column, collections.abc.Mapping) else str(column)
     )
@@ -337,9 +349,12 @@ def escape_column_name(column):
     return f'"{escaped_name}"'
 
 
-def join_column_names(columns):
-    """Join the names of the given columns into a comma delimited list suitable for use in a Synapse table query
-    :param columns: a sequence of column string names or dictionary objets with column 'name' keys
+def join_column_names(columns: Union[List, Dict[str, str]]):
+    """
+    Join the names of the given columns into a comma delimited list suitable for use in a Synapse table query
+
+    Arguments:
+        columns: A sequence of column string names or dictionary objets with column 'name' keys
     """
     return ",".join(escape_column_name(c) for c in columns)
 
@@ -347,9 +362,15 @@ def join_column_names(columns):
 def _convert_df_date_cols_to_datetime(
     df: DataFrameType, date_columns: List
 ) -> DataFrameType:
-    """Convert date columns with epoch time to date time in UTC timezone
-    :param df: a pandas dataframe
-    :param date_columns: name of date columns
+    """
+    Convert date columns with epoch time to date time in UTC timezone
+
+    Argumenets:
+        df: a pandas dataframe
+        date_columns: name of date columns
+
+    Returns:
+        A dataframe with epoch time converted to date time in UTC timezone
     """
     test_import_pandas()
     import pandas as pd
@@ -434,11 +455,15 @@ def _csv_to_pandas_df(
     return df
 
 
-def _create_row_delete_csv(row_id_vers_iterable):
+def _create_row_delete_csv(row_id_vers_iterable: Tuple[str, int]) -> str:
     """
-    creates a temporary csv used for deleting rows
-    :param row_id_vers_iterable: an iterable containing tuples with format: (row_id, row_version)
-    :return: filepath of created csv file
+    Creates a temporary csv used for deleting rows
+
+    Arguments:
+        row_id_vers_iterable: An iterable containing tuples with format: (row_id, row_version)
+
+    Returns:
+        A filepath of created csv file
     """
     with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as temp_csv:
         csv_writer = csv.writer(temp_csv)
@@ -447,11 +472,15 @@ def _create_row_delete_csv(row_id_vers_iterable):
         return temp_csv.name
 
 
-def _delete_rows(syn, schema, row_id_vers_list):
+def _delete_rows(syn: Synapse, schema, row_id_vers_list: Tuple[str, int]) -> None:
     """
     Deletes rows from a synapse table
-    :param syn: an instance of py:class:`synapseclient.client.Synapse`
-    :param row_id_vers_list: an iterable containing tuples with format: (row_id, row_version)
+
+    Arguments:
+        syn:              An instance of [Synapse][synapseclient.client.Synapse]
+        schema:           The Schema is an [Entity][synapseclient.entity.Entity] that defines
+                          a set of columns in a table.
+        row_id_vers_list: An iterable containing tuples with format: (row_id, row_version)
     """
     delete_row_csv_filepath = _create_row_delete_csv(row_id_vers_list)
     try:
@@ -493,9 +522,15 @@ class SchemaBase(Entity, metaclass=abc.ABCMeta):
         if columns:
             self.addColumns(columns)
 
-    def addColumn(self, column):
+    def addColumn(self, column) -> None:
         """
-        :param column: a column object or its ID
+        Store the column
+
+        Arguments:
+            column: A column object or its ID
+
+        Raises:
+            ValueError: If the given column is not a string, integer or [Column][synapseclient.table.Column] object
         """
         if isinstance(column, str) or isinstance(column, int) or hasattr(column, "id"):
             self.properties.columnIds.append(id_of(column))
@@ -506,16 +541,25 @@ class SchemaBase(Entity, metaclass=abc.ABCMeta):
         else:
             raise ValueError("Not a column? %s" % str(column))
 
-    def addColumns(self, columns):
+    def addColumns(self, columns: list) -> None:
         """
-        :param columns: a list of column objects or their ID
+        Add columns
+
+        Arguments:
+            columns: A list of column objects or their ID
         """
         for column in columns:
             self.addColumn(column)
 
-    def removeColumn(self, column):
+    def removeColumn(self, column) -> None:
         """
-        :param column: a column object or its ID
+        Remove column
+
+        Arguments:
+            column: A column object or its ID
+
+        Raises:
+            ValueError: If the given column is not a string, integer or [Column][synapseclient.table.Column] object
         """
         if isinstance(column, str) or isinstance(column, int) or hasattr(column, "id"):
             self.properties.columnIds.remove(id_of(column))
@@ -548,17 +592,18 @@ class SchemaBase(Entity, metaclass=abc.ABCMeta):
 
 class Schema(SchemaBase):
     """
-    A Schema is an :py:class:`synapseclient.entity.Entity` that defines a set of columns in a table.
+    A Schema is an [Entity][synapseclient.entity.Entity] that defines a set of columns in a table.
 
-    :param name:            the name for the Table Schema object
-    :param description:     User readable description of the schema
-    :param columns:         a list of :py:class:`Column` objects or their IDs
-    :param parent:          the project in Synapse to which this table belongs
-    :param properties:      A map of Synapse properties
-    :param annotations:     A map of user defined annotations
-    :param local_state:     Internal use only
+    Attributes:
+        name:        The name for the Table Schema object
+        description: User readable description of the schema
+        columns:     A list of [Column][synapseclient.table.Column] objects or their IDs
+        parent:      The project in Synapse to which this table belongs
+        properties:  A map of Synapse properties
+        annotations: A map of user defined annotations
+        local_state: Internal use only
 
-    Example::
+    Example:
 
         cols = [Column(name='Isotope', columnType='STRING'),
                 Column(name='Atomic Mass', columnType='INTEGER'),
@@ -593,20 +638,20 @@ class Schema(SchemaBase):
 
 class MaterializedViewSchema(SchemaBase):
     """
-    A MaterializedViewSchema is an :py:class:`synapseclient.entity.Entity` that defines a set of columns in a
+    A MaterializedViewSchema is an [Entity][synapseclient.entity.Entity] that defines a set of columns in a
     materialized view along with the SQL statement.
 
-    :param name:            the name for the Materialized View Schema object
-    :param description:     User readable description of the schema
-    :param definingSQL:     The synapse SQL statement that defines the data in the materialized view. The SQL may
-                            contain JOIN clauses on multiple tables.
-    :param columns:         a list of :py:class:`Column` objects or their IDs
-    :param parent:          the project in Synapse to which this Materialized View belongs
-    :param properties:      A map of Synapse properties
-    :param annotations:     A map of user defined annotations
-    :param local_state:     Internal use only
+    Attributes:
+        name:        The name for the Materialized View Schema object
+        description: User readable description of the schema
+        definingSQL: The synapse SQL statement that defines the data in the materialized view. The SQL                   contain JOIN clauses on multiple tables.
+        columns:     A list of [Column][synapseclient.table.Column] objects or their IDs
+        parent:      The project in Synapse to which this Materialized View belongs
+        properties:  A map of Synapse properties
+        annotations: A map of user defined annotations
+        local_state: Internal use only
 
-    Example::
+    Example:
 
         defining_sql = "SELECT * FROM syn111 F JOIN syn2222 P on (F.patient_id = P.patient_id)"
 
@@ -654,9 +699,12 @@ class ViewBase(SchemaBase):
         "ignoredAnnotationColumnNames",
     ]
 
-    def add_scope(self, entities):
+    def add_scope(self, entities: Union[Entity, list, str]):
         """
-        :param entities: a Project, Folder, Evaluation object or its ID, can also be a list of them
+        Add scope
+
+        Arguments:
+            entities: a Project, Folder, Evaluation object or its ID, can also be a list of them
         """
         if isinstance(entities, list):
             # add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
@@ -665,13 +713,17 @@ class ViewBase(SchemaBase):
         else:
             self.scopeIds.append(id_of(entities))
 
-    def _filter_duplicate_columns(self, syn, columns_to_add):
+    def _filter_duplicate_columns(self, syn: Synapse, columns_to_add):
         """
         If a column to be added has the same name and same type as an existing column, it will be considered a duplicate
          and not added.
-        :param syn:             a :py:class:`synapseclient.client.Synapse` object that is logged in
-        :param columns_to_add:  iterable collection of type :py:class:`synapseclient.table.Column` objects
-        :return: a filtered list of columns to add
+
+        Arguments:
+            syn:             A [Synapse][synapseclient.client.Synapse] object that is logged in
+            columns_to_add:  A iterable collection of type [Column][synapseclient.table.Column] objects
+
+        Returns:
+            A filtered list of columns to add
         """
 
         # no point in making HTTP calls to retrieve existing Columns if we not adding any new columns
@@ -743,20 +795,21 @@ class ViewBase(SchemaBase):
 
 class Dataset(ViewBase):
     """
-    A Dataset is an :py:class:`synapseclient.entity.Entity` that defines a
+    A Dataset is an [Entity][synapseclient.entity.Entity] that defines a
     flat list of entities as a tableview (a.k.a. a "dataset").
 
-    :param name:            The name for the Dataset object
-    :param description:     User readable description of the schema
-    :param columns:         A list of :py:class:`Column` objects or their IDs
-    :param parent:          The Synapse Project to which this Dataset belongs
-    :param properties:      A map of Synapse properties
-    :param annotations:     A map of user defined annotations
-    :param dataset_items:   A list of items characterized by entityId and versionNumber
-    :param folder:          A list of Folder IDs
-    :param local_state:     Internal use only
+    Attributes:
+        name:          The name for the Dataset object
+        description:   User readable description of the schema
+        columns:       A list of [Column][synapseclient.table.Column] objects or their IDs
+        parent:        The Synapse Project to which this Dataset belongs
+        properties:    A map of Synapse properties
+        annotations:   A map of user defined annotations
+        dataset_items: A list of items characterized by entityId and versionNumber
+        folder:        A list of Folder IDs
+        local_state:   Internal use only
 
-    Example::
+    Example:
 
         from synapseclient import Dataset
 
@@ -787,10 +840,10 @@ class Dataset(ViewBase):
     Folders can easily be added recursively to a dataset, that is, all files
     within the folder (including sub-folders) will be added.  Note that using
     the following methods will add files with the latest version number ONLY.
-    If another version number is desired, use :py:meth:`synapseclient.table.add_item`
-    or :py:meth:`synapseclient.table.add_items`.
+    If another version number is desired, use [add_item][synapseclient.table.add_item]
+    or [add_items][synapseclient.table.add_items].
 
-    Example::
+    Example:
 
         # Add a single Folder to the Dataset
         dataset.add_folder("syn123")
@@ -803,21 +856,21 @@ class Dataset(ViewBase):
     empty() can be used to truncate a dataset, that is, remove all current
     items from the set.
 
-    Example::
+    Example:
 
         dataset.empty()
         dataset = syn.store(dataset)
 
     To get the number of entities in the dataset, use len().
 
-    Example::
+    Example:
 
         print(f"{dataset.name} has {len(dataset)} items.")
 
     To create a snapshot version of the Dataset, use
-    :py:meth:`synapseclient.client.create_snapshot_version`.
+    [create_snapshot_version][synapseclient.Synapse.create_snapshot_version].
 
-    Example::
+    Example:
 
         syn = synapseclient.login()
         syn.create_snapshot_version(
@@ -889,8 +942,15 @@ class Dataset(ViewBase):
 
     def add_item(self, dataset_item: Dict[str, str], force: bool = True):
         """
-        :param dataset_item:    a single dataset item
-        :param force:           force add item
+        Add a dataset item
+
+        Arguments:
+            dataset_item: A single dataset item
+            force:        Force add item
+
+        Raises:
+            ValueError: If duplicate item is found
+            ValueError: The item is not a DatasetItem
         """
         if isinstance(dataset_item, dict) and self._check_needed_keys(
             dataset_item.keys()
@@ -911,15 +971,21 @@ class Dataset(ViewBase):
 
     def add_items(self, dataset_items: List[Dict[str, str]], force: bool = True):
         """
-        :param dataset_items:   a list of dataset items
-        :param force:           force add items
+        Add items
+
+        Arguments:
+            dataset_items: A list of dataset items
+            force:         Force add items
         """
         for dataset_item in dataset_items:
             self.add_item(dataset_item, force)
 
     def remove_item(self, item_id: str):
         """
-        :param item_id: a single dataset item Synapse ID
+        Remove item
+
+        Arguments:
+            item_id: A single dataset item Synapse ID
         """
         item_id = id_of(item_id)
         if item_id.startswith("syn"):
@@ -933,16 +999,22 @@ class Dataset(ViewBase):
     def empty(self):
         self.properties.datasetItems = []
 
-    def has_item(self, item_id):
+    def has_item(self, item_id: str) -> bool:
         """
-        :param item_id: a single dataset item Synapse ID
+        Check if has dataset item
+
+        Arguments:
+            item_id: A single dataset item Synapse ID
         """
         return any(item["entityId"] == item_id for item in self.properties.datasetItems)
 
     def add_folder(self, folder: str, force: bool = True):
         """
-        :param folder:  a single Synapse Folder ID
-        :param force:   force add items from folder
+        Add a folder
+
+        Arguments:
+            folder: A single Synapse Folder ID
+            force:  Force add items from folder
         """
         if not self.__dict__.get("folders_to_add", None):
             self.__dict__["folders_to_add"] = set()
@@ -952,8 +1024,11 @@ class Dataset(ViewBase):
 
     def add_folders(self, folders: List[str], force: bool = True):
         """
-        :param folders: a list of Synapse Folder IDs
-        :param force:   force add items from folders
+        Add folders
+
+        Arguments:
+            folders: A list of Synapse Folder IDs
+            force:   Force add items from folders
         """
         if (
             isinstance(folders, list)
@@ -1003,48 +1078,46 @@ class Dataset(ViewBase):
 
 class EntityViewSchema(ViewBase):
     """
-    A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects
-    (depending on user choice) within a given set of scopes
+    A EntityViewSchema is a [Entity][synapseclient.entity.Entity] that displays all files/projects
+    (depending on user choice) within a given set of scopes.
 
-    :param name:                            the name of the Entity View Table object
-    :param columns:                         a list of :py:class:`Column` objects or their IDs. These are optional.
-    :param parent:                          the project in Synapse to which this table belongs
-    :param scopes:                          a list of Projects/Folders or their ids
-    :param type:                            This field is deprecated. Please use `includeEntityTypes`
-    :param includeEntityTypes:              a list of entity types to include in the view. Supported entity types are:
+    Attributes:
+        name:                         The name of the Entity View Table object
+        columns:                      (Optional) A list of [Column][synapseclient.table.Column] objects or their IDs.
+        parent:                       The project in Synapse to which this table belongs
+        scopes:                       A list of Projects/Folders or their ids
+        type:                         This field is deprecated. Please use `includeEntityTypes`
+        includeEntityTypes:           A list of entity types to include in the view. Supported entity types are:
+                                        - EntityViewType.FILE,
+                                        - EntityViewType.PROJECT,
+                                        - EntityViewType.TABLE,
+                                        - EntityViewType.FOLDER,
+                                        - EntityViewType.VIEW,
+                                        - EntityViewType.DOCKER
+                                      If none is provided, the view will default to include EntityViewType.FILE.
+        addDefaultViewColumns:        If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
+                                      Defaults to True.
+                                      The default columns will be added after a call to
+                                      [store][synapseclient.Synapse.store].
+        addAnnotationColumns:         If true, adds columns for all annotation keys defined across all Entities in
+                                      the EntityViewSchema's scope. Defaults to True.
+                                      The annotation columns will be added after a call to
+                                      [store][synapseclient.Synapse.store].
+        ignoredAnnotationColumnNames: A list of strings representing annotation names.
+                                      When addAnnotationColumns is True, the names in this list will not be
+                                      automatically added as columns to the EntityViewSchema if they exist in any
+                                      of the defined scopes.
+        properties:                   A map of Synapse properties
+        annotations:                  A map of user defined annotations
+        local_state:                  Internal use only
 
-                                                - EntityViewType.FILE,
-                                                - EntityViewType.PROJECT,
-                                                - EntityViewType.TABLE,
-                                                - EntityViewType.FOLDER,
-                                                - EntityViewType.VIEW,
-                                                - EntityViewType.DOCKER
-
-                                            If none is provided, the view will default to include EntityViewType.FILE.
-    :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
-                                            Defaults to True.
-                                            The default columns will be added after a call to
-                                            :py:meth:`synapseclient.Synapse.store`.
-    :param addAnnotationColumns:            If true, adds columns for all annotation keys defined across all Entities in
-                                            the EntityViewSchema's scope. Defaults to True.
-                                            The annotation columns will be added after a call to
-                                            :py:meth:`synapseclient.Synapse.store`.
-    :param ignoredAnnotationColumnNames:    A list of strings representing annotation names.
-                                            When addAnnotationColumns is True, the names in this list will not be
-                                            automatically added as columns to the EntityViewSchema if they exist in any
-                                            of the defined scopes.
-    :param properties:                      A map of Synapse properties
-    :param annotations:                     A map of user defined annotations
-    :param local_state:                     Internal use only
-
-    Example::
+    Example:
 
         from synapseclient import EntityViewType
 
         project_or_folder = syn.get("syn123")
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
          includeEntityTypes=[EntityViewType.FILE]))
-
     """
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.table.EntityView"
@@ -1107,46 +1180,48 @@ class EntityViewSchema(ViewBase):
 
     def set_entity_types(self, includeEntityTypes):
         """
-        :param includeEntityTypes: a list of entity types to include in the view. This list will replace the previous
-                                   settings. Supported entity types are:
+        Set entity types
 
-                                        - EntityViewType.FILE,
-                                        - EntityViewType.PROJECT,
-                                        - EntityViewType.TABLE,
-                                        - EntityViewType.FOLDER,
-                                        - EntityViewType.VIEW,
-                                        - EntityViewType.DOCKER
-
+        Arguments:
+            includeEntityTypes: A list of entity types to include in the view. This list will replace the previous
+                                settings. Supported entity types are:
+                                    - EntityViewType.FILE,
+                                    - EntityViewType.PROJECT,
+                                    - EntityViewType.TABLE,
+                                    - EntityViewType.FOLDER,
+                                    - EntityViewType.VIEW,
+                                    - EntityViewType.DOCKER
         """
         self.viewTypeMask = _get_view_type_mask(includeEntityTypes)
 
 
 class SubmissionViewSchema(ViewBase):
     """
-    A SubmissionViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects
-    (depending on user choice) within a given set of scopes
+    A SubmissionViewSchema is a [Entity][synapseclient.entity.Entity] that displays all files/projects
+    (depending on user choice) within a given set of scopes.
 
-    :param name:                            the name of the Entity View Table object
-    :param columns:                         a list of :py:class:`Column` objects or their IDs. These are optional.
-    :param parent:                          the project in Synapse to which this table belongs
-    :param scopes:                          a list of Evaluation Queues or their ids
-    :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
-                                            Defaults to True.
-                                            The default columns will be added after a call to
-                                            :py:meth:`synapseclient.Synapse.store`.
-    :param addAnnotationColumns:            If true, adds columns for all annotation keys defined across all Entities in
-                                            the SubmissionViewSchema's scope. Defaults to True.
-                                            The annotation columns will be added after a call to
-                                            :py:meth:`synapseclient.Synapse.store`.
-    :param ignoredAnnotationColumnNames:    A list of strings representing annotation names.
-                                            When addAnnotationColumns is True, the names in this list will not be
-                                            automatically added as columns to the SubmissionViewSchema if they exist in
-                                            any of the defined scopes.
-    :param properties:                      A map of Synapse properties
-    :param annotations:                     A map of user defined annotations
-    :param local_state:                     Internal use only
+    Attributes:
+        name:                         The name of the Entity View Table object
+        columns:                      A list of [Column][synapseclient.table.Column] objects or their IDs. These are optional.
+        parent:                       The project in Synapse to which this table belongs
+        scopes:                       A list of Evaluation Queues or their ids
+        addDefaultViewColumns:        If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
+                                      Defaults to True.
+                                      The default columns will be added after a call to
+                                      [store][synapseclient.Synapse.store].
+        addAnnotationColumns:         If true, adds columns for all annotation keys defined across all Entities in
+                                      the SubmissionViewSchema's scope. Defaults to True.
+                                      The annotation columns will be added after a call to
+                                      [store][synapseclient.Synapse.store].
+        ignoredAnnotationColumnNames: A list of strings representing annotation names.
+                                      When addAnnotationColumns is True, the names in this list will not be
+                                      automatically added as columns to the SubmissionViewSchema if they exist in
+                                      any of the defined scopes.
+        properties:                   A map of Synapse properties
+        annotations:                  A map of user defined annotations
+        local_state:                  Internal use only
 
-    Example::
+    Example:
         from synapseclient import SubmissionViewSchema
 
         project = syn.get("syn123")
@@ -1204,15 +1279,12 @@ entity_type_to_class.pop("")
 
 class SelectColumn(DictObject):
     """
-    Defines a column to be used in a table :py:class:`synapseclient.table.Schema`.
+    Defines a column to be used in a table [Schema][synapseclient.table.Schema].
 
-    :var id:              An immutable ID issued by the platform
-    :param columnType:    Can be any of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID"
-    :param name:          The display name of the column
-
-    :type id:           string
-    :type columnType:   string
-    :type name:         string
+    Attributes:
+        id:         An immutable ID issued by the platform
+        columnType: Can be any of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID"
+        name:       The display name of the column
     """
 
     def __init__(self, id=None, columnType=None, name=None, **kwargs):
@@ -1240,31 +1312,24 @@ class SelectColumn(DictObject):
 
 class Column(DictObject):
     """
-    Defines a column to be used in a table :py:class:`synapseclient.table.Schema`
-    :py:class:`synapseclient.table.EntityViewSchema`.
+    Defines a column to be used in a table [Schema][synapseclient.table.Schema]
+    [EntityViewSchema][synapseclient.table.EntityViewSchema].
 
-    :var id:                  An immutable ID issued by the platform
-    :param columnType:        The column type determines the type of data that can be stored in a column. It can be any
-                              of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
-                              "LARGETEXT", "USERID". For more information, please see:
-                              https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
-    :param maximumSize:       A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
-                              default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
-                              characters.
-    :param maximumListLength: Required if using a columnType with a "_LIST" suffix. Describes the maximum number of
-                              values that will appear in that list. Value range 1-100 inclusive. Default 100
-    :param name:              The display name of the column
-    :param enumValues:        Columns type of STRING can be constrained to an enumeration values set on this list.
-    :param defaultValue:      The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not
-                              allowed to have default values.
-
-    :type id: string
-    :type maximumSize: integer
-    :type maximumListLength: integer
-    :type columnType: string
-    :type name: string
-    :type enumValues: array of strings
-    :type defaultValue: string
+    Attributes:
+        id:                An immutable ID issued by the platform
+        columnType:        The column type determines the type of data that can be stored in a column. It can be any
+                           of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
+                           "LARGETEXT", "USERID". For more information, please see:
+                           https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
+        maximumSize:       A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
+                           default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
+                           characters.
+        maximumListLength: Required if using a columnType with a "_LIST" suffix. Describes the maximum number of
+                           values that will appear in that list. Value range 1-100 inclusive. Default 100
+        name:              The display name of the column
+        enumValues:        Columns type of STRING can be constrained to an enumeration values set on this list.
+        defaultValue:      The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not
+                           allowed to have default values.
     """
 
     @classmethod
@@ -1280,7 +1345,9 @@ class Column(DictObject):
 
 
 class AppendableRowset(DictObject, metaclass=abc.ABCMeta):
-    """Abstract Base Class for :py:class:`Rowset` and :py:class:`PartialRowset`"""
+    """
+    Abstract Base Class for [RowSet][synapseclient.table.RowSet] and [PartialRowset][synapseclient.table.PartialRowset]
+    """
 
     @abc.abstractmethod
     def __init__(self, schema, **kwargs):
@@ -1314,11 +1381,16 @@ class AppendableRowset(DictObject, metaclass=abc.ABCMeta):
 
 
 class PartialRowset(AppendableRowset):
-    """A set of Partial Rows used for updating cells of a table.
+    """
+    A set of Partial Rows used for updating cells of a table.
     PartialRowsets allow you to push only the individual cells you wish to change instead of pushing entire rows with
     many unchanged cells.
 
-    Example::
+    Attributes:
+        schema: The [Schema][synapseclient.table.Schema] of the table to update or its tableId as a string
+        rows:   A list of PartialRows
+
+    Example:
         #### the following code will change cells in a hypothetical table, syn123:
         #### these same steps will also work for using EntityView tables to change Entity annotations
         #
@@ -1340,17 +1412,19 @@ class PartialRowset(AppendableRowset):
         # so that we can perform column id translation and etag retrieval on your behalf:
         partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
         syn.store(partial_rowset)
-
-    :param schema: The :py:class:`Schema` of the table to update or its tableId as a string
-    :param rows: A list of PartialRows
     """
 
     @classmethod
     def from_mapping(cls, mapping, originalQueryResult):
-        """Creates a PartialRowset
-        :param mapping: A mapping of mappings in the structure: {ROW_ID : {COLUMN_NAME: NEW_COL_VALUE}}
-        :param originalQueryResult:
-        :return: a PartialRowSet that can be syn.store()-ed to apply the changes
+        """
+        Creates a PartialRowset
+
+        Arguments:
+            mapping:             A mapping of mappings in the structure: {ROW_ID : {COLUMN_NAME: NEW_COL_VALUE}}
+            originalQueryResult: The original query result
+
+        Returns:
+            A PartialRowset that can be syn.store()-ed to apply the changes
         """
         if not isinstance(mapping, collections.abc.Mapping):
             raise ValueError("mapping must be a supported Mapping type such as 'dict'")
@@ -1404,22 +1478,17 @@ class PartialRowset(AppendableRowset):
 
 class RowSet(AppendableRowset):
     """
-    A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet \
-    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html>`_.
+    A Synapse object of type [org.sagebionetworks.repo.model.table.RowSet](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html).
 
-    :param schema:  A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
-    :param headers: The list of SelectColumn objects that describe the fields in each row.
-    :param columns: An alternative to 'headers', a list of column objects that describe the fields in each row.
-    :param tableId: The ID of the TableEntity that owns these rows
-    :param rows:    The :py:class:`synapseclient.table.Row` s of this set. The index of each row value aligns with the
-                    index of each header.
-    :var etag:      Any RowSet returned from Synapse will contain the current etag of the change set. To update any
-                    rows from a RowSet the etag must be provided with the POST.
-
-    :type headers:   array of SelectColumns
-    :type etag:      string
-    :type tableId:   string
-    :type rows:      array of rows
+    Attributes:
+        schema:  A [Schema][synapseclient.table.Schema] object that will be used to set the tableId
+        headers: The list of SelectColumn objects that describe the fields in each row.
+        columns: An alternative to 'headers', a list of column objects that describe the fields in each row.
+        tableId: The ID of the TableEntity that owns these rows
+        rows:    The [Row][synapseclient.table.Row] s of this set. The index of each row value aligns with the
+                 index of each header.
+        etag:    Any RowSet returned from Synapse will contain the current etag of the change set. To update any
+                 rows from a RowSet the etag must be provided with the POST.
     """
 
     @classmethod
@@ -1460,7 +1529,7 @@ class RowSet(AppendableRowset):
     def _synapse_delete(self, syn):
         """
         Delete the rows in the RowSet.
-        Example::
+        Example:
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
         row_id_vers_generator = ((row.rowId, row.versionNumber) for row in self.rows)
@@ -1469,12 +1538,13 @@ class RowSet(AppendableRowset):
 
 class Row(DictObject):
     """
-    A `row <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
+    A [row](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html) in a Table.
 
-    :param values:          A list of values
-    :param rowId:           The immutable ID issued to a new row
-    :param versionNumber:   The version number of this row. Each row version is immutable, so when a row is updated a
-                            new version is created.
+    Attributes:
+        values:        A list of values
+        rowId:         The immutable ID issued to a new row
+        versionNumber: The version number of this row. Each row version is immutable, so when a row is updated a
+                       new version is created.
     """
 
     def __init__(self, values, rowId=None, versionNumber=None, etag=None, **kwargs):
@@ -1492,9 +1562,12 @@ class Row(DictObject):
 
 
 class PartialRow(DictObject):
-    """This is a lower-level class for use in :py:class::`PartialRowSet` to update individual cells within a table.
+    """
+    This is a lower-level class for use in [PartialRowset][synapseclient.table.PartialRowset] to update individual
+    cells within a table.
 
-    It is recommended you use :py:classmethod::`PartialRowSet.from_mapping`to construct partial change sets to a table.
+    It is recommended you use [from_mapping][synapseclient.table.PartialRowset.from_mapping]
+    to construct partial change sets to a table.
 
     If you want to do the tedious parts yourself:
 
@@ -1514,17 +1587,17 @@ class PartialRow(DictObject):
 
         PartialRow({'foo': 'fooVal', 'bar':'barVal'}, rowId, nameToColumnId=nameToColumnId)
 
-    :param values:          A Mapping where:
-                                - key is name of the column (or its columnId) to change in the desired row
-                                - value is the new desired value for that column
-    :param rowId:           The id of the row to be updated
-    :param etag:            used for updating File/Project Views(::py:class:`EntityViewSchema`). Not necessary for a
-                            (::py:class:`Schema`) Table
-    :param nameToColumnId:  Optional map column names to column Ids. If this is provided, the keys of your `values`
-                            Mapping will be replaced with the column ids in the `nameToColumnId` dict. Include this
-                            as an argument when you are providing the column names instead of columnIds as the keys
-                            to the `values` Mapping.
-
+    Attributes:
+        values:         A Mapping where:
+                            - key is name of the column (or its columnId) to change in the desired row
+                            - value is the new desired value for that column
+        rowId:          The id of the row to be updated
+        etag:           Used for updating File/Project Views([EntityViewSchema][synapseclient.table.EntityViewSchema]).
+                        Not necessary for a [Schema][synapseclient.table.Schema] Table
+        nameToColumnId: Optional map column names to column Ids. If this is provided, the keys of your `values`
+                        Mapping will be replaced with the column ids in the `nameToColumnId` dict. Include this
+                        as an argument when you are providing the column names instead of columnIds as the keys
+                        to the `values` Mapping.
     """
 
     def __init__(self, values, rowId, etag=None, nameToColumnId=None):
@@ -1550,15 +1623,17 @@ def build_table(name, parent, values):
     """
     Build a Table object
 
-    :param name:    the name for the Table Schema object
-    :param parent:  the project in Synapse to which this table belongs
-    :param values:  an object that holds the content of the tables
-                        - a string holding the path to a CSV file
-                        - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+    Arguments:
+        name:    The name for the Table Schema object
+        parent:  The project in Synapse to which this table belongs
+        values:  An object that holds the content of the tables
+                    - A string holding the path to a CSV file
+                    - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
-    :return: a Table object suitable for storing
+    Returns:
+        A Table object suitable for storing
 
-    Example::
+    Example:
 
         path = "/path/to/file.csv"
         table = build_table("simple_table", "syn123", path)
@@ -1586,16 +1661,18 @@ def Table(schema, values, **kwargs):
     Combine a table schema and a set of values into some type of Table object
     depending on what type of values are given.
 
-    :param schema: a table :py:class:`Schema` object or Synapse Id of Table.
-    :param values: an object that holds the content of the tables
-                      - a :py:class:`RowSet`
-                      - a list of lists (or tuples) where each element is a row
-                      - a string holding the path to a CSV file
-                      - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
-                      - a dict which will be wrapped by a Pandas \
-                       `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+    Arguments:
+        schema: A table [Schema][synapseclient.table.Schema] object or Synapse Id of Table.
+        values: An object that holds the content of the tables
+                - a [RowSet][synapseclient.table.RowSet]
+                - a list of lists (or tuples) where each element is a row
+                - a string holding the path to a CSV file
+                - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+                - a dict which will be wrapped by a Pandas \
+                 `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
 
-    :return: a Table object suitable for storing
+    Returns:
+        A Table object suitable for storing
 
     Usually, the immediate next step after creating a Table object is to store it::
 
@@ -1603,10 +1680,10 @@ def Table(schema, values, **kwargs):
 
     End users should not need to know the details of these Table subclasses:
 
-      - :py:class:`TableAbstractBaseClass`
-      - :py:class:`RowSetTable`
-      - :py:class:`TableQueryResult`
-      - :py:class:`CsvFileTable`
+      - [TableAbstractBaseClass][synaseclient.table.TableAbstractBaseClass]
+      - [RowSetTable][synaseclient.table.RowSetTable]
+      - [TableQueryResult][synaseclient.table.TableQueryResult]
+      - [CsvFileTable][synaseclient.table.CsvFileTable]
     """
 
     try:
@@ -1696,10 +1773,12 @@ class TableAbstractBaseClass(collections.abc.Iterable, collections.abc.Sized):
 
     @abc.abstractmethod
     def iter_row_metadata(self):
-        """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
+        """
+        Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
         generated as (row_id, None)
 
-        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
+        Returns:
+            A generator that gives [collections.namedtuple](https://docs.python.org/3/library/collections.html#collections.namedtuple) with format (row_id, row_etag)
         """
         pass
 
@@ -1758,7 +1837,7 @@ class TableQueryResult(TableAbstractBaseClass):
     An object to wrap rows returned as a result of a table query.
     The TableQueryResult object can be used to iterate over results of a query.
 
-    Example ::
+    Example:
 
         results = syn.tableQuery("select * from syn1234")
         for row in results:
@@ -1801,9 +1880,9 @@ class TableQueryResult(TableAbstractBaseClass):
         """
         Convert query result to a Pandas DataFrame.
 
-        :param rowIdAndVersionInIndex:  Make the dataframe index consist of the row_id and row_version (and row_etag
-                                        if it exists)
-
+        Arguments:
+            rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version (and row_etag
+                                    if it exists)
         """
         test_import_pandas()
         import pandas as pd
@@ -1939,10 +2018,13 @@ class TableQueryResult(TableAbstractBaseClass):
         return len(self.rowset["rows"])
 
     def iter_row_metadata(self):
-        """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
+        """
+        Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
         generated as (row_id, row_version,None)
 
-        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_version, row_etag)
+        Returns:
+            A generator that gives [collections.namedtuple](https://docs.python.org/3/library/collections.html#collections.namedtuple)
+            with format (row_id, row_version, row_etag)
         """
         for row in self:
             yield type(self).RowMetadataTuple(
@@ -2291,12 +2373,14 @@ class CsvFileTable(TableAbstractBaseClass):
     def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime=False):
         """Convert query result to a Pandas DataFrame.
 
-        :param rowIdAndVersionInIndex:  Make the dataframe index consist of the row_id and row_version
-                                        (and row_etag if it exists)
-        :param convert_to_datetime:     If set to True, will convert all Synapse DATE columns from UNIX timestamp
-                                        integers into UTC datetime objects
+        Arguments:
+            rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version
+                                    (and row_etag if it exists)
+            convert_to_datetime:    If set to True, will convert all Synapse DATE columns from UNIX timestamp
+                                    integers into UTC datetime objects
 
-        :return: Pandas dataframe with results
+        Returns:
+            A Pandas dataframe with results
         """
         test_import_pandas()
         import pandas as pd
@@ -2369,7 +2453,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def setColumnHeaders(self, headers):
         """
-        Set the list of :py:class:`synapseclient.table.SelectColumn` objects that will be used to convert fields to the
+        Set the list of [SelectColumn][synapseclient.table.SelectColumn] objects that will be used to convert fields to the
         appropriate data types.
 
         Column headers are automatically set when querying.
@@ -2425,10 +2509,12 @@ class CsvFileTable(TableAbstractBaseClass):
             return sum(1 for line in f)
 
     def iter_row_metadata(self):
-        """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
+        """
+        Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
         it will generated as (row_id, None)
 
-        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
+        Returns:
+            A generator that gives [collections.namedtuple](https://docs.python.org/3/library/collections.html#collections.namedtuple) with format (row_id, row_etag)
         """
         with io.open(self.filepath, encoding="utf-8", newline=self.lineEnd) as f:
             reader = csv.reader(

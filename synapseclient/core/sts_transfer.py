@@ -217,9 +217,11 @@ def is_boto_sts_transfer_enabled(syn):
     If enabled then synapseclient will attempt to automatically use boto to upload
     and download from supported storage locations that are sts enabled.
 
-    :param syn:         A Synapse client
+    Arguments:
+        syn: A [Synapse][synaseclient.Synapse] object
 
-    :returns: True if STS if enabled, False otherwise
+    Returns:
+        True if STS if enabled, False otherwise
     """
     return bool(boto3 and syn.use_boto_sts_transfers)
 
@@ -228,11 +230,13 @@ def is_storage_location_sts_enabled(syn, entity_id, location):
     """
     Returns whether the given storage location is enabled for STS.
 
-    :param syn:         A Synapse client
-    :param entity_id:   id of synapse entity whose storage location we want to check for sts access
-    :param location:    a storage location id or an dictionary representing the location UploadDestination
-                                these)
-    :returns: True if STS if enabled for the location, False otherwise
+    Arguments:
+        syn:       A [Synapse][synaseclient.Synapse] object
+        entity_id: The ID of synapse entity whose storage location we want to check for sts access
+        location:  A storage location ID or a dictionary representing the location UploadDestination
+
+    Returns:
+        True if STS if enabled for the location, False otherwise
     """
     if not location:
         return False

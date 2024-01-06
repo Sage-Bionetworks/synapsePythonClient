@@ -12,10 +12,13 @@ def _open_entity_as_df(syn, entity: str):
     """
     Gets a csv or tsv Synapse entity and returns it as a dataframe
 
-    :param syn: synapse object
-    :param entity: a synapse entity to be extracted and converted into a dataframe
+    Arguments:
+        syn:    A [Synapse][synapseclient.client.Synapse] object
+        entity: A Synapse [Entity][synapseclient.entity.Entity] to be extracted and converted into a dataframe
 
-    :return: a pandas DataFrame if flow of execution is successful; None if not.
+    Returns:
+        A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+        if flow of execution is successful; None if not.
     """
     table.test_import_pandas()
     import pandas as pd
@@ -43,9 +46,11 @@ def _describe_wrapper(df) -> dict:
     """
     Returns the mode, min, max, mean, and dtype of each column in a dataframe
 
-    :param df: pandas dataframe from the csv or tsv file
+    Arguments:
+        df: A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe) from the csv or tsv file
 
-    :return: see param mode
+    Returns:
+        See param mode
     """
     table.test_import_pandas()
     import pandas as pd

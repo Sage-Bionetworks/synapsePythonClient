@@ -6,7 +6,7 @@ File Caching
 ************
 
 Implements a cache on local disk for Synapse file entities and other objects with a
-`FileHandle <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html>`_.
+[FileHandle](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html).
 This is part of the internal implementation of the client and should not be accessed directly by users of the client.
 """
 
@@ -58,8 +58,9 @@ def compare_timestamps(modified_time, cached_time):
     We then match a cached time ending in .000Z, meaning zero milliseconds with a modified time with any number of
     milliseconds.
 
-    :param modified_time: float representing seconds since unix epoch
-    :param cached_time: string holding a ISO formatted time
+    Arguments:
+        modified_time: The float representing seconds since unix epoch
+        cached_time:   The string holding a ISO formatted time
     """
     if cached_time is None or modified_time is None:
         return False
@@ -152,9 +153,11 @@ class Cache:
         then it is a new entry and we can return the value. If it does not, then it
         is an old entry and we should return the cache_map_entry itself.
 
-        :param cache_map_entry: The entry from the cache map
+        Arguments:
+            cache_map_entry: The entry from the cache map
 
-        :returns: The modified time if it exists, otherwise the cache_map_entry
+        Returns:
+            The modified time if it exists, otherwise the cache_map_entry
         """
         if cache_map_entry is not None and "modified_time" in cache_map_entry:
             return cache_map_entry.get("modified_time", None)
@@ -167,9 +170,11 @@ class Cache:
         """
         Retrieve the `content_md5` from the cache_map_entry.
 
-        :param cache_map_entry: The entry from the cache map
+        Arguments:
+            cache_map_entry: The entry from the cache map
 
-        :returns: The content md5 if it exists, otherwise None
+        Returns:
+            The content md5 if it exists, otherwise None
         """
         if cache_map_entry is not None and "content_md5" in cache_map_entry:
             return cache_map_entry.get("content_md5", None)
@@ -183,10 +188,12 @@ class Cache:
         Determine if the cache_map_entry is unmodified by comparing the modified_time
         and content_md5 to the file at the given path.
 
-        :param cache_map_entry: The entry from the cache map
-        :param path: The path to the file to compare to
+        Arguments:
+            cache_map_entry: The entry from the cache map
+            path:            The path to the file to compare to
 
-        :returns: True if the cache_map_entry is unmodified, otherwise False
+        Returns:
+            True if the cache_map_entry is unmodified, otherwise False
         """
         cached_time = self._get_cache_modified_time(cache_map_entry)
         cached_md5 = self._get_cache_content_md5(cache_map_entry)
@@ -202,8 +209,10 @@ class Cache:
         """
         Given a file and file_handle_id, return True if an unmodified cached
         copy of the file exists at the exact path given or False otherwise.
-        :param file_handle_id:
-        :param path: file path at which to look for a cached copy
+
+        Arguments:
+            file_handle_id: The ID of the fileHandle
+            path:           The file path at which to look for a cached copy
         """
         cache_dir = self.get_cache_dir(file_handle_id)
         if not os.path.exists(cache_dir):
@@ -229,15 +238,17 @@ class Cache:
         """
         Retrieve a file with the given file handle from the cache.
 
-        :param file_handle_id:
-        :param path: If the given path is None, look for a cached copy of the
-                     file in the cache directory. If the path is a directory,
-                     look there for a cached copy. If a full file-path is
-                     given, only check whether that exact file exists and is
-                     unmodified since it was cached.
+        Arguments:
+            file_handle_id: The ID of the fileHandle
+            path:           If the given path is None, look for a cached copy of the
+                            file in the cache directory. If the path is a directory,
+                            look there for a cached copy. If a full file-path is
+                            given, only check whether that exact file exists and is
+                            unmodified since it was cached.
 
-        :returns: Either a file path, if an unmodified cached copy of the file
-                  exists in the specified location or None if it does not
+        Returns:
+            Either a file path, if an unmodified cached copy of the file
+            exists in the specified location or None if it does not
         """
         cache_dir = self.get_cache_dir(file_handle_id)
         trace.get_current_span().set_attributes(
@@ -357,13 +368,15 @@ class Cache:
         """
         Remove a file from the cache.
 
-        :param file_handle_id: Will also extract file handle id from either a File or file handle
-        :param path: If the given path is None, remove (and potentially delete)
-                     all cached copies. If the path is that of a file in the
-                     .cacheMap file, remove it.
-        :param delete: If True, delete the file from disk as well as removing it from the cache
+        Arguments:
+            file_handle_id: Will also extract file handle id from either a File or file handle
+            path:           If the given path is None, remove (and potentially delete)
+                            all cached copies. If the path is that of a file in the
+                            .cacheMap file, remove it.
+            delete:         If True, delete the file from disk as well as removing it from the cache
 
-        :returns: A list of files removed
+        Returns:
+            A list of files removed
         """
         removed = []
         cache_dir = self.get_cache_dir(file_handle_id)
@@ -433,10 +446,13 @@ class Cache:
             # using seconds since the unix epoch
             cache.purge(after_date=1609459200, before_date=1612137600)
 
-        :param before_date: if specified, all files before this date will be removed
-        :param after_date:  if specified, all files after this date will be removed
-        :param dry_run:     if dry_run is True, then the selected files are printed rather than removed
-        :returns:           the number of files selected for removal
+        Arguments:
+            before_date: If specified, all files before this date will be removed
+            after_date:  If specified, all files after this date will be removed
+            dry_run:     If dry_run is True, then the selected files are printed rather than removed
+
+        Returns:
+            The number of files selected for removal
         """
         if before_date is None and after_date is None:
             raise ValueError("Either before date or after date should be provided")
