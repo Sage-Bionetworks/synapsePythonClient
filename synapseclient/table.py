@@ -1401,7 +1401,7 @@ class PartialRowset(AppendableRowset):
         query_results = syn.tableQuery("SELECT * FROM syn123")
 
         # The easiest way to know the rowId of the row you wish to change
-        # is by converting the table to a pandas DataFrame with rowIdAndVersionInIndex=False
+        # is by converting the table to a Pandas DataFrame with rowIdAndVersionInIndex=False
         df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
 
         partial_changes = {df['ROW_ID'][0]: {'fooCol': 'foo foo 1'},
@@ -1663,12 +1663,11 @@ def Table(schema, values, **kwargs):
     Arguments:
         schema: A table [Schema][synapseclient.table.Schema] object or Synapse Id of Table.
         values: An object that holds the content of the tables
-                - a [RowSet][synapseclient.table.RowSet]
-                - a list of lists (or tuples) where each element is a row
-                - a string holding the path to a CSV file
-                - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
-                - a dict which will be wrapped by a Pandas \
-                 `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+                - A [RowSet][synapseclient.table.RowSet]
+                - A list of lists (or tuples) where each element is a row
+                - A string holding the path to a CSV file
+                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+                - A dict which will be wrapped by a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
     Returns:
         A Table object suitable for storing
