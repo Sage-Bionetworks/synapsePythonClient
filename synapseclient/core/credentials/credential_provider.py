@@ -232,7 +232,7 @@ class SynapseCredentialsProviderChain(object):
         [SynapseCredentials][synapseclient.core.credentials.cred_data.SynapseCredentials],
         returns None.
 
-        Parameters:
+        Arguments:
             syn: Synapse client instance
             user_login_args: subset of arguments passed during syn.login()
 
