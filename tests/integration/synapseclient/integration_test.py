@@ -31,7 +31,7 @@ def test_login(syn):
     try:
         config = configparser.RawConfigParser()
         config.read(client.CONFIG_FILE)
-        # keep password authentication tests until fully deprecated
+
         # Added a section in the synapse config
         username = config.get("authentication", "username")
         authtoken = config.get("authentication", "authtoken")

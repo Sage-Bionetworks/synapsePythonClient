@@ -89,7 +89,6 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
 
 
 # a class that just contains args passed form synapse client login
-# TODO remove deprecated sessionToken
 UserLoginArgs = collections.namedtuple(
     "UserLoginArgs",
     [

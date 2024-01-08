@@ -224,8 +224,6 @@ Authentication
 --------------
 Authentication toward [Synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished with the clients using personal access tokens. Learn more about [Synapse personal access tokens](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens)
 
-Authentication via passwords and API keys will be deprecated early 2024.
-
 Learn about the [multiple ways one can login to Synapse](https://python-docs.synapse.org/tutorials/authentication/).
 
 
