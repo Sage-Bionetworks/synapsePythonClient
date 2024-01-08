@@ -4,7 +4,8 @@ There are multiple ways one can login to Synapse. We recommend users to choose t
 
 ## Prerequisites
 
-* Create a [personal access token](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens) token obtained from synapse.org under your Settings.
+* Create a [Personal Access Token](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens) (**aka: Synapse Auth Token**) token obtained
+from synapse.org under your Settings.
     * Note that a token must minimally have the **view** scope to be used with the Synapse Python Client.
     * Include **Download** and **Modify** permissions if you are using the Synapse Python Client to follow any subsequent tutorials.
 * Once a personal access token has been created it can be used for any of the options below.
@@ -44,7 +45,7 @@ You may modify the `~/.synapseConfig` file by utilizing the [command line client
 <!-- termynal -->
 ```
 > synapse config
-Synapse username (leave blank if using an auth token):
+Synapse username (Optional):
 
 Auth token: $MY_SYNAPSE_TOKEN
 ```
@@ -73,11 +74,9 @@ import synapseclient
 syn = synapseclient.login()
 ```
 
-For legacy compatibility, the `.synapseConfig` `[authentication]` section will continue to support `apikey` or `username` + `password` pair until early 2024 when they are both deprecated in favor of personal access tokens (`authtoken`) which can be scoped to certain functions and are revocable.
-
 ## Use Environment Variable
 
-Setting the `SYNAPSE_AUTH_TOKEN` environment variable will allow you to login to Synapse with a [personal access token](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens)
+Setting the `SYNAPSE_AUTH_TOKEN` environment variable will allow you to login to Synapse with a [Personal Access Token](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens)
 
 The environment variable will take priority over credentials in the user's `.synapseConfig` file.
 

@@ -7,7 +7,6 @@ import collections.abc
 import configparser
 import csv
 import threading
-import deprecated
 import errno
 import functools
 import getpass
@@ -27,6 +26,8 @@ import urllib.request as urllib_request
 import warnings
 import webbrowser
 import zipfile
+
+from deprecated import deprecated
 
 import synapseclient
 from .annotations import (
@@ -67,8 +68,6 @@ from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
 from synapseclient.core import cumulative_transfer_progress
 from synapseclient.core.credentials import (
-    cached_sessions,
-    delete_stored_credentials,
     get_default_credential_chain,
     UserLoginArgs,
 )
@@ -410,63 +409,29 @@ class Synapse(object):
     def login(
         self,
         email: str = None,
-        password: str = None,
-        apiKey: str = None,
-        sessionToken: str = None,
-        rememberMe: bool = False,
         silent: bool = False,
-        forced: bool = False,
         authToken: str = None,
-    ):
+    ) -> None:
         """
         Valid combinations of login() arguments:
 
-            - email/username and password
-            - email/username and apiKey (Base64 encoded string)
             - authToken
-            - sessionToken (**DEPRECATED**)
+
 
         If no login arguments are provided or only username is provided, login() will attempt to log in using
          information from these sources (in order of preference):
 
-        1. User's personal access token from environment the variable: SYNAPSE_AUTH_TOKEN
-        2. .synapseConfig file (in user home folder unless configured otherwise)
-        3. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
+        1. User defined arguments during a CLI session
+        2. User's Personal Access Token (aka: Synapse Auth Token)
+            from the environment variable: SYNAPSE_AUTH_TOKEN
+        3. .synapseConfig file (in user home folder unless configured otherwise)
+        4. Retrieves user's authentication token from AWS SSM Parameter store (if configured)
 
         Arguments:
             email:        Synapse user name (or an email address associated with a Synapse account)
-            password:     **!!WILL BE DEPRECATED!!** password. Please use authToken (Synapse personal access token)
-            apiKey:       **!!WILL BE DEPRECATED!!** Base64 encoded Synapse API key
-            sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the
-                            following fields: email, password, apiKey
-            rememberMe:   Whether the authentication information should be cached in your operating system's
-                            credential storage.
-            authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
-                            password or apiKey.
+            authToken:    A bearer authorization token, e.g. a
+                [personal access token](https://python-docs.synapse.org/tutorials/authentication/).
             silent:       Defaults to False.  Suppresses the "Welcome ...!" message.
-            forced:       Defaults to False.  Bypass the credential cache if set.
-
-        **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
-        **Linux** systems.
-        If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for
-        the current user only (chmod 600).
-        On Windows and Mac OS, a default credentials storage exists so it will be preferred over the plain-text file.
-        To install GNOME Keyring on Ubuntu:
-
-            sudo apt-get install gnome-keyring
-
-            sudo apt-get install python-dbus  #(for Python 2 installed via apt-get)
-            OR
-            sudo apt-get install python3-dbus #(for Python 3 installed via apt-get)
-            OR
-            sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python or vitualenv)
-            sudo pip install dbus-python #(may take a while to compile C code)
-
-        If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before
-        running your Python session:
-
-            dbus-run-session -- bash #(replace 'bash' with 'sh' if bash is unavailable)
-            echo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon -- unlock
 
         Example: Logging in
             Using an auth token:
@@ -474,20 +439,11 @@ class Synapse(object):
                 syn.login(authToken="authtoken")
                 #> Welcome, Me!
 
-            Using a username/password:
+            Using an auth token and username. The username is optional but verified
+            against the username in the auth token.:
 
-                syn.login('my-username', 'secret-password', rememberMe=True)
-                syn.login('my-username', 'secret-password', rememberMe=True)
+                syn.login(email="my-username", authToken="authtoken")
                 #> Welcome, Me!
-                    syn.login('my-username', 'secret-password', rememberMe=True)
-                #> Welcome, Me!
-
-            After logging in with the *rememberMe* flag set, an API key will be cached and
-            used to authenticate for future logins:
-
-                syn.login()
-                #> Welcome, Me!
-
         """
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
@@ -499,15 +455,11 @@ class Synapse(object):
         self.logout()
 
         credential_provider_chain = get_default_credential_chain()
-        # TODO: remove deprecated sessionToken when we move to a different solution
+
         self.credentials = credential_provider_chain.get_credentials(
-            self,
-            UserLoginArgs(
+            syn=self,
+            user_login_args=UserLoginArgs(
                 email,
-                password,
-                apiKey,
-                forced,
-                sessionToken,
                 authToken,
             ),
         )
@@ -516,28 +468,14 @@ class Synapse(object):
         if not self.credentials:
             raise SynapseNoCredentialsError("No credentials provided.")
 
-        # Save the API key in the cache
-        if rememberMe:
-            message = (
-                "The rememberMe parameter will be deprecated by early 2024. Please use the ~/.synapseConfig "
-                "or SYNAPSE_AUTH_TOKEN environmental variable to set up your Synapse connection."
-            )
-            self.logger.warning(message)
-            delete_stored_credentials(self.credentials.username)
-            self.credentials.store_to_keyring()
-            cached_sessions.set_most_recent_user(self.credentials.username)
-
         if not silent:
             profile = self.getUserProfile()
-            # TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
-            self.logger.info(
-                "Welcome, %s!\n"
-                % (
-                    profile["displayName"]
-                    if "displayName" in profile
-                    else self.credentials.username
-                )
+            display_name = (
+                profile["displayName"]
+                if "displayName" in profile
+                else self.credentials.username
             )
+            self.logger.info(f"Welcome, {display_name}!\n")
 
     def _get_config_section_dict(self, section_name: str) -> dict:
         config = self.getConfigFile(self.configPath)
@@ -583,35 +521,6 @@ class Synapse(object):
 
         return transfer_config
 
-    @tracer.start_as_current_span("Synapse::_getSessionToken")
-    def _getSessionToken(self, email: str, password: str) -> str:
-        """Returns a validated session token."""
-        try:
-            req = {"email": email, "password": password}
-            session = self.restPOST(
-                "/session",
-                body=json.dumps(req),
-                endpoint=self.authEndpoint,
-                headers=self.default_headers,
-            )
-            return session["sessionToken"]
-        except SynapseHTTPError as err:
-            if (
-                err.response.status_code == 403
-                or err.response.status_code == 404
-                or err.response.status_code == 401
-            ):
-                raise SynapseAuthenticationError("Invalid username or password.")
-            raise
-
-    @tracer.start_as_current_span("Synapse::_getAPIKey")
-    def _getAPIKey(self, sessionToken: str) -> str:
-        """Uses a session token to fetch an API key."""
-
-        headers = {"sessionToken": sessionToken, "Accept": "application/json"}
-        secret = self.restGET("/secretKey", endpoint=self.authEndpoint, headers=headers)
-        return secret["secretKey"]
-
     @tracer.start_as_current_span("Synapse::_is_logged_in")
     def _is_logged_in(self) -> bool:
         """Test whether the user is logged in to Synapse."""
@@ -625,25 +534,30 @@ class Synapse(object):
             return False
         return True
 
-    def logout(self, forgetMe: bool = False):
+    def logout(self) -> None:
         """
         Removes authentication information from the Synapse client.
-
-        Arguments:
-            forgetMe: Set as True to clear any local storage of authentication information.
-                        See the flag "rememberMe" in [synapseclient.Synapse.login][]
 
         Returns:
             None
         """
-        # Delete the user's API key from the cache
-        if forgetMe and self.credentials:
-            self.credentials.delete_from_keyring()
-
         self.credentials = None
 
+    @deprecated(
+        version="4.0.0",
+        reason="deprecated with no replacement. The client does not support API keys for "
+        "authentication. Please use a personal access token instead. This method will "
+        "be removed in a future release.",
+    )
     def invalidateAPIKey(self):
-        """Invalidates authentication across all clients.
+        """
+        **Deprecated with no replacement.** The client does not support API keys for
+        authentication. Please use a
+        [personal access token](https://python-docs.synapse.org/tutorials/authentication/)
+        instead. This method will be removed in a future release.
+
+
+        Invalidates authentication across all clients.
 
         Returns:
             None
@@ -2079,12 +1993,14 @@ class Synapse(object):
             uri = f"/entity/{id_of(entity)}/annotations2"
         return self.restGET(uri)
 
-    @deprecated.sphinx.deprecated(
+    @deprecated(
         version="2.1.0",
-        reason="deprecated and replaced with :py:meth:`get_annotations`",
+        reason="deprecated and replaced with `get_annotations`",
     )
-    def getAnnotations(self, entity, version=None):
-        """deprecated and replaced with :py:meth:`get_annotations`"""
+    def getAnnotations(
+        self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None
+    ) -> Annotations:
+        """deprecated and replaced with [get_annotations][]"""
         return self.get_annotations(entity, version=version)
 
     @tracer.start_as_current_span("Synapse::get_annotations")
@@ -2106,22 +2022,27 @@ class Synapse(object):
         """
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
 
-    @deprecated.sphinx.deprecated(
+    @deprecated(
         version="2.1.0",
-        reason="deprecated and replaced with :py:meth:`set_annotations` "
+        reason="deprecated and replaced with `set_annotations` "
         "This method is UNSAFE and may overwrite existing annotations"
         " without confirming that you have retrieved and"
         " updated the latest annotations",
     )
-    def setAnnotations(self, entity, annotations=None, **kwargs):
+    def setAnnotations(self, entity, annotations=None, **kwargs) -> Annotations:
         """
+        Deprecated and replaced with [set_annotations][].
+
+
         Store annotations for an Entity in the Synapse Repository.
 
-        :param entity:      The Entity or Synapse Entity ID whose annotations are to be updated
-        :param annotations: A dictionary of annotation names and values
-        :param kwargs:      annotation names and values
-        :returns: the updated annotations for the entity
+        Arguments:
+            entity:    The Entity or Synapse Entity ID whose annotations are to be updated
+            annotations: A dictionary of annotation names and values
+            kwargs:      annotation names and values
 
+        Returns:
+            The updated [synapseclient.annotations.Annotations][] for the entity
         """
         if not annotations:
             annotations = {}
@@ -2419,7 +2340,7 @@ class Synapse(object):
         return list(effective_permission_set)
 
     @tracer.start_as_current_span("Synapse::getPermissions")
-    @deprecated.deprecated(
+    @deprecated(
         version="3.3.0",
         reason="deprecated and replaced with synapseclient.Synapse.get_acl",
     )

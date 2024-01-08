@@ -18,7 +18,7 @@ For help on specific commands, type:
 synapse [command] -h
 ```
 
-Logging in with an auth token environment variable, type:
+Test your login credentials with an auth token environment variable:
 <!-- termynal -->
 ```
 > synapse login -p $MY_SYNAPSE_TOKEN
@@ -30,7 +30,7 @@ Logged in as: username (1234567)
 The usage is as follows:
 
 ```bash
-synapse [-h] [--version] [-u SYNAPSEUSER] [-p SYNAPSEPASSWORD] [-c CONFIGPATH] [--debug] [--silent] [-s]
+synapse [-h] [--version] [-u SYNAPSEUSER] [-p SYNAPSE_AUTH_TOKEN] [-c CONFIGPATH] [--debug] [--silent] [-s]
         [--otel {console,otlp}]
         {get,manifest,sync,store,add,mv,cp,get-download-list,associate,delete,query,submit,show,cat,list,config,set-provenance,get-provenance,set-annotations,get-annotations,create,store-table,onweb,login,test-encoding,get-sts-token,migrate}
         ...
@@ -42,7 +42,7 @@ synapse [-h] [--version] [-u SYNAPSEUSER] [-p SYNAPSEPASSWORD] [-c CONFIGPATH] [
 |---------------------|---------|---------------------------------------------------------------------------|-----------------------|
 | `--version`         | Flag    | Show program’s version number and exit                                    |                       |
 | `-u, --username`    | Option  | Username used to connect to Synapse                                       |                       |
-| `-p, --password`    | Option  | Password, api key, or token used to connect to Synapse                    |                       |
+| `-p, --password`    | Option  | Auth Token used to connect to Synapse                                     |                       |
 | `-c, --configPath`  | Option  | Path to configuration file used to connect to Synapse                     | “~/.synapseConfig”    |
 | `--debug`           | Flag    | Set to debug mode, additional output and error messages are printed to the console | False             |
 | `--silent`          | Flag    | Set to silent mode, console output is suppressed                          | False                 |
@@ -74,7 +74,8 @@ synapse [-h] [--version] [-u SYNAPSEUSER] [-p SYNAPSEPASSWORD] [-c CONFIGPATH] [
 - [create](#create): Creates folders or projects on Synapse
 - [store-table](#store-table): Creates a Synapse Table given a csv
 - [onweb](#onweb): opens Synapse website for Entity
-- [login](#login): login to Synapse and (optionally) cache credentials
+- [login](#login): Verify credentials can be used to login to Synapse.
+        This does not need to be used prior to executing other commands.
 - [test-encoding](#test-encoding): test character encoding to help diagnose problems
 - [get-sts-token](#get-sts-token): Get an STS token for access to AWS S3 storage underlying Synapse
 - [migrate](#migrate): Migrate Synapse entities to a different storage location
@@ -470,17 +471,17 @@ synapse onweb [-h] id
 
 ### `login`
 
-Login to Synapse and (optionally) cache credentials.
+Verify credentials can be used to login to Synapse.
+This does not need to be used prior to executing other commands.
 
 ```bash
-synapse login [-h] [-u SYNAPSEUSER] [-p SYNAPSEPASSWORD] [--rememberMe]
+synapse login [-h] [-u SYNAPSEUSER] [-p SYNAPSE_AUTH_TOKEN]
 ```
 
 | Name                | Type    | Description                                                               | Default               |
 |---------------------|---------|---------------------------------------------------------------------------|-----------------------|
-| `-u, --username`    | Named  | Username used to connect to Synapse.                                      |                       |
-| `-p, --password`    | Named  | This will be deprecated. Password or api key used to connect to Synapse.  |                       |
-| `--rememberMe, --remember-me` | Named  | Cache credentials for automatic authentication on future interactions with Synapse. | False                 |
+| `-u, --username`    | Named  | Username used to connect to Synapse.                                       |                       |
+| `-p, --password`    | Named  | Synapse Auth Token (aka: Personal Access Token) used to connect to Synapse |                       |
 
 
 ### `test-encoding`
