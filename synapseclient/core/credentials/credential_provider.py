@@ -130,6 +130,12 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
             # to prevent ambiguity
             username = None
             token = None
+            syn.logger.warning(
+                f"{user_login_args.username} was defined in the user login "
+                "arguments, however, it is also defined in the `~/.synapseConfig` "
+                "file. Becuase they do not match we will not use the `authtoken` "
+                "in the `~/.synapseConfig` file.",
+            )
 
         return username, token
 
@@ -252,9 +258,9 @@ class SynapseCredentialsProviderChain(object):
 
 DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
     cred_providers=[
+        ConfigFileCredentialsProvider(),
         UserArgsCredentialsProvider(),
         EnvironmentVariableCredentialsProvider(),
-        ConfigFileCredentialsProvider(),
         AWSParameterStoreCredentialsProvider(),  # see service catalog issue: SC-260
     ]
 )
