@@ -1993,16 +1993,6 @@ class Synapse(object):
             uri = f"/entity/{id_of(entity)}/annotations2"
         return self.restGET(uri)
 
-    @deprecated(
-        version="2.1.0",
-        reason="deprecated and replaced with `get_annotations`",
-    )
-    def getAnnotations(
-        self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None
-    ) -> Annotations:
-        """deprecated and replaced with [get_annotations][]"""
-        return self.get_annotations(entity, version=version)
-
     @tracer.start_as_current_span("Synapse::get_annotations")
     def get_annotations(
         self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None
@@ -2021,51 +2011,6 @@ class Synapse(object):
             A [synapseclient.annotations.Annotations][] object, a dict that also has id and etag attributes
         """
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
-
-    @deprecated(
-        version="2.1.0",
-        reason="deprecated and replaced with `set_annotations` "
-        "This method is UNSAFE and may overwrite existing annotations"
-        " without confirming that you have retrieved and"
-        " updated the latest annotations",
-    )
-    def setAnnotations(self, entity, annotations=None, **kwargs) -> Annotations:
-        """
-        Deprecated and replaced with [set_annotations][].
-
-
-        Store annotations for an Entity in the Synapse Repository.
-
-        Arguments:
-            entity:    The Entity or Synapse Entity ID whose annotations are to be updated
-            annotations: A dictionary of annotation names and values
-            kwargs:      annotation names and values
-
-        Returns:
-            The updated [synapseclient.annotations.Annotations][] for the entity
-        """
-        if not annotations:
-            annotations = {}
-
-        annotations.update(kwargs)
-
-        id = id_of(entity)
-        trace.get_current_span().set_attributes({"synapse.id": id})
-        etag = (
-            annotations.etag
-            if hasattr(annotations, "etag")
-            else annotations.get("etag")
-        )
-
-        if not etag:
-            if "etag" in entity:
-                etag = entity["etag"]
-            else:
-                uri = "/entity/%s/annotations2" % id_of(entity)
-                old_annos = self.restGET(uri)
-                etag = old_annos["etag"]
-
-        return self.set_annotations(Annotations(id, etag, annotations))
 
     @tracer.start_as_current_span("Synapse::set_annotations")
     def set_annotations(self, annotations: Annotations):
@@ -2341,7 +2286,7 @@ class Synapse(object):
 
     @tracer.start_as_current_span("Synapse::getPermissions")
     @deprecated(
-        version="3.3.0",
+        version="4.0.0",
         reason="deprecated and replaced with synapseclient.Synapse.get_acl",
     )
     def getPermissions(
