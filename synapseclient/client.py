@@ -7,7 +7,6 @@ import collections.abc
 import configparser
 import csv
 import threading
-import deprecated
 import errno
 import functools
 import getpass
@@ -27,6 +26,8 @@ import urllib.request as urllib_request
 import warnings
 import webbrowser
 import zipfile
+
+from deprecated import deprecated
 
 import synapseclient
 from .annotations import (
@@ -67,8 +68,6 @@ from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
 from synapseclient.core import cumulative_transfer_progress
 from synapseclient.core.credentials import (
-    cached_sessions,
-    delete_stored_credentials,
     get_default_credential_chain,
     UserLoginArgs,
 )
@@ -118,7 +117,9 @@ from synapseclient.core.upload.upload_functions import (
     upload_synapse_s3,
 )
 from synapseclient.core.dozer import doze
+
 from typing import Union, Dict, List, Optional, Tuple
+from synapseclient.models.permission import Permissions
 from opentelemetry import trace
 
 tracer = trace.get_tracer("synapseclient")
@@ -430,41 +431,28 @@ class Synapse(object):
     def login(
         self,
         email: str = None,
-        password: str = None,
-        apiKey: str = None,
-        sessionToken: str = None,
-        rememberMe: bool = False,
         silent: bool = False,
-        forced: bool = False,
         authToken: str = None,
-    ):
+    ) -> None:
         """
         Valid combinations of login() arguments:
 
-        - email/username and password
-        - email/username and apiKey (Base64 encoded string)
         - authToken
-        - sessionToken (**DEPRECATED**)
 
         If no login arguments are provided or only username is provided, login() will attempt to log in using
          information from these sources (in order of preference):
 
-        1. User's personal access token from environment the variable: SYNAPSE_AUTH_TOKEN
-        2. .synapseConfig file (in user home folder unless configured otherwise)
-        3. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
+        1. User defined arguments during a CLI session
+        2. User's Personal Access Token (aka: Synapse Auth Token)
+            from the environment variable: SYNAPSE_AUTH_TOKEN
+        3. .synapseConfig file (in user home folder unless configured otherwise)
+        4. Retrieves user's authentication token from AWS SSM Parameter store (if configured)
 
         Arguments:
             email:        Synapse user name (or an email address associated with a Synapse account)
-            password:     **!!WILL BE DEPRECATED!!** password. Please use authToken (Synapse personal access token)
-            apiKey:       **!!WILL BE DEPRECATED!!** Base64 encoded Synapse API key
-            sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the
-                            following fields: email, password, apiKey
-            rememberMe:   Whether the authentication information should be cached in your operating system's
-                            credential storage.
-            authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
-                            password or apiKey.
-            silent:       Suppresses the "Welcome ...!" message.
-            forced:       Bypass the credential cache if set.
+            authToken:    A bearer authorization token, e.g. a
+                [personal access token](https://python-docs.synapse.org/tutorials/authentication/).
+            silent:       Defaults to False.  Suppresses the "Welcome ...!" message.
 
         **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
         **Linux** systems.
@@ -494,15 +482,10 @@ class Synapse(object):
                 syn.login(authToken="authtoken")
                 > Welcome, Me!
 
-            Using a username/password:
+            Using an auth token and username. The username is optional but verified
+            against the username in the auth token:
 
-                syn.login('my-username', 'secret-password', rememberMe=True)
-                > Welcome, Me!
-
-            After logging in with the *rememberMe* flag set, an API key will be cached and
-            used to authenticate for future logins:
-
-                syn.login()
+                syn.login(email="my-username", authToken="authtoken")
                 > Welcome, Me!
 
         """
@@ -516,15 +499,11 @@ class Synapse(object):
         self.logout()
 
         credential_provider_chain = get_default_credential_chain()
-        # TODO: remove deprecated sessionToken when we move to a different solution
+
         self.credentials = credential_provider_chain.get_credentials(
-            self,
-            UserLoginArgs(
+            syn=self,
+            user_login_args=UserLoginArgs(
                 email,
-                password,
-                apiKey,
-                forced,
-                sessionToken,
                 authToken,
             ),
         )
@@ -533,28 +512,14 @@ class Synapse(object):
         if not self.credentials:
             raise SynapseNoCredentialsError("No credentials provided.")
 
-        # Save the API key in the cache
-        if rememberMe:
-            message = (
-                "The rememberMe parameter will be deprecated by early 2024. Please use the ~/.synapseConfig "
-                "or SYNAPSE_AUTH_TOKEN environmental variable to set up your Synapse connection."
-            )
-            self.logger.warning(message)
-            delete_stored_credentials(self.credentials.username)
-            self.credentials.store_to_keyring()
-            cached_sessions.set_most_recent_user(self.credentials.username)
-
         if not silent:
             profile = self.getUserProfile()
-            # TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
-            self.logger.info(
-                "Welcome, %s!\n"
-                % (
-                    profile["displayName"]
-                    if "displayName" in profile
-                    else self.credentials.username
-                )
+            display_name = (
+                profile["displayName"]
+                if "displayName" in profile
+                else self.credentials.username
             )
+            self.logger.info(f"Welcome, {display_name}!\n")
 
     def _get_config_section_dict(self, section_name: str) -> Dict[str, str]:
         """
@@ -637,47 +602,6 @@ class Synapse(object):
 
         return transfer_config
 
-    @tracer.start_as_current_span("Synapse::_getSessionToken")
-    def _getSessionToken(self, email: str, password: str) -> str:
-        """
-        Get a validated session token.
-
-        Raises:
-            SynapseAuthenticationError: If the username or password is invalid.
-
-        Returns:
-            A validated session token
-        """
-        try:
-            req = {"email": email, "password": password}
-            session = self.restPOST(
-                "/session",
-                body=json.dumps(req),
-                endpoint=self.authEndpoint,
-                headers=self.default_headers,
-            )
-            return session["sessionToken"]
-        except SynapseHTTPError as err:
-            if (
-                err.response.status_code == 403
-                or err.response.status_code == 404
-                or err.response.status_code == 401
-            ):
-                raise SynapseAuthenticationError("Invalid username or password.")
-            raise
-
-    @tracer.start_as_current_span("Synapse::_getAPIKey")
-    def _getAPIKey(self, sessionToken: str) -> str:
-        """
-        Uses a session token to fetch an API key.
-
-        Returns:
-            An API key
-        """
-        headers = {"sessionToken": sessionToken, "Accept": "application/json"}
-        secret = self.restGET("/secretKey", endpoint=self.authEndpoint, headers=headers)
-        return secret["secretKey"]
-
     @tracer.start_as_current_span("Synapse::_is_logged_in")
     def _is_logged_in(self) -> bool:
         """
@@ -696,25 +620,30 @@ class Synapse(object):
             return False
         return True
 
-    def logout(self, forgetMe: bool = False):
+    def logout(self) -> None:
         """
         Removes authentication information from the Synapse client.
-
-        Arguments:
-            forgetMe: Set as True to clear any local storage of authentication information.
-                        See the flag "rememberMe" in [synapseclient.Synapse.login][]
 
         Returns:
             None
         """
-        # Delete the user's API key from the cache
-        if forgetMe and self.credentials:
-            self.credentials.delete_from_keyring()
-
         self.credentials = None
 
+    @deprecated(
+        version="4.0.0",
+        reason="deprecated with no replacement. The client does not support API keys for "
+        "authentication. Please use a personal access token instead. This method will "
+        "be removed in a future release.",
+    )
     def invalidateAPIKey(self):
-        """Invalidates authentication across all clients.
+        """
+        **Deprecated with no replacement.** The client does not support API keys for
+        authentication. Please use a
+        [personal access token](https://python-docs.synapse.org/tutorials/authentication/)
+        instead. This method will be removed in a future release.
+
+
+        Invalidates authentication across all clients.
 
         Returns:
             None
@@ -2266,14 +2195,6 @@ class Synapse(object):
             uri = f"/entity/{id_of(entity)}/annotations2"
         return self.restGET(uri)
 
-    @deprecated.sphinx.deprecated(
-        version="2.1.0",
-        reason="deprecated and replaced with `get_annotations`",
-    )
-    def getAnnotations(self, entity, version=None):
-        """**Deprecated** and replaced with [get_annotations][synapseclient.Synapse.get_annotations]"""
-        return self.get_annotations(entity, version=version)
-
     @tracer.start_as_current_span("Synapse::get_annotations")
     def get_annotations(
         self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None
@@ -2292,55 +2213,6 @@ class Synapse(object):
             A [synapseclient.annotations.Annotations][] object, a dict that also has id and etag attributes
         """
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
-
-    @deprecated.sphinx.deprecated(
-        version="2.1.0",
-        reason="deprecated and replaced with `set_annotations` "
-        "This method is UNSAFE and may overwrite existing annotations"
-        " without confirming that you have retrieved and"
-        " updated the latest annotations",
-    )
-    def setAnnotations(
-        self,
-        entity: Union[Entity, str],
-        annotations: Dict[str, Union[str, int, float, list]] = None,
-        **kwargs,
-    ):
-        """
-        Store annotations for an Entity in the Synapse Repository.
-
-        **Deprecated** and replaced with [set_annotations][synapseclient.Synapse.set_annotations]
-
-        Arguments:
-            entity:      The Entity or Synapse Entity ID whose annotations are to be updated
-            annotations: A dictionary of annotation names and values
-            kwargs:      Annotation names and values
-
-        Returns:
-            The updated annotations for the entity
-        """
-        if not annotations:
-            annotations = {}
-
-        annotations.update(kwargs)
-
-        id = id_of(entity)
-        trace.get_current_span().set_attributes({"synapse.id": id})
-        etag = (
-            annotations.etag
-            if hasattr(annotations, "etag")
-            else annotations.get("etag")
-        )
-
-        if not etag:
-            if "etag" in entity:
-                etag = entity["etag"]
-            else:
-                uri = "/entity/%s/annotations2" % id_of(entity)
-                old_annos = self.restGET(uri)
-                etag = old_annos["etag"]
-
-        return self.set_annotations(Annotations(id, etag, annotations))
 
     @tracer.start_as_current_span("Synapse::set_annotations")
     def set_annotations(self, annotations: Annotations):
@@ -2583,23 +2455,29 @@ class Synapse(object):
                 "Unknown Synapse user (%s).  %s." % (principalId, supplementalMessage)
             )
 
-    @tracer.start_as_current_span("Synapse::getPermissions")
-    def getPermissions(
+    @tracer.start_as_current_span("Synapse::get_acl")
+    def get_acl(
         self,
         entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
-        principalId: str = None,
-    ):
-        """Get the permissions that a user or group has on an Entity.
+        principal_id: str = None,
+    ) -> typing.List[str]:
+        """
+        Get the [ACL](https://rest-docs.synapse.org/rest/org/
+        sagebionetworks/repo/model/ACCESS_TYPE.html)
+        that a user or group has on an Entity.
+
         Arguments:
-            entity: An Entity or Synapse ID to lookup
-            principalId: Identifier of a user or group (defaults to PUBLIC users)
+            entity:      An Entity or Synapse ID to lookup
+            principal_id: Identifier of a user or group (defaults to PUBLIC users)
 
         Returns:
             An array containing some combination of
-            ['READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS', 'DOWNLOAD']
-            or an empty array
+                ['READ', 'UPDATE', 'CREATE', 'DELETE', 'DOWNLOAD', 'MODERATE',
+                'CHANGE_PERMISSIONS', 'CHANGE_SETTINGS']
+                or an empty array
         """
-        principal_id = self._getUserbyPrincipalIdOrName(principalId)
+
+        principal_id = self._getUserbyPrincipalIdOrName(principal_id)
 
         trace.get_current_span().set_attributes(
             {"synapse.id": id_of(entity), "synapse.principal_id": principal_id}
@@ -2611,7 +2489,8 @@ class Synapse(object):
         team_ids = [int(team.id) for team in team_list]
         effective_permission_set = set()
 
-        # This user_profile_bundle is being used to verify that the principal_id is a registered user of the system
+        # This user_profile_bundle is being used to verify that the principal_id
+        #  is a registered user of the system
         user_profile_bundle = self._get_user_bundle(principal_id, 1)
 
         # Loop over all permissions in the returned ACL and add it to the effective_permission_set
@@ -2634,6 +2513,73 @@ class Synapse(object):
                     permissions["accessType"]
                 )
         return list(effective_permission_set)
+
+    @tracer.start_as_current_span("Synapse::getPermissions")
+    @deprecated(
+        version="4.0.0",
+        reason="deprecated and replaced with synapseclient.Synapse.get_acl",
+    )
+    def getPermissions(
+        self,
+        entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
+        principal_id: str = None,
+    ) -> typing.List[str]:
+        """
+        **Deprecated** and replaced with [get_acl][synapseclient.Synapse.get_acl].
+
+
+        Get the permissions that a user or group has on an Entity.
+
+        Arguments:
+            entity:      An Entity or Synapse ID to lookup
+            principal_id: Identifier of a user or group (defaults to PUBLIC users)
+
+        Returns:
+            An array containing some combination of
+                ['READ', 'UPDATE', 'CREATE', 'DELETE', 'DOWNLOAD', 'MODERATE',
+                'CHANGE_PERMISSIONS', 'CHANGE_SETTINGS']
+                or an empty array
+        """
+
+        return self.get_acl(entity=entity, principal_id=principal_id)
+
+    @tracer.start_as_current_span("Synapse::get_permissions")
+    def get_permissions(
+        self, entity: Union[Entity, Evaluation, str, collections.abc.Mapping]
+    ) -> Permissions:
+        """
+        Get the [permissions](https://rest-docs.synapse.org/rest/org/
+        sagebionetworks/repo/model/auth/UserEntityPermissions.html)
+        that the caller has on an Entity.
+
+        Arguments:
+            entity: An Entity or Synapse ID to lookup
+
+        Returns:
+            An Permissions object
+
+
+        Example: Using this function:
+            Getting permissions for a Synapse Entity
+
+                permissions = syn.get_permissions(Entity)
+
+            Getting permissions for a Synapse ID
+
+                permissions = syn.get_permissions("syn12345")
+
+            Getting access types list from the Permissions object
+
+                permissions.access_types
+        """
+
+        entity_id = id_of(entity)
+
+        trace.get_current_span().set_attributes({"synapse.id": entity_id})
+
+        url = f"/entity/{entity_id}/permissions"
+        data = self.restGET(url)
+        return Permissions.from_dict(data)
 
     @tracer.start_as_current_span("Synapse::setPermissions")
     def setPermissions(

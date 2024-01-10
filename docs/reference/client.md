@@ -19,6 +19,8 @@ those memebrs. We are roughly grouping these for similar functionality. -->
         - getColumns
         - getTableColumns
         - downloadTableColumns
+        - get_acl
+        - get_permissions
         - getPermissions
         - setPermissions
         - getProvenance

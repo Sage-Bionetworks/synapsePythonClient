@@ -244,53 +244,6 @@ def test_get_sts_token():
     syn.logger.info.assert_called_once_with(expected_output)
 
 
-def test_authenticate_login__username_password(syn):
-    """Verify happy path for _authenticate_login"""
-
-    with patch.object(syn, "login"):
-        cmdline._authenticate_login(syn, "foo", "bar", rememberMe=True, silent=True)
-        syn.login.assert_called_once_with(
-            "foo", password="bar", rememberMe=True, silent=True
-        )
-
-
-def test_authenticate_login__api_key(syn):
-    """Verify attempting to authenticate when supplying an api key as the password.
-    Should attempt to treat the password as an api key after the initial failures as a password and token
-    """
-
-    username = "foo"
-    password = base64.b64encode(b"bar").decode("utf-8")
-    login_kwargs = {"rememberMe": True}
-
-    expected_login_calls = [
-        call(username, password=password, **login_kwargs),
-        call(username, authToken=password, **login_kwargs),
-        call(username, apiKey=password, **login_kwargs),
-    ]
-
-    with patch.object(syn, "login") as login:
-        login.side_effect = SynapseAuthenticationError()
-
-        # simulate failure both as password and as api key
-        with pytest.raises(SynapseAuthenticationError):
-            cmdline._authenticate_login(syn, username, password, **login_kwargs)
-
-        assert expected_login_calls == login.call_args_list
-        login.reset_mock()
-
-        # now simulate success when used as an api key
-        def login_side_effect(*args, **kwargs):
-            api_key = kwargs.get("apiKey")
-            if not api_key:
-                raise SynapseAuthenticationError()
-
-        login.side_effect = login_side_effect
-
-        cmdline._authenticate_login(syn, username, password, **login_kwargs)
-        assert expected_login_calls == login.call_args_list
-
-
 def test_authenticate_login__auth_token(syn):
     """Verify attempting to authenticate when supplying an auth bearer token instead of an password (or api key).
     Should attempt to treat the password as token after the initial failure as a password.
@@ -298,10 +251,9 @@ def test_authenticate_login__auth_token(syn):
 
     username = "foo"
     auth_token = "auth_bearer_token"
-    login_kwargs = {"rememberMe": True}
+    login_kwargs = {}
 
     expected_login_calls = [
-        call(username, password=auth_token, **login_kwargs),
         call(username, authToken=auth_token, **login_kwargs),
     ]
 
@@ -333,7 +285,7 @@ def test_authenticate_login__no_input(mocker, syn):
     """Verify attempting to authenticate with a bare login command (i.e. expecting
     to derive credentials from config for cache)"""
 
-    login_kwargs = {"rememberMe": True}
+    login_kwargs = {}
 
     call(**login_kwargs),
 
@@ -347,7 +299,7 @@ def test_authenticate_login__failure(mocker, syn):
     """Verify that a login with invalid credentials raises an error (the
     first error when multiple login methods were attempted."""
 
-    login_kwargs = {"rememberMe": True}
+    login_kwargs = {}
 
     call(**login_kwargs),
 
@@ -363,26 +315,10 @@ def test_authenticate_login__failure(mocker, syn):
     assert str(ex_cm.value) == "call1"
 
 
-@patch.object(cmdline, "_authenticate_login")
-def test_login_with_prompt(mock_authenticate_login, syn):
-    """Verify logging in when username/pass supplied as args to the command"""
-
-    user = "foo"
-    password = "bar"
-    login_kwargs = {
-        "rememberMe": False,
-        "silent": True,
-        "forced": True,
-    }
-
-    cmdline.login_with_prompt(syn, user, password, **login_kwargs)
-    mock_authenticate_login.assert_called_once_with(syn, user, password, **login_kwargs)
-
-
 @pytest.mark.parametrize(
     "username,expected_pass_prompt",
     [
-        ("foo", "Password, api key, or auth token for user foo:"),
+        ("foo", "Auth token for user foo:"),
         ("", "Auth token:"),
     ],
 )
@@ -399,11 +335,6 @@ def test_login_with_prompt__getpass(mocker, username, expected_pass_prompt, syn)
     mock_authenticate_login = mocker.patch.object(cmdline, "_authenticate_login")
 
     password = "bar"
-    login_kwargs = {
-        "rememberMe": False,
-        "silent": True,
-        "forced": True,
-    }
 
     def authenticate_side_effect(*args, **kwargs):
         if mock_authenticate_login.call_count == 1:
@@ -419,20 +350,17 @@ def test_login_with_prompt__getpass(mocker, username, expected_pass_prompt, syn)
     mock_input.return_value = username
     mock_getpass.getpass.return_value = password
 
-    cmdline.login_with_prompt(syn, None, None, **login_kwargs)
+    cmdline.login_with_prompt(syn=syn, user=None, password=None, silent=True)
 
-    mock_input.assert_called_once_with(
-        "Synapse username (leave blank if using an auth token): "
-    )
+    mock_input.assert_called_once_with("Synapse username (Optional): ")
     mock_getpass.getpass.assert_called_once_with(expected_pass_prompt)
 
     expected_authenticate_calls = [
-        call(syn, None, None, **login_kwargs),
+        call(syn=syn, user=None, secret=None, silent=True),
         call(
-            syn,
-            username,
-            password,
-            **{k: v for k, v in login_kwargs.items() if k != "silent"},
+            syn=syn,
+            user=username,
+            secret=password,
         ),
     ]
 
@@ -481,9 +409,7 @@ def test_login_with_prompt_no_tty(mock_authenticate_login, mock_input, mock_sys,
 
     user = "test_user"
     login_kwargs = {
-        "rememberMe": False,
         "silent": True,
-        "forced": True,
     }
 
     mock_authenticate_login.side_effect = SynapseNoCredentialsError()
@@ -512,14 +438,12 @@ def test_login_with_prompt__user_supplied(mocker, syn):
     mock_authenticate_login = mocker.patch.object(cmdline, "_authenticate_login")
     mock_authenticate_login.side_effect = [SynapseNoCredentialsError(), None]
 
-    cmdline.login_with_prompt(syn, username, None)
+    cmdline.login_with_prompt(syn=syn, user=username, password=None)
     assert not mock_input.called
     mock_authenticate_login.assert_called_with(
-        syn,
-        username,
-        password,
-        forced=False,
-        rememberMe=False,
+        syn=syn,
+        user=username,
+        secret=password,
     )
 
 
@@ -552,7 +476,9 @@ def test_command_auto_login(mock_login_with_prompt, mock_sys_exit, syn):
     args = cmdline.build_parser().parse_args(["-u", "test_user", "get"])
     cmdline.perform_main(args, syn)
 
-    mock_login_with_prompt.assert_called_once_with(syn, "test_user", None, silent=True)
+    mock_login_with_prompt.assert_called_once_with(
+        syn=syn, user="test_user", password=None, silent=True
+    )
     mock_sys_exit.assert_called_once_with(1)
 
 
@@ -568,14 +494,14 @@ def test__replace_existing_config__prepend(syn):
         config_f.write(auth_section)
 
     new_auth_section = (
-        "[authentication]\n" "username=foobar\n" "apikey=testingtesting\n\n"
+        "[authentication]\n" "username=foobar\n" "authToken=testingtesting\n\n"
     )
     new_config_text = cmdline._replace_existing_config(f.name, new_auth_section)
 
     expected_text = (
         "[authentication]\n"
         "username=foobar\n"
-        "apikey=testingtesting\n\n\n\n"
+        "authToken=testingtesting\n\n\n\n"
         "#[authentication]\n"
         "#username=foobar\n"
         "#password=testingtestingtesting\n\n"
@@ -591,7 +517,7 @@ def test__replace_existing_config__backup(syn):
     auth_section = "foobar"
     with open(f.name, "w") as config_f:
         config_f.write(auth_section)
-    new_auth_section = "[authentication]\n" "username=foobar\n" "apikey=foobar\n\n"
+    new_auth_section = "[authentication]\n" "username=foobar\n" "authToken=foobar\n\n"
     cmdline._replace_existing_config(f.name, new_auth_section)
     # If command is run again, it will make sure to save existing
     # backup files
@@ -611,11 +537,13 @@ def test__replace_existing_config__replace(syn):
         config_f.write(auth_section)
 
     new_auth_section = (
-        "[authentication]\n" "username=foobar\n" "apikey=testingtesting\n\n"
+        "[authentication]\n" "username=foobar\n" "authToken=testingtesting\n\n"
     )
     new_config_text = cmdline._replace_existing_config(f.name, new_auth_section)
 
-    expected_text = "[authentication]\n" "username=foobar\n" "apikey=testingtesting\n\n"
+    expected_text = (
+        "[authentication]\n" "username=foobar\n" "authToken=testingtesting\n\n"
+    )
     assert new_config_text == expected_text
     f.close()
 
@@ -623,7 +551,7 @@ def test__replace_existing_config__replace(syn):
 def test__generate_new_config(syn):
     """Generate new configuration file"""
     new_auth_section = (
-        "[authentication]\n" "username=foobar\n" "apikey=testingtesting\n\n"
+        "[authentication]\n" "username=foobar\n" "authToken=testingtesting\n\n"
     )
     new_config_text = cmdline._generate_new_config(new_auth_section)
     assert new_auth_section in new_config_text

@@ -27,7 +27,7 @@ For more information about interacting with Synapse, see:
 
 For release information, see:
 
- * [Release notes](https://python-docs.synapse.org/build/html/news.html)
+ * [Release notes](https://python-docs.synapse.org/news/)
 
 <!-- Subscribe to release and other announcements [here](https://groups.google.com/a/sagebase.org/forum/#!forum/python-announce)
 or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python-announce+subscribe@sagebase.org) -->
@@ -50,9 +50,9 @@ The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclien
 
     (sudo) pip install --upgrade synapseclient
 
-The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](http://python-docs.synapse.org/build/html/#tables) integrate
+The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](https://python-docs.synapse.org/reference/tables/) integrate
 with [Pandas](http://pandas.pydata.org/). The library `pysftp` is required for users of
-[SFTP](http://python-docs.synapse.org/build/html/sftp.html) file storage. Both libraries require native code
+[SFTP](https://python-docs.synapse.org/guides/data_storage/#sftp) file storage. Both libraries require native code
 to be compiled or installed separately from prebuilt binaries.
 
 ### Install from source
@@ -85,7 +85,7 @@ Note that a [Synapse account](https://www.synapse.org/#RegisterAccount:0) is req
 Usage as a library
 ------------------
 
-The Synapse client can be used to write software that interacts with the Sage Bionetworks Synapse repository. More examples can be found in the Tutorial section found [here](https://python-docs.synapse.org/build/html/getting_started/basics.html)
+The Synapse client can be used to write software that interacts with the Sage Bionetworks Synapse repository. More examples can be found in the Tutorial section found [here](https://python-docs.synapse.org/tutorials/home/)
 
 ### Examples
 
@@ -100,7 +100,7 @@ syn.login(authToken='auth_token')
 ```
 
 #### Sync a local directory to synapse
-This is the recommended way of synchronizing more than one file or directory to a synapse project through the use of `synapseutils`. Using this library allows us to handle scheduling everything required to sync an entire directory tree. Read more about the manifest file format in [`synapseutils.syncToSynapse`](https://python-docs.synapse.org/build/html/articles/synapseutils.html#synapseutils.sync.syncToSynapse)
+This is the recommended way of synchronizing more than one file or directory to a synapse project through the use of `synapseutils`. Using this library allows us to handle scheduling everything required to sync an entire directory tree. Read more about the manifest file format in [`synapseutils.syncToSynapse`](https://python-docs.synapse.org/reference/synapse_utils/#synapseutils.sync.syncToSynapse)
 ```
 import synapseclient
 import synapseutils
@@ -224,9 +224,7 @@ Authentication
 --------------
 Authentication toward [Synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished with the clients using personal access tokens. Learn more about [Synapse personal access tokens](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens)
 
-Authentication via passwords and API keys will be deprecated early 2024.
-
-Learn about the multiple ways one can login to Synapse [here](https://python-docs.synapse.org/build/html/getting_started/credentials.html).
+Learn about the [multiple ways one can login to Synapse](https://python-docs.synapse.org/tutorials/authentication/).
 
 
 Synapse Utilities (synapseutils)

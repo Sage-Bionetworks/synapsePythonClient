@@ -911,7 +911,7 @@ def test_table_query(test_state):
 def test_login(test_state):
     alt_syn = Synapse()
     username = "username"
-    password = "password"
+    auth_token = "my_auth_token"
     with patch.object(alt_syn, "login") as mock_login, patch.object(
         alt_syn,
         "getUserProfile",
@@ -924,13 +924,10 @@ def test_login(test_state):
             "-u",
             username,
             "-p",
-            password,
-            "--rememberMe",
+            auth_token,
             syn=alt_syn,
         )
-        mock_login.assert_called_once_with(
-            username, password=password, forced=True, rememberMe=True, silent=False
-        )
+        mock_login.assert_called_once_with(username, authToken=auth_token, silent=False)
         mock_get_user_profile.assert_called_once_with()
 
 

@@ -276,12 +276,13 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install setuptools
           python3 -m pip install wheel
+          python3 -m pip install build
 
           # install synapseclient
-          python3 setup.py install
+          python3 -m pip install .
 
           # create distribution
-          python3 setup.py sdist bdist_wheel
+          python3 -m build
 
           SDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}.tar.gz"
           BDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}-py3-none-any.whl"
@@ -334,15 +335,13 @@ jobs:
   # we upload prereleases to test.pypi.org and releases to pypi.org.
   deploy:
     needs: package
-
-    runs-on: ubuntu-20.04
-
+    runs-on: ubuntu-latest
+    environment:
+      url: ${{ github.event.release.prerelease == 'true' && 'https://test.pypi.org/p/synapseclient' || 'https://pypi.org/p/synapseclient' }}
+      name: pypi
+    permissions:
+      id-token: write
     steps:
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.8
-
       - name: download-sdist
         uses: actions/download-artifact@v2
         with:
@@ -354,41 +353,14 @@ jobs:
         with:
           name: ${{ needs.package.outputs.bdist-package-name }}
           path: dist
-
-      - name: deploy-to-pypi
-        shell: bash
-        run: |
-          python3 -m pip install twine
-
-          if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
-            # production deploy to prod pypi server
-
-            PYPI_NAME="pypi"
-            PYPI_URL="https://pypi.org"
-            PYPI_REPO="https://upload.pypi.org/legacy/"
-            PYPI_USERNAME="${{ secrets.PYPI_PROD_USERNAME }}"
-            PYPI_PASSWORD="${{ secrets.PYPI_PROD_PASSWORD }}"
-          else
-            # staging deploy to test pypi server
-
-            PYPI_NAME=testpypi
-            PYPI_URL="https://test.pypi.org"
-            PYPI_REPO=https://test.pypi.org/legacy/
-            PYPI_USERNAME="${{ secrets.PYPI_TEST_USERNAME }}"
-            PYPI_PASSWORD="${{ secrets.PYPI_TEST_PASSWORD }}"
-            PYPI_INDEX_URL="https://test.pypi.org/simple/"
-          fi
-
-          # create .pypirc file
-          echo "[distutils]" > ~/.pypirc
-          echo "index-servers=$PYPI_NAME" >> ~/.pypirc
-          echo >> ~/.pypirc
-          echo "[$PYPI_NAME]" >> ~/.pypirc
-          echo "repository: $PYPI_REPO" >> ~/.pypirc
-          echo "username:$PYPI_USERNAME" >> ~/.pypirc
-          echo "password:$PYPI_PASSWORD" >> ~/.pypirc
-
-          twine upload --repository $PYPI_NAME dist/*
+      - name: deploy-to-test-pypi
+        if: 'github.event.release.prerelease'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+      - name: deploy-to-prod-pypi
+        if: '!github.event.release.prerelease'
+        uses: pypa/gh-action-pypi-publish@release/v1
 
   # on each of our matrix platforms, download the newly uploaded package from pypi and confirm its version
   check-deploy:

@@ -1,30 +1,33 @@
 """
-***********
-Evaluations
-***********
+# Evaluations
 
-An evaluation_ object represents a collection of Synapse Entities that will be processed in a particular way.  This
+An [Evaluation][synapseclient.evaluation.Evaluation]
+object represents a collection of Synapse Entities that will be processed in a particular way. This
 could mean scoring Entries in a challenge or executing a processing pipeline.
 
-Imports::
+Imports and authentication:
 
-    from synapseclient import Evaluation, Submission, SubmissionStatus
+    from synapseclient import Evaluation, Submission, SubmissionStatus, Synapse
 
-Evaluations can be retrieved by ID::
+    syn = Synapse()
+    syn.login()
+
+Evaluations can be retrieved by ID:
 
     evaluation = syn.getEvaluation(1901877)
 
-Like entities, evaluations are access controlled via ACLs. The :py:func:`synapseclient.Synapse.getPermissions` and
-:py:func:`synapseclient.Synapse.setPermissions` methods work for evaluations:
+Like entities, evaluations are access controlled via ACLs. The [synapseclient.Synapse.getPermissions][] and
+[synapseclient.Synapse.setPermissions][] methods work for evaluations:
 
     access = syn.getPermissions(evaluation, user_id)
 
-The :py:func:`synapseclient.Synapse.submit` method returns a Submission_ object::
+The [synapseclient.Synapse.submit][] method returns a [Submission][synapseclient.evaluation.Submission] object:
 
     entity = syn.get(synapse_id)
     submission = syn.submit(evaluation, entity, name='My Data', team='My Team')
 
-The Submission object can then be used to check the `status <#submission-status>`_ of the submission::
+The [getSubmissionStatus][synapseclient.Synapse.getSubmissionStatus] function can then be used to check the
+[SubmissionStatus][synapseclient.evaluation.SubmissionStatus] of the submission:
 
     status = syn.getSubmissionStatus(submission)
 
@@ -34,8 +37,8 @@ The status of a submission may be:
     - **OPEN** indicating processing *has not* completed
     - **CLOSED** indicating processing *has* completed
 
-Submission status objects can be updated, usually by changing the *status* and *score* fields, and stored back to
-Synapse using :py:func:`synapseclient.Synapse.store`::
+SubmissionStatus objects can be updated, usually by changing the *status* and *score* fields, and stored back to
+Synapse using [synapseclient.Synapse.store][]:
 
     status.score = 0.99
     status.status = 'SCORED'
@@ -43,38 +46,18 @@ Synapse using :py:func:`synapseclient.Synapse.store`::
 
 See:
 
-- :py:func:`synapseclient.Synapse.getEvaluation`
-- :py:func:`synapseclient.Synapse.getEvaluationByContentSource`
-- :py:func:`synapseclient.Synapse.getEvaluationByName`
-- :py:func:`synapseclient.Synapse.submit`
-- :py:func:`synapseclient.Synapse.getSubmissions`
-- :py:func:`synapseclient.Synapse.getSubmission`
-- :py:func:`synapseclient.Synapse.getSubmissionStatus`
-- :py:func:`synapseclient.Synapse.getPermissions`
-- :py:func:`synapseclient.Synapse.setPermissions`
-
-~~~~~~~~~~
-Evaluation
-~~~~~~~~~~
-
-.. autoclass:: synapseclient.evaluation.Evaluation
-   :members: __init__
-
-~~~~~~~~~~
-Submission
-~~~~~~~~~~
-
-.. autoclass:: synapseclient.evaluation.Submission
-   :members: __init__
-
-~~~~~~~~~~~~~~~~~
-Submission Status
-~~~~~~~~~~~~~~~~~
-
-.. autoclass:: synapseclient.evaluation.SubmissionStatus
-   :members: __init__
+- [synapseclient.Synapse.getEvaluation][]
+- [synapseclient.Synapse.getEvaluationByContentSource][]
+- [synapseclient.Synapse.getEvaluationByName][]
+- [synapseclient.Synapse.submit][]
+- [synapseclient.Synapse.getSubmissions][]
+- [synapseclient.Synapse.getSubmission][]
+- [synapseclient.Synapse.getSubmissionStatus][]
+- [synapseclient.Synapse.getPermissions][]
+- [synapseclient.Synapse.setPermissions][]
 
 """
+
 import json
 from typing import Union
 
@@ -93,33 +76,42 @@ class Evaluation(DictObject):
     """
     An Evaluation Submission queue, allowing submissions, retrieval and scoring.
 
-    :param name:                            Name of the evaluation
-    :param description:                     A short description of the evaluation
-    :param contentSource:                   Synapse Project associated with the evaluation
-    :param submissionReceiptMessage:        Message to display to users upon submission
-    :param submissionInstructionsMessage:   Message to display to users detailing acceptable formatting for submissions.
+    Arguments:
+        name: Name of the evaluation
+        description: A short description of the evaluation
+        contentSource: Synapse Project associated with the evaluation
+        submissionReceiptMessage: Message to display to users upon submission
+        submissionInstructionsMessage: Message to display to users detailing acceptable formatting for submissions.
 
-    `To create an Evaluation <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_
-    and store it in Synapse::
+    Example: Create and store an Evaluation
+        To create an [Evaluation](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
+        and store it in Synapse:
 
-        evaluation = syn.store(Evaluation(
-            name="Q1 Final",
-            description="Predict progression of MMSE scores for final scoring",
-            contentSource="syn2290704"))
+            import synapseclient
+            from synapseclient import Evaluation
 
-    The contentSource field links the evaluation to its :py:class:`synapseclient.entity.Project`.
-    (Or, really, any synapse ID, but sticking to projects is a good idea.)
+            ## Initialize a Synapse object & authenticate
+            syn = synapseclient.Synapse()
+            syn.login()
 
-    `Evaluations <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_ can be retrieved
-    from Synapse by ID::
+            evaluation = syn.store(Evaluation(
+                name="Q1 Final",
+                description="Predict progression of MMSE scores for final scoring",
+                contentSource="syn2290704"))
+
+    The *contentSource* field links the evaluation to its [Project][synapseclient.entity.Project]
+    (or, really, any synapse ID, but sticking to projects is a good idea).
+
+    [Evaluations](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
+    can be retrieved from Synapse by ID:
 
         evaluation = syn.getEvaluation(1901877)
 
-    ...by the Synapse ID of the content source (associated entity)::
+    ...by the Synapse ID of the content source (associated entity):
 
         evaluation = syn.getEvaluationByContentSource('syn12345')
 
-    ...or by the name of the evaluation::
+    ...or by the name of the evaluation:
 
         evaluation = syn.getEvaluationByName('Foo Challenge Question 1')
 
@@ -140,8 +132,8 @@ class Evaluation(DictObject):
             "syn"
         ):  # Verify that synapse Id given
             raise ValueError(
-                'The "contentSource" parameter must be specified as a Synapse Entity when creating an'
-                " Evaluation"
+                'The "contentSource" parameter must be specified as a Synapse'
+                " Entity when creating an Evaluation"
             )
         super(Evaluation, self).__init__(kwargs)
 
@@ -163,13 +155,14 @@ class Evaluation(DictObject):
 
 class Submission(DictObject):
     """
-    Builds an Synapse submission object.
+    Builds a Synapse submission object.
 
-    :param name:             Name of submission
-    :param entityId:         Synapse ID of the Entity to submit
-    :param evaluationId:     ID of the Evaluation to which the Entity is to be submitted
-    :param versionNumber:    Version number of the submitted Entity
-    :param submitterAlias:   A pseudonym or team name for a challenge entry
+    Arguments:
+        name: Name of submission
+        entityId: Synapse ID of the Entity to submit
+        evaluationId: ID of the Evaluation to which the Entity is to be submitted
+        versionNumber: Version number of the submitted Entity
+        submitterAlias: A pseudonym or team name for a challenge entry
     """
 
     @classmethod
@@ -201,11 +194,13 @@ def _convert_to_annotation_cls(
 ) -> Annotations:
     """Convert synapse style annotation or dict to synapseclient.Annotation
 
-    :param id:  The id of the entity / submission
-    :param etag: The etag of the entity / submission
-    :param values:  A synapseclient.Annotations or dict
+    Arguments:
+        id: The id of the entity / submission
+        etag: The etag of the entity / submission
+        values: A synapseclient.Annotations or dict
 
-    :returns: A synapseclient.Annotations
+    Returns:
+        A synapseclient.Annotations object
     """
     if isinstance(values, Annotations):
         return values
@@ -219,14 +214,15 @@ def _convert_to_annotation_cls(
 class SubmissionStatus(DictObject):
     """
     Builds an Synapse submission status object.
-    https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatus.html
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatus.html>
 
-    :param id: Unique immutable Synapse Id of the Submission
-    :param status: Status can be one of
-                   https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html.
-    :param submissionAnnotations: synapseclient.Annotations to store annotations of submission
-    :param canCancel: Can this submission be cancelled?
-    :param cancelRequested: Has user requested to cancel this submission?
+    Arguments:
+        id: Unique immutable Synapse Id of the Submission
+        status: Status can be one of
+                   <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html>.
+        submissionAnnotations: synapseclient.Annotations to store annotations of submission
+        canCancel: Can this submission be cancelled?
+        cancelRequested: Has user requested to cancel this submission?
     """
 
     @classmethod
@@ -243,7 +239,10 @@ class SubmissionStatus(DictObject):
         )
         # In Python 3, the super(SubmissionStatus, self) call is equivalent to the parameterless super()
         super().__init__(
-            id=id, etag=etag, submissionAnnotations=submission_annotations, **kwargs
+            id=id,
+            etag=etag,
+            submissionAnnotations=submission_annotations,
+            **kwargs,
         )
 
     # def postURI(self):
@@ -257,7 +256,14 @@ class SubmissionStatus(DictObject):
 
     def json(self, ensure_ascii: bool = True):
         """Overloaded json function, turning submissionAnnotations into
-        synapse style annotations"""
+        synapse style annotations.
+
+        Arguments:
+            ensure_ascii: (default = True) If false, then the return value can contain non-ASCII
+            characters. Otherwise, all such characters are escaped in JSON strings.
+        Returns:
+            A Synapse-style JSON dictionary of annotations.
+        """
 
         json_dict = self
         # If not synapse annotations, turn them into synapseclient.Annotations

@@ -1,7 +1,6 @@
 import csv
 import concurrent.futures
 from contextlib import contextmanager
-import datetime
 import io
 import os
 import re
@@ -12,16 +11,8 @@ import typing
 from .monitor import notifyMe
 from synapseclient.entity import is_container
 from synapseclient.core import config
-from synapseclient.core.utils import (
-    id_of,
-    is_url,
-    is_synapse_id_str,
-    datetime_or_none,
-    float_or_none,
-    int_or_none,
-    bool_or_none,
-)
-from synapseclient import File, table, Synapse
+from synapseclient.core.utils import id_of, is_url, is_synapse_id_str, datetime_or_none
+from synapseclient import File, table
 from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core import utils
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
@@ -88,48 +79,37 @@ def syncFromSynapse(
     manifest="all",
     downloadFile=True,
 ):
-    """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file
-    metadata.
-
-    There are a few conversions around annotations to call out here.
-
-    ## Conversion of objects from the REST API to Python native objects
-
-    The first annotation conversion is to take the annotations from the REST API and
-    convert them into Python native objects. For example the REST API will return a
-    milliseconds since epoch timestamp for a datetime annotation, however, we want to
-    convert that into a Python datetime object. These conversions take place in the
-    [annotations module][synapseclient.annotations].
-
-
-    ## Conversion of Python native objects into strings
-
-    The second annotation conversion occurs when we are writing to the manifest TSV file.
-    In this case we need to convert the Python native objects into strings that can be
-    written to the manifest file. In addition we also need to handle the case where the
-    annotation value is a list of objects. In this case we are converting the list
-    into a single cell of data with a semicolon ";" delimiter.
+    """Synchronizes all the files in a folder (including subfolders) from Synapse
+    and adds a readme manifest with file metadata.
 
     Arguments:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
-        entity:  A Synapse ID, a Synapse Entity object of type file, folder or project.
-        path: An optional path where the file hierarchy will be reproduced. If not specified the files will by default be placed in the synapseCache.
-        ifcollision: Determines how to handle file collisions. Maybe "overwrite.local", "keep.local", or "keep.both".
+        entity: A Synapse ID, a Synapse Entity object of type file, folder or
+                project.
+        path: An optional path where the file hierarchy will be reproduced. If not
+              specified the files will by default be placed in the synapseCache.
+        ifcollision: Determines how to handle file collisions. Maybe
+                     "overwrite.local", "keep.local", or "keep.both".
         followLink: Determines whether the link returns the target Entity.
-        manifest: Determines whether creating manifest file automatically. The optional values here (`all`, `root`, `suppress`).
+        manifest: Determines whether creating manifest file automatically. The
+                  optional values here (`all`, `root`, `suppress`).
         downloadFile: Determines whether downloading the files.
 
     Returns:
-        List of entities ([files][synapseclient.File], [tables][synapseclient.Table], [links][synapseclient.Link])
+        List of entities ([files][synapseclient.File],
+            [tables][synapseclient.Table], [links][synapseclient.Link])
 
 
-    This function will crawl all subfolders of the project/folder specified by `entity` and download all files that have
-    not already been downloaded.  If there are newer files in Synapse (or a local file has been edited outside of the
-    cache) since the last download then local the file will be replaced by the new file unless "ifcollision" is changed.
+    This function will crawl all subfolders of the project/folder specified by
+    `entity` and download all files that have not already been downloaded. If
+    there are newer files in Synapse (or a local file has been edited outside of the
+    cache) since the last download then local the file will be replaced by the new
+    file unless "ifcollision" is changed.
 
-    If the files are being downloaded to a specific location outside of the Synapse cache a file
-    (SYNAPSE_METADATA_MANIFEST.tsv) will also be added in the path that contains the metadata (annotations, storage
-    location and provenance of all downloaded files).
+    If the files are being downloaded to a specific location outside of the Synapse
+    cache a file (SYNAPSE_METADATA_MANIFEST.tsv) will also be added in the path that
+    contains the metadata (annotations, storage location and provenance of all
+    downloaded files).
 
     See also:
 
@@ -149,22 +129,26 @@ def syncFromSynapse(
         )
 
     # we'll have the following threads:
-    # 1. the entrant thread to this function walks the folder hierarchy and schedules files for download,
+    # 1. the entrant thread to this function walks the folder hierarchy and
+    #    schedules files for download,
     #    and then waits for all the file downloads to complete
     # 2. each file download will run in a separate thread in an Executor
-    # 3. downloads that support S3 multipart concurrent downloads will be scheduled by the thread in #2 and have
+    # 3. downloads that support S3 multipart concurrent downloads will be scheduled
+    #    by the thread in #2 and have
     #    their parts downloaded in additional threads in the same Executor
-    # To support multipart downloads in #3 using the same Executor as the download thread #2, we need at least
-    # 2 threads always, if those aren't available then we'll run single threaded to avoid a deadlock
+    # To support multipart downloads in #3 using the same Executor as the download
+    # thread #2, we need at least 2 threads always, if those aren't available then
+    # we'll run single threaded to avoid a deadlock.
     with _sync_executor(syn) as executor:
         sync_from_synapse = _SyncDownloader(syn, executor)
         files = sync_from_synapse.sync(
             entity, path, ifcollision, followLink, downloadFile, manifest
         )
 
-    # the allFiles parameter used to be passed in as part of the recursive implementation of this function
-    # with the public signature invoking itself. now that this isn't a recursive any longer we don't need
-    # allFiles as a parameter (especially on the public signature) but it is retained for now for backwards
+    # the allFiles parameter used to be passed in as part of the recursive
+    # implementation of this function with the public signature invoking itself. now
+    # that this isn't a recursive any longer we don't need allFiles as a parameter
+    # (especially on the public signature) but it is retained for now for backwards
     # compatibility with external invokers.
     if allFiles is not None:
         allFiles.extend(files)
@@ -230,8 +214,9 @@ class _FolderSync:
         )
 
     def _generate_folder_manifest(self):
-        # when a folder is complete we write a manifest file if we are downloading to a path outside
-        # the Synapse cache and there are actually some files in this folder.
+        # when a folder is complete we write a manifest file if we are downloading
+        # to a path outside the Synapse cache and there are actually some files in
+        # this folder.
         if self._path and self._files:
             generateManifest(
                 self._syn,
@@ -277,8 +262,10 @@ class _SyncDownloader:
         max_concurrent_file_downloads=None,
     ):
         """
-        :param syn:             A synapse client
-        :param executor:        An ExecutorService in which concurrent file downlaods can be scheduled
+        Arguments:
+            syn: A synapse client
+            executor: An ExecutorService in which concurrent file downlaods can be scheduled
+
         """
         self._syn = syn
         self._executor = executor
@@ -310,8 +297,8 @@ class _SyncDownloader:
                 entity, path, ifcollision, followLink, progress, downloadFile, manifest
             )
 
-            # once the whole folder hierarchy has been traversed this entrant thread waits for
-            # all file downloads to complete before returning
+            # once the whole folder hierarchy has been traversed this entrant thread
+            # waits for all file downloads to complete before returning
             files = root_folder_sync.wait_until_finished()
 
         elif isinstance(entity, File):
@@ -323,7 +310,8 @@ class _SyncDownloader:
             )
 
         # since the sub folders could complete out of order from when they were submitted we
-        # sort the files by their path (which includes their local folder) to get a predictable ordering.
+        # sort the files by their path (which includes their local folder) to get a
+        # predictable ordering.
         # not required but nice for testing etc.
         files.sort(key=lambda f: f.get("path") or "")
         return files
@@ -375,11 +363,12 @@ class _SyncDownloader:
             )
 
         except Exception as ex:
-            # this could be anything raised by any type of download, and so by nature is a broad catch.
-            # the purpose here is not to handle it but just to raise it up the folder sync chain such
-            # that it will abort the sync and raise the error to the entrant thread.
-            # it is not the responsibility here to recover or retry a particular file
-            # download, reasonable recovery should be handled within the file download code.
+            # this could be anything raised by any type of download, and so by
+            # nature is a broad catch. the purpose here is not to handle it but
+            # just to raise it up the folder sync chain such that it will abort
+            # the sync and raise the error to the entrant thread. it is not the
+            # responsibility here to recover or retry a particular file download,
+            # reasonable recovery should be handled within the file download code.
             parent_folder_sync.set_exception(ex)
 
         finally:
@@ -425,8 +414,9 @@ class _SyncDownloader:
             if parent_path is not None:
                 folder_path = parent_path
                 if root_folder_sync:
-                    # syncFromSynapse behavior is that we do NOT create a folder for the root folder of the sync.
-                    # we treat the download local path folder as the root and write the children of the sync
+                    # syncFromSynapse behavior is that we do NOT create a folder for
+                    # the root folder of the sync. we treat the download local path
+                    # folder as the root and write the children of the sync
                     # directly into that local folder
                     folder_path = os.path.join(folder_path, folder["name"])
                 os.makedirs(folder_path, exist_ok=True)
@@ -518,7 +508,9 @@ class _SyncUploadItem(typing.NamedTuple):
 class _SyncUploader:
     """
     Manages the uploads associated associated with a syncToSynapse call.
-    Files will be uploaded concurrently and in an order that honors any interdependent provenance.
+    Files will be uploaded concurrently and in an order that honors any
+    interdependent provenance.
+
     """
 
     def __init__(
@@ -528,8 +520,10 @@ class _SyncUploader:
         max_concurrent_file_transfers=None,
     ):
         """
-        :param syn:         A synapse client
-        :param executor:    An ExecutorService in which concurrent file downlaods can be scheduled
+        Arguments:
+            syn: A synapse client
+            executor: An ExecutorService in which concurrent file downloads
+                      can be scheduled
         """
         self._syn = syn
 
@@ -541,7 +535,8 @@ class _SyncUploader:
 
     @staticmethod
     def _order_items(items):
-        # order items by their interdependent provenance and raise any dependency errors
+        # order items by their interdependent provenance and raise any dependency
+        # errors
 
         items_by_path = {i.entity.path: i for i in items}
         graph = {}
@@ -551,9 +546,11 @@ class _SyncUploader:
             for provenance_dependency in item.used + item.executed:
                 if os.path.isfile(provenance_dependency):
                     if provenance_dependency not in items_by_path:
-                        # an upload lists provenance of a file that is not itself included in the upload
+                        # an upload lists provenance of a file that is not itself
+                        # included in the upload
                         raise ValueError(
-                            f"{item.entity.path} depends on {provenance_dependency} which is not being uploaded"
+                            f"{item.entity.path} depends on"
+                            f" {provenance_dependency} which is not being uploaded"
                         )
 
                     item_file_provenance.append(provenance_dependency)
@@ -565,7 +562,8 @@ class _SyncUploader:
 
     @staticmethod
     def _convert_provenance(provenance, finished_items):
-        # convert any string file path provenance to the corresponding entity that has been uploaded
+        # convert any string file path provenance to the corresponding entity that
+        # has been uploaded
 
         converted_provenance = []
         pending_provenance = set()
@@ -592,7 +590,8 @@ class _SyncUploader:
             else:
                 future.cancel()
 
-        # if we are aborted by definition one of the futures should have an exception.
+        # if we are aborted by definition one of the futures should have an
+        # exception.
         # if somehow not from None fuctions fine
         raise ValueError("Sync aborted due to upload failure") from exception
 
@@ -600,12 +599,12 @@ class _SyncUploader:
     def upload(self, items: typing.Iterable[_SyncUploadItem]):
         progress = CumulativeTransferProgress("Uploaded")
 
-        # flag to set in a child in an upload thread if an error occurs to signal to the entrant
-        # thread to stop processing.
+        # flag to set in a child in an upload thread if an error occurs to signal
+        # to the entrant thread to stop processing.
         abort_event = threading.Event()
 
-        # used to lock around shared state and to notify when dependencies are resolved
-        # so that provenance dependent files can be uploaded
+        # used to lock around shared state and to notify when dependencies are
+        # resolved so that provenance dependent files can be uploaded
         dependency_condition = threading.Condition()
 
         pending_provenance = _PendingProvenance()
@@ -618,8 +617,8 @@ class _SyncUploader:
             skipped_items = []
             for item in ordered_items:
                 if abort_event.is_set():
-                    # if this flag is set, one of the upload threads failed and we should raise
-                    # it's error and cancel any remaining futures
+                    # if this flag is set, one of the upload threads failed and we
+                    # should raise it's error and cancel any remaining futures
                     self._abort(futures)
 
                 with dependency_condition:
@@ -631,20 +630,22 @@ class _SyncUploader:
                     )
 
                     if used_pending or executed_pending:
-                        # we can't upload this item yet, it has provenance that hasn't yet been uploaded
+                        # we can't upload this item yet, it has provenance that
+                        # hasn't yet been uploaded
                         skipped_items.append(item)
                         pending_provenance.update(used_pending.union(executed_pending))
 
-                        # skip uploading because dependent provenance hasn't finished uploading
+                        # skip uploading because dependent provenance hasn't
+                        # finished uploading
                         continue
 
                 # else not continued above due to pending provenance
                 # all provenance that this item depends on has already been uploaded
                 # so we can go ahead and upload this item
 
-                # we acquire the semaphore to ensure that we aren't uploading more than
-                # our configured maximum number of files here at once. once we reach the limit
-                # we'll block here until one of the existing file uploads completes
+                # we acquire the semaphore to ensure that we aren't uploading more
+                # than our configured maximum number of files here at once. once we
+                # reach the limit we'll block here until one of the existing file uploads completes
                 self._file_semaphore.acquire()
                 trace.get_current_span().set_attributes(
                     {"thread.id": threading.get_ident()}
@@ -665,9 +666,10 @@ class _SyncUploader:
 
             with dependency_condition:
                 if pending_provenance.has_pending():
-                    # skipped_items contains all the items that we couldn't upload the previous time through
-                    # the loop because they depended on another item for provenance. wait until there
-                    # at least one those items finishes before continuing another time through the loop.
+                    # skipped_items contains all the items that we couldn't upload
+                    # the previous time through the loop because they depended on
+                    # another item for provenance. wait until there at least one
+                    # those items finishes before continuing another time through the loop.
                     if not abort_event.is_set():
                         dependency_condition.wait_for(
                             lambda: (
@@ -703,9 +705,9 @@ class _SyncUploader:
             context.attach(otel_context)
         try:
             with upload_shared_executor(self._executor):
-                # we configure an upload thread local shared executor so that any multipart
-                # uploads that result from this upload will share the executor of this sync
-                # rather than creating their own threadpool.
+                # we configure an upload thread local shared executor so that any
+                # multipart uploads that result from this upload will share the
+                # executor of this sync rather than creating their own threadpool.
 
                 with progress.accumulate_progress():
                     entity = self._syn.store(
@@ -717,13 +719,14 @@ class _SyncUploader:
                     try:
                         pending_provenance.finished(item.entity.path)
 
-                        # this item was defined as provenance for another item, now that
-                        # it's finished we may be able to upload that depending item, so
-                        # wake up he central thread
+                        # this item was defined as provenance for another item, now
+                        # that it's finished we may be able to upload that depending
+                        # item, so wake up he central thread
                         dependency_condition.notify_all()
 
                     except KeyError:
-                        # this item is not used in provenance of another item, that's fine
+                        # this item is not used in provenance of another item,
+                        # that's fine
                         pass
 
         except Exception:
@@ -745,7 +748,8 @@ def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
         allFiles: A list of File Entity objects on Synapse (can't be Synapse IDs)
         filename: file where manifest will be written
-        provenance_cache: an optional dict of known provenance dicts keyed by entity ids
+        provenance_cache: an optional dict of known provenance dicts keyed by entity
+                          ids
 
     Returns:
         None
@@ -758,13 +762,18 @@ def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
 
 def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     """
-    Extracts metadata from the list of File Entities and returns them in a form usable by csv.DictWriter
+    Extracts metadata from the list of File Entities and returns them in a form
+    usable by csv.DictWriter
 
-    :param syn:         instance of the Synapse client
-    :param allFiles:    an iterable that provides File entities
-    :param provenance_cache: an optional dict of known provenance dicts keyed by entity ids
+    Arguments:
+        syn: instance of the Synapse client
+        allFiles: an iterable that provides File entities
+        provenance_cache: an optional dict of known provenance dicts keyed by entity
+                          ids
 
-    :return: (keys: a list column headers, data: a list of dicts containing data from each row)
+    Returns:
+        keys: a list column headers
+        data: a list of dicts containing data from each row
     """
     keys = list(DEFAULT_GENERATED_MANIFEST_KEYS)
     annotKeys = set()
@@ -780,7 +789,7 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
         }
         row.update(
             {
-                key: (val if len(val) > 0 else "")
+                key: (val[0] if len(val) > 0 else "")
                 for key, val in entity.annotations.items()
             }
         )
@@ -806,8 +815,13 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
 
 def _get_file_entity_provenance_dict(syn, entity):
     """
-    Returns a dict with a subset of the provenance metadata for the entity.
-    An empty dict is returned if the metadata does not have a provenance record.
+    Arguments:
+        syn: Synapse object
+        entity: Entity object
+
+    Returns:
+        dict: a dict with a subset of the provenance metadata for the entity.
+              An empty dict is returned if the metadata does not have a provenance record.
     """
     try:
         prov = syn.getProvenance(entity)
@@ -824,78 +838,14 @@ def _get_file_entity_provenance_dict(syn, entity):
             raise  # unexpected error so we re-raise the exception
 
 
-def _convert_manifest_data_items_to_string_list(
-    items: typing.List[str],
-) -> typing.List[str]:
-    """
-    Handle coverting an individual key that contains a list of data into a list of strings
-    that can be written to the manifest file. This has specific logic around how to
-    handle datetime fields and non strings.
-
-    When working with datetime fields we are printing the ISO 8601 UTC representation of
-    the datetime.
-
-    When working with non strings we are printing the repr of the object.
-
-    Args:
-        items: The list of items to convert.
-
-    Returns:
-        The list of items converted to strings.
-    """
-    items_to_write = []
-    for item in items:
-        if isinstance(item, datetime.datetime):
-            items_to_write.append(
-                utils.datetime_to_iso(dt=item, include_milliseconds=False)
-            )
-        else:
-            items_to_write.append(item if isinstance(item, str) else repr(item))
-    return items_to_write
-
-
-def _convert_manifest_data_row_to_dict(row: dict, keys: typing.List[str]) -> str:
-    """
-    Convert a row of data to a dict that can be written to a manifest file.
-
-    Args:
-        row: The row of data to convert.
-        keys: The keys of the manifest. Used to select the rows of data.
-
-    Returns:
-        The dict representation of the row.
-    """
-    data_to_write = {}
-    for key in keys:
-        data_for_key = row.get(key, "")
-        if isinstance(data_for_key, list):
-            items_to_write = _convert_manifest_data_items_to_string_list(data_for_key)
-            data_to_write[key] = ";".join(items_to_write)
-        else:
-            data_to_write[key] = data_for_key
-    return data_to_write
-
-
-def _write_manifest_data(
-    filename: str, keys: typing.List[str], data: typing.List[dict]
-) -> None:
-    """
-    Write a number of keys and a list of data to a manifest file. This will write
-    the data out as a tab separated file.
-
-    Args:
-        filename: The name of the file to write to.
-        keys: The keys of the manifest.
-        data: The data to write to the manifest. This should be a list of dicts where
-            each dict represents a row of data.
-    """
+def _write_manifest_data(filename, keys, data):
     with io.open(filename, "w", encoding="utf8") if filename else sys.stdout as fp:
         csv_writer = csv.DictWriter(
             fp, keys, restval="", extrasaction="ignore", delimiter="\t"
         )
         csv_writer.writeheader()
         for row in data:
-            csv_writer.writerow(rowdict=_convert_manifest_data_row_to_dict(row, keys))
+            csv_writer.writerow(row)
 
 
 def _sortAndFixProvenance(syn, df):
@@ -929,11 +879,8 @@ def _sortAndFixProvenance(syn, df):
 
         elif not utils.is_url(item) and (utils.is_synapse_id_str(item) is None):
             raise SynapseProvenanceError(
-                (
-                    "The provenance record for file: %s is incorrect.\n"
-                    "Specifically %s, is neither a valid URL or synapseId."
-                )
-                % (path, item)
+                "The provenance record for file: %s is incorrect.\n"
+                "Specifically %s, is neither a valid URL or synapseId." % (path, item)
             )
         return item
 
@@ -1072,27 +1019,11 @@ def syncToSynapse(
 ) -> None:
     """Synchronizes files specified in the manifest file to Synapse.
 
-    Given a file describing all of the uploads uploads the content to Synapse and optionally notifies you via Synapse
-    messagging (email) at specific intervals, on errors and on completion.
+    Given a file describing all of the uploads, this uploads the content to Synapse and
+    optionally notifies you via Synapse messagging (email) at specific intervals, on
+    errors and on completion.
 
     [Read more about the manifest file format](../../explanations/manifest_tsv/)
-
-    There are a few conversions around annotations to call out here.
-
-    ## Conversion of annotations from the TSV file to Python native objects
-
-    The first annotation conversion is from the TSV file into a Python native object. For
-    example Pandas will read a TSV file and convert the string "True" into a boolean True,
-    however, Pandas will NOT convert our semi-colon delimited list of annotations into
-    their Python native objects. This means that we need to do that conversion here after
-    splitting them apart.
-
-    ## Conversion of Python native objects for the REST API
-
-    The second annotation conversion occurs when we are taking the Python native objects
-    and converting them into a string that can be sent to the REST API. For example
-    the datetime objects which may have timezone information are converted to milliseconds
-    since epoch.
 
     Arguments:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
@@ -1130,50 +1061,9 @@ def syncToSynapse(
         _manifest_upload(syn, df)
 
 
-def _convert_cell_in_manifest_to_python_types(
-    cell: str,
-) -> typing.Union[typing.List, datetime.datetime, float, int, bool, str]:
-    """
-    Takes a possibly semi-colon delimited cell from the manifest TSV file into a list
-    of items to be used as annotations.
-
-    Args:
-        cell: The cell item to convert.
-
-    Returns:
-        The list of items to be used as annotations. Or a single instance if that is
-            all that is present.
-    """
-    values_to_return = []
-
-    cell_values = cell.split(";")
-    for annotation_value in cell_values:
-        if possible_datetime := datetime_or_none(annotation_value):
-            values_to_return.append(possible_datetime)
-        elif (possible_int := int_or_none(annotation_value)) is not None:
-            values_to_return.append(possible_int)
-        elif (possible_float := float_or_none(annotation_value)) is not None:
-            values_to_return.append(possible_float)
-        elif (possible_bool := bool_or_none(annotation_value)) is not None:
-            values_to_return.append(possible_bool)
-        else:
-            values_to_return.append(annotation_value)
-    return values_to_return[0] if len(values_to_return) == 1 else values_to_return
-
-
-def _manifest_upload(syn: Synapse, df) -> bool:
-    """
-    Handles the upload of the manifest file.
-
-    Args:
-        syn: The logged in Synapse client.
-        df: The dataframe of the manifest file.
-
-    Returns:
-        If the manifest upload was successful.
-    """
+def _manifest_upload(syn, df):
     items = []
-    for _, row in df.iterrows():
+    for i, row in df.iterrows():
         file = File(
             path=row["path"],
             parent=row["parent"],
@@ -1197,12 +1087,12 @@ def _manifest_upload(syn: Synapse, df) -> bool:
         for annotation_key, annotation_value in annotations.items():
             if annotation_value is None or annotation_value == "":
                 continue
+            possible_datetime = None
             if isinstance(annotation_value, str):
-                file_annotations[
-                    annotation_key
-                ] = _convert_cell_in_manifest_to_python_types(cell=annotation_value)
-            else:
-                file_annotations[annotation_key] = annotation_value
+                possible_datetime = datetime_or_none(annotation_value)
+            file_annotations[annotation_key] = (
+                annotation_value if possible_datetime is None else possible_datetime
+            )
         file.annotations = file_annotations
 
         item = _SyncUploadItem(
@@ -1233,14 +1123,15 @@ def _check_file_name(df):
             )
         if not compiled.match(file_name):
             raise ValueError(
-                "File name {} cannot be stored to Synapse. Names may contain letters, numbers, spaces, "
-                "underscores, hyphens, periods, plus signs, apostrophes, "
-                "and parentheses".format(file_name)
+                "File name {} cannot be stored to Synapse. Names may contain letters,"
+                " numbers, spaces, underscores, hyphens, periods, plus signs,"
+                " apostrophes, and parentheses".format(file_name)
             )
     if df[["name", "parent"]].duplicated().any():
         raise ValueError(
-            "All rows in manifest must contain a path with a unique file name and parent to upload. "
-            "Files uploaded to the same folder/project (parent) must have unique file names."
+            "All rows in manifest must contain a path with a unique file name and"
+            " parent to upload. Files uploaded to the same folder/project (parent) must"
+            " have unique file names."
         )
 
 
@@ -1262,7 +1153,7 @@ def _check_size_each_file(df):
 
 @tracer.start_as_current_span("sync::generate_sync_manifest")
 def generate_sync_manifest(syn, directory_path, parent_id, manifest_path) -> None:
-    """Generate manifest for syncToSynapse() from a local directory.
+    """Generate manifest for [syncToSynapse][synapseutils.sync.syncToSynapse] from a local directory.
 
     [Read more about the manifest file format](../../explanations/manifest_tsv/)
 

@@ -22,6 +22,7 @@ import typing
 import urllib.parse as urllib_parse
 import uuid
 import warnings
+import zipfile
 
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
@@ -33,17 +34,22 @@ KB = 2**10
 BUFFER_SIZE = 8 * KB
 
 
-def md5_for_file(filename, block_size=2 * MB, callback=None):
+def md5_for_file(
+    filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
+):
     """
     Calculates the MD5 of the given file.
-    See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
+    See source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>.
 
-    :param filename:   The file to read in
-    :param block_size: How much of the file to read in at once (bytes).
-                       Defaults to 2 MB
-    :param callback:   The callback function that help us show loading spinner on terminal.
-                       Defaults to None
-    :returns: The MD5
+    Arguments:
+        filename: The file to read in
+        block_size: How much of the file to read in at once (bytes).
+                    Defaults to 2 MB
+        callback: The callback function that help us show loading spinner on terminal.
+                    Defaults to None
+
+    Returns:
+        The MD5 Checksum
     """
 
     md5 = hashlib.new("md5", usedforsecurity=False)
@@ -58,25 +64,29 @@ def md5_for_file(filename, block_size=2 * MB, callback=None):
     return md5
 
 
-def md5_fn(part, _):
+def md5_fn(part, _) -> str:
     """Calculate the MD5 of a file-like object.
 
-    :part -- A file-like object to read from.
+    Arguments:
+        part: A file-like object to read from.
 
-    :returns: The MD5
+    Returns:
+        The MD5 Checksum
     """
     md5 = hashlib.new("md5", usedforsecurity=False)
     md5.update(part)
     return md5.hexdigest()
 
 
-def download_file(url, localFilepath=None):
+def download_file(url: str, localFilepath: str = None) -> str:
     """
     Downloads a remote file.
 
-    :param localFilePath: May be None, in which case a temporary file is created
+    Arguments:
+        localFilePath: May be None, in which case a temporary file is created
 
-    :returns: localFilePath
+    Returns:
+        localFilePath: The path to the downloaded file
     """
 
     f = None
@@ -108,7 +118,8 @@ def extract_filename(content_disposition_header, default_filename=None):
     """
     Extract a filename from an HTTP content-disposition header field.
 
-    See `this memo <http://tools.ietf.org/html/rfc6266>`_ and `this package <http://pypi.python.org/pypi/rfc6266>`_
+    See [this memo](http://tools.ietf.org/html/rfc6266) and
+    [this package](http://pypi.python.org/pypi/rfc6266)
     for cryptic details.
     """
 
@@ -159,13 +170,18 @@ def _get_from_members_items_or_properties(obj, key):
 
 
 # TODO: what does this do on an unsaved Synapse Entity object?
-def id_of(obj):
+def id_of(obj: typing.Union[str, collections.abc.Mapping]) -> str:
     """
     Try to figure out the Synapse ID of the given object.
 
-    :param obj: May be a string, Entity object, or dictionary
+    Arguments:
+        obj: May be a string, Entity object, or dictionary
 
-    :returns: The ID or throws an exception
+    Returns:
+        The ID
+
+    Raises:
+        ValueError: if the object doesn't have an ID
     """
     if isinstance(obj, str):
         return str(obj)
@@ -206,13 +222,15 @@ def concrete_type_of(obj: collections.abc.Mapping):
     return concrete_type
 
 
-def is_in_path(id, path):
+def is_in_path(id: str, path: collections.abc.Mapping) -> bool:
     """Determines whether id is in the path as returned from /entity/{id}/path
 
-    :param id:      synapse id string
-    :param path:    object as returned from '/entity/{id}/path'
+    Arguments:
+        id: synapse id string
+        path: object as returned from '/entity/{id}/path'
 
-    :returns: True or False
+    Returns:
+        True or False
     """
     return id in [item["id"] for item in path["path"]]
 
@@ -280,15 +298,17 @@ def equal_paths(path1, path2):
     return normalize_path(path1) == normalize_path(path2)
 
 
-def file_url_to_path(url, verify_exists=False):
+def file_url_to_path(url: str, verify_exists: bool = False) -> typing.Union[str, None]:
     """
     Convert a file URL to a path, handling some odd cases around Windows paths.
 
-    :param url:             a file URL
-    :param verify_exists:   If true, return an populated dict only if the resulting file path exists on the local file
-                            system.
+    Arguments:
+        url: a file URL
+        verify_exists: If true, return an populated dict only if the resulting file
+                        path exists on the local file system.
 
-    :returns: a path or None if the URL is not a file URL.
+    Returns:
+        a path or None if the URL is not a file URL.
     """
     parts = urllib_parse.urlsplit(url)
     if parts.scheme == "file" or parts.scheme == "":
@@ -304,13 +324,15 @@ def file_url_to_path(url, verify_exists=False):
     return None
 
 
-def is_same_base_url(url1, url2):
+def is_same_base_url(url1: str, url2: str) -> bool:
     """Compares two urls to see if they are the same excluding up to the base path
 
-    :param url1: a URL
-    :param url2: a second URL
+    Arguments:
+        url1: a URL
+        url2: a second URL
 
-    :returns: Boolean
+    Returns:
+        A Boolean
     """
     url1 = urllib_parse.urlsplit(url1)
     url2 = urllib_parse.urlsplit(url2)
@@ -326,68 +348,22 @@ def is_synapse_id_str(obj):
     return None
 
 
-def bool_or_none(input_value: str) -> typing.Union[bool, None]:
-    """
-    Attempts to convert a string to a bool. Returns None if it fails.
-
-    Args:
-        input_value: The string to convert to a bool
-
-    Returns:
-        The bool or None if the conversion fails
-    """
-    if input_value == "True" or input_value == "true":
-        return True
-    elif input_value == "False" or input_value == "false":
-        return False
-    else:
-        return None
-
-
-def int_or_none(input_value: str) -> typing.Union[int, None]:
-    """
-    Attempts to convert a string to an int. Returns None if it fails.
-
-    Args:
-        input_value: The string to convert to an int
-
-    Returns:
-        The int or None if the conversion fails
-    """
-    try:
-        return int(input_value)
-    except ValueError:
-        return None
-
-
-def float_or_none(input_value: str) -> typing.Union[float, None]:
-    """
-    Attempts to convert a string to a float. Returns None if it fails.
-
-    Args:
-        input_value: The string to convert to a float
-
-    Returns:
-        The float or None if the conversion fails
-    """
-    try:
-        return float(input_value)
-    except ValueError:
-        return None
-
-
 def datetime_or_none(datetime_str: str) -> typing.Union[datetime.datetime, None]:
     """Attempts to convert a string to a datetime object. Returns None if it fails.
 
     Some of the expected formats of datetime_str are:
+
     - 2023-12-04T07:00:00Z
     - 2001-01-01 15:00:00+07:00
     - 2001-01-01 15:00:00-07:00
     - 2023-12-04 07:00:00+00:00
     - 2019-01-01
 
-    :param datetime_str: The string to convert to a datetime object
-    :return: The datetime object or None if the conversion fails
+    Arguments:
+        datetime_str: The string to convert to a datetime object
+
+    Returns:
+        The datetime object or None if the conversion fails
     """
     try:
         return datetime.datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
@@ -424,14 +400,18 @@ def _to_iterable(value):
     return (value,)
 
 
-def make_bogus_data_file(n=100, seed=None):
+def make_bogus_data_file(n: int = 100, seed: int = None) -> str:
     """
-    Makes a bogus data file for testing. It is the caller's responsibility to clean up the file when finished.
+    Makes a bogus data file for testing. It is the caller's responsibility
+    to clean up the file when finished.
 
-    :param n:    How many random floating point numbers to be written into the file, separated by commas
-    :param seed: Random seed for the random numbers
+    Arguments:
+        n: How many random floating point numbers to be written into the file,
+            separated by commas
+        seed: Random seed for the random numbers
 
-    :returns: The name of the file
+    Returns:
+        The name of the file
     """
 
     if seed is not None:
@@ -448,13 +428,20 @@ def make_bogus_data_file(n=100, seed=None):
     return normalize_path(f.name)
 
 
-def make_bogus_binary_file(n=1 * KB, filepath=None, printprogress=False):
+def make_bogus_binary_file(
+    n: int = 1 * KB, filepath: str = None, printprogress: bool = False
+) -> str:
     """
-    Makes a bogus binary data file for testing. It is the caller's responsibility to clean up the file when finished.
+    Makes a bogus binary data file for testing. It is the caller's responsibility
+    to clean up the file when finished.
 
-    :param n:       How many bytes to write
+    Arguments:
+        n: How many bytes to write
+        filepath: Where to write the data
+        printprogress: Toggle printing of progress
 
-    :returns: The name of the file
+    Returns:
+        The name of the file
     """
 
     with open(filepath, "wb") if filepath else tempfile.NamedTemporaryFile(
@@ -476,8 +463,7 @@ def make_bogus_binary_file(n=1 * KB, filepath=None, printprogress=False):
 
 def to_unix_epoch_time(dt: typing.Union[datetime.date, datetime.datetime, str]) -> int:
     """
-    Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
-    to UNIX time.
+    Convert either [datetime.date or datetime.datetime objects](http://docs.python.org/2/library/datetime.html) to UNIX time.
     """
     if type(dt) == str:
         dt = datetime.datetime.fromisoformat(dt.replace("Z", "+00:00"))
@@ -500,8 +486,7 @@ def to_unix_epoch_time_secs(
     dt: typing.Union[datetime.date, datetime.datetime]
 ) -> float:
     """
-    Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
-    to UNIX time.
+    Convert either [datetime.date or datetime.datetime objects](http://docs.python.org/2/library/datetime.html) to UNIX time.
     """
     if type(dt) == datetime.date:
         current_timezone = datetime.datetime.now().astimezone().tzinfo
@@ -551,7 +536,7 @@ def from_unix_epoch_time(ms) -> datetime.datetime:
     return from_unix_epoch_time_secs(ms / 1000.0)
 
 
-def datetime_to_iso(dt, sep="T", include_milliseconds=True) -> str:
+def datetime_to_iso(dt, sep="T"):
     # Round microseconds to milliseconds (as expected by older clients)
     # and add back the "Z" at the end.
     # see: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
@@ -559,21 +544,12 @@ def datetime_to_iso(dt, sep="T", include_milliseconds=True) -> str:
         "{time.year:04}-{time.month:02}-{time.day:02}"
         "{sep}{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
     )
-    fmt_no_mills = (
-        "{time.year:04}-{time.month:02}-{time.day:02}"
-        "{sep}{time.hour:02}:{time.minute:02}:{time.second:02}{tz}"
-    )
     if dt.microsecond >= 999500:
         dt -= datetime.timedelta(microseconds=dt.microsecond)
         dt += datetime.timedelta(seconds=1)
-    if include_milliseconds:
-        return fmt.format(
-            time=dt, millisecond=int(round(dt.microsecond / 1000.0)), tz="Z", sep=sep
-        )
-    else:
-        return fmt_no_mills.format(
-            time=dt, millisecond=int(round(dt.microsecond / 1000.0)), tz="Z", sep=sep
-        )
+    return fmt.format(
+        time=dt, millisecond=int(round(dt.microsecond / 1000.0)), tz="Z", sep=sep
+    )
 
 
 def iso_to_datetime(iso_time):
@@ -581,7 +557,10 @@ def iso_to_datetime(iso_time):
 
 
 def format_time_interval(seconds):
-    """Format a time interval given in seconds to a readable value, e.g. \"5 minutes, 37 seconds\"."""
+    """
+    Format a time interval given in seconds to a readable value,
+    e.g. \"5 minutes, 37 seconds\".
+    """
 
     periods = (
         ("year", 60 * 60 * 24 * 365),
@@ -615,29 +594,29 @@ def _find_used(activity, predicate):
 
 def itersubclasses(cls, _seen=None):
     """
-    http://code.activestate.com/recipes/576949/ (r3)
+    <http://code.activestate.com/recipes/576949/> (r3)
 
     itersubclasses(cls)
 
     Generator over all subclasses of a given class, in depth first order.
 
-    >>> list(itersubclasses(int)) == [bool]
-    True
-    >>> class A(object): pass
-    >>> class B(A): pass
-    >>> class C(A): pass
-    >>> class D(B,C): pass
-    >>> class E(D): pass
-    >>>
-    >>> for cls in itersubclasses(A):
-    ...     print(cls.__name__)
-    B
-    D
-    E
-    C
-    >>> # get ALL (new-style) classes currently defined
-    >>> [cls.__name__ for cls in itersubclasses(object)] #doctest: +ELLIPSIS
-    ['type', ...'tuple', ...]
+        >>> list(itersubclasses(int)) == [bool]
+        True
+        >>> class A(object): pass
+        >>> class B(A): pass
+        >>> class C(A): pass
+        >>> class D(B,C): pass
+        >>> class E(D): pass
+        >>>
+        >>> for cls in itersubclasses(A):
+        ...     print(cls.__name__)
+        B
+        D
+        E
+        C
+        >>> # get ALL (new-style) classes currently defined
+        >>> [cls.__name__ for cls in itersubclasses(object)] #doctest: +ELLIPSIS
+        ['type', ...'tuple', ...]
     """
 
     if not isinstance(cls, type):
@@ -660,7 +639,8 @@ def itersubclasses(cls, _seen=None):
 
 def normalize_whitespace(s):
     """
-    Strips the string and replace all whitespace sequences and other non-printable characters with a single space.
+    Strips the string and replace all whitespace sequences and other
+    non-printable characters with a single space.
     """
     assert isinstance(s, str)
     return re.sub(r"[\x00-\x20\s]+", " ", s.strip())
@@ -729,13 +709,16 @@ def _limit_and_offset(uri, limit=None, offset=None):
     )
 
 
-def query_limit_and_offset(query, hard_limit=1000):
+def query_limit_and_offset(
+    query: str, hard_limit: int = 1000
+) -> typing.Tuple[str, int, int]:
     """
     Extract limit and offset from the end of a query string.
 
-    :returns:   A triple containing the query with limit and offset removed, the limit at most equal to the hard_limit,
-                and the offset which
-                defaults to 1
+    Returns:
+        A tuple containing the query with limit and offset removed,
+        the limit at most equal to the hard_limit,
+        and the offset which defaults to 1
     """
     # Regex a lower-case string to simplify matching
     tempQueryStr = query.lower()
@@ -761,8 +744,9 @@ def query_limit_and_offset(query, hard_limit=1000):
 
 def extract_synapse_id_from_query(query):
     """
-    An unfortunate hack to pull the synapse ID out of a table query of the form "select column1, column2 from syn12345
-    where...." needed to build URLs for table services.
+    An unfortunate hack to pull the synapse ID out of a table query of the form
+    "select column1, column2 from syn12345 where...."
+    needed to build URLs for table services.
     """
     m = re.search(r"from\s+(syn\d+)", query, re.IGNORECASE)
     if m:
@@ -772,25 +756,26 @@ def extract_synapse_id_from_query(query):
 
 
 def printTransferProgress(
-    transferred,
-    toBeTransferred,
-    prefix="",
-    postfix="",
-    isBytes=True,
-    dt=None,
-    previouslyTransferred=0,
+    transferred: int,
+    toBeTransferred: int,
+    prefix: str = "",
+    postfix: str = "",
+    isBytes: bool = True,
+    dt: float = None,
+    previouslyTransferred: int = 0,
 ):
     """Prints a progress bar
 
-    :param transferred:             a number of items/bytes completed
-    :param toBeTransferred:         total number of items/bytes when completed
-    :param prefix:                  String printed before progress bar
-    :param postfix:                 String printed after progress bar
-    :param isBytes:                 A boolean indicating whether to convert bytes to kB, MB, GB etc.
-    :param dt:                      The time in seconds that has passed since transfer started is used to calculate rate
-    :param previouslyTransferred:   the number of bytes that were already transferred before this transfer began
-                                    (e.g. someone ctrl+c'd out of an upload and restarted it later)
-
+    Arguments:
+        transferred: a number of items/bytes completed
+        toBeTransferred: total number of items/bytes when completed
+        prefix: String printed before progress bar
+        postfix: String printed after progress bar
+        isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
+        dt: The time in seconds that has passed since transfer started is used to calculate rate
+        previouslyTransferred: the number of bytes that were already transferred before this
+                                transfer began (e.g. someone ctrl+c'd out of an upload and
+                                restarted it later)
     """
     if not sys.stdout.isatty():
         return
@@ -902,9 +887,9 @@ def unique_filename(path):
 
 
 class threadsafe_iter:
-    """Takes an iterator/generator and makes it thread-safe by serializing call to the `next` method of given
-    iterator/generator.
-    See: http://anandology.com/blog/using-iterators-and-generators/
+    """Takes an iterator/generator and makes it thread-safe by serializing call to the
+    `next` method of given iterator/generator.
+    See: <http://anandology.com/blog/using-iterators-and-generators/>
     """
 
     def __init__(self, it):
@@ -921,7 +906,7 @@ class threadsafe_iter:
 
 def threadsafe_generator(f):
     """A decorator that takes a generator function and makes it thread-safe.
-    See: http://anandology.com/blog/using-iterators-and-generators/
+    See: <http://anandology.com/blog/using-iterators-and-generators/>
     """
 
     def g(*a, **kw):
@@ -962,14 +947,20 @@ def temp_download_filename(destination, file_handle_id):
     )
 
 
-def extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
+def extract_zip_file_to_directory(
+    zip_file: zipfile.ZipFile, zip_entry_name: str, target_dir: str
+) -> str:
     """
     Extracts a specified file in a zip to the specified directory
-    :param zip_file:        an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
-    :param zip_entry_name:  the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
-    :param target_dir:      the directory to which the file will be extracted
 
-    :return: full path to the extracted file
+    Arguments:
+        zip_file: an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
+        zip_entry_name: the name of the file to be extracted from the zip
+                        e.g. folderInsideZipIfAny/fileName.txt
+        target_dir: the directory to which the file will be extracted
+
+    Returns:
+        full path to the extracted file
     """
     file_base_name = os.path.basename(zip_entry_name)  # base name of the file
     filepath = os.path.join(
@@ -999,14 +990,17 @@ def is_integer(x):
             return False
 
 
-def topolgical_sort(graph):
+def topolgical_sort(graph: typing.Dict[str, typing.List[str]]) -> list:
     """Given a graph in the form of a dictionary returns a sorted list
+    Adapted from:
+    <http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/>
 
-    Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
+    Arguments:
+        graph: a dictionary with values containing lists of keys
+        referencing back into the dictionary
 
-    :param graph: a dictionary with values containing lists of keys referencing back into the dictionary
-
-    :returns: sorted list of items
+    Returns:
+        A sorted list of items
     """
     graph_unsorted = graph.copy()
     graph_sorted = []
@@ -1051,9 +1045,15 @@ def topolgical_sort(graph):
 
 def caller_module_name(current_frame):
     """
-    :param current_frame: use inspect.currentframe().
-    :return: the name of the module calling the function, foo(), in which this calling_module() is invoked.
-     Ignores callers that belong in the same module as foo()
+    Returns the name of the module in which the calling function resides.
+
+    Arguments:
+        current_frame: use inspect.currentframe().
+
+    Returns:
+        the name of the module calling the function, foo(),
+        in which this calling_module() is invoked.
+        Ignores callers that belong in the same module as foo()
     """
 
     current_frame_filename = (
@@ -1064,7 +1064,8 @@ def caller_module_name(current_frame):
     caller_frame = current_frame.f_back
     caller_filename = caller_frame.f_code.co_filename
 
-    # find the first frame that does not have the same filename. this ensures that we don't consider functions within
+    # find the first frame that does not have the same filename.
+    # this ensures that we don't consider functions within
     # the same module as foo() that use foo() as a helper function
     while caller_filename == current_frame_filename:
         caller_frame = caller_frame.f_back
@@ -1073,7 +1074,21 @@ def caller_module_name(current_frame):
     return inspect.getmodulename(caller_filename)
 
 
-def attempt_import(module_name, fail_message):
+def attempt_import(module_name: str, fail_message: str):
+    """
+    Attempt to import a module by name and return the imported module if successful.
+
+    Arguments:
+        module_name: The name of the module to import.
+        fail_message: The error message to display if the import fails.
+
+    Returns:
+        The imported module.
+
+    Raises:
+        ImportError: If the module cannot be imported.
+
+    """
     try:
         return importlib.import_module(module_name)
     except ImportError:

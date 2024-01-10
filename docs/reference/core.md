@@ -10,7 +10,32 @@ functions.  Use at your own risk.
 ## Multipart Upload
 
 ::: synapseclient.core.upload.multipart_upload
-::: synapseclient.core.upload.multipart_upload._multipart_upload
+    options:
+        members:
+        - UploadAttempt
+        - executor
+        - multipart_upload_file
+        - multipart_upload_string
+        - multipart_copy
+        - _multipart_upload
+
+## Multithreaded Downloading
+::: synapseclient.core.multithread_download
+
+## Cache
+::: synapseclient.core.cache
+
+## Credentials
+::: synapseclient.core.credentials.cred_data.SynapseCredentials
+::: synapseclient.core.credentials.cred_data.SynapseAuthTokenCredentials
+::: synapseclient.core.credentials.credential_provider
+
+## Remote File Storage Wrappers
+::: synapseclient.core.remote_file_storage_wrappers
+
+## Retry
+
+::: synapseclient.core.retry
 
 
 ## Utils
@@ -20,9 +45,6 @@ functions.  Use at your own risk.
 
 ## Versions
 ::: synapseclient.core.version_check
-
-## Cache
-::: synapseclient.core.cache
 
 ## STS Transfer
 ::: synapseclient.core.sts_transfer

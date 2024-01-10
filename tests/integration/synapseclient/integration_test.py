@@ -10,17 +10,15 @@ import pytest
 from unittest.mock import patch
 
 from synapseclient import Entity, Team, UserProfile, client, Synapse
-from synapseclient import Activity, Annotations, File, Folder, login, Project, Synapse
-import synapseclient
-from synapseclient.core.credentials import credential_provider
+from synapseclient import Activity, Annotations, File, Folder, Project, Synapse
 from synapseclient.core.exceptions import (
-    SynapseAuthenticationError,
     SynapseHTTPError,
     SynapseNoCredentialsError,
 )
 import synapseclient.core.utils as utils
 from synapseclient.core.version_check import version_check
 from opentelemetry import trace
+from typing import Callable
 
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
@@ -33,89 +31,41 @@ def test_login(syn):
     try:
         config = configparser.RawConfigParser()
         config.read(client.CONFIG_FILE)
-        # keep password authentication tests until fully deprecated
+
         # Added a section in the synapse config
-        username = config.get("oldAuthentication", "username")
-        password = config.get("oldAuthentication", "password")
+        username = config.get("authentication", "username")
         authtoken = config.get("authentication", "authtoken")
-        sessionToken = syn._getSessionToken(username, password)
 
-        syn.logout(forgetMe=True)
-
-        # Simple login with ID + PW
-        syn.login(username, password, silent=True)
-
-        api_key = syn.credentials.secret
-
-        # Login with ID + API key
-        syn.login(email=username, apiKey=api_key, silent=True)
-
-        # login with session token
-        syn.login(sessionToken=sessionToken)
+        syn.logout()
+        assert syn.credentials == None
 
         # login with config file no username
         syn.login(silent=True)
+        assert syn.credentials.username == username
 
         # Login with ID only from config file
         syn.login(username, silent=True)
+        assert syn.credentials.username == username
 
         # Login with auth token
         syn.login(authToken=authtoken, silent=True)
+        assert syn.credentials.username == username
 
         # Login with ID not matching username
         pytest.raises(SynapseNoCredentialsError, syn.login, "fakeusername")
 
-        # login using cache
-        # mock to make the config file empty
-        with patch.object(
-            syn, "_get_config_authentication", return_value={}
-        ), patch.object(credential_provider, "cached_sessions") as mock_cached_sessions:
-            mock_cached_sessions.get_most_recent_user.return_value = None
-
-            # Login with no credentials
-            with pytest.raises(SynapseNoCredentialsError):
-                syn.login()
-
-        # remember login info in cache
-        syn.login(username, password, rememberMe=True, silent=True)
-
-        # login using cached info
-        syn.login(username, silent=True)
-        assert syn.credentials.username == username
-
-        syn.login(silent=True)
-        assert syn.credentials.username == username
-
     except configparser.Error:
         raise ValueError(
-            "Please supply a username and password in the configuration file."
+            "Please supply a username and authToken in the configuration file."
         )
 
     finally:
         # Login with config file
-        syn.login(rememberMe=True, silent=True)
-
-
-@tracer.start_as_current_span("integration_test::test_login__bad_credentials")
-def test_login__bad_credentials(syn):
-    # nonexistant username and password
-    pytest.raises(
-        SynapseAuthenticationError,
-        login,
-        email=str(uuid.uuid4()),
-        password="In the end, it doens't even matter",
-    )
-    # existing username and bad password
-    pytest.raises(
-        SynapseAuthenticationError,
-        login,
-        email=syn.username,
-        password=str(uuid.uuid4()),
-    )
+        syn.login(silent=True)
 
 
 @tracer.start_as_current_span("integration_test::testCustomConfigFile")
-def testCustomConfigFile(syn, schedule_for_cleanup):
+def testCustomConfigFile(schedule_for_cleanup):
     if os.path.isfile(client.CONFIG_FILE):
         configPath = "./CONFIGFILE"
         shutil.copyfile(client.CONFIG_FILE, configPath)
@@ -125,7 +75,7 @@ def testCustomConfigFile(syn, schedule_for_cleanup):
         syn2.login()
     else:
         raise ValueError(
-            "Please supply a username and password in the configuration file."
+            "Please supply a username and authToken in the configuration file."
         )
 
 
@@ -582,17 +532,17 @@ def testMoveProject(syn, schedule_for_cleanup):
 
 class TestPermissionsOnProject:
     @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup):
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnProject::test_get_permissions_default"
+        "integration_test::TestPermissionsOnProject::test_get_acl_default"
     )
-    def test_get_permissions_default(self):
+    def test_get_acl_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions: Entity = self.syn.store(
-            Project(name=str(uuid.uuid4()) + "test_get_permissions_default_permissions")
+            Project(name=str(uuid.uuid4()) + "test_get_acl_default_permissions")
         )
         self.schedule_for_cleanup(project_with_default_permissions)
 
@@ -600,9 +550,7 @@ class TestPermissionsOnProject:
         p1: UserProfile = self.syn.getUserProfile()
 
         # WHEN I get the permissions for the user on the entity
-        permissions = self.syn.getPermissions(
-            project_with_default_permissions.id, p1.ownerId
-        )
+        permissions = self.syn.get_acl(project_with_default_permissions.id, p1.ownerId)
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -618,9 +566,299 @@ class TestPermissionsOnProject:
         assert set(expected_permissions) == set(permissions)
 
     @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnProject::test_get_permissions_read_only_permissions_on_entity"
+        "integration_test::TestPermissionsOnProject::test_get_acl_read_only_permissions_on_entity"
     )
-    def test_get_permissions_read_only_permissions_on_entity(self):
+    def test_get_acl_read_only_permissions_on_entity(self) -> None:
+        # GIVEN a project created with default permissions of administrator
+        project_with_read_only_permissions: Entity = self.syn.store(
+            Project(name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project")
+        )
+        self.schedule_for_cleanup(project_with_read_only_permissions)
+
+        # AND the user that created the project
+        p1: UserProfile = self.syn.getUserProfile()
+
+        # AND the permissions for the user on the entity are set to READ only
+        self.syn.setPermissions(
+            project_with_read_only_permissions, p1.ownerId, ["READ"]
+        )
+
+        # WHEN I get the permissions for the user on the entity
+        permissions = self.syn.get_acl(
+            project_with_read_only_permissions.id, p1.ownerId
+        )
+
+        # THEN I expect to see read only permissions
+        expected_permissions = ["READ"]
+        assert set(expected_permissions) == set(permissions)
+
+    @tracer.start_as_current_span(
+        "integration_test::TestPermissionsOnProject::test_get_acl_through_team_assigned_to_user"
+    )
+    def test_get_acl_through_team_assigned_to_user(self) -> None:
+        # GIVEN a project created with default permissions of administrator
+        project_with_permissions_through_single_team: Entity = self.syn.store(
+            Project(
+                name=str(uuid.uuid4())
+                + "test_get_acl_through_team_assigned_to_user_and_project"
+            )
+        )
+
+        # AND the user that created the project
+        p1: UserProfile = self.syn.getUserProfile()
+
+        # AND a team is created
+        name = "My Uniquely Named Team " + str(uuid.uuid4())
+        team = self.syn.store(
+            Team(
+                name=name,
+                description="A fake team for testing permissions assigned to a single project",
+            )
+        )
+
+        # Handle Cleanup - Note: When running this schedule for cleanup order
+        # can matter when there are dependent resources
+        self.schedule_for_cleanup(team)
+        self.schedule_for_cleanup(project_with_permissions_through_single_team)
+
+        # AND the permissions for the Team on the entity are set to all permissions except for DOWNLOAD
+        self.syn.setPermissions(
+            project_with_permissions_through_single_team,
+            team.id,
+            [
+                "READ",
+                "DELETE",
+                "CHANGE_SETTINGS",
+                "UPDATE",
+                "CHANGE_PERMISSIONS",
+                "CREATE",
+                "MODERATE",
+            ],
+        )
+
+        # AND the permissions for the user on the entity are set to NONE
+        self.syn.setPermissions(
+            project_with_permissions_through_single_team, p1.ownerId, []
+        )
+
+        # WHEN I get the permissions for the user on the entity
+        permissions = self.syn.get_acl(
+            project_with_permissions_through_single_team.id, p1.ownerId
+        )
+
+        # THEN I expect to see the permissions of the team
+        expected_permissions = [
+            "READ",
+            "DELETE",
+            "CHANGE_SETTINGS",
+            "UPDATE",
+            "CHANGE_PERMISSIONS",
+            "CREATE",
+            "MODERATE",
+        ]
+        assert set(expected_permissions) == set(permissions)
+
+    @tracer.start_as_current_span(
+        "integration_test::TestPermissionsOnProject::test_get_acl_through_multiple_teams_assigned_to_user"
+    )
+    def test_get_acl_through_multiple_teams_assigned_to_user(self) -> None:
+        # GIVEN a project created with default permissions of administrator
+        project_with_permissions_through_multiple_teams: Entity = self.syn.store(
+            Project(
+                name=str(uuid.uuid4())
+                + "test_get_acl_through_two_teams_assigned_to_user_and_project"
+            )
+        )
+
+        # AND the user that created the project
+        p1: UserProfile = self.syn.getUserProfile()
+
+        # AND a team is created
+        name = "My Uniquely Named Team " + str(uuid.uuid4())
+        team_1 = self.syn.store(
+            Team(
+                name=name,
+                description="A fake team for testing permissions assigned to a single project - 1",
+            )
+        )
+
+        # AND a second team is created
+        name = "My Uniquely Named Team " + str(uuid.uuid4())
+        team_2 = self.syn.store(
+            Team(
+                name=name,
+                description="A fake team for testing permissions assigned to a single project - 2",
+            )
+        )
+
+        # Handle Cleanup - Note: When running this schedule for cleanup order
+        # can matter when there are dependent resources
+        self.schedule_for_cleanup(team_1)
+        self.schedule_for_cleanup(team_2)
+        self.schedule_for_cleanup(project_with_permissions_through_multiple_teams)
+
+        # AND the permissions for the Team 1 on the entity are set to all permissions except for DOWNLOAD
+        self.syn.setPermissions(
+            project_with_permissions_through_multiple_teams,
+            team_1.id,
+            [
+                "READ",
+                "DELETE",
+                "CHANGE_SETTINGS",
+                "UPDATE",
+                "CHANGE_PERMISSIONS",
+                "CREATE",
+                "MODERATE",
+            ],
+        )
+
+        # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
+        self.syn.setPermissions(
+            project_with_permissions_through_multiple_teams,
+            team_2.id,
+            ["READ", "DOWNLOAD"],
+        )
+
+        # AND the permissions for the user on the entity are set to NONE
+        self.syn.setPermissions(
+            project_with_permissions_through_multiple_teams, p1.ownerId, []
+        )
+
+        # WHEN I get the permissions for the user on the entity
+        permissions = self.syn.get_acl(
+            project_with_permissions_through_multiple_teams.id, p1.ownerId
+        )
+
+        # THEN I expect to see the permissions of both teams
+        expected_permissions = [
+            "READ",
+            "DELETE",
+            "CHANGE_SETTINGS",
+            "UPDATE",
+            "CHANGE_PERMISSIONS",
+            "CREATE",
+            "MODERATE",
+            "DOWNLOAD",
+        ]
+        assert set(expected_permissions) == set(permissions)
+
+    @tracer.start_as_current_span(
+        "integration_test::TestPermissionsOnProject::test_get_acl_for_project_with_public_and_registered_user"
+    )
+    def test_get_acl_for_project_with_public_and_registered_user(self) -> None:
+        # GIVEN a project created with default permissions of administrator
+        project_with_permissions_for_public_and_authenticated_users: Entity = (
+            self.syn.store(
+                Project(
+                    name=str(uuid.uuid4())
+                    + "test_get_acl_for_project_with_registered_user"
+                )
+            )
+        )
+        self.schedule_for_cleanup(
+            project_with_permissions_for_public_and_authenticated_users
+        )
+
+        # AND the user that created the project
+        p1: UserProfile = self.syn.getUserProfile()
+
+        # AND the permissions for PUBLIC are set to 'READ'
+        self.syn.setPermissions(
+            project_with_permissions_for_public_and_authenticated_users,
+            PUBLIC,
+            ["READ"],
+        )
+
+        # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
+        self.syn.setPermissions(
+            project_with_permissions_for_public_and_authenticated_users,
+            AUTHENTICATED_USERS,
+            ["READ", "DOWNLOAD"],
+        )
+
+        # AND the permissions for the user on the entity do NOT include DOWNLOAD
+        self.syn.setPermissions(
+            project_with_permissions_for_public_and_authenticated_users,
+            p1.ownerId,
+            [
+                "READ",
+                "DELETE",
+                "CHANGE_SETTINGS",
+                "UPDATE",
+                "CHANGE_PERMISSIONS",
+                "CREATE",
+                "MODERATE",
+            ],
+        )
+
+        # WHEN I get the permissions for a public user on the entity
+        permissions = self.syn.get_acl(
+            project_with_permissions_for_public_and_authenticated_users.id
+        )
+
+        # THEN I expect to the public permissions
+        expected_permissions = ["READ"]
+        assert set(expected_permissions) == set(permissions)
+
+        # and WHEN I get the permissions for an authenticated user on the entity
+        permissions = self.syn.getPermissions(
+            project_with_permissions_for_public_and_authenticated_users.id, p1.ownerId
+        )
+
+        # THEN I expect to see the permissions of the user, and the authenticated user, and the public user
+        expected_permissions = [
+            "READ",
+            "DELETE",
+            "CHANGE_SETTINGS",
+            "UPDATE",
+            "CHANGE_PERMISSIONS",
+            "CREATE",
+            "MODERATE",
+            "DOWNLOAD",
+        ]
+        assert set(expected_permissions) == set(permissions)
+
+
+class TestPermissionsOnEntityForCaller:
+    """
+    Test the permissions a caller has for an entity
+    """
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    @tracer.start_as_current_span(
+        "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_default"
+    )
+    def test_get_permissions_default(self) -> None:
+        # GIVEN a project created with default permissions of administrator
+        project_with_default_permissions: Entity = self.syn.store(
+            Project(name=str(uuid.uuid4()) + "test_get_permissions_default_permissions")
+        )
+        self.schedule_for_cleanup(project_with_default_permissions)
+
+        # WHEN I get the permissions for the user on the entity
+        permissions = self.syn.get_permissions(project_with_default_permissions.id)
+
+        # THEN I expect to see the default admin permissions
+        expected_permissions = [
+            "READ",
+            "DELETE",
+            "CHANGE_SETTINGS",
+            "UPDATE",
+            "CHANGE_PERMISSIONS",
+            "CREATE",
+            "MODERATE",
+            "DOWNLOAD",
+        ]
+        assert set(expected_permissions) == set(permissions.access_types)
+
+    @tracer.start_as_current_span(
+        "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_read_only_permissions_on_entity"
+    )
+    def test_get_permissions_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions: Entity = self.syn.store(
             Project(
@@ -639,18 +877,18 @@ class TestPermissionsOnProject:
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = self.syn.getPermissions(
-            project_with_read_only_permissions.id, p1.ownerId
-        )
+        permissions = self.syn.get_permissions(project_with_read_only_permissions.id)
 
-        # THEN I expect to see read only permissions
-        expected_permissions = ["READ"]
-        assert set(expected_permissions) == set(permissions)
+        # THEN I expect to see read only permissions. CHANGE_SETTINGS is bound to ownerId.
+        # Since the entity is created by the Caller, the CHANGE_SETTINGS will always be True.
+        expected_permissions = ["READ", "CHANGE_SETTINGS"]
+
+        assert set(expected_permissions) == set(permissions.access_types)
 
     @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnProject::test_get_permissions_through_team_assigned_to_user"
+        "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_through_team_assigned_to_user"
     )
-    def test_get_permissions_through_team_assigned_to_user(self):
+    def test_get_permissions_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team: Entity = self.syn.store(
             Project(
@@ -696,8 +934,8 @@ class TestPermissionsOnProject:
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = self.syn.getPermissions(
-            project_with_permissions_through_single_team.id, p1.ownerId
+        permissions = self.syn.get_permissions(
+            project_with_permissions_through_single_team.id
         )
 
         # THEN I expect to see the permissions of the team
@@ -710,12 +948,12 @@ class TestPermissionsOnProject:
             "CREATE",
             "MODERATE",
         ]
-        assert set(expected_permissions) == set(permissions)
+        assert set(expected_permissions) == set(permissions.access_types)
 
     @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnProject::test_get_permissions_through_multiple_teams_assigned_to_user"
+        "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_through_multiple_teams_assigned_to_user"
     )
-    def test_get_permissions_through_multiple_teams_assigned_to_user(self):
+    def test_get_permissions_through_multiple_teams_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_multiple_teams: Entity = self.syn.store(
             Project(
@@ -778,8 +1016,8 @@ class TestPermissionsOnProject:
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = self.syn.getPermissions(
-            project_with_permissions_through_multiple_teams.id, p1.ownerId
+        permissions = self.syn.get_permissions(
+            project_with_permissions_through_multiple_teams.id
         )
 
         # THEN I expect to see the permissions of both teams
@@ -793,45 +1031,34 @@ class TestPermissionsOnProject:
             "MODERATE",
             "DOWNLOAD",
         ]
-        assert set(expected_permissions) == set(permissions)
+        assert set(expected_permissions) == set(permissions.access_types)
 
     @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnProject::test_get_permissions_for_project_with_public_and_registered_user"
+        "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_for_project_with_registered_user"
     )
-    def test_get_permissions_for_project_with_public_and_registered_user(self):
+    def test_get_permissions_for_project_with_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_permissions_for_public_and_authenticated_users: Entity = (
-            self.syn.store(
-                Project(
-                    name=str(uuid.uuid4())
-                    + "test_get_permissions_for_project_with_registered_user"
-                )
+        project_with_permissions_for_authenticated_users: Entity = self.syn.store(
+            Project(
+                name=str(uuid.uuid4())
+                + "test_get_permissions_for_project_with_registered_user"
             )
         )
-        self.schedule_for_cleanup(
-            project_with_permissions_for_public_and_authenticated_users
-        )
+        self.schedule_for_cleanup(project_with_permissions_for_authenticated_users)
 
         # AND the user that created the project
         p1: UserProfile = self.syn.getUserProfile()
 
-        # AND the permissions for PUBLIC are set to 'READ'
-        self.syn.setPermissions(
-            project_with_permissions_for_public_and_authenticated_users,
-            PUBLIC,
-            ["READ"],
-        )
-
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
         self.syn.setPermissions(
-            project_with_permissions_for_public_and_authenticated_users,
+            project_with_permissions_for_authenticated_users,
             AUTHENTICATED_USERS,
             ["READ", "DOWNLOAD"],
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
         self.syn.setPermissions(
-            project_with_permissions_for_public_and_authenticated_users,
+            project_with_permissions_for_authenticated_users,
             p1.ownerId,
             [
                 "READ",
@@ -844,21 +1071,12 @@ class TestPermissionsOnProject:
             ],
         )
 
-        # WHEN I get the permissions for a public user on the entity
-        permissions = self.syn.getPermissions(
-            project_with_permissions_for_public_and_authenticated_users.id
+        # and WHEN I get the permissions for the user on the entity
+        permissions = self.syn.get_permissions(
+            project_with_permissions_for_authenticated_users.id
         )
 
-        # THEN I expect to the public permissions
-        expected_permissions = ["READ"]
-        assert set(expected_permissions) == set(permissions)
-
-        # and WHEN I get the permissions for an authenticated user on the entity
-        permissions = self.syn.getPermissions(
-            project_with_permissions_for_public_and_authenticated_users.id, p1.ownerId
-        )
-
-        # THEN I expect to see the permissions of the user, and the authenticated user, and the public user
+        # THEN I expect to see the permissions of the user, and the authenticated user
         expected_permissions = [
             "READ",
             "DELETE",
@@ -869,4 +1087,4 @@ class TestPermissionsOnProject:
             "MODERATE",
             "DOWNLOAD",
         ]
-        assert set(expected_permissions) == set(permissions)
+        assert set(expected_permissions) == set(permissions.access_types)
