@@ -7,16 +7,16 @@ A table has a [Schema][synapseclient.table.Schema] and holds a set of rows confo
 
 A [Schema][synapseclient.table.Schema] defines a series of [Column][synapseclient.table.Column] of the following types:
 
-- STRING
-- DOUBLE
-- INTEGER
-- BOOLEAN
-- DATE
-- ENTITYID
-- FILEHANDLEID
-- LINK
-- LARGETEXT
-- USERID
+- `STRING`
+- `DOUBLE`
+- `INTEGER`
+- `BOOLEAN`
+- `DATE`
+- `ENTITYID`
+- `FILEHANDLEID`
+- `LINK`
+- `LARGETEXT`
+- `USERID`
 
 [Read more information about using Table in synapse in the tutorials section](../../tutorials/tables/).
 """
@@ -39,7 +39,8 @@ from typing import List, Dict, TypeVar, Union, Tuple
 from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
-from .entity import Entity, entity_type_to_class
+from .entity import Entity, entity_type_to_class, Folder, Project
+from .evaluation import Evaluation
 from synapseclient.core.constants import concrete_types
 
 aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
@@ -144,8 +145,9 @@ def as_table_columns(values: Union[str, DataFrameType]):
 
     Arguments:
         values: An object that holds the content of the tables.
-                - A string holding the path to a CSV file, a filehandle, or StringIO containing valid csv content
-                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+
+            - A string holding the path to a CSV file, a filehandle, or StringIO containing valid csv content
+            - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
     Returns:
         A list of Synapse table [Column][synapseclient.table.Column] objects
@@ -271,7 +273,7 @@ def cast_values(values, headers):
     """
     Convert a row of table query results from strings to the correct column type.
 
-    See: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
+    See: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html>
     """
     if len(values) != len(headers):
         raise ValueError(
@@ -410,8 +412,7 @@ def _csv_to_pandas_df(
 
     # assign line terminator only if for single character
     # line terminators (e.g. not '\r\n') 'cause pandas doesn't
-    # longer line terminators. See:
-    #    https://github.com/pydata/pandas/issues/3501
+    # longer line terminators. See: <https://github.com/pydata/pandas/issues/3501>
     # "ValueError: Only length-1 line terminators supported"
     df = pd.read_csv(
         filepath,
@@ -698,12 +699,13 @@ class ViewBase(SchemaBase):
         "ignoredAnnotationColumnNames",
     ]
 
-    def add_scope(self, entities: Union[Entity, list, str]):
+    def add_scope(self, entities: Union[Project, Folder, Evaluation, list, str]):
         """
         Add scope
 
         Arguments:
-            entities: a Project, Folder, Evaluation object or its ID, can also be a list of them
+            entities: A [Project][synapseclient.entity.Project], [Folder][synapseclient.entity.Folder],
+                      [Evaluation][synapseclient.evaluation.Evaluation] object or its ID, can also be a list of them
         """
         if isinstance(entities, list):
             # add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
@@ -808,74 +810,77 @@ class Dataset(ViewBase):
         folder:        A list of Folder IDs
         local_state:   Internal use only
 
-    Example:
+    Example: Using Dataset
+        Load Dataset
 
-        from synapseclient import Dataset
+            from synapseclient import Dataset
 
-        # Create a Dataset with pre-defined DatasetItems. Default Dataset columns
-        # are used if no schema is provided.
-        dataset_items = [
-            {'entityId': "syn000", 'versionNumber': 1},
-            {...},
-        ]
-        dataset = syn.store(Dataset(
-            name="My Dataset",
-            parent=project,
-            dataset_items=dataset_items))
+        Create a Dataset with pre-defined DatasetItems. Default Dataset columns
+        are used if no schema is provided.
 
-        # Add/remove specific Synapse IDs to/from the Dataset
-        dataset.add_item({'entityId': "syn111", 'versionNumber': 1})
-        dataset.remove_item("syn000")
-        dataset = syn.store(dataset)
+            dataset_items = [
+                {'entityId': "syn000", 'versionNumber': 1},
+                {...},
+            ]
 
-        # Add a list of Synapse IDs to the Dataset
-        new_items = [
-            {'entityId': "syn222", 'versionNumber': 2},
-            {'entityId': "syn333", 'versionNumber': 1}
-        ]
-        dataset.add_items(new_items)
-        dataset = syn.store(dataset)
+            dataset = syn.store(Dataset(
+                name="My Dataset",
+                parent=project,
+                dataset_items=dataset_items))
+
+        Add/remove specific Synapse IDs to/from the Dataset
+
+            dataset.add_item({'entityId': "syn111", 'versionNumber': 1})
+            dataset.remove_item("syn000")
+            dataset = syn.store(dataset)
+
+        Add a list of Synapse IDs to the Dataset
+
+            new_items = [
+                {'entityId': "syn222", 'versionNumber': 2},
+                {'entityId': "syn333", 'versionNumber': 1}
+            ]
+            dataset.add_items(new_items)
+            dataset = syn.store(dataset)
 
     Folders can easily be added recursively to a dataset, that is, all files
     within the folder (including sub-folders) will be added.  Note that using
     the following methods will add files with the latest version number ONLY.
-    If another version number is desired, use [add_item][synapseclient.table.add_item]
-    or [add_items][synapseclient.table.add_items].
+    If another version number is desired, use [add_item][synapseclient.table.Dataset.add_item]
+    or [add_items][synapseclient.table.Dataset.add_items].
 
-    Example:
+    Example: Add folder to Dataset
+        Add a single Folder to the Dataset.
 
-        # Add a single Folder to the Dataset
-        dataset.add_folder("syn123")
+            dataset.add_folder("syn123")
 
-        # Add a list of Folders, overwriting any existing files in the dataset
-        dataset.add_folders(["syn456", "syn789"], force=True)
+        Add a list of Folders, overwriting any existing files in the dataset.
 
-        dataset = syn.store(dataset)
+            dataset.add_folders(["syn456", "syn789"], force=True)
+            dataset = syn.store(dataset)
 
-    empty() can be used to truncate a dataset, that is, remove all current
-    items from the set.
+    Example: Truncate a Dataset
+        empty() can be used to truncate a dataset, that is, remove all current items from the set.
 
-    Example:
+            dataset.empty()
+            dataset = syn.store(dataset)
 
-        dataset.empty()
-        dataset = syn.store(dataset)
 
-    To get the number of entities in the dataset, use len().
 
-    Example:
+    Example: Check items in a Dataset
+        To get the number of entities in the dataset, use len().
 
-        print(f"{dataset.name} has {len(dataset)} items.")
+            print(f"{dataset.name} has {len(dataset)} items.")
 
-    To create a snapshot version of the Dataset, use
-    [create_snapshot_version][synapseclient.Synapse.create_snapshot_version].
+    Example: Create a snapshot of the Dataset
+        To create a snapshot version of the Dataset, use
+        [create_snapshot_version][synapseclient.Synapse.create_snapshot_version].
 
-    Example:
-
-        syn = synapseclient.login()
-        syn.create_snapshot_version(
-            dataset.id,
-            label="v1.0",
-            comment="This is version 1")
+            syn = synapseclient.login()
+            syn.create_snapshot_version(
+                dataset.id,
+                label="v1.0",
+                comment="This is version 1")
     """
 
     _synapse_entity_type: str = "org.sagebionetworks.repo.model.table.Dataset"
@@ -1087,13 +1092,15 @@ class EntityViewSchema(ViewBase):
         scopes:                       A list of Projects/Folders or their ids
         type:                         This field is deprecated. Please use `includeEntityTypes`
         includeEntityTypes:           A list of entity types to include in the view. Supported entity types are:
-                                        - EntityViewType.FILE,
-                                        - EntityViewType.PROJECT,
-                                        - EntityViewType.TABLE,
-                                        - EntityViewType.FOLDER,
-                                        - EntityViewType.VIEW,
-                                        - EntityViewType.DOCKER
-                                      If none is provided, the view will default to include EntityViewType.FILE.
+
+            - `EntityViewType.FILE`
+            - `EntityViewType.PROJECT`
+            - `EntityViewType.TABLE`
+            - `EntityViewType.FOLDER`
+            - `EntityViewType.VIEW`
+            - `EntityViewType.DOCKER`
+
+            If none is provided, the view will default to include `EntityViewType.FILE`.
         addDefaultViewColumns:        If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
                                       Defaults to True.
                                       The default columns will be added after a call to
@@ -1184,12 +1191,13 @@ class EntityViewSchema(ViewBase):
         Arguments:
             includeEntityTypes: A list of entity types to include in the view. This list will replace the previous
                                 settings. Supported entity types are:
-                                    - EntityViewType.FILE,
-                                    - EntityViewType.PROJECT,
-                                    - EntityViewType.TABLE,
-                                    - EntityViewType.FOLDER,
-                                    - EntityViewType.VIEW,
-                                    - EntityViewType.DOCKER
+
+                - `EntityViewType.FILE`
+                - `EntityViewType.PROJECT`
+                - `EntityViewType.TABLE`
+                - `EntityViewType.FOLDER`
+                - `EntityViewType.VIEW`
+                - `EntityViewType.DOCKER`
         """
         self.viewTypeMask = _get_view_type_mask(includeEntityTypes)
 
@@ -1282,7 +1290,16 @@ class SelectColumn(DictObject):
 
     Attributes:
         id:         An immutable ID issued by the platform
-        columnType: Can be any of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID"
+        columnType: Can be any of:
+
+            - `STRING`
+            - `DOUBLE`
+            - `INTEGER`
+            - `BOOLEAN`
+            - `DATE`
+            - `FILEHANDLEID`
+            - `ENTITYID`
+
         name:       The display name of the column
     """
 
@@ -1317,11 +1334,23 @@ class Column(DictObject):
     Attributes:
         id:                An immutable ID issued by the platform
         columnType:        The column type determines the type of data that can be stored in a column. It can be any
-                           of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
-                           "LARGETEXT", "USERID". For more information, please see:
-                           https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
+                           of:
+
+            - `STRING`
+            - `DOUBLE`
+            - `INTEGER`
+            - `BOOLEAN`
+            - `DATE`
+            - `FILEHANDLEID`
+            - `ENTITYID`
+            - `LINK`
+            - `LARGETEXT`
+            - `USERID`
+
+            For more information, please see:
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html>
         maximumSize:       A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
-                           default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
+                           default maximum size of 50 characters, but can be set to a `maximumSize` of 1 to 1000
                            characters.
         maximumListLength: Required if using a columnType with a "_LIST" suffix. Describes the maximum number of
                            values that will appear in that list. Value range 1-100 inclusive. Default 100
@@ -1361,10 +1390,7 @@ class AppendableRowset(DictObject, metaclass=abc.ABCMeta):
 
     def _synapse_store(self, syn):
         """
-        Creates and POSTs an AppendableRowSetRequest_
-
-        .. AppendableRowSetRequest:
-         https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
+        Creates and POSTs an [AppendableRowSetRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html)
         """
         append_rowset_request = {
             "concreteType": concrete_types.APPENDABLE_ROWSET_REQUEST,
@@ -1389,28 +1415,49 @@ class PartialRowset(AppendableRowset):
         schema: The [Schema][synapseclient.table.Schema] of the table to update or its tableId as a string
         rows:   A list of PartialRows
 
-    Example:
-        #### the following code will change cells in a hypothetical table, syn123:
-        #### these same steps will also work for using EntityView tables to change Entity annotations
-        #
-        # fooCol | barCol             fooCol    |  barCol
-        # -----------------  =======> ----------------------
-        # foo1   | bar1               foo foo1  |  bar1
-        # foo2   | bar2               foo2      |  bar bar 2
+    Example: Update cells in
+        The following code will change cells in a hypothetical table, syn123:
+        these same steps will also work for using EntityView tables to change Entity annotations
 
-        query_results = syn.tableQuery("SELECT * FROM syn123")
+        From:
 
-        # The easiest way to know the rowId of the row you wish to change
-        # is by converting the table to a pandas DataFrame with rowIdAndVersionInIndex=False
-        df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
+                +-------------+--------------+
+                | Column One  | Column Two   |
+                +=============+==============+
+                | Data 1      | Data A       |
+                +-------------+--------------+
+                | Data 2      | Data B       |
+                +-------------+--------------+
+                | Data 3      | Data C       |
+                +-------------+--------------+
 
-        partial_changes = {df['ROW_ID'][0]: {'fooCol': 'foo foo 1'},
-                           df['ROW_ID'][1]: {'barCol': 'bar bar 2'}}
+        To
 
-        # you will need to pass in your original query result as an argument
-        # so that we can perform column id translation and etag retrieval on your behalf:
-        partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
-        syn.store(partial_rowset)
+                +-------------+--------------+
+                | Column One  | Column Two   |
+                +=============+==============+
+                | Data 1  2   | Data A       |
+                +-------------+--------------+
+                | Data 2      | Data B  D    |
+                +-------------+--------------+
+                | Data 3      | Data C       |
+                +-------------+--------------+
+
+            query_results = syn.tableQuery("SELECT * FROM syn123")```
+
+        The easiest way to know the rowId of the row you wish to change
+        is by converting the table to a pandas DataFrame with rowIdAndVersionInIndex=False
+
+            df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
+
+            partial_changes = {df['ROW_ID'][0]: {'fooCol': 'foo foo 1'},
+                               df['ROW_ID'][1]: {'barCol': 'bar bar 2'}}
+
+        You will need to pass in your original query result as an argument
+        so that we can perform column id translation and etag retrieval on your behalf:
+
+            partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
+            syn.store(partial_rowset)
     """
 
     @classmethod
@@ -1565,31 +1612,11 @@ class PartialRow(DictObject):
     This is a lower-level class for use in [PartialRowset][synapseclient.table.PartialRowset] to update individual
     cells within a table.
 
-    It is recommended you use [from_mapping][synapseclient.table.PartialRowset.from_mapping]
-    to construct partial change sets to a table.
-
-    If you want to do the tedious parts yourself:
-
-    To change cells in the "foo"(colId:1234) and "bar"(colId:456) columns of a row with rowId=5 ::
-        rowId = 5
-
-        #pass in with columnIds as key:
-        PartialRow({123: 'fooVal', 456:'barVal'}, rowId)
-
-        #pass in with a nameToColumnId argument
-
-        #manually define:
-        nameToColumnId = {'foo':123, 'bar':456}
-        #OR if you have the result of a tableQuery() you can generate nameToColumnId using:
-        query_result = syn.tableQuery("SELECT * FROM syn123")
-        nameToColumnId = {col.name:col.id for col in query_result.headers}
-
-        PartialRow({'foo': 'fooVal', 'bar':'barVal'}, rowId, nameToColumnId=nameToColumnId)
-
     Attributes:
         values:         A Mapping where:
-                            - key is name of the column (or its columnId) to change in the desired row
-                            - value is the new desired value for that column
+
+            - The key is name of the column (or its columnId) to change in the desired row
+            - The value is the new desired value for that column
         rowId:          The id of the row to be updated
         etag:           Used for updating File/Project Views([EntityViewSchema][synapseclient.table.EntityViewSchema]).
                         Not necessary for a [Schema][synapseclient.table.Schema] Table
@@ -1597,6 +1624,28 @@ class PartialRow(DictObject):
                         Mapping will be replaced with the column ids in the `nameToColumnId` dict. Include this
                         as an argument when you are providing the column names instead of columnIds as the keys
                         to the `values` Mapping.
+
+    Example: Using PartialRow
+        It is recommended you use [from_mapping][synapseclient.table.PartialRowset.from_mapping]
+        to construct partial change sets to a table.
+
+        If you want to do the tedious parts yourself:
+
+        To change cells in the "foo"(colId:1234) and "bar"(colId:456) columns of a row with `rowId = 5`
+        Pass in with `columnIds` as key:
+
+            PartialRow({123: 'fooVal', 456:'barVal'}, rowId)
+
+        Pass in with a `nameToColumnId` argument. You can either manually define:
+
+            nameToColumnId = {'foo':123, 'bar':456}
+
+        OR if you have the result of a `tableQuery()` you can generate `nameToColumnId` using:
+
+            query_result = syn.tableQuery("SELECT * FROM syn123")
+            nameToColumnId = {col.name:col.id for col in query_result.headers}
+
+            PartialRow({'foo': 'fooVal', 'bar':'barVal'}, rowId, nameToColumnId=nameToColumnId)
     """
 
     def __init__(self, values, rowId, etag=None, nameToColumnId=None):
@@ -1626,8 +1675,9 @@ def build_table(name, parent, values):
         name:    The name for the Table Schema object
         parent:  The project in Synapse to which this table belongs
         values:  An object that holds the content of the tables
-                    - A string holding the path to a CSV file
-                    - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+
+            - A string holding the path to a CSV file
+            - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
     Returns:
         A Table object suitable for storing
@@ -1663,12 +1713,12 @@ def Table(schema, values, **kwargs):
     Arguments:
         schema: A table [Schema][synapseclient.table.Schema] object or Synapse Id of Table.
         values: An object that holds the content of the tables
-                - a [RowSet][synapseclient.table.RowSet]
-                - a list of lists (or tuples) where each element is a row
-                - a string holding the path to a CSV file
-                - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
-                - a dict which will be wrapped by a Pandas \
-                 `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+
+            - A [RowSet][synapseclient.table.RowSet]
+            - A list of lists (or tuples) where each element is a row
+            - A string holding the path to a CSV file
+            - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+            - A dict which will be wrapped by a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
     Returns:
         A Table object suitable for storing
@@ -1679,10 +1729,10 @@ def Table(schema, values, **kwargs):
 
     End users should not need to know the details of these Table subclasses:
 
-      - [TableAbstractBaseClass][synaseclient.table.TableAbstractBaseClass]
-      - [RowSetTable][synaseclient.table.RowSetTable]
-      - [TableQueryResult][synaseclient.table.TableQueryResult]
-      - [CsvFileTable][synaseclient.table.CsvFileTable]
+    - [TableAbstractBaseClass][synapseclient.table.TableAbstractBaseClass]
+    - [RowSetTable][synapseclient.table.RowSetTable]
+    - [TableQueryResult][synapseclient.table.TableQueryResult]
+    - [CsvFileTable][synapseclient.table.CsvFileTable]
     """
 
     try:
@@ -1761,7 +1811,7 @@ class TableAbstractBaseClass(collections.abc.Iterable, collections.abc.Sized):
         """
         Delete the rows that result from a table query.
 
-        Example::
+        Example:
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
         row_id_vers_generator = (

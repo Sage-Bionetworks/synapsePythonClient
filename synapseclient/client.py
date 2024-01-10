@@ -213,8 +213,8 @@ class Synapse(object):
         debug:                 Print debugging messages if True
         skip_checks:           Skip version and endpoint checks
         configPath:            Path to config File with setting for Synapse. Defaults to ~/.synapseConfig
-        requests_session:      A custom requests.Session object that this Synapse instance will use
-                                when making http requests.
+        requests_session:      A custom [requests.Session object](https://requests.readthedocs.io/en/latest/user/advanced/) that this Synapse instance will use
+                               when making http requests.
         cache_root_dir:        Root directory for storing cache data
         silent:                Defaults to False.
 
@@ -250,17 +250,17 @@ class Synapse(object):
         Initialize Synapse object
 
         Arguments:
-            repoEndpoint:       Location of Synapse repository. Defaults to None.
-            authEndpoint:       Location of authentication service. Defaults to None.
-            fileHandleEndpoint: Location of file service. Defaults to None.
-            portalEndpoint:     Location of the website. Defaults to None.
-            debug:              Print debugging messages if True. Defaults to None.
-            skip_checks:        Skip version and endpoint checks. Defaults to False.
-            configPath:         Path to config File with setting for Synapse. Defaults to CONFIG_FILE.
-            requests_session:   A custom requests.Session object that this Synapse instance will use
-                                when making http requests. Defaults to None.
-            cache_root_dir:     Root directory for storing cache data. Defaults to None.
-            silent:             Suppresses message. Defaults to None.
+            repoEndpoint:       Location of Synapse repository.
+            authEndpoint:       Location of authentication service.
+            fileHandleEndpoint: Location of file service.
+            portalEndpoint:     Location of the website.
+            debug:              Print debugging messages if True.
+            skip_checks:        Skip version and endpoint checks.
+            configPath:         Path to config File with setting for Synapse.
+            requests_session:   A custom [requests.Session object](https://requests.readthedocs.io/en/latest/user/advanced/) that this Synapse instance will use
+                                when making http requests.
+            cache_root_dir:     Root directory for storing cache data.
+            silent:             Suppresses message.
 
         Raises:
             ValueError: Warn for non-boolean debug value.
@@ -441,10 +441,10 @@ class Synapse(object):
         """
         Valid combinations of login() arguments:
 
-            - email/username and password
-            - email/username and apiKey (Base64 encoded string)
-            - authToken
-            - sessionToken (**DEPRECATED**)
+        - email/username and password
+        - email/username and apiKey (Base64 encoded string)
+        - authToken
+        - sessionToken (**DEPRECATED**)
 
         If no login arguments are provided or only username is provided, login() will attempt to log in using
          information from these sources (in order of preference):
@@ -463,8 +463,8 @@ class Synapse(object):
                             credential storage.
             authToken:    A bearer authorization token, e.g. a personal access token, can be used in lieu of a
                             password or apiKey.
-            silent:       Defaults to False.  Suppresses the "Welcome ...!" message.
-            forced:       Defaults to False.  Bypass the credential cache if set.
+            silent:       Suppresses the "Welcome ...!" message.
+            forced:       Bypass the credential cache if set.
 
         **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
         **Linux** systems.
@@ -492,21 +492,18 @@ class Synapse(object):
             Using an auth token:
 
                 syn.login(authToken="authtoken")
-                #> Welcome, Me!
+                > Welcome, Me!
 
             Using a username/password:
 
                 syn.login('my-username', 'secret-password', rememberMe=True)
-                syn.login('my-username', 'secret-password', rememberMe=True)
-                #> Welcome, Me!
-                    syn.login('my-username', 'secret-password', rememberMe=True)
-                #> Welcome, Me!
+                > Welcome, Me!
 
             After logging in with the *rememberMe* flag set, an API key will be cached and
             used to authenticate for future logins:
 
                 syn.login()
-                #> Welcome, Me!
+                > Welcome, Me!
 
         """
         # Note: the order of the logic below reflects the ordering in the docstring above.
@@ -873,17 +870,18 @@ class Synapse(object):
             A list of userGroupHeader objects with fields displayName, email, firstName, lastName, isIndividual, ownerId
 
 
-        Example: Find userGroupHeader objects for test user
+        Example: Using this function
+            Find userGroupHeader objects for test user
 
-            syn._findPrincipals('test')
+                syn._findPrincipals('test')
 
-            [{u'displayName': u'Synapse Test',
-              u'email': u'syn...t@sagebase.org',
-              u'firstName': u'Synapse',
-              u'isIndividual': True,
-              u'lastName': u'Test',
-              u'ownerId': u'1560002'},
-             {u'displayName': ... }]
+                [{u'displayName': u'Synapse Test',
+                u'email': u'syn...t@sagebase.org',
+                u'firstName': u'Synapse',
+                u'isIndividual': True,
+                u'lastName': u'Test',
+                u'ownerId': u'1560002'},
+                {u'displayName': ... }]
         """
         uri = "/userGroupHeaders?prefix=%s" % urllib_urlparse.quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
@@ -899,7 +897,7 @@ class Synapse(object):
 
         Returns:
             Synapse Passing Record. A record of whether a given user passed a given test.
-            https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/quiz/PassingRecord.html
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/quiz/PassingRecord.html>
         """
         response = self.restGET(f"/user/{userid}/certifiedUserPassingRecord")
         return response
@@ -913,8 +911,7 @@ class Synapse(object):
             mask:   Bit field indicating which components to include in the bundle.
 
         Returns:
-            Synapse User Bundle
-            https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserBundle.html
+            [Synapse User Bundle](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserBundle.html)
         """
         try:
             response = self.restGET(f"/user/{userid}/bundle?mask={mask}")
@@ -1085,11 +1082,11 @@ class Synapse(object):
             version:          The specific version to get.
                                 Defaults to the most recent version.
             downloadFile:     Whether associated files(s) should be downloaded.
-                                Defaults to True
+                                Defaults to True.
             downloadLocation: Directory where to download the Synapse File Entity.
                                 Defaults to the local cache.
             followLink:       Whether the link returns the target Entity.
-                                Defaults to False
+                                Defaults to False.
             ifcollision:      Determines how to handle file collisions.
                                 May be "overwrite.local", "keep.local", or "keep.both".
                                 Defaults to "keep.both".
@@ -1191,7 +1188,7 @@ class Synapse(object):
 
         Arguments:
             filepath:    The path to local file
-            limitSearch: Limits the places in Synapse where the file is searched for. Defaults to None.
+            limitSearch: Limits the places in Synapse where the file is searched for.
 
         Raises:
             SynapseFileNotFoundError: If the file is not in Synapse.
@@ -1277,9 +1274,10 @@ class Synapse(object):
         Returns:
             A new Synapse Entity
 
-        See [get][synapseclient.Synapse.get].
-        See [_getEntityBundle][synapseclient.Synapse._getEntityBundle].
-        See [Entity][synapseclient.Entity].
+        Also see:
+        - See [get][synapseclient.Synapse.get].
+        - See [_getEntityBundle][synapseclient.Synapse._getEntityBundle].
+        - See [Entity][synapseclient.Entity].
         """
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
         kwargs.pop("version", None)
@@ -1389,7 +1387,12 @@ class Synapse(object):
             downloadLocation: The download location
             entity:           The Synapse Entity object
             ifcollision:      Determines how to handle file collisions.
-                              May be "overwrite.local", "keep.local", or "keep.both".
+                              May be
+
+                - `overwrite.local`
+                - `keep.local`
+                - `keep.both`
+
             submission:       Access associated files through a submission rather than through an entity.
         """
         # set the initial local state
@@ -1547,9 +1550,9 @@ class Synapse(object):
             activityName: Activity name to be used in conjunction with *used* and *executed*.
             activityDescription: Activity description to be used in conjunction with *used* and *executed*.
             createOrUpdate: Indicates whether the method should automatically perform an update if the 'obj'
-                            conflicts with an existing Synapse object.  Defaults to True.
+                            conflicts with an existing Synapse object.
             forceVersion: Indicates whether the method should increment the version of the object even if nothing
-                            has changed.  Defaults to True.
+                            has changed.
             versionLabel: Arbitrary string used to label the version.
             isRestricted: If set to true, an email will be sent to the Synapse access control team to start the
                             process of adding terms-of-use or review board approval for this entity.
@@ -1573,8 +1576,8 @@ class Synapse(object):
 
                 from synapseclient import File, Activity
 
-                # A synapse entity *syn1906480* contains data
-                # entity *syn1917825* contains code
+            A synapse entity *syn1906480* contains data and an entity *syn1917825* contains code
+
                 activity = Activity(
                     'Fancy Processing',
                     description='No seriously, really fancy processing',
@@ -1978,7 +1981,7 @@ class Synapse(object):
         """
         Get username with ownerId
 
-        Args:
+        Arguments:
             user_id: The ownerId of a user
 
         Returns:
@@ -2009,7 +2012,7 @@ class Synapse(object):
             long_format:   Whether to show createdOn, createdBy and version
             show_modified: Whether to show modifiedOn and modifiedBy
             indent:        The left padding of the file tree structure
-            out:           The location to write the output. Defaults to screen console.
+            out:           The location to write the output.
         """
         fields = ["id", "name", "nodeType"]
         if long_format:
@@ -2127,12 +2130,11 @@ class Synapse(object):
         Creates a download list manifest generation request
 
         Arguments:
-            quoteCharacter:  The character to be used for quoted elements in the resulting file. Defaults to '"'.
+            quoteCharacter:  The character to be used for quoted elements in the resulting file.
             escapeCharacter: The escape character to be used for escaping a separator or quote in the resulting file.
-                             Defaults to "\".
-            lineEnd:         The line feed terminator to be used for the resulting file. Defaults to os.linesep.
-            separator:       The delimiter to be used for separating entries in the resulting file. Defaults to ",".
-            header:          Is the first line a header? Defaults to True.
+            lineEnd:         The line feed terminator to be used for the resulting file.
+            separator:       The delimiter to be used for separating entries in the resulting file.
+            header:          Is the first line a header?
 
         Returns:
             Filehandle of download list manifest
@@ -2257,7 +2259,7 @@ class Synapse(object):
         """
         # Note: Specifying the version results in a zero-ed out etag,
         # even if the version is the most recent.
-        # See `PLFM-1874 <https://sagebionetworks.jira.com/browse/PLFM-1874>`_ for more details.
+        # See [PLFM-1874](https://sagebionetworks.jira.com/browse/PLFM-1874) for more details.
         if version:
             uri = f"/entity/{id_of(entity)}/version/{str(version)}/annotations2"
         else:
@@ -2266,7 +2268,7 @@ class Synapse(object):
 
     @deprecated.sphinx.deprecated(
         version="2.1.0",
-        reason="deprecated and replaced with get_annotations][synapseclient.Synapse.get_annotations]",
+        reason="deprecated and replaced with `get_annotations`",
     )
     def getAnnotations(self, entity, version=None):
         """**Deprecated** and replaced with [get_annotations][synapseclient.Synapse.get_annotations]"""
@@ -2293,7 +2295,7 @@ class Synapse(object):
 
     @deprecated.sphinx.deprecated(
         version="2.1.0",
-        reason="deprecated and replaced with [set_annotations][synapseclient.Synapse.set_annotations] "
+        reason="deprecated and replaced with `set_annotations` "
         "This method is UNSAFE and may overwrite existing annotations"
         " without confirming that you have retrieved and"
         " updated the latest annotations",
@@ -2357,25 +2359,28 @@ class Synapse(object):
 
                 annos = syn.get_annotations('syn123')
 
-                # annos will contain the id and etag associated with the entity upon retrieval
+            `annos` will contain the id and etag associated with the entity upon retrieval
+
                 print(annos.id)
-                # syn123
+                > syn123
                 print(annos.etag)
-                # 7bdb83e9-a50a-46e4-987a-4962559f090f   (Usually some UUID in the form of a string)
+                > 7bdb83e9-a50a-46e4-987a-4962559f090f   (Usually some UUID in the form of a string)
 
-                # returned annos object from get_annotations() can be used as if it were a dict
+            Returned `annos` object from `get_annotations()` can be used as if it were a dict.
+            Set key 'foo' to have value of 'bar' and 'baz'
 
-                # set key 'foo' to have value of 'bar' and 'baz'
                 annos['foo'] = ['bar', 'baz']
 
-                # single values will automatically be wrapped in a list once stored
+            Single values will automatically be wrapped in a list once stored
+
                 annos['qwerty'] = 'asdf'
 
-                # store the annotations
+            Store the annotations
+
                 annos = syn.set_annotations(annos)
 
                 print(annos)
-                # {'foo':['bar','baz], 'qwerty':['asdf']}
+                > {'foo':['bar','baz], 'qwerty':['asdf']}
         """
 
         if not isinstance(annotations, Annotations):
@@ -2420,8 +2425,7 @@ class Synapse(object):
 
         Arguments:
             parent: An id or an object of a Synapse container or None to retrieve all projects
-            includeTypes: Must be a list of entity types (ie. ["folder","file"]) which can be found here:
-                            http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
+            includeTypes: Must be a list of entity types (ie. ["folder","file"]) which can be found [here](http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
             sortBy: How results should be sorted. Can be NAME, or CREATED_ON
             sortDirection: The direction of the result sort. Can be ASC, or DESC
 
@@ -2660,12 +2664,13 @@ class Synapse(object):
         Returns:
             An Access Control List object
 
-        Example: Using this function
-            Setting permissions
+        Example: Setting permissions
+            Grant all registered users download access
 
-                # Grant all registered users download access
                 syn.setPermissions('syn1234','273948',['READ','DOWNLOAD'])
-                # Grant the public view access
+
+            Grant the public view access
+
                 syn.setPermissions('syn1234','273949',['READ'])
         """
         entity_id = id_of(entity)
@@ -2832,7 +2837,7 @@ class Synapse(object):
 
         Arguments:
             usedList:    A list of Synapse IDs, URLs and local files
-            limitSearch: Limits the places in Synapse where the file is searched for. Defaults to None.
+            limitSearch: Limits the places in Synapse where the file is searched for.
 
         Returns:
             A converted list with local files being replaced with Synapse IDs
@@ -2901,7 +2906,7 @@ class Synapse(object):
         """
         Check if the download error is retryable
 
-        Args:
+        Arguments:
             ex: An exception
 
         Returns:
@@ -2931,7 +2936,7 @@ class Synapse(object):
             objectId:     The id of the Synapse object that uses the FileHandle e.g. "syn123"
             objectType:   The type of the Synapse object that uses the FileHandle e.g. "FileEntity"
             destination:  The destination on local file system
-            retries:      The Number of download retries attempted before throwing an exception. Defaults to 5.
+            retries:      The Number of download retries attempted before throwing an exception.
 
         Returns:
             The path to downloaded file
@@ -3337,9 +3342,9 @@ class Synapse(object):
 
         Arguments:
             externalURL: An external URL
-            mimetype:    The Mimetype of the file, if known. Defaults to None.
-            md5:         The file's content MD5. Defaults to None.
-            fileSize:    The size of the file in bytes. Defaults to None.
+            mimetype:    The Mimetype of the file, if known.
+            md5:         The file's content MD5.
+            fileSize:    The size of the file in bytes.
 
         Returns:
             A FileHandle for files that are stored externally.
@@ -3376,7 +3381,7 @@ class Synapse(object):
             s3_file_key:         S3 key of the uploaded object
             file_path:           The local path of the uploaded file
             storage_location_id: The optional storage location descriptor
-            mimetype:            The Mimetype of the file, if known. Defaults to None.
+            mimetype:            The Mimetype of the file, if known.
 
         Returns:
             A FileHandle for objects that are stored externally.
@@ -3507,8 +3512,8 @@ class Synapse(object):
         Get user credentials for a specified URL by either looking in the configFile or querying the user.
 
         Arguments:
-            username: The username on server (optionally specified). Defaults to None.
-            password: The password for authentication on the server (optionally specified). Defaults to None.
+            username: The username on server (optionally specified).
+            password: The password for authentication on the server (optionally specified).
 
         Returns:
             A tuple of username, password.
@@ -3547,23 +3552,23 @@ class Synapse(object):
 
         **ExternalObjectStorage**: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)
 
-        - endpointUrl: endpoint URL of the S3 service (for example: 'https://s3.amazonaws.com')
-        - bucket: the name of the bucket to use
+        - `endpointUrl`: endpoint URL of the S3 service (for example: 'https://s3.amazonaws.com')
+        - `bucket`: the name of the bucket to use
 
         **ExternalS3Storage**: (Amazon S3 bucket accessed by Synapse)
 
-        - bucket: the name of the bucket to use
+        - `bucket`: the name of the bucket to use
 
         **ExternalStorage**: (SFTP or FTP storage location not accessed by Synapse)
 
-        - url: the base URL for uploading to the external destination
-        - supportsSubfolders(optional): does the destination support creating subfolders under the base url
+        - `url`: the base URL for uploading to the external destination
+        - `supportsSubfolders(optional)`: does the destination support creating subfolders under the base url
             (default: false)
 
         **ProxyStorage**: (a proxy server that controls access to a storage)
 
-        - secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
-        - proxyUrl: The HTTPS URL of the proxy used for upload and download.
+        - `secretKey`: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
+        - `proxyUrl`: The HTTPS URL of the proxy used for upload and download.
 
         Arguments:
             storage_type: The type of the StorageLocationSetting to create
@@ -3687,6 +3692,7 @@ class Synapse(object):
 
                 - `read_only`
                 - `read_write`
+
             output_format: One of:
 
                 - `json`: the dictionary returned from the Synapse STS API including expiration
@@ -3695,6 +3701,7 @@ class Synapse(object):
                 - `bash`: output commands for exporting credentials into a bash shell
                 - `cmd`: output commands for exporting credentials into a windows cmd shell
                 - `powershell`: output commands for exporting credentials into a windows powershell
+
             min_remaining_life: The minimum allowable remaining life on a cached token to return. If a cached token
                                 has left than this amount of time left a fresh token will be fetched
         """
@@ -3939,7 +3946,7 @@ class Synapse(object):
     @tracer.start_as_current_span("Synapse::get_team_open_invitations")
     def get_team_open_invitations(self, team):
         """Retrieve the open requests submitted to a Team
-        https://rest-docs.synapse.org/rest/GET/team/id/openInvitation.html
+        <https://rest-docs.synapse.org/rest/GET/team/id/openInvitation.html>
 
         Arguments:
             team: A [synapseclient.team.Team][] object or a team's ID.
@@ -3955,7 +3962,7 @@ class Synapse(object):
     @tracer.start_as_current_span("Synapse::get_membership_status")
     def get_membership_status(self, userid, team):
         """Retrieve a user's Team Membership Status bundle.
-        https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html
+        <https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html>
 
         Arguments:
             user: Synapse user ID
@@ -4203,7 +4210,7 @@ class Synapse(object):
             return None, None
 
         team_id = id_of(team)
-        # see https://rest-docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
+        # see <https://rest-docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html>
         eligibility = self.restGET(
             "/evaluation/{evalId}/team/{id}/submissionEligibility".format(
                 evalId=evaluation_id, id=team_id
@@ -4246,10 +4253,16 @@ class Synapse(object):
         Arguments:
             evaluation: An Evaluation object or Evaluation ID
             user:       Either a user group or the principal ID of a user to grant rights to.
-                        To allow all users, use "PUBLIC".
-                        To allow authenticated users, use "AUTHENTICATED_USERS".
+
+                - To allow all users, use "PUBLIC".
+                - To allow authenticated users, use "AUTHENTICATED_USERS".
+
             rights:     The access rights to give to the users.
-                        Defaults to "READ", "PARTICIPATE", "SUBMIT", and "UPDATE_SUBMISSION".
+
+                - `READ`
+                - `PARTICIPATE`
+                - `SUBMIT`
+                - `UPDATE_SUBMISSION`
 
         Raises:
             SynapseError: If the user does not exist
@@ -4298,6 +4311,7 @@ class Synapse(object):
                 - `RECEIVED`
                 - `REJECTED`
                 - `ACCEPTED`
+
             myOwn: Determines if only your Submissions should be fetched.
                      Defaults to False (all Submissions)
             limit: Limits the number of submissions in a single response.
@@ -4359,9 +4373,9 @@ class Synapse(object):
         Example:
 
             for sb in syn._getSubmissionBundles(1234567):
-                print(sb['submission']['name'], \\
-                      sb['submission']['submitterAlias'], \\
-                      sb['submissionStatus']['status'], \\
+                print(sb['submission']['name'],
+                      sb['submission']['submitterAlias'],
+                      sb['submissionStatus']['status'],
                       sb['submissionStatus']['score'])
 
         This may later be changed to return objects, pending some thought on how submissions along with related status
@@ -4397,6 +4411,7 @@ class Synapse(object):
                 - `CLOSED`
                 - `SCORED`
                 - `INVALID`
+
             myOwn:      Determines if only your Submissions should be fetched.
                         Defaults to False (all Submissions)
             limit:      Limits the number of submissions coming back from the
@@ -4410,16 +4425,15 @@ class Synapse(object):
             Loop over submissions
 
                 for submission, status in syn.getSubmissionBundles(evaluation):
-                    print(submission.name, \\
-                        submission.submitterAlias, \\
-                        status.status, \\
-                        status.score)
+                    print(submission.name,
+                          submission.submitterAlias,
+                          status.status,
+                          status.score)
 
         This may later be changed to return objects, pending some thought on how submissions along with related status
         and annotations should be represented in the clients.
 
         See:
-
         - [synapseclient.evaluation][]
         """
         for bundle in self._getSubmissionBundles(
@@ -4618,7 +4632,7 @@ class Synapse(object):
         Arguments:
             wiki:           A Wiki object
             createOrUpdate: Indicates whether the method should automatically perform an update if the 'obj'
-                            conflicts with an existing Synapse object.  Defaults to True.
+                            conflicts with an existing Synapse object.
 
         Returns:
             An updated Wiki object
@@ -4698,7 +4712,7 @@ class Synapse(object):
             uri + "/start", body=json.dumps(request), endpoint=endpoint
         )
 
-        # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
+        # <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html>
         sleep = self.table_query_sleep
         start_time = time.time()
         lastMessage, lastProgress, lastTotal, progressed = "", 0, 1, False
@@ -5022,8 +5036,7 @@ class Synapse(object):
         partMask=None,
     ) -> TableQueryResult:
         """
-        Query a table and return the first page of results as a `QueryResultBundle \
-         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
+        Query a table and return the first page of results as a [QueryResultBundle](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html).
         If the result contains a *nextPageToken*, following pages a retrieved by calling [_queryTableNext][].
 
         Arguments:
@@ -5041,7 +5054,7 @@ class Synapse(object):
         Returns:
             The first page of results as a QueryResultBundle
         """
-        # See: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+        # See: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
         query_bundle_request = {
             "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
             "query": {
@@ -5070,7 +5083,7 @@ class Synapse(object):
         """
         Retrieve following pages if the result contains a *nextPageToken*
 
-        Args:
+        Arguments:
             nextPageToken: Forward this token to get the next page of results.
             tableId:       The Synapse ID of the table
 
@@ -5094,11 +5107,10 @@ class Synapse(object):
         linesToSkip: int = 0,
     ) -> dict:
         """
-        Send an `UploadToTableRequest \
-         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
+        Send an [UploadToTableRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html) to Synapse.
 
         Arguments:
-            filepath:        Path of a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
+            filepath:        Path of a [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) file.
             schema:          A table entity or its Synapse ID.
             updateEtag:      Any RowSet returned from Synapse will contain the current etag of the change set.
                              To update any rows from a RowSet the etag must be provided with the POST.
@@ -5106,13 +5118,12 @@ class Synapse(object):
             escapeCharacter: Escape character
             lineEnd:         The string used to separate lines
             separator:       Separator character
-            header:          Whether to set the first line as header. Defaults to True.
+            header:          Whether to set the first line as header.
             linesToSkip:     The number of lines to skip from the start of the file.
                              The default value of 0 will be used if this is not provided by the caller.
 
         Returns:
-            `UploadToTableResult \
-         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
+            [UploadToTableResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html)
         """
 
         fileHandleId = multipart_upload_file(self, filepath, content_type="text/csv")
@@ -5193,8 +5204,7 @@ class Synapse(object):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
-        Sends a `DownloadFromTableRequest \
-         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
+        Sends a [DownloadFromTableRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html) to Synapse.
 
         Arguments:
             query:                     A sql query
@@ -5202,14 +5212,12 @@ class Synapse(object):
             escapeCharacter:           Escape character
             lineEnd:                   The string used to separate lines
             separator:                 Separator character
-            header:                    Whether to set the first line as header. Defaults to True.
+            header:                    Whether to set the first line as header.
             includeRowIdAndRowVersion: Whether to set the first two columns contains the row ID and row version.
-                                       Defaults to True.
             downloadLocation:          The download location
 
         Returns:
-            A tuple containing a `DownloadFromTableResult \
-         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
+            A tuple containing a [DownloadFromTableResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html)
 
         The DownloadFromTableResult object contains these fields:
          * headers:             ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
@@ -5384,7 +5392,7 @@ class Synapse(object):
             # ------------------------------------------------------------
 
             # returns a BulkFileDownloadResponse:
-            #   https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
+            #   <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html>
             request = dict(
                 concreteType="org.sagebionetworks.repo.model.file.BulkFileDownloadRequest",
                 requestedFiles=file_handle_associations_batch,
@@ -5469,7 +5477,7 @@ class Synapse(object):
                 + ", ".join('"' + col + '"' for col in cols_not_found)
             )
         col_indices = [i for i, h in enumerate(table.headers) if h.name in columns]
-        # see: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
+        # see: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html>
         file_handle_associations = []
         file_handle_to_path_map = collections.OrderedDict()
         seen_file_handle_ids = (
@@ -5718,14 +5726,14 @@ class Synapse(object):
         """
         Sends an HTTP request to the Synapse server.
 
-        Args:
+        Arguments:
             method:           The method to implement Create, Read, Update, Delete operations.
                               Should be post, get, put, delete.
             uri:              URI on which the method is performed
             endpoint:         Server endpoint, defaults to self.repoEndpoint
             headers:          Dictionary of headers to use rather than the API-key-signed default set of headers
             retryPolicy:      A retry policy
-            requests_session: An external requests.Session object to use when making this specific call
+            requests_session: An external [requests.Session object](https://requests.readthedocs.io/en/latest/user/advanced/) to use when making this specific call
             kwargs:           Any other arguments taken by a
                               [request](http://docs.python-requests.org/en/latest/) method
 
@@ -5773,7 +5781,7 @@ class Synapse(object):
             uri: URI on which get is performed
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use rather than the API-key-signed default set of headers
-            requests_session: An external requests.Session object to use when making this specific call
+            requests_session: An external [requests.Session object](https://requests.readthedocs.io/en/latest/user/advanced/) to use when making this specific call
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
 
         Returns:
@@ -5804,7 +5812,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             body: The payload to be delivered
             headers: Dictionary of headers to use rather than the API-key-signed default set of headers
-            requests_session: an external requests.Session object to use when making this specific call
+            requests_session: An external [requests.Session object](https://requests.readthedocs.io/en/latest/user/advanced/) to use when making this specific call
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
 
         Returns:
@@ -5842,7 +5850,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             body: The payload to be delivered
             headers: Dictionary of headers to use rather than the API-key-signed default set of headers
-            requests_session: Sn external requests.Session object to use when making this specific call
+            requests_session: An external [requests.Session object](https://requests.readthedocs.io/en/latest/user/advanced/) to use when making this specific call
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
 
         Returns
@@ -5871,7 +5879,7 @@ class Synapse(object):
             uri: URI of resource to be deleted
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use rather than the API-key-signed default set of headers
-            requests_session: An external requests.Session object to use when making this specific call
+            requests_session: An external [requests.Session object](https://requests.readthedocs.io/en/latest/user/advanced/) to use when making this specific call
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
 
         """

@@ -147,11 +147,11 @@ class Cache:
         self, cache_map_entry: typing.Union[str, dict, None]
     ) -> typing.Union[str, None]:
         """
-        Retrieve the `modified_time` from the cache_map_entry. This needed to be
+        Retrieve the `modified_time` from the `cache_map_entry`. This needed to be
         backwards-compatible any cache entries that do not have the new JSON structure
         for data. That means that if the cache_map_entry has a `modified_time` key,
         then it is a new entry and we can return the value. If it does not, then it
-        is an old entry and we should return the cache_map_entry itself.
+        is an old entry and we should return the `cache_map_entry` itself.
 
         Arguments:
             cache_map_entry: The entry from the cache map
@@ -435,17 +435,6 @@ class Cache:
         Deletes .cacheMap files and files stored in the cache.cache_root_dir, but does not delete files stored outside
         the cache.
 
-        Either the before_date or after_date must be specified. If both are passed, files between the two dates are
-        selected for removal. Dates must either be a timezone naive Python datetime.datetime instance or the number
-        of seconds since the unix epoch. For example to delete all the files modified in January 2021, either of the
-        following can be used::
-
-            # using offset naive datetime objects
-            cache.purge(after_date=datetime.datetime(2021, 1, 1), before_date=datetime.datetime(2021, 2, 1))
-
-            # using seconds since the unix epoch
-            cache.purge(after_date=1609459200, before_date=1612137600)
-
         Arguments:
             before_date: If specified, all files before this date will be removed
             after_date:  If specified, all files after this date will be removed
@@ -453,6 +442,20 @@ class Cache:
 
         Returns:
             The number of files selected for removal
+
+        Example: Using this function
+            Either the before_date or after_date must be specified. If both are passed, files between the two dates are
+            selected for removal. Dates must either be a timezone naive Python datetime.datetime instance or the number
+            of seconds since the unix epoch. For example to delete all the files modified in January 2021, either of the
+            following can be used::
+
+            using offset naive datetime objects
+
+                cache.purge(after_date=datetime.datetime(2021, 1, 1), before_date=datetime.datetime(2021, 2, 1))
+
+            using seconds since the unix epoch
+
+                cache.purge(after_date=1609459200, before_date=1612137600)
         """
         if before_date is None and after_date is None:
             raise ValueError("Either before date or after date should be provided")

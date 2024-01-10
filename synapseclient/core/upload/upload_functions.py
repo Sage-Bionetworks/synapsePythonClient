@@ -256,12 +256,24 @@ def upload_synapse_s3(
 def upload_synapse_sts_boto_s3(
     syn, parent_id, upload_destination, local_path, mimetype=None
 ):
-    # when uploading to synapse storage normally the back end will generate a random prefix
-    # for our uploaded object. since in this case the client is responsible for the remote
-    # key, the client will instead generate a random prefix. this both ensures we don't have a collision
-    # with an existing S3 object and also mitigates potential performance issues, although
-    # key locality performance issues are likely resolved as of:
-    # https://aws.amazon.com/about-aws/whats-new/2018/07/amazon-s3-announces-increased-request-rate-performance/
+    """
+    When uploading to Synapse storage normally the back end will generate a random prefix
+    for our uploaded object. Since in this case the client is responsible for the remote
+    key, the client will instead generate a random prefix. this both ensures we don't have a collision
+    with an existing S3 object and also mitigates potential performance issues, although
+    key locality performance issues are likely resolved as of:
+    <https://aws.amazon.com/about-aws/whats-new/2018/07/amazon-s3-announces-increased-request-rate-performance/>
+
+    Arguments:
+        syn: _description_
+        parent_id: _description_
+        upload_destination: _description_
+        local_path: _description_
+        mimetype: _description_. Defaults to None.
+
+    Returns:
+        _description_
+    """
     key_prefix = str(uuid.uuid4())
 
     bucket_name = upload_destination["bucket"]
