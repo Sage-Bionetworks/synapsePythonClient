@@ -1443,7 +1443,7 @@ class PartialRowset(AppendableRowset):
                 | Data 3      | Data C       |
                 +-------------+--------------+
 
-            query_results = syn.tableQuery("SELECT * FROM syn123")```
+            query_results = syn.tableQuery("SELECT * FROM syn123")
 
         The easiest way to know the rowId of the row you wish to change
         is by converting the table to a pandas DataFrame with rowIdAndVersionInIndex=False
@@ -1617,6 +1617,7 @@ class PartialRow(DictObject):
 
             - The key is name of the column (or its columnId) to change in the desired row
             - The value is the new desired value for that column
+
         rowId:          The id of the row to be updated
         etag:           Used for updating File/Project Views([EntityViewSchema][synapseclient.table.EntityViewSchema]).
                         Not necessary for a [Schema][synapseclient.table.Schema] Table
@@ -1723,7 +1724,7 @@ def Table(schema, values, **kwargs):
     Returns:
         A Table object suitable for storing
 
-    Usually, the immediate next step after creating a Table object is to store it::
+    Usually, the immediate next step after creating a Table object is to store it:
 
         table = syn.store(Table(schema, values))
 
