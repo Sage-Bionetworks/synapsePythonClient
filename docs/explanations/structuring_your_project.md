@@ -57,7 +57,7 @@ In this option, subfolders should be of the same data type and level as the root
 
 * A dataset folder can’t be inside another dataset folder. For example, a clinical demographics folder can't be inside the biospecimen folder.
 * The dataset folders must have unique names.
-* Folder hierarchy may contain non-dataset folders (e.g. storing reports or other kinds of entities)
+* Folder hierarchy may contain non-dataset folders (e.g. storing reports or other kinds of entities).
 
 ```
 .
