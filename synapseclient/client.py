@@ -4658,7 +4658,7 @@ class Synapse(object):
             uri + "/start", body=json.dumps(request), endpoint=endpoint
         )
 
-        # <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html>
+        # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
         start_time = time.time()
         lastMessage, lastProgress, lastTotal, progressed = "", 0, 1, False
