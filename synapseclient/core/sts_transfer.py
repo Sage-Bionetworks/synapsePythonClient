@@ -172,7 +172,7 @@ def get_sts_credentials(
         # assume bourne compatible output outside of windows
         if platform.system() == "Windows" and "bash" not in os.environ.get("SHELL", ""):
             if len(os.getenv("PSModulePath", "").split(os.pathsep)) >= 3:
-                # <https://stackoverflow.com/a/55598796>
+                # https://stackoverflow.com/a/55598796
                 output_format = "powershell"
             else:
                 output_format = "cmd"
