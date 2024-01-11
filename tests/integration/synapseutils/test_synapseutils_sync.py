@@ -37,7 +37,7 @@ def test_state(syn: Synapse, schedule_for_cleanup):
 
             self.header = "path	parent	used	executed	activityName	synapseStore	foo	date_1	datetime_1	datetime_2	datetime_3	multiple_strings	multiple_dates	multiple_bools	multiple_ints	multiple_floats	annotation_with_escaped_commas\n"
             self.row1 = (
-                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02+00:00	2023-12-05 07:00:00+00:00	[a,b,c,d]	[2020-01-01,2023-12-04T07:00:00.111Z,2023-12-05 23:37:02.333+00:00,2023-12-05 07:00:00+00:00]	[fAlSe,False,tRuE,True]	[1,2,3,4]	[1.2,3.4,5.6,7.8]	["my, string with a comma","another, string with a comma"]\n'
+                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02.995+00:00	2023-12-05 07:00:00+00:00	[a,b,c,d]	[2020-01-01,2023-12-04T07:00:00.111Z,2023-12-05 23:37:02.333+00:00,2023-12-05 07:00:00+00:00]	[fAlSe,False,tRuE,True]	[1,2,3,4]	[1.2,3.4,5.6,7.8]	["my, string with a comma","another, string with a comma"]\n'
                 % (
                     self.f1,
                     self.project.id,
@@ -177,7 +177,7 @@ def test_syncToSynapse(test_state):
         np.nan,
     ]
     assert new_anots.loc[:]["datetime_2"].tolist() == [
-        "2023-12-05T23:37:02Z",
+        "2023-12-05T23:37:02.995Z",
         np.nan,
         np.nan,
     ]
@@ -230,7 +230,7 @@ def test_syncToSynapse(test_state):
         datetime.datetime(2023, 12, 4, 7, 0, 0, tzinfo=datetime.timezone.utc)
     ]
     assert synapse_file_instance.datetime_2 == [
-        datetime.datetime(2023, 12, 5, 23, 37, 2, tzinfo=datetime.timezone.utc)
+        datetime.datetime(2023, 12, 5, 23, 37, 2, 995000, tzinfo=datetime.timezone.utc)
     ]
     assert synapse_file_instance.datetime_3 == [
         datetime.datetime(2023, 12, 5, 7, 0, 0, tzinfo=datetime.timezone.utc)

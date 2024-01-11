@@ -110,7 +110,7 @@ def syncFromSynapse(
     In this case we need to convert the Python native objects into strings that can be
     written to the manifest file. In addition we also need to handle the case where the
     annotation value is a list of objects. In this case we are converting the list
-    into a single cell of data with a semicolon ";" delimiter.
+    into a single cell of data with a comma `,` delimiter wrapped in brackets `[]`.
 
     Arguments:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
@@ -886,7 +886,11 @@ def _convert_manifest_data_items_to_string_list(
         Several examples of how this function works.
 
             >>> _convert_manifest_data_items_to_string_list(["a", "b", "c"])
-            'a,b,c'
+            '[a,b,c]'
+            >>> _convert_manifest_data_items_to_string_list(["string,with,commas", "string without commas"])
+            '["string,with,commas",string without commas]'
+            >>> _convert_manifest_data_items_to_string_list(["string,with,commas"])
+            'string,with,commas'
             >>> _convert_manifest_data_items_to_string_list
                 ([datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc)])
             '2020-01-01T00:00:00Z'
@@ -899,7 +903,7 @@ def _convert_manifest_data_items_to_string_list(
             >>> _convert_manifest_data_items_to_string_list
                 ([datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc),
                 datetime.datetime(2021, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc)])
-            '2020-01-01T00:00:00Z,2021-01-01T00:00:00Z'
+            '[2020-01-01T00:00:00Z,2021-01-01T00:00:00Z]'
 
 
     Args:
@@ -1162,9 +1166,9 @@ def syncToSynapse(
 
     The first annotation conversion is from the TSV file into a Python native object. For
     example Pandas will read a TSV file and convert the string "True" into a boolean True,
-    however, Pandas will NOT convert our semi-colon delimited list of annotations into
-    their Python native objects. This means that we need to do that conversion here after
-    splitting them apart.
+    however, Pandas will NOT convert our comma delimited and bracket wrapped list of
+    annotations into their Python native objects. This means that we need to do that
+    conversion here after splitting them apart.
 
     ## Conversion of Python native objects for the REST API
 
@@ -1210,10 +1214,19 @@ def syncToSynapse(
 
 
 def _split_string(input_string: str) -> typing.List[str]:
-    # Use StringIO to create a file-like object for the csv.reader
+    """
+    Use StringIO to create a file-like object for the csv.reader.
+
+    Extract the first row (there should only be one row)
+
+    Args:
+        input_string: A string to split apart.
+
+    Returns:
+        The list of split items as strings.
+    """
     csv_reader = csv.reader(io.StringIO(input_string))
 
-    # Extract the first row (there should only be one row)
     row = next(csv_reader)
 
     return row
