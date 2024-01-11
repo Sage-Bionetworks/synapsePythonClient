@@ -48,27 +48,41 @@ Any columns that are not in the reserved names described above will be interpret
 
 Adding 4 annotations to each row:
 
-| path | parent | annot1 | annot2 | annot3 | annot4 |
-| --- | --- | --- | --- | --- | --- |
-| /path/file1.txt | syn1243 | bar | 3.1415 | aaaa, bbbb | 14,27,30 |
-| /path/file2.txt | syn12433 | baz | 2.71 | value_1,value_2 | 1,2,3 |
-| /path/file3.txt | syn12455 | zzz | 3.52 | value_3,value_4 | 42, 56, 77 |
+| path | parent | annot1 | annot2 | annot3 | annot4 | annot5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| /path/file1.txt | syn1243 | bar | 3.1415 | [aaaa, bbbb] | [14,27,30] | ["Annotation, with a comma", another annotation]
+| /path/file2.txt | syn12433 | baz | 2.71 | [value_1,value_2] | [1,2,3] | [test 123, test 456]
+| /path/file3.txt | syn12455 | zzz | 3.52 | [value_3,value_4] | [42, 56, 77] | [a single annotation]
 
 #### Multiple values of annotations per key
 Using multiple values for a single annotation should be used sparingly as it makes it more
 difficult for you to manage the data. However, it is supported.
 
-**Annotations can be comma (",") separated lists. **
+**Annotations can be comma `,` separated lists surrounded by brackets `[]`.**
 
-If you have a string that requires a `,` to be used in the formatting of the string you
-may escape the comma in your string with a `\`. For example:
+If you have a string that requires a `,` to be used in the formatting of the string and
+you want it to be a part of a multi-value annotation you will need to wrap it in
+double quotes.
 
-`Hello\, my first string, Hello\, my second string`
+This is an annotation with 2 values:
 
-You can also escape the `\` with another `\`. For example:
+| path | parent | annot1 |
+| --- | --- | --- |
+| /path/file1.txt | syn1243 | [my first annotation, "my, second, annotation"] |
 
-`An escaped backslash \\ there`
 
+This is an annotation with 4 value:
+
+| path | parent | annot1 |
+| --- | --- | --- |
+| /path/file1.txt | syn1243 | [my first annotation, my, second, annotation] |
+
+
+This is an annotation with 1 value:
+
+| path | parent | annot1 |
+| --- | --- | --- |
+| /path/file1.txt | syn1243 | my, sentence, with, commas |
 
 
 See:

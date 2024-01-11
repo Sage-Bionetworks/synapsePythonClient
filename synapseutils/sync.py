@@ -57,10 +57,9 @@ DEFAULT_GENERATED_MANIFEST_KEYS = [
     "activityName",
     "activityDescription",
 ]
-# This is looking for a comma that is not preceded by a backslash
-COMMA_PATTERN = re.compile(r"(?<!\\),")
-# This is looking for a single non-escaped backslash. \ is selected, \\ is not
-BACKSLASH_PATTERN = re.compile(r"(?<!\\\\)(\\)(?!\\)")
+ARRAY_BRACKET_PATTERN = re.compile(r"^\[.*\]$")
+SINGLE_OPEN_BRACKET_PATTERN = re.compile(r"^\[")
+SINGLE_CLOSING_BRACKET_PATTERN = re.compile(r"\]$")
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -874,11 +873,24 @@ def _convert_manifest_data_items_to_string_list(
                 utils.datetime_to_iso(dt=item, include_milliseconds_if_zero=False)
             )
         else:
-            items_to_write.append(
-                item.replace(",", "\\,") if isinstance(item, str) else repr(item)
-            )
+            # If a string based annotation has a comma in it
+            # this will wrap the string in quotes so it won't be parsed
+            # as multiple values. For example this is an annotation with 2 values:
+            # [my first annotation, "my, second, annotation"]
+            # This is an annotation with 4 value:
+            # [my first annotation, my, second, annotation]
+            if isinstance(item, str):
+                if len(items) > 1 and "," in item:
+                    items_to_write.append(f'"{item}"')
+                else:
+                    items_to_write.append(item)
+            else:
+                items_to_write.append(repr(item))
 
-    return ",".join(items_to_write)
+    if len(items) > 1:
+        return f'[{",".join(items_to_write)}]'
+    else:
+        return items_to_write[0]
 
 
 def _convert_manifest_data_row_to_dict(row: dict, keys: typing.List[str]) -> dict:
@@ -1157,6 +1169,16 @@ def syncToSynapse(
         _manifest_upload(syn, df)
 
 
+def _split_string(input_string: str) -> typing.List[str]:
+    # Use StringIO to create a file-like object for the csv.reader
+    csv_reader = csv.reader(io.StringIO(input_string))
+
+    # Extract the first row (there should only be one row)
+    row = next(csv_reader)
+
+    return row
+
+
 def _convert_cell_in_manifest_to_python_types(
     cell: str,
 ) -> typing.Union[typing.List, datetime.datetime, float, int, bool, str]:
@@ -1173,7 +1195,17 @@ def _convert_cell_in_manifest_to_python_types(
     """
     values_to_return = []
 
-    cell_values = re.split(pattern=COMMA_PATTERN, string=cell)
+    if ARRAY_BRACKET_PATTERN.match(string=cell):
+        # Replace the first '[' with an empty string
+        modified_cell = SINGLE_OPEN_BRACKET_PATTERN.sub(repl="", string=cell)
+
+        # Replace the last ']' with an empty string
+        modified_cell = SINGLE_CLOSING_BRACKET_PATTERN.sub(
+            repl="", string=modified_cell
+        )
+        cell_values = _split_string(input_string=modified_cell)
+    else:
+        cell_values = [cell]
 
     for annotation_value in cell_values:
         if (possible_datetime := datetime_or_none(annotation_value)) is not None:
@@ -1187,8 +1219,6 @@ def _convert_cell_in_manifest_to_python_types(
                 value_to_add = ast.literal_eval(node_or_string=annotation_value)
             except (ValueError, SyntaxError):
                 value_to_add = annotation_value
-            if isinstance(value_to_add, str):
-                value_to_add = BACKSLASH_PATTERN.sub(repl="", string=value_to_add)
             values_to_return.append(value_to_add)
     return values_to_return[0] if len(values_to_return) == 1 else values_to_return
 

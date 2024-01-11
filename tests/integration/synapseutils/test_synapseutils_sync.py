@@ -35,9 +35,9 @@ def test_state(syn: Synapse, schedule_for_cleanup):
             self.f2 = utils.make_bogus_data_file(n=10)
             self.f3 = "https://www.synapse.org"
 
-            self.header = "path	parent	used	executed	activityName	synapseStore	foo	date_1	datetime_1	datetime_2	datetime_3	multiple_strings	multiple_dates	multiple_bools	multiple_ints	multiple_floats	annotation_with_escaped_commas	annotation_with_escaped_backslash\n"
+            self.header = "path	parent	used	executed	activityName	synapseStore	foo	date_1	datetime_1	datetime_2	datetime_3	multiple_strings	multiple_dates	multiple_bools	multiple_ints	multiple_floats	annotation_with_escaped_commas\n"
             self.row1 = (
-                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02+00:00	2023-12-05 07:00:00+00:00	a,b,c,d	2020-01-01,2023-12-04T07:00:00.111Z,2023-12-05 23:37:02.333+00:00,2023-12-05 07:00:00+00:00	fAlSe,False,tRuE,True	1,2,3,4	1.2,3.4,5.6,7.8	my\, string with a comma,another\, string with a comma	my\\\\ string with an escaped backslash,another\\\\ string with an escaped backslash\n'
+                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02+00:00	2023-12-05 07:00:00+00:00	[a,b,c,d]	[2020-01-01,2023-12-04T07:00:00.111Z,2023-12-05 23:37:02.333+00:00,2023-12-05 07:00:00+00:00]	[fAlSe,False,tRuE,True]	[1,2,3,4]	[1.2,3.4,5.6,7.8]	["my, string with a comma","another, string with a comma"]\n'
                 % (
                     self.f1,
                     self.project.id,
@@ -187,39 +187,33 @@ def test_syncToSynapse(test_state):
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_strings"].tolist() == [
-        "a,b,c,d",
+        "[a,b,c,d]",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_dates"].tolist() == [
-        "2020-01-01T00:00:00Z,2023-12-04T07:00:00.111Z,2023-12-05T23:37:02.333Z,2023-12-05T07:00:00Z",
+        "[2020-01-01T00:00:00Z,2023-12-04T07:00:00.111Z,2023-12-05T23:37:02.333Z,2023-12-05T07:00:00Z]",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_bools"].tolist() == [
-        "False,False,True,True",
+        "[False,False,True,True]",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_ints"].tolist() == [
-        "1,2,3,4",
+        "[1,2,3,4]",
         np.nan,
         np.nan,
     ]
     assert new_anots.loc[:]["multiple_floats"].tolist() == [
-        "1.2,3.4,5.6,7.8",
+        "[1.2,3.4,5.6,7.8]",
         np.nan,
         np.nan,
     ]
 
     assert new_anots.loc[:]["annotation_with_escaped_commas"].tolist() == [
-        "my\, string with a comma,another\, string with a comma",
-        np.nan,
-        np.nan,
-    ]
-
-    assert new_anots.loc[:]["annotation_with_escaped_backslash"].tolist() == [
-        "my\\ string with an escaped backslash,another\\ string with an escaped backslash",
+        '["my, string with a comma","another, string with a comma"]',
         np.nan,
         np.nan,
     ]
@@ -254,10 +248,6 @@ def test_syncToSynapse(test_state):
     assert synapse_file_instance.annotation_with_escaped_commas == [
         "my, string with a comma",
         "another, string with a comma",
-    ]
-    assert synapse_file_instance.annotation_with_escaped_backslash == [
-        "my\ string with an escaped backslash",
-        "another\ string with an escaped backslash",
     ]
 
     # Validate that provenance is correct
