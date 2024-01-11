@@ -38,22 +38,25 @@ def upload_file_handle(
     mimetype=None,
     max_threads=None,
 ):
-    """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
+    """
+    Uploads the file in the provided path (if necessary) to a storage location based on project settings.
     Returns a new FileHandle as a dict to represent the stored file.
 
-    :param parent_entity:   Entity object or id of the parent entity.
-    :param path:            file path to the file being uploaded
-    :param synapseStore:    If False, will not upload the file, but instead create an ExternalFileHandle that references
-                            the file on the local machine.
-                            If True, will upload the file based on StorageLocation determined by the entity_parent_id
-    :param md5:             The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be
-                            calculated automatically.
-    :param file_size:       The size the file, if known. Otherwise if the file is a local file, it will be calculated
-                            automatically.
-    :param file_size:       The MIME type the file, if known. Otherwise if the file is a local file, it will be
-                            calculated automatically.
+    Arguments:
+        parent_entity: Entity object or id of the parent entity.
+        path:          The file path to the file being uploaded
+        synapseStore:  If False, will not upload the file, but instead create an ExternalFileHandle that references
+                       the file on the local machine.
+                       If True, will upload the file based on StorageLocation determined by the entity_parent_id
+        md5:           The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be
+                       calculated automatically.
+        file_size:     The size the file, if known. Otherwise if the file is a local file, it will be calculated
+                       automatically.
+        file_size:     The MIME type the file, if known. Otherwise if the file is a local file, it will be
+                       calculated automatically.
 
-    :returns: a dict of a new FileHandle as a dict that represents the uploaded file
+    Returns:
+        A dictionary of a new FileHandle as a dict that represents the uploaded file
     """
     if path is None:
         raise ValueError("path can not be None")
@@ -253,12 +256,24 @@ def upload_synapse_s3(
 def upload_synapse_sts_boto_s3(
     syn, parent_id, upload_destination, local_path, mimetype=None
 ):
-    # when uploading to synapse storage normally the back end will generate a random prefix
-    # for our uploaded object. since in this case the client is responsible for the remote
-    # key, the client will instead generate a random prefix. this both ensures we don't have a collision
-    # with an existing S3 object and also mitigates potential performance issues, although
-    # key locality performance issues are likely resolved as of:
-    # https://aws.amazon.com/about-aws/whats-new/2018/07/amazon-s3-announces-increased-request-rate-performance/
+    """
+    When uploading to Synapse storage normally the back end will generate a random prefix
+    for our uploaded object. Since in this case the client is responsible for the remote
+    key, the client will instead generate a random prefix. this both ensures we don't have a collision
+    with an existing S3 object and also mitigates potential performance issues, although
+    key locality performance issues are likely resolved as of:
+    <https://aws.amazon.com/about-aws/whats-new/2018/07/amazon-s3-announces-increased-request-rate-performance/>
+
+    Arguments:
+        syn: _description_
+        parent_id: _description_
+        upload_destination: _description_
+        local_path: _description_
+        mimetype: _description_. Defaults to None.
+
+    Returns:
+        _description_
+    """
     key_prefix = str(uuid.uuid4())
 
     bucket_name = upload_destination["bucket"]
