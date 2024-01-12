@@ -454,28 +454,6 @@ class Synapse(object):
                 [personal access token](https://python-docs.synapse.org/tutorials/authentication/).
             silent:       Defaults to False.  Suppresses the "Welcome ...!" message.
 
-        **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
-        **Linux** systems.
-        If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for
-        the current user only (chmod 600).
-        On Windows and Mac OS, a default credentials storage exists so it will be preferred over the plain-text file.
-        To install GNOME Keyring on Ubuntu:
-
-            sudo apt-get install gnome-keyring
-
-            sudo apt-get install python-dbus  #(for Python 2 installed via apt-get)
-            OR
-            sudo apt-get install python3-dbus #(for Python 3 installed via apt-get)
-            OR
-            sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python or vitualenv)
-            sudo pip install dbus-python #(may take a while to compile C code)
-
-        If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before
-        running your Python session:
-
-            dbus-run-session -- bash #(replace 'bash' with 'sh' if bash is unavailable)
-            echo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon -- unlock
-
         Example: Logging in
             Using an auth token:
 
