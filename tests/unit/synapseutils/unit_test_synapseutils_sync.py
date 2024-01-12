@@ -1,5 +1,6 @@
 import csv
 from concurrent.futures import Future
+import datetime
 import os
 import pandas as pd
 import pandas.testing as pdt
@@ -683,6 +684,12 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata(syn):
 def test_manifest_upload(syn):
     """Verify behavior of synapseutils.sync._manifest_upload"""
 
+    the_year_2000 = datetime.datetime(
+        2000, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc
+    )
+    the_year_2001 = datetime.datetime(
+        2001, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc
+    )
     data = {
         "path": ["/tmp/foo", "/tmp/bar", "/tmp/baz"],
         "parent": ["syn123", "syn456", "syn789"],
@@ -691,14 +698,27 @@ def test_manifest_upload(syn):
         "executed": [None, None, "/tmp/foo"],
         "anno_1": ["", "v1", "v2"],
         "anno_2": ["v3", "v4", ""],
+        "anno_datetimes": [[the_year_2000, the_year_2001], "", ""],
+        "anno_bools": [[False, True], "", ""],
+        "anno_ints": [[1, 2], "", ""],
+        "anno_floats": [[1.0, 2.0, 3.0, 4.0, 5.0], "", ""],
+        "anno_strings": [["foo", "bar", "aaa", "bbb"], "", ""],
     }
 
     # any empty annotations that result from any empty csv column should not
     # be included in the upload
     expected_anno_data = [
-        {"anno_2": "v3"},
+        {
+            "anno_2": "v3",
+            "anno_datetimes": [the_year_2000, the_year_2001],
+            "anno_bools": [False, True],
+            "anno_ints": [1, 2],
+            "anno_floats": [1.0, 2.0, 3.0, 4.0, 5.0],
+            "anno_strings": ["foo", "bar", "aaa", "bbb"],
+        },
         {"anno_1": "v1", "anno_2": "v4"},
         {"anno_1": "v2"},
+        {"anno_1"},
     ]
 
     df = pd.DataFrame(data=data)

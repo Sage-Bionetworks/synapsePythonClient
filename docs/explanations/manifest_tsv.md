@@ -46,13 +46,44 @@ See:
 
 Any columns that are not in the reserved names described above will be interpreted as annotations of the file
 
-For example this is adding 2 annotations to each row:
+Adding 4 annotations to each row:
 
-| path | parent | annot1 | annot2 |
-| --- | --- | --- | --- |
-| /path/file1.txt | syn1243 | "bar" | 3.1415 |
-| /path/file2.txt | syn12433 | "baz" | 2.71 |
-| /path/file3.txt | syn12455 | "zzz" | 3.52 |
+| path | parent | annot1 | annot2 | annot3 | annot4 | annot5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| /path/file1.txt | syn1243 | bar | 3.1415 | [aaaa, bbbb] | [14,27,30] | ["Annotation, with a comma", another annotation]
+| /path/file2.txt | syn12433 | baz | 2.71 | [value_1,value_2] | [1,2,3] | [test 123, test 456]
+| /path/file3.txt | syn12455 | zzz | 3.52 | [value_3,value_4] | [42, 56, 77] | [a single annotation]
+
+#### Multiple values of annotations per key
+Using multiple values for a single annotation should be used sparingly as it makes it more
+difficult for you to manage the data. However, it is supported.
+
+**Annotations can be comma `,` separated lists surrounded by brackets `[]`.**
+
+If you have a string that requires a `,` to be used in the formatting of the string and
+you want it to be a part of a multi-value annotation you will need to wrap it in
+double quotes.
+
+This is an annotation with 2 values:
+
+| path | parent | annot1 |
+| --- | --- | --- |
+| /path/file1.txt | syn1243 | [my first annotation, "my, second, annotation"] |
+
+
+This is an annotation with 4 value:
+
+| path | parent | annot1 |
+| --- | --- | --- |
+| /path/file1.txt | syn1243 | [my first annotation, my, second, annotation] |
+
+
+This is an annotation with 1 value:
+
+| path | parent | annot1 |
+| --- | --- | --- |
+| /path/file1.txt | syn1243 | my, sentence, with, commas |
+
 
 See:
 
@@ -73,8 +104,16 @@ See:
 | /path/file2.txt | syn12433 | "baz" | 2.71 | 2001-01-01 15:00:00+07:00 | "" | "https://github.org/foo/baz" |
 | /path/file3.txt | syn12455 | "zzz" | 3.52 | 2023-12-04T07:00:00Z | "" | "https://github.org/foo/zzz" |
 
-## See:
+### Dates in the manifest file
+Dates within the manifest file will always be written as [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format in UTC without milliseconds. For example: `2023-12-20T16:55:08Z`.
 
+Dates can be written in other formats specified in ISO 8601 and it will be reconginzed, however, the [synapseutils.syncFromSynapse][] will always write this in the UTC format specified above. For example you may want to specify a datetime at a specific timezone like: `2023-12-20 23:55:08-07:00` and this will be recognized as a valid datetime.
+
+
+## Refernces:
+
+- [synapseutils.syncFromSynapse][]
+- [synapseutils.syncToSynapse][]
 - [Managing custom metadata at scale](https://help.synapse.org/docs/Managing-Custom-Metadata-at-Scale.2004254976.html#ManagingCustomMetadataatScale-BatchUploadFileswithAnnotations)
 - [synapseutils.sync.syncToSynapse][]
 - [synapseutils.sync.syncFromSynapse][]
