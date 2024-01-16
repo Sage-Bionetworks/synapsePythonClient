@@ -8,6 +8,7 @@ from io import StringIO
 import random
 import tempfile
 import threading
+import math
 
 import pytest
 from unittest.mock import ANY, patch, create_autospec, Mock, call, MagicMock
@@ -1418,6 +1419,11 @@ def test_generate_sync_manifest(syn):
 
 
 class TestConvertCellInManifestToPythonTypes(object):
+    """
+    Test the _convert_cell_in_manifest_to_python_types function for each type
+    and single/multiple values.
+    """
+
     def test_datetime_single_item(self) -> None:
         # GIVEN a single item datetime string
         datetime_string = "2020-01-01T00:00:00.000Z"
@@ -1508,15 +1514,15 @@ class TestConvertCellInManifestToPythonTypes(object):
 
         # WHEN _convert_cell_in_manifest_to_python_types is called
         # THEN I expect the output to be a float object
-        assert (
-            synapseutils.sync._convert_cell_in_manifest_to_python_types(float_string)
-            == 123.456
+        assert math.isclose(
+            synapseutils.sync._convert_cell_in_manifest_to_python_types(float_string),
+            123.456,
         )
-        assert (
+        assert math.isclose(
             synapseutils.sync._convert_cell_in_manifest_to_python_types(
                 float_string_in_brackets
-            )
-            == 123.456
+            ),
+            123.456,
         )
 
     def test_float_multiple_items(self) -> None:
@@ -1525,9 +1531,11 @@ class TestConvertCellInManifestToPythonTypes(object):
 
         # WHEN _convert_cell_in_manifest_to_python_types is called
         # THEN I expect the output to be a list of float objects
-        assert synapseutils.sync._convert_cell_in_manifest_to_python_types(
+        result = synapseutils.sync._convert_cell_in_manifest_to_python_types(
             float_string
-        ) == [123.456, 789.012]
+        )
+        assert math.isclose(result[0], 123.456)
+        assert math.isclose(result[1], 789.012)
 
     def test_string_single_item(self) -> None:
         # GIVEN a single item string
