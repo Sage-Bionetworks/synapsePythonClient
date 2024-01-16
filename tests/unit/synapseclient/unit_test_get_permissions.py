@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from synapseclient.models import Permissions
+from synapseclient import Permissions
 from synapseclient.entity import Entity
 from synapseclient.evaluation import Evaluation
 from typing import Dict

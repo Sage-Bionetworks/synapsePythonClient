@@ -1,4 +1,4 @@
-::: synapseclient.models.permission.Permissions
+::: synapseclient.Permissions
     options:
         members:
         - from_dict
