@@ -64,7 +64,10 @@ class Folder:
     """The description of this entity. Must be 1000 characters or less."""
 
     etag: Optional[str] = None
-    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates. Since the E-Tag changes every time an entity is updated it is used to detect when a client's current representation of an entity is out-of-date."""
+    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    concurrent updates. Since the E-Tag changes every time an entity is updated it
+    is used to detect when a client's current representation of an entity
+    is out-of-date."""
 
     created_on: Optional[str] = None
     """The date this entity was created."""
@@ -110,7 +113,7 @@ class Folder:
     #     if not ((self.name is not None and self.parentId is not None) or self.id is not None):
     #         raise ValueError("Either name and parentId or id must be present")
 
-    def convert_from_api_parameters(
+    def fill_from_dict(
         self, synapse_folder: Synapse_Folder, set_annotations: bool = True
     ) -> "Folder":
         self.id = synapse_folder.get("id", None)
@@ -123,7 +126,7 @@ class Folder:
         self.created_by = synapse_folder.get("createdBy", None)
         self.modified_by = synapse_folder.get("modifiedBy", None)
         if set_annotations:
-            self.annotations = Annotations.convert_from_api_parameters(
+            self.annotations = Annotations.from_dict(
                 synapse_folder.get("annotations", None)
             )
         # TODO: Do I get information about the files/folders contained within this folder?
@@ -160,9 +163,7 @@ class Folder:
                 ),
             )
 
-            self.convert_from_api_parameters(
-                synapse_folder=entity, set_annotations=False
-            )
+            self.fill_from_dict(synapse_folder=entity, set_annotations=False)
 
             tasks = []
             if self.files:
@@ -235,9 +236,7 @@ class Folder:
                 ),
             )
 
-            self.convert_from_api_parameters(
-                synapse_folder=entity, set_annotations=True
-            )
+            self.fill_from_dict(synapse_folder=entity, set_annotations=True)
             if include_children:
                 children_objects = await loop.run_in_executor(
                     None,
@@ -257,9 +256,7 @@ class Folder:
                         "type" in child
                         and child["type"] == "org.sagebionetworks.repo.model.Folder"
                     ):
-                        folder = Folder().convert_from_api_parameters(
-                            synapse_folder=child
-                        )
+                        folder = Folder().fill_from_dict(synapse_folder=child)
                         folder.parent_id = self.id
                         folders.append(folder)
 
@@ -267,7 +264,7 @@ class Folder:
                         "type" in child
                         and child["type"] == "org.sagebionetworks.repo.model.FileEntity"
                     ):
-                        file = File().convert_from_api_parameters(synapse_file=child)
+                        file = File().fill_from_dict(synapse_file=child)
                         file.parent_id = self.id
                         files.append(file)
 

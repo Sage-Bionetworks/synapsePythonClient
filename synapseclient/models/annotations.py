@@ -60,7 +60,7 @@ class Annotations:
                 ),
             )
             print(f"annotations store for {self.id} complete")
-            self.annotations = Annotations.convert_from_api_parameters(result)
+            self.annotations = Annotations.from_dict(result)
             # TODO: From the returned call do we need to update anything in the root object?
         return self
 
@@ -71,14 +71,17 @@ class Annotations:
         self.is_loaded = True
 
     @classmethod
-    def convert_from_api_parameters(
+    def from_dict(
         self, synapse_annotations: dict
     ) -> Dict[str, List[Union[str, bool, float, int, date, datetime]]]:
         """Convert the annotations from the format the synapse rest API works in -
         to the format used by this class.
 
-        :param synapse_annotations: The annotations from the synapse rest API.
-        :return: The annotations in python class format.
+        Arguments:
+            synapse_annotations: The annotations from the synapse rest API.
+
+        Returns:
+            The annotations in python class format.
         """
         if synapse_annotations is None:
             return None

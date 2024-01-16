@@ -136,7 +136,7 @@ class File:
 
     is_loaded: bool = False
 
-    def convert_from_api_parameters(
+    def fill_from_dict(
         self, synapse_file: Synapse_File, set_annotations: bool = True
     ) -> "File":
         self.id = synapse_file.get("id", None)
@@ -156,7 +156,7 @@ class File:
         self.data_file_handle_id = synapse_file.get("dataFileHandleId", None)
         self.file_name_override = synapse_file.get("fileNameOverride", None)
         if set_annotations:
-            self.annotations = Annotations.convert_from_api_parameters(
+            self.annotations = Annotations.from_dict(
                 synapse_file.get("annotations", None)
             )
         return self
@@ -199,9 +199,7 @@ class File:
                     ),
                 )
 
-                self.convert_from_api_parameters(
-                    synapse_file=entity, set_annotations=False
-                )
+                self.fill_from_dict(synapse_file=entity, set_annotations=False)
 
                 print(f"Stored file {self.name}, id: {self.id}: {self.path}")
             elif self.id and not self.etag:
@@ -249,7 +247,7 @@ class File:
                 ),
             )
 
-            self.convert_from_api_parameters(synapse_file=entity, set_annotations=True)
+            self.fill_from_dict(synapse_file=entity, set_annotations=True)
             return self
 
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:

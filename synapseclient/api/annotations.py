@@ -22,11 +22,13 @@ def set_annotations(
 ):
     """Call to synapse and set the annotations for the given input.
 
-    :param annotations: The annotations to set. This is expected to have the id, etag, and annotations filled in.
-    :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
-    :param opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                    cases where concurrent operations need to be linked to parent spans.
-    :return: _description_
+    Arguments:
+        annotations: The annotations to set. This is expected to have the id, etag, and annotations filled in.
+        synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                cases where concurrent operations need to be linked to parent spans.
+
+    Returns: The annotations set in Synapse.
     """
     annotations_dict = asdict(annotations)
 

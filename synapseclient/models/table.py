@@ -172,7 +172,7 @@ class CsvResultFormat:
     download_location: Optional[str] = None
     """directory path to download the CSV file to"""
 
-    def convert_into_api_parameters(self):
+    def to_dict(self):
         """Converts the CsvResultFormat into a dictionary that can be passed into the synapseclient."""
         return {
             "resultsAs": "csv",
@@ -195,7 +195,7 @@ class RowsetResultFormat:
 
     offset: Optional[int] = None
 
-    def convert_into_api_parameters(self):
+    def to_dict(self):
         """Converts the RowsetResultFormat into a dictionary that can be passed
         into the synapseclient."""
 
@@ -288,7 +288,7 @@ class Column:
     """For column of type JSON that represents the combination of multiple sub-columns,
     this property is used to define each sub-column."""
 
-    def convert_from_api_parameters(self, synapse_column: Synapse_Column) -> "Column":
+    def fill_from_dict(self, synapse_column: Synapse_Column) -> "Column":
         """Converts a response from the synapseclient into this dataclass."""
         self.id = synapse_column.id
         self.name = synapse_column.name
@@ -323,7 +323,7 @@ class Column:
                 ),
             )
             print(entity)
-            self.convert_from_api_parameters(entity)
+            self.fill_from_dict(entity)
 
             print(f"Stored column {self.name}, id: {self.id}")
 
@@ -434,7 +434,7 @@ class Table:
     (use empty list to represent no values for key) and the value type associated with
     all values in the list."""
 
-    def convert_from_api_parameters(
+    def fill_from_dict(
         self, synapse_table: Synapse_Table, set_annotations: bool = True
     ) -> "Table":
         """Converts the data coming from the Synapse API into this datamodel.
@@ -461,7 +461,7 @@ class Table:
             for columnId in synapse_table.get("columnIds", [])
         ]
         if set_annotations:
-            self.annotations = Annotations.convert_from_api_parameters(
+            self.annotations = Annotations.from_dict(
                 synapse_table.get("annotations", None)
             )
         return self
@@ -571,9 +571,7 @@ class Table:
                 ),
             )
 
-            self.convert_from_api_parameters(
-                synapse_table=entity, set_annotations=False
-            )
+            self.fill_from_dict(synapse_table=entity, set_annotations=False)
 
             tasks = []
             if self.annotations:
@@ -623,7 +621,7 @@ class Table:
                     entity=self.id, opentelemetry_context=current_context
                 ),
             )
-            self.convert_from_api_parameters(synapse_table=entity, set_annotations=True)
+            self.fill_from_dict(synapse_table=entity, set_annotations=True)
             return self
 
     # TODO: Synapse allows immediate deletion of entities, but the Synapse Client does not
@@ -673,7 +671,7 @@ class Table:
                 None,
                 lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
                     query=query,
-                    **result_format.convert_into_api_parameters(),
+                    **result_format.to_dict(),
                     opentelemetry_context=current_context,
                 ),
             )

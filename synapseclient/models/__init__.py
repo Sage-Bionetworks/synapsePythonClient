@@ -14,7 +14,6 @@ from synapseclient.models.table import (
     RowsetResultFormat,
     Row,
 )
-from .permission import Permissions
 
 __all__ = [
     "File",
@@ -28,5 +27,4 @@ __all__ = [
     "CsvResultFormat",
     "RowsetResultFormat",
     "Row",
-    "Permissions",
 ]

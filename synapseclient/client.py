@@ -119,7 +119,7 @@ from synapseclient.core.upload.upload_functions import (
 from synapseclient.core.dozer import doze
 
 from typing import Union, Dict, List, Optional, Tuple
-from synapseclient.models.permission import Permissions
+from synapseclient.core.models.permission import Permissions
 from opentelemetry import trace
 
 tracer = trace.get_tracer("synapseclient")
@@ -342,8 +342,15 @@ class Synapse(object):
 
         When 'logout()' is called it will delete the instance.
 
-        :param syn: An instance of 'Synapse' or None. This is used to simplify logical checks
+        Arguments:
+            synapse_client: An instance of 'Synapse' or None. This is used to simplify logical checks
                     in cases where synapse is passed into them.
+
+        Returns:
+            An instance of 'Synapse'.
+
+        Raises:
+            SynapseError: No instance has been created - Please use login() first
         """
         if synapse_client:
             return synapse_client
