@@ -8,6 +8,7 @@ from io import StringIO
 import random
 import tempfile
 import threading
+import math
 
 import pytest
 from unittest.mock import ANY, patch, create_autospec, Mock, call, MagicMock
@@ -1415,3 +1416,217 @@ def test_generate_sync_manifest(syn):
         patch_write_manifest_data.assert_called_with(
             manifest_path, ["path", "parent"], patch_walk_directory_tree.return_value
         )
+
+
+class TestConvertCellInManifestToPythonTypes(object):
+    """
+    Test the _convert_cell_in_manifest_to_python_types function for each type
+    and single/multiple values.
+    """
+
+    def test_datetime_single_item(self) -> None:
+        # GIVEN a single item datetime string
+        datetime_string = "2020-01-01T00:00:00.000Z"
+        datetime_string_in_brackets = "[2020-01-01T00:00:00.000Z]"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a datetime object
+        assert synapseutils.sync._convert_cell_in_manifest_to_python_types(
+            datetime_string
+        ) == datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc)
+        assert synapseutils.sync._convert_cell_in_manifest_to_python_types(
+            datetime_string_in_brackets
+        ) == datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc)
+
+    def test_datetime_multiple_items(self) -> None:
+        # GIVEN a multiple item datetime string
+        datetime_string = "[2020-01-01T00:00:00.000Z, 2020-01-02T00:00:00.000Z]"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a list of datetime objects
+        assert synapseutils.sync._convert_cell_in_manifest_to_python_types(
+            datetime_string
+        ) == [
+            datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=datetime.timezone.utc),
+        ]
+
+    def test_bool_single_item(self) -> None:
+        # GIVEN a single item bool string
+        bool_string = "TrUe"
+        bool_string_in_brackets = "[tRue]"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a bool object
+        assert (
+            synapseutils.sync._convert_cell_in_manifest_to_python_types(bool_string)
+            is True
+        )
+        assert (
+            synapseutils.sync._convert_cell_in_manifest_to_python_types(
+                bool_string_in_brackets
+            )
+            is True
+        )
+
+    def test_bool_multiple_items(self) -> None:
+        # GIVEN a multiple item bool string
+        bool_string = "[TrUe, fAlse]"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a list of bool objects
+        assert synapseutils.sync._convert_cell_in_manifest_to_python_types(
+            bool_string
+        ) == [True, False]
+
+    def test_int_single_item(self) -> None:
+        # GIVEN a single item int string
+        int_string = "123"
+        int_string_in_brackets = "[123]"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a int object
+        assert (
+            synapseutils.sync._convert_cell_in_manifest_to_python_types(int_string)
+            == 123
+        )
+        assert (
+            synapseutils.sync._convert_cell_in_manifest_to_python_types(
+                int_string_in_brackets
+            )
+            == 123
+        )
+
+    def test_int_multiple_items(self) -> None:
+        # GIVEN a multiple item int string
+        int_string = "[123, 456]"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a list of int objects
+        assert synapseutils.sync._convert_cell_in_manifest_to_python_types(
+            int_string
+        ) == [123, 456]
+
+    def test_float_single_item(self) -> None:
+        # GIVEN a single item float string
+        float_string = "123.456"
+        float_string_in_brackets = "[123.456]"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a float object
+        assert math.isclose(
+            synapseutils.sync._convert_cell_in_manifest_to_python_types(float_string),
+            123.456,
+        )
+        assert math.isclose(
+            synapseutils.sync._convert_cell_in_manifest_to_python_types(
+                float_string_in_brackets
+            ),
+            123.456,
+        )
+
+    def test_float_multiple_items(self) -> None:
+        # GIVEN a multiple item float string
+        float_string = "     [123.456, 789.012]"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a list of float objects
+        result = synapseutils.sync._convert_cell_in_manifest_to_python_types(
+            float_string
+        )
+        assert math.isclose(result[0], 123.456)
+        assert math.isclose(result[1], 789.012)
+
+    def test_string_single_item(self) -> None:
+        # GIVEN a single item string
+        string = "        foo"
+        string_in_brackets = "       [foo]"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a string object
+        assert (
+            synapseutils.sync._convert_cell_in_manifest_to_python_types(string) == "foo"
+        )
+        assert (
+            synapseutils.sync._convert_cell_in_manifest_to_python_types(
+                string_in_brackets
+            )
+            == "foo"
+        )
+
+    def test_string_multiple_items(self) -> None:
+        # GIVEN a multiple item string
+        string = "  [foo,    bar]"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a list of string objects
+        assert synapseutils.sync._convert_cell_in_manifest_to_python_types(string) == [
+            "foo",
+            "bar",
+        ]
+
+    def test_string_single_item_with_comma(self) -> None:
+        # GIVEN a single item string
+        string = "my, sentence, with, commas"
+
+        # WHEN _convert_cell_in_manifest_to_python_types is called
+        # THEN I expect the output to be a string object
+        assert (
+            synapseutils.sync._convert_cell_in_manifest_to_python_types(string)
+            == string
+        )
+
+
+class TestSplitString(object):
+    """
+    Test the _split_string function. Note as a pre-check to calling this function
+    the string would have started with brackets `[]`, but they were removed before
+    calling this function.
+    """
+
+    def test_single_item(self) -> None:
+        # GIVEN single item strings
+        string_with_no_quotes = "foo"
+        string_with_quotes = '"foo"'
+        string_with_quotes_inside_string = 'foo "bar" baz'
+        string_with_commas_inside_string = '"foo, bar, baz"'
+
+        # WHEN split_strings is called
+
+        # THEN I expect the output to treat all values as a single item
+        assert synapseutils.sync._split_string(string_with_no_quotes) == [
+            string_with_no_quotes
+        ]
+        assert synapseutils.sync._split_string(string_with_quotes) == [
+            string_with_quotes
+        ]
+        assert synapseutils.sync._split_string(string_with_quotes_inside_string) == [
+            string_with_quotes_inside_string
+        ]
+        assert synapseutils.sync._split_string(string_with_commas_inside_string) == [
+            string_with_commas_inside_string
+        ]
+
+    def test_multiple_item(self) -> None:
+        # GIVEN multiple item strings
+        string_with_no_quotes = "foo, bar,    baz"
+        string_with_quotes = '"foo",       "bar", "baz"'
+        string_with_commas_in_some_items = '"foo, bar", baz, "foo, bar, baz"'
+
+        # WHEN split_strings is called
+        # THEN I expect the output to split the string into multiple items
+        assert synapseutils.sync._split_string(string_with_no_quotes) == [
+            "foo",
+            "bar",
+            "baz",
+        ]
+        assert synapseutils.sync._split_string(string_with_quotes) == [
+            '"foo"',
+            '"bar"',
+            '"baz"',
+        ]
+        assert synapseutils.sync._split_string(string_with_commas_in_some_items) == [
+            '"foo, bar"',
+            "baz",
+            '"foo, bar, baz"',
+        ]
