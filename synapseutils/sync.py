@@ -60,6 +60,8 @@ DEFAULT_GENERATED_MANIFEST_KEYS = [
 ARRAY_BRACKET_PATTERN = re.compile(r"^\[.*\]$")
 SINGLE_OPEN_BRACKET_PATTERN = re.compile(r"^\[")
 SINGLE_CLOSING_BRACKET_PATTERN = re.compile(r"\]$")
+# https://stackoverflow.com/questions/18893390/splitting-on-comma-outside-quotes
+COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN = re.compile(r",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -968,6 +970,13 @@ def _write_manifest_data(
     Write a number of keys and a list of data to a manifest file. This will write
     the data out as a tab separated file.
 
+    For the data we are writing to the TSV file we are not quoting the content with any
+    characters. This is because the syncToSynapse function does not require strings to
+    be quoted. When quote characters were included extra double quotes were being added
+    to the strings when they were written to the manifest file. This was not causing
+    errors, however, it was changing the content of the manifest file when changes
+    were not required.
+
     Args:
         filename: The name of the file to write to.
         keys: The keys of the manifest.
@@ -976,7 +985,13 @@ def _write_manifest_data(
     """
     with io.open(filename, "w", encoding="utf8") if filename else sys.stdout as fp:
         csv_writer = csv.DictWriter(
-            fp, keys, restval="", extrasaction="ignore", delimiter="\t"
+            fp,
+            keys,
+            restval="",
+            extrasaction="ignore",
+            delimiter="\t",
+            quotechar=None,
+            quoting=csv.QUOTE_NONE,
         )
         csv_writer.writeheader()
         for row in data:
@@ -1215,9 +1230,8 @@ def syncToSynapse(
 
 def _split_string(input_string: str) -> typing.List[str]:
     """
-    Use StringIO to create a file-like object for the csv.reader.
+    Use regex to split a string apart by commas that are not inside of double quotes.
 
-    Extract the first row (there should only be one row)
 
     Args:
         input_string: A string to split apart.
@@ -1225,11 +1239,14 @@ def _split_string(input_string: str) -> typing.List[str]:
     Returns:
         The list of split items as strings.
     """
-    csv_reader = csv.reader(io.StringIO(input_string))
+    row = COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN.split(input_string)
 
-    row = next(csv_reader)
+    modified_row = []
+    for item in row:
+        modified_item = item.strip()
+        modified_row.append(modified_item)
 
-    return row
+    return modified_row
 
 
 def _convert_cell_in_manifest_to_python_types(
@@ -1247,6 +1264,7 @@ def _convert_cell_in_manifest_to_python_types(
             all that is present.
     """
     values_to_return = []
+    cell = cell.strip()
 
     if ARRAY_BRACKET_PATTERN.match(string=cell):
         # Replace the first '[' with an empty string
