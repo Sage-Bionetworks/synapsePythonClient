@@ -37,7 +37,7 @@ def test_state(syn: Synapse, schedule_for_cleanup):
 
             self.header = "path	parent	used	executed	activityName	synapseStore	foo	date_1	datetime_1	datetime_2	datetime_3	multiple_strings	multiple_dates	multiple_bools	multiple_ints	multiple_floats	annotation_with_escaped_commas\n"
             self.row1 = (
-                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02.995+00:00	2023-12-05 07:00:00+00:00	[a,b,c,d]	[2020-01-01,2023-12-04T07:00:00.111Z,2023-12-05 23:37:02.333+00:00,2023-12-05 07:00:00+00:00]	[fAlSe,False,tRuE,True]	[1,2,3,4]	[1.2,3.4,5.6,7.8]	["my, string with a comma","another, string with a comma"]\n'
+                '%s	%s	%s	"%s;https://www.example.com"	provName		bar	2020-01-01	2023-12-04T07:00:00Z	2023-12-05 23:37:02.995+00:00	2023-12-05 07:00:00+00:00	[a, b,c, d]	[2020-01-01,2023-12-04T07:00:00.111Z, 2023-12-05 23:37:02.333+00:00,2023-12-05 07:00:00+00:00]	[fAlSe,False, tRuE,True        ]	[1,2,3,4]	[1.2,3.4,5.6, 7.8]	["my, string with a comma", "another, string with a comma"       ]\n'
                 % (
                     self.f1,
                     self.project.id,
