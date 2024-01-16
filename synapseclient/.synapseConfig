@@ -2,8 +2,8 @@
 # Login Credentials       #
 ###########################
 
-## Used for logging in to Synapse
-## Alternatively, you can use rememberMe=True in synapseclient.login or login subcommand of the commandline client.
+## Used for logging in to Synapse. See https://python-docs.synapse.org/tutorials/authentication/
+## for information on retrieving an auth token.
 #[authentication]
 #username = <username>
 #authtoken = <authtoken>

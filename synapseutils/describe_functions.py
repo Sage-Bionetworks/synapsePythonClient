@@ -2,6 +2,7 @@ from collections import defaultdict
 import json
 import os
 import sys
+import typing
 
 import synapseclient
 from synapseclient import table
@@ -11,10 +12,13 @@ def _open_entity_as_df(syn, entity: str):
     """
     Gets a csv or tsv Synapse entity and returns it as a dataframe
 
-    :param syn: synapse object
-    :param entity: a synapse entity to be extracted and converted into a dataframe
+    Arguments:
+        syn:    A [Synapse][synapseclient.client.Synapse] object
+        entity: A Synapse [Entity][synapseclient.entity.Entity] to be extracted and converted into a dataframe
 
-    :return: a pandas DataFrame if flow of execution is successful; None if not.
+    Returns:
+        A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+        if flow of execution is successful; None if not.
     """
     table.test_import_pandas()
     import pandas as pd
@@ -42,9 +46,11 @@ def _describe_wrapper(df) -> dict:
     """
     Returns the mode, min, max, mean, and dtype of each column in a dataframe
 
-    :param df: pandas dataframe from the csv or tsv file
+    Arguments:
+        df: A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe) from the csv or tsv file
 
-    :return: see param mode
+    Returns:
+        See param mode
     """
     table.test_import_pandas()
     import pandas as pd
@@ -70,42 +76,45 @@ def _describe_wrapper(df) -> dict:
     return stats
 
 
-def describe(syn, entity: str):
+def describe(syn, entity: str) -> typing.Union[dict, None]:
     """
     Gets a synapse entity and returns summary statistics about it.
 
-    :param syn: synapse object
-    :param entity: synapse id of the entity to be described
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        entity: synapse id of the entity to be described
 
-    Example::
+    Example: Using this function
+        Describing columns of a table
 
-        import synapseclient
-        import synapseutils
-        syn = synapseclient.login()
-        statistics = synapseutils(syn, entity="syn123")
-        print(statistics)
-        {
-            "column1": {
-                "dtype": "object",
-                "mode": "FOOBAR"
-            },
-            "column2": {
-                "dtype": "int64",
-                "mode": 1,
-                "min": 1,
-                "max": 2,
-                "mean": 1.4
-            },
-            "column3": {
-                "dtype": "bool",
-                "mode": false,
-                "min": false,
-                "max": true,
-                "mean": 0.5
+            import synapseclient
+            import synapseutils
+            syn = synapseclient.login()
+            statistics = synapseutils(syn, entity="syn123")
+            print(statistics)
+            {
+                "column1": {
+                    "dtype": "object",
+                    "mode": "FOOBAR"
+                },
+                "column2": {
+                    "dtype": "int64",
+                    "mode": 1,
+                    "min": 1,
+                    "max": 2,
+                    "mean": 1.4
+                },
+                "column3": {
+                    "dtype": "bool",
+                    "mode": false,
+                    "min": false,
+                    "max": true,
+                    "mean": 0.5
+                }
             }
-        }
 
-    :return: if dataset is valid, returns a dict; otherwise None
+    Returns:
+        A dict if the dataset is valid; None if not.
     """
     df = _open_entity_as_df(syn=syn, entity=entity)
 

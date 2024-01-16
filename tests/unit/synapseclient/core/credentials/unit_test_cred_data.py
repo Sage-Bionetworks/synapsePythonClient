@@ -1,107 +1,10 @@
-import base64
 import requests
-import time
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from synapseclient.core.credentials.cred_data import (
-    delete_stored_credentials,
-    keyring,
-    SynapseApiKeyCredentials,
-    SynapseAuthTokenCredentials,
-)
+from synapseclient.core.credentials.cred_data import SynapseAuthTokenCredentials
 from synapseclient.core.exceptions import SynapseAuthenticationError
-
-
-class TestSynapseApiKeyCredentials:
-    def setup(self):
-        self.api_key = b"I am api key"
-        self.api_key_b64 = base64.b64encode(self.api_key).decode()
-        self.username = "ahhhhhhhhhhhhhh"
-        self.credentials = SynapseApiKeyCredentials(self.api_key_b64, self.username)
-        self.KEYRING_NAME = "SYNAPSE.ORG_CLIENT"
-
-    def test_username(self):
-        assert self.username == self.credentials.username
-
-    def test_secret(self):
-        # test exposed variable
-        assert self.api_key_b64 == self.credentials.secret
-
-        # test actual internal representation
-        assert self.api_key == self.credentials._api_key
-
-        # secret also provided via api_key property for backwards compatibility
-        assert self.api_key_b64 == self.credentials.api_key
-
-    def test_get_signed_headers(self):
-        url = "https://www.synapse.org/fake_url"
-
-        # mock the 'time' module so the result is always the same instead of dependent upon current time
-        fake_time_string = "It is Wednesday, my dudes"
-        with patch.object(time, "strftime", return_value=fake_time_string):
-            headers = self.credentials.get_signed_headers(url)
-            assert {
-                "signatureTimestamp": fake_time_string,
-                "userId": self.username,
-                "signature": b"018ADVu2o2NUOxgO0gM9bo08Wcw=",
-            } == headers
-
-    def test_call(self):
-        """Test the __call__ method used by requests.auth"""
-
-        url = "https://foobar.com/baz"
-        initial_headers = {"existing": "header"}
-        signed_headers = {"signed": "header"}
-
-        with patch.object(
-            self.credentials, "get_signed_headers"
-        ) as mock_get_signed_headers:
-            mock_get_signed_headers.return_value = signed_headers
-
-            request = MagicMock(spec=requests.Request)
-            request.url = url
-            request.headers = initial_headers
-
-            self.credentials(request)
-
-            assert request.headers == {**initial_headers, **signed_headers}
-            mock_get_signed_headers.assert_called_once_with(url)
-
-    def test_repr(self):
-        assert (
-            "SynapseApiKeyCredentials(username='ahhhhhhhhhhhhhh', api_key_string='SSBhbSBhcGkga2V5')"
-            == repr(self.credentials)
-        )
-
-    @patch.object(keyring, "get_password")
-    def test_get_from_keyring(self, mock_keyring_get_password):
-        mock_keyring_get_password.return_value = self.api_key_b64
-        credentials = SynapseApiKeyCredentials.get_from_keyring(self.username)
-        mock_keyring_get_password.assert_called_once_with(
-            self.KEYRING_NAME,
-            self.username,
-        )
-        assert credentials.username == self.username
-        assert credentials.secret == self.api_key_b64
-
-    @patch.object(keyring, "delete_password")
-    def test_delete_from_keyring(self, mock_keyring_delete_password):
-        self.credentials.delete_from_keyring()
-        mock_keyring_delete_password.assert_called_once_with(
-            self.KEYRING_NAME,
-            self.username,
-        )
-
-    @patch.object(keyring, "set_password")
-    def test_store_to_keyring(self, mock_keyring_set_password):
-        self.credentials.store_to_keyring()
-        mock_keyring_set_password.assert_called_once_with(
-            self.KEYRING_NAME,
-            self.username,
-            self.api_key_b64,
-        )
 
 
 class TestSynapseAuthTokenCredentials:
@@ -142,34 +45,6 @@ class TestSynapseAuthTokenCredentials:
         assert (
             f"SynapseAuthTokenCredentials(username='{self.username}', token='{self.auth_token}')"
             == repr(self.credentials)
-        )
-
-    @patch.object(keyring, "get_password")
-    def test_get_from_keyring(self, mock_keyring_get_password):
-        mock_keyring_get_password.return_value = self.auth_token
-        credentials = SynapseAuthTokenCredentials.get_from_keyring(self.username)
-        mock_keyring_get_password.assert_called_once_with(
-            self.KEYRING_NAME,
-            self.username,
-        )
-        assert credentials.username == self.username
-        assert credentials.secret == self.auth_token
-
-    @patch.object(keyring, "delete_password")
-    def test_delete_from_keyring(self, mock_keyring_delete_password):
-        self.credentials.delete_from_keyring()
-        mock_keyring_delete_password.assert_called_once_with(
-            self.KEYRING_NAME,
-            self.username,
-        )
-
-    @patch.object(keyring, "set_password")
-    def test_store_to_keyring(self, mock_keyring_set_password):
-        self.credentials.store_to_keyring()
-        mock_keyring_set_password.assert_called_once_with(
-            self.KEYRING_NAME,
-            self.username,
-            self.auth_token,
         )
 
     def test_tokens_validated(self, mocker):
@@ -219,52 +94,3 @@ class TestSynapseAuthTokenCredentials:
                 SynapseAuthTokenCredentials._validate_token,
                 token,
             )
-
-
-def test_delete_stored_credentials__stored(mocker):
-    """Verify deleting all credentials stored in the keyring."""
-
-    username = "foo"
-    mock_token_credentials = MagicMock(spec=SynapseAuthTokenCredentials)
-    mock_token_get = mocker.patch.object(
-        SynapseAuthTokenCredentials, "get_from_keyring"
-    )
-    mock_token_get.return_value = mock_token_credentials
-
-    mock_apikey_credentials = MagicMock(spec=SynapseApiKeyCredentials)
-    mock_apikey_get = mocker.patch.object(SynapseApiKeyCredentials, "get_from_keyring")
-    mock_apikey_get.return_value = mock_apikey_credentials
-
-    delete_stored_credentials(username)
-
-    mock_token_get.assert_called_once_with(username)
-    mock_token_credentials.delete_from_keyring.assert_called_once_with()
-
-    mock_apikey_get.assert_called_once_with(username)
-    mock_apikey_credentials.delete_from_keyring.assert_called_once_with()
-
-
-def test_delete_stored_credentials__empty(mocker):
-    """Verify the behavior of deleting all stored credentials when none are actually stored."""
-
-    username = "foo"
-    mock_token_get = mocker.patch.object(
-        SynapseAuthTokenCredentials, "get_from_keyring"
-    )
-    mock_token_delete = mocker.patch.object(
-        SynapseAuthTokenCredentials, "delete_from_keyring"
-    )
-    mock_token_get.return_value = None
-
-    mock_apikey_get = mocker.patch.object(SynapseApiKeyCredentials, "get_from_keyring")
-    mock_apikey_delete = mocker.patch.object(
-        SynapseApiKeyCredentials, "delete_from_keyring"
-    )
-    mock_apikey_get.return_value = None
-
-    delete_stored_credentials(username)
-
-    mock_token_get.assert_called_once_with(username)
-    mock_token_delete.assert_not_called()
-    mock_apikey_get.assert_called_once_with(username)
-    mock_apikey_delete.assert_not_called()

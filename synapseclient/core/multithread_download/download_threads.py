@@ -50,19 +50,13 @@ class DownloadRequest(NamedTuple):
     """
     A request to download a file from Synapse
 
-    ...
-
-    Attributes
-    ----------
-    file_handle_id : int
-        The file handle ID to download.
-    object_id : str
-        The Synapse object this file associated to.
-    object_type : str
-        the type of the associated Synapse object.
-    path : str
-        The local path to download the file to.
-        This path can be either absolute path or relative path from where the code is executed to the download location.
+    Attributes:
+        file_handle_id : The file handle ID to download.
+        object_id : The Synapse object this file associated to.
+        object_type : The type of the associated Synapse object.
+        path : The local path to download the file to.
+            This path can be either an absolute path or
+            a relative path from where the code is executed to the download location.
     """
 
     file_handle_id: int
@@ -74,10 +68,10 @@ class DownloadRequest(NamedTuple):
 class TransferStatus(object):
     """
     Transfer progress parameters. Lock should be acquired via `with trasfer_status:` before accessing attributes
-    Attributes
-    ----------
-    total_bytes_to_be_transferred: int
-    transferred: int
+
+    Attributes:
+        total_bytes_to_be_transferred: int
+        transferred: int
     """
 
     total_bytes_to_be_transferred: int
@@ -90,7 +84,8 @@ class TransferStatus(object):
 
     def elapsed_time(self) -> float:
         """
-        :return: time since this object was created (assuming same time as transfer started)
+        Returns:
+            Time since this object was created (assuming same time as transfer started)
         """
         return time.time() - self._t0
 
@@ -99,16 +94,10 @@ class PresignedUrlInfo(NamedTuple):
     """
     Information about a retrieved presigned-url
 
-    ...
-
-    Attributes
-    ----------
-    file_name: str
-        name of the file for the presigned url
-    url: str
-        the actual presigned url
-    expiration_utc: datetime.datetime
-        datetime in UTC at which the url will expire
+    Attributes:
+        file_name: Name of the file for the presigned url
+        url: The actual presigned url
+        expiration_utc: datetime in UTC at which the url will expire
     """
 
     file_name: str
@@ -147,7 +136,8 @@ class PresignedUrlProvider(object):
         """
         Returns the file_name and pre-signed url for download as specified in request
 
-        :return: PresignedUrlInfo
+        Returns:
+            PresignedUrlInfo
         """
         # noinspection PyProtectedMember
         response = self.client._getFileHandleDownload(
@@ -166,11 +156,16 @@ def _generate_chunk_ranges(
     file_size: int,
 ) -> Generator:
     """
-    Creates a generator which yields byte ranges and meta data required to make a range request download of url and
-    write the data to file_name located at path. Download chunk sizes are 8MB by default.
+    Creates a generator which yields byte ranges and meta data required
+    to make a range request download of url and write the data to file_name
+    located at path. Download chunk sizes are 8MB by default.
 
-    :param file_size: The size of the file
-    :return: A generator of byte ranges and meta data needed to download the file in a multi-threaded manner
+    Arguments:
+        file_size: The size of the file
+
+    Yields:
+        A generator of byte ranges and meta data needed to download
+        the file in a multi-threaded manner
     """
     for start in range(0, file_size, SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE):
         # the start and end of a range in HTTP are both inclusive
@@ -182,8 +177,11 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     """
     Returns time at which a presigned url will expire
 
-    :param url: A pre-signed download url from AWS
-    :return: datetime in UTC of when the url will expire
+    Arguments:
+        url: A pre-signed download url from AWS
+
+    Returns:
+        A datetime in UTC of when the url will expire
     """
     parsed_query: dict = parse_qs(urlparse(url).query)
     time_made: str = parsed_query["X-Amz-Date"][0]
@@ -197,7 +195,9 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
 def _get_new_session() -> Session:
     """
     Creates a new requests.Session object with retry defined by CONNECT_FACTOR and BACK_OFF_FACTOR
-    :return: A new requests.Session object
+
+    Returns:
+        A new requests.Session object
     """
     session = Session()
     retry = Retry(connect=CONNECT_FACTOR, backoff_factor=BACK_OFF_FACTOR)
@@ -210,8 +210,12 @@ def _get_new_session() -> Session:
 def _get_file_size(url: str) -> int:
     """
     Gets the size of the file located at url
-    :param url: The pre-signed url of the file
-    :return: The size of the file in bytes
+
+    Arguments:
+        url: The pre-signed url of the file
+
+    Returns:
+        The size of the file in bytes
     """
     session = _get_new_session()
     res_get = session.get(url, stream=True)
@@ -225,12 +229,16 @@ def download_file(
     max_concurrent_parts: int = None,
 ):
     """
-    Main driver for the multi-threaded download. Users an ExecutorService, either set externally onto a thread
-    local by an outside process, or creating one as needed otherwise.
+    Main driver for the multi-threaded download. Users an ExecutorService,
+    either set externally onto a thread local by an outside process,
+    or creating one as needed otherwise.
 
-    :param client: A synapseclient
-    :param download_request: A batch of DownloadRequest objects specifying what Synapse files to download
-    :param max_concurrent_parts: The maximum concurrent number parts to download at once when downloading this file
+    Arguments:
+        client: A synapseclient
+        download_request: A batch of DownloadRequest objects specifying what
+                            Synapse files to download
+        max_concurrent_parts: The maximum concurrent number parts to download
+                                at once when downloading this file
     """
 
     # we obtain an executor from a thread local if we are in the context of a Synapse sync
@@ -267,18 +275,23 @@ def _get_thread_session():
 
 class _MultithreadedDownloader:
     """
-    An object to manage the downloading of a Synapse file in concurrent chunks from a URL
-    that supports range headers.
+    An object to manage the downloading of a Synapse file in concurrent chunks
+    from a URL that supports range headers.
     """
 
     def __init__(self, syn, executor, max_concurrent_parts):
         """
-        :param syn:                     A synapseclient
-        :param executor:                An ExecutorService that will be used to run part downloads in separate threads
-        :param max_concurrent_parts:    An integer to specify the maximum number of concurrent parts that can be
-                                        downloaded at once. If there are more parts than can be run concurrently
-                                        they will be scheduled in the executor when previously running part downloads
-                                        complete.
+        Initializes the class
+
+        Arguments:
+            syn: A synapseclient
+            executor: An ExecutorService that will be used to run part downloads
+                         in separate threads
+            max_concurrent_parts: An integer to specify the maximum number of
+                                    concurrent parts that can be downloaded at once.
+                                    If there are more parts than can be run concurrently
+                                    they will be scheduled in the executor when previously
+                                    running part downloads complete.
         """
         self._syn = syn
         self._executor = executor

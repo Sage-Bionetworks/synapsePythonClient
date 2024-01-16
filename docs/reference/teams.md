@@ -1,0 +1,3 @@
+# Teams
+
+::: synapseclient.team

@@ -1,9 +1,20 @@
+"""A helper tool that allows the Python client to
+make more than one attempt at connecting to the server if initially met
+with an error. These retry attempts can be made under certain conditions,
+i.e. for certain status codes, connection errors, and/or connection exceptions.
+
+
+"""
+
 import random
 import sys
 import logging
 from opentelemetry import trace
 
-from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
+from synapseclient.core.logging_setup import (
+    DEBUG_LOGGER_NAME,
+    DEFAULT_LOGGER_NAME,
+)
 from synapseclient.core.utils import is_json
 from synapseclient.core.dozer import doze
 
@@ -55,22 +66,27 @@ def with_retry(
     """
     Retries the given function under certain conditions.
 
-    :param function:                A function with no arguments.  If arguments are needed, use a lambda (see example).
-    :param retry_status_codes:      What status codes to retry upon in the case of a SynapseHTTPError.
-    :param expected_status_codes:   If specified responses with any other status codes result in a retry.
-    :param retry_errors:            What reasons to retry upon, if function().response.json()['reason'] exists.
-    :param retry_exceptions:        What types of exceptions, specified as strings or Exception classes, to retry upon.
-    :param retries:                 How many times to retry maximum.
-    :param wait:                    How many seconds to wait between retries.
-    :param back_off:                Exponential constant to increase wait for between progressive failures.
-    :param max_wait:                back_off between requests will not exceed this value
+    Arguments:
+        function: A function with no arguments.  If arguments are needed, use a lambda (see example).
+        retry_status_codes: What status codes to retry upon in the case of a SynapseHTTPError.
+        expected_status_codes: If specified responses with any other status codes result in a retry.
+        retry_errors: What reasons to retry upon, if function().response.json()['reason'] exists.
+        retry_exceptions: What types of exceptions, specified as strings or Exception classes, to retry upon.
+        retries: How many times to retry maximum.
+        wait: How many seconds to wait between retries.
+        back_off: Exponential constant to increase wait for between progressive failures.
+        max_wait: back_off between requests will not exceed this value
 
-    :returns: function()
+    Returns:
+        function()
 
-    Example::
+    Example: Using with_retry
+        Using ``with_retry`` to consolidate inputs into a list.
 
-        def foo(a, b, c): return [a, b, c]
-        result = self._with_retry(lambda: foo("1", "2", "3"), **STANDARD_RETRY_PARAMS)
+            from synapseclient.core.retry import with_retry
+
+            def foo(a, b, c): return [a, b, c]
+            result = with_retry(lambda: foo("1", "2", "3"), **STANDARD_RETRY_PARAMS)
     """
 
     if verbose:
@@ -146,11 +162,9 @@ def with_retry(
         if retries >= 0 and retry:
             randomized_wait = wait * random.uniform(0.5, 1.5)
             logger.debug(
-                (
-                    "total wait time {total_wait:5.0f} seconds\n "
-                    "... Retrying in {wait:5.1f} seconds...".format(
-                        total_wait=total_wait, wait=randomized_wait
-                    )
+                "total wait time {total_wait:5.0f} seconds\n "
+                "... Retrying in {wait:5.1f} seconds...".format(
+                    total_wait=total_wait, wait=randomized_wait
                 )
             )
             total_wait += randomized_wait
@@ -168,8 +182,7 @@ def with_retry(
 
 
 def _get_message(response):
-    """
-    Extracts the message body or a response object by checking for a json response and returning the reason otherwise
+    """Extracts the message body or a response object by checking for a json response and returning the reason otherwise
     getting body.
     """
     try:

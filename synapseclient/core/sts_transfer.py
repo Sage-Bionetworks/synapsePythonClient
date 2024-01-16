@@ -22,10 +22,12 @@ DEFAULT_MIN_LIFE = datetime.timedelta(hours=1)
 
 
 class _TokenCache(collections.OrderedDict):
-    """A self pruning dictionary of STS tokens.
+    """
+    A self pruning dictionary of STS tokens.
     It will prune itself as new keys are added, removing the oldest if the
     max_size is exceeded, and always removing all tokens that have expired
-    on each additional insert."""
+    on each additional insert.
+    """
 
     def __init__(self, max_size):
         super().__init__()
@@ -185,8 +187,9 @@ def get_sts_credentials(
 
 
 def with_boto_sts_credentials(fn, syn, entity_id, permission):
-    """A wrapper around a function that will get sts credentials and try to use them on the given
-    function which should take a dictionary with the aws_access_key_id, aws_secret_access_key, and aws_session_token
+    """
+    A wrapper around a function that will get sts credentials and try to use them on the given
+    function which should take a dictionary with the `aws_access_key_id`, `aws_secret_access_key`, and `aws_session_token`
     as keys. If the given function returns a boto error that looks like the token has expired
     it will retry once after fetching fresh credentials.
 
@@ -217,9 +220,11 @@ def is_boto_sts_transfer_enabled(syn):
     If enabled then synapseclient will attempt to automatically use boto to upload
     and download from supported storage locations that are sts enabled.
 
-    :param syn:         A Synapse client
+    Arguments:
+        syn: A [Synapse][synapseclient.Synapse] object
 
-    :returns: True if STS if enabled, False otherwise
+    Returns:
+        True if STS if enabled, False otherwise
     """
     return bool(boto3 and syn.use_boto_sts_transfers)
 
@@ -228,11 +233,13 @@ def is_storage_location_sts_enabled(syn, entity_id, location):
     """
     Returns whether the given storage location is enabled for STS.
 
-    :param syn:         A Synapse client
-    :param entity_id:   id of synapse entity whose storage location we want to check for sts access
-    :param location:    a storage location id or an dictionary representing the location UploadDestination
-                                these)
-    :returns: True if STS if enabled for the location, False otherwise
+    Arguments:
+        syn:       A [Synapse][synapseclient.Synapse] object
+        entity_id: The ID of synapse entity whose storage location we want to check for sts access
+        location:  A storage location ID or a dictionary representing the location UploadDestination
+
+    Returns:
+        True if STS if enabled for the location, False otherwise
     """
     if not location:
         return False

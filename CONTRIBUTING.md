@@ -8,7 +8,8 @@ By contributing, you are agreeing that we may redistribute your work under this 
 - [How to contribute](#how-to-contribute)
    * [Reporting bugs or feature requests](#reporting-bugs-or-feature-requests)
 - [Getting started](#getting-started)
-    + [Fork and clone this repository](#fork-and-clone-this-repository)
+    + [Internal Sage collaborators: Clone this repository](#internal-sage-collaborators-clone-this-repository)
+    + [External collaborators: Fork and clone this repository](#external-collaborators-fork-and-clone-this-repository)
     + [Installing the Python Client in a virtual environment with pipenv](#installing-the-python-client-in-a-virtual-environment-with-pipenv)
     + [Set up pre-commit](#set-up-pre-commit)
     + [Authentication](#authentication)
@@ -21,6 +22,7 @@ By contributing, you are agreeing that we may redistribute your work under this 
    * [OpenTelemetry](#opentelemetry)
       + [Attributes within traces](#attributes-within-traces)
       + [Adding new spans](#adding-new-spans)
+   * [Python doc pages](#python-doc-pages)
    * [Repository Admins](#repository-admins)
 
 ## I don't want to read this whole thing I just have a question!
@@ -47,7 +49,22 @@ Bug reports and feature requests can be made in two ways. The first (preferred) 
 After a bug report is received, expect a Sage Bionetworks staff member to contact you through the submission method you chose ([Synapse Help Forum](https://www.synapse.org/#!SynapseForum:default)or [Github issue](https://github.com/Sage-Bionetworks/synapsePythonClient/issues)). After ascertaining there is enough detail for the bug report or feature request, a JIRA issue will be opened. If you want to work on fixing the issue or feature yourself, follow the next sections!
 
 ## Getting started
-#### Fork and clone this repository
+#### Internal Sage collaborators: Clone this repository
+For internal Sage collaborators, you will have access and permissions to create branches
+within the central repository for this project. As a result, instead of creating a fork
+of this repository you should just clone the repository as is and work off a feature
+branch. This is because there is additional overhead required to make sure that
+integration tests and SonarCloud scans run properly in your forked repo (As secrets are not
+copied to forks).
+1. [Clone the repository](https://help.github.com/articles/cloning-a-repository/) to your local machine so you can begin making changes.
+1. On your local machine make sure you have the latest version of the `develop` branch:
+
+    ```
+    git checkout develop
+    git pull origin develop
+    ```
+
+#### External collaborators: Fork and clone this repository
 
 1. See the [Github docs](https://help.github.com/articles/fork-a-repo/) for how to make a copy (a fork) of a repository to your own Github account.
 1. [Clone the repository](https://help.github.com/articles/cloning-a-repository/) to your local machine so you can begin making changes.
@@ -207,6 +224,38 @@ pip install flake8
 flake8
 ```
 
+In addition it is expected that all docstrings follow the google python style
+guide [here](https://google.github.io/styleguide/pyguide.html). In particular this is
+needed as this is how our auto-doc creates our python documentation pages. We should
+be creating the docstrings without types.
+
+#### Some additional expectations:
+- Any new dataclasses should document the class attributes in both a docstring and under the class attribute itself. This is in effect until pylance resolves: https://github.com/microsoft/pylance-release/discussions/4759
+- Create 1 or more examples of all new functions you create. An example format of a function is below. Not the specific spacing and tabbing is required for it to show up as a code block.:
+```
+@dataclass
+class MyDataClass:
+    """
+    The description of this class
+
+    Attributes:
+        my_attribute: My attribute description.
+
+    Example: Example
+        Doing something cool
+
+            my_instance = MyDataClass()
+
+        Doing something else cool
+
+            my_instance = MyDataClass()
+    """
+
+    my_attribute: bool = None
+    """My attribute description."""
+```
+- mkdocstrings has an autorefs plugin that allows you to link to other resources like: `[synapseclient.entity.Project][]`
+
 ### OpenTelemetry
 [OpenTelemetry](https://opentelemetry.io/) helps support the analysis of traces and spans which can provide insights into latency, errors, and other performance metrics. During development it may prove useful to collect information about the execution of your code. The following is meant to be a starting point for additions to the current traces being collected.
 
@@ -223,6 +272,31 @@ All synapse related attributes should live within the `synapse` namespace, for e
     * "Will this information help someone in the future to review an error in the code?"
     * "Is this an external call or an entry point into the python client?"
     * "Is it useful to know how long this section of code takes to execute?"
+
+### Python doc pages
+The core of the doc pages is `mkdocstrings`. It is a series to markdown pages that use a few
+plugins to link to other documents (aka: `autorefs`).
+
+#### Running the documents page on your local machine
+At the root directory of the project you'll find a `mkdocs.yml`, this is where all commands
+are ran from.
+
+To start a local HTTP server to host the documents use:
+```bash
+mkdocs serve
+```
+
+On push to the master branch the github workflow `build-docs.yml` is set to automatically
+use the `mkdocs gh-deploy` command to build and deploy changes to the live doc site.
+
+#### Guidelines for new documents
+In each of the docs folders there articles live there is a README with further information about the expected content in each folder.
+
+
+Some links for further reading:
+
+- https://mkdocstrings.github.io/
+- https://mkdocstrings.github.io/python/
 
 ### Repository Admins
 

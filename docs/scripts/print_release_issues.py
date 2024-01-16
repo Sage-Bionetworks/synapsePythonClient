@@ -23,6 +23,7 @@ ISSUE_URL_PREFIX = "https://sagebionetworks.jira.com/browse/{key}"
 RST_ISSUE_FORMAT = """-  [`{key} <{url}>`__] -
    {summary}"""
 GITHUB_ISSUE_FORMAT = "-  \\[[{key}]({url})\\] - {summary}"
+MARKDOWN_FORMAT = "-  \\[[{key}]({url})\\] - {summary}"
 
 
 def _get_issues(project, version):
@@ -58,20 +59,32 @@ def _get_issues(project, version):
     return issues_by_type_ordered
 
 
-def _pluralize_issue_type(issue_type):
+def _pluralize_issue_type(issue_type, format_type: str):
     if issue_type == "Bug":
-        return "Bug Fixes"
+        title = "Bug Fixes"
+        if format_type == "md":
+            return f"### {title}"
+        return title
     elif issue_type == "Story":
-        return "Stories"
+        title = "Stories"
+        if format_type == "md":
+            return f"### {title}"
+        return title
 
-    return issue_type + "s"
+    title = issue_type + "s"
+    if format_type == "md":
+        return f"### {title}"
+    return title
 
 
-def print_issues(issues_by_type, issue_format, file=sys.stdout):
+def print_issues(issues_by_type, issue_format, format_type: str, file=sys.stdout):
     for issue_type, issues in issues_by_type.items():
-        issue_type_plural = _pluralize_issue_type(issue_type)
+        issue_type_plural = _pluralize_issue_type(
+            issue_type=issue_type, format_type=format_type
+        )
         print(issue_type_plural, file=file)
-        print("-" * len(issue_type_plural), file=file)
+        if format_type != "md":
+            print("-" * len(issue_type_plural), file=file)
 
         for issue in issues:
             issue_key = issue["key"]
@@ -99,13 +112,22 @@ def main():
         "version",
         help="The JIRA release version whose issues will be included in the release notes",
     )
-    parser.add_argument("format", help="The output format", choices=["github", "rst"])
+    parser.add_argument(
+        "format", help="The output format", choices=["github", "rst", "md"]
+    )
     parser.add_argument("--project", help="The JIRA project", default="SYNPY")
 
     args = parser.parse_args()
     issues = _get_issues(args.project, args.version)
-    issue_format = RST_ISSUE_FORMAT if args.format == "rst" else GITHUB_ISSUE_FORMAT
-    print_issues(issues, issue_format)
+    if args.format == "md":
+        issue_format = MARKDOWN_FORMAT
+    elif args.format == "rst":
+        issue_format = RST_ISSUE_FORMAT
+    else:
+        issue_format = GITHUB_ISSUE_FORMAT
+    print_issues(
+        issues_by_type=issues, issue_format=issue_format, format_type=args.format
+    )
 
 
 if __name__ == "__main__":

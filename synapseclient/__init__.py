@@ -30,6 +30,7 @@ from .table import (
 )
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
+from synapseclient.models.permission import Permissions
 
 # ref = importlib.resources.files(__name__).joinpath("synapsePythonClient")
 # with ref.open("r") as fp:
@@ -67,6 +68,7 @@ __all__ = [
     "SubmissionViewSchema",
     "MaterializedViewSchema",
     "Dataset",
+    "Permissions",
     # functions
     "login",
     "build_table",

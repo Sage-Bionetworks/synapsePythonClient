@@ -1,20 +1,16 @@
 """
-*****************
-Version Functions
-*****************
+# Version Functions
 
-Check for latest version and recommend upgrade::
+Check for latest version and recommend upgrade:
 
     synapseclient.check_for_updates()
 
-Print release notes for installed version of client::
+Print release notes for installed version of client:
 
     synapseclient.release_notes()
 
-.. automethod:: synapseclient.core.version_check.check_for_updates
-.. automethod:: synapseclient.core.version_check.release_notes
-
 """
+
 import importlib.resources
 import re
 import sys
@@ -34,8 +30,13 @@ def version_check(
     Gets the latest version information from version_url and check against the current version.
     Recommends upgrade, if a newer version exists.
 
-    :returns: True if current version is the latest release (or higher) version,
-              False otherwise.
+    Arguments:
+        current_version: The current version of the entity
+        version_url: The URL of the entity version
+        check_for_point_releases: Bool.
+
+    Returns:
+        True if current version is the latest release (or higher) version, otherwise False.
     """
 
     try:
@@ -52,9 +53,9 @@ def version_check(
             or current_version in version_info["blacklist"]
         ):
             msg = (
-                "\nPLEASE UPGRADE YOUR CLIENT\n\nUpgrading your SynapseClient is required. "
-                "Please upgrade your client by typing:\n"
-                "    pip install --upgrade synapseclient\n\n"
+                "\nPLEASE UPGRADE YOUR CLIENT\n\nUpgrading your SynapseClient is"
+                " required. Please upgrade your client by typing:\n    pip install"
+                " --upgrade synapseclient\n\n"
             )
             raise SystemExit(msg)
 
@@ -68,9 +69,9 @@ def version_check(
             version_info["latestVersion"], levels=levels
         ):
             sys.stderr.write(
-                "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) "
-                "is available. Your version (%s) can be upgraded by typing:\n"
-                "    pip install --upgrade synapseclient\n\n"
+                "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client"
+                " (%s) is available. Your version (%s) can be upgraded by typing:\n   "
+                " pip install --upgrade synapseclient\n\n"
                 % (
                     version_info["latestVersion"],
                     current_version,
@@ -97,8 +98,8 @@ def check_for_updates():
     Check for the existence of newer versions of the client, reporting both current release version and development
     version.
 
-    For help installing development versions of the client, see the docs for
-    :py:mod:`synapseclient` or the `README.md <https://github.com/Sage-Bionetworks/synapsePythonClient>`_.
+    For help installing development versions of the client,
+    see the [README.md](https://github.com/Sage-Bionetworks/synapsePythonClient#installation).
     """
     sys.stderr.write("Python Synapse Client\n")
     sys.stderr.write("currently running version:  %s\n" % synapseclient.__version__)
@@ -112,11 +113,9 @@ def check_for_updates():
         release_version_info["latestVersion"], levels=3
     ):
         print(
-            (
-                "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. "
-                "Your version (%s) can be upgraded by typing:\n"
-                "    pip install --upgrade synapseclient\n\n"
-            )
+            "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is"
+            " available. Your version (%s) can be upgraded by typing:\n    pip install"
+            " --upgrade synapseclient\n\n"
             % (
                 release_version_info["latestVersion"],
                 synapseclient.__version__,
@@ -131,10 +130,9 @@ def release_notes(version_url=None):
     Print release notes for the installed version of the client or latest release or development version if version_url
     is supplied.
 
-    :param version_url: Defaults to None, meaning release notes for the installed version. Alternatives are:
-
-                            - synapseclient.version_check._VERSION_URL
-                            - synapseclient.version_check._DEV_VERSION_URL
+    version_url: Defaults to None, meaning release notes for the installed version. Alternatives are:
+                        - synapseclient.version_check._VERSION_URL
+                        - synapseclient.version_check._DEV_VERSION_URL
 
     """
     version_info = _get_version_info(version_url)
@@ -153,7 +151,7 @@ def _strip_dev_suffix(version):
 def _version_tuple(version, levels=2):
     """
     Take a version number as a string delimited by periods and return a tuple with the desired number of levels.
-    For example::
+    For example:
 
         print(version_tuple('0.5.1.dev1', levels=2))
         ('0', '5')

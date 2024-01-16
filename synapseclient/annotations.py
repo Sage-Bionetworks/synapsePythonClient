@@ -1,63 +1,72 @@
 """
-***********
-Annotations
-***********
+# Annotations
 
-Annotations are arbitrary metadata attached to Synapse entities. They can be accessed like ordinary object properties
-or like dictionary keys::
+Annotations are arbitrary metadata attached to Synapse entities.
+They can be accessed like ordinary object properties or like dictionary keys:
 
-    entity.my_annotation = 'This is one way to do it'
-    entity['other_annotation'] = 'This is another'
+```python
+entity.my_annotation = 'This is one way to do it'
+entity['other_annotation'] = 'This is another'
+```
 
-Annotations can be given in the constructor for Synapse Entities::
+Annotations can be given in the constructor for Synapse Entities:
 
-    entity = File('data.xyz', parent=my_project, rating=9.1234)
+```python
+entity = File('data.xyz', parent=my_project, rating=9.1234)
+```
 
-Annotate the entity with location data::
+Annotate the entity with location data:
 
-    entity.lat_long = [47.627477, -122.332154]
+```python
+entity.lat_long = [47.627477, -122.332154]
+```
 
-Record when we collected the data::
+Record when we collected the data. **This will use the current timezone of the machine
+running the code.**
 
-    from datetime import datetime as Datetime
-    entity.collection_date = Datetime.now()
+```python
+from datetime import datetime as Datetime
+entity.collection_date = Datetime.now()
+```
+
+Record when we collected the data in UTC:
+
+```python
+from datetime import datetime as Datetime
+entity.collection_date = Datetime.utcnow()
+```
+
+You may also use a Timezone aware datetime object like the following example. Using the
+[pytz library](https://pypi.org/project/pytz/) is recommended for this purpose.:
+
+```python
+from datetime import datetime as Datetime, timezone as Timezone, timedelta as Timedelta
+
+date = Datetime(2023, 12, 20, 8, 10, 0, tzinfo=Timezone(Timedelta(hours=-5)))
+```
 
 See:
 
-- :py:meth:`synapseclient.Synapse.get_annotations`
-- :py:meth:`synapseclient.Synapse.set_annotations`
+- [synapseclient.Synapse.get_annotations][]
+- [synapseclient.Synapse.set_annotations][]
 
-~~~~~~~~~~~~~~~~~~~~~~~
-Annotating data sources
-~~~~~~~~~~~~~~~~~~~~~~~
+## Annotating data sources
 
-Data sources are best recorded using Synapse's `provenance <Activity.html>`_ tools.
+Data sources are best recorded using Synapse's
+[Activity/Provenance][synapseclient.Activity] tools.
 
-~~~~~~~~~~~~~~~~~~~~~~
-Implementation details
-~~~~~~~~~~~~~~~~~~~~~~
+## Implementation details
 
-In Synapse, entities have both properties and annotations. Properties are used by the system, whereas annotations are
-completely user defined. In the Python client, we try to present this situation as a normal object, with one set of
-properties.
+In Synapse, entities have both properties and annotations. Properties are used by the
+system, whereas annotations are completely user defined. In the Python client,
+we try to present this situation as a normal object, with one set of properties.
 
-For more on the implementation and a few gotchas, see the documentation on :py:mod:`synapseclient.entity`.
+
 
 See also:
 
-- :py:class:`synapseclient.entity.Entity`
-- :py:mod:`synapseclient.entity`
-
-
-~~~~~~~
-Classes
-~~~~~~~
-.. autoclass:: synapseclient.annotations.Annotations
-    :members:
-
-    .. automethod:: __init__
-
-
+- [Read more about Properties vs Annotations](../../explanations/properties_vs_annotations/)
+- [synapseclient.entity.Entity][]
 
 """
 
@@ -97,8 +106,17 @@ ANNO_TYPE_TO_FUNC: typing.Dict[
 )
 
 
-def is_synapse_annotations(annotations: typing.Mapping):
-    """Tests if the given object is a Synapse-style Annotations object."""
+def is_synapse_annotations(annotations: typing.Mapping) -> bool:
+    """Tests if the given object is a Synapse-style Annotations object.
+
+    Arguments:
+        annotations: A key-value mapping that may or may not be a Synapse-style
+        Annotations object.
+
+    Returns:
+        True if the given object is a Synapse-style Annotations object, False
+        otherwise.
+    """
     if not isinstance(annotations, collections.abc.Mapping):
         return False
     return annotations.keys() >= {"id", "etag", "annotations"}
@@ -116,8 +134,18 @@ def _annotation_value_list_element_type(annotation_values: typing.List):
     return object
 
 
-def is_submission_status_annotations(annotations):
-    """Tests if the given dictionary is in the form of annotations to submission status"""
+def is_submission_status_annotations(annotations: collections.abc.Mapping) -> bool:
+    """Tests if the given dictionary is in the form of annotations to submission
+    status.
+
+    Arguments:
+        annotations: A key-value mapping that may or may not be a submission status
+        annotations object.
+
+    Returns:
+        True if the given object is a submission status annotations object, False
+        otherwise.
+    """
     keys = ["objectId", "scopeId", "stringAnnos", "longAnnos", "doubleAnnos"]
     if not isinstance(annotations, collections.abc.Mapping):
         return False
@@ -129,26 +157,33 @@ def to_submission_status_annotations(annotations, is_private=True):
     Converts a normal dictionary to the format used to annotate submission statuses, which is different from the format
     used to annotate entities.
 
-    :param annotations: A normal Python dictionary whose values are strings, floats, ints or doubles
+    Arguments:
+        annotations: A normal Python dictionary whose values are strings, floats, ints or doubles.
+        is_private: Set privacy on all annotations at once. These can be set individually using
+                    [set_privacy][synapseclient.annotations.set_privacy].
 
-    :param is_private: Set privacy on all annotations at once. These can be set individually using
-                       :py:func:`set_privacy`.
 
-    Example::
+    Example: Using this function
+        Adding and converting annotations
 
-        from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
-        from datetime import datetime as Datetime
+            import synapseclient
+            from synapseclient.annotations import to_submission_status_annotations
+            from datetime import datetime as Datetime
 
-        ## create a submission and get its status
-        submission = syn.submit(evaluation, 'syn11111111')
-        submission_status = syn.getSubmissionStatus(submission)
+            ## Initialize a Synapse object & authenticate
+            syn = synapseclient.Synapse()
+            syn.login()
 
-        ## add annotations
-        submission_status.annotations = {'foo':'bar', 'shoe_size':12, 'IQ':12, 'timestamp':Datetime.now()}
+            ## create a submission and get its status
+            submission = syn.submit(evaluation, 'syn11111111')
+            submission_status = syn.getSubmissionStatus(submission)
 
-        ## convert annotations
-        submission_status.annotations = to_submission_status_annotations(submission_status.annotations)
-        submission_status = syn.store(submission_status)
+            ## add annotations
+            submission_status.annotations = {'foo':'bar', 'shoe_size':12, 'IQ':12, 'timestamp':Datetime.now()}
+
+            ## convert annotations
+            submission_status.annotations = to_submission_status_annotations(submission_status.annotations)
+            submission_status = syn.store(submission_status)
 
 
     Synapse categorizes these annotations by: stringAnnos, doubleAnnos, longAnnos.
@@ -191,13 +226,22 @@ def to_submission_status_annotations(annotations, is_private=True):
 
 
 # TODO: this should accept a status object and return its annotations or an empty dict if there are none
-def from_submission_status_annotations(annotations):
+def from_submission_status_annotations(annotations) -> dict:
     """
     Convert back from submission status annotation format to a normal dictionary.
 
-    Example::
+    Arguments:
+        annotations: A dictionary in the format used to annotate submission statuses.
 
-        submission_status.annotations = from_submission_status_annotations(submission_status.annotations)
+    Returns:
+        A normal Python dictionary.
+
+    Example: Using this function
+        Converting from submission status annotations
+
+            from synapseclient.annotations import from_submission_status_annotations
+
+            submission_status.annotations = from_submission_status_annotations(submission_status.annotations)
     """
     dictionary = {}
     for key, value in annotations.items():
@@ -218,17 +262,15 @@ def set_privacy(
 ):
     """
     Set privacy of individual annotations, where annotations are in the format used by Synapse SubmissionStatus objects.
-    See the `Annotations documentation \
-    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html>`_.
+    See the [Annotations documentation](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html).
 
-    :param annotations: Annotations that have already been converted to Synapse format using
-                        :py:func:`to_submission_status_annotations`.
-    :param key:         The key of the annotation whose privacy we're setting.
-    :param is_private:  If False, the annotation will be visible to users with READ permission on the evaluation.
+    Arguments:
+        annotations: Annotations that have already been converted to Synapse format using
+                        [to_submission_status_annotations][synapseclient.annotations.to_submission_status_annotations].
+        key:         The key of the annotation whose privacy we're setting.
+        is_private:  If False, the annotation will be visible to users with READ permission on the evaluation.
                         If True, the it will be visible only to users with READ_PRIVATE_SUBMISSION on the evaluation.
-                        Note: Is this really correct???
-    :param value_types: A list of the value types in which to search for the key. Defaults to all types
-                        ['longAnnos', 'doubleAnnos', 'stringAnnos'].
+        value_types: A list of the value types in which to search for the key.
 
     """
     for value_type in value_types:
@@ -245,6 +287,22 @@ class Annotations(dict):
     """
     Represent Synapse Entity annotations as a flat dictionary with the system assigned properties id, etag
     as object attributes.
+
+    Attributes:
+        id: Synapse ID of the Entity
+        etag: Synapse etag of the Entity
+        values: (Optional) dictionary of values to be copied into annotations
+        **kwargs: additional key-value pairs to be added as annotations
+
+    Example: Creating a few instances
+        Creating and setting annotations
+
+            from synapseclient import Annotations
+
+            example1 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', {'foo':'bar'})
+            example2 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', foo='bar')
+            example3 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984')
+            example3['foo'] = 'bar'
     """
 
     id: str
@@ -261,17 +319,21 @@ class Annotations(dict):
         Create an Annotations object taking key value pairs from a dictionary or from keyword arguments.
         System properties id, etag, creationDate and uri become attributes of the object.
 
-        :param id:  A Synapse ID, a Synapse Entity object, a plain dictionary in which 'id' maps to a Synapse ID
-        :param etag: etag of the Synapse Entity
-        :param values:  (Optional) dictionary of values to be copied into annotations
-        :param \**kwargs: additional key-value pairs to be added as annotations
+        Attributes:
+            id:  A Synapse ID, a Synapse Entity object, a plain dictionary in which 'id' maps to a Synapse ID
+            etag: etag of the Synapse Entity
+            values: (Optional) dictionary of values to be copied into annotations
+            **kwargs: additional key-value pairs to be added as annotations
 
-        Example::
+        Example: Creating a few instances
+            Creating and setting annotations
 
-            example1 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', {'foo':'bar'})
-            example2 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', foo='bar')
-            example3 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984')
-            example3['foo'] = 'bar'
+                from synapseclient import Annotations
+
+                example1 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', {'foo':'bar'})
+                example2 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', foo='bar')
+                example3 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984')
+                example3['foo'] = 'bar'
 
         """
         super().__init__()
@@ -306,8 +368,15 @@ class Annotations(dict):
 
 
 def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.Any]:
-    """Transforms a simple flat dictionary to a Synapse-style Annotation object.
-    https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html
+    """Transforms a simple flat dictionary to a Synapse-style Annotation object. See
+    the [Synapse API](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html)
+    documentation for more information on Synapse-style Annotation objects.
+
+    Arguments:
+        annotations: A simple flat dictionary of annotations.
+
+    Returns:
+        A Synapse-style Annotation dict.
     """
 
     if is_synapse_annotations(annotations):
@@ -316,7 +385,8 @@ def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.
 
     if not isinstance(annotations, Annotations):
         raise TypeError(
-            "annotations must be a synapseclient.Annotations object with 'id' and 'etag' attributes"
+            "annotations must be a synapseclient.Annotations object with 'id' and"
+            " 'etag' attributes"
         )
 
     synapse_annos["id"] = annotations.id
@@ -355,10 +425,18 @@ def _convert_to_annotations_list(annotations):
 def from_synapse_annotations(
     raw_annotations: typing.Dict[str, typing.Any]
 ) -> Annotations:
-    """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
+    """Transforms a Synapse-style Annotation object to a simple flat dictionary.
+
+    Arguments:
+        raw_annotations: A Synapse-style Annotation dict.
+
+    Returns:
+        A simple flat dictionary of annotations.
+    """
     if not is_synapse_annotations(raw_annotations):
         raise ValueError(
-            'Unexpected format of annotations from Synapse. Must include keys: "id", "etag", and "annotations"'
+            'Unexpected format of annotations from Synapse. Must include keys: "id",'
+            ' "etag", and "annotations"'
         )
 
     annos = Annotations(raw_annotations["id"], raw_annotations["etag"])
@@ -383,6 +461,12 @@ def convert_old_annotation_json(annotations):
     entity bundle JSON (Submissions). we don't need to support newer
     types here e.g. BOOLEAN because they did not exist at the time
     that annotation JSON was saved in this form.
+
+    Arguments:
+        annotations: A parsed JSON dictionary of old style annotations.
+
+    Returns:
+        A v2 Annotation-style dictionary.
     """
 
     meta_keys = ("id", "etag", "creationDate", "uri")

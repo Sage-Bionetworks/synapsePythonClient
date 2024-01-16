@@ -122,10 +122,10 @@ class MigrationResult:
         Returns a dictionary of counts by the migration status of each indexed file/version.
         Keys are as follows:
 
-            * INDEXED - the file/version has been indexed and will be migrated on a call to migrate_indexed_files
-            * MIGRATED - the file/version has been migrated
-            * ALREADY_MIGRATED - the file/version was already stored at the target storage location and no migration is needed
-            * ERRORED - an error occurred while indexing or migrating the file/version
+        - `INDEXED` - the file/version has been indexed and will be migrated on a call to migrate_indexed_files
+        - `MIGRATED` - the file/version has been migrated
+        - `ALREADY_MIGRATED` - the file/version was already stored at the target storage location and no migration is needed
+        - `ERRORED` - an error occurred while indexing or migrating the file/version
         """  # noqa
         import sqlite3
 
@@ -150,19 +150,19 @@ class MigrationResult:
     def get_migrations(self):
         """
         A generator yielding each file/version in the migration index.
+        A dictionary of the properties of the migration row is yielded as follows
 
-        :yeild: A dictionary of the properties of the migration row is yielded as follows:
-
-            - id: the Synapse id
-            - type: the concrete type of the entity
-            - version: the verson of the file entity (if applicable)
-            - row_id: the row of the table attached file (if applicable)
-            - col_id: the column id of the table attached file (if applicable)
-            - from_storage_location_id: - the previous storage location id where the file/version was stored
-            - from_file_handle_id: the id file handle of the existing file/version
-            - to_file_handle_id: if migrated, the new file handle id
-            - status: one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
-            - exception: if an error was encountered indexing/migrating the file/version its stack is here
+        Yields:
+            id: the Synapse id
+            type: the concrete type of the entity
+            version: the verson of the file entity (if applicable)
+            row_id: the row of the table attached file (if applicable)
+            col_id: the column id of the table attached file (if applicable)
+            from_storage_location_id: - the previous storage location id where the file/version was stored
+            from_file_handle_id: the id file handle of the existing file/version
+            to_file_handle_id: if migrated, the new file handle id
+            status: one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
+            exception: if an error was encountered indexing/migrating the file/version its stack is here
         """
         import sqlite3
 
@@ -265,18 +265,21 @@ class MigrationResult:
         """
         Output a flat csv file of the contents of the Migration index.
 
-        :return: csv file with columns as follows:
+        Arguments:
+            path: The path to the csv file to be created
 
-            - id - the Synapse id
-            - type - the concrete type of the entity
-            - version - the verson of the file entity (if applicable)
-            - row_id - the row of the table attached file (if applicable)
-            - col_name - the column name of the column the table attached file resides in (if applicable)
-            - from_storage_location_id - the previous storage location id where the file/version was stored
-            - from_file_handle_id - the id file handle of the existing file/version
-            - to_file_handle_id - if migrated, the new file handle id
-            - status - one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
-            - exception - if an error was encountered indexing/migrating the file/version its stack is here
+        Returns:
+            None: But a csv file is created at the given path with the following columns:
+            id: the Synapse id
+            type: the concrete type of the entity
+            version: the verson of the file entity (if applicable)
+            row_id: the row of the table attached file (if applicable)
+            col_name: the column name of the column the table attached file resides in (if applicable)
+            from_storage_location_id: the previous storage location id where the file/version was stored
+            from_file_handle_id: the id file handle of the existing file/version
+            to_file_handle_id: if migrated, the new file handle id
+            status: one of INDEXED, MIGRATED, ALREADY_MIGRATED, ERRORED indicating the status of the file/version
+            exception: if an error was encountered indexing/migrating the file/version its stack is here
 
         """
 
@@ -451,31 +454,34 @@ def index_files_for_migration(
     to the migrate_indexed_files function for actual migration. This function itself does not modify the given entity
     in any way.
 
-    :param syn:                         A Synapse object with user's login, e.g. syn = synapseclient.login()
-    :param entity:                      A Synapse entity whose files should be migrated. Can be a Project, Folder,
-                                        File entity, or Table entity. If it is a container (a Project or Folder) its
-                                        contents will be recursively indexed.
-    :param dest_storage_location_id:    The id of the new storage location to be migrated to.
-    :param db_path:                     A path on disk where a sqlite db can be created to store the contents of the
-                                        created index.
-    :param source_storage_location_ids: An optional iterable of storage location ids that will be migrated. If provided,
-                                        files outside of one of the listed storage locations will not be indexed
-                                        for migration. If not provided, then all files not already in the destination
-                                        storage location will be indexed for migrated.
-    :param file_version_strategy:   One of "new" (default), "all", "latest", "skip" as follows:
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        entity: A Synapse entity whose files should be migrated. Can be a Project, Folder,
+                File entity, or Table entity. If it is a container (a Project or Folder)
+                its contents will be recursively indexed.
+        dest_storage_location_id: The id of the new storage location to be migrated to.
+        db_path: A path on disk where a sqlite db can be created to store the contents of the
+                    created index.
+        source_storage_location_ids: An optional iterable of storage location ids that
+                                        will be migrated. If provided, files outside of
+                                        one of the listed storage locations will not be
+                                        indexed for migration. If not provided, then all
+                                        files not already in the destination storage
+                                        location will be indexed for migrated.
+        file_version_strategy: One of "new" (default), "all", "latest", "skip" as follows:
 
-                                        * "new" - will create a new version of file entities in the new storage location, leaving existing versions unchanged
-                                        * "all" - all existing versions will be migrated in place to the new storage location
-                                        * "latest" - the latest version will be migrated in place to the new storage location
-                                        * "skip" - skip migrating file entities. use this e.g. if wanting to e.g. migrate table attached files in a container while leaving the files unchanged
-    :param include_table_files:     Whether to migrate files attached to tables. If False (default) then e.g. only
-                                        file entities in the container will be migrated and tables will be untouched.
-    :param continue_on_error:       Whether any errors encountered while indexing an entity (access etc) will be raised
-                                        or instead just recorded in the index while allowing the index creation
-                                        to continue. Default is False (any errors are raised).
+            - `new`: will create a new version of file entities in the new storage location, leaving existing versions unchanged
+            - `all`: all existing versions will be migrated in place to the new storage location
+            - `latest`: the latest version will be migrated in place to the new storage location
+            - `skip`: skip migrating file entities. use this e.g. if wanting to e.g. migrate table attached files in a container while leaving the files unchanged
+        include_table_files: Whether to migrate files attached to tables. If False (default) then e.g. only
+                                file entities in the container will be migrated and tables will be untouched.
+        continue_on_error: Whether any errors encountered while indexing an entity (access etc) will be raised
+                                or instead just recorded in the index while allowing the index creation
+                                to continue. Default is False (any errors are raised).
 
-    :return:                        A MigrationResult object that can be used to inspect the contents of the index
-                                        or output the index to a CSV for manual inspection.
+    Returns:
+        A MigrationResult object that can be used to inspect the contents of the index or output the index to a CSV for manual inspection.
     """  # noqa
     root_id = utils.id_of(entity)
 
@@ -601,24 +607,25 @@ def migrate_indexed_files(
     create_table_snapshots=True,
     continue_on_error=False,
     force=False,
-):
+) -> typing.Union[MigrationResult, None]:
     """
     Migrate files previously indexed in a sqlite database at the given db_path using the separate
     index_files_for_migration function. The files listed in the index will be migrated according to the
     configuration of that index.
 
-    :param syn:                     A Synapse object with user's login, e.g. syn = synapseclient.login()
-    :param db_path:                 A path on disk where a sqlite db was created using the index_files_for_migration
-                                        function.
-    :param create_table_snapshots:  When updating the files in any table, whether the a snapshot of the table is
-                                        first created (default True).
-    :param continue_on_error:       Whether any errors encountered while migrating will be raised
-                                        or instead just recorded in the sqlite database while allowing the migration
-                                        to continue. Default is False (any errors are raised).
-    :param force:                   If running in an interactive shell, migration requires an interactice confirmation.
-                                        This can be bypassed by using the force=True option.
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        db_path: A path on disk where a sqlite db was created using the index_files_for_migration function.
+        create_table_snapshots: When updating the files in any table, whether the a snapshot of the table is
+                                first created.
+        continue_on_error: Whether any errors encountered while migrating will be raised
+                            or instead just recorded in the sqlite database while allowing the migration
+                            to continue. Default is False (any errors are raised).
+        force: If running in an interactive shell, migration requires an interactice confirmation.
+                This can be bypassed by using the force=True option.
 
-    :return:                        A MigrationResult object that can be used to inspect the results of the migration.
+    Returns:
+        A MigrationResult object that can be used to inspect the results of the migration.
     """
     executor, max_concurrent_file_copies = _get_executor(syn)
 

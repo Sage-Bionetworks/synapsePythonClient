@@ -1,1 +1,0 @@
-.. automodule:: synapseclient.activity

@@ -31,7 +31,7 @@ The dependencies on pandas and pysftp are optional. The Synapse `synapseclient.t
 Source code and development versions are [available on Github](https://github.com/Sage-Bionetworks/synapsePythonClient). Installing from source:
 
 ```bash
-git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
+git clone https://github.com/Sage-Bionetworks/synapsePythonClient.git
 cd synapsePythonClient
 ```
 
