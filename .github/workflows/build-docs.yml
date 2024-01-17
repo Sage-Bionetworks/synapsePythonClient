@@ -23,5 +23,5 @@ jobs:
           path: .cache
           restore-keys: |
             mkdocs-material-
-      - run: pip install mkdocs-material mkdocstrings mkdocstrings-python termynal
+      - run: pip install mkdocs mkdocs-material mkdocstrings mkdocstrings-python termynal markdown-include mkdocs-open-in-new-tab
       - run: mkdocs gh-deploy --force
