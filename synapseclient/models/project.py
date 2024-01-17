@@ -163,7 +163,7 @@ class Project:
     # TODO: https://www.python-httpx.org/advanced/#pool-limit-configuration
     # TODO: Test out changing the underlying layer to httpx
 
-    def convert_from_api_parameters(
+    def fill_from_dict(
         self, synapse_project: Synapse_Project, set_annotations: bool = True
     ) -> "Project":
         self.id = synapse_project.get("id", None)
@@ -176,7 +176,7 @@ class Project:
         self.modified_by = synapse_project.get("modifiedBy", None)
         self.alias = synapse_project.get("alias", None)
         if set_annotations:
-            self.annotations = Annotations.convert_from_api_parameters(
+            self.annotations = Annotations.from_dict(
                 synapse_project.get("annotations", None)
             )
         return self
@@ -202,9 +202,7 @@ class Project:
                     obj=synapse_project, opentelemetry_context=current_context
                 ),
             )
-            self.convert_from_api_parameters(
-                synapse_project=entity, set_annotations=False
-            )
+            self.fill_from_dict(synapse_project=entity, set_annotations=False)
 
             tasks = []
             if self.files:
@@ -277,9 +275,7 @@ class Project:
                 ),
             )
 
-            self.convert_from_api_parameters(
-                synapse_project=entity, set_annotations=True
-            )
+            self.fill_from_dict(synapse_project=entity, set_annotations=True)
             if include_children:
                 children_objects = await loop.run_in_executor(
                     None,
@@ -299,9 +295,7 @@ class Project:
                         "type" in child
                         and child["type"] == "org.sagebionetworks.repo.model.Folder"
                     ):
-                        folder = Folder().convert_from_api_parameters(
-                            synapse_folder=child
-                        )
+                        folder = Folder().fill_from_dict(synapse_folder=child)
                         folder.parent_id = self.id
                         folders.append(folder)
 
@@ -309,7 +303,7 @@ class Project:
                         "type" in child
                         and child["type"] == "org.sagebionetworks.repo.model.FileEntity"
                     ):
-                        file = File().convert_from_api_parameters(synapse_file=child)
+                        file = File().fill_from_dict(synapse_file=child)
                         file.parent_id = self.id
                         files.append(file)
 
