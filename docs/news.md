@@ -1,5 +1,60 @@
 # Release Notes
 
+## 4.0.0 (2024-01-12)
+
+### Highlights
+
+-   **Only authentication through Personal Access Token**
+    **(aka: Authentication bearer token) is supported**. Review the
+    [Authentication document](https://python-docs.synapse.org/tutorials/authentication/)
+    for information on setting up your usage of a Personal Access Token to authenticate
+    with Synapse.
+-   **Date type Annotations on Synapse entities are now timezone aware**. Review our
+    [reference documentation for Annotations](https://python-docs.synapse.org/reference/annotations/).
+    The [`pytz` package](https://pypi.org/project/pytz/) is reccomended if you regularly
+    work with data across time zones.
+    - If you do not set the `tzinfo` field on a date or datetime instance we will use the
+        timezone of the machine where the code is executing.
+    - If you are using the
+        [Manifest TSV](https://python-docs.synapse.org/explanations/manifest_tsv/#annotations)
+        for bulk actions on your projects you'll now see that
+        [synapseutils.sync.syncFromSynapse][] will store dates as `YYYY-MM-DDTHH:MM:SSZ`.
+        Review our documentation for an
+        [example manifest file](https://python-docs.synapse.org/explanations/manifest_tsv/#example-manifest-file).
+        Additionally, if you'd like to upload an annotation in a specific timezone please
+        make sure that it is in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601).
+        If you do not specify a timezone it is assumed to use the timezone of the machine
+        where the code is executing.
+-   **Support for annotations with multiple values through the**
+    [**Manifest TSV**](https://python-docs.synapse.org/explanations/manifest_tsv/#multiple-values-of-annotations-per-key)
+    with the usage of a comma delimited bracket wrapped list. Any manifest files wishing
+    to take advantage of multi-value annotations need to match this format. Examples:
+    - `["Annotation, with a comma", another annotation]`
+    - `[1,2,3]`
+    - `[2023-12-04T07:00:00Z,2000-01-01T07:00:00Z]`
+-   Migration and expansion of the docs site! You'll see that the look, feel, and flow
+    of all of the information on this site has been touched. As we move forward we hope
+    that you'll
+    [provide the Data Processing and Engineering team feedback on areas we can improve](https://sagebionetworks.jira.com/servicedesk/customer/portal/5/group/7).
+-   Expansion of the available Python Tutorials can be found
+    [starting here](https://python-docs.synapse.org/tutorials/python_client/).
+
+### Bug Fixes
+-  \[[SYNPY-1357](https://sagebionetworks.jira.com/browse/SYNPY-1357)\] - Manifest does not support annotations with multiple values
+-  \[[SYNPY-1358](https://sagebionetworks.jira.com/browse/SYNPY-1358)\] - Date and datetime annotations do not account for timezone
+-  \[[SYNPY-1387](https://sagebionetworks.jira.com/browse/SYNPY-1387)\] - Update High level best practices for project structure document
+
+### Stories
+-  \[[SYNPY-955](https://sagebionetworks.jira.com/browse/SYNPY-955)\] - Remove the ability to login using session token
+-  \[[SYNPY-1182](https://sagebionetworks.jira.com/browse/SYNPY-1182)\] - Remove ability to manage API keys and to use API keys for auth' in R/Py/CLI
+-  \[[SYNPY-1225](https://sagebionetworks.jira.com/browse/SYNPY-1225)\] - Remove the use of all authentication methods except authToken in the python client for security
+-  \[[SYNPY-1302](https://sagebionetworks.jira.com/browse/SYNPY-1302)\] - Deprecate getPermissions and create get_permissions
+-  \[[SYNPY-1321](https://sagebionetworks.jira.com/browse/SYNPY-1321)\] - Benchmark download speeds
+-  \[[SYNPY-1334](https://sagebionetworks.jira.com/browse/SYNPY-1334)\] - Review and revamp the getting started documentation for the client
+-  \[[SYNPY-1365](https://sagebionetworks.jira.com/browse/SYNPY-1365)\] - Finish migration of docstrings from sphinx to google style
+-  \[[SYNPY-1392](https://sagebionetworks.jira.com/browse/SYNPY-1392)\] - Remove all older functions that have been labeled to be deprecated
+-  \[[SYNPY-1394](https://sagebionetworks.jira.com/browse/SYNPY-1394)\] - Python client release 4.0.0
+
 ## 3.2.0 (2023-11-27)
 
 ### Highlights
