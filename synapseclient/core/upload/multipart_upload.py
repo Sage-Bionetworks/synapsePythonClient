@@ -617,7 +617,7 @@ class UploadAttemptAsync:
             )
 
             # # remove so future batch pre_signed url fetches will exclude this part
-            with self._lock:
+            async with self._lock:
                 del self._pre_signed_part_urls[part_number]
 
             return part_number, part_size
@@ -827,7 +827,6 @@ def multipart_upload_file(
     )
 
 
-@tracer.start_as_current_span("multipart_upload::multipart_upload_file")
 async def multipart_upload_file_async(
     syn,
     file_path: str,
