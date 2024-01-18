@@ -7,7 +7,7 @@ from opentelemetry import trace, context
 
 # import uuid
 
-from synapseclient import Synapse
+from synapseclient import Synapse, SynapseAsync
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import File, Annotations
 
@@ -151,40 +151,30 @@ class Folder:
             # information to store the data
 
             # Call synapse
-            loop = asyncio.get_event_loop()
             synapse_folder = Synapse_Folder(
                 name=self.name, parent=parent.id if parent else self.parent_id
             )
-            current_context = context.get_current()
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_folder, opentelemetry_context=current_context
-                ),
-            )
+            client = SynapseAsync(Synapse.get_client(synapse_client=synapse_client))
+            entity = await client.store(obj=synapse_folder)
 
             self.fill_from_dict(synapse_folder=entity, set_annotations=False)
 
             tasks = []
             if self.files:
-                tasks.extend(
-                    file.store(parent=self, synapse_client=synapse_client)
-                    for file in self.files
-                )
+                for file in self.files:
+                    tasks.append(file.store(parent=self, synapse_client=synapse_client))
 
             if self.folders:
-                tasks.extend(
-                    folder.store(parent=self, synapse_client=synapse_client)
-                    for folder in self.folders
-                )
+                for folder in self.folders:
+                    tasks.append(
+                        folder.store(parent=self, synapse_client=synapse_client)
+                    )
 
             if self.annotations:
                 tasks.append(
-                    asyncio.create_task(
-                        Annotations(
-                            id=self.id, etag=self.etag, annotations=self.annotations
-                        ).store(synapse_client=synapse_client)
-                    )
+                    Annotations(
+                        id=self.id, etag=self.etag, annotations=self.annotations
+                    ).store(synapse_client=synapse_client)
                 )
 
             try:

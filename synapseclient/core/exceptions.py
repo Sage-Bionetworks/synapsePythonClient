@@ -62,6 +62,22 @@ class SynapseUploadFailedException(SynapseError):
     pass
 
 
+def _get_message(response):
+    """Extracts the message body or a response object by checking for a json response and returning the reason otherwise
+    getting body.
+    """
+    try:
+        if utils.is_json(response.headers.get("content-type", None)):
+            json = response.json()
+            return json.get("reason", None)
+        else:
+            # if the response is not JSON, return the text content
+            return response.text
+    except (AttributeError, ValueError):
+        # The response can be truncated. In which case, the message cannot be retrieved.
+        return None
+
+
 def _raise_for_status(response, verbose=False):
     """
     Replacement for requests.response.raise_for_status().
@@ -106,7 +122,7 @@ def _raise_for_status(response, verbose=False):
         # 450: 'blocked_by_windows_parental_controls'
         # 451: 'unavailable_for_legal_reasons'
         # 499: 'client_closed_request'
-        message = "%s Client Error: %s" % (response.status_code, response.reason)
+        message = "%s Client Error: %s" % (response.status_code, _get_message(response))
 
     elif 500 <= response.status_code < 600:
         # TODOs:
@@ -120,7 +136,7 @@ def _raise_for_status(response, verbose=False):
         # 507: 'insufficient_storage'
         # 509: 'bandwidth_limit_exceeded'
         # 510: 'not_extended'
-        message = "%s Server Error: %s" % (response.status_code, response.reason)
+        message = "%s Server Error: %s" % (response.status_code, _get_message(response))
 
     if message is not None:
         # Append the server's JSON error message

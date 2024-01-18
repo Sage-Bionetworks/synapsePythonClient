@@ -9,7 +9,7 @@ from opentelemetry import trace, context
 from typing import Optional
 
 from synapseclient.models import Folder, File, Annotations
-from synapseclient import Synapse
+from synapseclient import Synapse, SynapseAsync
 
 
 tracer = trace.get_tracer("synapseclient")
@@ -193,15 +193,10 @@ class Project:
 
         with tracer.start_as_current_span(f"Project_Store: {self.name}"):
             # Call synapse
-            loop = asyncio.get_event_loop()
             synapse_project = Synapse_Project(self.name)
-            current_context = context.get_current()
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_project, opentelemetry_context=current_context
-                ),
-            )
+            entity = await SynapseAsync(
+                Synapse.get_client(synapse_client=synapse_client)
+            ).store(obj=synapse_project)
             self.fill_from_dict(synapse_project=entity, set_annotations=False)
 
             tasks = []

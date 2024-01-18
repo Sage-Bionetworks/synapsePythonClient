@@ -8,7 +8,7 @@ from synapseclient.models import Annotations
 # import uuid
 
 from synapseclient.entity import File as Synapse_File
-from synapseclient import Synapse
+from synapseclient import Synapse, SynapseAsync
 
 from typing import Optional, TYPE_CHECKING
 
@@ -184,20 +184,13 @@ class File:
 
             # Call synapse
             if self.path:
-                loop = asyncio.get_event_loop()
                 synapse_file = Synapse_File(
                     path=self.path,
                     name=self.name,
                     parent=parent.id if parent else self.parent_id,
                 )
-                # TODO: Propogating OTEL context is not working in this case
-                current_context = context.get_current()
-                entity = await loop.run_in_executor(
-                    None,
-                    lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                        obj=synapse_file, opentelemetry_context=current_context
-                    ),
-                )
+                client = SynapseAsync(Synapse.get_client(synapse_client=synapse_client))
+                entity = await client.store(obj=synapse_file)
 
                 self.fill_from_dict(synapse_file=entity, set_annotations=False)
 
@@ -235,16 +228,14 @@ class File:
             The file object.
         """
         with tracer.start_as_current_span(f"File_Get: {self.id}"):
-            loop = asyncio.get_event_loop()
             current_context = context.get_current()
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                    entity=self.id,
-                    downloadFile=download_file,
-                    downloadLocation=download_location,
-                    opentelemetry_context=current_context,
-                ),
+            entity = await SynapseAsync(
+                Synapse.get_client(synapse_client=synapse_client)
+            ).get(
+                entity=self.id,
+                downloadFile=download_file,
+                downloadLocation=download_location,
+                opentelemetry_context=current_context,
             )
 
             self.fill_from_dict(synapse_file=entity, set_annotations=True)

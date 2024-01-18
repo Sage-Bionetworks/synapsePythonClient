@@ -31,6 +31,7 @@ from .table import (
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 from .core.models.permission import Permissions
+from .client_async import SynapseAsync
 
 # ref = importlib.resources.files(__name__).joinpath("synapsePythonClient")
 # with ref.open("r") as fp:
@@ -81,6 +82,7 @@ __all__ = [
     # constants
     "PUBLIC",
     "AUTHENTICATED_USERS",
+    "SynapseAsync",
 ]
 
 USER_AGENT = {

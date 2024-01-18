@@ -26,6 +26,7 @@ import urllib.request as urllib_request
 import warnings
 import webbrowser
 import zipfile
+import httpx
 
 from deprecated import deprecated
 
@@ -245,7 +246,8 @@ class Synapse(object):
         debug: bool = None,
         skip_checks: bool = False,
         configPath: str = CONFIG_FILE,
-        requests_session: requests.Session = None,
+        requests_session: httpx.Client = None,
+        requests_session_async: httpx.AsyncClient = None,
         cache_root_dir: str = None,
         silent: bool = None,
     ) -> "Synapse":
@@ -269,6 +271,16 @@ class Synapse(object):
             ValueError: Warn for non-boolean debug value.
         """
         self._requests_session = requests_session or requests.Session()
+
+        # TODO: Connection limits need to be determined when working in a purely
+        # async context. This is because higher limits will hit the Synapse concurrent
+        # connection limit when using the async client.
+        httpx_limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+        # Removing pool timeout because of https://github.com/encode/httpx/issues/1171
+        httpx_timeout = httpx.Timeout(70, pool=None)
+        self._requests_session_async = requests_session_async or httpx.AsyncClient(
+            limits=httpx_limits, timeout=httpx_timeout
+        )
 
         cache_root_dir = (
             cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir
