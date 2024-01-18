@@ -220,98 +220,108 @@ async def with_retry_async(
             def foo(a, b, c): return [a, b, c]
             result = with_retry(lambda: foo("1", "2", "3"), **STANDARD_RETRY_PARAMS)
     """
+    with tracer.start_as_current_span("Synapse::with_retry_async"):
+        if verbose:
+            logger = logging.getLogger(DEBUG_LOGGER_NAME)
+        else:
+            logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
-    if verbose:
-        logger = logging.getLogger(DEBUG_LOGGER_NAME)
-    else:
-        logger = logging.getLogger(DEFAULT_LOGGER_NAME)
+        # Retry until we succeed or run out of tries
+        total_wait = 0
+        while True:
+            # Start with a clean slate
+            exc = None
+            exc_info = None
+            retry = False
+            response = None
 
-    # Retry until we succeed or run out of tries
-    total_wait = 0
-    while True:
-        # Start with a clean slate
-        exc = None
-        exc_info = None
-        retry = False
-        response = None
+            # Try making the call
+            try:
+                response = await function()
+            except Exception as ex:
+                exc = ex
+                exc_info = sys.exc_info()
+                logger.debug("calling %s resulted in an Exception" % function)
+                if hasattr(ex, "response"):
+                    response = ex.response
 
-        # Try making the call
-        try:
-            response = await function()
-        except Exception as ex:
-            exc = ex
-            exc_info = sys.exc_info()
-            logger.debug("calling %s resulted in an Exception" % function)
-            if hasattr(ex, "response"):
-                response = ex.response
-
-        # Check if we got a retry-able error
-        if response is not None and hasattr(response, "status_code"):
-            if (
-                expected_status_codes
-                and response.status_code not in expected_status_codes
-            ) or (retry_status_codes and response.status_code in retry_status_codes):
-                response_message = _get_message(response)
-                retry = True
-                logger.debug("retrying on status code: %s" % str(response.status_code))
-                # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
-                logger.debug(str(response_message))
-                if (response.status_code == 429) and (wait > 10):
-                    logger.warning("%s...\n" % response_message)
-                    logger.warning("Retrying in %i seconds" % wait)
-
-            elif response.status_code not in range(200, 299):
-                # For all other non 200 messages look for retryable errors in the body or reason field
-                response_message = _get_message(response)
-                if any(
-                    [msg.lower() in response_message.lower() for msg in retry_errors]
+            # Check if we got a retry-able error
+            if response is not None and hasattr(response, "status_code"):
+                if (
+                    expected_status_codes
+                    and response.status_code not in expected_status_codes
+                ) or (
+                    retry_status_codes and response.status_code in retry_status_codes
                 ):
+                    response_message = _get_message(response)
                     retry = True
-                    logger.debug("retrying %s" % response_message)
-                # special case for message throttling
-                elif (
-                    "Please slow down. You may send a maximum of 10 message"
-                    in response_message
-                ):
-                    retry = True
-                    wait = 16
-                    logger.debug("retrying " + response_message)
-
-        # Check if we got a retry-able exception
-        if exc is not None:
-            if (
-                exc.__class__.__name__ in retry_exceptions
-                or exc.__class__ in retry_exceptions
-                or any(
-                    [msg.lower() in str(exc_info[1]).lower() for msg in retry_errors]
-                )
-            ):
-                retry = True
-                logger.debug("retrying exception: " + str(exc))
-
-        # Wait then retry
-        retries -= 1
-        if retries >= 0 and retry:
-            with tracer.start_as_current_span("Synapse::retry_wait"):
-                randomized_wait = wait * random.uniform(0.5, 1.5)
-                logger.debug(
-                    "total wait time {total_wait:5.0f} seconds\n "
-                    "... Retrying in {wait:5.1f} seconds...".format(
-                        total_wait=total_wait, wait=randomized_wait
+                    logger.debug(
+                        "retrying on status code: %s" % str(response.status_code)
                     )
-                )
-                total_wait += randomized_wait
-                doze(randomized_wait)
-                wait = min(max_wait, wait * back_off)
-                continue
+                    # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
+                    logger.debug(str(response_message))
+                    if (response.status_code == 429) and (wait > 10):
+                        logger.warning("%s...\n" % response_message)
+                        logger.warning("Retrying in %i seconds" % wait)
 
-        # Out of retries, re-raise the exception or return the response
-        if exc_info is not None and exc_info[0] is not None:
-            logger.debug(
-                "retries have run out. re-raising the exception", exc_info=True
-            )
-            raise exc
-        return response
+                elif response.status_code not in range(200, 299):
+                    # For all other non 200 messages look for retryable errors in the body or reason field
+                    response_message = _get_message(response)
+                    if any(
+                        [
+                            msg.lower() in response_message.lower()
+                            for msg in retry_errors
+                        ]
+                    ):
+                        retry = True
+                        logger.debug("retrying %s" % response_message)
+                    # special case for message throttling
+                    elif (
+                        "Please slow down. You may send a maximum of 10 message"
+                        in response_message
+                    ):
+                        retry = True
+                        wait = 16
+                        logger.debug("retrying " + response_message)
+
+            # Check if we got a retry-able exception
+            if exc is not None:
+                if (
+                    exc.__class__.__name__ in retry_exceptions
+                    or exc.__class__ in retry_exceptions
+                    or any(
+                        [
+                            msg.lower() in str(exc_info[1]).lower()
+                            for msg in retry_errors
+                        ]
+                    )
+                ):
+                    retry = True
+                    logger.debug("retrying exception: " + str(exc))
+
+            # Wait then retry
+            retries -= 1
+            if retries >= 0 and retry:
+                with tracer.start_as_current_span("Synapse::retry_wait"):
+                    randomized_wait = wait * random.uniform(0.5, 1.5)
+                    logger.debug(
+                        "total wait time {total_wait:5.0f} seconds\n "
+                        "... Retrying in {wait:5.1f} seconds...".format(
+                            total_wait=total_wait, wait=randomized_wait
+                        )
+                    )
+                    total_wait += randomized_wait
+                    doze(randomized_wait)
+                    wait = min(max_wait, wait * back_off)
+                    continue
+
+            # Out of retries, re-raise the exception or return the response
+            if exc_info is not None and exc_info[0] is not None:
+                logger.debug(
+                    "retries have run out. re-raising the exception", exc_info=True
+                )
+                raise exc
+            return response
 
 
 def _get_message(response):

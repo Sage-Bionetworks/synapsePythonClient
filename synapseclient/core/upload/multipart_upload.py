@@ -476,28 +476,31 @@ class UploadAttemptAsync:
         upload_id: str,
         part_numbers: List[int],
     ) -> Mapping[int, str]:
-        uri = "/file/multipart/{upload_id}/presigned/url/batch".format(
-            upload_id=upload_id
-        )
-        body = {
-            "uploadId": upload_id,
-            "partNumbers": part_numbers,
-        }
+        with tracer.start_as_current_span(
+            "UploadAttemptAsync::_fetch_pre_signed_part_urls"
+        ):
+            uri = "/file/multipart/{upload_id}/presigned/url/batch".format(
+                upload_id=upload_id
+            )
+            body = {
+                "uploadId": upload_id,
+                "partNumbers": part_numbers,
+            }
 
-        response = await self._syn.rest_post(
-            uri,
-            json.dumps(body),
-            endpoint=self._syn.client.fileHandleEndpoint,
-        )
-
-        part_urls = {}
-        for part in response["partPresignedUrls"]:
-            part_urls[part["partNumber"]] = (
-                part["uploadPresignedUrl"],
-                part.get("signedHeaders", {}),
+            response = await self._syn.rest_post(
+                uri,
+                json.dumps(body),
+                endpoint=self._syn.client.fileHandleEndpoint,
             )
 
-        return part_urls
+            part_urls = {}
+            for part in response["partPresignedUrls"]:
+                part_urls[part["partNumber"]] = (
+                    part["uploadPresignedUrl"],
+                    part.get("signedHeaders", {}),
+                )
+
+            return part_urls
 
     # TODO: Will need to check that https://docs.python.org/3/library/asyncio-sync.html#asyncio.Lock
     # is working as expected.
@@ -521,23 +524,26 @@ class UploadAttemptAsync:
             refreshed URL
 
         """
-        async with self._lock:
-            current_url = self._pre_signed_part_urls[part_number]
-            if current_url != expired_url:
-                # if the url has already changed since the given url
-                # was detected as expired we can assume that another
-                # thread already refreshed the url and can avoid the extra
-                # fetch.
-                refreshed_url = current_url
-            else:
-                self._pre_signed_part_urls = await self._fetch_pre_signed_part_urls(
-                    self._upload_id,
-                    list(self._pre_signed_part_urls.keys()),
-                )
+        with tracer.start_as_current_span(
+            "UploadAttemptAsync::_refresh_pre_signed_part_urls"
+        ):
+            async with self._lock:
+                current_url = self._pre_signed_part_urls[part_number]
+                if current_url != expired_url:
+                    # if the url has already changed since the given url
+                    # was detected as expired we can assume that another
+                    # thread already refreshed the url and can avoid the extra
+                    # fetch.
+                    refreshed_url = current_url
+                else:
+                    self._pre_signed_part_urls = await self._fetch_pre_signed_part_urls(
+                        self._upload_id,
+                        list(self._pre_signed_part_urls.keys()),
+                    )
 
-                refreshed_url = self._pre_signed_part_urls[part_number]
+                    refreshed_url = self._pre_signed_part_urls[part_number]
 
-        return refreshed_url
+            return refreshed_url
 
     async def _handle_part(self, part_number):
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
@@ -611,105 +617,106 @@ class UploadAttemptAsync:
             )
 
             # # remove so future batch pre_signed url fetches will exclude this part
-            # with self._lock:
-            #     del self._pre_signed_part_urls[part_number]
+            with self._lock:
+                del self._pre_signed_part_urls[part_number]
 
             return part_number, part_size
 
-    @tracer.start_as_current_span("UploadAttempt::_upload_parts")
     async def _upload_parts(self, part_count, remaining_part_numbers):
-        time_upload_started = time.time()
-        completed_part_count = part_count - len(remaining_part_numbers)
-        file_size = self._upload_request_payload.get("fileSizeBytes")
+        with tracer.start_as_current_span("UploadAttempt::_upload_parts"):
+            time_upload_started = time.time()
+            completed_part_count = part_count - len(remaining_part_numbers)
+            file_size = self._upload_request_payload.get("fileSizeBytes")
 
-        if not self._is_copy():
-            # we won't have bytes to measure during a copy so the byte oriented progress bar is not useful
-            progress = previously_transferred = min(
-                completed_part_count * self._part_size,
-                file_size,
+            self._pre_signed_part_urls = await self._fetch_pre_signed_part_urls(
+                self._upload_id,
+                remaining_part_numbers,
             )
 
-            self._syn.client._print_transfer_progress(
-                progress,
-                file_size,
-                prefix="Uploading",
-                postfix=self._dest_file_name,
-                previouslyTransferred=previously_transferred,
-            )
+            futures = []
 
-        self._pre_signed_part_urls = await self._fetch_pre_signed_part_urls(
-            self._upload_id,
-            remaining_part_numbers,
-        )
+            for part_number in remaining_part_numbers:
+                futures.append(self._handle_part(part_number=part_number))
 
-        futures = []
+            if not self._is_copy():
+                # we won't have bytes to measure during a copy so the byte oriented progress bar is not useful
+                progress = previously_transferred = min(
+                    completed_part_count * self._part_size,
+                    file_size,
+                )
 
-        for part_number in remaining_part_numbers:
-            futures.append(self._handle_part(part_number=part_number))
+                self._syn.client._print_transfer_progress(
+                    progress,
+                    file_size,
+                    prefix="Uploading",
+                    postfix=self._dest_file_name,
+                    previouslyTransferred=previously_transferred,
+                )
 
-        for result in asyncio.as_completed(futures):
-            try:
-                _, part_size = await result
+            for result in asyncio.as_completed(futures):
+                try:
+                    _, part_size = await result
 
-                if part_size and not self._is_copy():
-                    progress += part_size
-                    self._syn.client._print_transfer_progress(
-                        min(progress, file_size),
-                        file_size,
-                        prefix="Uploading",
-                        postfix=self._dest_file_name,
-                        dt=time.time() - time_upload_started,
-                        previouslyTransferred=previously_transferred,
-                    )
-            except (Exception, KeyboardInterrupt) as cause:
-                # wait for all threads to complete before
-                # raising the exception, we don't want to return
-                # control while there are still threads from this
-                # upload attempt running
-                await asyncio.wait(futures)
+                    if part_size and not self._is_copy():
+                        progress += part_size
+                        self._syn.client._print_transfer_progress(
+                            min(progress, file_size),
+                            file_size,
+                            prefix="Uploading",
+                            postfix=self._dest_file_name,
+                            dt=time.time() - time_upload_started,
+                            previouslyTransferred=previously_transferred,
+                        )
+                except (Exception, KeyboardInterrupt) as cause:
+                    # wait for all threads to complete before
+                    # raising the exception, we don't want to return
+                    # control while there are still threads from this
+                    # upload attempt running
+                    await asyncio.wait(futures)
 
-                if isinstance(cause, KeyboardInterrupt):
-                    raise SynapseUploadAbortedException("User interrupted upload")
-                raise SynapseUploadFailedException("Part upload failed") from cause
+                    if isinstance(cause, KeyboardInterrupt):
+                        raise SynapseUploadAbortedException("User interrupted upload")
+                    raise SynapseUploadFailedException("Part upload failed") from cause
 
-    @tracer.start_as_current_span("UploadAttempt::_complete_upload")
     async def _complete_upload(self):
-        upload_status_response = await self._syn.rest_put(
-            "/file/multipart/{upload_id}/complete".format(
-                upload_id=self._upload_id,
-            ),
-            requests_session_async=self._syn.client._requests_session_async,
-            endpoint=self._syn.client.fileHandleEndpoint,
-        )
-
-        upload_state = upload_status_response.get("state")
-        if upload_state != "COMPLETED":
-            # at this point we think successfully uploaded all the parts
-            # but the upload status isn't complete, we'll throw an error
-            # and let a subsequent attempt try to reconcile
-            raise SynapseUploadFailedException(
-                "Upload status has an unexpected state {}".format(upload_state)
+        with tracer.start_as_current_span("UploadAttempt::_complete_upload"):
+            upload_status_response = await self._syn.rest_put(
+                "/file/multipart/{upload_id}/complete".format(
+                    upload_id=self._upload_id,
+                ),
+                requests_session_async=self._syn.client._requests_session_async,
+                endpoint=self._syn.client.fileHandleEndpoint,
             )
 
-        return upload_status_response
+            upload_state = upload_status_response.get("state")
+            if upload_state != "COMPLETED":
+                # at this point we think successfully uploaded all the parts
+                # but the upload status isn't complete, we'll throw an error
+                # and let a subsequent attempt try to reconcile
+                raise SynapseUploadFailedException(
+                    "Upload status has an unexpected state {}".format(upload_state)
+                )
+
+            return upload_status_response
 
     async def __call__(self):
-        upload_status_response = await self._create_synapse_upload()
-        upload_state = upload_status_response.get("state")
+        with tracer.start_as_current_span("UploadAttempt::__call__"):
+            upload_status_response = await self._create_synapse_upload()
+            upload_state = upload_status_response.get("state")
 
-        if upload_state != "COMPLETED":
-            self._upload_id = upload_status_response["uploadId"]
-            part_count, remaining_part_numbers = self._get_remaining_part_numbers(
-                upload_status_response
-            )
+            if upload_state != "COMPLETED":
+                self._upload_id = upload_status_response["uploadId"]
+                part_count, remaining_part_numbers = self._get_remaining_part_numbers(
+                    upload_status_response
+                )
 
-            # if no remaining part numbers then all the parts have been
-            # uploaded but the upload has not been marked complete.
-            if remaining_part_numbers:
-                await self._upload_parts(part_count, remaining_part_numbers)
-            upload_status_response = await self._complete_upload()
+                # if no remaining part numbers then all the parts have been
+                # uploaded but the upload has not been marked complete.
+                if remaining_part_numbers:
+                    await self._upload_parts(part_count, remaining_part_numbers)
+                upload_status_response = await self._complete_upload()
 
-        return upload_status_response
+            return upload_status_response
 
 
 def _get_file_chunk(file_path, part_number, chunk_size):
@@ -855,55 +862,55 @@ async def multipart_upload_file_async(
     [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
 
     """
-    trace.get_current_span().set_attributes(
-        {
-            "synapse.storage_location_id": storage_location_id
-            if storage_location_id is not None
-            else ""
+    with tracer.start_as_current_span("multipart_upload::multipart_upload_file"):
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.storage_location_id": storage_location_id
+                if storage_location_id is not None
+                else ""
+            }
+        )
+
+        if not os.path.exists(file_path):
+            raise IOError('File "{}" not found.'.format(file_path))
+        if os.path.isdir(file_path):
+            raise IOError('File "{}" is a directory.'.format(file_path))
+
+        file_size = os.path.getsize(file_path)
+        if not dest_file_name:
+            dest_file_name = os.path.basename(file_path)
+
+        if content_type is None:
+            mime_type, _ = mimetypes.guess_type(file_path, strict=False)
+            content_type = mime_type or "application/octet-stream"
+
+        callback_func = Spinner().print_tick if not syn.client.silent else None
+        md5_hex = md5_for_file(file_path, callback=callback_func).hexdigest()
+
+        part_size = _get_part_size(part_size, file_size)
+
+        upload_request = {
+            "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
+            "contentType": content_type,
+            "contentMD5Hex": md5_hex,
+            "fileName": dest_file_name,
+            "fileSizeBytes": file_size,
+            "generatePreview": preview,
+            "partSizeBytes": part_size,
+            "storageLocationId": storage_location_id,
         }
-    )
 
-    if not os.path.exists(file_path):
-        raise IOError('File "{}" not found.'.format(file_path))
-    if os.path.isdir(file_path):
-        raise IOError('File "{}" is a directory.'.format(file_path))
+        def part_fn(part_number):
+            return _get_file_chunk(file_path, part_number, part_size)
 
-    file_size = os.path.getsize(file_path)
-    if not dest_file_name:
-        dest_file_name = os.path.basename(file_path)
-
-    if content_type is None:
-        mime_type, _ = mimetypes.guess_type(file_path, strict=False)
-        content_type = mime_type or "application/octet-stream"
-
-    callback_func = Spinner().print_tick if not syn.client.silent else None
-    md5_hex = md5_for_file(file_path, callback=callback_func).hexdigest()
-
-    part_size = _get_part_size(part_size, file_size)
-
-    upload_request = {
-        "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
-        "contentType": content_type,
-        "contentMD5Hex": md5_hex,
-        "fileName": dest_file_name,
-        "fileSizeBytes": file_size,
-        "generatePreview": preview,
-        "partSizeBytes": part_size,
-        "storageLocationId": storage_location_id,
-    }
-
-    def part_fn(part_number):
-        return _get_file_chunk(file_path, part_number, part_size)
-
-    return await _multipart_upload_async(
-        syn,
-        dest_file_name,
-        upload_request,
-        part_fn,
-        md5_fn,
-        force_restart=force_restart,
-        max_threads=max_threads,
-    )
+        return await _multipart_upload_async(
+            syn,
+            dest_file_name,
+            upload_request,
+            part_fn,
+            md5_fn,
+            force_restart=force_restart,
+        )
 
 
 @tracer.start_as_current_span("multipart_upload::multipart_upload_string")
@@ -1120,7 +1127,6 @@ async def _multipart_upload_async(
     part_fn,
     md5_fn,
     force_restart: bool = False,
-    max_threads: int = None,
 ):
     """Calls upon an [UploadAttempt][synapseclient.core.upload.multipart_upload.UploadAttempt]
     object to initiate and/or retry a multipart file upload or copy. This function is wrapped by
@@ -1142,27 +1148,27 @@ async def _multipart_upload_async(
         A File Handle ID
 
     """
+    with tracer.start_as_current_span("multipart_upload::_multipart_upload_async"):
+        retry = 0
+        while True:
+            try:
+                upload_status_response = await UploadAttemptAsync(
+                    syn,
+                    dest_file_name,
+                    upload_request,
+                    part_fn,
+                    md5_fn,
+                    # only force_restart the first time through (if requested).
+                    # a retry after a caught exception will not restart the upload
+                    # from scratch.
+                    force_restart and retry == 0,
+                )()
 
-    retry = 0
-    while True:
-        try:
-            upload_status_response = await UploadAttemptAsync(
-                syn,
-                dest_file_name,
-                upload_request,
-                part_fn,
-                md5_fn,
-                # only force_restart the first time through (if requested).
-                # a retry after a caught exception will not restart the upload
-                # from scratch.
-                force_restart and retry == 0,
-            )()
+                # success
+                return upload_status_response["resultFileHandleId"]
 
-            # success
-            return upload_status_response["resultFileHandleId"]
-
-        except SynapseUploadFailedException:
-            if retry < MAX_RETRIES:
-                retry += 1
-            else:
-                raise
+            except SynapseUploadFailedException:
+                if retry < MAX_RETRIES:
+                    retry += 1
+                else:
+                    raise

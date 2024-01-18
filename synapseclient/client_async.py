@@ -460,7 +460,6 @@ class SynapseAsync(object):
             )
             return return_data
 
-    @tracer.start_as_current_span("SynapseAsync::getWiki")
     async def get_wiki(self, owner, subpageId=None, version=None):
         """
         Get a [synapseclient.wiki.Wiki][] object from Synapse. Uses wiki2 API which supports versioning.
@@ -473,42 +472,42 @@ class SynapseAsync(object):
         Returns:
             A [synapseclient.wiki.Wiki][] object
         """
-        uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
-        if subpageId is not None:
-            uri += "/{wikiId}".format(wikiId=subpageId)
-        if version is not None:
-            uri += "?wikiVersion={version}".format(version=version)
+        with tracer.start_as_current_span("SynapseAsync::get_wiki"):
+            uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
+            if subpageId is not None:
+                uri += "/{wikiId}".format(wikiId=subpageId)
+            if version is not None:
+                uri += "?wikiVersion={version}".format(version=version)
 
-        wiki = await self.rest_get(uri)
-        wiki["owner"] = owner
-        wiki = Wiki(**wiki)
+            wiki = await self.rest_get(uri)
+            wiki["owner"] = owner
+            wiki = Wiki(**wiki)
 
-        path = self.client.cache.get(wiki.markdownFileHandleId)
-        if not path:
-            cache_dir = self.client.cache.get_cache_dir(wiki.markdownFileHandleId)
-            if not os.path.exists(cache_dir):
-                os.makedirs(cache_dir)
-            path = self.client._downloadFileHandle(
-                wiki["markdownFileHandleId"],
-                wiki["id"],
-                "WikiMarkdown",
-                os.path.join(cache_dir, str(wiki.markdownFileHandleId) + ".md"),
-            )
-        try:
-            import gzip
+            path = self.client.cache.get(wiki.markdownFileHandleId)
+            if not path:
+                cache_dir = self.client.cache.get_cache_dir(wiki.markdownFileHandleId)
+                if not os.path.exists(cache_dir):
+                    os.makedirs(cache_dir)
+                path = self.client._downloadFileHandle(
+                    wiki["markdownFileHandleId"],
+                    wiki["id"],
+                    "WikiMarkdown",
+                    os.path.join(cache_dir, str(wiki.markdownFileHandleId) + ".md"),
+                )
+            try:
+                import gzip
 
-            with gzip.open(path) as f:
-                markdown = f.read().decode("utf-8")
-        except IOError:
-            with open(path) as f:
-                markdown = f.read().decode("utf-8")
+                with gzip.open(path) as f:
+                    markdown = f.read().decode("utf-8")
+            except IOError:
+                with open(path) as f:
+                    markdown = f.read().decode("utf-8")
 
-        wiki.markdown = markdown
-        wiki.markdown_path = path
+            wiki.markdown = markdown
+            wiki.markdown_path = path
 
-        return wiki
+            return wiki
 
-    @tracer.start_as_current_span("SynapseAsync::_storeWiki")
     async def _store_wiki(self, wiki: Wiki, createOrUpdate: bool) -> Wiki:
         """
         Stores or updates the given Wiki.
@@ -521,57 +520,59 @@ class SynapseAsync(object):
         Returns:
             An updated Wiki object
         """
-        # Make sure the file handle field is a list
-        if "attachmentFileHandleIds" not in wiki:
-            wiki["attachmentFileHandleIds"] = []
+        with tracer.start_as_current_span("SynapseAsync::_store_wiki"):
+            # Make sure the file handle field is a list
+            if "attachmentFileHandleIds" not in wiki:
+                wiki["attachmentFileHandleIds"] = []
 
-        # Convert all attachments into file handles
-        if wiki.get("attachments") is not None:
-            for attachment in wiki["attachments"]:
-                fileHandle = upload_synapse_s3(self, attachment)
-                wiki["attachmentFileHandleIds"].append(fileHandle["id"])
-            del wiki["attachments"]
+            # Convert all attachments into file handles
+            if wiki.get("attachments") is not None:
+                for attachment in wiki["attachments"]:
+                    fileHandle = upload_synapse_s3(self, attachment)
+                    wiki["attachmentFileHandleIds"].append(fileHandle["id"])
+                del wiki["attachments"]
 
-        # Perform an update if the Wiki has an ID
-        if "id" in wiki:
-            updated_wiki = Wiki(
-                owner=wiki.ownerId, **(await self.rest_put(wiki.putURI(), wiki.json()))
-            )
-
-        # Perform a create if the Wiki has no ID
-        else:
-            try:
+            # Perform an update if the Wiki has an ID
+            if "id" in wiki:
                 updated_wiki = Wiki(
                     owner=wiki.ownerId,
-                    **(await self.rest_post(wiki.postURI(), wiki.json())),
+                    **(await self.rest_put(wiki.putURI(), wiki.json())),
                 )
-            except SynapseHTTPError as err:
-                # If already present we get an unhelpful SQL error
-                if createOrUpdate and (
-                    (
-                        err.response.status_code == 400
-                        and "DuplicateKeyException" in err.message
-                    )
-                    or err.response.status_code == 409
-                ):
-                    existing_wiki = await self.get_wiki(wiki.ownerId)
 
-                    # overwrite everything except for the etag (this will keep unmodified fields in the existing wiki)
-                    etag = existing_wiki["etag"]
-                    existing_wiki.update(wiki)
-                    existing_wiki.etag = etag
-
+            # Perform a create if the Wiki has no ID
+            else:
+                try:
                     updated_wiki = Wiki(
                         owner=wiki.ownerId,
-                        **(
-                            await self.rest_put(
-                                existing_wiki.putURI(), existing_wiki.json()
-                            )
-                        ),
+                        **(await self.rest_post(wiki.postURI(), wiki.json())),
                     )
-                else:
-                    raise
-        return updated_wiki
+                except SynapseHTTPError as err:
+                    # If already present we get an unhelpful SQL error
+                    if createOrUpdate and (
+                        (
+                            err.response.status_code == 400
+                            and "DuplicateKeyException" in err.message
+                        )
+                        or err.response.status_code == 409
+                    ):
+                        existing_wiki = await self.get_wiki(wiki.ownerId)
+
+                        # overwrite everything except for the etag (this will keep unmodified fields in the existing wiki)
+                        etag = existing_wiki["etag"]
+                        existing_wiki.update(wiki)
+                        existing_wiki.etag = etag
+
+                        updated_wiki = Wiki(
+                            owner=wiki.ownerId,
+                            **(
+                                await self.rest_put(
+                                    existing_wiki.putURI(), existing_wiki.json()
+                                )
+                            ),
+                        )
+                    else:
+                        raise
+            return updated_wiki
 
     async def _get_entity_bundle(
         self,
@@ -718,7 +719,6 @@ class SynapseAsync(object):
             self, parent, path, synapseStore, md5, file_size, mimetype
         )
 
-    @tracer.start_as_current_span("SynapseAsync::set_annotations_async")
     async def set_annotations(self, annotations: Annotations):
         """
         Store annotations for an Entity in the Synapse Repository.
@@ -758,23 +758,22 @@ class SynapseAsync(object):
                 print(annos)
                 > {'foo':['bar','baz], 'qwerty':['asdf']}
         """
+        with tracer.start_as_current_span("SynapseAsync::set_annotations_async"):
+            if not isinstance(annotations, Annotations):
+                raise TypeError("Expected a synapseclient.Annotations object")
 
-        if not isinstance(annotations, Annotations):
-            raise TypeError("Expected a synapseclient.Annotations object")
+            synapseAnnos = to_synapse_annotations(annotations)
 
-        synapseAnnos = to_synapse_annotations(annotations)
+            entity_id = id_of(annotations)
+            trace.get_current_span().set_attributes({"synapse.id": entity_id})
 
-        entity_id = id_of(annotations)
-        trace.get_current_span().set_attributes({"synapse.id": entity_id})
-
-        return from_synapse_annotations(
-            await self.rest_put(
-                f"/entity/{entity_id}/annotations2",
-                body=json.dumps(synapseAnnos),
+            return from_synapse_annotations(
+                await self.rest_put(
+                    f"/entity/{entity_id}/annotations2",
+                    body=json.dumps(synapseAnnos),
+                )
             )
-        )
 
-    @tracer.start_as_current_span("SynapseAsync::set_provenance_async")
     async def set_provenance(self, entity, activity) -> Activity:
         """
         Stores a record of the code and data used to derive a Synapse entity.
@@ -786,17 +785,17 @@ class SynapseAsync(object):
         Returns:
             An updated [synapseclient.activity.Activity][] object
         """
+        with tracer.start_as_current_span("SynapseAsync::set_provenance_async"):
+            # Assert that the entity was generated by a given Activity.
+            activity = await self._save_activity(activity)
 
-        # Assert that the entity was generated by a given Activity.
-        activity = await self._save_activity(activity)
+            entity_id = id_of(entity)
+            # assert that an entity is generated by an activity
+            uri = "/entity/%s/generatedBy?generatedBy=%s" % (entity_id, activity["id"])
+            activity = Activity(data=await self.rest_put(uri))
 
-        entity_id = id_of(entity)
-        # assert that an entity is generated by an activity
-        uri = "/entity/%s/generatedBy?generatedBy=%s" % (entity_id, activity["id"])
-        activity = Activity(data=await self.rest_put(uri))
-
-        trace.get_current_span().set_attributes({"synapse.id": entity_id})
-        return activity
+            trace.get_current_span().set_attributes({"synapse.id": entity_id})
+            return activity
 
     async def _save_activity(self, activity: Activity) -> Activity:
         """
@@ -816,8 +815,6 @@ class SynapseAsync(object):
             activity = await self.rest_post("/activity", body=json.dumps(activity))
         return activity
 
-    # TODO: Using @tracer on an async function does not work
-    @tracer.start_as_current_span("SynapseAsync::_getFromFile")
     async def _get_from_file(
         self, filepath: str, limitSearch: str = None
     ) -> Dict[str, dict]:
@@ -835,47 +832,55 @@ class SynapseAsync(object):
         Returns:
             A Synapse entityBundle
         """
-        results = await self.rest_get(
-            "/entity/md5/%s" % utils.md5_for_file(filepath).hexdigest()
-        )["results"]
-        if limitSearch is not None:
-            # Go through and find the path of every entity found
-            paths = [
-                await self.rest_get("/entity/%s/path" % ent["id"]) for ent in results
-            ]
-            # Filter out all entities whose path does not contain limitSearch
-            results = [
-                ent
-                for ent, path in zip(results, paths)
-                if utils.is_in_path(limitSearch, path)
-            ]
-        if len(results) == 0:  # None found
-            raise SynapseFileNotFoundError("File %s not found in Synapse" % (filepath,))
-        elif len(results) > 1:
-            id_txts = "\n".join(
-                ["%s.%i" % (r["id"], r["versionNumber"]) for r in results]
+        with tracer.start_as_current_span("SynapseAsync::_get_from_file"):
+            results = await self.rest_get(
+                "/entity/md5/%s" % utils.md5_for_file(filepath).hexdigest()
+            )["results"]
+            if limitSearch is not None:
+                # Go through and find the path of every entity found
+                paths = [
+                    await self.rest_get("/entity/%s/path" % ent["id"])
+                    for ent in results
+                ]
+                # Filter out all entities whose path does not contain limitSearch
+                results = [
+                    ent
+                    for ent, path in zip(results, paths)
+                    if utils.is_in_path(limitSearch, path)
+                ]
+            if len(results) == 0:  # None found
+                raise SynapseFileNotFoundError(
+                    "File %s not found in Synapse" % (filepath,)
+                )
+            elif len(results) > 1:
+                id_txts = "\n".join(
+                    ["%s.%i" % (r["id"], r["versionNumber"]) for r in results]
+                )
+                self.client.logger.warning(
+                    "\nThe file %s is associated with many files in Synapse:\n%s\n"
+                    "You can limit to files in specific project or folder by setting the limitSearch to the"
+                    " synapse Id of the project or folder.\n"
+                    "Will use the first one returned: \n"
+                    "%s version %i\n"
+                    % (filepath, id_txts, results[0]["id"], results[0]["versionNumber"])
+                )
+            entity = results[0]
+
+            bundle = await self._get_entity_bundle(
+                entity, version=entity["versionNumber"]
             )
-            self.client.logger.warning(
-                "\nThe file %s is associated with many files in Synapse:\n%s\n"
-                "You can limit to files in specific project or folder by setting the limitSearch to the"
-                " synapse Id of the project or folder.\n"
-                "Will use the first one returned: \n"
-                "%s version %i\n"
-                % (filepath, id_txts, results[0]["id"], results[0]["versionNumber"])
-            )
-        entity = results[0]
+            self.client.cache.add(bundle["entity"]["dataFileHandleId"], filepath)
 
-        bundle = await self._get_entity_bundle(entity, version=entity["versionNumber"])
-        self.client.cache.add(bundle["entity"]["dataFileHandleId"], filepath)
+            return bundle
 
-        return bundle
-
-    @tracer.start_as_current_span("SynapseAsync::_getDefaultUploadDestination")
     async def _get_default_upload_destination(self, parent_entity):
-        return await self.rest_get(
-            "/entity/%s/uploadDestination" % id_of(parent_entity),
-            endpoint=self.client.fileHandleEndpoint,
-        )
+        with tracer.start_as_current_span(
+            "SynapseAsync::_get_default_upload_destination"
+        ):
+            return await self.rest_get(
+                "/entity/%s/uploadDestination" % id_of(parent_entity),
+                endpoint=self.client.fileHandleEndpoint,
+            )
 
     async def _get_with_entity_bundle(
         self, entityBundle: dict, entity: Entity = None, **kwargs
@@ -897,80 +902,82 @@ class SynapseAsync(object):
         - See [_getEntityBundle][synapseclient.Synapse._getEntityBundle].
         - See [Entity][synapseclient.Entity].
         """
-        # Note: This version overrides the version of 'entity' (if the object is Mappable)
-        kwargs.pop("version", None)
-        downloadFile = kwargs.pop("downloadFile", True)
-        downloadLocation = kwargs.pop("downloadLocation", None)
-        ifcollision = kwargs.pop("ifcollision", None)
-        submission = kwargs.pop("submission", None)
-        followLink = kwargs.pop("followLink", False)
-        path = kwargs.pop("path", None)
+        with tracer.start_as_current_span("SynapseAsync::_get_with_entity_bundle"):
+            # Note: This version overrides the version of 'entity' (if the object is Mappable)
+            kwargs.pop("version", None)
+            downloadFile = kwargs.pop("downloadFile", True)
+            downloadLocation = kwargs.pop("downloadLocation", None)
+            ifcollision = kwargs.pop("ifcollision", None)
+            submission = kwargs.pop("submission", None)
+            followLink = kwargs.pop("followLink", False)
+            path = kwargs.pop("path", None)
 
-        # make sure user didn't accidentlaly pass a kwarg that we don't handle
-        if kwargs:  # if there are remaining items in the kwargs
-            raise TypeError("Unexpected **kwargs: %r" % kwargs)
+            # make sure user didn't accidentlaly pass a kwarg that we don't handle
+            if kwargs:  # if there are remaining items in the kwargs
+                raise TypeError("Unexpected **kwargs: %r" % kwargs)
 
-        # If Link, get target ID entity bundle
-        if (
-            entityBundle["entity"]["concreteType"]
-            == "org.sagebionetworks.repo.model.Link"
-            and followLink
-        ):
-            targetId = entityBundle["entity"]["linksTo"]["targetId"]
-            targetVersion = entityBundle["entity"]["linksTo"].get("targetVersionNumber")
-            entityBundle = self._get_entity_bundle(targetId, targetVersion)
+            # If Link, get target ID entity bundle
+            if (
+                entityBundle["entity"]["concreteType"]
+                == "org.sagebionetworks.repo.model.Link"
+                and followLink
+            ):
+                targetId = entityBundle["entity"]["linksTo"]["targetId"]
+                targetVersion = entityBundle["entity"]["linksTo"].get(
+                    "targetVersionNumber"
+                )
+                entityBundle = self._get_entity_bundle(targetId, targetVersion)
 
-        # TODO is it an error to specify both downloadFile=False and downloadLocation?
-        # TODO this matters if we want to return already cached files when downloadFile=False
+            # TODO is it an error to specify both downloadFile=False and downloadLocation?
+            # TODO this matters if we want to return already cached files when downloadFile=False
 
-        # Make a fresh copy of the Entity
-        local_state = (
-            entity.local_state() if entity and isinstance(entity, Entity) else {}
-        )
-        if path is not None:
-            local_state["path"] = path
-        properties = entityBundle["entity"]
-        annotations = from_synapse_annotations(entityBundle["annotations"])
-        entity = Entity.create(properties, annotations, local_state)
-
-        # Handle download of fileEntities
-        if isinstance(entity, File):
-            # update the entity with FileHandle metadata
-            file_handle = next(
-                (
-                    handle
-                    for handle in entityBundle["fileHandles"]
-                    if handle["id"] == entity.dataFileHandleId
-                ),
-                None,
+            # Make a fresh copy of the Entity
+            local_state = (
+                entity.local_state() if entity and isinstance(entity, Entity) else {}
             )
-            entity._update_file_handle(file_handle)
+            if path is not None:
+                local_state["path"] = path
+            properties = entityBundle["entity"]
+            annotations = from_synapse_annotations(entityBundle["annotations"])
+            entity = Entity.create(properties, annotations, local_state)
 
-            if downloadFile:
-                if file_handle:
-                    self._download_file_entity(
-                        downloadLocation,
-                        entity,
-                        ifcollision,
-                        submission,
-                    )
-                else:  # no filehandle means that we do not have DOWNLOAD permission
-                    warning_message = (
-                        "WARNING: You have READ permission on this file entity but not DOWNLOAD "
-                        "permission. The file has NOT been downloaded."
-                    )
-                    self.client.logger.warning(
-                        "\n"
-                        + "!" * len(warning_message)
-                        + "\n"
-                        + warning_message
-                        + "\n"
-                        + "!" * len(warning_message)
-                        + "\n"
-                    )
-        return entity
+            # Handle download of fileEntities
+            if isinstance(entity, File):
+                # update the entity with FileHandle metadata
+                file_handle = next(
+                    (
+                        handle
+                        for handle in entityBundle["fileHandles"]
+                        if handle["id"] == entity.dataFileHandleId
+                    ),
+                    None,
+                )
+                entity._update_file_handle(file_handle)
 
-    @tracer.start_as_current_span("SynapseAsync::_download_file_entity_async")
+                if downloadFile:
+                    if file_handle:
+                        self._download_file_entity(
+                            downloadLocation,
+                            entity,
+                            ifcollision,
+                            submission,
+                        )
+                    else:  # no filehandle means that we do not have DOWNLOAD permission
+                        warning_message = (
+                            "WARNING: You have READ permission on this file entity but not DOWNLOAD "
+                            "permission. The file has NOT been downloaded."
+                        )
+                        self.client.logger.warning(
+                            "\n"
+                            + "!" * len(warning_message)
+                            + "\n"
+                            + warning_message
+                            + "\n"
+                            + "!" * len(warning_message)
+                            + "\n"
+                        )
+            return entity
+
     async def _download_file_entity(
         self,
         downloadLocation: str,
@@ -993,80 +1000,84 @@ class SynapseAsync(object):
 
             submission:       Access associated files through a submission rather than through an entity.
         """
-        # set the initial local state
-        entity.path = None
-        entity.files = []
-        entity.cacheDir = None
+        with tracer.start_as_current_span("SynapseAsync::_download_file_entity"):
+            # set the initial local state
+            entity.path = None
+            entity.files = []
+            entity.cacheDir = None
 
-        # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
-        # this location could be either in .synapseCache or a user specified location to which the user previously
-        # downloaded the file
-        cached_file_path = self.client.cache.get(
-            entity.dataFileHandleId, downloadLocation
-        )
-
-        # location in .synapseCache where the file would be corresponding to its FileHandleId
-        synapseCache_location = self.client.cache.get_cache_dir(entity.dataFileHandleId)
-
-        file_name = (
-            entity._file_handle.fileName
-            if cached_file_path is None
-            else os.path.basename(cached_file_path)
-        )
-
-        # Decide the best download location for the file
-        if downloadLocation is not None:
-            # Make sure the specified download location is a fully resolved directory
-            downloadLocation = self.client._ensure_download_location_is_directory(
-                downloadLocation
-            )
-        elif cached_file_path is not None:
-            # file already cached so use that as the download location
-            downloadLocation = os.path.dirname(cached_file_path)
-        else:
-            # file not cached and no user-specified location so default to .synapseCache
-            downloadLocation = synapseCache_location
-
-        # resolve file path collisions by either overwriting, renaming, or not downloading, depending on the
-        # ifcollision value
-        downloadPath = self.client._resolve_download_path_collisions(
-            downloadLocation,
-            file_name,
-            ifcollision,
-            synapseCache_location,
-            cached_file_path,
-        )
-        if downloadPath is None:
-            return
-
-        if cached_file_path is not None:  # copy from cache
-            if downloadPath != cached_file_path:
-                # create the foider if it does not exist already
-                if not os.path.exists(downloadLocation):
-                    os.makedirs(downloadLocation)
-                shutil.copy(cached_file_path, downloadPath)
-
-        else:  # download the file from URL (could be a local file)
-            objectType = "FileEntity" if submission is None else "SubmissionAttachment"
-            objectId = entity["id"] if submission is None else submission
-
-            # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
-            # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
-            # _downloadFileHandle may also return None to indicate that the download failed
-            # TODO: This would need to be converted to an ASYNC function
-            downloadPath = self.client._downloadFileHandle(
-                entity.dataFileHandleId, objectId, objectType, downloadPath
+            # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
+            # this location could be either in .synapseCache or a user specified location to which the user previously
+            # downloaded the file
+            cached_file_path = self.client.cache.get(
+                entity.dataFileHandleId, downloadLocation
             )
 
-            if downloadPath is None or not os.path.exists(downloadPath):
+            # location in .synapseCache where the file would be corresponding to its FileHandleId
+            synapseCache_location = self.client.cache.get_cache_dir(
+                entity.dataFileHandleId
+            )
+
+            file_name = (
+                entity._file_handle.fileName
+                if cached_file_path is None
+                else os.path.basename(cached_file_path)
+            )
+
+            # Decide the best download location for the file
+            if downloadLocation is not None:
+                # Make sure the specified download location is a fully resolved directory
+                downloadLocation = self.client._ensure_download_location_is_directory(
+                    downloadLocation
+                )
+            elif cached_file_path is not None:
+                # file already cached so use that as the download location
+                downloadLocation = os.path.dirname(cached_file_path)
+            else:
+                # file not cached and no user-specified location so default to .synapseCache
+                downloadLocation = synapseCache_location
+
+            # resolve file path collisions by either overwriting, renaming, or not downloading, depending on the
+            # ifcollision value
+            downloadPath = self.client._resolve_download_path_collisions(
+                downloadLocation,
+                file_name,
+                ifcollision,
+                synapseCache_location,
+                cached_file_path,
+            )
+            if downloadPath is None:
                 return
 
-        # converts the path format from forward slashes back to backward slashes on Windows
-        entity.path = os.path.normpath(downloadPath)
-        entity.files = [os.path.basename(downloadPath)]
-        entity.cacheDir = os.path.dirname(downloadPath)
+            if cached_file_path is not None:  # copy from cache
+                if downloadPath != cached_file_path:
+                    # create the foider if it does not exist already
+                    if not os.path.exists(downloadLocation):
+                        os.makedirs(downloadLocation)
+                    shutil.copy(cached_file_path, downloadPath)
 
-    @tracer.start_as_current_span("SynapseAsync::_get_entity_async")
+            else:  # download the file from URL (could be a local file)
+                objectType = (
+                    "FileEntity" if submission is None else "SubmissionAttachment"
+                )
+                objectId = entity["id"] if submission is None else submission
+
+                # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
+                # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
+                # _downloadFileHandle may also return None to indicate that the download failed
+                # TODO: This would need to be converted to an ASYNC function
+                downloadPath = self.client._downloadFileHandle(
+                    entity.dataFileHandleId, objectId, objectType, downloadPath
+                )
+
+                if downloadPath is None or not os.path.exists(downloadPath):
+                    return
+
+            # converts the path format from forward slashes back to backward slashes on Windows
+            entity.path = os.path.normpath(downloadPath)
+            entity.files = [os.path.basename(downloadPath)]
+            entity.cacheDir = os.path.dirname(downloadPath)
+
     async def _get_entity(
         self, entity: Union[str, dict, Entity], version: int = None
     ) -> Dict[str, Union[str, bool]]:
@@ -1080,13 +1091,12 @@ class SynapseAsync(object):
         Returns:
             A dictionary containing an Entity's properties
         """
+        with tracer.start_as_current_span("SynapseAsync::_get_entity"):
+            uri = "/entity/" + id_of(entity)
+            if version:
+                uri += "/version/%d" % version
+            return await self.rest_get(uri)
 
-        uri = "/entity/" + id_of(entity)
-        if version:
-            uri += "/version/%d" % version
-        return await self.rest_get(uri)
-
-    @tracer.start_as_current_span("SynapseAsync::_create_entity_async")
     async def _create_entity(
         self, entity: Union[dict, Entity]
     ) -> Dict[str, Union[str, bool]]:
@@ -1099,12 +1109,11 @@ class SynapseAsync(object):
         Returns:
             A dictionary containing an Entity's properties
         """
+        with tracer.start_as_current_span("SynapseAsync::_create_entity"):
+            return await self.rest_post(
+                uri="/entity", body=json.dumps(get_properties(entity))
+            )
 
-        return await self.rest_post(
-            uri="/entity", body=json.dumps(get_properties(entity))
-        )
-
-    @tracer.start_as_current_span("SynapseAsync::_update_entity_async")
     async def _update_entity(
         self,
         entity: Union[dict, Entity],
@@ -1122,26 +1131,25 @@ class SynapseAsync(object):
         Returns:
             A dictionary containing an Entity's properties
         """
+        with tracer.start_as_current_span("SynapseAsync::_update_entity"):
+            uri = "/entity/%s" % id_of(entity)
 
-        uri = "/entity/%s" % id_of(entity)
+            params = {}
+            if is_versionable(entity):
+                if versionLabel:
+                    # a versionLabel implicitly implies incrementing
+                    incrementVersion = True
+                elif incrementVersion and "versionNumber" in entity:
+                    versionLabel = str(entity["versionNumber"] + 1)
 
-        params = {}
-        if is_versionable(entity):
-            if versionLabel:
-                # a versionLabel implicitly implies incrementing
-                incrementVersion = True
-            elif incrementVersion and "versionNumber" in entity:
-                versionLabel = str(entity["versionNumber"] + 1)
+                if incrementVersion:
+                    entity["versionLabel"] = versionLabel
+                    params["newVersion"] = "true"
 
-            if incrementVersion:
-                entity["versionLabel"] = versionLabel
-                params["newVersion"] = "true"
+            return await self.rest_put(
+                uri, body=json.dumps(get_properties(entity)), params=params
+            )
 
-        return await self.rest_put(
-            uri, body=json.dumps(get_properties(entity)), params=params
-        )
-
-    @tracer.start_as_current_span("SynapseAsync::find_entity_id_async")
     async def find_entity_id(self, name, parent=None):
         """
         Find an Entity given its name and parent.
@@ -1153,25 +1161,25 @@ class SynapseAsync(object):
         Returns:
             The Entity ID or None if not found
         """
-        # when we want to search for a project by name. set parentId as None instead of ROOT_ENTITY
-        entity_lookup_request = {
-            "parentId": id_of(parent) if parent else None,
-            "entityName": name,
-        }
-        try:
-            return (
-                await self.rest_post(
-                    "/entity/child", body=json.dumps(entity_lookup_request)
-                )
-            ).get("id")
-        except SynapseHTTPError as e:
-            if (
-                e.response.status_code == 404
-            ):  # a 404 error is raised if the entity does not exist
-                return None
-            raise
+        with tracer.start_as_current_span("SynapseAsync::find_entity_id"):
+            # when we want to search for a project by name. set parentId as None instead of ROOT_ENTITY
+            entity_lookup_request = {
+                "parentId": id_of(parent) if parent else None,
+                "entityName": name,
+            }
+            try:
+                return (
+                    await self.rest_post(
+                        "/entity/child", body=json.dumps(entity_lookup_request)
+                    )
+                ).get("id")
+            except SynapseHTTPError as e:
+                if (
+                    e.response.status_code == 404
+                ):  # a 404 error is raised if the entity does not exist
+                    return None
+                raise
 
-    @tracer.start_as_current_span("SynapseAsync::_createAccessRequirementIfNone")
     async def _create_access_requirement_if_none(
         self, entity: Union[Entity, str]
     ) -> None:
@@ -1181,15 +1189,17 @@ class SynapseAsync(object):
         Arguments:
             entity: A Synapse ID or a Synapse Entity object
         """
-        existingRestrictions = await self.rest_get(
-            "/entity/%s/accessRequirement?offset=0&limit=1" % id_of(entity)
-        )
-        if len(existingRestrictions["results"]) <= 0:
-            await self.rest_post(
-                "/entity/%s/lockAccessRequirement" % id_of(entity), body=""
+        with tracer.start_as_current_span(
+            "SynapseAsync::_create_access_requirement_if_none"
+        ):
+            existingRestrictions = await self.rest_get(
+                "/entity/%s/accessRequirement?offset=0&limit=1" % id_of(entity)
             )
+            if len(existingRestrictions["results"]) <= 0:
+                await self.rest_post(
+                    "/entity/%s/lockAccessRequirement" % id_of(entity), body=""
+                )
 
-    @tracer.start_as_current_span("SynapseAsync::_get_file_handle_as_creator")
     async def _get_file_handle_as_creator(
         self, fileHandle: Dict[str, Union[str, int]]
     ) -> Dict[str, Union[str, int]]:
@@ -1203,8 +1213,9 @@ class SynapseAsync(object):
         Returns:
             A fileHandle retrieved from the fileHandle service.
         """
-        uri = "/fileHandle/%s" % (id_of(fileHandle),)
-        return await self.rest_get(uri, endpoint=self.client.fileHandleEndpoint)
+        with tracer.start_as_current_span("SynapseAsync::_get_file_handle_as_creator"):
+            uri = "/fileHandle/%s" % (id_of(fileHandle),)
+            return await self.rest_get(uri, endpoint=self.client.fileHandleEndpoint)
 
     async def _rest_call(
         self,
@@ -1311,7 +1322,6 @@ class SynapseAsync(object):
         except Exception as ex:
             self.client.logger.exception(ex)
 
-    @tracer.start_as_current_span("SynapseAsync::rest_post")
     async def rest_post(
         self,
         uri,
@@ -1336,18 +1346,19 @@ class SynapseAsync(object):
         Returns:
             JSON encoding of response
         """
-        trace.get_current_span().set_attributes({"url.path": uri})
-        response = await self._rest_call(
-            "post",
-            uri,
-            body,
-            endpoint,
-            headers,
-            retryPolicy,
-            requests_session_async,
-            **kwargs,
-        )
-        return self.client._return_rest_body(response)
+        with tracer.start_as_current_span("SynapseAsync::rest_post"):
+            trace.get_current_span().set_attributes({"url.path": uri})
+            response = await self._rest_call(
+                "post",
+                uri,
+                body,
+                endpoint,
+                headers,
+                retryPolicy,
+                requests_session_async,
+                **kwargs,
+            )
+            return self.client._return_rest_body(response)
 
     async def rest_put(
         self,
@@ -1387,7 +1398,6 @@ class SynapseAsync(object):
             )
             return self.client._return_rest_body(response)
 
-    @tracer.start_as_current_span("SynapseAsync::rest_delete")
     async def rest_delete(
         self,
         uri,
@@ -1408,14 +1418,15 @@ class SynapseAsync(object):
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
 
         """
-        trace.get_current_span().set_attributes({"url.path": uri})
-        await self._rest_call(
-            "delete",
-            uri,
-            None,
-            endpoint,
-            headers,
-            retryPolicy,
-            requests_session_async,
-            **kwargs,
-        )
+        with tracer.start_as_current_span("SynapseAsync::rest_delete"):
+            trace.get_current_span().set_attributes({"url.path": uri})
+            await self._rest_call(
+                "delete",
+                uri,
+                None,
+                endpoint,
+                headers,
+                retryPolicy,
+                requests_session_async,
+                **kwargs,
+            )
