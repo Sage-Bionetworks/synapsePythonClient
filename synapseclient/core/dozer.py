@@ -6,6 +6,7 @@ Created on Sep 21, 2017
 sleep while checking registered _listeners
 """
 import time
+import asyncio
 
 _listeners = []
 
@@ -26,3 +27,11 @@ def doze(secs, listener_check_interval_secs=0.1):
         for listener in _listeners:
             listener()
         time.sleep(listener_check_interval_secs)
+
+
+async def doze_async(secs, listener_check_interval_secs=0.1):
+    end_time = time.time() + secs
+    while time.time() < end_time:
+        for listener in _listeners:
+            listener()
+        asyncio.sleep(listener_check_interval_secs)

@@ -16,10 +16,10 @@ from synapseclient.core.logging_setup import (
     DEFAULT_LOGGER_NAME,
 )
 from synapseclient.core.utils import is_json
-from synapseclient.core.dozer import doze
+from synapseclient.core.dozer import doze, doze_async
 
 DEFAULT_RETRIES = 3
-DEFAULT_WAIT = 1
+DEFAULT_WAIT = 0.1
 DEFAULT_BACK_OFF = 2
 DEFAULT_MAX_WAIT = 30
 
@@ -311,7 +311,7 @@ async def with_retry_async(
                         )
                     )
                     total_wait += randomized_wait
-                    doze(randomized_wait)
+                    await doze_async(randomized_wait)
                     wait = min(max_wait, wait * back_off)
                     continue
 
