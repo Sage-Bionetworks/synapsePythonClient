@@ -34,4 +34,4 @@ async def doze_async(secs, listener_check_interval_secs=0.1):
     while time.time() < end_time:
         for listener in _listeners:
             listener()
-        asyncio.sleep(listener_check_interval_secs)
+        await asyncio.sleep(listener_check_interval_secs)
