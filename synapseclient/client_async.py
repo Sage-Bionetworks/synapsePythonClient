@@ -1297,7 +1297,6 @@ class SynapseAsync(object):
                 verbose=self.client.debug,
                 **retryPolicy,
             )
-            self.client.logger.debug(f"RESPONSE: {method} {uri}")
         else:
             response = await with_retry_async(
                 lambda: requests_method_fn(
