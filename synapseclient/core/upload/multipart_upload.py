@@ -567,14 +567,11 @@ class UploadAttemptAsync:
             print(f"Uploading part {part_number} of size {part_size}")
             for retry in range(2):
                 try:
-
-                    def put_and_print():
-                        self._syn.client.logger.debug(f"PUT {part_url}")
-                        return session.put(part_url, data=body, headers=signed_headers)
-
                     # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
                     response = await with_retry_async(
-                        lambda: put_and_print(),
+                        lambda: session.put(
+                            part_url, data=body, headers=signed_headers
+                        ),
                         retry_exceptions=[requests.exceptions.ConnectionError],
                     )
                     try:

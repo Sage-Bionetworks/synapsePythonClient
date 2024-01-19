@@ -6,6 +6,7 @@ import collections
 import collections.abc
 import configparser
 import csv
+import datetime
 import threading
 import errno
 import functools
@@ -273,6 +274,15 @@ class Synapse(object):
         """
         self._requests_session = requests_session or requests.Session()
 
+        async def log_request(request):
+            print(f"{datetime.datetime.now()}: Request: {request.method} {request.url}")
+
+        async def log_response(response):
+            request = response.request
+            print(
+                f"{datetime.datetime.now()}: Response: {request.method} {request.url} - Status {response.status_code}"
+            )
+
         # TODO: Connection limits need to be determined when working in a purely
         # async context. This is because higher limits will hit the Synapse concurrent
         # connection limit when using the async client.
@@ -281,13 +291,21 @@ class Synapse(object):
         httpx_timeout = httpx.Timeout(70, pool=None)
         self._requests_session_async_synapse = (
             requests_session_async_synapse
-            or httpx.AsyncClient(limits=httpx_limits, timeout=httpx_timeout)
+            or httpx.AsyncClient(
+                limits=httpx_limits,
+                timeout=httpx_timeout,
+                event_hooks={"request": [log_request], "response": [log_response]},
+            )
         )
 
         # Removing pool timeout because of https://github.com/encode/httpx/issues/1171
         httpx_timeout = httpx.Timeout(70, pool=None)
         self._requests_session_async_storage = (
-            requests_session_async_storage or httpx.AsyncClient(timeout=httpx_timeout)
+            requests_session_async_storage
+            or httpx.AsyncClient(
+                timeout=httpx_timeout,
+                event_hooks={"request": [log_request], "response": [log_response]},
+            )
         )
 
         cache_root_dir = (

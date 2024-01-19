@@ -1277,8 +1277,6 @@ class SynapseAsync(object):
             uri, endpoint=endpoint, headers=headers
         )
 
-        self.client.logger.debug(f"{method} {uri}")
-
         retryPolicy = self.client._build_retry_policy(retryPolicy)
         requests_session_async_synapse = (
             requests_session_async_synapse
@@ -1299,6 +1297,7 @@ class SynapseAsync(object):
                 verbose=self.client.debug,
                 **retryPolicy,
             )
+            self.client.logger.debug(f"RESPONSE: {method} {uri}")
         else:
             response = await with_retry_async(
                 lambda: requests_method_fn(
@@ -1310,6 +1309,7 @@ class SynapseAsync(object):
                 verbose=self.client.debug,
                 **retryPolicy,
             )
+            self.client.logger.debug(f"RESPONSE: {method} {uri}")
 
         self.client._handle_synapse_http_error(response)
         return response
