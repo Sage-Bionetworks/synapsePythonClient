@@ -4,7 +4,7 @@ from datetime import datetime, date
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 from synapseclient.api import set_annotations
-from opentelemetry import trace, context
+from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.annotations import ANNO_TYPE_TO_FUNC
@@ -49,15 +49,9 @@ class Annotations:
 
         print(f"Storing annotations for id: {self.id}, etag: {self.etag}")
         with tracer.start_as_current_span(f"Annotation_store: {self.id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            result = await loop.run_in_executor(
-                None,
-                lambda: set_annotations(
-                    annotations=self,
-                    synapse_client=synapse_client,
-                    opentelemetry_context=current_context,
-                ),
+            result = await set_annotations(
+                annotations=self,
+                synapse_client=synapse_client,
             )
             print(f"annotations store for {self.id} complete")
             self.annotations = Annotations.from_dict(result)

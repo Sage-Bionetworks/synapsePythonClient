@@ -553,7 +553,9 @@ class UploadAttemptAsync:
 
             part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
 
-            session: httpx.AsyncClient = self._syn.client._requests_session_async
+            session: httpx.AsyncClient = (
+                self._syn.client._requests_session_async_storage
+            )
 
             # obtain the body (i.e. the upload bytes) for the given part number.
             body = (
@@ -612,7 +614,6 @@ class UploadAttemptAsync:
                     part_number=part_number,
                     md5=md5_hex,
                 ),
-                requests_session_async=session,
                 endpoint=self._syn.client.fileHandleEndpoint,
             )
 
@@ -684,7 +685,6 @@ class UploadAttemptAsync:
                 "/file/multipart/{upload_id}/complete".format(
                     upload_id=self._upload_id,
                 ),
-                requests_session_async=self._syn.client._requests_session_async,
                 endpoint=self._syn.client.fileHandleEndpoint,
             )
 
@@ -836,7 +836,6 @@ async def multipart_upload_file_async(
     storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
-    max_threads: int = None,
 ) -> str:
     """Upload a file to a Synapse upload destination in chunks.
 

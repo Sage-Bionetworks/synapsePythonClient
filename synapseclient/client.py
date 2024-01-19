@@ -247,7 +247,8 @@ class Synapse(object):
         skip_checks: bool = False,
         configPath: str = CONFIG_FILE,
         requests_session: httpx.Client = None,
-        requests_session_async: httpx.AsyncClient = None,
+        requests_session_async_synapse: httpx.AsyncClient = None,
+        requests_session_async_storage: httpx.AsyncClient = None,
         cache_root_dir: str = None,
         silent: bool = None,
     ) -> "Synapse":
@@ -275,11 +276,19 @@ class Synapse(object):
         # TODO: Connection limits need to be determined when working in a purely
         # async context. This is because higher limits will hit the Synapse concurrent
         # connection limit when using the async client.
-        httpx_limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+        httpx_limits = httpx.Limits(max_keepalive_connections=3, max_connections=3)
         # Removing pool timeout because of https://github.com/encode/httpx/issues/1171
         httpx_timeout = httpx.Timeout(70, pool=None)
-        self._requests_session_async = requests_session_async or httpx.AsyncClient(
-            limits=httpx_limits, timeout=httpx_timeout
+        self._requests_session_async_synapse = (
+            requests_session_async_synapse
+            or httpx.AsyncClient(limits=httpx_limits, timeout=httpx_timeout)
+        )
+
+        # Removing pool timeout because of https://github.com/encode/httpx/issues/1171
+        httpx_timeout = httpx.Timeout(70, pool=None)
+        self._requests_session_async_storage = (
+            requests_session_async_storage
+            or httpx.AsyncClient(limits=httpx_limits, timeout=httpx_timeout)
         )
 
         cache_root_dir = (

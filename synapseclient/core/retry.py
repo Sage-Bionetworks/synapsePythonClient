@@ -237,7 +237,10 @@ async def with_retry_async(
 
             # Try making the call
             try:
-                response = await function()
+                with tracer.start_as_current_span(
+                    f"Retry::function execution::{function.__name__}"
+                ):
+                    response = await function()
             except Exception as ex:
                 exc = ex
                 exc_info = sys.exc_info()

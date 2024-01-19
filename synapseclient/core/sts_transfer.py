@@ -256,3 +256,32 @@ def is_storage_location_sts_enabled(syn, entity_id, location):
         )
 
     return destination.get("stsEnabled", False)
+
+
+async def is_storage_location_sts_enabled_async(syn, entity_id, location):
+    """
+    Returns whether the given storage location is enabled for STS.
+
+    Arguments:
+        syn:       A [Synapse][synapseclient.Synapse] object
+        entity_id: The ID of synapse entity whose storage location we want to check for sts access
+        location:  A storage location ID or a dictionary representing the location UploadDestination
+
+    Returns:
+        True if STS if enabled for the location, False otherwise
+    """
+    if not location:
+        return False
+
+    if isinstance(location, collections.abc.Mapping):
+        # looks like this is already an upload destination dict
+        destination = location
+
+    else:
+        # otherwise treat it as a storage location id,
+        destination = await syn.rest_get(
+            f"/entity/{entity_id}/uploadDestination/{location}",
+            endpoint=syn.fileHandleEndpoint,
+        )
+
+    return destination.get("stsEnabled", False)

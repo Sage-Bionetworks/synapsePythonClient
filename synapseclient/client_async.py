@@ -309,7 +309,6 @@ class SynapseAsync(object):
                         md5=local_state_fh.get("contentMd5"),
                         file_size=local_state_fh.get("contentSize"),
                         mimetype=local_state_fh.get("contentType"),
-                        max_threads=self.client.max_threads,
                     )
                     properties["dataFileHandleId"] = fileHandle["id"]
                     local_state["_file_handle"] = fileHandle
@@ -1225,7 +1224,7 @@ class SynapseAsync(object):
         endpoint,
         headers,
         retryPolicy,
-        requests_session_async,
+        requests_session_async_synapse,
         **kwargs,
     ):
         """
@@ -1238,7 +1237,7 @@ class SynapseAsync(object):
             endpoint:         Server endpoint, defaults to self.repoEndpoint
             headers:          Dictionary of headers to use rather than the API-key-signed default set of headers
             retryPolicy:      A retry policy
-            requests_session_async:
+            requests_session_async_synapse:
             kwargs:           Any other arguments taken by a
                               [request](http://docs.python-requests.org/en/latest/) method
 
@@ -1250,12 +1249,13 @@ class SynapseAsync(object):
         )
 
         retryPolicy = self.client._build_retry_policy(retryPolicy)
-        requests_session_async = (
-            requests_session_async or self.client._requests_session_async
+        requests_session_async_synapse = (
+            requests_session_async_synapse
+            or self.client._requests_session_async_synapse
         )
 
         auth = kwargs.pop("auth", self.client.credentials)
-        requests_method_fn = getattr(requests_session_async, method)
+        requests_method_fn = getattr(requests_session_async_synapse, method)
         if data:
             response = await with_retry_async(
                 lambda: requests_method_fn(
@@ -1289,7 +1289,7 @@ class SynapseAsync(object):
         endpoint=None,
         headers=None,
         retryPolicy={},
-        requests_session_async=None,
+        requests_session_async_synapse=None,
         **kwargs,
     ):
         """
@@ -1299,7 +1299,7 @@ class SynapseAsync(object):
             uri: URI on which get is performed
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use rather than the API-key-signed default set of headers
-            requests_session_async:
+            requests_session_async_synapse:
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
 
         Returns:
@@ -1315,7 +1315,7 @@ class SynapseAsync(object):
                     endpoint,
                     headers,
                     retryPolicy,
-                    requests_session_async,
+                    requests_session_async_synapse,
                     **kwargs,
                 )
                 return self.client._return_rest_body(response)
@@ -1329,7 +1329,7 @@ class SynapseAsync(object):
         endpoint=None,
         headers=None,
         retryPolicy={},
-        requests_session_async=None,
+        requests_session_async_synapse=None,
         **kwargs,
     ):
         """
@@ -1340,7 +1340,7 @@ class SynapseAsync(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             body: The payload to be delivered
             headers: Dictionary of headers to use rather than the API-key-signed default set of headers
-            requests_session_async:
+            requests_session_async_synapse:
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
 
         Returns:
@@ -1355,7 +1355,7 @@ class SynapseAsync(object):
                 endpoint,
                 headers,
                 retryPolicy,
-                requests_session_async,
+                requests_session_async_synapse,
                 **kwargs,
             )
             return self.client._return_rest_body(response)
@@ -1367,7 +1367,7 @@ class SynapseAsync(object):
         endpoint=None,
         headers=None,
         retryPolicy={},
-        requests_session_async=None,
+        requests_session_async_synapse=None,
         **kwargs,
     ):
         """
@@ -1378,7 +1378,7 @@ class SynapseAsync(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             body: The payload to be delivered
             headers: Dictionary of headers to use rather than the API-key-signed default set of headers
-            requests_session_async:
+            requests_session_async_synapse:
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
 
         Returns
@@ -1393,7 +1393,7 @@ class SynapseAsync(object):
                 endpoint,
                 headers,
                 retryPolicy,
-                requests_session_async,
+                requests_session_async_synapse,
                 **kwargs,
             )
             return self.client._return_rest_body(response)
@@ -1404,7 +1404,7 @@ class SynapseAsync(object):
         endpoint=None,
         headers=None,
         retryPolicy={},
-        requests_session_async=None,
+        requests_session_async_synapse=None,
         **kwargs,
     ):
         """
@@ -1414,7 +1414,7 @@ class SynapseAsync(object):
             uri: URI of resource to be deleted
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use rather than the API-key-signed default set of headers
-            requests_session_async:
+            requests_session_async_synapse:
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
 
         """
@@ -1427,6 +1427,6 @@ class SynapseAsync(object):
                 endpoint,
                 headers,
                 retryPolicy,
-                requests_session_async,
+                requests_session_async_synapse,
                 **kwargs,
             )

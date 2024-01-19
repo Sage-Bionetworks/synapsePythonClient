@@ -7,18 +7,16 @@ import json
 from dataclasses import asdict
 
 from typing import TYPE_CHECKING, Optional
-from synapseclient import Synapse
+from synapseclient import Synapse, SynapseAsync
 from synapseclient.annotations import _convert_to_annotations_list
-from opentelemetry import context
 
 if TYPE_CHECKING:
     from synapseclient.models import Annotations
 
 
-def set_annotations(
+async def set_annotations(
     annotations: "Annotations",
     synapse_client: Optional[Synapse] = None,
-    opentelemetry_context: Optional[context.Context] = None,
 ):
     """Call to synapse and set the annotations for the given input.
 
@@ -34,7 +32,9 @@ def set_annotations(
 
     synapse_annotations = _convert_to_annotations_list(annotations_dict["annotations"])
 
-    return Synapse.get_client(synapse_client=synapse_client).restPUT(
+    return await SynapseAsync(
+        Synapse.get_client(synapse_client=synapse_client)
+    ).rest_put(
         f"/entity/{annotations.id}/annotations2",
         body=json.dumps(
             {
@@ -43,5 +43,4 @@ def set_annotations(
                 "annotations": synapse_annotations,
             }
         ),
-        opentelemetry_context=opentelemetry_context,
     )
