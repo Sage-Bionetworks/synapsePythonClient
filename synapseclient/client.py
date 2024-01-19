@@ -957,7 +957,8 @@ class Synapse(object):
         """
 
         if utils.is_synapse_id_str(entity):
-            entity = self._getEntity(entity)
+            synid, version = utils.get_synid_and_version(entity)
+            entity = self._getEntity(synid, version)
         try:
             self.logger.info(
                 json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii)
@@ -1086,8 +1087,14 @@ class Synapse(object):
                     " Please use syn.store() to save your entity and try again."
                 )
             else:
-                version = kwargs.get("version", None)
-                bundle = self._getEntityBundle(entity, version)
+                input_version = kwargs.get("version", None)
+                synid_and_version = utils.get_synid_and_version(entity)
+                version = (
+                    input_version if input_version is not None else synid_and_version[1]
+                )
+                # If ``version`` is None, the arg will be ignored
+                bundle = self._getEntityBundle(synid_and_version[0], version)
+
             # Check and warn for unmet access requirements
             self._check_entity_restrictions(
                 bundle, entity, kwargs.get("downloadFile", True)
@@ -2396,9 +2403,12 @@ class Synapse(object):
 
         Returns:
             A dictionary of the Entity's benefactor
+
         """
         if utils.is_synapse_id_str(entity) or is_synapse_entity(entity):
-            return self.restGET("/entity/%s/benefactor" % id_of(entity))
+            synid, _ = utils.get_synid_and_version(entity)
+            return self.restGET("/entity/%s/benefactor" % synid)
+
         return entity
 
     def _getACL(self, entity: Union[Entity, str]) -> Dict[str, Union[str, list]]:
