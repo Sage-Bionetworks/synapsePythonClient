@@ -188,11 +188,12 @@ class File:
                     path=self.path,
                     name=self.name,
                     parent=parent.id if parent else self.parent_id,
+                    annotations=self.annotations,
                 )
                 client = SynapseAsync(Synapse.get_client(synapse_client=synapse_client))
                 entity = await client.store(obj=synapse_file)
 
-                self.fill_from_dict(synapse_file=entity, set_annotations=False)
+                self.fill_from_dict(synapse_file=entity, set_annotations=True)
 
                 print(f"Stored file {self.name}, id: {self.id}: {self.path}")
             elif self.id and not self.etag:
@@ -202,11 +203,14 @@ class File:
                 await self.get(synapse_client=synapse_client, download_file=False)
                 self.annotations = annotations_to_persist
 
-            if self.annotations:
-                result = await Annotations(
-                    id=self.id, etag=self.etag, annotations=self.annotations
-                ).store(synapse_client=synapse_client)
-                self.annotations = result.annotations
+            # TODO: We should handle storing annotations during the initial store
+            # TODO: However - We will also need to handle the case where we are only storing
+            # TODO: annotations and not a file.
+            # if self.annotations:
+            #     result = await Annotations(
+            #         id=self.id, etag=self.etag, annotations=self.annotations
+            #     ).store(synapse_client=synapse_client)
+            #     self.annotations = result.annotations
 
             return self
 
