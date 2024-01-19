@@ -24,6 +24,8 @@ import uuid
 import warnings
 import zipfile
 
+import synapseclient
+
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
@@ -342,10 +344,36 @@ def is_same_base_url(url1: str, url2: str) -> bool:
 def is_synapse_id_str(obj):
     """If the input is a Synapse ID return it, otherwise return None"""
     if isinstance(obj, str):
-        m = re.match(r"(syn\d+$)", obj)
+        m = re.match(r"(syn\d+(\.\d+)?$)", obj)
         if m:
             return m.group(1)
     return None
+
+
+def get_synid_and_version(
+    obj: typing.Union[str, collections.abc.Mapping]
+) -> typing.Tuple[str, typing.Union[int, None]]:
+    """Extract the Synapse ID and version number from input entity
+
+    Returns:
+        A tuple containing the synapse ID and version number,
+        where the version number may be an integer or None if
+        the input object does not contain a versonNumber or
+        .version notation (if string).
+    """
+
+    if isinstance(obj, str):
+        synapse_id_and_version = is_synapse_id_str(obj)
+        m = re.match(r"(syn\d+)(?:\.(\d+))?", synapse_id_and_version)
+        id = m.group(1)
+        version = int(m.group(2)) if m.group(2) is not None else m.group(2)
+    elif isinstance(obj, synapseclient.Entity):
+        id = id_of(obj)
+        version = None
+        if "versionNumber" in obj:
+            version = obj["versionNumber"]
+
+    return id, version
 
 
 def bool_or_none(input_value: str) -> typing.Union[bool, None]:
