@@ -1277,6 +1277,8 @@ class SynapseAsync(object):
             uri, endpoint=endpoint, headers=headers
         )
 
+        self.client.logger.debug(f"{method} {uri}")
+
         retryPolicy = self.client._build_retry_policy(retryPolicy)
         requests_session_async_synapse = (
             requests_session_async_synapse
