@@ -287,8 +287,7 @@ class Synapse(object):
         # Removing pool timeout because of https://github.com/encode/httpx/issues/1171
         httpx_timeout = httpx.Timeout(70, pool=None)
         self._requests_session_async_storage = (
-            requests_session_async_storage
-            or httpx.AsyncClient(limits=httpx_limits, timeout=httpx_timeout)
+            requests_session_async_storage or httpx.AsyncClient(timeout=httpx_timeout)
         )
 
         cache_root_dir = (
