@@ -259,7 +259,7 @@ async def with_retry_async(
                     response_message = _get_message(response)
                     retry = True
                     logger.debug(
-                        f"retrying on status code: {str(response.status_code)} - {response.request.url.host}{response.request.url.path}"
+                        f"retrying on status code: {str(response.status_code)} - {response.request.url.host}{response.request.url.path}?{response.request.url.params}"
                     )
                     # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
                     logger.debug(str(response_message))
