@@ -353,8 +353,11 @@ class Annotations(dict):
     @id.setter
     def id(self, value):
         if value is None:
-            raise ValueError("id must not be None")
-        self._id = id_of(value)
+            # TODO: Determine if we should keep this check or not
+            self._id = None
+            # raise ValueError("id must not be None")
+        else:
+            self._id = id_of(value)
 
     @property
     def etag(self):
@@ -363,8 +366,11 @@ class Annotations(dict):
     @etag.setter
     def etag(self, value):
         if value is None:
-            raise ValueError("etag must not be None")
-        self._etag = str(value)
+            self._etag = None
+            # TODO: Determine if we should keep this check or not
+            # raise ValueError("etag must not be None")
+        else:
+            self._etag = str(value)
 
 
 def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.Any]:

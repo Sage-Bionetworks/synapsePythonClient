@@ -376,7 +376,11 @@ class SynapseAsync(object):
                         ] = target_properties["versionNumber"]
                     properties["name"] = target_properties["name"]
                 try:
-                    properties = await self._create_entity(properties)
+                    entity_bundle = await self._create_entity_bundle(
+                        entity=properties, annotations=annotations
+                    )
+                    properties = entity_bundle["entity"]
+                    is_create = True
                 except SynapseHTTPError as ex:
                     if createOrUpdate and ex.response.status_code == 409:
                         # Get the existing Entity's ID via the name and parent
@@ -418,7 +422,7 @@ class SynapseAsync(object):
                 await self._create_access_requirement_if_none(properties)
 
             # Update annotations
-            if (not bundle and annotations) or (
+            if (not bundle and annotations and not is_create) or (
                 bundle and check_annotations_changed(bundle["annotations"], annotations)
             ):
                 annotations = await self.set_annotations(
@@ -1111,6 +1115,31 @@ class SynapseAsync(object):
         with tracer.start_as_current_span("SynapseAsync::_create_entity"):
             return await self.rest_post(
                 uri="/entity", body=json.dumps(get_properties(entity))
+            )
+
+    async def _create_entity_bundle(
+        self, entity: Union[dict, Entity], annotations
+    ) -> Dict[str, Union[str, bool]]:
+        """
+        Create a new entity in Synapse.
+
+        Arguments:
+            entity: A dictionary representing an Entity or a Synapse Entity object
+
+        Returns:
+            A dictionary containing an Entity's properties
+        """
+        with tracer.start_as_current_span("SynapseAsync::_create_entity"):
+            body = {
+                "entity": get_properties(entity),
+            }
+            if annotations:
+                body["annotations"] = to_synapse_annotations(
+                    Annotations(id=None, etag=None, values=annotations)
+                )
+            return await self.rest_post(
+                uri="/entity/bundle2/create",
+                body=json.dumps(body),
             )
 
     async def _update_entity(

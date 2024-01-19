@@ -192,7 +192,7 @@ class Folder:
                             f"Stored annotations id: {result.id}, etag: {result.etag}"
                         )
                     else:
-                        raise ValueError(f"Unknown type: {type(result)}")
+                        raise ValueError(f"Unknown type: {type(result)}", result)
             except Exception as ex:
                 Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
                 print("I hit an exception")
