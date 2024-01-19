@@ -18,7 +18,7 @@ from synapseclient.core.logging_setup import (
 from synapseclient.core.utils import is_json
 from synapseclient.core.dozer import doze, doze_async
 
-DEFAULT_RETRIES = 3
+DEFAULT_RETRIES = 6
 DEFAULT_WAIT = 0.1
 DEFAULT_BACK_OFF = 2
 DEFAULT_MAX_WAIT = 30
@@ -259,7 +259,8 @@ async def with_retry_async(
                     response_message = _get_message(response)
                     retry = True
                     logger.debug(
-                        "retrying on status code: %s" % str(response.status_code)
+                        "retrying on status code: %s - %s" % str(response.status_code),
+                        f"{response.request.url.host}{response.request.url.path}",
                     )
                     # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
                     logger.debug(str(response_message))
