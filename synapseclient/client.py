@@ -276,7 +276,7 @@ class Synapse(object):
         # TODO: Connection limits need to be determined when working in a purely
         # async context. This is because higher limits will hit the Synapse concurrent
         # connection limit when using the async client.
-        httpx_limits = httpx.Limits(max_keepalive_connections=3, max_connections=3)
+        httpx_limits = httpx.Limits(max_connections=25)
         # Removing pool timeout because of https://github.com/encode/httpx/issues/1171
         httpx_timeout = httpx.Timeout(70, pool=None)
         self._requests_session_async_synapse = (
