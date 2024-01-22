@@ -187,12 +187,35 @@ class Team:
             )
         return team_members
 
-    # def invite(
-    #     self, user: str, message: str, synapse_client: Optional[Synapse] = None
-    # ) -> dict[str, str]:
-    #     return Synapse.get_client(synapse_client=synapse_client).invite_to_team(
-    #         team=self, user=user, message=message, force=True
-    #     )
+    def invite(
+        self, user: str, message: str, synapse_client: Optional[Synapse] = None
+    ) -> dict[str, str]:
+        """Invites a user to a team.
+
+        Args:
+            user: The user to invite.
+            message: The message to send.
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            dict: The invite response.
+        """
+        with tracer.start_as_current_span(f"Team_Invite: {self.id}"):
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            invite = loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).invite_to_team(
+                    team=self,
+                    user=user,
+                    message=message,
+                    force=True,
+                    opentelemetry_context=current_context,
+                ),
+            )
+        return invite
 
     # def open_invitiations(
     #     self, synapse_client: Optional[Synapse] = None

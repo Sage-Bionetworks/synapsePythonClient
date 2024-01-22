@@ -4010,9 +4010,14 @@ class Synapse(object):
         )
         return response
 
-    @tracer.start_as_current_span("Synapse::invite_to_team")
     def invite_to_team(
-        self, team, user=None, inviteeEmail=None, message=None, force=False
+        self,
+        team,
+        user=None,
+        inviteeEmail=None,
+        message=None,
+        force=False,
+        opentelemetry_context=None,
     ):
         """Invite user to a Synapse team via Synapse username or email
         (choose one or the other)
@@ -4024,57 +4029,65 @@ class Synapse(object):
             inviteeEmail: Email of user
             message: Additional message for the user getting invited to the team.
             force: If an open invitation exists for the invitee, the old invite will be cancelled.
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                    cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             MembershipInvitation or None if user is already a member
         """
-        # Throw error if both user and email is specified and if both not
-        # specified
-        id_email_specified = inviteeEmail is not None and user is not None
-        id_email_notspecified = inviteeEmail is None and user is None
-        if id_email_specified or id_email_notspecified:
-            raise ValueError("Must specify either 'user' or 'inviteeEmail'")
+        with tracer.start_as_current_span(
+            "Synapse::invite_to_team", context=opentelemetry_context
+        ):
+            # Throw error if both user and email is specified and if both not
+            # specified
+            id_email_specified = inviteeEmail is not None and user is not None
+            id_email_notspecified = inviteeEmail is None and user is None
+            if id_email_specified or id_email_notspecified:
+                raise ValueError("Must specify either 'user' or 'inviteeEmail'")
 
-        teamid = id_of(team)
-        is_member = False
-        open_invitations = self.get_team_open_invitations(teamid)
+            teamid = id_of(team)
+            is_member = False
+            open_invitations = self.get_team_open_invitations(teamid)
 
-        if user is not None:
-            inviteeId = self.getUserProfile(user)["ownerId"]
-            membership_status = self.get_membership_status(inviteeId, teamid)
-            is_member = membership_status["isMember"]
-            open_invites_to_user = [
-                invitation
-                for invitation in open_invitations
-                if invitation.get("inviteeId") == inviteeId
-            ]
-        else:
-            inviteeId = None
-            open_invites_to_user = [
-                invitation
-                for invitation in open_invitations
-                if invitation.get("inviteeEmail") == inviteeEmail
-            ]
-        # Only invite if the invitee is not a member and
-        # if invitee doesn't have an open invitation unless force=True
-        if not is_member and (not open_invites_to_user or force):
-            # Delete all old invitations
-            for invite in open_invites_to_user:
-                self._delete_membership_invitation(invite["id"])
-            return self.send_membership_invitation(
-                teamid, inviteeId=inviteeId, inviteeEmail=inviteeEmail, message=message
-            )
-        if is_member:
-            not_sent_reason = "invitee is already a member"
-        else:
-            not_sent_reason = (
-                "invitee already has an open invitation "
-                "Set force=True to send new invite."
-            )
+            if user is not None:
+                inviteeId = self.getUserProfile(user)["ownerId"]
+                membership_status = self.get_membership_status(inviteeId, teamid)
+                is_member = membership_status["isMember"]
+                open_invites_to_user = [
+                    invitation
+                    for invitation in open_invitations
+                    if invitation.get("inviteeId") == inviteeId
+                ]
+            else:
+                inviteeId = None
+                open_invites_to_user = [
+                    invitation
+                    for invitation in open_invitations
+                    if invitation.get("inviteeEmail") == inviteeEmail
+                ]
+            # Only invite if the invitee is not a member and
+            # if invitee doesn't have an open invitation unless force=True
+            if not is_member and (not open_invites_to_user or force):
+                # Delete all old invitations
+                for invite in open_invites_to_user:
+                    self._delete_membership_invitation(invite["id"])
+                return self.send_membership_invitation(
+                    teamid,
+                    inviteeId=inviteeId,
+                    inviteeEmail=inviteeEmail,
+                    message=message,
+                )
+            if is_member:
+                not_sent_reason = "invitee is already a member"
+            else:
+                not_sent_reason = (
+                    "invitee already has an open invitation "
+                    "Set force=True to send new invite."
+                )
 
-        self.logger.warning("No invitation sent: {}".format(not_sent_reason))
-        # Return None if no invite is sent.
-        return None
+            self.logger.warning("No invitation sent: {}".format(not_sent_reason))
+            # Return None if no invite is sent.
+            return None
 
     @tracer.start_as_current_span("Synapse::submit")
     def submit(
