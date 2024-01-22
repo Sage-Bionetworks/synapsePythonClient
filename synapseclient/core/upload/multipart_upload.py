@@ -18,7 +18,7 @@ import requests
 import threading
 import time
 import httpx
-from typing import List, Mapping
+from typing import List, Mapping, TYPE_CHECKING
 
 from synapseclient.core.retry import with_retry, with_retry_async
 from synapseclient.core import pool_provider
@@ -32,6 +32,9 @@ from synapseclient.core.exceptions import (
 from synapseclient.core.utils import md5_fn, md5_for_file, MB, Spinner
 from opentelemetry import trace, context
 from opentelemetry.context import Context
+
+if TYPE_CHECKING:
+    from synapseclient import SynapseAsync
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
@@ -428,7 +431,7 @@ class UploadAttemptAsync:
         md5_fn,
         force_restart: bool,
     ):
-        self._syn = syn
+        self._syn: "SynapseAsync" = syn
         self._dest_file_name = dest_file_name
         self._part_size = upload_request_payload["partSizeBytes"]
 
@@ -547,105 +550,87 @@ class UploadAttemptAsync:
             return refreshed_url
 
     async def _handle_part(self, part_number):
-        can_execute = False
-
-        # TODO: Need to have an interrupt handler for this function?
-        # TODO: Could we replace this with an Event?
-        # https://docs.python.org/3/library/asyncio-sync.html#asyncio.Event
-        while not can_execute:
-            async with self._syn.client._async_lock:
-                if (
-                    self._syn.client._file_parts_uploading
-                    < self._syn.client._file_part_upload_max_limit
-                ):
-                    self._syn.client._file_parts_uploading += 1
-                    can_execute = True
-            if not can_execute:
-                await asyncio.sleep(0.01)
-
-        with tracer.start_as_current_span("UploadAttempt::_handle_part"):
-            trace.get_current_span().set_attributes(
-                {"thread.id": threading.get_ident()}
-            )
-
-            part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
-
-            session: httpx.AsyncClient = (
-                self._syn.client._requests_session_async_storage
-            )
-
-            # obtain the body (i.e. the upload bytes) for the given part number.
-            body = (
-                self._part_request_body_provider_fn(part_number)
-                if self._part_request_body_provider_fn
-                else None
-            )
-            part_size = len(body) if body else 0
-            print(f"Uploading part {part_number} of size {part_size}")
-            for retry in range(2):
-                try:
-                    # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
-                    response = await with_retry_async(
-                        lambda: session.put(
-                            part_url, data=body, headers=signed_headers
-                        ),
-                        retry_exceptions=[requests.exceptions.ConnectionError],
-                    )
-                    try:
-                        _raise_for_status(response)
-                    except Exception as ex:
-                        raise ex
-
-                    # completed upload part to s3 successfully
-                    break
-
-                except SynapseHTTPError as ex:
-                    if ex.response.status_code == 403 and retry < 1:
-                        # we interpret this to mean our pre_signed url expired.
-                        self._syn.client.logger.debug(
-                            "The pre-signed upload URL for part {} has expired."
-                            "Refreshing urls and retrying.\n".format(part_number)
-                        )
-
-                        # we refresh all the urls and obtain this part's
-                        # specific url for the retry
-                        with tracer.start_as_current_span(
-                            "UploadAttempt::refresh_pre_signed_part_urls"
-                        ):
-                            (
-                                part_url,
-                                signed_headers,
-                            ) = await self._refresh_pre_signed_part_urls(
-                                part_number,
-                                part_url,
-                            )
-
-                    else:
-                        raise
-
-            md5_hex = self._md5_fn(body, response)
-            del response
-            del body
-
-            async with self._lock_add_part:
-                # now tell synapse that we uploaded that part successfully
-                await self._syn.rest_put(
-                    "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}".format(
-                        upload_id=self._upload_id,
-                        part_number=part_number,
-                        md5=md5_hex,
-                    ),
-                    endpoint=self._syn.client.fileHandleEndpoint,
+        async with self._syn.client._file_part_semaphore:
+            with tracer.start_as_current_span("UploadAttempt::_handle_part"):
+                trace.get_current_span().set_attributes(
+                    {"thread.id": threading.get_ident()}
                 )
 
-            # # remove so future batch pre_signed url fetches will exclude this part
-            async with self._lock:
-                del self._pre_signed_part_urls[part_number]
+                part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
 
-            async with self._syn.client._async_lock:
-                self._syn.client._file_parts_uploading -= 1
+                session: httpx.AsyncClient = (
+                    self._syn.client._requests_session_async_storage
+                )
 
-            return part_number, part_size
+                # obtain the body (i.e. the upload bytes) for the given part number.
+                body = (
+                    self._part_request_body_provider_fn(part_number)
+                    if self._part_request_body_provider_fn
+                    else None
+                )
+                part_size = len(body) if body else 0
+                print(f"Uploading part {part_number} of size {part_size}")
+                for retry in range(2):
+                    try:
+                        # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
+                        response = await with_retry_async(
+                            lambda: session.put(
+                                part_url, data=body, headers=signed_headers
+                            ),
+                            retry_exceptions=[requests.exceptions.ConnectionError],
+                        )
+                        try:
+                            _raise_for_status(response)
+                        except Exception as ex:
+                            raise ex
+
+                        # completed upload part to s3 successfully
+                        break
+
+                    except SynapseHTTPError as ex:
+                        if ex.response.status_code == 403 and retry < 1:
+                            # we interpret this to mean our pre_signed url expired.
+                            self._syn.client.logger.debug(
+                                "The pre-signed upload URL for part {} has expired."
+                                "Refreshing urls and retrying.\n".format(part_number)
+                            )
+
+                            # we refresh all the urls and obtain this part's
+                            # specific url for the retry
+                            with tracer.start_as_current_span(
+                                "UploadAttempt::refresh_pre_signed_part_urls"
+                            ):
+                                (
+                                    part_url,
+                                    signed_headers,
+                                ) = await self._refresh_pre_signed_part_urls(
+                                    part_number,
+                                    part_url,
+                                )
+
+                        else:
+                            raise
+
+                md5_hex = self._md5_fn(body, response)
+                del response
+                del body
+
+                async with self._lock_add_part:
+                    # now tell synapse that we uploaded that part successfully
+                    await self._syn.rest_put(
+                        "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}".format(
+                            upload_id=self._upload_id,
+                            part_number=part_number,
+                            md5=md5_hex,
+                        ),
+                        endpoint=self._syn.client.fileHandleEndpoint,
+                    )
+
+                # # remove so future batch pre_signed url fetches will exclude this part
+                async with self._lock:
+                    del self._pre_signed_part_urls[part_number]
+
+                return part_number, part_size
 
     async def _upload_parts(self, part_count, remaining_part_numbers):
         with tracer.start_as_current_span("UploadAttempt::_upload_parts"):

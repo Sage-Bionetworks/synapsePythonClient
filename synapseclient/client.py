@@ -309,9 +309,8 @@ class Synapse(object):
             )
         )
 
-        self._async_lock = asyncio.Lock()
-        self._file_parts_uploading = 0
         self._file_part_upload_max_limit = 10
+        self._file_part_semaphore = asyncio.Semaphore(self._file_part_upload_max_limit)
 
         cache_root_dir = (
             cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir
