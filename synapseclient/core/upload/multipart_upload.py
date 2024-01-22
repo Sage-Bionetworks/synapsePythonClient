@@ -443,7 +443,7 @@ class UploadAttemptAsync:
         self._force_restart = force_restart
 
         self._lock = asyncio.Lock()
-        self._lock_add_part = asyncio.Lock()
+        self._add_part_semaphore = asyncio.Semaphore(1)
 
         # populated later
         self._upload_id: str = None
@@ -615,7 +615,7 @@ class UploadAttemptAsync:
                 del response
                 del body
 
-                async with self._lock_add_part:
+                async with self._add_part_semaphore:
                     # now tell synapse that we uploaded that part successfully
                     await self._syn.rest_put(
                         "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}".format(
