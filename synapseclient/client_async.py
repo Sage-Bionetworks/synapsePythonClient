@@ -1308,7 +1308,6 @@ class SynapseAsync(object):
                 verbose=self.client.debug,
                 **retryPolicy,
             )
-            self.client.logger.debug(f"RESPONSE: {method} {uri}")
 
         self.client._handle_synapse_http_error(response)
         return response

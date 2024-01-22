@@ -440,6 +440,7 @@ class UploadAttemptAsync:
         self._force_restart = force_restart
 
         self._lock = asyncio.Lock()
+        self._lock_add_part = asyncio.Lock()
 
         # populated later
         self._upload_id: str = None
@@ -608,15 +609,16 @@ class UploadAttemptAsync:
 
             md5_hex = self._md5_fn(body, response)
 
-            # now tell synapse that we uploaded that part successfully
-            await self._syn.rest_put(
-                "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}".format(
-                    upload_id=self._upload_id,
-                    part_number=part_number,
-                    md5=md5_hex,
-                ),
-                endpoint=self._syn.client.fileHandleEndpoint,
-            )
+            async with self._lock_add_part:
+                # now tell synapse that we uploaded that part successfully
+                await self._syn.rest_put(
+                    "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}".format(
+                        upload_id=self._upload_id,
+                        part_number=part_number,
+                        md5=md5_hex,
+                    ),
+                    endpoint=self._syn.client.fileHandleEndpoint,
+                )
 
             # # remove so future batch pre_signed url fetches will exclude this part
             async with self._lock:
