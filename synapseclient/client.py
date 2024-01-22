@@ -3935,21 +3935,25 @@ class Synapse(object):
             )
         return docker_digest
 
-    @tracer.start_as_current_span("Synapse::get_team_open_invitations")
-    def get_team_open_invitations(self, team):
+    def get_team_open_invitations(self, team, opentelemetry_context=None):
         """Retrieve the open requests submitted to a Team
         <https://rest-docs.synapse.org/rest/GET/team/id/openInvitation.html>
 
         Arguments:
             team: A [synapseclient.team.Team][] object or a team's ID.
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing.
+                                    Used in cases where concurrent operations need to be linked to parent spans.
 
         Yields:
             Generator of MembershipRequest
         """
-        teamid = id_of(team)
-        request = "/team/{team}/openInvitation".format(team=teamid)
-        open_requests = self._GET_paginated(request)
-        return open_requests
+        with tracer.start_as_current_span(
+            "Synapse::get_team_open_invitations", context=opentelemetry_context
+        ):
+            teamid = id_of(team)
+            request = "/team/{team}/openInvitation".format(team=teamid)
+            open_requests = self._GET_paginated(request)
+            return open_requests
 
     @tracer.start_as_current_span("Synapse::get_membership_status")
     def get_membership_status(self, userid, team):

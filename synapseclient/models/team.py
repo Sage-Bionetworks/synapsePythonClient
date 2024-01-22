@@ -165,7 +165,7 @@ class Team:
             self.fill_from_dict(team)
         return self
 
-    def members(
+    async def members(
         self, synapse_client: Optional[Synapse] = None
     ) -> Generator[TeamMember, None, None]:
         """Gets the TeamMembers associated with a team.
@@ -179,7 +179,7 @@ class Team:
         with tracer.start_as_current_span(f"Team_Members: {self.id}"):
             loop = asyncio.get_event_loop()
             current_context = context.get_current()
-            team_members = loop.run_in_executor(
+            team_members = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(
                     synapse_client=synapse_client
@@ -187,7 +187,7 @@ class Team:
             )
         return team_members
 
-    def invite(
+    async def invite(
         self, user: str, message: str, synapse_client: Optional[Synapse] = None
     ) -> dict[str, str]:
         """Invites a user to a team.
@@ -203,7 +203,7 @@ class Team:
         with tracer.start_as_current_span(f"Team_Invite: {self.id}"):
             loop = asyncio.get_event_loop()
             current_context = context.get_current()
-            invite = loop.run_in_executor(
+            invite = await loop.run_in_executor(
                 None,
                 lambda: Synapse.get_client(
                     synapse_client=synapse_client
@@ -217,9 +217,18 @@ class Team:
             )
         return invite
 
-    # def open_invitiations(
-    #     self, synapse_client: Optional[Synapse] = None
-    # ) -> Generator[dict, None, None]:
-    #     return Synapse.get_client(
-    #         synapse_client=synapse_client
-    #     ).get_team_open_invitations(team=self)
+    async def open_invitations(
+        self, synapse_client: Optional[Synapse] = None
+    ) -> Generator[dict, None, None]:
+        with tracer.start_as_current_span(f"Team_Open_Invitations: {self.id}"):
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            invitations = await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).get_team_open_invitations(
+                    team=self, opentelemetry_context=current_context
+                ),
+            )
+        return invitations
