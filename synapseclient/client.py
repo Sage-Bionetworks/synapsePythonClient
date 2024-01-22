@@ -310,7 +310,9 @@ class Synapse(object):
         )
 
         self._file_part_upload_max_limit = 10
-        self._file_part_semaphore = asyncio.Semaphore(self._file_part_upload_max_limit)
+        # https://stackoverflow.com/questions/55918048/asyncio-semaphore-runtimeerror-task-got-future-attached-to-a-different-loop
+        # self._file_part_semaphore = asyncio.Semaphore(self._file_part_upload_max_limit)
+        self._file_part_semaphore = None
 
         cache_root_dir = (
             cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir

@@ -432,6 +432,8 @@ class UploadAttemptAsync:
         force_restart: bool,
     ):
         self._syn: "SynapseAsync" = syn
+        if not self._syn.client._file_part_semaphore:
+            self._syn.client._file_part_semaphore = asyncio.Semaphore(self._syn.client._file_part_upload_max_limit)
         self._dest_file_name = dest_file_name
         self._part_size = upload_request_payload["partSizeBytes"]
 
