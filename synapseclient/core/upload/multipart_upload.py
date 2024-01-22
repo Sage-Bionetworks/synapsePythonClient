@@ -550,7 +550,8 @@ class UploadAttemptAsync:
         can_execute = False
 
         # TODO: Need to have an interrupt handler for this function?
-
+        # TODO: Could we replace this with an Event?
+        # https://docs.python.org/3/library/asyncio-sync.html#asyncio.Event
         while not can_execute:
             async with self._syn.client._async_lock:
                 if (
@@ -559,8 +560,8 @@ class UploadAttemptAsync:
                 ):
                     self._syn.client._file_parts_uploading += 1
                     can_execute = True
-                else:
-                    await asyncio.sleep(0.01)
+            if not can_execute:
+                await asyncio.sleep(0.01)
 
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
             trace.get_current_span().set_attributes(
