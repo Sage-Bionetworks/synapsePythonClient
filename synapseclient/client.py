@@ -232,6 +232,8 @@ class Synapse(object):
 
     """
 
+    _synapse_client = None
+
     # TODO: add additional boolean for write to disk?
     @tracer.start_as_current_span("Synapse::__init__")
     def __init__(
@@ -331,6 +333,37 @@ class Synapse(object):
         )
         self.logger = logging.getLogger(logger_name)
         logging.getLogger("py.warnings").handlers = self.logger.handlers
+
+    @classmethod
+    def get_client(cls, synapse_client: None) -> "Synapse":
+        """
+        Convience function to get an instance of 'Synapse'. The latest instance created
+        by 'login()' or set via `set_client` will be returned.
+
+        When 'logout()' is called it will delete the instance.
+
+        Arguments:
+            synapse_client: An instance of 'Synapse' or None. This is used to simplify logical checks
+                    in cases where synapse is passed into them.
+
+        Returns:
+            An instance of 'Synapse'.
+
+        Raises:
+            SynapseError: No instance has been created - Please use login() first
+        """
+        if synapse_client:
+            return synapse_client
+
+        if not cls._synapse_client:
+            raise SynapseError(
+                "No instance has been created - Please use login() first"
+            )
+        return cls._synapse_client
+
+    @classmethod
+    def set_client(cls, synapse_client) -> None:
+        cls._synapse_client = synapse_client
 
     @property
     def max_threads(self) -> int:
@@ -433,6 +466,7 @@ class Synapse(object):
         email: str = None,
         silent: bool = False,
         authToken: str = None,
+        cache_client: bool = True,
     ) -> None:
         """
         Valid combinations of login() arguments:
@@ -453,6 +487,9 @@ class Synapse(object):
             authToken:    A bearer authorization token, e.g. a
                 [personal access token](https://python-docs.synapse.org/tutorials/authentication/).
             silent:       Defaults to False.  Suppresses the "Welcome ...!" message.
+            cache_client: Whether to cache the Synapse client object in the Synapse module. Defaults to True.
+                             When set to True anywhere a `Synapse` object is optional you do not need to pass an
+                             instance of `Synapse` to that function, method, or class.
 
         Example: Logging in
             Using an auth token:
@@ -498,6 +535,9 @@ class Synapse(object):
                 else self.credentials.username
             )
             self.logger.info(f"Welcome, {display_name}!\n")
+
+        if cache_client:
+            Synapse.set_client(self)
 
     def _get_config_section_dict(self, section_name: str) -> Dict[str, str]:
         """
@@ -978,8 +1018,7 @@ class Synapse(object):
     #                   Get / Store methods                    #
     ############################################################
 
-    @tracer.start_as_current_span("Synapse::get")
-    def get(self, entity, **kwargs):
+    def get(self, entity, opentelemetry_context=None, **kwargs):
         """
         Gets a Synapse entity from the repository service.
 
@@ -1000,6 +1039,8 @@ class Synapse(object):
             limitSearch:      A Synanpse ID used to limit the search in Synapse if entity is specified as a local
                                 file.  That is, if the file is stored in multiple locations in Synapse only the ones
                                 in the specified folder/project will be returned.
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             A new Synapse Entity object of the appropriate type.
@@ -1022,43 +1063,46 @@ class Synapse(object):
                 entity = syn.get('/path/to/file.txt', limitSearch='syn12312')
                 print(syn.getProvenance(entity))
         """
-        # If entity is a local file determine the corresponding synapse entity
-        if isinstance(entity, str) and os.path.isfile(entity):
-            bundle = self._getFromFile(entity, kwargs.pop("limitSearch", None))
-            kwargs["downloadFile"] = False
-            kwargs["path"] = entity
+        with tracer.start_as_current_span(
+            "Synapse::get", context=opentelemetry_context
+        ):
+            # If entity is a local file determine the corresponding synapse entity
+            if isinstance(entity, str) and os.path.isfile(entity):
+                bundle = self._getFromFile(entity, kwargs.pop("limitSearch", None))
+                kwargs["downloadFile"] = False
+                kwargs["path"] = entity
 
-        elif isinstance(entity, str) and not utils.is_synapse_id_str(entity):
-            raise SynapseFileNotFoundError(
-                (
-                    "The parameter %s is neither a local file path "
-                    " or a valid entity id" % entity
+            elif isinstance(entity, str) and not utils.is_synapse_id_str(entity):
+                raise SynapseFileNotFoundError(
+                    (
+                        "The parameter %s is neither a local file path "
+                        " or a valid entity id" % entity
+                    )
                 )
+            # have not been saved entities
+            elif isinstance(entity, Entity) and not entity.get("id"):
+                raise ValueError(
+                    "Cannot retrieve entity that has not been saved."
+                    " Please use syn.store() to save your entity and try again."
+                )
+            else:
+                version = kwargs.get("version", None)
+                bundle = self._getEntityBundle(entity, version)
+            # Check and warn for unmet access requirements
+            self._check_entity_restrictions(
+                bundle, entity, kwargs.get("downloadFile", True)
             )
-        # have not been saved entities
-        elif isinstance(entity, Entity) and not entity.get("id"):
-            raise ValueError(
-                "Cannot retrieve entity that has not been saved."
-                " Please use syn.store() to save your entity and try again."
-            )
-        else:
-            version = kwargs.get("version", None)
-            bundle = self._getEntityBundle(entity, version)
-        # Check and warn for unmet access requirements
-        self._check_entity_restrictions(
-            bundle, entity, kwargs.get("downloadFile", True)
-        )
 
-        return_data = self._getWithEntityBundle(
-            entityBundle=bundle, entity=entity, **kwargs
-        )
-        trace.get_current_span().set_attributes(
-            {
-                "synapse.id": return_data.get("id", ""),
-                "synapse.concrete_type": return_data.get("concreteType", ""),
-            }
-        )
-        return return_data
+            return_data = self._getWithEntityBundle(
+                entityBundle=bundle, entity=entity, **kwargs
+            )
+            trace.get_current_span().set_attributes(
+                {
+                    "synapse.id": return_data.get("id", ""),
+                    "synapse.concrete_type": return_data.get("concreteType", ""),
+                }
+            )
+            return return_data
 
     def _check_entity_restrictions(
         self, bundle: dict, entity: Union[str, Entity, dict], downloadFile: bool
@@ -1466,7 +1510,7 @@ class Synapse(object):
                             You will be contacted with regards to the specific data being restricted and the
                             requirements of access.
             opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                  cases where multi-threaded operations need to be linked to parent spans.
+                                  cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             A Synapse Entity, Evaluation, or Wiki
@@ -1852,35 +1896,44 @@ class Synapse(object):
 
         return bundle
 
-    @tracer.start_as_current_span("Synapse::delete")
-    def delete(self, obj, version=None):
+    def delete(
+        self,
+        obj,
+        version=None,
+        opentelemetry_context=None,
+    ):
         """
         Removes an object from Synapse.
 
         Arguments:
             obj: An existing object stored on Synapse such as Evaluation, File, Project, or Wiki
             version: For entities, specify a particular version to delete.
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                      cases where concurrent operations need to be linked to parent spans.
         """
-        # Handle all strings as the Entity ID for backward compatibility
-        if isinstance(obj, str):
-            entity_id = id_of(obj)
-            trace.get_current_span().set_attributes({"synapse.id": entity_id})
-            if version:
-                self.restDELETE(uri=f"/entity/{entity_id}/version/{version}")
-            else:
-                self.restDELETE(uri=f"/entity/{entity_id}")
-        elif hasattr(obj, "_synapse_delete"):
-            return obj._synapse_delete(self)
-        else:
-            try:
-                if isinstance(obj, Versionable):
-                    self.restDELETE(obj.deleteURI(versionNumber=version))
+        with tracer.start_as_current_span(
+            "Synapse::delete", context=opentelemetry_context
+        ):
+            # Handle all strings as the Entity ID for backward compatibility
+            if isinstance(obj, str):
+                entity_id = id_of(obj)
+                trace.get_current_span().set_attributes({"synapse.id": entity_id})
+                if version:
+                    self.restDELETE(uri=f"/entity/{entity_id}/version/{version}")
                 else:
-                    self.restDELETE(obj.deleteURI())
-            except AttributeError:
-                raise SynapseError(
-                    f"Can't delete a {type(obj)}. Please specify a Synapse object or id"
-                )
+                    self.restDELETE(uri=f"/entity/{entity_id}")
+            elif hasattr(obj, "_synapse_delete"):
+                return obj._synapse_delete(self)
+            else:
+                try:
+                    if isinstance(obj, Versionable):
+                        self.restDELETE(obj.deleteURI(versionNumber=version))
+                    else:
+                        self.restDELETE(obj.deleteURI())
+                except AttributeError:
+                    raise SynapseError(
+                        f"Can't delete a {type(obj)}. Please specify a Synapse object or id"
+                    )
 
     _user_name_cache = {}
 
@@ -2252,7 +2305,6 @@ class Synapse(object):
     #                         Querying                         #
     ############################################################
 
-    @tracer.start_as_current_span("Synapse::getChildren")
     def getChildren(
         self,
         parent,
@@ -2269,6 +2321,7 @@ class Synapse(object):
         ],
         sortBy="NAME",
         sortDirection="ASC",
+        opentelemetry_context=None,
     ):
         """
         Retrieves all of the entities stored within a parent such as folder or project.
@@ -2278,6 +2331,8 @@ class Synapse(object):
             includeTypes: Must be a list of entity types (ie. ["folder","file"]) which can be found [here](http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
             sortBy: How results should be sorted. Can be NAME, or CREATED_ON
             sortDirection: The direction of the result sort. Can be ASC, or DESC
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                      cases where concurrent operations need to be linked to parent spans.
 
         Yields:
             An iterator that shows all the children of the container.
@@ -2286,27 +2341,30 @@ class Synapse(object):
 
         - [synapseutils.walk][]
         """
-        parentId = id_of(parent) if parent is not None else None
+        with tracer.start_as_current_span(
+            "Synapse::getChildren", context=opentelemetry_context
+        ):
+            parentId = id_of(parent) if parent is not None else None
 
-        trace.get_current_span().set_attributes({"synapse.parent_id": parentId})
-        entityChildrenRequest = {
-            "parentId": parentId,
-            "includeTypes": includeTypes,
-            "sortBy": sortBy,
-            "sortDirection": sortDirection,
-            "nextPageToken": None,
-        }
-        entityChildrenResponse = {"nextPageToken": "first"}
-        while entityChildrenResponse.get("nextPageToken") is not None:
-            entityChildrenResponse = self.restPOST(
-                "/entity/children", body=json.dumps(entityChildrenRequest)
-            )
-            for child in entityChildrenResponse["page"]:
-                yield child
-            if entityChildrenResponse.get("nextPageToken") is not None:
-                entityChildrenRequest["nextPageToken"] = entityChildrenResponse[
-                    "nextPageToken"
-                ]
+            trace.get_current_span().set_attributes({"synapse.parent_id": parentId})
+            entityChildrenRequest = {
+                "parentId": parentId,
+                "includeTypes": includeTypes,
+                "sortBy": sortBy,
+                "sortDirection": sortDirection,
+                "nextPageToken": None,
+            }
+            entityChildrenResponse = {"nextPageToken": "first"}
+            while entityChildrenResponse.get("nextPageToken") is not None:
+                entityChildrenResponse = self.restPOST(
+                    "/entity/children", body=json.dumps(entityChildrenRequest)
+                )
+                for child in entityChildrenResponse["page"]:
+                    yield child
+                if entityChildrenResponse.get("nextPageToken") is not None:
+                    entityChildrenRequest["nextPageToken"] = entityChildrenResponse[
+                        "nextPageToken"
+                    ]
 
     @tracer.start_as_current_span("Synapse::md5Query")
     def md5Query(self, md5):
@@ -4902,7 +4960,9 @@ class Synapse(object):
             yield Column(**result)
 
     @tracer.start_as_current_span("Synapse::tableQuery")
-    def tableQuery(self, query: str, resultsAs: str = "csv", **kwargs):
+    def tableQuery(
+        self, query: str, resultsAs: str = "csv", opentelemetry_context=None, **kwargs
+    ):
         """
         Query a Synapse Table.
 
@@ -4924,6 +4984,8 @@ class Synapse(object):
             header: (csv only) True by default
             includeRowIdAndRowVersion: (csv only) True by default
             downloadLocation: (csv only) directory path to download the CSV file to
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             A [TableQueryResult][synapseclient.table.TableQueryResult] or [CsvFileTable][synapseclient.table.CsvFileTable] object
@@ -4937,18 +4999,21 @@ class Synapse(object):
                   syn.table_query_timeout = 300
 
         """
-        if resultsAs.lower() == "rowset":
-            return TableQueryResult(self, query, **kwargs)
-        elif resultsAs.lower() == "csv":
-            # TODO: remove isConsistent because it has now been deprecated
-            # from the backend
-            if kwargs.get("isConsistent") is not None:
-                kwargs.pop("isConsistent")
-            return CsvFileTable.from_table_query(self, query, **kwargs)
-        else:
-            raise ValueError(
-                "Unknown return type requested from tableQuery: " + str(resultsAs)
-            )
+        with tracer.start_as_current_span(
+            "Synapse::tableQuery", context=opentelemetry_context
+        ):
+            if resultsAs.lower() == "rowset":
+                return TableQueryResult(self, query, **kwargs)
+            elif resultsAs.lower() == "csv":
+                # TODO: remove isConsistent because it has now been deprecated
+                # from the backend
+                if kwargs.get("isConsistent") is not None:
+                    kwargs.pop("isConsistent")
+                return CsvFileTable.from_table_query(self, query, **kwargs)
+            else:
+                raise ValueError(
+                    "Unknown return type requested from tableQuery: " + str(resultsAs)
+                )
 
     @tracer.start_as_current_span("Synapse::_queryTable")
     def _queryTable(
@@ -5198,18 +5263,26 @@ class Synapse(object):
         return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
-    @tracer.start_as_current_span("Synapse::createColumn")
     def createColumn(
-        self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None
+        self,
+        name,
+        columnType,
+        maximumSize=None,
+        defaultValue=None,
+        enumValues=None,
+        opentelemetry_context=None,
     ):
-        columnModel = Column(
-            name=name,
-            columnType=columnType,
-            maximumSize=maximumSize,
-            defaultValue=defaultValue,
-            enumValue=enumValues,
-        )
-        return Column(**self.restPOST("/column", json.dumps(columnModel)))
+        with tracer.start_as_current_span(
+            "Synapse::createColumn", context=opentelemetry_context
+        ):
+            columnModel = Column(
+                name=name,
+                columnType=columnType,
+                maximumSize=maximumSize,
+                defaultValue=defaultValue,
+                enumValue=enumValues,
+            )
+            return Column(**self.restPOST("/column", json.dumps(columnModel)))
 
     @tracer.start_as_current_span("Synapse::createColumns")
     def createColumns(self, columns: typing.List[Column]) -> typing.List[Column]:
@@ -5755,7 +5828,6 @@ class Synapse(object):
         )
         return self._return_rest_body(response)
 
-    @tracer.start_as_current_span("Synapse::restPUT")
     def restPUT(
         self,
         uri,
@@ -5764,6 +5836,7 @@ class Synapse(object):
         headers=None,
         retryPolicy={},
         requests_session=None,
+        opentelemetry_context=None,
         **kwargs,
     ):
         """
@@ -5776,15 +5849,27 @@ class Synapse(object):
             headers: Dictionary of headers to use rather than the API-key-signed default set of headers
             requests_session: An external [requests.Session object](https://requests.readthedocs.io/en/latest/user/advanced/) to use when making this specific call
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns
             JSON encoding of response
         """
-        trace.get_current_span().set_attributes({"url.path": uri})
-        response = self._rest_call(
-            "put", uri, body, endpoint, headers, retryPolicy, requests_session, **kwargs
-        )
-        return self._return_rest_body(response)
+        with tracer.start_as_current_span(
+            "Synapse::restPUT", context=opentelemetry_context
+        ):
+            trace.get_current_span().set_attributes({"url.path": uri})
+            response = self._rest_call(
+                "put",
+                uri,
+                body,
+                endpoint,
+                headers,
+                retryPolicy,
+                requests_session,
+                **kwargs,
+            )
+            return self._return_rest_body(response)
 
     @tracer.start_as_current_span("Synapse::restDELETE")
     def restDELETE(
