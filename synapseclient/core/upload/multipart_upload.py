@@ -624,6 +624,8 @@ class UploadAttemptAsync:
                         raise
 
             md5_hex = self._md5_fn(body, response)
+            del response
+            # del body
 
             async with self._lock_add_part:
                 # now tell synapse that we uploaded that part successfully
@@ -690,6 +692,9 @@ class UploadAttemptAsync:
                             dt=time.time() - time_upload_started,
                             previouslyTransferred=previously_transferred,
                         )
+                    del result
+                    del _
+                    del part_size
                 except (Exception, KeyboardInterrupt) as cause:
                     # wait for all threads to complete before
                     # raising the exception, we don't want to return
