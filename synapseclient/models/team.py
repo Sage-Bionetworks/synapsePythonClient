@@ -1,55 +1,46 @@
+import asyncio
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Generator
+from opentelemetry import trace, context
 
+from synapseclient import Synapse
 from synapseclient.team import (
     Team as Synapse_Team,
-    UserGroupHeader as Synapse_UserGroupHeader,
     TeamMember as Synapse_TeamMember,
 )
+from synapseclient.models.user import UserGroupHeader
+
+tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass
-class UserGroupHeader:
+class TeamMember:
     """
-    Select metadata about a Synapse principal.
+    Contains information about a user's membership in a Team.
     In practice the constructor is not called directly by the client.
 
     Attributes:
-        owner_id: A foreign key to the ID of the 'principal' object for the user.
-        first_name: First Name
-        last_name: Last Name
-        user_name: A name chosen by the user that uniquely identifies them.
-        email: User's current email address
-        is_individual: True if this is a user, false if it is a group
+        team_id: The ID of the team
+        member: An object of type [org.sagebionetworks.repo.model.UserGroupHeader](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserGroupHeader.html)
+                describing the member
+        is_admin: Whether the given member is an administrator of the team
     """
 
-    owner_id: int
-    """A foreign key to the ID of the 'principal' object for the user."""
+    team_id: int
+    """The ID of the team"""
 
-    first_name: str
-    """First Name"""
+    member: UserGroupHeader
+    """An object of type [org.sagebionetworks.repo.model.UserGroupHeader](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserGroupHeader.html)"""
 
-    last_name: str
-    """Last Name"""
+    is_admin: bool
+    """Whether the given member is an administrator of the team"""
 
-    user_name: str
-    """A name chosen by the user that uniquely identifies them."""
-
-    is_individual: bool
-    """True if this is a user, false if it is a group"""
-
-    email: Optional[str] = None
-    """User's current email address"""
-
-    def fill_from_dict(
-        self, synapse_user_group_header: Synapse_UserGroupHeader
-    ) -> "UserGroupHeader":
-        self.owner_id = synapse_user_group_header.get("ownerId", None)
-        self.first_name = synapse_user_group_header.get("firstName", None)
-        self.last_name = synapse_user_group_header.get("lastName", None)
-        self.user_name = synapse_user_group_header.get("userName", None)
-        self.email = synapse_user_group_header.get("email", None)
-        self.is_individual = synapse_user_group_header.get("isIndividual", None)
+    def fill_from_dict(self, synapse_team_member: Synapse_TeamMember) -> "TeamMember":
+        self.team_id = synapse_team_member.get("teamId", None)
+        self.member = UserGroupHeader().fill_from_dict(
+            synapse_team_member.get("member", None)
+        )
+        self.is_admin = synapse_team_member.get("isAdmin", None)
         return self
 
 
@@ -120,58 +111,75 @@ class Team:
         self.modified_by = synapse_team.get("modifiedBy", None)
         return self
 
-    @classmethod
-    def get_uri(cls, id: int):
-        """Get the URI for the team with the given id"""
-        return f"/team/{id}"
+    # def create_team(self):
+    #     ...
 
-    def post_uri(self):
-        """Post URI for the team"""
-        return "/team"
+    # def delete_team(self):
+    #     ...
 
-    def put_uri(self):
-        """Put URI for team"""
-        return "/team"
+    async def from_id(
+        self, id: int, synapse_client: Optional[Synapse] = None
+    ) -> "Team":
+        """Gets Team object using its integer id.
 
-    def delete_uri(self):
-        """Delete URI for team"""
-        return f"/team/{self.id}"
+        Args:
+            id: The id of the team.
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
-    def get_acl_uri(self):
-        """Get ACL URI for team"""
-        return f"/team/{self.id}/acl"
-
-    def put_acl_uri(self):
-        """Put ACL URI for team"""
-        return "/team/acl"
-
-
-@dataclass
-class TeamMember:
-    """
-    Contains information about a user's membership in a Team.
-    In practice the constructor is not called directly by the client.
-
-    Attributes:
-        team_id: The ID of the team
-        member: An object of type [org.sagebionetworks.repo.model.UserGroupHeader](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserGroupHeader.html)
-                describing the member
-        is_admin: Whether the given member is an administrator of the team
-    """
-
-    team_id: int
-    """The ID of the team"""
-
-    member: UserGroupHeader
-    """An object of type [org.sagebionetworks.repo.model.UserGroupHeader](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserGroupHeader.html)"""
-
-    is_admin: bool
-    """Whether the given member is an administrator of the team"""
-
-    def fill_from_dict(self, synapse_team_member: Synapse_TeamMember) -> "TeamMember":
-        self.team_id = synapse_team_member.get("teamId", None)
-        self.member = UserGroupHeader().fill_from_dict(
-            synapse_team_member.get("member", None)
-        )
-        self.is_admin = synapse_team_member.get("isAdmin", None)
+        Returns:
+            Team: The Team object.
+        """
+        with tracer.start_as_current_span(f"Team_From_Id: {id}"):
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            team = await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
+                    id=id, opentelemetry_context=current_context
+                ),
+            )
+            self.fill_from_dict(team)
         return self
+
+    # def from_name(self, name: str, synapse_client: Optional[Synapse] = None) -> "Team":
+    #     """Gets Team object using its string name.
+
+    #     Args:
+    #         name: The name of the team.
+    #         synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+    #     Returns:
+    #         Team: The Team object.
+    #     """
+    #     team = Synapse.get_client(synapse_client=synapse_client).getTeam(id=name)
+    #     self.fill_from_dict(team)
+    #     return self
+
+    # def team_members(
+    #     self, synapse_client: Optional[Synapse] = None
+    # ) -> Generator[TeamMember, None, None]:
+    #     """Gets the TeamMembers associated with a team.
+
+    #     Args:
+    #         synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+    #     Returns:
+    #         Generator[TeamMember]: A generator of TeamMember objects.
+    #     """
+    #     return Synapse.get_client(synapse_client=synapse_client).getTeamMembers(
+    #         team=self
+    #     )
+
+    # def invite(
+    #     self, user: str, message: str, synapse_client: Optional[Synapse] = None
+    # ) -> dict[str, str]:
+    #     return Synapse.get_client(synapse_client=synapse_client).invite_to_team(
+    #         team=self, user=user, message=message, force=True
+    #     )
+
+    # def open_invitiations(
+    #     self, synapse_client: Optional[Synapse] = None
+    # ) -> Generator[dict, None, None]:
+    #     return Synapse.get_client(
+    #         synapse_client=synapse_client
+    #     ).get_team_open_invitations(team=self)

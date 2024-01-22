@@ -3853,8 +3853,7 @@ class Synapse(object):
         for result in self._GET_paginated(f"/user/{principal_id}/team"):
             yield Team(**result)
 
-    @tracer.start_as_current_span("Synapse::getTeam")
-    def getTeam(self, id):
+    def getTeam(self, id, opentelemetry_context=None):
         """
         Finds a team with a given ID or name.
 
@@ -3865,20 +3864,23 @@ class Synapse(object):
             An object of type [synapseclient.team.Team][]
         """
         # Retrieves team id
-        teamid = id_of(id)
-        try:
-            int(teamid)
-        except (TypeError, ValueError):
-            if isinstance(id, str):
-                for team in self._findTeam(id):
-                    if team.name == id:
-                        teamid = team.id
-                        break
+        with tracer.start_as_current_span(
+            "Synapse::getTeam", context=opentelemetry_context
+        ):
+            teamid = id_of(id)
+            try:
+                int(teamid)
+            except (TypeError, ValueError):
+                if isinstance(id, str):
+                    for team in self._findTeam(id):
+                        if team.name == id:
+                            teamid = team.id
+                            break
+                    else:
+                        raise ValueError('Can\'t find team "{}"'.format(teamid))
                 else:
                     raise ValueError('Can\'t find team "{}"'.format(teamid))
-            else:
-                raise ValueError('Can\'t find team "{}"'.format(teamid))
-        return Team(**self.restGET("/team/%s" % teamid))
+            return Team(**self.restGET("/team/%s" % teamid))
 
     @tracer.start_as_current_span("Synapse::getTeamMembers")
     def getTeamMembers(self, team):
