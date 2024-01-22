@@ -74,6 +74,8 @@ nav:
     - Exceptions: reference/exceptions.md
     - Permissions: reference/permissions.md
     - Core: reference/core.md
+    - Experimental:
+      - Object-Orientated Models: reference/oop/models.md
   - Further Reading:
     - Home: explanations/home.md
     - Domain Models of Synapse: explanations/domain_models_of_synapse.md

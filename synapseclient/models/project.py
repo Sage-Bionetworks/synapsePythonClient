@@ -75,30 +75,6 @@ class Project:
             project.files = [file_1, file_2]
             project = await project.store()
 
-    TODO: Clean up this docstring:
-
-    Note:
-        Testing what a note looks like.
-
-    Tip: Title for my tip.
-        Testing what a tip looks like.
-
-    Todo:
-        * Testing what a todo looks like.
-        * Testing what a todo looks like.
-
-    Deprecated:
-        Testing what a deprecated section looks like.
-
-    I can put anything here for the title of a section:
-        askldjfghasdkljfghasdklfhasd;ofgyadilfghadfklhgdklghdsklfghksdhfaglkh
-
-    Raises:
-        Exception: Testing what an exception looks like.
-
-    Yields:
-        Testing what a yield section looks like.
-
     """
 
     id: Optional[str] = None
