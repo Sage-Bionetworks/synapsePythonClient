@@ -141,34 +141,51 @@ class Team:
             self.fill_from_dict(team)
         return self
 
-    # def from_name(self, name: str, synapse_client: Optional[Synapse] = None) -> "Team":
-    #     """Gets Team object using its string name.
+    async def from_name(
+        self, name: str, synapse_client: Optional[Synapse] = None
+    ) -> "Team":
+        """Gets Team object using its string name.
 
-    #     Args:
-    #         name: The name of the team.
-    #         synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        Args:
+            name: The name of the team.
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
-    #     Returns:
-    #         Team: The Team object.
-    #     """
-    #     team = Synapse.get_client(synapse_client=synapse_client).getTeam(id=name)
-    #     self.fill_from_dict(team)
-    #     return self
+        Returns:
+            Team: The Team object.
+        """
+        with tracer.start_as_current_span(f"Team_From_Id: {id}"):
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            team = await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
+                    id=name, opentelemetry_context=current_context
+                ),
+            )
+            self.fill_from_dict(team)
+        return self
 
-    # def team_members(
-    #     self, synapse_client: Optional[Synapse] = None
-    # ) -> Generator[TeamMember, None, None]:
-    #     """Gets the TeamMembers associated with a team.
+    def members(
+        self, synapse_client: Optional[Synapse] = None
+    ) -> Generator[TeamMember, None, None]:
+        """Gets the TeamMembers associated with a team.
 
-    #     Args:
-    #         synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
-    #     Returns:
-    #         Generator[TeamMember]: A generator of TeamMember objects.
-    #     """
-    #     return Synapse.get_client(synapse_client=synapse_client).getTeamMembers(
-    #         team=self
-    #     )
+        Returns:
+            Generator[TeamMember]: A generator of TeamMember objects.
+        """
+        with tracer.start_as_current_span(f"Team_Members: {self.id}"):
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            team_members = loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).getTeamMembers(team=self, opentelemetry_context=current_context),
+            )
+        return team_members
 
     # def invite(
     #     self, user: str, message: str, synapse_client: Optional[Synapse] = None

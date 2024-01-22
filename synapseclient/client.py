@@ -3859,6 +3859,8 @@ class Synapse(object):
 
         Arguments:
             id: The ID or name of the team or a Team object to retrieve.
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing.
+                                    Used in cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An object of type [synapseclient.team.Team][]
@@ -3882,20 +3884,26 @@ class Synapse(object):
                     raise ValueError('Can\'t find team "{}"'.format(teamid))
             return Team(**self.restGET("/team/%s" % teamid))
 
-    @tracer.start_as_current_span("Synapse::getTeamMembers")
-    def getTeamMembers(self, team):
+    def getTeamMembers(self, team, opentelemetry_context=None):
         """
         Lists the members of the given team.
 
         Arguments:
             team: A [synapseclient.team.Team][] object or a team's ID.
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing.
+                                    Used in cases where concurrent operations need to be linked to parent spans.
 
         Yields:
             A generator over [synapseclient.team.TeamMember][] objects.
 
         """
-        for result in self._GET_paginated("/teamMembers/{id}".format(id=id_of(team))):
-            yield TeamMember(**result)
+        with tracer.start_as_current_span(
+            "Synapse::getTeamMembers", context=opentelemetry_context
+        ):
+            for result in self._GET_paginated(
+                "/teamMembers/{id}".format(id=id_of(team))
+            ):
+                yield TeamMember(**result)
 
     @tracer.start_as_current_span("Synapse::_get_docker_digest")
     def _get_docker_digest(
