@@ -560,7 +560,7 @@ class UploadAttemptAsync:
                     self._syn.client._file_parts_uploading += 1
                     can_execute = True
                 else:
-                    asyncio.sleep(0.1)
+                    await asyncio.sleep(0.01)
 
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
             trace.get_current_span().set_attributes(
