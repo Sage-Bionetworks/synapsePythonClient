@@ -5,8 +5,6 @@ from typing import Dict, List, Union
 from opentelemetry import trace, context
 from synapseclient.models import Annotations
 
-# import uuid
-
 from synapseclient.entity import File as Synapse_File
 from synapseclient import Synapse
 

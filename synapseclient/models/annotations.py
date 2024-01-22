@@ -73,7 +73,7 @@ class Annotations:
     @classmethod
     def from_dict(
         self, synapse_annotations: dict
-    ) -> Dict[str, List[Union[str, bool, float, int, date, datetime]]]:
+    ) -> Union[Dict[str, List[Union[str, bool, float, int, date, datetime]]], None]:
         """Convert the annotations from the format the synapse rest API works in -
         to the format used by this class.
 
