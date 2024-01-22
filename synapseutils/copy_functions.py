@@ -238,11 +238,11 @@ def _copy_cached_file_handles(cache: Cache, copiedFileHandles: dict) -> None:
 
 def changeFileMetaData(
     syn: synapseclient.Synapse,
-    entity: typing.Union[str, synapseclient.entity.Entity],
+    entity: typing.Union[str, synapseclient.Entity],
     downloadAs: str = None,
     contentType: str = None,
     forceVersion: bool = True,
-) -> synapseclient.entity.Entity:
+) -> synapseclient.Entity:
     """
     Change File Entity metadata like the download as name.
 
