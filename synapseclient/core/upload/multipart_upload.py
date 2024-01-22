@@ -547,6 +547,21 @@ class UploadAttemptAsync:
             return refreshed_url
 
     async def _handle_part(self, part_number):
+        can_execute = False
+
+        # TODO: Need to have an interrupt handler for this function?
+
+        while not can_execute:
+            async with self._syn.client._async_lock:
+                if (
+                    self._syn.client._file_parts_uploading
+                    < self._syn.client._file_part_upload_max_limit
+                ):
+                    self._syn.client._file_parts_uploading += 1
+                    can_execute = True
+                else:
+                    asyncio.sleep(0.1)
+
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
             trace.get_current_span().set_attributes(
                 {"thread.id": threading.get_ident()}
@@ -623,6 +638,9 @@ class UploadAttemptAsync:
             # # remove so future batch pre_signed url fetches will exclude this part
             async with self._lock:
                 del self._pre_signed_part_urls[part_number]
+
+            async with self._syn.client._async_lock:
+                self._syn.client._file_parts_uploading -= 1
 
             return part_number, part_size
 

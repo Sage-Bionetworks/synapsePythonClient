@@ -2,6 +2,7 @@
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
 """
+import asyncio
 import collections
 import collections.abc
 import configparser
@@ -307,6 +308,10 @@ class Synapse(object):
                 event_hooks={"request": [log_request], "response": [log_response]},
             )
         )
+
+        self._async_lock = asyncio.Lock()
+        self._file_parts_uploading = 0
+        self._file_part_upload_max_limit = 10
 
         cache_root_dir = (
             cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir
