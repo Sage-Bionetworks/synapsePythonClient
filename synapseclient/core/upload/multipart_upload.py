@@ -625,7 +625,7 @@ class UploadAttemptAsync:
 
             md5_hex = self._md5_fn(body, response)
             del response
-            # del body
+            del body
 
             async with self._lock_add_part:
                 # now tell synapse that we uploaded that part successfully
