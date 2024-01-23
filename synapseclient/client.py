@@ -2,7 +2,7 @@
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
 """
-import asyncio
+import psutil
 import collections
 import collections.abc
 import configparser
@@ -204,6 +204,11 @@ def login(*args, **kwargs):
     return syn
 
 
+def get_memory_info():
+    mem_info = psutil.virtual_memory()
+    return f"Memory: {mem_info.used / (1024**3):.2f}/{mem_info.total / (1024**3):.2f} GB | Free: {mem_info.free / (1024**3):.2f}"
+
+
 class Synapse(object):
     """
     Constructs a Python client object for the Synapse repository service
@@ -276,12 +281,14 @@ class Synapse(object):
         self._requests_session = requests_session or requests.Session()
 
         async def log_request(request):
-            print(f"{datetime.datetime.now()}: Request: {request.method} {request.url}")
+            print(
+                f"{datetime.datetime.now()}: Request: {request.method} {request.url} | {get_memory_info()}"
+            )
 
         async def log_response(response):
             request = response.request
             print(
-                f"{datetime.datetime.now()}: Response: {request.method} {request.url} - Status {response.status_code}"
+                f"{datetime.datetime.now()}: Response: {request.method} {request.url} - Status {response.status_code} | {get_memory_info()}"
             )
 
         # TODO: Connection limits need to be determined when working in a purely

@@ -433,7 +433,9 @@ class UploadAttemptAsync:
     ):
         self._syn: "SynapseAsync" = syn
         if not self._syn.client._file_part_semaphore:
-            self._syn.client._file_part_semaphore = asyncio.Semaphore(self._syn.client._file_part_upload_max_limit)
+            self._syn.client._file_part_semaphore = asyncio.Semaphore(
+                self._syn.client._file_part_upload_max_limit
+            )
         self._dest_file_name = dest_file_name
         self._part_size = upload_request_payload["partSizeBytes"]
 
@@ -577,7 +579,7 @@ class UploadAttemptAsync:
                         # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
                         response = await with_retry_async(
                             lambda: session.put(
-                                part_url, data=body, headers=signed_headers
+                                part_url, data=body, headers=signed_headers  # noqa
                             ),
                             retry_exceptions=[requests.exceptions.ConnectionError],
                         )
