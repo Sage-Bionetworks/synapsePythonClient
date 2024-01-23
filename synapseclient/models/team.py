@@ -53,10 +53,10 @@ class Team:
     Attributes:
         id: The ID of the team
         name: The name of the team
-        description (optional): A short description of the team
-        icon (optional): A file handle ID for the icon image of the team
+        description: A short description of the team
+        icon: A file handle ID for the icon image of the team
         can_public_join: True if members can join without an invitation or approval
-        can_request_membership (optional): True if users can create a membership request to join
+        can_request_membership: True if users can create a membership request to join
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates
         created_on: The date this team was created
         modified_on: The date this team was last modified
@@ -111,11 +111,49 @@ class Team:
         self.modified_by = synapse_team.get("modifiedBy", None)
         return self
 
-    # def create_team(self):
-    #     ...
+    async def create(self, synapse_client: Optional[Synapse] = None) -> "Team":
+        """Creates a new team on Synapse.
 
-    # def delete_team(self):
-    #     ...
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            Team: The Team object.
+        """
+        with tracer.start_as_current_span("Team_Create"):
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            team = await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(synapse_client=synapse_client).create_team(
+                    name=self.name,
+                    description=self.description if self.description else None,
+                    icon=self.icon if self.icon else None,
+                    opentelemetry_context=current_context,
+                ),
+            )
+            self.fill_from_dict(team)
+        return self
+
+    async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+        """Deletes a team from Synapse.
+
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            None
+        """
+        with tracer.start_as_current_span("Team_Delete"):
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            delete = await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(synapse_client=synapse_client).delete_team(
+                    id=self.id, opentelemetry_context=current_context
+                ),
+            )
+        return delete
 
     async def from_id(
         self, id: int, synapse_client: Optional[Synapse] = None
@@ -220,6 +258,14 @@ class Team:
     async def open_invitations(
         self, synapse_client: Optional[Synapse] = None
     ) -> Generator[dict, None, None]:
+        """Gets all open invitations for a team.
+
+        Args:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Returns:
+            Generator[dict, None, None]: A generator over the invitations.
+        """
         with tracer.start_as_current_span(f"Team_Open_Invitations: {self.id}"):
             loop = asyncio.get_event_loop()
             current_context = context.get_current()

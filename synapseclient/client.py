@@ -3853,6 +3853,52 @@ class Synapse(object):
         for result in self._GET_paginated(f"/user/{principal_id}/team"):
             yield Team(**result)
 
+    def create_team(
+        self,
+        name: str,
+        description: str = None,
+        icon: str = None,
+        opentelemetry_context=None,
+    ) -> Team:
+        """
+        Creates a new team.
+
+        Arguments:
+            name: The name of the team to create.
+            description: A description of the team.
+            icon: The FileHandleID of the icon to be used for the team.
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing.
+                                    Used in cases where concurrent operations need to be linked to parent spans.
+
+        Returns:
+            An object of type [synapseclient.team.Team][]
+        """
+        with tracer.start_as_current_span(
+            "Synapse::create_team", context=opentelemetry_context
+        ):
+            request_body = {"name": name, "description": description, "icon": icon}
+            return Team(
+                **self.restPOST(
+                    "/team",
+                    json.dumps(request_body),
+                )
+            )
+
+    def delete_team(self, id: int, opentelemetry_context=None) -> None:
+        """
+        Deletes a team.
+
+        Arguments:
+            id: The ID of the team to delete.
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing.
+                                    Used in cases where concurrent operations need to be linked to parent spans.
+        """
+        with tracer.start_as_current_span(
+            "Synapse::delete_team", context=opentelemetry_context
+        ):
+            self.restDELETE(f"/team/{id}")
+            return None
+
     def getTeam(self, id, opentelemetry_context=None):
         """
         Finds a team with a given ID or name.
