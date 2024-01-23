@@ -27,7 +27,7 @@ async def new_team():
     )
     my_synapse_team = await new_team.create()
     print(my_synapse_team)
-    # sleep for a bit to allow the team to be created
+    # sleep for a bit to allow the team to be created (Synapse API slow?)
     await asyncio.sleep(5)
     # Instantiate a Team object from a Synapse team
     my_team = await Team().from_id(id=my_synapse_team.id)
