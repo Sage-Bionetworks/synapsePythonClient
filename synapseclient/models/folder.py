@@ -8,6 +8,7 @@ from opentelemetry import trace, context
 from synapseclient import Synapse
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import File, Annotations
+from synapseclient.core.async_utils import otel_trace_method
 
 if TYPE_CHECKING:
     from synapseclient.models import Project
@@ -130,6 +131,9 @@ class Folder:
         # TODO: Do I get information about the files/folders contained within this folder?
         return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Folder_Store: {self.name}"
+    )
     async def store(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
@@ -144,71 +148,71 @@ class Folder:
         Returns:
             The folder object.
         """
-        with tracer.start_as_current_span(f"Folder_Store: {self.name}"):
-            # TODO - We need to add in some validation before the store to verify we have enough
-            # information to store the data
+        # TODO - We need to add in some validation before the store to verify we have enough
+        # information to store the data
 
-            # Call synapse
-            loop = asyncio.get_event_loop()
-            synapse_folder = Synapse_Folder(
-                name=self.name, parent=parent.id if parent else self.parent_id
+        # Call synapse
+        loop = asyncio.get_event_loop()
+        synapse_folder = Synapse_Folder(
+            name=self.name, parent=parent.id if parent else self.parent_id
+        )
+        current_context = context.get_current()
+        entity = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                obj=synapse_folder, opentelemetry_context=current_context
+            ),
+        )
+
+        self.fill_from_dict(synapse_folder=entity, set_annotations=False)
+
+        tasks = []
+        if self.files:
+            tasks.extend(
+                file.store(parent=self, synapse_client=synapse_client)
+                for file in self.files
             )
-            current_context = context.get_current()
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_folder, opentelemetry_context=current_context
-                ),
+
+        if self.folders:
+            tasks.extend(
+                folder.store(parent=self, synapse_client=synapse_client)
+                for folder in self.folders
             )
 
-            self.fill_from_dict(synapse_folder=entity, set_annotations=False)
-
-            tasks = []
-            if self.files:
-                tasks.extend(
-                    file.store(parent=self, synapse_client=synapse_client)
-                    for file in self.files
+        if self.annotations:
+            tasks.append(
+                asyncio.create_task(
+                    Annotations(
+                        id=self.id, etag=self.etag, annotations=self.annotations
+                    ).store(synapse_client=synapse_client)
                 )
+            )
 
-            if self.folders:
-                tasks.extend(
-                    folder.store(parent=self, synapse_client=synapse_client)
-                    for folder in self.folders
-                )
+        try:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            if self.annotations:
-                tasks.append(
-                    asyncio.create_task(
-                        Annotations(
-                            id=self.id, etag=self.etag, annotations=self.annotations
-                        ).store(synapse_client=synapse_client)
-                    )
-                )
+            # TODO: Proper exception handling
+            for result in results:
+                if isinstance(result, Folder):
+                    print(f"Stored {result.name}")
+                elif isinstance(result, File):
+                    print(f"Stored {result.name} at: {result.path}")
+                elif isinstance(result, Annotations):
+                    self.annotations = result.annotations
+                    print(f"Stored annotations id: {result.id}, etag: {result.etag}")
+                else:
+                    raise ValueError(f"Unknown type: {type(result)}")
+        except Exception as ex:
+            Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
+            print("I hit an exception")
 
-            try:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+        print(f"Saved all files and folders in {self.name}")
 
-                # TODO: Proper exception handling
-                for result in results:
-                    if isinstance(result, Folder):
-                        print(f"Stored {result.name}")
-                    elif isinstance(result, File):
-                        print(f"Stored {result.name} at: {result.path}")
-                    elif isinstance(result, Annotations):
-                        self.annotations = result.annotations
-                        print(
-                            f"Stored annotations id: {result.id}, etag: {result.etag}"
-                        )
-                    else:
-                        raise ValueError(f"Unknown type: {type(result)}")
-            except Exception as ex:
-                Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
-                print("I hit an exception")
+        return self
 
-            print(f"Saved all files and folders in {self.name}")
-
-            return self
-
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Folder_Get: {self.id}"
+    )
     async def get(
         self,
         include_children: Optional[bool] = False,
@@ -223,54 +227,54 @@ class Folder:
         Returns:
             The folder object.
         """
-        with tracer.start_as_current_span(f"Folder_Get: {self.id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            entity = await loop.run_in_executor(
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        entity = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                entity=self.id,
+                opentelemetry_context=current_context,
+            ),
+        )
+
+        self.fill_from_dict(synapse_folder=entity, set_annotations=True)
+        if include_children:
+            children_objects = await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                    entity=self.id,
+                lambda: Synapse.get_client(synapse_client=synapse_client).getChildren(
+                    parent=self.id,
+                    includeTypes=["folder", "file"],
                     opentelemetry_context=current_context,
                 ),
             )
 
-            self.fill_from_dict(synapse_folder=entity, set_annotations=True)
-            if include_children:
-                children_objects = await loop.run_in_executor(
-                    None,
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).getChildren(
-                        parent=self.id,
-                        includeTypes=["folder", "file"],
-                        opentelemetry_context=current_context,
-                    ),
-                )
+            folders = []
+            files = []
+            for child in children_objects:
+                if (
+                    "type" in child
+                    and child["type"] == "org.sagebionetworks.repo.model.Folder"
+                ):
+                    folder = Folder().fill_from_dict(synapse_folder=child)
+                    folder.parent_id = self.id
+                    folders.append(folder)
 
-                folders = []
-                files = []
-                for child in children_objects:
-                    if (
-                        "type" in child
-                        and child["type"] == "org.sagebionetworks.repo.model.Folder"
-                    ):
-                        folder = Folder().fill_from_dict(synapse_folder=child)
-                        folder.parent_id = self.id
-                        folders.append(folder)
+                elif (
+                    "type" in child
+                    and child["type"] == "org.sagebionetworks.repo.model.FileEntity"
+                ):
+                    file = File().fill_from_dict(synapse_file=child)
+                    file.parent_id = self.id
+                    files.append(file)
 
-                    elif (
-                        "type" in child
-                        and child["type"] == "org.sagebionetworks.repo.model.FileEntity"
-                    ):
-                        file = File().fill_from_dict(synapse_file=child)
-                        file.parent_id = self.id
-                        files.append(file)
+            self.files.extend(files)
+            self.folders.extend(folders)
 
-                self.files.extend(files)
-                self.folders.extend(folders)
+        return self
 
-            return self
-
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Folder_Delete: {self.id}"
+    )
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the folder from Synapse.
 
@@ -280,13 +284,12 @@ class Folder:
         Returns:
             None
         """
-        with tracer.start_as_current_span(f"Folder_Delete: {self.id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                    obj=self.id,
-                    opentelemetry_context=current_context,
-                ),
-            )
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                obj=self.id,
+                opentelemetry_context=current_context,
+            ),
+        )

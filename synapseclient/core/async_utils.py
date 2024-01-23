@@ -7,7 +7,7 @@ tracer = trace.get_tracer("synapseclient")
 
 
 def otel_trace_method(
-    method_to_trace_name: Union[Callable[..., str], None] = None,
+    method_to_trace_name: Union[Callable[..., str], None] = None
 ) -> Callable[..., Callable[..., Coroutine[Any, Any, None]]]:
     """
     Decorator to trace a method with OpenTelemetry in an async environment. This function
@@ -19,7 +19,7 @@ def otel_trace_method(
     Example: Decorating a method within a class that will be traced with OpenTelemetry.
         Setting the trace name:
 
-            @otel_trace_method(method_to_trace_name=lambda self: f"Project_Store: {self.name}")
+            @otel_trace_method(method_to_trace_name=lambda self, **kwargs: f"Project_Store: {self.name}")
             async def store(self):
 
     Args:
@@ -42,7 +42,7 @@ def otel_trace_method(
                 else None
             )
             with tracer.start_as_current_span(trace_name or f"Synaspse::{f.__name__}"):
-                await f(self, *arg, **kwargs)
+                return await f(self, *arg, **kwargs)
 
         return wrapper
 

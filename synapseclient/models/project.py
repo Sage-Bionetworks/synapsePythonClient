@@ -158,7 +158,9 @@ class Project:
             )
         return self
 
-    @otel_trace_method(method_to_trace_name=lambda self: f"Project_Store: {self.name}")
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Project_Store: {self.name}"
+    )
     async def store(self, synapse_client: Optional[Synapse] = None) -> "Project":
         """Store project, files, and folders to synapse.
 
@@ -215,7 +217,7 @@ class Project:
                     self.annotations = result.annotations
                     print(f"Stored annotations id: {result.id}, etag: {result.etag}")
                 else:
-                    raise ValueError(f"Unknown type: {type(result)}")
+                    raise ValueError(f"Unknown type: {type(result)}", result)
         except Exception as ex:
             Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
             print("I hit an exception")
@@ -225,7 +227,7 @@ class Project:
         return self
 
     @otel_trace_method(
-        method_to_trace_name=lambda self: f"Project_Get: ID: {self.id}, Name: {self.name}"
+        method_to_trace_name=lambda self, **kwargs: f"Project_Get: ID: {self.id}, Name: {self.name}"
     )
     async def get(
         self,
@@ -286,7 +288,9 @@ class Project:
 
         return self
 
-    @otel_trace_method(method_to_trace_name=lambda self: f"Project_Delete: {self.id}")
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Project_Delete: {self.id}"
+    )
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the project from Synapse.
 
