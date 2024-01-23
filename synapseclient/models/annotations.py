@@ -8,6 +8,7 @@ from opentelemetry import trace, context
 
 from synapseclient import Synapse
 from synapseclient.annotations import ANNO_TYPE_TO_FUNC
+from synapseclient.core.async_utils import otel_trace_method
 
 
 tracer = trace.get_tracer("synapseclient")
@@ -40,6 +41,9 @@ class Annotations:
 
     is_loaded: bool = False
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Annotation_store: {self.id}"
+    )
     async def store(
         self,
         synapse_client: Optional[Synapse] = None,
@@ -48,20 +52,19 @@ class Annotations:
         # TODO: Validation that id and etag are present
 
         print(f"Storing annotations for id: {self.id}, etag: {self.etag}")
-        with tracer.start_as_current_span(f"Annotation_store: {self.id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            result = await loop.run_in_executor(
-                None,
-                lambda: set_annotations(
-                    annotations=self,
-                    synapse_client=synapse_client,
-                    opentelemetry_context=current_context,
-                ),
-            )
-            print(f"annotations store for {self.id} complete")
-            self.annotations = Annotations.from_dict(result)
-            # TODO: From the returned call do we need to update anything in the root object?
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        result = await loop.run_in_executor(
+            None,
+            lambda: set_annotations(
+                annotations=self,
+                synapse_client=synapse_client,
+                opentelemetry_context=current_context,
+            ),
+        )
+        print(f"annotations store for {self.id} complete")
+        self.annotations = Annotations.from_dict(result)
+        # TODO: From the returned call do we need to update anything in the root object?
         return self
 
     async def get(self):

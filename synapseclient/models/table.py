@@ -16,6 +16,7 @@ from synapseclient.table import (
     delete_rows,
 )
 from synapseclient.models import Annotations
+from synapseclient.core.async_utils import otel_trace_method
 from opentelemetry import trace, context
 
 
@@ -301,33 +302,35 @@ class Column:
         self.json_sub_columns = synapse_column.get("jsonSubColumns", None)
         return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Column_Store: {self.name}"
+    )
     async def store(self, synapse_client: Optional[Synapse] = None):
         """Persist the column to Synapse.
 
         :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
         :return: Column
         """
-        with tracer.start_as_current_span(f"Column_Store: {self.name}"):
-            # TODO - We need to add in some validation before the store to verify we have enough
-            # information to store the data
+        # TODO - We need to add in some validation before the store to verify we have enough
+        # information to store the data
 
-            # Call synapse
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).createColumn(
-                    name=self.name,
-                    columnType=self.column_type,
-                    opentelemetry_context=current_context,
-                ),
-            )
-            print(entity)
-            self.fill_from_dict(entity)
+        # Call synapse
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        entity = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).createColumn(
+                name=self.name,
+                columnType=self.column_type,
+                opentelemetry_context=current_context,
+            ),
+        )
+        print(entity)
+        self.fill_from_dict(entity)
 
-            print(f"Stored column {self.name}, id: {self.id}")
+        print(f"Stored column {self.name}, id: {self.id}")
 
-            return self
+        return self
 
 
 @dataclass()
@@ -466,6 +469,9 @@ class Table:
             )
         return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda _, **kwargs: f"Store_rows_by_csv: {kwargs.get('csv_path', None)}"
+    )
     async def store_rows_from_csv(
         self, csv_path: str, synapse_client: Optional[Synapse] = None
     ) -> str:
@@ -478,20 +484,22 @@ class Table:
         Returns:
             The path to the CSV that was stored.
         """
-        with tracer.start_as_current_span(f"Store_rows_by_csv: {csv_path}"):
-            synapse_table = Synapse_Table(schema=self.id, values=csv_path)
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_table, opentelemetry_context=current_context
-                ),
-            )
-            print(entity)
-            # TODO: What should this return?
+        synapse_table = Synapse_Table(schema=self.id, values=csv_path)
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        entity = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                obj=synapse_table, opentelemetry_context=current_context
+            ),
+        )
+        print(entity)
+        # TODO: What should this return?
         return csv_path
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Delete_rows: {self.name}"
+    )
     async def delete_rows(
         self, rows: List[Row], synapse_client: Optional[Synapse] = None
     ) -> None:
@@ -504,22 +512,24 @@ class Table:
         Returns:
             None
         """
-        with tracer.start_as_current_span(f"Delete_rows: {self.name}"):
-            rows_to_delete = []
-            for row in rows:
-                rows_to_delete.append([row.row_id, row.version_number])
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            await loop.run_in_executor(
-                None,
-                lambda: delete_rows(
-                    syn=Synapse.get_client(synapse_client=synapse_client),
-                    table_id=self.id,
-                    row_id_vers_list=rows_to_delete,
-                    opentelemetry_context=current_context,
-                ),
-            )
+        rows_to_delete = []
+        for row in rows:
+            rows_to_delete.append([row.row_id, row.version_number])
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        await loop.run_in_executor(
+            None,
+            lambda: delete_rows(
+                syn=Synapse.get_client(synapse_client=synapse_client),
+                table_id=self.id,
+                row_id_vers_list=rows_to_delete,
+                opentelemetry_context=current_context,
+            ),
+        )
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Table_Schema_Store: {self.name}"
+    )
     async def store_schema(self, synapse_client: Optional[Synapse] = None) -> "Table":
         """Store non-row information about a table including the columns and annotations.
 
@@ -529,79 +539,76 @@ class Table:
         Returns:
             The Table instance stored in synapse.
         """
-        with tracer.start_as_current_span(f"Table_Schema_Store: {self.name}"):
-            tasks = []
-            if self.columns:
-                # TODO: When a table is retrieved via `.get()` we create Column objects but
-                # TODO: We only have the ID attribute. THis is causing this if check to eval
-                # TODO: To True, however, we aren't actually modifying the column.
-                # TODO: Perhaps we should have a `has_changed` boolean on all dataclasses
-                # TODO: That we can check to see if we need to store the data.
-                tasks.extend(
-                    column.store(synapse_client=synapse_client)
-                    for column in self.columns
+        tasks = []
+        if self.columns:
+            # TODO: When a table is retrieved via `.get()` we create Column objects but
+            # TODO: We only have the ID attribute. THis is causing this if check to eval
+            # TODO: To True, however, we aren't actually modifying the column.
+            # TODO: Perhaps we should have a `has_changed` boolean on all dataclasses
+            # TODO: That we can check to see if we need to store the data.
+            tasks.extend(
+                column.store(synapse_client=synapse_client) for column in self.columns
+            )
+            try:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                # TODO: Proper exception handling
+                for result in results:
+                    if isinstance(result, Column):
+                        print(f"Stored {result.name}")
+                    else:
+                        raise ValueError(f"Unknown type: {type(result)}", result)
+            except Exception as ex:
+                Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
+                print("I hit an exception")
+
+        synapse_schema = Synapse_Schema(
+            name=self.name,
+            columns=self.columns,
+            parent=self.parent_id,
+        )
+
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        entity = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                obj=synapse_schema, opentelemetry_context=current_context
+            ),
+        )
+
+        self.fill_from_dict(synapse_table=entity, set_annotations=False)
+
+        tasks = []
+        if self.annotations:
+            tasks.append(
+                asyncio.create_task(
+                    Annotations(
+                        id=self.id, etag=self.etag, annotations=self.annotations
+                    ).store(synapse_client=synapse_client)
                 )
-                try:
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-                    # TODO: Proper exception handling
-                    for result in results:
-                        if isinstance(result, Column):
-                            print(f"Stored {result.name}")
-                        else:
-                            raise ValueError(f"Unknown type: {type(result)}")
-                except Exception as ex:
-                    Synapse.get_client(synapse_client=synapse_client).logger.exception(
-                        ex
-                    )
-                    print("I hit an exception")
-
-            synapse_schema = Synapse_Schema(
-                name=self.name,
-                columns=self.columns,
-                parent=self.parent_id,
             )
 
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_schema, opentelemetry_context=current_context
-                ),
-            )
+            try:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            self.fill_from_dict(synapse_table=entity, set_annotations=False)
+                # TODO: Proper exception handling
+                for result in results:
+                    if isinstance(result, Annotations):
+                        self.annotations = result.annotations
+                        print(
+                            f"Stored annotations id: {result.id}, etag: {result.etag}"
+                        )
+                    else:
+                        raise ValueError(f"Unknown type: {type(result)}", result)
+            except Exception as ex:
+                Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
+                print("I hit an exception")
+        return self
 
-            tasks = []
-            if self.annotations:
-                tasks.append(
-                    asyncio.create_task(
-                        Annotations(
-                            id=self.id, etag=self.etag, annotations=self.annotations
-                        ).store(synapse_client=synapse_client)
-                    )
-                )
-
-                try:
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-                    # TODO: Proper exception handling
-                    for result in results:
-                        if isinstance(result, Annotations):
-                            self.annotations = result.annotations
-                            print(
-                                f"Stored annotations id: {result.id}, etag: {result.etag}"
-                            )
-                        else:
-                            raise ValueError(f"Unknown type: {type(result)}")
-                except Exception as ex:
-                    Synapse.get_client(synapse_client=synapse_client).logger.exception(
-                        ex
-                    )
-                    print("I hit an exception")
-            return self
-
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Table_Get: {self.name}"
+    )
     async def get(self, synapse_client: Optional[Synapse] = None) -> "Table":
         """Get the metadata about the table from synapse.
 
@@ -612,18 +619,20 @@ class Table:
             The Table instance stored in synapse.
         """
         # TODO: How do we want to support retriving the table? Do we want to support by name, and parent?
-        with tracer.start_as_current_span(f"Table_Get: {self.name}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                    entity=self.id, opentelemetry_context=current_context
-                ),
-            )
-            self.fill_from_dict(synapse_table=entity, set_annotations=True)
-            return self
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        entity = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                entity=self.id, opentelemetry_context=current_context
+            ),
+        )
+        self.fill_from_dict(synapse_table=entity, set_annotations=True)
+        return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Table_Delete: {self.name}"
+    )
     # TODO: Synapse allows immediate deletion of entities, but the Synapse Client does not
     # TODO: Should we support immediate deletion?
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
@@ -635,19 +644,18 @@ class Table:
         Returns:
             None
         """
-        with tracer.start_as_current_span(f"Table_Delete: {self.name}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                    obj=self.id, opentelemetry_context=current_context
-                ),
-            )
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                obj=self.id, opentelemetry_context=current_context
+            ),
+        )
 
     @classmethod
     async def query(
-        self,
+        cls,
         query: str,
         result_format: Union[CsvResultFormat, RowsetResultFormat] = CsvResultFormat(),
         synapse_client: Optional[Synapse] = None,

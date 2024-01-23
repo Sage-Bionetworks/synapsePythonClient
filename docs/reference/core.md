@@ -42,6 +42,9 @@ functions.  Use at your own risk.
 
 ::: synapseclient.core.utils
 
+## Async Utils
+
+::: synapseclient.core.async_utils
 
 ## Versions
 ::: synapseclient.core.version_check
