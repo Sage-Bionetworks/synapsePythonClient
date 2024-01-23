@@ -5,10 +5,9 @@ from typing import Dict, List, Union
 from opentelemetry import trace, context
 from synapseclient.models import Annotations
 
-# import uuid
-
 from synapseclient.entity import File as Synapse_File
 from synapseclient import Synapse
+from synapseclient.core.async_utils import otel_trace_method
 
 from typing import Optional, TYPE_CHECKING
 
@@ -161,6 +160,9 @@ class File:
             )
         return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"File_Store: {self.path if self.path else self.id}"
+    )
     # TODO: How the parent is stored/referenced needs to be thought through
     async def store(
         self,
@@ -176,47 +178,47 @@ class File:
         Returns:
             The file object.
         """
-        with tracer.start_as_current_span(
-            f"File_Store: {self.path if self.path else self.id}"
-        ):
-            # TODO - We need to add in some validation before the store to verify we have enough
-            # information to store the data
+        # TODO - We need to add in some validation before the store to verify we have enough
+        # information to store the data
 
-            # Call synapse
-            if self.path:
-                loop = asyncio.get_event_loop()
-                synapse_file = Synapse_File(
-                    path=self.path,
-                    name=self.name,
-                    parent=parent.id if parent else self.parent_id,
-                )
-                # TODO: Propogating OTEL context is not working in this case
-                current_context = context.get_current()
-                entity = await loop.run_in_executor(
-                    None,
-                    lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                        obj=synapse_file, opentelemetry_context=current_context
-                    ),
-                )
+        # Call synapse
+        if self.path:
+            loop = asyncio.get_event_loop()
+            synapse_file = Synapse_File(
+                path=self.path,
+                name=self.name,
+                parent=parent.id if parent else self.parent_id,
+            )
+            # TODO: Propogating OTEL context is not working in this case
+            current_context = context.get_current()
+            entity = await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                    obj=synapse_file, opentelemetry_context=current_context
+                ),
+            )
 
-                self.fill_from_dict(synapse_file=entity, set_annotations=False)
+            self.fill_from_dict(synapse_file=entity, set_annotations=False)
 
-                print(f"Stored file {self.name}, id: {self.id}: {self.path}")
-            elif self.id and not self.etag:
-                # This elif is to handle if only annotations are being stored without
-                # a file path.
-                annotations_to_persist = self.annotations
-                await self.get(synapse_client=synapse_client, download_file=False)
-                self.annotations = annotations_to_persist
+            print(f"Stored file {self.name}, id: {self.id}: {self.path}")
+        elif self.id and not self.etag:
+            # This elif is to handle if only annotations are being stored without
+            # a file path.
+            annotations_to_persist = self.annotations
+            await self.get(synapse_client=synapse_client, download_file=False)
+            self.annotations = annotations_to_persist
 
-            if self.annotations:
-                result = await Annotations(
-                    id=self.id, etag=self.etag, annotations=self.annotations
-                ).store(synapse_client=synapse_client)
-                self.annotations = result.annotations
+        if self.annotations:
+            result = await Annotations(
+                id=self.id, etag=self.etag, annotations=self.annotations
+            ).store(synapse_client=synapse_client)
+            self.annotations = result.annotations
 
-            return self
+        return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"File_Get: {self.id}"
+    )
     # TODO: We need to provide all the other options that can be provided here, like collision, follow link ect...
     async def get(
         self,
@@ -234,22 +236,24 @@ class File:
         Returns:
             The file object.
         """
-        with tracer.start_as_current_span(f"File_Get: {self.id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                    entity=self.id,
-                    downloadFile=download_file,
-                    downloadLocation=download_location,
-                    opentelemetry_context=current_context,
-                ),
-            )
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        entity = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                entity=self.id,
+                downloadFile=download_file,
+                downloadLocation=download_location,
+                opentelemetry_context=current_context,
+            ),
+        )
 
-            self.fill_from_dict(synapse_file=entity, set_annotations=True)
-            return self
+        self.fill_from_dict(synapse_file=entity, set_annotations=True)
+        return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"File_Get_Provenance: {self.id}"
+    )
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the file from Synapse.
 
@@ -259,13 +263,12 @@ class File:
         Returns:
             None
         """
-        with tracer.start_as_current_span(f"File_Delete: {self.id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                    obj=self.id,
-                    opentelemetry_context=current_context,
-                ),
-            )
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                obj=self.id,
+                opentelemetry_context=current_context,
+            ),
+        )
