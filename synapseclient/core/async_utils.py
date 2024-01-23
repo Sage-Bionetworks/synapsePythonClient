@@ -1,5 +1,5 @@
 """This utility class is to hold any utilities that are needed for async operations."""
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, Union
 from opentelemetry import trace
 
 
@@ -7,7 +7,7 @@ tracer = trace.get_tracer("synapseclient")
 
 
 def otel_trace_method(
-    method_to_trace_name,
+    method_to_trace_name: Union[Callable[..., str], None] = None,
 ) -> Callable[..., Callable[..., Coroutine[Any, Any, None]]]:
     """
     Decorator to trace a method with OpenTelemetry in an async environment. This function
@@ -32,7 +32,10 @@ def otel_trace_method(
     """
 
     def decorator(f) -> Callable[..., Coroutine[Any, Any, None]]:
+        """Function decorator."""
+
         async def wrapper(self, *arg, **kwargs) -> None:
+            """Wrapper for the function to be traced."""
             trace_name = (
                 method_to_trace_name(self, *arg, **kwargs)
                 if method_to_trace_name
