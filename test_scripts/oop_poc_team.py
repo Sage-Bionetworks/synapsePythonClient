@@ -13,23 +13,11 @@ import asyncio
 from synapseclient.models.team import Team
 import synapseclient
 
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-
-trace.set_tracer_provider(
-    TracerProvider(resource=Resource(attributes={SERVICE_NAME: "oop_team"}))
-)
-trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
-tracer = trace.get_tracer("my_tracer")
 
 syn = synapseclient.Synapse(debug=True)
 syn.login()
 
 
-@tracer.start_as_current_span("Team")
 async def new_team():
     # Create a team
     new_team = Team(
@@ -40,11 +28,11 @@ async def new_team():
     my_synapse_team = await new_team.create()
     print(my_synapse_team)
     # sleep for a bit to allow the team to be created
-    await asyncio.sleep(10)
+    await asyncio.sleep(5)
     # Instantiate a Team object from a Synapse team
     my_team = await Team().from_id(id=my_synapse_team.id)
     print(my_team)
-    breakpoint()
+
     my_team = await Team().from_name(name=my_synapse_team.name)
     print(my_team)
     # Get information about the members of a Team
