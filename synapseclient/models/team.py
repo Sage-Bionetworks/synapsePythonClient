@@ -98,7 +98,9 @@ class Team:
     """The ID of the user that last modified this team"""
 
     def fill_from_dict(self, synapse_team: Synapse_Team) -> "Team":
-        self.id = synapse_team.get("id", None)
+        self.id = (
+            int(synapse_team.get("id", None)) if synapse_team.get("id", None) else None
+        )
         self.name = synapse_team.get("name", None)
         self.description = synapse_team.get("description", None)
         self.icon = synapse_team.get("icon", None)
