@@ -1,4 +1,4 @@
-"""This utility class is to hold only any utilities that are needed for async operations."""
+"""This utility class is to hold any utilities that are needed for async operations."""
 from typing import Any, Callable, Coroutine
 from opentelemetry import trace
 
