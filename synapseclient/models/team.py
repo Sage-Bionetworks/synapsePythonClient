@@ -28,13 +28,13 @@ class TeamMember:
         is_admin: Whether the given member is an administrator of the team
     """
 
-    team_id: int
+    team_id: Optional[int] = None
     """The ID of the team"""
 
-    member: UserGroupHeader
+    member: Optional[UserGroupHeader] = None
     """An object of type [org.sagebionetworks.repo.model.UserGroupHeader](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserGroupHeader.html)"""
 
-    is_admin: bool
+    is_admin: Optional[bool] = None
     """Whether the given member is an administrator of the team"""
 
     def fill_from_dict(self, synapse_team_member: Synapse_TeamMember) -> "TeamMember":

@@ -19,19 +19,19 @@ class UserGroupHeader:
         is_individual: True if this is a user, false if it is a group
     """
 
-    owner_id: int
+    owner_id: Optional[int] = None
     """A foreign key to the ID of the 'principal' object for the user."""
 
-    first_name: str
+    first_name: Optional[str] = None
     """First Name"""
 
-    last_name: str
+    last_name: Optional[str] = None
     """Last Name"""
 
-    user_name: str
+    user_name: Optional[str] = None
     """A name chosen by the user that uniquely identifies them."""
 
-    is_individual: bool
+    is_individual: Optional[bool] = None
     """True if this is a user, false if it is a group"""
 
     email: Optional[str] = None
