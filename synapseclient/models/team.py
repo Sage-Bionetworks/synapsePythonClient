@@ -9,6 +9,8 @@ from synapseclient.team import (
     TeamMember as Synapse_TeamMember,
 )
 from synapseclient.models.user import UserGroupHeader
+from synapseclient.core.async_utils import otel_trace_method
+
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -113,6 +115,9 @@ class Team:
         self.modified_by = synapse_team.get("modifiedBy", None)
         return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Team_Create: {self.name}"
+    )
     async def create(self, synapse_client: Optional[Synapse] = None) -> "Team":
         """Creates a new team on Synapse.
 
@@ -122,21 +127,23 @@ class Team:
         Returns:
             Team: The Team object.
         """
-        with tracer.start_as_current_span("Team_Create"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            team = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).create_team(
-                    name=self.name,
-                    description=self.description if self.description else None,
-                    icon=self.icon if self.icon else None,
-                    opentelemetry_context=current_context,
-                ),
-            )
-            self.fill_from_dict(team)
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        team = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).create_team(
+                name=self.name,
+                description=self.description if self.description else None,
+                icon=self.icon if self.icon else None,
+                opentelemetry_context=current_context,
+            ),
+        )
+        self.fill_from_dict(team)
         return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Team_Delete: {self.id}"
+    )
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Deletes a team from Synapse.
 
@@ -146,17 +153,19 @@ class Team:
         Returns:
             None
         """
-        with tracer.start_as_current_span("Team_Delete"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            delete = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).delete_team(
-                    id=self.id, opentelemetry_context=current_context
-                ),
-            )
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        delete = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).delete_team(
+                id=self.id, opentelemetry_context=current_context
+            ),
+        )
         return delete
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Team_From_Id: {self.id}"
+    )
     async def from_id(
         self, id: int, synapse_client: Optional[Synapse] = None
     ) -> "Team":
@@ -169,18 +178,20 @@ class Team:
         Returns:
             Team: The Team object.
         """
-        with tracer.start_as_current_span(f"Team_From_Id: {id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            team = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
-                    id=id, opentelemetry_context=current_context
-                ),
-            )
-            self.fill_from_dict(team)
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        team = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
+                id=id, opentelemetry_context=current_context
+            ),
+        )
+        self.fill_from_dict(team)
         return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Team_From_Name: {self.name}"
+    )
     async def from_name(
         self, name: str, synapse_client: Optional[Synapse] = None
     ) -> "Team":
@@ -193,18 +204,20 @@ class Team:
         Returns:
             Team: The Team object.
         """
-        with tracer.start_as_current_span(f"Team_From_Id: {id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            team = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
-                    id=name, opentelemetry_context=current_context
-                ),
-            )
-            self.fill_from_dict(team)
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        team = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
+                id=name, opentelemetry_context=current_context
+            ),
+        )
+        self.fill_from_dict(team)
         return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Team_Members: {self.name}"
+    )
     async def members(
         self, synapse_client: Optional[Synapse] = None
     ) -> Generator[TeamMember, None, None]:
@@ -227,6 +240,9 @@ class Team:
             )
         return team_members
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Team_Invite: {self.name}"
+    )
     async def invite(
         self, user: str, message: str, synapse_client: Optional[Synapse] = None
     ) -> dict[str, str]:
@@ -240,23 +256,23 @@ class Team:
         Returns:
             dict: The invite response.
         """
-        with tracer.start_as_current_span(f"Team_Invite: {self.id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            invite = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).invite_to_team(
-                    team=self,
-                    user=user,
-                    message=message,
-                    force=True,
-                    opentelemetry_context=current_context,
-                ),
-            )
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        invite = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).invite_to_team(
+                team=self,
+                user=user,
+                message=message,
+                force=True,
+                opentelemetry_context=current_context,
+            ),
+        )
         return invite
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Team_Open_Invitations: {self.name}"
+    )
     async def open_invitations(
         self, synapse_client: Optional[Synapse] = None
     ) -> Generator[dict, None, None]:
@@ -268,15 +284,14 @@ class Team:
         Returns:
             Generator[dict, None, None]: A generator over the invitations.
         """
-        with tracer.start_as_current_span(f"Team_Open_Invitations: {self.id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            invitations = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).get_team_open_invitations(
-                    team=self, opentelemetry_context=current_context
-                ),
-            )
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        invitations = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(
+                synapse_client=synapse_client
+            ).get_team_open_invitations(
+                team=self, opentelemetry_context=current_context
+            ),
+        )
         return invitations
