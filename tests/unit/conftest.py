@@ -22,7 +22,7 @@ def pytest_runtest_setup():
 
     allow_unix_socket=True is required for async to work.
     """
-    disable_socket(allow_unix_socket=True)
+    disable_socket(allow_unix_socket=True, allow_windows_pipe=True)
 
 
 def test_confirm_connections_blocked():
