@@ -619,16 +619,16 @@ class UploadAttemptAsync:
                 del response
                 del body
 
-                async with self._add_part_semaphore:
-                    # now tell synapse that we uploaded that part successfully
-                    await self._syn.rest_put(
-                        "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}".format(
-                            upload_id=self._upload_id,
-                            part_number=part_number,
-                            md5=md5_hex,
-                        ),
-                        endpoint=self._syn.client.fileHandleEndpoint,
-                    )
+                # async with self._add_part_semaphore:
+                # now tell synapse that we uploaded that part successfully
+                await self._syn.rest_put(
+                    "/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5}".format(
+                        upload_id=self._upload_id,
+                        part_number=part_number,
+                        md5=md5_hex,
+                    ),
+                    endpoint=self._syn.client.fileHandleEndpoint,
+                )
 
                 # # remove so future batch pre_signed url fetches will exclude this part
                 async with self._lock:
@@ -642,7 +642,7 @@ class UploadAttemptAsync:
             completed_part_count = part_count - len(remaining_part_numbers)
             file_size = self._upload_request_payload.get("fileSizeBytes")
 
-            self._pre_signed_part_urls = await self._fetch_pre_signed_part_urls(
+            pre_signed_part_future = self._fetch_pre_signed_part_urls(
                 self._upload_id,
                 remaining_part_numbers,
             )
@@ -666,7 +666,7 @@ class UploadAttemptAsync:
                     postfix=self._dest_file_name,
                     previouslyTransferred=previously_transferred,
                 )
-
+            self._pre_signed_part_urls = await pre_signed_part_future
             for result in asyncio.as_completed(futures):
                 try:
                     _, part_size = await result

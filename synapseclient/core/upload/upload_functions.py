@@ -238,6 +238,7 @@ async def upload_file_handle_async(
         entity_parent_id = id_of(parent_entity)
 
         # determine the upload function based on the UploadDestination
+        # TODO: If there are multiple files going into the same parent, we should only call this once
         location = await syn._get_default_upload_destination(entity_parent_id)
         upload_destination_type = location["concreteType"]
         trace.get_current_span().set_attributes(

@@ -322,7 +322,7 @@ class Synapse(object):
         # that portion to Synapse. There are likely a few copies stashed in memory
         # that have been causing OOM errors with low memory machines.
         # 8MB * max_limit * number of duplications in memory
-        self._file_part_upload_max_limit = 15
+        self._file_part_upload_max_limit = 20
         # https://stackoverflow.com/questions/55918048/asyncio-semaphore-runtimeerror-task-got-future-attached-to-a-different-loop
         # self._file_part_semaphore = asyncio.Semaphore(self._file_part_upload_max_limit)
         self._file_part_semaphore = None
