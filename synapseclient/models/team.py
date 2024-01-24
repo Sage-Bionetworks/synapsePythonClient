@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Optional, Generator, Dict, List
+from typing import Optional, Dict, List
 from opentelemetry import trace, context
 
 from synapseclient import Synapse
