@@ -3896,8 +3896,7 @@ class Synapse(object):
         with tracer.start_as_current_span(
             "Synapse::delete_team", context=opentelemetry_context
         ):
-            self.restDELETE(f"/team/{id}")
-            return None
+            return self.restDELETE(f"/team/{id}")
 
     def getTeam(self, id, opentelemetry_context=None):
         """

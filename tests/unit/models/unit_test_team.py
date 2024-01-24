@@ -11,3 +11,7 @@ class TestTeamMember:
         assert team_member.team_id == 1
         assert team_member.member.owner_id == 2
         assert team_member.is_admin is True
+
+
+class TestTeam:
+    ...

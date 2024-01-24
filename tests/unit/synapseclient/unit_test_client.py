@@ -3647,3 +3647,39 @@ class TestPermissionsOnProject:
                 "DOWNLOAD",
             ]
             assert set(expected_permissions) == set(permissions)
+
+
+def test_create_team(syn):
+    with patch.object(
+        syn,
+        "restPOST",
+        return_value={
+            "id": "1",
+            "name": "python-client-test-team",
+            "description": "test description",
+            "icon": "test_file_handle_id",
+            "etag": "11111111-1111-1111-1111-111111111111",
+            "createdOn": "2000-01-01T00:00:00.000Z",
+            "modifiedOn": "2000-01-01T00:00:00.000Z",
+            "createdBy": "1111111",
+            "modifiedBy": "1111111",
+        },
+    ):
+        team = syn.create_team(
+            name="python-client-test-team",
+            description="test description",
+            icon="test_file_handle_id",
+        )
+        assert team.id == "1"
+        assert team.name == "python-client-test-team"
+        assert team.description == "test description"
+        assert team.icon == "test_file_handle_id"
+        assert team.etag == "11111111-1111-1111-1111-111111111111"
+        assert team.created_on == "2000-01-01T00:00:00.000Z"
+        assert team.modified_on == "2000-01-01T00:00:00.000Z"
+        assert team.created_by == "1111111"
+        assert team.modified_by == "1111111"
+
+
+# def test_delete_team():
+#     pass
