@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Optional, Generator
+from typing import Optional, Generator, Dict
 from opentelemetry import trace, context
 
 from synapseclient import Synapse
@@ -245,7 +245,7 @@ class Team:
     )
     async def invite(
         self, user: str, message: str, synapse_client: Optional[Synapse] = None
-    ) -> dict[str, str]:
+    ) -> Dict[str, str]:
         """Invites a user to a team.
 
         Args:
