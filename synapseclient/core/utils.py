@@ -24,8 +24,6 @@ import uuid
 import warnings
 import zipfile
 
-import synapseclient
-
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
@@ -341,7 +339,7 @@ def is_same_base_url(url1: str, url2: str) -> bool:
     return url1.scheme == url2.scheme and url1.hostname == url2.hostname
 
 
-def is_synapse_id_str(obj):
+def is_synapse_id_str(obj: str) -> typing.Union[str, None]:
     """If the input is a Synapse ID return it, otherwise return None"""
     if isinstance(obj, str):
         m = re.match(r"(syn\d+(\.\d+)?$)", obj)
@@ -364,14 +362,19 @@ def get_synid_and_version(
 
     if isinstance(obj, str):
         synapse_id_and_version = is_synapse_id_str(obj)
+        assert (
+            synapse_id_and_version
+        ), "The input string was not determined to be a syn ID."
         m = re.match(r"(syn\d+)(?:\.(\d+))?", synapse_id_and_version)
         id = m.group(1)
         version = int(m.group(2)) if m.group(2) is not None else m.group(2)
-    elif isinstance(obj, synapseclient.Entity):
-        id = id_of(obj)
-        version = None
-        if "versionNumber" in obj:
-            version = obj["versionNumber"]
+
+        return id, version
+
+    id = id_of(obj)
+    version = None
+    if "versionNumber" in obj:
+        version = obj["versionNumber"]
 
     return id, version
 
