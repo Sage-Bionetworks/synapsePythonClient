@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Optional, Generator, Dict
+from typing import Optional, Generator, Dict, List
 from opentelemetry import trace, context
 
 from synapseclient import Synapse
@@ -220,25 +220,28 @@ class Team:
     )
     async def members(
         self, synapse_client: Optional[Synapse] = None
-    ) -> Generator[TeamMember, None, None]:
+    ) -> List[TeamMember]:
         """Gets the TeamMembers associated with a team.
 
         Args:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
-            Generator[TeamMember]: A generator of TeamMember objects.
+            List[TeamMember]: A List of TeamMember objects.
         """
-        with tracer.start_as_current_span(f"Team_Members: {self.id}"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            team_members = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).getTeamMembers(team=self, opentelemetry_context=current_context),
-            )
-        return team_members
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        team_members = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).getTeamMembers(
+                team=self, opentelemetry_context=current_context
+            ),
+        )
+        team_member_list = [
+            TeamMember().fill_from_dict(synapse_team_member=member)
+            for member in team_members
+        ]
+        return team_member_list
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Invite: {self.name}"
@@ -275,14 +278,14 @@ class Team:
     )
     async def open_invitations(
         self, synapse_client: Optional[Synapse] = None
-    ) -> Generator[dict, None, None]:
+    ) -> List[dict]:
         """Gets all open invitations for a team.
 
         Args:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
-            Generator[dict, None, None]: A generator over the invitations.
+            List[dict]: A list of invitations.
         """
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
@@ -294,4 +297,4 @@ class Team:
                 team=self, opentelemetry_context=current_context
             ),
         )
-        return invitations
+        return list(invitations)
