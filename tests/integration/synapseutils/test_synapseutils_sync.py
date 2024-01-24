@@ -49,7 +49,7 @@ def test_state(syn: Synapse, schedule_for_cleanup):
                 '%s	%s	"syn12"	" syn123 ;https://www.example.com"	provName2		bar\n'
                 % (self.f2, self.folder.id)
             )
-            self.row3 = '%s	%s	"syn12"		prov2	False	baz\n' % (self.f3, self.folder.id)
+            self.row3 = '%s	%s	"syn12.1"		prov2	False	baz\n' % (self.f3, self.folder.id)
             self.row4 = "%s	%s	%s		act		2\n" % (
                 self.f3,
                 self.project.id,
@@ -294,11 +294,24 @@ def test_syncFromSynapse(test_state):
         uploaded_paths.append(f)
         test_state.schedule_for_cleanup(f)
         test_state.syn.store(File(f, parent=folder_entity))
+
     # Add a file in the project level as well
     f = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     test_state.schedule_for_cleanup(f)
-    test_state.syn.store(File(f, parent=project_entity))
+    entity = test_state.syn.store(File(f, parent=project_entity))
+
+    # Update the Entity and make sure the version is incremented
+    entity = test_state.syn.get(entity)
+    entity = test_state.syn.store(entity, forceVersion=True)
+    print(entity)
+    assert entity.versionNumber == 2
+
+    # Now get version 1 of the entity using .version syntax in the synid
+    synid_with_version_1 = f"{entity.id}.1"
+    entity_v1 = execute_sync_from_synapse(test_state.syn, synid_with_version_1)
+    # Confirm that the entity is version 1 and not 2
+    assert entity_v1[0].versionNumber == 1
 
     # syncFromSynapse() uses chunkedQuery() which will return results that are eventually consistent
     # but not always right after the entity is created.
