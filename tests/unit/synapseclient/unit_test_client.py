@@ -3650,6 +3650,11 @@ class TestPermissionsOnProject:
 
 
 def test_create_team(syn):
+    request_body = {
+        "name": "python-client-test-team",
+        "description": "test description",
+        "icon": "test_file_handle_id",
+    }
     with patch.object(
         syn,
         "restPOST",
@@ -3664,22 +3669,25 @@ def test_create_team(syn):
             "createdBy": "1111111",
             "modifiedBy": "1111111",
         },
-    ):
+    ) as mock_post:
         team = syn.create_team(
             name="python-client-test-team",
             description="test description",
             icon="test_file_handle_id",
         )
+        mock_post.assert_called_once_with("/team", json.dumps(request_body))
         assert team.id == "1"
         assert team.name == "python-client-test-team"
         assert team.description == "test description"
         assert team.icon == "test_file_handle_id"
         assert team.etag == "11111111-1111-1111-1111-111111111111"
-        assert team.created_on == "2000-01-01T00:00:00.000Z"
-        assert team.modified_on == "2000-01-01T00:00:00.000Z"
-        assert team.created_by == "1111111"
-        assert team.modified_by == "1111111"
+        assert team.createdOn == "2000-01-01T00:00:00.000Z"
+        assert team.modifiedOn == "2000-01-01T00:00:00.000Z"
+        assert team.createdBy == "1111111"
+        assert team.modifiedBy == "1111111"
 
 
-# def test_delete_team():
-#     pass
+def test_delete_team(syn):
+    with patch.object(syn, "restDELETE") as mock_delete:
+        syn.delete_team(1)
+        mock_delete.assert_called_once_with("/team/1")
