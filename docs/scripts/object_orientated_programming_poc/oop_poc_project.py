@@ -60,12 +60,14 @@ async def store_project():
 
     project = await project.store()
 
+    print("Project created:")
     print(project)
 
     # Updating and storing an annotation =============================================
     project_copy = await Project(id=project.id).get()
     project_copy.annotations["my_key_string"] = ["new", "values", "here"]
     stored_project = await project_copy.store()
+    print("Project updated:")
     print(stored_project)
 
     # Storing several files to a project =============================================
@@ -100,6 +102,7 @@ async def store_project():
     # Getting metadata about a project ===============================================
     project_copy = await Project(id=project.id).get(include_children=True)
 
+    print("Project metadata:")
     print(project_copy)
     for file in project_copy.files:
         print(f"File: {file.name}")
@@ -111,8 +114,6 @@ async def store_project():
     new_annotations = {
         "my_new_key_string": ["b", "a", "c"],
     }
-
-    project_copy = await Project(id=project.id).get(include_children=True)
 
     for file in project_copy.files:
         file.annotations = new_annotations

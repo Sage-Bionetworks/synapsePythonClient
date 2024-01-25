@@ -62,12 +62,14 @@ async def store_folder():
 
     folder = await folder.store()
 
+    print("Folder created:")
     print(folder)
 
     # Updating and storing an annotation =================================================
     folder_copy = await Folder(id=folder.id).get()
     folder_copy.annotations["my_key_string"] = ["new", "values", "here"]
     stored_folder = await folder_copy.store()
+    print("Folder updated:")
     print(stored_folder)
 
     # Storing several files to a folder ==================================================
@@ -98,6 +100,7 @@ async def store_folder():
     # Getting metadata about a folder =====================================================
     folder_copy = await Folder(id=folder.id).get(include_children=True)
 
+    print("Folder metadata:")
     print(folder_copy)
     for file in folder_copy.files:
         print(f"File: {file.name}")

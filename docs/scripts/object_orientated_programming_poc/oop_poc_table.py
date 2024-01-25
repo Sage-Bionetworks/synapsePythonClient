@@ -99,6 +99,7 @@ async def store_table():
 
     table = await table.store_schema()
 
+    print("Table created:")
     print(table)
 
     # Getting a table =================================================================
@@ -106,11 +107,13 @@ async def store_table():
 
     copy_of_table = await copy_of_table.get()
 
+    print("Table retrieved:")
     print(copy_of_table)
 
     # Updating annotations on my table ===============================================
     copy_of_table.annotations["my_key_string"] = ["new", "values", "here"]
     stored_table = await copy_of_table.store_schema()
+    print("Table updated:")
     print(stored_table)
 
     # Storing data to a table =========================================================
@@ -120,6 +123,7 @@ async def store_table():
 
     csv_path = await copy_of_table.store_rows_from_csv(csv_path=path_to_csv)
 
+    print("Stored data to table from CSV:")
     print(csv_path)
 
     # Querying for data from a table =================================================

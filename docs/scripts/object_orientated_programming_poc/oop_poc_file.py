@@ -67,12 +67,14 @@ async def store_file():
 
     file = await file.store()
 
+    print("File created:")
     print(file)
 
     # Updating and storing an annotation =================================================
     file_copy = await File(id=file.id).get()
     file_copy.annotations["my_key_string"] = ["new", "values", "here"]
     stored_file = await file_copy.store()
+    print("File updated:")
     print(stored_file)
 
     # Downloading a file =================================================================
@@ -80,6 +82,7 @@ async def store_file():
         download_location=os.path.expanduser("~/temp/myNewFolder")
     )
 
+    print("Downloaded file:")
     print(downloaded_file_copy)
 
     # Get metadata about a file ==========================================================
@@ -87,6 +90,7 @@ async def store_file():
         download_file=False,
     )
 
+    print("Metadata about file:")
     print(non_downloaded_file_copy)
 
     # Creating and uploading a file to a folder =========================================
@@ -102,18 +106,21 @@ async def store_file():
 
     file = await file.store()
 
+    print("File created:")
     print(file)
 
     downloaded_file_copy = await File(id=file.id).get(
         download_location=os.path.expanduser("~/temp/myNewFolder")
     )
 
+    print("Downloaded file:")
     print(downloaded_file_copy)
 
     non_downloaded_file_copy = await File(id=file.id).get(
         download_file=False,
     )
 
+    print("Metadata about file:")
     print(non_downloaded_file_copy)
 
     # Uploading a file and then Deleting a file ==========================================

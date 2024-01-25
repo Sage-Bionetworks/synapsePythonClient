@@ -74,6 +74,7 @@ async def store_activity_on_file():
 
     file = await file.store()
 
+    print("File created with activity:")
     print(activity)
 
     activity_copy = await Activity.from_parent(parent=file)
@@ -89,6 +90,7 @@ async def store_activity_on_file():
 
     await second_file.store()
 
+    print("Second file created with activity:")
     print(second_file.activity)
 
     # # Update the already created activity, which updates the activity on both files ====
@@ -106,7 +108,11 @@ async def store_activity_on_file():
             UsedEntity(target_id=PROJECT_ID),
         ],
     )
-    await new_activity_instance.store()
+    # These 3 will be the same activity
+    print("Modified activity showing name is updated for all files:")
+    print((await new_activity_instance.store()).name)
+    print((await Activity.from_parent(parent=file)).name)
+    print((await Activity.from_parent(parent=second_file)).name)
 
 
 async def store_activity_on_table():
@@ -139,6 +145,7 @@ async def store_activity_on_table():
 
     table = await table.store_schema()
 
+    print("Table created with activity:")
     print(table.activity)
 
 
