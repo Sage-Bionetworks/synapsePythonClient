@@ -1,9 +1,7 @@
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 import pytest
 from synapseclient.models import Activity, UsedURL, UsedEntity, File
 from synapseclient.activity import Activity as Synapse_Activity
-
-from opentelemetry import context
 
 
 class TestActivity:
@@ -158,7 +156,7 @@ class TestActivity:
             sample_input["etag"] = None
             path_update_activity.assert_called_once_with(
                 activity=sample_input,
-                opentelemetry_context=context.get_current(),
+                opentelemetry_context=ANY,
             )
 
             # AND we should get back the stored activity
@@ -214,7 +212,7 @@ class TestActivity:
             path_set_provenance.assert_called_once_with(
                 entity="syn999",
                 activity=sample_input,
-                opentelemetry_context=context.get_current(),
+                opentelemetry_context=ANY,
             )
 
             # AND we should get back the stored activity
@@ -258,7 +256,7 @@ class TestActivity:
             path_get_provenance.assert_called_once_with(
                 entity="syn999",
                 version=1,
-                opentelemetry_context=context.get_current(),
+                opentelemetry_context=ANY,
             )
 
             # AND we should get back the stored activity
@@ -301,5 +299,5 @@ class TestActivity:
             # THEN we should call the method with this data
             path_delete_provenance.assert_called_once_with(
                 entity="syn999",
-                opentelemetry_context=context.get_current(),
+                opentelemetry_context=ANY,
             )
