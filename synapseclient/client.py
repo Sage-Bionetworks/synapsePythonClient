@@ -1024,10 +1024,11 @@ class Synapse(object):
         Gets a Synapse entity from the repository service.
 
         Arguments:
-            entity:           A Synapse ID, a Synapse Entity object, a plain dictionary in which 'id' maps to a
-                                Synapse ID or a local file that is stored in Synapse (found by the file MD5)
+            entity:           A Synapse ID (e.g. syn123 or syn123.1, with .1 denoting version), a Synapse Entity object,
+                              a plain dictionary in which 'id' maps to a Synapse ID or a local file that is stored in
+                              Synapse (found by the file MD5)
             version:          The specific version to get.
-                                Defaults to the most recent version.
+                                Defaults to the most recent version. If not denoted in the entity input.
             downloadFile:     Whether associated files(s) should be downloaded.
                                 Defaults to True.
             downloadLocation: Directory where to download the Synapse File Entity.

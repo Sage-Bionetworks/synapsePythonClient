@@ -101,6 +101,7 @@ def test_id_of():
 
 
 # TODO: Add a test for is_synapse_id_str(...)
+# https://sagebionetworks.jira.com/browse/SYNPY-1425
 
 
 def test_get_synid_and_version():
@@ -117,10 +118,9 @@ def test_get_synid_and_version():
 
     # Test 3: Ensure that a synID string with version syntax typo breaks
     synid_with_typo = "syn123.oops"
-    assertion_error = "The input string was not determined to be a syn ID."
-    with pytest.raises(AssertionError) as error:
+    error_msg = "The input string was not determined to be a syn ID."
+    with pytest.raises(ValueError, match=error_msg):
         utils.get_synid_and_version(synid_with_typo)
-        assert error == assertion_error
 
     # Test 4: Ensure that a versionable Entity obj with version works
     _, version = utils.get_synid_and_version({"foo": 1, "id": 123, "versionNumber": 2})

@@ -92,8 +92,8 @@ def syncFromSynapse(
     manifest="all",
     downloadFile=True,
 ):
-    """Synchronizes all the files in a folder (including subfolders) from Synapse
-    and adds a readme manifest with file metadata.
+    """Synchronizes a File entity, or a Folder entity, meaning all the files in a folder
+    (including subfolders) from Synapse, and adds a readme manifest with file metadata.
 
     There are a few conversions around annotations to call out here.
 
@@ -132,11 +132,13 @@ def syncFromSynapse(
             [tables][synapseclient.Table], [links][synapseclient.Link])
 
 
-    This function will crawl all subfolders of the project/folder specified by
-    `entity` and download all files that have not already been downloaded. If
-    there are newer files in Synapse (or a local file has been edited outside of the
-    cache) since the last download then local the file will be replaced by the new
-    file unless "ifcollision" is changed.
+    When entity is a Project or Folder, this function will crawl all subfolders
+    of the project/folder specified by `entity` and download all files that have
+    not already been downloaded. When entity is a File the function will download the
+    latest version of the file unless version is denoted in the synid with .version
+    notiation (e.g. syn123.1) If there are newer files in Synapse (or a local file
+    has been edited outside of the cache) since the last download then local the file
+    will be replaced by the new file unless "ifcollision" is changed.
 
     If the files are being downloaded to a specific location outside of the Synapse
     cache a file (SYNAPSE_METADATA_MANIFEST.tsv) will also be added in the path that
