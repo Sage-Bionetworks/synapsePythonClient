@@ -54,7 +54,6 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_create(self):
-        Synapse.set_client(self.syn)
         with patch.object(
             self.syn,
             "create_team",
@@ -75,7 +74,6 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_delete(self):
-        Synapse.set_client(self.syn)
         with patch.object(
             self.syn,
             "delete_team",
@@ -87,7 +85,6 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_from_id(self):
-        Synapse.set_client(self.syn)
         with patch.object(
             self.syn,
             "getTeam",
@@ -102,7 +99,6 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_from_name(self):
-        Synapse.set_client(self.syn)
         with patch.object(
             self.syn,
             "getTeam",
@@ -119,7 +115,6 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_members(self):
-        Synapse.set_client(self.syn)
         with patch.object(
             self.syn,
             "getTeamMembers",
@@ -143,7 +138,6 @@ class TestTeam:
             "createdOn": "2000-01-01T00:00:00.000Z",
             "createdBy": "4",
         }
-        Synapse.set_client(self.syn)
         with patch.object(
             self.syn,
             "invite_to_team",
@@ -173,7 +167,6 @@ class TestTeam:
             "createdOn": "2000-01-01T00:00:00.000Z",
             "createdBy": "4",
         }
-        Synapse.set_client(self.syn)
         with patch.object(
             self.syn,
             "get_team_open_invitations",
