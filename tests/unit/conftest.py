@@ -22,6 +22,7 @@ def pytest_runtest_setup():
 
     allow_unix_socket=True is required for async to work.
     """
+    # This is a work-around because of https://github.com/python/cpython/issues/77589
     if platform.system() != "Windows":
         disable_socket(allow_unix_socket=True)
 
