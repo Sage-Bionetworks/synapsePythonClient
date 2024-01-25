@@ -60,6 +60,8 @@ class Team:
         can_public_join: True if members can join without an invitation or approval
         can_request_membership: True if users can create a membership request to join
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates
+                Since the E-Tag changes every time an entity is updated it is used to detect when
+                a client's current representation of an entity is out-of-date.
         created_on: The date this team was created
         modified_on: The date this team was last modified
         created_by: The ID of the user that created this team
@@ -85,7 +87,9 @@ class Team:
     """True if users can create a membership request to join"""
 
     etag: Optional[str] = None
-    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates"""
+    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates
+        Since the E-Tag changes every time an entity is updated it is used to detect when
+        a client's current representation of an entity is out-of-date."""
 
     created_on: Optional[str] = None
     """The date this team was created"""
