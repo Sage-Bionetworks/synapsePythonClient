@@ -23,6 +23,7 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
+from opentelemetry import trace
 
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
@@ -32,6 +33,8 @@ GB = 2**30
 MB = 2**20
 KB = 2**10
 BUFFER_SIZE = 8 * KB
+
+tracer = trace.get_tracer("synapseclient")
 
 
 def md5_for_file(
@@ -352,7 +355,7 @@ def bool_or_none(input_value: str) -> typing.Union[bool, None]:
     """
     Attempts to convert a string to a bool. Returns None if it fails.
 
-    Args:
+    Arguments:
         input_value: The string to convert to a bool
 
     Returns:
@@ -567,7 +570,7 @@ def datetime_to_iso(
     the "Z" at the end.
     See: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
 
-    Args:
+    Arguments:
         dt: The datetime to convert
         sep: Seperator character to use.
         include_milliseconds_if_zero: Whether or not to include millseconds in this result
@@ -1214,3 +1217,49 @@ class Spinner:
             sys.stdout.write(f"\r {spinner} {self.msg}")
             sys.stdout.flush()
         self._tick += 1
+
+
+def otel_trace_method(
+    method_to_trace_name: typing.Optional[typing.Callable[..., str]] = None
+):
+    """
+    Decorator to trace a method with OpenTelemetry in a sync environment. This function
+    is specifically written to be used on a method within a class.
+
+    This will pass the class instance as the first argument to the method. This allows
+    you to modify the name of the trace to include information about the class instance.
+
+    Example: Decorating a method within a class that will be traced with OpenTelemetry.
+        Setting the trace name with a lambda function:
+
+            @otel_trace_method(method_to_trace_name=lambda self, **kwargs: f"Store: {self.name}")
+            def store(self):
+
+    Arguments:
+        method_to_trace_name: A callable that takes the class instance as the first argument
+            and returns a string to be used as the trace name. If this is not provided,
+            the trace name will be set to the method name.
+
+    Returns:
+        A callable decorator that will trace the method with OpenTelemetry.
+    """
+
+    def decorator(func):
+        """Function decorator."""
+
+        def otel_trace_method_wrapper(self, *arg, **kwargs) -> None:
+            """Wrapper for the function to be traced."""
+            trace_name = (
+                method_to_trace_name(self, *arg, **kwargs)
+                if method_to_trace_name
+                else None
+            )
+            with tracer.start_as_current_span(
+                trace_name or f"Synaspse::{func.__name__}",
+                context=kwargs.get("opentelemetry_context", None),
+            ):
+                return func(self, *arg, **kwargs)
+
+        return otel_trace_method_wrapper
+
+    return decorator

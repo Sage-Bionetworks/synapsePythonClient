@@ -15,7 +15,7 @@ from synapseclient.table import (
     TableQueryResult as Synaspe_TableQueryResult,
     delete_rows,
 )
-from synapseclient.models import Annotations
+from synapseclient.models import Annotations, Activity
 from synapseclient.core.async_utils import otel_trace_method
 from opentelemetry import trace, context
 
@@ -419,6 +419,11 @@ class Table:
     should be enabled. Note that enabling full text search might slow down the
     indexing of the table or view."""
 
+    activity: Optional[Activity] = None
+    """The Activity model represents the main record of Provenance in Synapse.  It is
+    analygous to the Activity defined in the
+    [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance. """
+
     annotations: Optional[
         Dict[
             str,
@@ -477,7 +482,7 @@ class Table:
     ) -> str:
         """Takes in a path to a CSV and stores the rows to Synapse.
 
-        Args:
+        Arguments:
             csv_path: The path to the CSV to store.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
@@ -505,7 +510,7 @@ class Table:
     ) -> None:
         """Delete rows from a table.
 
-        Args:
+        Arguments:
             rows: The rows to delete.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
@@ -533,7 +538,7 @@ class Table:
     async def store_schema(self, synapse_client: Optional[Synapse] = None) -> "Table":
         """Store non-row information about a table including the columns and annotations.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
@@ -557,6 +562,8 @@ class Table:
                     if isinstance(result, Column):
                         print(f"Stored {result.name}")
                     else:
+                        if isinstance(result, BaseException):
+                            raise result
                         raise ValueError(f"Unknown type: {type(result)}", result)
             except Exception as ex:
                 Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
@@ -589,21 +596,30 @@ class Table:
                 )
             )
 
-            try:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+        if self.activity:
+            tasks.append(
+                asyncio.create_task(
+                    self.activity.store(parent=self, synapse_client=synapse_client)
+                )
+            )
+        try:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                # TODO: Proper exception handling
-                for result in results:
-                    if isinstance(result, Annotations):
-                        self.annotations = result.annotations
-                        print(
-                            f"Stored annotations id: {result.id}, etag: {result.etag}"
-                        )
-                    else:
-                        raise ValueError(f"Unknown type: {type(result)}", result)
-            except Exception as ex:
-                Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
-                print("I hit an exception")
+            # TODO: Proper exception handling
+            for result in results:
+                if isinstance(result, Activity):
+                    self.activity = result
+                    print(f"Stored activity id: {result.id}, etag: {result.etag}")
+                elif isinstance(result, Annotations):
+                    self.annotations = result.annotations
+                    print(f"Stored annotations id: {result.id}, etag: {result.etag}")
+                else:
+                    if isinstance(result, BaseException):
+                        raise result
+                    raise ValueError(f"Unknown type: {type(result)}", result)
+        except Exception as ex:
+            Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
+            print("I hit an exception")
         return self
 
     @otel_trace_method(
@@ -612,7 +628,7 @@ class Table:
     async def get(self, synapse_client: Optional[Synapse] = None) -> "Table":
         """Get the metadata about the table from synapse.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
@@ -638,7 +654,7 @@ class Table:
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the table from synapse.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
@@ -662,7 +678,7 @@ class Table:
     ) -> Union[Synapse_CsvFileTable, Synaspe_TableQueryResult]:
         """Query for data on a table stored in Synapse.
 
-        Args:
+        Arguments:
             query: The query to run.
             result_format: The format of the results. Defaults to CsvResultFormat().
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.

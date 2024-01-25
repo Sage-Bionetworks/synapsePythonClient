@@ -41,7 +41,6 @@ class Project:
                         desired annotations. The value is an object containing a list of values
                         (use empty list to represent no values for key) and the value type associated with
                         all values in the list.
-        is_loaded: A flag to indicate if the project has been loaded from Synapse.
 
     Functions:
         store: Store project, files, and folders to synapse.
@@ -134,12 +133,6 @@ class Project:
     (use empty list to represent no values for key) and the value type associated with
     all values in the list."""
 
-    is_loaded: bool = False
-
-    # TODO: What if I don't handle queue size, but handle it in the HTTP REST API layer?
-    # TODO: https://www.python-httpx.org/advanced/#pool-limit-configuration
-    # TODO: Test out changing the underlying layer to httpx
-
     def fill_from_dict(
         self, synapse_project: Synapse_Project, set_annotations: bool = True
     ) -> "Project":
@@ -164,7 +157,7 @@ class Project:
     async def store(self, synapse_client: Optional[Synapse] = None) -> "Project":
         """Store project, files, and folders to synapse.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
@@ -217,6 +210,8 @@ class Project:
                     self.annotations = result.annotations
                     print(f"Stored annotations id: {result.id}, etag: {result.etag}")
                 else:
+                    if isinstance(result, BaseException):
+                        raise result
                     raise ValueError(f"Unknown type: {type(result)}", result)
         except Exception as ex:
             Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
@@ -236,7 +231,7 @@ class Project:
     ) -> "Project":
         """Get the project metadata from Synapse.
 
-        Args:
+        Arguments:
             include_children: If True, will also get the children of the project.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
@@ -294,7 +289,7 @@ class Project:
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the project from Synapse.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:

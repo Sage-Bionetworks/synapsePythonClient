@@ -17,18 +17,6 @@ from synapseclient.models import (
 from datetime import date, datetime, timedelta, timezone
 import synapseclient
 
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-
-trace.set_tracer_provider(
-    TracerProvider(resource=Resource(attributes={SERVICE_NAME: "oop_table"}))
-)
-trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
-tracer = trace.get_tracer("my_tracer")
-
 PROJECT_ID = "syn52948289"
 
 syn = synapseclient.Synapse(debug=True)
@@ -46,7 +34,6 @@ def create_random_file(
         f.write(os.urandom(1))
 
 
-@tracer.start_as_current_span("File")
 async def store_file():
     # Creating annotations for my file ==================================================
     annotations_for_my_file = {

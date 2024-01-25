@@ -1,4 +1,6 @@
 # These are all of the models that are used by the Synapse client.
+from synapseclient.models.activity import Activity, UsedURL, UsedEntity
+
 from synapseclient.models.annotations import (
     Annotations,
 )
@@ -16,6 +18,9 @@ from synapseclient.models.table import (
 )
 
 __all__ = [
+    "Activity",
+    "UsedURL",
+    "UsedEntity",
     "File",
     "Folder",
     "Project",

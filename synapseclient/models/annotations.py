@@ -39,8 +39,6 @@ class Annotations:
     this field must match the current etag on the object. Not required if being used as
     a member variable on another class."""
 
-    is_loaded: bool = False
-
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Annotation_store: {self.id}"
     )
@@ -71,7 +69,6 @@ class Annotations:
         """Get the annotations from synapse."""
         print(f"Getting annotations for id: {self.id}, etag: {self.etag}")
         await asyncio.sleep(1)
-        self.is_loaded = True
 
     @classmethod
     def from_dict(

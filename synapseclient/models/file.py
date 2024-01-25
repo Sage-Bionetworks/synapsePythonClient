@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Dict, List, Union
 from opentelemetry import trace, context
-from synapseclient.models import Annotations
+from synapseclient.models import Annotations, Activity
 
 from synapseclient.entity import File as Synapse_File
 from synapseclient import Synapse
@@ -51,7 +51,6 @@ class File:
             desired annotations. The value is an object containing a list of values
             (use empty list to represent no values for key) and the value type associated with
             all values in the list.
-        is_loaded: If the file has been loaded from Synapse.
 
 
     """
@@ -112,6 +111,11 @@ class File:
     """An optional replacement for the name of the uploaded file. This is distinct
     from the entity name. If omitted the file will retain its original name."""
 
+    activity: Optional[Activity] = None
+    """The Activity model represents the main record of Provenance in Synapse.  It is
+    analygous to the Activity defined in the
+    [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance. """
+
     annotations: Optional[
         Dict[
             str,
@@ -132,8 +136,6 @@ class File:
 
     # TODO: We need to provide functionality for folks to store the file in Synapse, but
     # TODO: Not upload the file.
-
-    is_loaded: bool = False
 
     def fill_from_dict(
         self, synapse_file: Synapse_File, set_annotations: bool = True
@@ -171,7 +173,7 @@ class File:
     ) -> "File":
         """Store the file in Synapse.
 
-        Args:
+        Arguments:
             parent: The parent folder or project to store the file in.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
@@ -208,11 +210,41 @@ class File:
             await self.get(synapse_client=synapse_client, download_file=False)
             self.annotations = annotations_to_persist
 
+        tasks = []
+
         if self.annotations:
-            result = await Annotations(
-                id=self.id, etag=self.etag, annotations=self.annotations
-            ).store(synapse_client=synapse_client)
-            self.annotations = result.annotations
+            tasks.append(
+                asyncio.create_task(
+                    Annotations(
+                        id=self.id, etag=self.etag, annotations=self.annotations
+                    ).store(synapse_client=synapse_client)
+                )
+            )
+
+        if self.activity:
+            tasks.append(
+                asyncio.create_task(
+                    self.activity.store(parent=self, synapse_client=synapse_client)
+                )
+            )
+
+        try:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # TODO: Proper exception handling
+            for result in results:
+                if isinstance(result, Activity):
+                    self.activity = result
+                elif isinstance(result, Annotations):
+                    self.annotations = result.annotations
+                    print(f"Stored annotations id: {result.id}, etag: {result.etag}")
+                else:
+                    if isinstance(result, BaseException):
+                        raise result
+                    raise ValueError(f"Unknown type: {type(result)}", result)
+        except Exception as ex:
+            Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
+            print("I hit an exception")
 
         return self
 
@@ -228,7 +260,7 @@ class File:
     ) -> "File":
         """Get the file metadata from Synapse.
 
-        Args:
+        Arguments:
             download_file: If True the file will be downloaded.
             download_location: The location to download the file to.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
@@ -257,7 +289,7 @@ class File:
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the file from Synapse.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
