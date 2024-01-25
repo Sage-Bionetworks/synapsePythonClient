@@ -37,7 +37,7 @@ async def new_team():
     print(my_team)
     # Get information about the members of a Team
     members = await my_team.members()
-    print(next(members))
+    print(members)
 
     # Invite a user to a Team
     invite = await my_team.invite(
@@ -48,7 +48,7 @@ async def new_team():
 
     # Get open invitations for the Team
     invitations = await my_team.open_invitations()
-    print(next(invitations))
+    print(invitations)
 
     # Delete the Team
     await my_team.delete()
