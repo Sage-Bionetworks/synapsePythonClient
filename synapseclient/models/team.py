@@ -282,7 +282,7 @@ class Team:
     )
     async def open_invitations(
         self, synapse_client: Optional[Synapse] = None
-    ) -> List[dict]:
+    ) -> List[dict[str, str]]:
         """Gets all open invitations for a team.
 
         Args:

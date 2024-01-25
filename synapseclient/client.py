@@ -3898,7 +3898,7 @@ class Synapse(object):
         ):
             return self.restDELETE(f"/team/{id}")
 
-    def getTeam(self, id: Union[int, str], opentelemetry_context=None):
+    def getTeam(self, id: Union[int, str], opentelemetry_context=None) -> Team:
         """
         Finds a team with a given ID or name.
 
@@ -3929,7 +3929,9 @@ class Synapse(object):
                     raise ValueError('Can\'t find team "{}"'.format(teamid))
             return Team(**self.restGET("/team/%s" % teamid))
 
-    def getTeamMembers(self, team: Union[Team, int, str], opentelemetry_context=None):
+    def getTeamMembers(
+        self, team: Union[Team, int, str], opentelemetry_context=None
+    ) -> typing.Generator[TeamMember, None, None]:
         """
         Lists the members of the given team.
 
@@ -3982,7 +3984,7 @@ class Synapse(object):
 
     def get_team_open_invitations(
         self, team: Union[Team, int, str], opentelemetry_context=None
-    ):
+    ) -> typing.Generator[dict, None, None]:
         """Retrieve the open requests submitted to a Team
         <https://rest-docs.synapse.org/rest/GET/team/id/openInvitation.html>
 
@@ -3992,7 +3994,7 @@ class Synapse(object):
                                     Used in cases where concurrent operations need to be linked to parent spans.
 
         Yields:
-            Generator of MembershipRequest
+            Generator of MembershipRequest dictionaries
         """
         with tracer.start_as_current_span(
             "Synapse::get_team_open_invitations", context=opentelemetry_context
