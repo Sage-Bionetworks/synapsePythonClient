@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass, field
-from typing import List, Dict, Union, Set, Tuple
+from typing import List, Dict, Union, Tuple
 
 from synapseclient.activity import Activity as Synapse_Activity
 from opentelemetry import trace, context
@@ -104,10 +104,10 @@ class Activity:
     modified_by: Optional[str] = None
     """The user that last modified this object."""
 
-    used: Set[Union[UsedEntity, UsedURL]] = field(default_factory=list)
+    used: List[Union[UsedEntity, UsedURL]] = field(default_factory=list)
     """The entities used by this Activity."""
 
-    executed: Set[Union[UsedEntity, UsedURL]] = field(default_factory=list)
+    executed: List[Union[UsedEntity, UsedURL]] = field(default_factory=list)
     """The entities executed by this Activity."""
 
     def fill_from_dict(self, synapse_activity: Synapse_Activity) -> "Activity":
