@@ -39,18 +39,21 @@ class UsedEntity:
 @dataclass
 class UsedURL:
     """
-    URL that was used or executed by an Activity.
+    URL that was used or executed by an Activity such as a link to a
+    GitHub commit or a link to a specific version of a software tool.
 
     Arguments:
         name: The name of the URL.
-        url: The external URL of the file that was used.
+        url: The external URL of the file that was used such as a link to a
+            GitHub commit or a link to a specific version of a software tool.
     """
 
     name: Optional[str] = None
-    """The nam of the URL."""
+    """The name of the URL."""
 
     url: Optional[str] = None
-    """The external URL of the file that was used."""
+    """The external URL of the file that was used such as a link to a GitHub commit
+    or a link to a specific version of a software tool."""
 
 
 # TODO: When Views and Datasets are added we should add Activity to them.
