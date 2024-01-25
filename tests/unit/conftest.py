@@ -48,4 +48,5 @@ def syn():
     """
     syn = Synapse(debug=False, skip_checks=True)
     syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
+    Synapse.set_client(syn)
     return syn
