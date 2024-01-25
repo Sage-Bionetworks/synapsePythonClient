@@ -24,7 +24,7 @@ class UsedEntity:
     """
     Reference to a Synapse entity that was used or executed by an Activity.
 
-    Arguments:
+    Attributes:
         target_id: The ID of the entity to which this reference refers.
         target_version_number: The version number of the entity to which this reference refers.
     """
@@ -42,7 +42,7 @@ class UsedURL:
     URL that was used or executed by an Activity such as a link to a
     GitHub commit or a link to a specific version of a software tool.
 
-    Arguments:
+    Attributes:
         name: The name of the URL.
         url: The external URL of the file that was used such as a link to a
             GitHub commit or a link to a specific version of a software tool.
@@ -66,7 +66,7 @@ class Activity:
     activity needs to know what it `used`, and outputs need to know what activity
     they were `generatedBy`.
 
-    Arguments:
+    Attributes:
         id: The unique immutable ID for this actvity.
         name: A name for this Activity.
         description: A description for this Activity.
