@@ -353,18 +353,30 @@ def get_synid_and_version(
 ) -> typing.Tuple[str, typing.Union[int, None]]:
     """Extract the Synapse ID and version number from input entity
 
+    Arguments:
+            obj: May be a string, Entity object, or dictionary.
+
     Returns:
         A tuple containing the synapse ID and version number,
         where the version number may be an integer or None if
         the input object does not contain a versonNumber or
         .version notation (if string).
+
+    Example: Get synID and version from string object
+        Extract the synID and version number of the entity string ID
+
+            from synapseclient.core import utils
+            utils.get_synid_and_version("syn123.4")
+
+        The call above will return the following tuple:
+
+            ('syn123', 4)
     """
 
     if isinstance(obj, str):
         synapse_id_and_version = is_synapse_id_str(obj)
-        assert (
-            synapse_id_and_version
-        ), "The input string was not determined to be a syn ID."
+        if not synapse_id_and_version:
+            raise ValueError("The input string was not determined to be a syn ID.")
         m = re.match(r"(syn\d+)(?:\.(\d+))?", synapse_id_and_version)
         id = m.group(1)
         version = int(m.group(2)) if m.group(2) is not None else m.group(2)

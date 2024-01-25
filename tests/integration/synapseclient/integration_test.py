@@ -128,10 +128,10 @@ def test_entity_version(syn, project, schedule_for_cleanup):
 
     # Delete version 2
     syn.delete(entity, version=2)
-    # Setting versionNumber to None, so we can retrieve the latest version
-    # and confirm it is now version 1.
-    entity.versionNumber = None
-    returnEntity = syn.get(entity)
+    # Let's retrieve the entity again using its synId this time,
+    # since the old entity object had versionNumber = 2
+    entity_id = entity.id
+    returnEntity = syn.get(entity_id)
     assert returnEntity.versionNumber == 1
 
 
