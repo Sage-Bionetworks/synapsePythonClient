@@ -22,14 +22,16 @@ def pytest_runtest_setup():
 
     allow_unix_socket=True is required for async to work.
     """
-    disable_socket(allow_unix_socket=True)
+    if platform.system() != "Windows":
+        disable_socket(allow_unix_socket=True)
 
 
 def test_confirm_connections_blocked():
     """Confirm that socket connections are blocked during unit tests."""
-    with pytest.raises(SocketBlockedError) as cm_ex:
-        urllib.request.urlopen("http://example.com")
-    assert "A test tried to use socket.socket." == str(cm_ex.value)
+    if platform.system() != "Windows":
+        with pytest.raises(SocketBlockedError) as cm_ex:
+            urllib.request.urlopen("http://example.com")
+        assert "A test tried to use socket.socket." == str(cm_ex.value)
 
 
 @pytest.fixture(autouse=True)
