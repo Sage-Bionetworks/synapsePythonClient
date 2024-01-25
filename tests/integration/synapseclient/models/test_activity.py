@@ -34,11 +34,11 @@ class TestActivity:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="http://www.example.com"),
+                UsedURL(name="example", url="https://www.synapse.org/"),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="http://www.example.com"),
+                UsedURL(name="example", url="https://www.synapse.org/"),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -55,11 +55,11 @@ class TestActivity:
         assert result.modified_on is not None
         assert result.created_by is not None
         assert result.modified_by is not None
-        assert result.used[0].url == "http://www.example.com"
+        assert result.used[0].url == "https://www.synapse.org/"
         assert result.used[0].name == "example"
         assert result.used[1].target_id == "syn456"
         assert result.used[1].target_version_number == 1
-        assert result.executed[0].url == "http://www.example.com"
+        assert result.executed[0].url == "https://www.synapse.org/"
         assert result.executed[0].name == "example"
         assert result.executed[1].target_id == "syn789"
         assert result.executed[1].target_version_number == 1
@@ -84,11 +84,11 @@ class TestActivity:
         assert modified_result.modified_by is not None
         assert modified_result.name == "modified_name"
         assert modified_result.description == "modified_description"
-        assert modified_result.used[0].url == "http://www.example.com"
+        assert modified_result.used[0].url == "https://www.synapse.org/"
         assert modified_result.used[0].name == "example"
         assert modified_result.used[1].target_id == "syn456"
         assert modified_result.used[1].target_version_number == 1
-        assert modified_result.executed[0].url == "http://www.example.com"
+        assert modified_result.executed[0].url == "https://www.synapse.org/"
         assert modified_result.executed[0].name == "example"
         assert modified_result.executed[1].target_id == "syn789"
         assert modified_result.executed[1].target_version_number == 1
@@ -138,11 +138,11 @@ class TestActivity:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="http://www.example.com"),
+                UsedURL(name="example", url="https://www.synapse.org/"),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="http://www.example.com"),
+                UsedURL(name="example", url="https://www.synapse.org/"),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -170,11 +170,11 @@ class TestActivity:
         assert result.modified_on is not None
         assert result.created_by is not None
         assert result.modified_by is not None
-        assert result.used[0].url == "http://www.example.com"
+        assert result.used[0].url == "https://www.synapse.org/"
         assert result.used[0].name == "example"
         assert result.used[1].target_id == "syn456"
         assert result.used[1].target_version_number == 1
-        assert result.executed[0].url == "http://www.example.com"
+        assert result.executed[0].url == "https://www.synapse.org/"
         assert result.executed[0].name == "example"
         assert result.executed[1].target_id == "syn789"
         assert result.executed[1].target_version_number == 1

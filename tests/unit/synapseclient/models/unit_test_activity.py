@@ -17,7 +17,7 @@ class TestActivity:
                 {
                     "wasExecuted": False,
                     "concreteType": "org.sagebionetworks.repo.model.provenance.UsedURL",
-                    "url": "http://www.example.com",
+                    "url": "https://www.synapse.org/",
                     "name": "example",
                 },
                 {
@@ -33,7 +33,7 @@ class TestActivity:
                 {
                     "wasExecuted": True,
                     "concreteType": "org.sagebionetworks.repo.model.provenance.UsedURL",
-                    "url": "http://www.example.com",
+                    "url": "https://www.synapse.org/",
                     "name": "example",
                 },
                 {
@@ -55,7 +55,7 @@ class TestActivity:
                 {
                     "wasExecuted": False,
                     "concreteType": "org.sagebionetworks.repo.model.provenance.UsedURL",
-                    "url": "http://www.example.com",
+                    "url": "https://www.synapse.org/",
                     "name": "example",
                 },
                 {
@@ -71,7 +71,7 @@ class TestActivity:
                 {
                     "wasExecuted": True,
                     "concreteType": "org.sagebionetworks.repo.model.provenance.UsedURL",
-                    "url": "http://www.example.com",
+                    "url": "https://www.synapse.org/",
                     "name": "example",
                 },
                 {
@@ -112,14 +112,14 @@ class TestActivity:
         assert activity.modified_by == "user2"
         assert len(activity.used) == 2
         assert isinstance(activity.used[0], UsedURL)
-        assert activity.used[0].url == "http://www.example.com"
+        assert activity.used[0].url == "https://www.synapse.org/"
         assert activity.used[0].name == "example"
         assert isinstance(activity.used[1], UsedEntity)
         assert activity.used[1].target_id == "syn456"
         assert activity.used[1].target_version_number == 1
         assert len(activity.executed) == 2
         assert isinstance(activity.executed[0], UsedURL)
-        assert activity.executed[0].url == "http://www.example.com"
+        assert activity.executed[0].url == "https://www.synapse.org/"
         assert activity.executed[0].name == "example"
         assert isinstance(activity.executed[1], UsedEntity)
         assert activity.executed[1].target_id == "syn789"
@@ -133,11 +133,11 @@ class TestActivity:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="http://www.example.com"),
+                UsedURL(name="example", url="https://www.synapse.org/"),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="http://www.example.com"),
+                UsedURL(name="example", url="https://www.synapse.org/"),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -170,14 +170,14 @@ class TestActivity:
             assert result_of_store.modified_by == "user2"
             assert len(result_of_store.used) == 2
             assert isinstance(result_of_store.used[0], UsedURL)
-            assert result_of_store.used[0].url == "http://www.example.com"
+            assert result_of_store.used[0].url == "https://www.synapse.org/"
             assert result_of_store.used[0].name == "example"
             assert isinstance(result_of_store.used[1], UsedEntity)
             assert result_of_store.used[1].target_id == "syn456"
             assert result_of_store.used[1].target_version_number == 1
             assert len(result_of_store.executed) == 2
             assert isinstance(result_of_store.executed[0], UsedURL)
-            assert result_of_store.executed[0].url == "http://www.example.com"
+            assert result_of_store.executed[0].url == "https://www.synapse.org/"
             assert result_of_store.executed[0].name == "example"
             assert isinstance(result_of_store.executed[1], UsedEntity)
             assert result_of_store.executed[1].target_id == "syn789"
@@ -190,11 +190,11 @@ class TestActivity:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="http://www.example.com"),
+                UsedURL(name="example", url="https://www.synapse.org/"),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="http://www.example.com"),
+                UsedURL(name="example", url="https://www.synapse.org/"),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -226,14 +226,14 @@ class TestActivity:
             assert result_of_store.modified_by == "user2"
             assert len(result_of_store.used) == 2
             assert isinstance(result_of_store.used[0], UsedURL)
-            assert result_of_store.used[0].url == "http://www.example.com"
+            assert result_of_store.used[0].url == "https://www.synapse.org/"
             assert result_of_store.used[0].name == "example"
             assert isinstance(result_of_store.used[1], UsedEntity)
             assert result_of_store.used[1].target_id == "syn456"
             assert result_of_store.used[1].target_version_number == 1
             assert len(result_of_store.executed) == 2
             assert isinstance(result_of_store.executed[0], UsedURL)
-            assert result_of_store.executed[0].url == "http://www.example.com"
+            assert result_of_store.executed[0].url == "https://www.synapse.org/"
             assert result_of_store.executed[0].name == "example"
             assert isinstance(result_of_store.executed[1], UsedEntity)
             assert result_of_store.executed[1].target_id == "syn789"
@@ -270,14 +270,14 @@ class TestActivity:
             assert result_of_get.modified_by == "user2"
             assert len(result_of_get.used) == 2
             assert isinstance(result_of_get.used[0], UsedURL)
-            assert result_of_get.used[0].url == "http://www.example.com"
+            assert result_of_get.used[0].url == "https://www.synapse.org/"
             assert result_of_get.used[0].name == "example"
             assert isinstance(result_of_get.used[1], UsedEntity)
             assert result_of_get.used[1].target_id == "syn456"
             assert result_of_get.used[1].target_version_number == 1
             assert len(result_of_get.executed) == 2
             assert isinstance(result_of_get.executed[0], UsedURL)
-            assert result_of_get.executed[0].url == "http://www.example.com"
+            assert result_of_get.executed[0].url == "https://www.synapse.org/"
             assert result_of_get.executed[0].name == "example"
             assert isinstance(result_of_get.executed[1], UsedEntity)
             assert result_of_get.executed[1].target_id == "syn789"
