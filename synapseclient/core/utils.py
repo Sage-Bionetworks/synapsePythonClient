@@ -173,7 +173,7 @@ def _get_from_members_items_or_properties(obj, key):
 
 
 # TODO: what does this do on an unsaved Synapse Entity object?
-def id_of(obj: typing.Union[str, collections.abc.Mapping]) -> str:
+def id_of(obj: typing.Union[str, collections.abc.Mapping, numbers.Number]) -> str:
     """
     Try to figure out the Synapse ID of the given object.
 

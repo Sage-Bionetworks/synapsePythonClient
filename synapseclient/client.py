@@ -6,6 +6,7 @@ import collections
 import collections.abc
 import configparser
 import csv
+import numbers
 import threading
 import errno
 import functools
@@ -120,7 +121,7 @@ from synapseclient.core.dozer import doze
 
 from typing import Union, Dict, List, Optional, Tuple
 from synapseclient.core.models.permission import Permissions
-from opentelemetry import trace
+from opentelemetry import trace, context
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -2707,7 +2708,10 @@ class Synapse(object):
     # TODO: rename these to Activity
     @utils.otel_trace_method()
     def getProvenance(
-        self, entity, version=None, opentelemetry_context=None
+        self,
+        entity: typing.Union[str, collections.abc.Mapping, numbers.Number],
+        version: int = None,
+        opentelemetry_context: context = None,
     ) -> Activity:
         """
         Retrieve provenance information for a Synapse Entity.
@@ -2737,7 +2741,12 @@ class Synapse(object):
         return Activity(data=self.restGET(uri))
 
     @utils.otel_trace_method()
-    def setProvenance(self, entity, activity, opentelemetry_context=None) -> Activity:
+    def setProvenance(
+        self,
+        entity: typing.Union[str, collections.abc.Mapping, numbers.Number],
+        activity: Activity,
+        opentelemetry_context: context = None,
+    ) -> Activity:
         """
         Stores a record of the code and data used to derive a Synapse entity.
 
@@ -2762,7 +2771,11 @@ class Synapse(object):
         return activity
 
     @utils.otel_trace_method()
-    def deleteProvenance(self, entity, opentelemetry_context=None) -> None:
+    def deleteProvenance(
+        self,
+        entity: typing.Union[str, collections.abc.Mapping, numbers.Number],
+        opentelemetry_context: context = None,
+    ) -> None:
         """
         Removes provenance information from an Entity and deletes the associated Activity.
 

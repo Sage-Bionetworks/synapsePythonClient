@@ -209,6 +209,7 @@ class TestActivity:
         await file.activity.delete(parent=file)
 
         # THEN I expect to receieve a 404 error
-        with pytest.raises(client.SynapseHTTPError) as ex:
+        with pytest.raises(
+            client.SynapseHTTPError, match="404 Client Error: \nNo activity"
+        ) as ex:
             await Activity.from_parent(parent=file)
-            assert ex.status_code == 404
