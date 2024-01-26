@@ -18,17 +18,19 @@ class TestTeam:
         self.expected_name = "test_team_" + str(uuid.uuid4())
         self.expected_description = "test description"
         self.expected_icon = None
-
-    @pytest.mark.asyncio
-    async def test_create(self) -> None:
-        # GIVEN a team
-        test_team = Team(
+        self.team = Team(
             name=self.expected_name,
             description=self.expected_description,
             icon=self.expected_icon,
         )
-        # WHEN I create the team
-        test_team = await test_team.create()
+        self.TEST_USER = "test_account_synapse_client"
+        self.TEST_MESSAGE = "test message"
+
+    @pytest.mark.asyncio
+    async def test_create(self) -> None:
+        # GIVEN a team object self.team
+        # WHEN I create the team on Synapse
+        test_team = await self.team.create()
         # THEN I expect the created team to be returned
         assert test_team.id is not None
         assert test_team.name == self.expected_name
@@ -44,14 +46,9 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_delete(self) -> None:
-        # GIVEN a team
-        test_team = Team(
-            name=self.expected_name,
-            description=self.expected_description,
-            icon=self.expected_icon,
-        )
-        # WHEN I create the team
-        test_team = await test_team.create()
+        # GIVEN a team object self.team
+        # WHEN I create the team on Synapse
+        test_team = await self.team.create()
         # AND I delete the team
         await test_team.delete()
         # THEN I expect the team to no longer exist
@@ -60,14 +57,9 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_from_id(self) -> None:
-        # GIVEN a team
-        test_team = Team(
-            name=self.expected_name,
-            description=self.expected_description,
-            icon=self.expected_icon,
-        )
-        # WHEN I create the team
-        test_team = await test_team.create()
+        # GIVEN a team object self.team
+        # WHEN I create the team on Synapse
+        test_team = await self.team.create()
         # THEN I expect the team to be returned by from_id
         test_team_from_id = await Team().from_id(id=test_team.id)
         assert test_team_from_id.id == test_team.id
@@ -84,14 +76,9 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_from_name(self) -> None:
-        # GIVEN a team
-        test_team = Team(
-            name=self.expected_name,
-            description=self.expected_description,
-            icon=self.expected_icon,
-        )
-        # WHEN I create the team
-        test_team = await test_team.create()
+        # GIVEN a team object self.team
+        # WHEN I create the team on Synapse
+        test_team = await self.team.create()
         # TODO why do we need to sleep here?
         await asyncio.sleep(5)
         # THEN I expect the team to be returned by from_name
@@ -110,14 +97,9 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_members(self) -> None:
-        # GIVEN a team
-        test_team = Team(
-            name=self.expected_name,
-            description=self.expected_description,
-            icon=self.expected_icon,
-        )
-        # WHEN I create the team
-        test_team = await test_team.create()
+        # GIVEN a team object self.team
+        # WHEN I create the team on Synapse
+        test_team = await self.team.create()
         # THEN I expect the team members to be returned by members
         test_team_members = await test_team.members()
         assert len(test_team_members) == 1
@@ -129,24 +111,19 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_invite(self) -> None:
-        # GIVEN a team
-        test_team = Team(
-            name=self.expected_name,
-            description=self.expected_description,
-            icon=self.expected_icon,
-        )
-        # WHEN I create the team
-        test_team = await test_team.create()
+        # GIVEN a team object self.team
+        # WHEN I create the team on Synapse
+        test_team = await self.team.create()
         # AND I invite a user to the team
         test_invite = await test_team.invite(
-            user="test_account_synapse_client",
-            message="test message",
+            user=self.TEST_USER,
+            message=self.TEST_MESSAGE,
         )
         # THEN I expect the invite to be returned
         assert test_invite["id"] is not None
         assert test_invite["teamId"] == str(test_team.id)
         assert test_invite["inviteeId"] is not None
-        assert test_invite["message"] == "test message"
+        assert test_invite["message"] == self.TEST_MESSAGE
         assert test_invite["createdOn"] is not None
         assert test_invite["createdBy"] is not None
 
@@ -155,18 +132,13 @@ class TestTeam:
 
     @pytest.mark.asyncio
     async def test_open_invitations(self) -> None:
-        # GIVEN a team
-        test_team = Team(
-            name=self.expected_name,
-            description=self.expected_description,
-            icon=self.expected_icon,
-        )
-        # WHEN I create the team
-        test_team = await test_team.create()
+        # GIVEN a team object self.team
+        # WHEN I create the team on Synapse
+        test_team = await self.team.create()
         # AND I invite a user to the team
         await test_team.invite(
-            user="test_account_synapse_client",
-            message="test message",
+            user=self.TEST_USER,
+            message=self.TEST_MESSAGE,
         )
         # THEN I expect the invite to be returned by open_invitations
         test_open_invitations = await test_team.open_invitations()
@@ -174,7 +146,7 @@ class TestTeam:
         assert test_open_invitations[0]["id"] is not None
         assert test_open_invitations[0]["teamId"] == str(test_team.id)
         assert test_open_invitations[0]["inviteeId"] is not None
-        assert test_open_invitations[0]["message"] == "test message"
+        assert test_open_invitations[0]["message"] == self.TEST_MESSAGE
         assert test_open_invitations[0]["createdOn"] is not None
         assert test_open_invitations[0]["createdBy"] is not None
 
