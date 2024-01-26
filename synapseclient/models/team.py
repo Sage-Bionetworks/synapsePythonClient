@@ -258,12 +258,16 @@ class Team:
         method_to_trace_name=lambda self, **kwargs: f"Team_Invite: {self.name}"
     )
     async def invite(
-        self, user: str, message: str, synapse_client: Optional[Synapse] = None
+        self,
+        user: str,
+        message: str,
+        force: bool = True,
+        synapse_client: Optional[Synapse] = None,
     ) -> Dict[str, str]:
         """Invites a user to a team.
 
         Arguments:
-            user: The user to invite.
+            user: The username of the user to invite.
             message: The message to send.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
@@ -278,7 +282,7 @@ class Team:
                 team=self,
                 user=user,
                 message=message,
-                force=True,
+                force=force,
                 opentelemetry_context=current_context,
             ),
         )
