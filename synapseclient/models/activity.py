@@ -11,8 +11,8 @@ from typing import Optional, TYPE_CHECKING
 from synapseclient import Synapse
 from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.constants.concrete_types import (
-    USED_ENTITY_CONCRETE_TYPE,
-    USED_URL_CONCRETE_TYPE,
+    USED_ENTITY,
+    USED_URL,
 )
 
 if TYPE_CHECKING:
@@ -152,7 +152,7 @@ class Activity:
         self.used = []
         for used in synapse_activity.get("used", []):
             concrete_type = used.get("concreteType", None)
-            if USED_URL_CONCRETE_TYPE == concrete_type:
+            if USED_URL == concrete_type:
                 used_url = UsedURL(
                     name=used.get("name", None),
                     url=used.get("url", None),
@@ -162,7 +162,7 @@ class Activity:
                     self.executed.append(used_url)
                 else:
                     self.used.append(used_url)
-            elif USED_ENTITY_CONCRETE_TYPE == concrete_type:
+            elif USED_ENTITY == concrete_type:
                 reference = used.get("reference", {})
                 used_entity = UsedEntity(
                     target_id=reference.get("targetId", None),
