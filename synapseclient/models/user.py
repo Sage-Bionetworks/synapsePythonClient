@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union, Dict
 
 from synapseclient.team import UserGroupHeader as Synapse_UserGroupHeader
 
@@ -38,7 +38,7 @@ class UserGroupHeader:
     """User's current email address"""
 
     def fill_from_dict(
-        self, synapse_user_group_header: Synapse_UserGroupHeader
+        self, synapse_user_group_header: Union[Synapse_UserGroupHeader, Dict[str, str]]
     ) -> "UserGroupHeader":
         self.owner_id = synapse_user_group_header.get("ownerId", None)
         self.first_name = synapse_user_group_header.get("firstName", None)

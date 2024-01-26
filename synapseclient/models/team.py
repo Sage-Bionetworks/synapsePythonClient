@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Union
 from opentelemetry import trace, context
 
 from synapseclient import Synapse
@@ -37,7 +37,9 @@ class TeamMember:
     is_admin: Optional[bool] = None
     """Whether the given member is an administrator of the team"""
 
-    def fill_from_dict(self, synapse_team_member: Synapse_TeamMember) -> "TeamMember":
+    def fill_from_dict(
+        self, synapse_team_member: Union[Synapse_TeamMember, Dict[str, str]]
+    ) -> "TeamMember":
         self.team_id = synapse_team_member.get("teamId", None)
         self.member = UserGroupHeader().fill_from_dict(
             synapse_team_member.get("member", None)
@@ -103,7 +105,9 @@ class Team:
     modified_by: Optional[str] = None
     """The ID of the user that last modified this team"""
 
-    def fill_from_dict(self, synapse_team: Synapse_Team) -> "Team":
+    def fill_from_dict(
+        self, synapse_team: Union[Synapse_Team, Dict[str, str]]
+    ) -> "Team":
         self.id = (
             int(synapse_team.get("id", None)) if synapse_team.get("id", None) else None
         )
