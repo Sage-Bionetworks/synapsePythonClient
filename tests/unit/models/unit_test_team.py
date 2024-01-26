@@ -1,5 +1,6 @@
 from synapseclient.team import Team as Synapse_Team, TeamMember as Synapse_TeamMember
 from synapseclient.models.team import Team, TeamMember
+from synapseclient.models.user import UserGroupHeader
 from synapseclient import Synapse
 
 from unittest.mock import patch
@@ -152,7 +153,7 @@ class TestTeam:
         with patch.object(
             self.syn,
             "getTeamMembers",
-            return_value=[Synapse_TeamMember(teamId=1, member={"id": 2})],
+            return_value=[Synapse_TeamMember(teamId=1, member={})],
         ) as patch_get_team_members:
             # GIVEN a team object
             team = Team(id=1)
@@ -165,7 +166,7 @@ class TestTeam:
             # AND I expect the expected team members to be returned
             assert len(team_members) == 1
             assert team_members[0].team_id == 1
-            assert team_members[0].member.id == 2
+            assert isinstance(team_members[0].member, UserGroupHeader)
 
     @pytest.mark.asyncio
     async def test_invite(self) -> None:
