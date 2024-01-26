@@ -9,6 +9,7 @@ from opentelemetry import trace, context
 from typing import Optional, TYPE_CHECKING
 
 from synapseclient import Synapse
+from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.constants.concrete_types import (
     USED_ENTITY,
@@ -272,20 +273,26 @@ class Activity:
         if parent:
             saved_activity = await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).setProvenance(
-                    entity=parent.id,
-                    activity=synapse_activity,
-                    opentelemetry_context=current_context,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(
+                        synapse_client=synapse_client
+                    ).setProvenance(
+                        entity=parent.id,
+                        activity=synapse_activity,
+                    ),
+                    current_context,
                 ),
             )
         else:
             saved_activity = await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).updateActivity(
-                    activity=synapse_activity,
-                    opentelemetry_context=current_context,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(
+                        synapse_client=synapse_client
+                    ).updateActivity(
+                        activity=synapse_activity,
+                    ),
+                    current_context,
                 ),
             )
         self.fill_from_dict(synapse_activity=saved_activity)
@@ -317,10 +324,14 @@ class Activity:
             current_context = context.get_current()
             synapse_activity = await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).getProvenance(
-                    entity=parent.id,
-                    version=parent.version_number,
-                    opentelemetry_context=current_context,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(
+                        synapse_client=synapse_client
+                    ).getProvenance(
+                        entity=parent.id,
+                        version=parent.version_number,
+                    ),
+                    current_context,
                 ),
             )
             return cls().fill_from_dict(synapse_activity=synapse_activity)
@@ -354,10 +365,12 @@ class Activity:
             current_context = context.get_current()
             await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).deleteProvenance(
-                    entity=parent.id,
-                    opentelemetry_context=current_context,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(
+                        synapse_client=synapse_client
+                    ).deleteProvenance(
+                        entity=parent.id,
+                    ),
+                    current_context,
                 ),
             )

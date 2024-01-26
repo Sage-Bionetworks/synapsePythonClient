@@ -121,7 +121,7 @@ from synapseclient.core.dozer import doze
 
 from typing import Union, Dict, List, Optional, Tuple
 from synapseclient.core.models.permission import Permissions
-from opentelemetry import trace, context
+from opentelemetry import trace
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -1019,7 +1019,8 @@ class Synapse(object):
     #                   Get / Store methods                    #
     ############################################################
 
-    def get(self, entity, opentelemetry_context=None, **kwargs):
+    @tracer.start_as_current_span("Synapse::get")
+    def get(self, entity, **kwargs):
         """
         Gets a Synapse entity from the repository service.
 
@@ -1040,8 +1041,6 @@ class Synapse(object):
             limitSearch:      A Synanpse ID used to limit the search in Synapse if entity is specified as a local
                                 file.  That is, if the file is stored in multiple locations in Synapse only the ones
                                 in the specified folder/project will be returned.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             A new Synapse Entity object of the appropriate type.
@@ -1064,46 +1063,43 @@ class Synapse(object):
                 entity = syn.get('/path/to/file.txt', limitSearch='syn12312')
                 print(syn.getProvenance(entity))
         """
-        with tracer.start_as_current_span(
-            "Synapse::get", context=opentelemetry_context
-        ):
-            # If entity is a local file determine the corresponding synapse entity
-            if isinstance(entity, str) and os.path.isfile(entity):
-                bundle = self._getFromFile(entity, kwargs.pop("limitSearch", None))
-                kwargs["downloadFile"] = False
-                kwargs["path"] = entity
+        # If entity is a local file determine the corresponding synapse entity
+        if isinstance(entity, str) and os.path.isfile(entity):
+            bundle = self._getFromFile(entity, kwargs.pop("limitSearch", None))
+            kwargs["downloadFile"] = False
+            kwargs["path"] = entity
 
-            elif isinstance(entity, str) and not utils.is_synapse_id_str(entity):
-                raise SynapseFileNotFoundError(
-                    (
-                        "The parameter %s is neither a local file path "
-                        " or a valid entity id" % entity
-                    )
+        elif isinstance(entity, str) and not utils.is_synapse_id_str(entity):
+            raise SynapseFileNotFoundError(
+                (
+                    "The parameter %s is neither a local file path "
+                    " or a valid entity id" % entity
                 )
-            # have not been saved entities
-            elif isinstance(entity, Entity) and not entity.get("id"):
-                raise ValueError(
-                    "Cannot retrieve entity that has not been saved."
-                    " Please use syn.store() to save your entity and try again."
-                )
-            else:
-                version = kwargs.get("version", None)
-                bundle = self._getEntityBundle(entity, version)
-            # Check and warn for unmet access requirements
-            self._check_entity_restrictions(
-                bundle, entity, kwargs.get("downloadFile", True)
             )
+        # have not been saved entities
+        elif isinstance(entity, Entity) and not entity.get("id"):
+            raise ValueError(
+                "Cannot retrieve entity that has not been saved."
+                " Please use syn.store() to save your entity and try again."
+            )
+        else:
+            version = kwargs.get("version", None)
+            bundle = self._getEntityBundle(entity, version)
+        # Check and warn for unmet access requirements
+        self._check_entity_restrictions(
+            bundle, entity, kwargs.get("downloadFile", True)
+        )
 
-            return_data = self._getWithEntityBundle(
-                entityBundle=bundle, entity=entity, **kwargs
-            )
-            trace.get_current_span().set_attributes(
-                {
-                    "synapse.id": return_data.get("id", ""),
-                    "synapse.concrete_type": return_data.get("concreteType", ""),
-                }
-            )
-            return return_data
+        return_data = self._getWithEntityBundle(
+            entityBundle=bundle, entity=entity, **kwargs
+        )
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.id": return_data.get("id", ""),
+                "synapse.concrete_type": return_data.get("concreteType", ""),
+            }
+        )
+        return return_data
 
     def _check_entity_restrictions(
         self, bundle: dict, entity: Union[str, Entity, dict], downloadFile: bool
@@ -1475,6 +1471,7 @@ class Synapse(object):
                 )
         return downloadPath
 
+    @tracer.start_as_current_span("Synapse::store")
     def store(
         self,
         obj,
@@ -1488,7 +1485,6 @@ class Synapse(object):
         executed=None,
         activityName=None,
         activityDescription=None,
-        opentelemetry_context=None,
     ):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
@@ -1510,8 +1506,6 @@ class Synapse(object):
                             process of adding terms-of-use or review board approval for this entity.
                             You will be contacted with regards to the specific data being restricted and the
                             requirements of access.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                  cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             A Synapse Entity, Evaluation, or Wiki
@@ -1540,266 +1534,255 @@ class Synapse(object):
                 test_entity = syn.store(test_entity, activity=activity)
 
         """
-        with tracer.start_as_current_span(
-            "Synapse::store", context=opentelemetry_context
-        ):
-            trace.get_current_span().set_attributes(
-                {"thread.id": threading.get_ident()}
-            )
-            # SYNPY-1031: activity must be Activity object or code will fail later
-            if activity:
-                if not isinstance(activity, synapseclient.Activity):
-                    raise ValueError("activity should be synapseclient.Activity object")
-            # _before_store hook
-            # give objects a chance to do something before being stored
-            if hasattr(obj, "_before_synapse_store"):
-                obj._before_synapse_store(self)
+        trace.get_current_span().set_attributes({"thread.id": threading.get_ident()})
+        # SYNPY-1031: activity must be Activity object or code will fail later
+        if activity:
+            if not isinstance(activity, synapseclient.Activity):
+                raise ValueError("activity should be synapseclient.Activity object")
+        # _before_store hook
+        # give objects a chance to do something before being stored
+        if hasattr(obj, "_before_synapse_store"):
+            obj._before_synapse_store(self)
 
-            # _synapse_store hook
-            # for objects that know how to store themselves
-            if hasattr(obj, "_synapse_store"):
-                return obj._synapse_store(self)
+        # _synapse_store hook
+        # for objects that know how to store themselves
+        if hasattr(obj, "_synapse_store"):
+            return obj._synapse_store(self)
 
-            # Handle all non-Entity objects
-            if not (isinstance(obj, Entity) or type(obj) == dict):
-                if isinstance(obj, Wiki):
-                    return self._storeWiki(obj, createOrUpdate)
+        # Handle all non-Entity objects
+        if not (isinstance(obj, Entity) or type(obj) == dict):
+            if isinstance(obj, Wiki):
+                return self._storeWiki(obj, createOrUpdate)
 
-                if "id" in obj:  # If ID is present, update
+            if "id" in obj:  # If ID is present, update
+                trace.get_current_span().set_attributes({"synapse.id": obj["id"]})
+                return type(obj)(**self.restPUT(obj.putURI(), obj.json()))
+
+            try:  # If no ID is present, attempt to POST the object
+                trace.get_current_span().set_attributes({"synapse.id": ""})
+                return type(obj)(**self.restPOST(obj.postURI(), obj.json()))
+
+            except SynapseHTTPError as err:
+                # If already present and we want to update attempt to get the object content
+                if createOrUpdate and err.response.status_code == 409:
+                    newObj = self.restGET(obj.getByNameURI(obj.name))
+                    newObj.update(obj)
+                    obj = type(obj)(**newObj)
                     trace.get_current_span().set_attributes({"synapse.id": obj["id"]})
-                    return type(obj)(**self.restPUT(obj.putURI(), obj.json()))
+                    obj.update(self.restPUT(obj.putURI(), obj.json()))
+                    return obj
+                raise
 
-                try:  # If no ID is present, attempt to POST the object
-                    trace.get_current_span().set_attributes({"synapse.id": ""})
-                    return type(obj)(**self.restPOST(obj.postURI(), obj.json()))
+        # If the input object is an Entity or a dictionary
+        entity = obj
+        properties, annotations, local_state = split_entity_namespaces(entity)
+        bundle = None
+        # Explicitly set an empty versionComment property if none is supplied,
+        # otherwise an existing entity bundle's versionComment will be copied to the update.
+        properties["versionComment"] = (
+            properties["versionComment"] if "versionComment" in properties else None
+        )
 
-                except SynapseHTTPError as err:
-                    # If already present and we want to update attempt to get the object content
-                    if createOrUpdate and err.response.status_code == 409:
-                        newObj = self.restGET(obj.getByNameURI(obj.name))
-                        newObj.update(obj)
-                        obj = type(obj)(**newObj)
-                        trace.get_current_span().set_attributes(
-                            {"synapse.id": obj["id"]}
-                        )
-                        obj.update(self.restPUT(obj.putURI(), obj.json()))
-                        return obj
-                    raise
+        # Anything with a path is treated as a cache-able item
+        # Only Files are expected in the following logic
+        if entity.get("path", False) and not isinstance(obj, Folder):
+            if "concreteType" not in properties:
+                properties["concreteType"] = File._synapse_entity_type
+            # Make sure the path is fully resolved
+            entity["path"] = os.path.expanduser(entity["path"])
 
-            # If the input object is an Entity or a dictionary
-            entity = obj
-            properties, annotations, local_state = split_entity_namespaces(entity)
-            bundle = None
-            # Explicitly set an empty versionComment property if none is supplied,
-            # otherwise an existing entity bundle's versionComment will be copied to the update.
-            properties["versionComment"] = (
-                properties["versionComment"] if "versionComment" in properties else None
-            )
+            # Check if the File already exists in Synapse by fetching metadata on it
+            bundle = self._getEntityBundle(entity)
 
-            # Anything with a path is treated as a cache-able item
-            # Only Files are expected in the following logic
-            if entity.get("path", False) and not isinstance(obj, Folder):
-                if "concreteType" not in properties:
-                    properties["concreteType"] = File._synapse_entity_type
-                # Make sure the path is fully resolved
-                entity["path"] = os.path.expanduser(entity["path"])
+            if bundle:
+                if createOrUpdate:
+                    # update our properties from the existing bundle so that we have
+                    # enough to process this as an entity update.
+                    properties = {**bundle["entity"], **properties}
 
-                # Check if the File already exists in Synapse by fetching metadata on it
-                bundle = self._getEntityBundle(entity)
-
-                if bundle:
-                    if createOrUpdate:
-                        # update our properties from the existing bundle so that we have
-                        # enough to process this as an entity update.
-                        properties = {**bundle["entity"], **properties}
-
-                    # Check if the file should be uploaded
-                    fileHandle = find_data_file_handle(bundle)
-                    if (
-                        fileHandle
-                        and fileHandle["concreteType"]
-                        == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
-                    ):
-                        # switching away from ExternalFileHandle or the url was updated
-                        needs_upload = entity["synapseStore"] or (
-                            fileHandle["externalURL"] != entity["externalURL"]
-                        )
-                    else:
-                        # Check if we need to upload a new version of an existing
-                        # file. If the file referred to by entity['path'] has been
-                        # modified, we want to upload the new version.
-                        # If synapeStore is false then we must upload a ExternalFileHandle
-                        needs_upload = not entity[
-                            "synapseStore"
-                        ] or not self.cache.contains(
-                            bundle["entity"]["dataFileHandleId"], entity["path"]
-                        )
-                elif entity.get("dataFileHandleId", None) is not None:
-                    needs_upload = False
-                else:
-                    needs_upload = True
-
-                if needs_upload:
-                    local_state_fh = local_state.get("_file_handle", {})
-                    synapseStore = local_state.get("synapseStore", True)
-                    fileHandle = upload_file_handle(
-                        self,
-                        entity["parentId"],
-                        local_state["path"]
-                        if (synapseStore or local_state_fh.get("externalURL") is None)
-                        else local_state_fh.get("externalURL"),
-                        synapseStore=synapseStore,
-                        md5=local_state_fh.get("contentMd5"),
-                        file_size=local_state_fh.get("contentSize"),
-                        mimetype=local_state_fh.get("contentType"),
-                        max_threads=self.max_threads,
-                    )
-                    properties["dataFileHandleId"] = fileHandle["id"]
-                    local_state["_file_handle"] = fileHandle
-
-                elif "dataFileHandleId" not in properties:
-                    # Handle the case where the Entity lacks an ID
-                    # But becomes an update() due to conflict
-                    properties["dataFileHandleId"] = bundle["entity"][
-                        "dataFileHandleId"
-                    ]
-
-                # update the file_handle metadata if the FileEntity's FileHandle id has changed
-                local_state_fh_id = local_state.get("_file_handle", {}).get("id")
+                # Check if the file should be uploaded
+                fileHandle = find_data_file_handle(bundle)
                 if (
-                    local_state_fh_id
-                    and properties["dataFileHandleId"] != local_state_fh_id
+                    fileHandle
+                    and fileHandle["concreteType"]
+                    == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
                 ):
-                    local_state["_file_handle"] = find_data_file_handle(
-                        self._getEntityBundle(
-                            properties["id"],
-                            requestedObjects={
-                                "includeEntity": True,
-                                "includeFileHandles": True,
-                            },
-                        )
+                    # switching away from ExternalFileHandle or the url was updated
+                    needs_upload = entity["synapseStore"] or (
+                        fileHandle["externalURL"] != entity["externalURL"]
                     )
-
-                    # check if we already have the filehandleid cached somewhere
-                    cached_path = self.cache.get(properties["dataFileHandleId"])
-                    if cached_path is None:
-                        local_state["path"] = None
-                        local_state["cacheDir"] = None
-                        local_state["files"] = []
-                    else:
-                        local_state["path"] = cached_path
-                        local_state["cacheDir"] = os.path.dirname(cached_path)
-                        local_state["files"] = [os.path.basename(cached_path)]
-
-            # Create or update Entity in Synapse
-            if "id" in properties:
-                trace.get_current_span().set_attributes(
-                    {"synapse.id": properties["id"]}
-                )
-                properties = self._updateEntity(properties, forceVersion, versionLabel)
+                else:
+                    # Check if we need to upload a new version of an existing
+                    # file. If the file referred to by entity['path'] has been
+                    # modified, we want to upload the new version.
+                    # If synapeStore is false then we must upload a ExternalFileHandle
+                    needs_upload = not entity[
+                        "synapseStore"
+                    ] or not self.cache.contains(
+                        bundle["entity"]["dataFileHandleId"], entity["path"]
+                    )
+            elif entity.get("dataFileHandleId", None) is not None:
+                needs_upload = False
             else:
-                # If Link, get the target name, version number and concrete type and store in link properties
-                if properties["concreteType"] == "org.sagebionetworks.repo.model.Link":
-                    target_properties = self._getEntity(
-                        properties["linksTo"]["targetId"],
-                        version=properties["linksTo"].get("targetVersionNumber"),
+                needs_upload = True
+
+            if needs_upload:
+                local_state_fh = local_state.get("_file_handle", {})
+                synapseStore = local_state.get("synapseStore", True)
+                fileHandle = upload_file_handle(
+                    self,
+                    entity["parentId"],
+                    local_state["path"]
+                    if (synapseStore or local_state_fh.get("externalURL") is None)
+                    else local_state_fh.get("externalURL"),
+                    synapseStore=synapseStore,
+                    md5=local_state_fh.get("contentMd5"),
+                    file_size=local_state_fh.get("contentSize"),
+                    mimetype=local_state_fh.get("contentType"),
+                    max_threads=self.max_threads,
+                )
+                properties["dataFileHandleId"] = fileHandle["id"]
+                local_state["_file_handle"] = fileHandle
+
+            elif "dataFileHandleId" not in properties:
+                # Handle the case where the Entity lacks an ID
+                # But becomes an update() due to conflict
+                properties["dataFileHandleId"] = bundle["entity"]["dataFileHandleId"]
+
+            # update the file_handle metadata if the FileEntity's FileHandle id has changed
+            local_state_fh_id = local_state.get("_file_handle", {}).get("id")
+            if (
+                local_state_fh_id
+                and properties["dataFileHandleId"] != local_state_fh_id
+            ):
+                local_state["_file_handle"] = find_data_file_handle(
+                    self._getEntityBundle(
+                        properties["id"],
+                        requestedObjects={
+                            "includeEntity": True,
+                            "includeFileHandles": True,
+                        },
                     )
-                    if target_properties["parentId"] == properties["parentId"]:
-                        raise ValueError(
-                            "Cannot create a Link to an entity under the same parent."
-                        )
-                    properties["linksToClassName"] = target_properties["concreteType"]
-                    if (
-                        target_properties.get("versionNumber") is not None
-                        and properties["linksTo"].get("targetVersionNumber") is not None
-                    ):
-                        properties["linksTo"][
-                            "targetVersionNumber"
-                        ] = target_properties["versionNumber"]
-                    properties["name"] = target_properties["name"]
-                try:
-                    properties = self._createEntity(properties)
-                except SynapseHTTPError as ex:
-                    if createOrUpdate and ex.response.status_code == 409:
-                        # Get the existing Entity's ID via the name and parent
-                        existing_entity_id = self.findEntityId(
-                            properties["name"], properties.get("parentId", None)
-                        )
-                        if existing_entity_id is None:
-                            raise
+                )
 
-                        # get existing properties and annotations
-                        if not bundle:
-                            bundle = self._getEntityBundle(
-                                existing_entity_id,
-                                requestedObjects={
-                                    "includeEntity": True,
-                                    "includeAnnotations": True,
-                                },
-                            )
+                # check if we already have the filehandleid cached somewhere
+                cached_path = self.cache.get(properties["dataFileHandleId"])
+                if cached_path is None:
+                    local_state["path"] = None
+                    local_state["cacheDir"] = None
+                    local_state["files"] = []
+                else:
+                    local_state["path"] = cached_path
+                    local_state["cacheDir"] = os.path.dirname(cached_path)
+                    local_state["files"] = [os.path.basename(cached_path)]
 
-                        properties = {**bundle["entity"], **properties}
-
-                        # we additionally merge the annotations under the assumption that a missing annotation
-                        # from a resolved conflict represents an newer annotation that should be preserved
-                        # rather than an intentionally deleted annotation.
-                        annotations = {
-                            **from_synapse_annotations(bundle["annotations"]),
-                            **annotations,
-                        }
-
-                        properties = self._updateEntity(
-                            properties, forceVersion, versionLabel
-                        )
-
-                    else:
+        # Create or update Entity in Synapse
+        if "id" in properties:
+            trace.get_current_span().set_attributes({"synapse.id": properties["id"]})
+            properties = self._updateEntity(properties, forceVersion, versionLabel)
+        else:
+            # If Link, get the target name, version number and concrete type and store in link properties
+            if properties["concreteType"] == "org.sagebionetworks.repo.model.Link":
+                target_properties = self._getEntity(
+                    properties["linksTo"]["targetId"],
+                    version=properties["linksTo"].get("targetVersionNumber"),
+                )
+                if target_properties["parentId"] == properties["parentId"]:
+                    raise ValueError(
+                        "Cannot create a Link to an entity under the same parent."
+                    )
+                properties["linksToClassName"] = target_properties["concreteType"]
+                if (
+                    target_properties.get("versionNumber") is not None
+                    and properties["linksTo"].get("targetVersionNumber") is not None
+                ):
+                    properties["linksTo"]["targetVersionNumber"] = target_properties[
+                        "versionNumber"
+                    ]
+                properties["name"] = target_properties["name"]
+            try:
+                properties = self._createEntity(properties)
+            except SynapseHTTPError as ex:
+                if createOrUpdate and ex.response.status_code == 409:
+                    # Get the existing Entity's ID via the name and parent
+                    existing_entity_id = self.findEntityId(
+                        properties["name"], properties.get("parentId", None)
+                    )
+                    if existing_entity_id is None:
                         raise
 
-            # Deal with access restrictions
-            if isRestricted:
-                self._createAccessRequirementIfNone(properties)
+                    # get existing properties and annotations
+                    if not bundle:
+                        bundle = self._getEntityBundle(
+                            existing_entity_id,
+                            requestedObjects={
+                                "includeEntity": True,
+                                "includeAnnotations": True,
+                            },
+                        )
 
-            # Update annotations
-            if (not bundle and annotations) or (
-                bundle and check_annotations_changed(bundle["annotations"], annotations)
-            ):
-                annotations = self.set_annotations(
-                    Annotations(properties["id"], properties["etag"], annotations)
-                )
-                properties["etag"] = annotations.etag
+                    properties = {**bundle["entity"], **properties}
 
-            # If the parameters 'used' or 'executed' are given, create an Activity object
-            if used or executed:
-                if activity is not None:
-                    raise SynapseProvenanceError(
-                        "Provenance can be specified as an Activity object or as used/executed"
-                        " item(s), but not both."
+                    # we additionally merge the annotations under the assumption that a missing annotation
+                    # from a resolved conflict represents an newer annotation that should be preserved
+                    # rather than an intentionally deleted annotation.
+                    annotations = {
+                        **from_synapse_annotations(bundle["annotations"]),
+                        **annotations,
+                    }
+
+                    properties = self._updateEntity(
+                        properties, forceVersion, versionLabel
                     )
-                activity = Activity(
-                    name=activityName,
-                    description=activityDescription,
-                    used=used,
-                    executed=executed,
-                )
 
-            # If we have an Activity, set it as the Entity's provenance record
-            if activity:
-                self.setProvenance(properties, activity)
+                else:
+                    raise
 
-                # 'etag' has changed, so get the new Entity
-                properties = self._getEntity(properties)
+        # Deal with access restrictions
+        if isRestricted:
+            self._createAccessRequirementIfNone(properties)
 
-            # Return the updated Entity object
-            entity = Entity.create(properties, annotations, local_state)
-            return_data = self.get(entity, downloadFile=False)
-
-            trace.get_current_span().set_attributes(
-                {
-                    "synapse.id": return_data.get("id", ""),
-                    "synapse.concrete_type": entity.get("concreteType", ""),
-                }
+        # Update annotations
+        if (not bundle and annotations) or (
+            bundle and check_annotations_changed(bundle["annotations"], annotations)
+        ):
+            annotations = self.set_annotations(
+                Annotations(properties["id"], properties["etag"], annotations)
             )
-            return return_data
+            properties["etag"] = annotations.etag
+
+        # If the parameters 'used' or 'executed' are given, create an Activity object
+        if used or executed:
+            if activity is not None:
+                raise SynapseProvenanceError(
+                    "Provenance can be specified as an Activity object or as used/executed"
+                    " item(s), but not both."
+                )
+            activity = Activity(
+                name=activityName,
+                description=activityDescription,
+                used=used,
+                executed=executed,
+            )
+
+        # If we have an Activity, set it as the Entity's provenance record
+        if activity:
+            self.setProvenance(properties, activity)
+
+            # 'etag' has changed, so get the new Entity
+            properties = self._getEntity(properties)
+
+        # Return the updated Entity object
+        entity = Entity.create(properties, annotations, local_state)
+        return_data = self.get(entity, downloadFile=False)
+
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.id": return_data.get("id", ""),
+                "synapse.concrete_type": entity.get("concreteType", ""),
+            }
+        )
+        return return_data
 
     @tracer.start_as_current_span("Synapse::_createAccessRequirementIfNone")
     def _createAccessRequirementIfNone(self, entity: Union[Entity, str]) -> None:
@@ -1897,11 +1880,11 @@ class Synapse(object):
 
         return bundle
 
+    @tracer.start_as_current_span("Synapse::delete")
     def delete(
         self,
         obj,
         version=None,
-        opentelemetry_context=None,
     ):
         """
         Removes an object from Synapse.
@@ -1909,32 +1892,27 @@ class Synapse(object):
         Arguments:
             obj: An existing object stored on Synapse such as Evaluation, File, Project, or Wiki
             version: For entities, specify a particular version to delete.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
         """
-        with tracer.start_as_current_span(
-            "Synapse::delete", context=opentelemetry_context
-        ):
-            # Handle all strings as the Entity ID for backward compatibility
-            if isinstance(obj, str):
-                entity_id = id_of(obj)
-                trace.get_current_span().set_attributes({"synapse.id": entity_id})
-                if version:
-                    self.restDELETE(uri=f"/entity/{entity_id}/version/{version}")
-                else:
-                    self.restDELETE(uri=f"/entity/{entity_id}")
-            elif hasattr(obj, "_synapse_delete"):
-                return obj._synapse_delete(self)
+        # Handle all strings as the Entity ID for backward compatibility
+        if isinstance(obj, str):
+            entity_id = id_of(obj)
+            trace.get_current_span().set_attributes({"synapse.id": entity_id})
+            if version:
+                self.restDELETE(uri=f"/entity/{entity_id}/version/{version}")
             else:
-                try:
-                    if isinstance(obj, Versionable):
-                        self.restDELETE(obj.deleteURI(versionNumber=version))
-                    else:
-                        self.restDELETE(obj.deleteURI())
-                except AttributeError:
-                    raise SynapseError(
-                        f"Can't delete a {type(obj)}. Please specify a Synapse object or id"
-                    )
+                self.restDELETE(uri=f"/entity/{entity_id}")
+        elif hasattr(obj, "_synapse_delete"):
+            return obj._synapse_delete(self)
+        else:
+            try:
+                if isinstance(obj, Versionable):
+                    self.restDELETE(obj.deleteURI(versionNumber=version))
+                else:
+                    self.restDELETE(obj.deleteURI())
+            except AttributeError:
+                raise SynapseError(
+                    f"Can't delete a {type(obj)}. Please specify a Synapse object or id"
+                )
 
     _user_name_cache = {}
 
@@ -2306,6 +2284,7 @@ class Synapse(object):
     #                         Querying                         #
     ############################################################
 
+    @tracer.start_as_current_span("Synapse::getChildren")
     def getChildren(
         self,
         parent,
@@ -2322,7 +2301,6 @@ class Synapse(object):
         ],
         sortBy="NAME",
         sortDirection="ASC",
-        opentelemetry_context=None,
     ):
         """
         Retrieves all of the entities stored within a parent such as folder or project.
@@ -2332,8 +2310,6 @@ class Synapse(object):
             includeTypes: Must be a list of entity types (ie. ["folder","file"]) which can be found [here](http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
             sortBy: How results should be sorted. Can be NAME, or CREATED_ON
             sortDirection: The direction of the result sort. Can be ASC, or DESC
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
 
         Yields:
             An iterator that shows all the children of the container.
@@ -2342,30 +2318,27 @@ class Synapse(object):
 
         - [synapseutils.walk][]
         """
-        with tracer.start_as_current_span(
-            "Synapse::getChildren", context=opentelemetry_context
-        ):
-            parentId = id_of(parent) if parent is not None else None
+        parentId = id_of(parent) if parent is not None else None
 
-            trace.get_current_span().set_attributes({"synapse.parent_id": parentId})
-            entityChildrenRequest = {
-                "parentId": parentId,
-                "includeTypes": includeTypes,
-                "sortBy": sortBy,
-                "sortDirection": sortDirection,
-                "nextPageToken": None,
-            }
-            entityChildrenResponse = {"nextPageToken": "first"}
-            while entityChildrenResponse.get("nextPageToken") is not None:
-                entityChildrenResponse = self.restPOST(
-                    "/entity/children", body=json.dumps(entityChildrenRequest)
-                )
-                for child in entityChildrenResponse["page"]:
-                    yield child
-                if entityChildrenResponse.get("nextPageToken") is not None:
-                    entityChildrenRequest["nextPageToken"] = entityChildrenResponse[
-                        "nextPageToken"
-                    ]
+        trace.get_current_span().set_attributes({"synapse.parent_id": parentId})
+        entityChildrenRequest = {
+            "parentId": parentId,
+            "includeTypes": includeTypes,
+            "sortBy": sortBy,
+            "sortDirection": sortDirection,
+            "nextPageToken": None,
+        }
+        entityChildrenResponse = {"nextPageToken": "first"}
+        while entityChildrenResponse.get("nextPageToken") is not None:
+            entityChildrenResponse = self.restPOST(
+                "/entity/children", body=json.dumps(entityChildrenRequest)
+            )
+            for child in entityChildrenResponse["page"]:
+                yield child
+            if entityChildrenResponse.get("nextPageToken") is not None:
+                entityChildrenRequest["nextPageToken"] = entityChildrenResponse[
+                    "nextPageToken"
+                ]
 
     @tracer.start_as_current_span("Synapse::md5Query")
     def md5Query(self, md5):
@@ -2706,12 +2679,11 @@ class Synapse(object):
     ############################################################
 
     # TODO: rename these to Activity
-    @utils.otel_trace_method()
+    @tracer.start_as_current_span("Synapse::getProvenance")
     def getProvenance(
         self,
         entity: typing.Union[str, collections.abc.Mapping, numbers.Number],
         version: int = None,
-        opentelemetry_context: context = None,
     ) -> Activity:
         """
         Retrieve provenance information for a Synapse Entity.
@@ -2719,8 +2691,6 @@ class Synapse(object):
         Arguments:
             entity:  An Entity or Synapse ID to lookup
             version: The version of the Entity to retrieve. Gets the most recent version if omitted
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An Activity object or raises exception if no provenance record exists
@@ -2740,12 +2710,11 @@ class Synapse(object):
         trace.get_current_span().set_attributes({"synapse.id": entity_id})
         return Activity(data=self.restGET(uri))
 
-    @utils.otel_trace_method()
+    @tracer.start_as_current_span("Synapse::setProvenance")
     def setProvenance(
         self,
         entity: typing.Union[str, collections.abc.Mapping, numbers.Number],
         activity: Activity,
-        opentelemetry_context: context = None,
     ) -> Activity:
         """
         Stores a record of the code and data used to derive a Synapse entity.
@@ -2753,8 +2722,6 @@ class Synapse(object):
         Arguments:
             entity:   An Entity or Synapse ID to modify
             activity: A [synapseclient.activity.Activity][]
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An updated [synapseclient.activity.Activity][] object
@@ -2770,19 +2737,16 @@ class Synapse(object):
         trace.get_current_span().set_attributes({"synapse.id": entity_id})
         return activity
 
-    @utils.otel_trace_method()
+    @tracer.start_as_current_span("Synapse::deleteProvenance")
     def deleteProvenance(
         self,
         entity: typing.Union[str, collections.abc.Mapping, numbers.Number],
-        opentelemetry_context: context = None,
     ) -> None:
         """
         Removes provenance information from an Entity and deletes the associated Activity.
 
         Arguments:
             entity: An Entity or Synapse ID to modify
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
         """
         activity = self.getProvenance(entity)
         if not activity:
@@ -2816,15 +2780,13 @@ class Synapse(object):
             activity = self.restPOST("/activity", body=json.dumps(activity))
         return activity
 
-    @utils.otel_trace_method()
-    def updateActivity(self, activity, opentelemetry_context=None) -> Activity:
+    @tracer.start_as_current_span("Synapse::updateActivity")
+    def updateActivity(self, activity) -> Activity:
         """
         Modifies an existing Activity.
 
         Arguments:
             activity: The Activity to be updated.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An updated Activity object
@@ -4981,9 +4943,7 @@ class Synapse(object):
             yield Column(**result)
 
     @tracer.start_as_current_span("Synapse::tableQuery")
-    def tableQuery(
-        self, query: str, resultsAs: str = "csv", opentelemetry_context=None, **kwargs
-    ):
+    def tableQuery(self, query: str, resultsAs: str = "csv", **kwargs):
         """
         Query a Synapse Table.
 
@@ -5005,8 +4965,6 @@ class Synapse(object):
             header: (csv only) True by default
             includeRowIdAndRowVersion: (csv only) True by default
             downloadLocation: (csv only) directory path to download the CSV file to
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             A [TableQueryResult][synapseclient.table.TableQueryResult] or [CsvFileTable][synapseclient.table.CsvFileTable] object
@@ -5020,21 +4978,18 @@ class Synapse(object):
                   syn.table_query_timeout = 300
 
         """
-        with tracer.start_as_current_span(
-            "Synapse::tableQuery", context=opentelemetry_context
-        ):
-            if resultsAs.lower() == "rowset":
-                return TableQueryResult(self, query, **kwargs)
-            elif resultsAs.lower() == "csv":
-                # TODO: remove isConsistent because it has now been deprecated
-                # from the backend
-                if kwargs.get("isConsistent") is not None:
-                    kwargs.pop("isConsistent")
-                return CsvFileTable.from_table_query(self, query, **kwargs)
-            else:
-                raise ValueError(
-                    "Unknown return type requested from tableQuery: " + str(resultsAs)
-                )
+        if resultsAs.lower() == "rowset":
+            return TableQueryResult(self, query, **kwargs)
+        elif resultsAs.lower() == "csv":
+            # TODO: remove isConsistent because it has now been deprecated
+            # from the backend
+            if kwargs.get("isConsistent") is not None:
+                kwargs.pop("isConsistent")
+            return CsvFileTable.from_table_query(self, query, **kwargs)
+        else:
+            raise ValueError(
+                "Unknown return type requested from tableQuery: " + str(resultsAs)
+            )
 
     @tracer.start_as_current_span("Synapse::_queryTable")
     def _queryTable(
@@ -5284,6 +5239,7 @@ class Synapse(object):
         return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
+    @tracer.start_as_current_span("Synapse::createColumn")
     def createColumn(
         self,
         name,
@@ -5291,19 +5247,15 @@ class Synapse(object):
         maximumSize=None,
         defaultValue=None,
         enumValues=None,
-        opentelemetry_context=None,
     ):
-        with tracer.start_as_current_span(
-            "Synapse::createColumn", context=opentelemetry_context
-        ):
-            columnModel = Column(
-                name=name,
-                columnType=columnType,
-                maximumSize=maximumSize,
-                defaultValue=defaultValue,
-                enumValue=enumValues,
-            )
-            return Column(**self.restPOST("/column", json.dumps(columnModel)))
+        columnModel = Column(
+            name=name,
+            columnType=columnType,
+            maximumSize=maximumSize,
+            defaultValue=defaultValue,
+            enumValue=enumValues,
+        )
+        return Column(**self.restPOST("/column", json.dumps(columnModel)))
 
     @tracer.start_as_current_span("Synapse::createColumns")
     def createColumns(self, columns: typing.List[Column]) -> typing.List[Column]:
@@ -5849,6 +5801,7 @@ class Synapse(object):
         )
         return self._return_rest_body(response)
 
+    @tracer.start_as_current_span("Synapse::restPUT")
     def restPUT(
         self,
         uri,
@@ -5857,7 +5810,6 @@ class Synapse(object):
         headers=None,
         retryPolicy={},
         requests_session=None,
-        opentelemetry_context=None,
         **kwargs,
     ):
         """
@@ -5870,27 +5822,22 @@ class Synapse(object):
             headers: Dictionary of headers to use rather than the API-key-signed default set of headers
             requests_session: An external [requests.Session object](https://requests.readthedocs.io/en/latest/user/advanced/) to use when making this specific call
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns
             JSON encoding of response
         """
-        with tracer.start_as_current_span(
-            "Synapse::restPUT", context=opentelemetry_context
-        ):
-            trace.get_current_span().set_attributes({"url.path": uri})
-            response = self._rest_call(
-                "put",
-                uri,
-                body,
-                endpoint,
-                headers,
-                retryPolicy,
-                requests_session,
-                **kwargs,
-            )
-            return self._return_rest_body(response)
+        trace.get_current_span().set_attributes({"url.path": uri})
+        response = self._rest_call(
+            "put",
+            uri,
+            body,
+            endpoint,
+            headers,
+            retryPolicy,
+            requests_session,
+            **kwargs,
+        )
+        return self._return_rest_body(response)
 
     @tracer.start_as_current_span("Synapse::restDELETE")
     def restDELETE(

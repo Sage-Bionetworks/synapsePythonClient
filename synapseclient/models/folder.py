@@ -9,6 +9,7 @@ from synapseclient import Synapse
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import File, Annotations
 from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.utils import run_and_attach_otel_context
 
 if TYPE_CHECKING:
     from synapseclient.models import Project
@@ -154,8 +155,11 @@ class Folder:
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                obj=synapse_folder, opentelemetry_context=current_context
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                    obj=synapse_folder
+                ),
+                current_context,
             ),
         )
 
@@ -228,9 +232,11 @@ class Folder:
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                entity=self.id,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                    entity=self.id,
+                ),
+                current_context,
             ),
         )
 
@@ -238,10 +244,14 @@ class Folder:
         if include_children:
             children_objects = await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).getChildren(
-                    parent=self.id,
-                    includeTypes=["folder", "file"],
-                    opentelemetry_context=current_context,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(
+                        synapse_client=synapse_client
+                    ).getChildren(
+                        parent=self.id,
+                        includeTypes=["folder", "file"],
+                    ),
+                    current_context,
                 ),
             )
 
@@ -285,8 +295,10 @@ class Folder:
         current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                obj=self.id,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                    obj=self.id,
+                ),
+                current_context,
             ),
         )
