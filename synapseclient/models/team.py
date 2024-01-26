@@ -82,10 +82,10 @@ class Team:
     icon: Optional[str] = None
     """A file handle ID for the icon image of the team"""
 
-    can_public_join: Optional[bool] = None
+    can_public_join: Optional[bool] = False
     """True if members can join without an invitation or approval"""
 
-    can_request_membership: Optional[bool] = None
+    can_request_membership: Optional[bool] = True
     """True if users can create a membership request to join"""
 
     etag: Optional[str] = None
@@ -114,8 +114,8 @@ class Team:
         self.name = synapse_team.get("name", None)
         self.description = synapse_team.get("description", None)
         self.icon = synapse_team.get("icon", None)
-        self.can_public_join = synapse_team.get("canPublicJoin", None)
-        self.can_request_membership = synapse_team.get("canRequestMembership", None)
+        self.can_public_join = synapse_team.get("canPublicJoin", False)
+        self.can_request_membership = synapse_team.get("canRequestMembership", True)
         self.etag = synapse_team.get("etag", None)
         self.created_on = synapse_team.get("createdOn", None)
         self.modified_on = synapse_team.get("modifiedOn", None)
@@ -146,7 +146,7 @@ class Team:
                 opentelemetry_context=current_context,
             ),
         )
-        self.fill_from_dict(team)
+        self.fill_from_dict(synapse_team=team)
         return self
 
     @otel_trace_method(
