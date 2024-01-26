@@ -133,7 +133,7 @@ class Team:
     async def create(self, synapse_client: Optional[Synapse] = None) -> "Team":
         """Creates a new team on Synapse.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
@@ -159,7 +159,7 @@ class Team:
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Deletes a team from Synapse.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
@@ -182,7 +182,7 @@ class Team:
     ) -> "Team":
         """Gets Team object using its integer id.
 
-        Args:
+        Arguments:
             id: The id of the team.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
@@ -208,7 +208,7 @@ class Team:
     ) -> "Team":
         """Gets Team object using its string name.
 
-        Args:
+        Arguments:
             name: The name of the team.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
@@ -234,7 +234,7 @@ class Team:
     ) -> List[TeamMember]:
         """Gets the TeamMembers associated with a team.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
@@ -262,7 +262,7 @@ class Team:
     ) -> Dict[str, str]:
         """Invites a user to a team.
 
-        Args:
+        Arguments:
             user: The user to invite.
             message: The message to send.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
@@ -292,7 +292,7 @@ class Team:
     ) -> List[Dict[str, str]]:
         """Gets all open invitations for a team.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
