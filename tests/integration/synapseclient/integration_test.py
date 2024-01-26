@@ -1092,15 +1092,26 @@ class TestPermissionsOnEntityForCaller:
 
 @tracer.start_as_current_span("integration_test::test_create_delete_team")
 def test_create_delete_team(syn):
+    # GIVEN information about a team I want to create
     name = "python_client_integration_test_team_" + str(uuid.uuid4())
-    # Create a team
-    team = syn.create_team(name=name)
-    assert team.name == name
+    description = "test description"
+    icon = "testFileHandleId"
+    # WHEN I create the team
+    team = syn.create_team(name=name, description=description, icon=icon)
+    # THEN I expect create_team to return the team
     assert team.id is not None
-    # Ensure it exists
+    assert team.name == name
+    assert team.description == description
+    assert team.icon == icon
+    assert team.etag is not None
+    assert team.createdOn is not None
+    assert team.modifiedOn is not None
+    assert team.createdBy is not None
+    assert team.modifiedBy is not None
+    # AND I expect to be able to get the team from Synapse
     assert syn.getTeam(id=team.id).name == name
-    # Delete it
+    # WHEN I delete the team
     syn.delete_team(id=team.id)
-    # Ensure it no longer exists
+    # THEN I expect it to no longer exist in Synapse
     with pytest.raises(SynapseHTTPError):
         syn.getTeam(id=team.id)
