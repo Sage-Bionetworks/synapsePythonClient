@@ -1091,7 +1091,7 @@ class TestPermissionsOnEntityForCaller:
 
 
 @tracer.start_as_current_span("integration_test::test_create_delete_team")
-def test_create_delete_team(syn):
+def test_create_delete_team(syn: Synapse) -> None:
     # GIVEN information about a team I want to create
     name = "python_client_integration_test_team_" + str(uuid.uuid4())
     description = "test description"
