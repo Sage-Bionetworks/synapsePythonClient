@@ -8,7 +8,7 @@ import pytest
 
 
 class TestTeamMember:
-    def test_fill_from_dict(self):
+    def test_fill_from_dict(self) -> None:
         team_member = TeamMember()
         team_member.fill_from_dict(
             synapse_team_member={"teamId": 1, "member": {"ownerId": 2}, "isAdmin": True}
@@ -20,10 +20,10 @@ class TestTeamMember:
 
 class TestTeam:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse):
         self.syn = syn
 
-    def test_fill_from_dict(self):
+    def test_fill_from_dict(self) -> None:
         team = Team()
         team.fill_from_dict(
             synapse_team={
@@ -53,7 +53,7 @@ class TestTeam:
         assert team.modified_by == "test_user"
 
     @pytest.mark.asyncio
-    async def test_create(self):
+    async def test_create(self) -> None:
         with patch.object(
             self.syn,
             "create_team",
@@ -73,7 +73,7 @@ class TestTeam:
             assert team.name == "test_team"
 
     @pytest.mark.asyncio
-    async def test_delete(self):
+    async def test_delete(self) -> None:
         with patch.object(
             self.syn,
             "delete_team",
@@ -84,7 +84,7 @@ class TestTeam:
             patch_delete_team.assert_called_once_with(id=1, opentelemetry_context={})
 
     @pytest.mark.asyncio
-    async def test_from_id(self):
+    async def test_from_id(self) -> None:
         with patch.object(
             self.syn,
             "getTeam",
@@ -98,7 +98,7 @@ class TestTeam:
             assert team.name == "test_team"
 
     @pytest.mark.asyncio
-    async def test_from_name(self):
+    async def test_from_name(self) -> None:
         with patch.object(
             self.syn,
             "getTeam",
@@ -114,7 +114,7 @@ class TestTeam:
             assert team.name == "test_team"
 
     @pytest.mark.asyncio
-    async def test_members(self):
+    async def test_members(self) -> None:
         with patch.object(
             self.syn,
             "getTeamMembers",
@@ -129,7 +129,7 @@ class TestTeam:
             assert team_members[0].team_id == 1
 
     @pytest.mark.asyncio
-    async def test_invite(self):
+    async def test_invite(self) -> None:
         response_body = {
             "id": "1",
             "teamId": "2",
@@ -158,7 +158,7 @@ class TestTeam:
             assert invite == response_body
 
     @pytest.mark.asyncio
-    async def test_open_invitations(self):
+    async def test_open_invitations(self) -> None:
         response_body = {
             "id": "1",
             "teamId": "2",

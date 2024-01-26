@@ -20,7 +20,7 @@ class TestTeam:
         self.expected_icon = None
 
     @pytest.mark.asyncio
-    async def test_create(self):
+    async def test_create(self) -> None:
         # GIVEN a team
         test_team = Team(
             name=self.expected_name,
@@ -43,7 +43,7 @@ class TestTeam:
         await test_team.delete()
 
     @pytest.mark.asyncio
-    async def test_delete(self):
+    async def test_delete(self) -> None:
         # GIVEN a team
         test_team = Team(
             name=self.expected_name,
@@ -59,7 +59,7 @@ class TestTeam:
             await Team().from_id(id=test_team.id)
 
     @pytest.mark.asyncio
-    async def test_from_id(self):
+    async def test_from_id(self) -> None:
         # GIVEN a team
         test_team = Team(
             name=self.expected_name,
@@ -83,7 +83,7 @@ class TestTeam:
         await test_team.delete()
 
     @pytest.mark.asyncio
-    async def test_from_name(self):
+    async def test_from_name(self) -> None:
         # GIVEN a team
         test_team = Team(
             name=self.expected_name,
@@ -109,7 +109,7 @@ class TestTeam:
         await test_team.delete()
 
     @pytest.mark.asyncio
-    async def test_members(self):
+    async def test_members(self) -> None:
         # GIVEN a team
         test_team = Team(
             name=self.expected_name,
@@ -128,7 +128,7 @@ class TestTeam:
         await test_team.delete()
 
     @pytest.mark.asyncio
-    async def test_invite(self):
+    async def test_invite(self) -> None:
         # GIVEN a team
         test_team = Team(
             name=self.expected_name,
@@ -154,7 +154,7 @@ class TestTeam:
         await test_team.delete()
 
     @pytest.mark.asyncio
-    async def test_open_invitations(self):
+    async def test_open_invitations(self) -> None:
         # GIVEN a team
         test_team = Team(
             name=self.expected_name,
