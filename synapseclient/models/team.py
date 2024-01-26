@@ -40,7 +40,11 @@ class TeamMember:
     def fill_from_dict(
         self, synapse_team_member: Union[Synapse_TeamMember, Dict[str, str]]
     ) -> "TeamMember":
-        self.team_id = synapse_team_member.get("teamId", None)
+        self.team_id = (
+            int(synapse_team_member.get("teamId", None))
+            if synapse_team_member.get("teamId", None)
+            else None
+        )
         self.member = UserGroupHeader().fill_from_dict(
             synapse_team_member.get("member", None)
         )
