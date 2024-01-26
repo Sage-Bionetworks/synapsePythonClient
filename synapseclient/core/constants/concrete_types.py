@@ -64,3 +64,7 @@ MULTIPART_UPLOAD_REQUEST = "org.sagebionetworks.repo.model.file.MultipartUploadR
 MULTIPART_UPLOAD_COPY_REQUEST = (
     "org.sagebionetworks.repo.model.file.MultipartUploadCopyRequest"
 )
+
+# Activity/Provenance
+USED_URL_CONCRETE_TYPE = "org.sagebionetworks.repo.model.provenance.UsedURL"
+USED_ENTITY_CONCRETE_TYPE = "org.sagebionetworks.repo.model.provenance.UsedEntity"

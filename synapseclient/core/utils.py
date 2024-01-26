@@ -1229,11 +1229,16 @@ def otel_trace_method(
     This will pass the class instance as the first argument to the method. This allows
     you to modify the name of the trace to include information about the class instance.
 
+    If you include `opentelemetry_context` as a keyword argument in the method signature,
+    and pass the current OpenTelemetry context to the method it will propagate the context
+    to the method. The is used in cases where we are running the method in a different
+    thread or event context than the one that started the trace.
+
     Example: Decorating a method within a class that will be traced with OpenTelemetry.
         Setting the trace name with a lambda function:
 
             @otel_trace_method(method_to_trace_name=lambda self, **kwargs: f"Store: {self.name}")
-            def store(self):
+            def store(self, opentelemetry_context):
 
     Arguments:
         method_to_trace_name: A callable that takes the class instance as the first argument

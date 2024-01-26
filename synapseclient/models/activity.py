@@ -1,20 +1,22 @@
 import asyncio
 from dataclasses import dataclass, field
-from typing import List, Dict, Union, Tuple
+from typing import Dict, List, Union, NamedTuple
 
 from synapseclient.activity import Activity as Synapse_Activity
+
 from opentelemetry import trace, context
 
 from typing import Optional, TYPE_CHECKING
 
 from synapseclient import Synapse
 from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.constants.concrete_types import (
+    USED_ENTITY_CONCRETE_TYPE,
+    USED_URL_CONCRETE_TYPE,
+)
 
 if TYPE_CHECKING:
     from synapseclient.models import File, Table
-
-USED_URL_CONCRETE_TYPE = "org.sagebionetworks.repo.model.provenance.UsedURL"
-USED_ENTITY_CONCRETE_TYPE = "org.sagebionetworks.repo.model.provenance.UsedEntity"
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -54,6 +56,19 @@ class UsedURL:
     url: Optional[str] = None
     """The external URL of the file that was used such as a link to a GitHub commit
     or a link to a specific version of a software tool."""
+
+
+class UsedAndExecutedSynapseActivities(NamedTuple):
+    """
+    Named tuple to hold the used and executed activities.
+
+    Attributes:
+        used: The entities or URLs used by this Activity.
+        executed: The entities or URLs executed by this Activity.
+    """
+
+    used: List[Dict]
+    executed: List[Dict]
 
 
 # TODO: When Views and Datasets are added we should add Activity to them.
@@ -161,7 +176,7 @@ class Activity:
 
     def _create_used_and_executed_synapse_activities(
         self,
-    ) -> Tuple[List[Dict], List[Dict]]:
+    ) -> UsedAndExecutedSynapseActivities:
         """
         Helper function to create the used and executed activities for the Synapse Activity.
 
@@ -204,7 +219,9 @@ class Activity:
                 synapse_activity_executed.append(
                     {"name": executed.name, "url": executed.url, "wasExecuted": True}
                 )
-        return synapse_activity_used, synapse_activity_executed
+        return UsedAndExecutedSynapseActivities(
+            used=synapse_activity_used, executed=synapse_activity_executed
+        )
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Activity_store: {self.name}"
@@ -231,16 +248,15 @@ class Activity:
                 - If the Activity does not have an ID and ETag.
         """
         # TODO: Input validation: SYNPY-1400
-        (
-            synapse_activity_used,
-            synapse_activity_executed,
-        ) = self._create_used_and_executed_synapse_activities()
+        used_and_executed_activities = (
+            self._create_used_and_executed_synapse_activities()
+        )
 
         synapse_activity = Synapse_Activity(
             name=self.name,
             description=self.description,
-            used=synapse_activity_used,
-            executed=synapse_activity_executed,
+            used=used_and_executed_activities.used,
+            executed=used_and_executed_activities.executed,
         )
 
         loop = asyncio.get_event_loop()
