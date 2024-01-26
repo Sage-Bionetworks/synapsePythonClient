@@ -9,10 +9,13 @@ import pytest
 
 class TestTeamMember:
     def test_fill_from_dict(self) -> None:
+        # GIVEN a blank TeamMember
         team_member = TeamMember()
+        # WHEN I fill it with a dictionary
         team_member.fill_from_dict(
             synapse_team_member={"teamId": 1, "member": {"ownerId": 2}, "isAdmin": True}
         )
+        # THEN I expect all fields to be set
         assert team_member.team_id == 1
         assert team_member.member.owner_id == 2
         assert team_member.is_admin is True
@@ -37,7 +40,9 @@ class TestTeam:
         }
 
     def test_fill_from_dict(self) -> None:
+        # GIVEN a blank Team
         team = Team()
+        # WHEN I fill it with a dictionary
         team.fill_from_dict(
             synapse_team={
                 "id": "1",
@@ -53,6 +58,7 @@ class TestTeam:
                 "modifiedBy": self.USER,
             }
         )
+        # THEN I expect all fields to be set
         assert team.id == 1
         assert team.name == self.NAME
         assert team.description == self.DESCRIPTION
@@ -74,14 +80,18 @@ class TestTeam:
                 id=1, name=self.NAME, description=self.DESCRIPTION
             ),
         ) as patch_create_team:
+            # GIVEN a team object
             team = Team(name=self.NAME, description=self.DESCRIPTION)
+            # WHEN I create the team
             team = await team.create()
+            # THEN I expect the patched method to be called as expected
             patch_create_team.assert_called_once_with(
                 name=self.NAME,
                 description=self.DESCRIPTION,
                 icon=None,
                 opentelemetry_context={},
             )
+            # AND I expect the original team to be returned
             assert team.id == 1
             assert team.name == self.NAME
 
@@ -92,8 +102,11 @@ class TestTeam:
             "delete_team",
             return_value=Synapse_Team(id=1, name=self.NAME),
         ) as patch_delete_team:
+            # GIVEN a team object
             team = Team(id=1, name=self.NAME)
+            # WHEN I delete the team
             await team.delete()
+            # THEN I expect the patched method to be called as expected
             patch_delete_team.assert_called_once_with(id=1, opentelemetry_context={})
 
     @pytest.mark.asyncio
@@ -105,8 +118,11 @@ class TestTeam:
                 id=1, name=self.NAME, description=self.DESCRIPTION
             ),
         ) as patch_get_team:
+            # WHEN I retrieve a team using its id
             team = await Team().from_id(id=1)
+            # THEN I expect the patched method to be called as expected
             patch_get_team.assert_called_once_with(id=1, opentelemetry_context={})
+            # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
 
@@ -119,10 +135,13 @@ class TestTeam:
                 id=1, name=self.NAME, description=self.DESCRIPTION
             ),
         ) as patch_get_team:
+            # WHEN I retrieve a team using its name
             team = await Team().from_name(name=self.NAME)
+            # THEN I expect the patched method to be called as expected
             patch_get_team.assert_called_once_with(
                 id=self.NAME, opentelemetry_context={}
             )
+            # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
 
@@ -133,11 +152,15 @@ class TestTeam:
             "getTeamMembers",
             return_value=[Synapse_TeamMember(teamId=1, member={"id": 2})],
         ) as patch_get_team_members:
+            # GIVEN a team object
             team = Team(id=1)
+            # WHEN I get the team members
             team_members = await team.members()
+            # THEN I expect the patched method to be called as expected
             patch_get_team_members.assert_called_once_with(
                 team=team, opentelemetry_context={}
             )
+            # AND I expect the expected team members to be returned
             assert len(team_members) == 1
             assert team_members[0].team_id == 1
 
@@ -148,11 +171,14 @@ class TestTeam:
             "invite_to_team",
             return_value=self.invite_response,
         ) as patch_invite_team_member:
+            # GIVEN a team object
             team = Team(id=1)
+            # WHEN I invite a user to the team
             invite = await team.invite(
                 user=self.USER,
                 message=self.MESSAGE,
             )
+            # THEN I expect the patched method to be called as expected
             patch_invite_team_member.assert_called_once_with(
                 team=team,
                 user=self.USER,
@@ -160,6 +186,7 @@ class TestTeam:
                 force=True,
                 opentelemetry_context={},
             )
+            # AND I expect the expected invite to be returned
             assert invite == self.invite_response
 
     @pytest.mark.asyncio
@@ -169,10 +196,14 @@ class TestTeam:
             "get_team_open_invitations",
             return_value=[self.invite_response],
         ) as patch_get_open_team_invitations:
+            # GIVEN a team object
             team = Team(id=1)
+            # WHEN I get the open team invitations
             open_team_invitations = await team.open_invitations()
+            # THEN I expect the patched method to be called as expected
             patch_get_open_team_invitations.assert_called_once_with(
                 team=team, opentelemetry_context={}
             )
+            # AND I expect the expected invitations to be returned
             assert len(open_team_invitations) == 1
             assert open_team_invitations[0] == self.invite_response
