@@ -1232,6 +1232,25 @@ def run_and_attach_otel_context(
     This is a hack to get around AsyncIO `run_in_executor` not propagating the context
     to the code it's executing. When we are directly calling async functions after
     SYNPY-1411 we will be able to remove this function.
+
+    Example: Adding this to a `run_in_executor` call
+        Note the 2 lambdas that are required:
+
+            import asyncio
+            from opentelemetry import context
+            from synapseclient import Synapse
+
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            await loop.run_in_executor(
+                None,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                        obj="syn123",
+                    ),
+                    current_context,
+                ),
+            )
     """
     context.attach(current_context)
     return callable_function()
