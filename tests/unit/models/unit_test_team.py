@@ -94,6 +94,8 @@ class TestTeam:
             # AND I expect the original team to be returned
             assert team.id == 1
             assert team.name == self.NAME
+            assert team.description == self.DESCRIPTION
+            assert team.icon is None
 
     @pytest.mark.asyncio
     async def test_delete(self) -> None:
@@ -163,6 +165,7 @@ class TestTeam:
             # AND I expect the expected team members to be returned
             assert len(team_members) == 1
             assert team_members[0].team_id == 1
+            assert team_members[0].member.id == 2
 
     @pytest.mark.asyncio
     async def test_invite(self) -> None:
