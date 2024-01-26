@@ -128,7 +128,9 @@ class Activity:
     executed: List[Union[UsedEntity, UsedURL]] = field(default_factory=list)
     """The entities executed by this Activity."""
 
-    def fill_from_dict(self, synapse_activity: Synapse_Activity) -> "Activity":
+    def fill_from_dict(
+        self, synapse_activity: Union[Synapse_Activity, Dict]
+    ) -> "Activity":
         """
         Converts a response from the REST API into this dataclass.
 
