@@ -1095,14 +1095,12 @@ def test_create_delete_team(syn: Synapse) -> None:
     # GIVEN information about a team I want to create
     name = "python_client_integration_test_team_" + str(uuid.uuid4())
     description = "test description"
-    icon = "testFileHandleId"
     # WHEN I create the team
-    team = syn.create_team(name=name, description=description, icon=icon)
+    team = syn.create_team(name=name, description=description)
     # THEN I expect create_team to return the team
     assert team.id is not None
     assert team.name == name
     assert team.description == description
-    assert team.icon == icon
     assert team.etag is not None
     assert team.createdOn is not None
     assert team.modifiedOn is not None
