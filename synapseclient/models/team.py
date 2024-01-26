@@ -167,13 +167,12 @@ class Team:
         """
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
-        delete = await loop.run_in_executor(
+        await loop.run_in_executor(
             None,
             lambda: Synapse.get_client(synapse_client=synapse_client).delete_team(
                 id=self.id, opentelemetry_context=current_context
             ),
         )
-        return delete
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_From_Id: {self.id}"
