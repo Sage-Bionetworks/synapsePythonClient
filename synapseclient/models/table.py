@@ -17,6 +17,7 @@ from synapseclient.table import (
 )
 from synapseclient.models import Annotations, Activity
 from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.utils import run_and_attach_otel_context
 from opentelemetry import trace, context
 
 
@@ -319,10 +320,12 @@ class Column:
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).createColumn(
-                name=self.name,
-                columnType=self.column_type,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).createColumn(
+                    name=self.name,
+                    columnType=self.column_type,
+                ),
+                current_context,
             ),
         )
         print(entity)
@@ -494,8 +497,11 @@ class Table:
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                obj=synapse_table, opentelemetry_context=current_context
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                    obj=synapse_table
+                ),
+                current_context,
             ),
         )
         print(entity)
@@ -524,11 +530,13 @@ class Table:
         current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: delete_rows(
-                syn=Synapse.get_client(synapse_client=synapse_client),
-                table_id=self.id,
-                row_id_vers_list=rows_to_delete,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: delete_rows(
+                    syn=Synapse.get_client(synapse_client=synapse_client),
+                    table_id=self.id,
+                    row_id_vers_list=rows_to_delete,
+                ),
+                current_context,
             ),
         )
 
@@ -579,8 +587,11 @@ class Table:
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                obj=synapse_schema, opentelemetry_context=current_context
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                    obj=synapse_schema
+                ),
+                current_context,
             ),
         )
 
@@ -639,8 +650,11 @@ class Table:
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                entity=self.id, opentelemetry_context=current_context
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                    entity=self.id
+                ),
+                current_context,
             ),
         )
         self.fill_from_dict(synapse_table=entity, set_annotations=True)
@@ -664,8 +678,11 @@ class Table:
         current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                obj=self.id, opentelemetry_context=current_context
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                    obj=self.id
+                ),
+                current_context,
             ),
         )
 
@@ -693,10 +710,14 @@ class Table:
             # TODO: Future Idea - We stream back a CSV, and let those reading this to handle the CSV however they want
             results = await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
-                    query=query,
-                    **result_format.to_dict(),
-                    opentelemetry_context=current_context,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(
+                        synapse_client=synapse_client
+                    ).tableQuery(
+                        query=query,
+                        **result_format.to_dict(),
+                    ),
+                    current_context,
                 ),
             )
             print(results)

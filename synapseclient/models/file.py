@@ -8,6 +8,7 @@ from synapseclient.models import Annotations, Activity
 from synapseclient.entity import File as Synapse_File
 from synapseclient import Synapse
 from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.utils import run_and_attach_otel_context
 
 from typing import Optional, TYPE_CHECKING
 
@@ -195,8 +196,11 @@ class File:
             current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_file, opentelemetry_context=current_context
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                        obj=synapse_file
+                    ),
+                    current_context,
                 ),
             )
 
@@ -272,11 +276,13 @@ class File:
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                entity=self.id,
-                downloadFile=download_file,
-                downloadLocation=download_location,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                    entity=self.id,
+                    downloadFile=download_file,
+                    downloadLocation=download_location,
+                ),
+                current_context,
             ),
         )
 
@@ -299,8 +305,10 @@ class File:
         current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                obj=self.id,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                    obj=self.id,
+                ),
+                current_context,
             ),
         )

@@ -9,6 +9,7 @@ from opentelemetry import trace, context
 from synapseclient import Synapse
 from synapseclient.annotations import ANNO_TYPE_TO_FUNC
 from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.utils import run_and_attach_otel_context
 
 
 tracer = trace.get_tracer("synapseclient")
@@ -54,10 +55,12 @@ class Annotations:
         current_context = context.get_current()
         result = await loop.run_in_executor(
             None,
-            lambda: set_annotations(
-                annotations=self,
-                synapse_client=synapse_client,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: set_annotations(
+                    annotations=self,
+                    synapse_client=synapse_client,
+                ),
+                current_context,
             ),
         )
         print(f"annotations store for {self.id} complete")

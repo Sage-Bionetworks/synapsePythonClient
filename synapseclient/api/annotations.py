@@ -9,7 +9,6 @@ from dataclasses import asdict
 from typing import TYPE_CHECKING, Optional
 from synapseclient import Synapse
 from synapseclient.annotations import _convert_to_annotations_list
-from opentelemetry import context
 
 if TYPE_CHECKING:
     from synapseclient.models import Annotations
@@ -18,15 +17,12 @@ if TYPE_CHECKING:
 def set_annotations(
     annotations: "Annotations",
     synapse_client: Optional[Synapse] = None,
-    opentelemetry_context: Optional[context.Context] = None,
 ):
     """Call to synapse and set the annotations for the given input.
 
     Arguments:
         annotations: The annotations to set. This is expected to have the id, etag, and annotations filled in.
         synapse_client: If not passed in or None this will use the last client from the `.login()` method.
-        opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                cases where concurrent operations need to be linked to parent spans.
 
     Returns: The annotations set in Synapse.
     """
@@ -43,5 +39,4 @@ def set_annotations(
                 "annotations": synapse_annotations,
             }
         ),
-        opentelemetry_context=opentelemetry_context,
     )

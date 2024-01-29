@@ -23,8 +23,11 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
-from opentelemetry import trace
 
+from typing import Callable, TypeVar
+from opentelemetry import trace, context
+
+R = TypeVar("R")
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
@@ -1262,52 +1265,35 @@ class Spinner:
         self._tick += 1
 
 
-def otel_trace_method(
-    method_to_trace_name: typing.Optional[typing.Callable[..., str]] = None
-):
+def run_and_attach_otel_context(
+    callable_function: Callable[..., R], current_context: context
+) -> R:
     """
-    Decorator to trace a method with OpenTelemetry in a sync environment. This function
-    is specifically written to be used on a method within a class.
+    This is a generic function that will run a callable function and attach the passed in
+    OpenTelemetry context to the thread or context that the function is running on.
 
-    This will pass the class instance as the first argument to the method. This allows
-    you to modify the name of the trace to include information about the class instance.
+    This is a hack to get around AsyncIO `run_in_executor` not propagating the context
+    to the code it's executing. When we are directly calling async functions after
+    SYNPY-1411 we will be able to remove this function.
 
-    If you include `opentelemetry_context` as a keyword argument in the method signature,
-    and pass the current OpenTelemetry context to the method it will propagate the context
-    to the method. The is used in cases where we are running the method in a different
-    thread or event context than the one that started the trace.
+    Example: Adding this to a `run_in_executor` call
+        Note the 2 lambdas that are required:
 
-    Example: Decorating a method within a class that will be traced with OpenTelemetry.
-        Setting the trace name with a lambda function:
+            import asyncio
+            from opentelemetry import context
+            from synapseclient import Synapse
 
-            @otel_trace_method(method_to_trace_name=lambda self, **kwargs: f"Store: {self.name}")
-            def store(self, opentelemetry_context):
-
-    Arguments:
-        method_to_trace_name: A callable that takes the class instance as the first argument
-            and returns a string to be used as the trace name. If this is not provided,
-            the trace name will be set to the method name.
-
-    Returns:
-        A callable decorator that will trace the method with OpenTelemetry.
-    """
-
-    def decorator(func):
-        """Function decorator."""
-
-        def otel_trace_method_wrapper(self, *arg, **kwargs) -> None:
-            """Wrapper for the function to be traced."""
-            trace_name = (
-                method_to_trace_name(self, *arg, **kwargs)
-                if method_to_trace_name
-                else None
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            await loop.run_in_executor(
+                None,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                        obj="syn123",
+                    ),
+                    current_context,
+                ),
             )
-            with tracer.start_as_current_span(
-                trace_name or f"Synaspse::{func.__name__}",
-                context=kwargs.get("opentelemetry_context", None),
-            ):
-                return func(self, *arg, **kwargs)
-
-        return otel_trace_method_wrapper
-
-    return decorator
+    """
+    context.attach(current_context)
+    return callable_function()
