@@ -11,8 +11,11 @@ class TestUserGroupHeader:
             "email": "jdoe@me.com",
             "isIndividual": True,
         }
+        # GIVEN a blank UserGroupHeader
         user_group_header = UserGroupHeader()
+        # WHEN I fill it with a dictionary
         user_group_header.fill_from_dict(test_dict)
+        # THEN I expect all fields to be set
         assert user_group_header.owner_id == 123
         assert user_group_header.first_name == "John"
         assert user_group_header.last_name == "Doe"
