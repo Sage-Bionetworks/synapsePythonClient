@@ -90,7 +90,6 @@ class TestTeam:
                 name=self.NAME,
                 description=self.DESCRIPTION,
                 icon=None,
-                opentelemetry_context={},
             )
             # AND I expect the original team to be returned
             assert team.id == 1
@@ -110,7 +109,7 @@ class TestTeam:
             # WHEN I delete the team
             await team.delete()
             # THEN I expect the patched method to be called as expected
-            patch_delete_team.assert_called_once_with(id=1, opentelemetry_context={})
+            patch_delete_team.assert_called_once_with(id=1)
 
     @pytest.mark.asyncio
     async def test_get_with_id(self) -> None:
@@ -126,7 +125,7 @@ class TestTeam:
             # WHEN I retrieve a team using its id
             team = await team.get()
             # THEN I expect the patched method to be called as expected
-            patch_from_id.assert_called_once_with(id=1, opentelemetry_context={})
+            patch_from_id.assert_called_once_with(id=1)
             # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
@@ -146,9 +145,7 @@ class TestTeam:
             # WHEN I retrieve a team using its name
             team = await team.get()
             # THEN I expect the patched method to be called as expected
-            patch_from_name.assert_called_once_with(
-                id=self.NAME, opentelemetry_context={}
-            )
+            patch_from_name.assert_called_once_with(id=self.NAME)
             # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
@@ -207,9 +204,7 @@ class TestTeam:
             # WHEN I get the team members
             team_members = await team.members()
             # THEN I expect the patched method to be called as expected
-            patch_get_team_members.assert_called_once_with(
-                team=team, opentelemetry_context={}
-            )
+            patch_get_team_members.assert_called_once_with(team=team)
             # AND I expect the expected team members to be returned
             assert len(team_members) == 1
             assert team_members[0].team_id == 1
@@ -235,7 +230,6 @@ class TestTeam:
                 user=self.USER,
                 message=self.MESSAGE,
                 force=True,
-                opentelemetry_context={},
             )
             # AND I expect the expected invite to be returned
             assert invite == self.invite_response
@@ -252,9 +246,7 @@ class TestTeam:
             # WHEN I get the open team invitations
             open_team_invitations = await team.open_invitations()
             # THEN I expect the patched method to be called as expected
-            patch_get_open_team_invitations.assert_called_once_with(
-                team=team, opentelemetry_context={}
-            )
+            patch_get_open_team_invitations.assert_called_once_with(team=team)
             # AND I expect the expected invitations to be returned
             assert len(open_team_invitations) == 1
             assert open_team_invitations[0] == self.invite_response

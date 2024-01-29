@@ -10,6 +10,7 @@ from synapseclient.team import (
 )
 from synapseclient.models.user import UserGroupHeader
 from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.utils import run_and_attach_otel_context
 
 
 tracer = trace.get_tracer("synapseclient")
@@ -143,11 +144,13 @@ class Team:
         current_context = context.get_current()
         team = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).create_team(
-                name=self.name,
-                description=self.description if self.description else None,
-                icon=self.icon if self.icon else None,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).create_team(
+                    name=self.name,
+                    description=self.description if self.description else None,
+                    icon=self.icon if self.icon else None,
+                ),
+                current_context,
             ),
         )
         self.fill_from_dict(synapse_team=team)
@@ -169,8 +172,11 @@ class Team:
         current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).delete_team(
-                id=self.id, opentelemetry_context=current_context
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).delete_team(
+                    id=self.id,
+                ),
+                current_context,
             ),
         )
 
@@ -194,8 +200,11 @@ class Team:
             current_context = context.get_current()
             api_team = await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
-                    id=self.id, opentelemetry_context=current_context
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
+                        id=self.id,
+                    ),
+                    current_context,
                 ),
             )
             return self.fill_from_dict(api_team)
@@ -204,8 +213,11 @@ class Team:
             current_context = context.get_current()
             api_team = await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
-                    id=self.name, opentelemetry_context=current_context
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
+                        id=self.name,
+                    ),
+                    current_context,
                 ),
             )
             return self.fill_from_dict(api_team)
@@ -264,8 +276,11 @@ class Team:
         current_context = context.get_current()
         team_members = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).getTeamMembers(
-                team=self, opentelemetry_context=current_context
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).getTeamMembers(team=self),
+                current_context,
             ),
         )
         team_member_list = [
@@ -298,12 +313,16 @@ class Team:
         current_context = context.get_current()
         invite = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).invite_to_team(
-                team=self,
-                user=user,
-                message=message,
-                force=force,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).invite_to_team(
+                    team=self,
+                    user=user,
+                    message=message,
+                    force=force,
+                ),
+                current_context,
             ),
         )
         return invite
@@ -326,10 +345,13 @@ class Team:
         current_context = context.get_current()
         invitations = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(
-                synapse_client=synapse_client
-            ).get_team_open_invitations(
-                team=self, opentelemetry_context=current_context
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).get_team_open_invitations(
+                    team=self,
+                ),
+                current_context,
             ),
         )
         return list(invitations)

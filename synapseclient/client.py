@@ -3852,7 +3852,6 @@ class Synapse(object):
         name: str,
         description: str = None,
         icon: str = None,
-        opentelemetry_context=None,
     ) -> Team:
         """
         Creates a new team.
@@ -3861,15 +3860,11 @@ class Synapse(object):
             name: The name of the team to create.
             description: A description of the team.
             icon: The FileHandleID of the icon to be used for the team.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing.
-                                    Used in cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An object of type [synapseclient.team.Team][]
         """
-        with tracer.start_as_current_span(
-            "Synapse::create_team", context=opentelemetry_context
-        ):
+        with tracer.start_as_current_span("Synapse::create_team"):
             request_body = {"name": name, "description": description, "icon": icon}
             return Team(
                 **self.restPOST(
@@ -3878,36 +3873,29 @@ class Synapse(object):
                 )
             )
 
-    def delete_team(self, id: int, opentelemetry_context=None) -> None:
+    def delete_team(self, id: int) -> None:
         """
         Deletes a team.
 
         Arguments:
             id: The ID of the team to delete.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing.
-                                    Used in cases where concurrent operations need to be linked to parent spans.
+
         """
-        with tracer.start_as_current_span(
-            "Synapse::delete_team", context=opentelemetry_context
-        ):
+        with tracer.start_as_current_span("Synapse::delete_team"):
             return self.restDELETE(f"/team/{id}")
 
-    def getTeam(self, id: Union[int, str], opentelemetry_context=None) -> Team:
+    def getTeam(self, id: Union[int, str]) -> Team:
         """
         Finds a team with a given ID or name.
 
         Arguments:
             id: The ID or name of the team or a Team object to retrieve.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing.
-                                    Used in cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An object of type [synapseclient.team.Team][]
         """
         # Retrieves team id
-        with tracer.start_as_current_span(
-            "Synapse::getTeam", context=opentelemetry_context
-        ):
+        with tracer.start_as_current_span("Synapse::getTeam"):
             teamid = id_of(id)
             try:
                 int(teamid)
@@ -3924,23 +3912,19 @@ class Synapse(object):
             return Team(**self.restGET("/team/%s" % teamid))
 
     def getTeamMembers(
-        self, team: Union[Team, int, str], opentelemetry_context=None
+        self, team: Union[Team, int, str]
     ) -> typing.Generator[TeamMember, None, None]:
         """
         Lists the members of the given team.
 
         Arguments:
             team: A [synapseclient.team.Team][] object or a team's ID.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing.
-                                    Used in cases where concurrent operations need to be linked to parent spans.
 
         Yields:
             A generator over [synapseclient.team.TeamMember][] objects.
 
         """
-        with tracer.start_as_current_span(
-            "Synapse::getTeamMembers", context=opentelemetry_context
-        ):
+        with tracer.start_as_current_span("Synapse::getTeamMembers"):
             for result in self._GET_paginated(
                 "/teamMembers/{id}".format(id=id_of(team))
             ):
@@ -3977,22 +3961,18 @@ class Synapse(object):
         return docker_digest
 
     def get_team_open_invitations(
-        self, team: Union[Team, int, str], opentelemetry_context=None
+        self, team: Union[Team, int, str]
     ) -> typing.Generator[dict, None, None]:
         """Retrieve the open requests submitted to a Team
         <https://rest-docs.synapse.org/rest/GET/team/id/openInvitation.html>
 
         Arguments:
             team: A [synapseclient.team.Team][] object or a team's ID.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing.
-                                    Used in cases where concurrent operations need to be linked to parent spans.
 
         Yields:
             Generator of MembershipRequest dictionaries
         """
-        with tracer.start_as_current_span(
-            "Synapse::get_team_open_invitations", context=opentelemetry_context
-        ):
+        with tracer.start_as_current_span("Synapse::get_team_open_invitations"):
             teamid = id_of(team)
             request = "/team/{team}/openInvitation".format(team=teamid)
             open_requests = self._GET_paginated(request)
@@ -4064,7 +4044,6 @@ class Synapse(object):
         inviteeEmail: str = None,
         message: str = None,
         force: bool = False,
-        opentelemetry_context=None,
     ):
         """Invite user to a Synapse team via Synapse username or email
         (choose one or the other)
@@ -4076,15 +4055,11 @@ class Synapse(object):
             inviteeEmail: Email of user
             message: Additional message for the user getting invited to the team.
             force: If an open invitation exists for the invitee, the old invite will be cancelled.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                    cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             MembershipInvitation or None if user is already a member
         """
-        with tracer.start_as_current_span(
-            "Synapse::invite_to_team", context=opentelemetry_context
-        ):
+        with tracer.start_as_current_span("Synapse::invite_to_team"):
             # Throw error if both user and email is specified and if both not
             # specified
             id_email_specified = inviteeEmail is not None and user is not None
