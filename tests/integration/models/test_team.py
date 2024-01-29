@@ -52,7 +52,10 @@ class TestTeam:
         # AND I delete the team
         await test_team.delete()
         # THEN I expect the team to no longer exist
-        with pytest.raises(SynapseHTTPError):
+        with pytest.raises(
+            SynapseHTTPError,
+            match=f"404 Client Error: \nTeam id: '{test_team.id}' does not exist",
+        ):
             await Team().from_id(id=test_team.id)
 
     @pytest.mark.asyncio
