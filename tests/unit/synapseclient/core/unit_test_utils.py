@@ -100,6 +100,37 @@ def test_id_of():
         assert utils.id_of(foo) == "123"
 
 
+# TODO: Add a test for is_synapse_id_str(...)
+# https://sagebionetworks.jira.com/browse/SYNPY-1425
+
+
+def test_get_synid_and_version():
+    # Test 1: Ensure that a synID string with no version works
+    synid_no_version = "syn123"
+    id, version = utils.get_synid_and_version(synid_no_version)
+    assert id == synid_no_version
+    assert version == None
+
+    # Test 2: Ensure that a synID string with version syntax works
+    synid_with_version = "syn123.2"
+    id, version = utils.get_synid_and_version(synid_with_version)
+    assert (id, str(version)) == tuple(synid_with_version.split("."))
+
+    # Test 3: Ensure that a synID string with version syntax typo breaks
+    synid_with_typo = "syn123.oops"
+    error_msg = "The input string was not determined to be a syn ID."
+    with pytest.raises(ValueError, match=error_msg):
+        utils.get_synid_and_version(synid_with_typo)
+
+    # Test 4: Ensure that a versionable Entity obj with version works
+    _, version = utils.get_synid_and_version({"foo": 1, "id": 123, "versionNumber": 2})
+    assert version == 2
+
+    # Test 5: Ensure that an Entity obj with no version works
+    _, version = utils.get_synid_and_version({"foo": 1, "id": 123})
+    assert not version
+
+
 def test_concrete_type_of():
     """Verify behavior of utils#concrete_type_of"""
 

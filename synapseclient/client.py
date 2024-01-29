@@ -958,7 +958,8 @@ class Synapse(object):
         """
 
         if utils.is_synapse_id_str(entity):
-            entity = self._getEntity(entity)
+            synid, version = utils.get_synid_and_version(entity)
+            entity = self._getEntity(synid, version)
         try:
             self.logger.info(
                 json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii)
@@ -1025,10 +1026,11 @@ class Synapse(object):
         Gets a Synapse entity from the repository service.
 
         Arguments:
-            entity:           A Synapse ID, a Synapse Entity object, a plain dictionary in which 'id' maps to a
-                                Synapse ID or a local file that is stored in Synapse (found by the file MD5)
+            entity:           A Synapse ID (e.g. syn123 or syn123.1, with .1 denoting version), a Synapse Entity object,
+                              a plain dictionary in which 'id' maps to a Synapse ID or a local file that is stored in
+                              Synapse (found by the file MD5)
             version:          The specific version to get.
-                                Defaults to the most recent version.
+                                Defaults to the most recent version. If not denoted in the entity input.
             downloadFile:     Whether associated files(s) should be downloaded.
                                 Defaults to True.
             downloadLocation: Directory where to download the Synapse File Entity.
@@ -2370,9 +2372,12 @@ class Synapse(object):
 
         Returns:
             A dictionary of the Entity's benefactor
+
         """
         if utils.is_synapse_id_str(entity) or is_synapse_entity(entity):
-            return self.restGET("/entity/%s/benefactor" % id_of(entity))
+            synid, _ = utils.get_synid_and_version(entity)
+            return self.restGET("/entity/%s/benefactor" % synid)
+
         return entity
 
     def _getACL(self, entity: Union[Entity, str]) -> Dict[str, Union[str, list]]:
@@ -2691,6 +2696,8 @@ class Synapse(object):
         Arguments:
             entity:  An Entity or Synapse ID to lookup
             version: The version of the Entity to retrieve. Gets the most recent version if omitted
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An Activity object or raises exception if no provenance record exists
@@ -2722,6 +2729,8 @@ class Synapse(object):
         Arguments:
             entity:   An Entity or Synapse ID to modify
             activity: A [synapseclient.activity.Activity][]
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An updated [synapseclient.activity.Activity][] object
@@ -2747,6 +2756,8 @@ class Synapse(object):
 
         Arguments:
             entity: An Entity or Synapse ID to modify
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                      cases where concurrent operations need to be linked to parent spans.
         """
         activity = self.getProvenance(entity)
         if not activity:
@@ -2787,6 +2798,8 @@ class Synapse(object):
 
         Arguments:
             activity: The Activity to be updated.
+            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
+                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An updated Activity object

@@ -165,6 +165,11 @@ def test_command_line_client(test_state):
     current_file = test_state.syn.get(file_entity_id, downloadFile=False)
     current_version = current_file.versionNumber
 
+    # Get a previous version of the existing file using .version syntax
+    file_entity_v1 = f"{file_entity_id}.1"
+    v1_file = test_state.syn.get(file_entity_v1, downloadFile=False)
+    assert v1_file.versionNumber == 1
+
     # Store it without forcing version
     output = run(
         test_state,

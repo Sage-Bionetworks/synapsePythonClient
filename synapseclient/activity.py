@@ -55,7 +55,7 @@ For example, when storing a data entity, it's a good idea to record its source:
 import collections.abc
 
 from synapseclient.core.exceptions import SynapseError, SynapseMalformedEntityError
-from synapseclient.core.utils import is_url, is_synapse_id_str
+from synapseclient.core.utils import is_url, is_synapse_id_str, get_synid_and_version
 from synapseclient.entity import is_synapse_entity
 
 
@@ -277,16 +277,18 @@ class Activity(dict):
         elif isinstance(target, str):
             badargs = _get_any_bad_args(["url", "name"], locals())
             _raise_incorrect_used_usage(badargs, "Synapse entity")
-            vals = target.split(".")  # Handle synapseIds of from syn234.4
-            if not is_synapse_id_str(vals[0]):
+            if not is_synapse_id_str(target):
                 raise ValueError("%s is not a valid Synapse id" % target)
-            if len(vals) == 2:
-                if targetVersion and int(targetVersion) != int(vals[1]):
+            synid, version = get_synid_and_version(
+                target
+            )  # Handle synapseIds of from syn234.4
+            if version:
+                if targetVersion and int(targetVersion) != int(version):
                     raise ValueError(
                         "Two conflicting versions for %s were specified" % target
                     )
-                targetVersion = int(vals[1])
-            reference = {"targetId": vals[0]}
+                targetVersion = int(version)
+            reference = {"targetId": synid}
             if targetVersion:
                 reference["targetVersionNumber"] = int(targetVersion)
             resource = {
