@@ -33,7 +33,7 @@ async def new_team():
     my_team = await Team.from_id(id=my_synapse_team.id)
     print(my_team)
 
-    my_team = await Team().from_name(name=my_synapse_team.name)
+    my_team = await Team.from_name(name=my_synapse_team.name)
     print(my_team)
     # Get information about the members of a Team
     members = await my_team.members()
