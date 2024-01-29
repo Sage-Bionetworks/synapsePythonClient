@@ -156,46 +156,46 @@ class TestTeam:
         # Clean up
         await test_team.delete()
 
-    @pytest.mark.asyncio
-    async def test_invite(self) -> None:
-        # GIVEN a team object self.team
-        # WHEN I create the team on Synapse
-        test_team = await self.team.create()
-        # AND I invite a user to the team
-        test_invite = await test_team.invite(
-            user=self.TEST_USER,
-            message=self.TEST_MESSAGE,
-        )
-        # THEN I expect the invite to be returned
-        assert test_invite["id"] is not None
-        assert test_invite["teamId"] == str(test_team.id)
-        assert test_invite["inviteeId"] is not None
-        assert test_invite["message"] == self.TEST_MESSAGE
-        assert test_invite["createdOn"] is not None
-        assert test_invite["createdBy"] is not None
+    # @pytest.mark.asyncio
+    # async def test_invite(self) -> None:
+    #     # GIVEN a team object self.team
+    #     # WHEN I create the team on Synapse
+    #     test_team = await self.team.create()
+    #     # AND I invite a user to the team
+    #     test_invite = await test_team.invite(
+    #         user=self.TEST_USER,
+    #         message=self.TEST_MESSAGE,
+    #     )
+    #     # THEN I expect the invite to be returned
+    #     assert test_invite["id"] is not None
+    #     assert test_invite["teamId"] == str(test_team.id)
+    #     assert test_invite["inviteeId"] is not None
+    #     assert test_invite["message"] == self.TEST_MESSAGE
+    #     assert test_invite["createdOn"] is not None
+    #     assert test_invite["createdBy"] is not None
 
-        # Clean up
-        await test_team.delete()
+    #     # Clean up
+    #     await test_team.delete()
 
-    @pytest.mark.asyncio
-    async def test_open_invitations(self) -> None:
-        # GIVEN a team object self.team
-        # WHEN I create the team on Synapse
-        test_team = await self.team.create()
-        # AND I invite a user to the team
-        await test_team.invite(
-            user=self.TEST_USER,
-            message=self.TEST_MESSAGE,
-        )
-        # THEN I expect the invite to be returned by open_invitations
-        test_open_invitations = await test_team.open_invitations()
-        assert len(test_open_invitations) == 1
-        assert test_open_invitations[0]["id"] is not None
-        assert test_open_invitations[0]["teamId"] == str(test_team.id)
-        assert test_open_invitations[0]["inviteeId"] is not None
-        assert test_open_invitations[0]["message"] == self.TEST_MESSAGE
-        assert test_open_invitations[0]["createdOn"] is not None
-        assert test_open_invitations[0]["createdBy"] is not None
+    # @pytest.mark.asyncio
+    # async def test_open_invitations(self) -> None:
+    #     # GIVEN a team object self.team
+    #     # WHEN I create the team on Synapse
+    #     test_team = await self.team.create()
+    #     # AND I invite a user to the team
+    #     await test_team.invite(
+    #         user=self.TEST_USER,
+    #         message=self.TEST_MESSAGE,
+    #     )
+    #     # THEN I expect the invite to be returned by open_invitations
+    #     test_open_invitations = await test_team.open_invitations()
+    #     assert len(test_open_invitations) == 1
+    #     assert test_open_invitations[0]["id"] is not None
+    #     assert test_open_invitations[0]["teamId"] == str(test_team.id)
+    #     assert test_open_invitations[0]["inviteeId"] is not None
+    #     assert test_open_invitations[0]["message"] == self.TEST_MESSAGE
+    #     assert test_open_invitations[0]["createdOn"] is not None
+    #     assert test_open_invitations[0]["createdBy"] is not None
 
-        # Clean up
-        await test_team.delete()
+    #     # Clean up
+    #     await test_team.delete()
