@@ -41,9 +41,6 @@ class Folder:
             desired annotations. The value is an object containing a list of values
             (use empty list to represent no values for key) and the value type associated with
             all values in the list.
-        is_loaded: Whether or not the folder has been loaded from Synapse.
-
-
     """
 
     id: Optional[str] = None
@@ -104,8 +101,6 @@ class Folder:
     (use empty list to represent no values for key) and the value type associated with
     all values in the list."""
 
-    is_loaded: bool = False
-
     # def __post_init__(self):
     #     # TODO - What is the best way to enforce this, basically we need a minimum amount
     #     # of information to be required such that we can save or load the data properly
@@ -141,7 +136,7 @@ class Folder:
     ) -> "Folder":
         """Storing folder and files to synapse.
 
-        Args:
+        Arguments:
             parent: The parent folder or project to store the folder in.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
@@ -201,7 +196,9 @@ class Folder:
                     self.annotations = result.annotations
                     print(f"Stored annotations id: {result.id}, etag: {result.etag}")
                 else:
-                    raise ValueError(f"Unknown type: {type(result)}")
+                    if isinstance(result, BaseException):
+                        raise result
+                    raise ValueError(f"Unknown type: {type(result)}", result)
         except Exception as ex:
             Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
             print("I hit an exception")
@@ -220,7 +217,7 @@ class Folder:
     ) -> "Folder":
         """Get the folder metadata from Synapse.
 
-        Args:
+        Arguments:
             include_children: Whether or not to include the children of this folder.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
@@ -278,7 +275,7 @@ class Folder:
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the folder from Synapse.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:

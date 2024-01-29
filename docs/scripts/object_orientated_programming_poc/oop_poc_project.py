@@ -18,18 +18,6 @@ from synapseclient.models import (
 import synapseclient
 from datetime import date, datetime, timedelta, timezone
 
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-
-trace.set_tracer_provider(
-    TracerProvider(resource=Resource(attributes={SERVICE_NAME: "oop_project"}))
-)
-trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
-tracer = trace.get_tracer("my_tracer")
-
 syn = synapseclient.Synapse(debug=True)
 syn.login()
 
@@ -63,92 +51,84 @@ async def store_project():
         ],
     }
 
-    with tracer.start_as_current_span("Creating a project"):
-        # Creating a project =============================================================
-        project = Project(
-            name="bfauble_my_new_project_for_testing",
+    # Creating a project =============================================================
+    project = Project(
+        name="my_new_project_for_testing",
+        annotations=my_annotations,
+        description="This is a project with random data.",
+    )
+
+    project = await project.store()
+
+    print("Project created:")
+    print(project)
+
+    # Updating and storing an annotation =============================================
+    project_copy = await Project(id=project.id).get()
+    project_copy.annotations["my_key_string"] = ["new", "values", "here"]
+    stored_project = await project_copy.store()
+    print("Project updated:")
+    print(stored_project)
+
+    # Storing several files to a project =============================================
+    files_to_store = []
+    for loop in range(1, 10):
+        name_of_file = f"my_file_with_random_data_{loop}.txt"
+        path_to_file = os.path.join(os.path.expanduser("~/temp"), name_of_file)
+        create_random_file(path_to_file)
+
+        # Creating and uploading a file to a project =================================
+        file = File(
+            path=path_to_file,
+            name=name_of_file,
             annotations=my_annotations,
-            description="This is a project with random data.",
         )
+        files_to_store.append(file)
+    project.files = files_to_store
+    project = await project.store()
 
-        project = await project.store()
+    # Storing several folders in a project ===========================================
+    folders_to_store = []
+    for loop in range(1, 10):
+        folder_to_store = Folder(
+            name=f"my_new_folder_for_this_project_{loop}",
+            annotations=my_annotations,
+        )
+        folders_to_store.append(folder_to_store)
+    project.files = []
+    project.folders = folders_to_store
+    project = await project.store()
 
-        print(project)
+    # Getting metadata about a project ===============================================
+    project_copy = await Project(id=project.id).get(include_children=True)
 
-    with tracer.start_as_current_span("Updating and storing an annotation"):
-        # Updating and storing an annotation =============================================
-        project_copy = await Project(id=project.id).get()
-        project_copy.annotations["my_key_string"] = ["new", "values", "here"]
-        stored_project = await project_copy.store()
-        print(stored_project)
+    print("Project metadata:")
+    print(project_copy)
+    for file in project_copy.files:
+        print(f"File: {file.name}")
 
-    with tracer.start_as_current_span("Storing several files to a project"):
-        # Storing several files to a project =============================================
-        files_to_store = []
-        for loop in range(1, 10):
-            name_of_file = f"my_file_with_random_data_{loop}.txt"
-            path_to_file = os.path.join(os.path.expanduser("~/temp"), name_of_file)
-            create_random_file(path_to_file)
+    for folder in project_copy.folders:
+        print(f"Folder: {folder.name}")
 
-            # Creating and uploading a file to a project =================================
-            file = File(
-                path=path_to_file,
-                name=name_of_file,
-                annotations=my_annotations,
-            )
-            files_to_store.append(file)
-        project.files = files_to_store
-        project = await project.store()
+    # Updating the annotations in bulk for a number of folders and files =============
+    new_annotations = {
+        "my_new_key_string": ["b", "a", "c"],
+    }
 
-    with tracer.start_as_current_span("Storing several folders in a project"):
-        # Storing several folders in a project ===========================================
-        folders_to_store = []
-        for loop in range(1, 10):
-            folder_to_store = Folder(
-                name=f"my_new_folder_for_this_project_{loop}",
-                annotations=my_annotations,
-            )
-            folders_to_store.append(folder_to_store)
-        project.files = []
-        project.folders = folders_to_store
-        project = await project.store()
+    for file in project_copy.files:
+        file.annotations = new_annotations
 
-    with tracer.start_as_current_span("Getting metadata about a project"):
-        # Getting metadata about a project ===============================================
-        project_copy = await Project(id=project.id).get(include_children=True)
+    for folder in project_copy.folders:
+        folder.annotations = new_annotations
 
-        print(project_copy)
-        for file in project_copy.files:
-            print(f"File: {file.name}")
+    await project_copy.store()
 
-        for folder in project_copy.folders:
-            print(f"Folder: {folder.name}")
+    # Deleting a project =============================================================
+    project_to_delete = await Project(
+        name="my_new_project_I_want_to_delete",
+    ).store()
 
-    with tracer.start_as_current_span(
-        "Updating the annotations in bulk for a number of folders and files"
-    ):
-        # Updating the annotations in bulk for a number of folders and files =============
-        new_annotations = {
-            "my_new_key_string": ["b", "a", "c"],
-        }
-
-        project_copy = await Project(id=project.id).get(include_children=True)
-
-        for file in project_copy.files:
-            file.annotations = new_annotations
-
-        for folder in project_copy.folders:
-            folder.annotations = new_annotations
-
-        await project_copy.store()
-
-    with tracer.start_as_current_span("Deleting a project"):
-        # Deleting a project =============================================================
-        project_to_delete = await Project(
-            name="my_new_project_I_want_to_delete",
-        ).store()
-
-        await project_to_delete.delete()
+    await project_to_delete.delete()
 
 
 asyncio.run(store_project())

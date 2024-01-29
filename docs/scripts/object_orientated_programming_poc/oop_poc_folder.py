@@ -17,18 +17,6 @@ from synapseclient.models import (
 import synapseclient
 from datetime import date, datetime, timedelta, timezone
 
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-
-trace.set_tracer_provider(
-    TracerProvider(resource=Resource(attributes={SERVICE_NAME: "oop_folder"}))
-)
-trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
-tracer = trace.get_tracer("my_tracer")
-
 PROJECT_ID = "syn52948289"
 
 syn = synapseclient.Synapse(debug=True)
@@ -46,7 +34,6 @@ def create_random_file(
         f.write(os.urandom(1))
 
 
-@tracer.start_as_current_span("Folder")
 async def store_folder():
     # Creating annotations for my folder ==================================================
     annotations_for_my_folder = {
@@ -75,12 +62,14 @@ async def store_folder():
 
     folder = await folder.store()
 
+    print("Folder created:")
     print(folder)
 
     # Updating and storing an annotation =================================================
     folder_copy = await Folder(id=folder.id).get()
     folder_copy.annotations["my_key_string"] = ["new", "values", "here"]
     stored_folder = await folder_copy.store()
+    print("Folder updated:")
     print(stored_folder)
 
     # Storing several files to a folder ==================================================
@@ -111,6 +100,7 @@ async def store_folder():
     # Getting metadata about a folder =====================================================
     folder_copy = await Folder(id=folder.id).get(include_children=True)
 
+    print("Folder metadata:")
     print(folder_copy)
     for file in folder_copy.files:
         print(f"File: {file.name}")

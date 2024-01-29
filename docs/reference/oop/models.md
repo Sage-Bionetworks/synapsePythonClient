@@ -38,6 +38,23 @@ the client.
         - query
         - delete
 ---
+::: synapseclient.models.Activity
+    options:
+      members:
+      - from_parent
+      - store
+      - delete
+
+::: synapseclient.models.UsedEntity
+    options:
+      filters:
+      - "!"
+::: synapseclient.models.UsedURL
+    options:
+      filters:
+      - "!"
+
+---
 
 ## Sample Scripts:
 
@@ -73,6 +90,13 @@ the client.
 ```
 </details>
 
+<details class="quote">
+  <summary>Working with activities</summary>
+
+```python
+{!docs/scripts/object_orientated_programming_poc/oop_poc_activity.py!}
+```
+</details>
 
 <details class="quote">
   <summary>Current Synapse interface for working with a project</summary>

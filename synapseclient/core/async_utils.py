@@ -20,7 +20,7 @@ def otel_trace_method(method_to_trace_name: Union[Callable[..., str], None] = No
             @otel_trace_method(method_to_trace_name=lambda self, **kwargs: f"Project_Store: {self.name}")
             async def store(self):
 
-    Args:
+    Arguments:
         method_to_trace_name: A callable that takes the class instance as the first argument
             and returns a string to be used as the trace name. If this is not provided,
             the trace name will be set to the method name.
@@ -32,7 +32,7 @@ def otel_trace_method(method_to_trace_name: Union[Callable[..., str], None] = No
     def decorator(func):
         """Function decorator."""
 
-        async def wrapper(self, *arg, **kwargs) -> None:
+        async def otel_trace_method_wrapper(self, *arg, **kwargs) -> None:
             """Wrapper for the function to be traced."""
             trace_name = (
                 method_to_trace_name(self, *arg, **kwargs)
@@ -44,6 +44,6 @@ def otel_trace_method(method_to_trace_name: Union[Callable[..., str], None] = No
             ):
                 return await func(self, *arg, **kwargs)
 
-        return wrapper
+        return otel_trace_method_wrapper
 
     return decorator
