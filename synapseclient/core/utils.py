@@ -361,9 +361,9 @@ def get_synid_and_version(
 
     Returns:
         A tuple containing the synapse ID and version number,
-        where the version number may be an integer or None if
-        the input object does not contain a versonNumber or
-        .version notation (if string).
+            where the version number may be an integer or None if
+            the input object does not contain a versonNumber or
+            .version notation (if string).
 
     Example: Get synID and version from string object
         Extract the synID and version number of the entity string ID
