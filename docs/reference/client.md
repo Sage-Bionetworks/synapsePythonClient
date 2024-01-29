@@ -60,6 +60,8 @@ those memebrs. We are roughly grouping these for similar functionality. -->
         - getEvaluation
         - getEvaluationByContentSource
         - getEvaluationByName
+        - create_team
+        - delete_team
         - getProjectSetting
         - getSubmission
         - getSubmissions
