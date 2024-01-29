@@ -122,7 +122,7 @@ class TestTeam:
             ),
         ) as patch_get_team:
             # WHEN I retrieve a team using its id
-            team = await Team().from_id(id=1)
+            team = await Team.from_id(id=1)
             # THEN I expect the patched method to be called as expected
             patch_get_team.assert_called_once_with(id=1, opentelemetry_context={})
             # AND I expect the intended team to be returned
@@ -139,7 +139,7 @@ class TestTeam:
             ),
         ) as patch_get_team:
             # WHEN I retrieve a team using its name
-            team = await Team().from_name(name=self.NAME)
+            team = await Team.from_name(name=self.NAME)
             # THEN I expect the patched method to be called as expected
             patch_get_team.assert_called_once_with(
                 id=self.NAME, opentelemetry_context={}

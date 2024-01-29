@@ -174,12 +174,11 @@ class Team:
             ),
         )
 
+    @classmethod
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Team_From_Id: {self.id}"
+        method_to_trace_name=lambda cls, id, **kwargs: f"Team_From_Id: {id}"
     )
-    async def from_id(
-        self, id: int, synapse_client: Optional[Synapse] = None
-    ) -> "Team":
+    async def from_id(cls, id: int, synapse_client: Optional[Synapse] = None) -> "Team":
         """Gets Team object using its integer id.
 
         Arguments:
@@ -191,20 +190,22 @@ class Team:
         """
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
-        team = await loop.run_in_executor(
+        api_team = await loop.run_in_executor(
             None,
             lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
                 id=id, opentelemetry_context=current_context
             ),
         )
-        self.fill_from_dict(team)
-        return self
+        team = cls()
+        team.fill_from_dict(api_team)
+        return team
 
+    @classmethod
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Team_From_Name: {self.name}"
+        method_to_trace_name=lambda cls, name, **kwargs: f"Team_From_Name: {name}"
     )
     async def from_name(
-        self, name: str, synapse_client: Optional[Synapse] = None
+        cls, name: str, synapse_client: Optional[Synapse] = None
     ) -> "Team":
         """Gets Team object using its string name.
 
@@ -217,14 +218,15 @@ class Team:
         """
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
-        team = await loop.run_in_executor(
+        api_team = await loop.run_in_executor(
             None,
             lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
                 id=name, opentelemetry_context=current_context
             ),
         )
-        self.fill_from_dict(team)
-        return self
+        team = cls()
+        team.fill_from_dict(api_team)
+        return team
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Members: {self.name}"

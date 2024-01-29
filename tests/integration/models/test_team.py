@@ -56,7 +56,7 @@ class TestTeam:
             SynapseHTTPError,
             match=f"404 Client Error: \nTeam id: '{test_team.id}' does not exist",
         ):
-            await Team().from_id(id=test_team.id)
+            await Team.from_id(id=test_team.id)
 
     @pytest.mark.asyncio
     async def test_from_id(self) -> None:
@@ -64,7 +64,7 @@ class TestTeam:
         # WHEN I create the team on Synapse
         test_team = await self.team.create()
         # THEN I expect the team to be returned by from_id
-        test_team_from_id = await Team().from_id(id=test_team.id)
+        test_team_from_id = await Team.from_id(id=test_team.id)
         assert test_team_from_id.id == test_team.id
         assert test_team_from_id.name == test_team.name
         assert test_team_from_id.description == test_team.description
@@ -85,7 +85,7 @@ class TestTeam:
         # TODO why do we need to sleep here?
         await asyncio.sleep(5)
         # THEN I expect the team to be returned by from_name
-        test_team_from_name = await Team().from_name(name=test_team.name)
+        test_team_from_name = await Team.from_name(name=test_team.name)
         assert test_team_from_name.id == test_team.id
         assert test_team_from_name.name == test_team.name
         assert test_team_from_name.description == test_team.description
