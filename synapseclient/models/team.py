@@ -174,6 +174,43 @@ class Team:
             ),
         )
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Team_Get: {self.id if self.id else self.name}"
+    )
+    async def get(self, synapse_client: Optional[Synapse] = None) -> "Team":
+        """Gets a Team from Synapse.
+
+        Arguments:
+            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+
+        Raises:
+            ValueError: If the Team object has neither an id nor a name.
+
+        Returns:
+            Team: The Team object.
+        """
+        if self.id:
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            api_team = await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
+                    id=self.id, opentelemetry_context=current_context
+                ),
+            )
+            return self.fill_from_dict(api_team)
+        elif self.name:
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            api_team = await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
+                    id=self.name, opentelemetry_context=current_context
+                ),
+            )
+            return self.fill_from_dict(api_team)
+        raise ValueError("Team must have either an id or a name")
+
     @classmethod
     @otel_trace_method(
         method_to_trace_name=lambda cls, id, **kwargs: f"Team_From_Id: {id}"
@@ -188,17 +225,8 @@ class Team:
         Returns:
             Team: The Team object.
         """
-        loop = asyncio.get_event_loop()
-        current_context = context.get_current()
-        api_team = await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
-                id=id, opentelemetry_context=current_context
-            ),
-        )
-        team = cls()
-        team.fill_from_dict(api_team)
-        return team
+
+        return await cls(id=id).get(synapse_client=synapse_client)
 
     @classmethod
     @otel_trace_method(
@@ -216,17 +244,7 @@ class Team:
         Returns:
             Team: The Team object.
         """
-        loop = asyncio.get_event_loop()
-        current_context = context.get_current()
-        api_team = await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
-                id=name, opentelemetry_context=current_context
-            ),
-        )
-        team = cls()
-        team.fill_from_dict(api_team)
-        return team
+        return await cls(name=name).get(synapse_client=synapse_client)
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Members: {self.name}"

@@ -59,6 +59,50 @@ class TestTeam:
             await Team.from_id(id=test_team.id)
 
     @pytest.mark.asyncio
+    async def test_get_with_id(self) -> None:
+        # GIVEN a team created in Synapse
+        synapse_team = await self.team.create()
+        # AND a locally created Team object with the same id and name
+        id_team = Team(id=self.team.id, name=self.team.name)
+        # WHEN I get the team
+        id_team = await id_team.get()
+        # THEN I expect the team to be returned
+        assert id_team.id == synapse_team.id
+        assert id_team.name == synapse_team.name
+        assert id_team.description == synapse_team.description
+        assert id_team.icon == synapse_team.icon
+        assert id_team.etag == synapse_team.etag
+        assert id_team.created_on == synapse_team.created_on
+        assert id_team.modified_on == synapse_team.modified_on
+        assert id_team.created_by == synapse_team.created_by
+        assert id_team.modified_by == synapse_team.modified_by
+        # Clean up
+        await synapse_team.delete()
+
+    @pytest.mark.asyncio
+    async def test_get_with_name(self) -> None:
+        # GIVEN a team created in Synapse
+        synapse_team = await self.team.create()
+        # TODO why do we need to sleep here?
+        await asyncio.sleep(5)
+        # AND a locally created Team object with the same name, but no id
+        name_team = Team(name=self.team.name)
+        # WHEN I get the team
+        name_team = await name_team.get()
+        # THEN I expect the team to be returned
+        assert name_team.id == synapse_team.id
+        assert name_team.name == synapse_team.name
+        assert name_team.description == synapse_team.description
+        assert name_team.icon == synapse_team.icon
+        assert name_team.etag == synapse_team.etag
+        assert name_team.created_on == synapse_team.created_on
+        assert name_team.modified_on == synapse_team.modified_on
+        assert name_team.created_by == synapse_team.created_by
+        assert name_team.modified_by == synapse_team.modified_by
+        # Clean up
+        await synapse_team.delete()
+
+    @pytest.mark.asyncio
     async def test_from_id(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse

@@ -113,40 +113,87 @@ class TestTeam:
             patch_delete_team.assert_called_once_with(id=1, opentelemetry_context={})
 
     @pytest.mark.asyncio
-    async def test_from_id(self) -> None:
+    async def test_get_with_id(self) -> None:
         with patch.object(
             self.syn,
             "getTeam",
             return_value=Synapse_Team(
                 id=1, name=self.NAME, description=self.DESCRIPTION
             ),
-        ) as patch_get_team:
+        ) as patch_from_id:
+            # GIVEN a team object with an id
+            team = Team(id=1)
             # WHEN I retrieve a team using its id
-            team = await Team.from_id(id=1)
+            team = await team.get()
             # THEN I expect the patched method to be called as expected
-            patch_get_team.assert_called_once_with(id=1, opentelemetry_context={})
+            patch_from_id.assert_called_once_with(id=1, opentelemetry_context={})
             # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
+            assert team.description == self.DESCRIPTION
 
     @pytest.mark.asyncio
-    async def test_from_name(self) -> None:
+    async def test_get_with_name(self) -> None:
         with patch.object(
             self.syn,
             "getTeam",
             return_value=Synapse_Team(
                 id=1, name=self.NAME, description=self.DESCRIPTION
             ),
-        ) as patch_get_team:
+        ) as patch_from_name:
+            # GIVEN a team object with a name
+            team = Team(name=self.NAME)
             # WHEN I retrieve a team using its name
-            team = await Team.from_name(name=self.NAME)
+            team = await team.get()
             # THEN I expect the patched method to be called as expected
-            patch_get_team.assert_called_once_with(
+            patch_from_name.assert_called_once_with(
                 id=self.NAME, opentelemetry_context={}
             )
             # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
+            assert team.description == self.DESCRIPTION
+
+    @pytest.mark.asyncio
+    async def test_get_with_no_id_or_name(self) -> None:
+        # GIVEN a team object with no id or name
+        team = Team()
+        # WHEN I retrieve a team
+        with pytest.raises(ValueError, match="Team must have either an id or a name"):
+            # THEN I expect an error to be raised
+            await team.get()
+
+    @pytest.mark.asyncio
+    async def test_from_id(self) -> None:
+        with patch.object(
+            Team,
+            "get",
+            return_value=Team(id=1, name=self.NAME, description=self.DESCRIPTION),
+        ) as patch_get:
+            # WHEN I retrieve a team using its id
+            team = await Team.from_id(id=1)
+            # THEN I expect the patched method to be called as expected
+            patch_get.assert_called_once_with(synapse_client=None)
+            # AND I expect the intended team to be returned
+            assert team.id == 1
+            assert team.name == self.NAME
+            assert team.description == self.DESCRIPTION
+
+    @pytest.mark.asyncio
+    async def test_from_name(self) -> None:
+        with patch.object(
+            Team,
+            "get",
+            return_value=Team(id=1, name=self.NAME, description=self.DESCRIPTION),
+        ) as patch_get:
+            # WHEN I retrieve a team using its name
+            team = await Team.from_name(name=self.NAME)
+            # THEN I expect the patched method to be called as expected
+            patch_get.assert_called_once_with(synapse_client=None)
+            # AND I expect the intended team to be returned
+            assert team.id == 1
+            assert team.name == self.NAME
+            assert team.description == self.DESCRIPTION
 
     @pytest.mark.asyncio
     async def test_members(self) -> None:
