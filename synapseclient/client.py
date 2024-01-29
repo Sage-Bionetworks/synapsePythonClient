@@ -2702,8 +2702,6 @@ class Synapse(object):
         Arguments:
             entity:  An Entity or Synapse ID to lookup
             version: The version of the Entity to retrieve. Gets the most recent version if omitted
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An Activity object or raises exception if no provenance record exists
@@ -2735,8 +2733,6 @@ class Synapse(object):
         Arguments:
             entity:   An Entity or Synapse ID to modify
             activity: A [synapseclient.activity.Activity][]
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An updated [synapseclient.activity.Activity][] object
@@ -2762,8 +2758,6 @@ class Synapse(object):
 
         Arguments:
             entity: An Entity or Synapse ID to modify
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
         """
         activity = self.getProvenance(entity)
         if not activity:
@@ -2804,8 +2798,6 @@ class Synapse(object):
 
         Arguments:
             activity: The Activity to be updated.
-            opentelemetry_context: OpenTelemetry context to propogate to this function to use for tracing. Used
-                                      cases where concurrent operations need to be linked to parent spans.
 
         Returns:
             An updated Activity object
