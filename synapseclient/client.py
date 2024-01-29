@@ -1085,8 +1085,14 @@ class Synapse(object):
                 " Please use syn.store() to save your entity and try again."
             )
         else:
-            version = kwargs.get("version", None)
-            bundle = self._getEntityBundle(entity, version)
+            input_version = kwargs.get("version", None)
+            synid_and_version = utils.get_synid_and_version(entity)
+            version = (
+                input_version if input_version is not None else synid_and_version[1]
+            )
+            # If ``version`` is None, the arg will be ignored
+            bundle = self._getEntityBundle(synid_and_version[0], version)
+
         # Check and warn for unmet access requirements
         self._check_entity_restrictions(
             bundle, entity, kwargs.get("downloadFile", True)
