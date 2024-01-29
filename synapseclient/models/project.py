@@ -11,6 +11,7 @@ from typing import Optional
 from synapseclient.models import Folder, File, Annotations
 from synapseclient import Synapse
 from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.utils import run_and_attach_otel_context
 
 
 tracer = trace.get_tracer("synapseclient")
@@ -41,7 +42,6 @@ class Project:
                         desired annotations. The value is an object containing a list of values
                         (use empty list to represent no values for key) and the value type associated with
                         all values in the list.
-        is_loaded: A flag to indicate if the project has been loaded from Synapse.
 
     Functions:
         store: Store project, files, and folders to synapse.
@@ -134,12 +134,6 @@ class Project:
     (use empty list to represent no values for key) and the value type associated with
     all values in the list."""
 
-    is_loaded: bool = False
-
-    # TODO: What if I don't handle queue size, but handle it in the HTTP REST API layer?
-    # TODO: https://www.python-httpx.org/advanced/#pool-limit-configuration
-    # TODO: Test out changing the underlying layer to httpx
-
     def fill_from_dict(
         self, synapse_project: Synapse_Project, set_annotations: bool = True
     ) -> "Project":
@@ -164,7 +158,7 @@ class Project:
     async def store(self, synapse_client: Optional[Synapse] = None) -> "Project":
         """Store project, files, and folders to synapse.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
@@ -176,8 +170,11 @@ class Project:
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                obj=synapse_project, opentelemetry_context=current_context
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                    obj=synapse_project
+                ),
+                current_context,
             ),
         )
         self.fill_from_dict(synapse_project=entity, set_annotations=False)
@@ -217,6 +214,8 @@ class Project:
                     self.annotations = result.annotations
                     print(f"Stored annotations id: {result.id}, etag: {result.etag}")
                 else:
+                    if isinstance(result, BaseException):
+                        raise result
                     raise ValueError(f"Unknown type: {type(result)}", result)
         except Exception as ex:
             Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
@@ -236,7 +235,7 @@ class Project:
     ) -> "Project":
         """Get the project metadata from Synapse.
 
-        Args:
+        Arguments:
             include_children: If True, will also get the children of the project.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
@@ -247,9 +246,11 @@ class Project:
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                entity=self.id,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                    entity=self.id,
+                ),
+                current_context,
             ),
         )
 
@@ -257,10 +258,14 @@ class Project:
         if include_children:
             children_objects = await loop.run_in_executor(
                 None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).getChildren(
-                    parent=self.id,
-                    includeTypes=["folder", "file"],
-                    opentelemetry_context=current_context,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(
+                        synapse_client=synapse_client
+                    ).getChildren(
+                        parent=self.id,
+                        includeTypes=["folder", "file"],
+                    ),
+                    current_context,
                 ),
             )
 
@@ -294,7 +299,7 @@ class Project:
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the project from Synapse.
 
-        Args:
+        Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
@@ -304,8 +309,10 @@ class Project:
         current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                obj=self.id,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                    obj=self.id,
+                ),
+                current_context,
             ),
         )

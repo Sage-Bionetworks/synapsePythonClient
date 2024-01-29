@@ -38,6 +38,22 @@ the client.
         - query
         - delete
 ---
+::: synapseclient.models.Activity
+    options:
+      members:
+      - from_parent
+      - store
+      - delete
+
+::: synapseclient.models.UsedEntity
+    options:
+      filters:
+      - "!"
+::: synapseclient.models.UsedURL
+    options:
+      filters:
+      - "!"
+---
 ::: synapseclient.models.Team
     options:
         members:
@@ -85,18 +101,25 @@ the client.
 </details>
 
 <details class="quote">
-  <summary>Working with teams</summary>
-
-```python
-{!docs/scripts/object_orientated_programming_poc/oop_poc_team.py!}
-```
-</details>
-
-
-<details class="quote">
   <summary>Current Synapse interface for working with a project</summary>
 
 ```python
 {!docs/scripts/object_orientated_programming_poc/synapse_project.py!}
+```
+</details>
+
+<details class="quote">
+  <summary>Working with activities</summary>
+
+```python
+{!docs/scripts/object_orientated_programming_poc/oop_poc_activity.py!}
+```
+</details>
+
+<details class="quote">
+  <summary>Working with teams</summary>
+
+```python
+{!docs/scripts/object_orientated_programming_poc/oop_poc_team.py!}
 ```
 </details>

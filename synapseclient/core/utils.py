@@ -24,6 +24,10 @@ import uuid
 import warnings
 import zipfile
 
+from typing import Callable, TypeVar
+from opentelemetry import trace, context
+
+R = TypeVar("R")
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
@@ -32,6 +36,8 @@ GB = 2**30
 MB = 2**20
 KB = 2**10
 BUFFER_SIZE = 8 * KB
+
+tracer = trace.get_tracer("synapseclient")
 
 
 def md5_for_file(
@@ -170,7 +176,7 @@ def _get_from_members_items_or_properties(obj, key):
 
 
 # TODO: what does this do on an unsaved Synapse Entity object?
-def id_of(obj: typing.Union[str, collections.abc.Mapping]) -> str:
+def id_of(obj: typing.Union[str, collections.abc.Mapping, numbers.Number]) -> str:
     """
     Try to figure out the Synapse ID of the given object.
 
@@ -339,20 +345,63 @@ def is_same_base_url(url1: str, url2: str) -> bool:
     return url1.scheme == url2.scheme and url1.hostname == url2.hostname
 
 
-def is_synapse_id_str(obj):
+def is_synapse_id_str(obj: str) -> typing.Union[str, None]:
     """If the input is a Synapse ID return it, otherwise return None"""
     if isinstance(obj, str):
-        m = re.match(r"(syn\d+$)", obj)
+        m = re.match(r"(syn\d+(\.\d+)?$)", obj)
         if m:
             return m.group(1)
     return None
+
+
+def get_synid_and_version(
+    obj: typing.Union[str, collections.abc.Mapping]
+) -> typing.Tuple[str, typing.Union[int, None]]:
+    """Extract the Synapse ID and version number from input entity
+
+    Arguments:
+            obj: May be a string, Entity object, or dictionary.
+
+    Returns:
+        A tuple containing the synapse ID and version number,
+            where the version number may be an integer or None if
+            the input object does not contain a versonNumber or
+            .version notation (if string).
+
+    Example: Get synID and version from string object
+        Extract the synID and version number of the entity string ID
+
+            from synapseclient.core import utils
+            utils.get_synid_and_version("syn123.4")
+
+        The call above will return the following tuple:
+
+            ('syn123', 4)
+    """
+
+    if isinstance(obj, str):
+        synapse_id_and_version = is_synapse_id_str(obj)
+        if not synapse_id_and_version:
+            raise ValueError("The input string was not determined to be a syn ID.")
+        m = re.match(r"(syn\d+)(?:\.(\d+))?", synapse_id_and_version)
+        id = m.group(1)
+        version = int(m.group(2)) if m.group(2) is not None else m.group(2)
+
+        return id, version
+
+    id = id_of(obj)
+    version = None
+    if "versionNumber" in obj:
+        version = obj["versionNumber"]
+
+    return id, version
 
 
 def bool_or_none(input_value: str) -> typing.Union[bool, None]:
     """
     Attempts to convert a string to a bool. Returns None if it fails.
 
-    Args:
+    Arguments:
         input_value: The string to convert to a bool
 
     Returns:
@@ -567,7 +616,7 @@ def datetime_to_iso(
     the "Z" at the end.
     See: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
 
-    Args:
+    Arguments:
         dt: The datetime to convert
         sep: Seperator character to use.
         include_milliseconds_if_zero: Whether or not to include millseconds in this result
@@ -1214,3 +1263,37 @@ class Spinner:
             sys.stdout.write(f"\r {spinner} {self.msg}")
             sys.stdout.flush()
         self._tick += 1
+
+
+def run_and_attach_otel_context(
+    callable_function: Callable[..., R], current_context: context
+) -> R:
+    """
+    This is a generic function that will run a callable function and attach the passed in
+    OpenTelemetry context to the thread or context that the function is running on.
+
+    This is a hack to get around AsyncIO `run_in_executor` not propagating the context
+    to the code it's executing. When we are directly calling async functions after
+    SYNPY-1411 we will be able to remove this function.
+
+    Example: Adding this to a `run_in_executor` call
+        Note the 2 lambdas that are required:
+
+            import asyncio
+            from opentelemetry import context
+            from synapseclient import Synapse
+
+            loop = asyncio.get_event_loop()
+            current_context = context.get_current()
+            await loop.run_in_executor(
+                None,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                        obj="syn123",
+                    ),
+                    current_context,
+                ),
+            )
+    """
+    context.attach(current_context)
+    return callable_function()

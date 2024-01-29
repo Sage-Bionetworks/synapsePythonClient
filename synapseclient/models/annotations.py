@@ -9,6 +9,7 @@ from opentelemetry import trace, context
 from synapseclient import Synapse
 from synapseclient.annotations import ANNO_TYPE_TO_FUNC
 from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.utils import run_and_attach_otel_context
 
 
 tracer = trace.get_tracer("synapseclient")
@@ -39,8 +40,6 @@ class Annotations:
     this field must match the current etag on the object. Not required if being used as
     a member variable on another class."""
 
-    is_loaded: bool = False
-
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Annotation_store: {self.id}"
     )
@@ -56,10 +55,12 @@ class Annotations:
         current_context = context.get_current()
         result = await loop.run_in_executor(
             None,
-            lambda: set_annotations(
-                annotations=self,
-                synapse_client=synapse_client,
-                opentelemetry_context=current_context,
+            lambda: run_and_attach_otel_context(
+                lambda: set_annotations(
+                    annotations=self,
+                    synapse_client=synapse_client,
+                ),
+                current_context,
             ),
         )
         print(f"annotations store for {self.id} complete")
@@ -71,7 +72,6 @@ class Annotations:
         """Get the annotations from synapse."""
         print(f"Getting annotations for id: {self.id}, etag: {self.etag}")
         await asyncio.sleep(1)
-        self.is_loaded = True
 
     @classmethod
     def from_dict(

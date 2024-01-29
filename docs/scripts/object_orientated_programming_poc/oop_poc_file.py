@@ -17,18 +17,6 @@ from synapseclient.models import (
 from datetime import date, datetime, timedelta, timezone
 import synapseclient
 
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-
-trace.set_tracer_provider(
-    TracerProvider(resource=Resource(attributes={SERVICE_NAME: "oop_table"}))
-)
-trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
-tracer = trace.get_tracer("my_tracer")
-
 PROJECT_ID = "syn52948289"
 
 syn = synapseclient.Synapse(debug=True)
@@ -46,7 +34,6 @@ def create_random_file(
         f.write(os.urandom(1))
 
 
-@tracer.start_as_current_span("File")
 async def store_file():
     # Creating annotations for my file ==================================================
     annotations_for_my_file = {
@@ -80,12 +67,14 @@ async def store_file():
 
     file = await file.store()
 
+    print("File created:")
     print(file)
 
     # Updating and storing an annotation =================================================
     file_copy = await File(id=file.id).get()
     file_copy.annotations["my_key_string"] = ["new", "values", "here"]
     stored_file = await file_copy.store()
+    print("File updated:")
     print(stored_file)
 
     # Downloading a file =================================================================
@@ -93,6 +82,7 @@ async def store_file():
         download_location=os.path.expanduser("~/temp/myNewFolder")
     )
 
+    print("Downloaded file:")
     print(downloaded_file_copy)
 
     # Get metadata about a file ==========================================================
@@ -100,6 +90,7 @@ async def store_file():
         download_file=False,
     )
 
+    print("Metadata about file:")
     print(non_downloaded_file_copy)
 
     # Creating and uploading a file to a folder =========================================
@@ -115,18 +106,21 @@ async def store_file():
 
     file = await file.store()
 
+    print("File created:")
     print(file)
 
     downloaded_file_copy = await File(id=file.id).get(
         download_location=os.path.expanduser("~/temp/myNewFolder")
     )
 
+    print("Downloaded file:")
     print(downloaded_file_copy)
 
     non_downloaded_file_copy = await File(id=file.id).get(
         download_file=False,
     )
 
+    print("Metadata about file:")
     print(non_downloaded_file_copy)
 
     # Uploading a file and then Deleting a file ==========================================

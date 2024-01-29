@@ -115,6 +115,11 @@ def test_entity_version(syn, project, schedule_for_cleanup):
     assert returnEntity["description"] == "This is a test entity..."
     assert returnEntity["versionLabel"] == "Prada remix"
 
+    # Try retrieving the entity with synid.version notation
+    entity_string = f"{entity['id']}.{entity['versionNumber']}"
+    returnEntity_using_string = syn.get(entity_string)
+    assert returnEntity == returnEntity_using_string
+
     # Try the older Entity again
     returnEntity = syn.get(entity, version=1)
     assert returnEntity.versionNumber == 1
@@ -123,7 +128,10 @@ def test_entity_version(syn, project, schedule_for_cleanup):
 
     # Delete version 2
     syn.delete(entity, version=2)
-    returnEntity = syn.get(entity)
+    # Let's retrieve the entity again using its synId this time,
+    # since the old entity object had versionNumber = 2
+    entity_id = entity.id
+    returnEntity = syn.get(entity_id)
     assert returnEntity.versionNumber == 1
 
 

@@ -493,27 +493,27 @@ def _delete_rows(syn, schema, row_id_vers_list: Tuple[str, int]) -> None:
         os.remove(delete_row_csv_filepath)
 
 
+@tracer.start_as_current_span("Synapse::delete_rows")
 def delete_rows(
     syn,
     table_id: str,
     row_id_vers_list: List[Tuple[int, int]],
-    opentelemetry_context=None,
 ):
     """
     Deletes rows from a synapse table
-    :param syn: an instance of py:class:`synapseclient.client.Synapse`
-    :param row_id_vers_list: an iterable containing tuples with format: (row_id, row_version)
+
+    Arguments:
+        syn:              An instance of [Synapse][synapseclient.client.Synapse]
+        table_id:         The ID of the table to delete rows from
+        row_id_vers_list: An iterable containing tuples with format: (row_id, row_version)
     """
-    with tracer.start_as_current_span(
-        "Synapse::delete_rows", context=opentelemetry_context
-    ):
-        delete_row_csv_filepath = _create_row_delete_csv(
-            row_id_vers_iterable=row_id_vers_list
-        )
-        try:
-            syn._uploadCsv(filepath=delete_row_csv_filepath, schema=table_id)
-        finally:
-            os.remove(delete_row_csv_filepath)
+    delete_row_csv_filepath = _create_row_delete_csv(
+        row_id_vers_iterable=row_id_vers_list
+    )
+    try:
+        syn._uploadCsv(filepath=delete_row_csv_filepath, schema=table_id)
+    finally:
+        os.remove(delete_row_csv_filepath)
 
 
 class SchemaBase(Entity, metaclass=abc.ABCMeta):
