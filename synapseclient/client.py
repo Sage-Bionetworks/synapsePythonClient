@@ -3852,6 +3852,8 @@ class Synapse(object):
         name: str,
         description: str = None,
         icon: str = None,
+        canPublicJoin: bool = False,
+        canRequestMembership: bool = True,
     ) -> Team:
         """
         Creates a new team.
@@ -3860,12 +3862,20 @@ class Synapse(object):
             name: The name of the team to create.
             description: A description of the team.
             icon: The FileHandleID of the icon to be used for the team.
+            canPublicJoin: Whether the team can be joined by anyone. Defaults to False.
+            canRequestMembership: Whether the team can request membership. Defaults to True.
 
         Returns:
             An object of type [synapseclient.team.Team][]
         """
         with tracer.start_as_current_span("Synapse::create_team"):
-            request_body = {"name": name, "description": description, "icon": icon}
+            request_body = {
+                "name": name,
+                "description": description,
+                "icon": icon,
+                "canPublicJoin": canPublicJoin,
+                "canRequestMembership": canRequestMembership,
+            }
             return Team(
                 **self.restPOST(
                     "/team",

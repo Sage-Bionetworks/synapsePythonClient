@@ -36,6 +36,8 @@ class TestTeam:
         assert test_team.name == self.expected_name
         assert test_team.description == self.expected_description
         assert test_team.icon is None
+        assert test_team.can_public_join is False
+        assert test_team.can_request_membership is True
         assert test_team.etag is not None
         assert test_team.created_on is not None
         assert test_team.modified_on is not None

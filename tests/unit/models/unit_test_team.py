@@ -90,12 +90,16 @@ class TestTeam:
                 name=self.NAME,
                 description=self.DESCRIPTION,
                 icon=None,
+                canPublicJoin=False,
+                canRequestMembership=True,
             )
             # AND I expect the original team to be returned
             assert team.id == 1
             assert team.name == self.NAME
             assert team.description == self.DESCRIPTION
             assert team.icon is None
+            assert team.can_public_join is False
+            assert team.can_request_membership is True
 
     @pytest.mark.asyncio
     async def test_delete(self) -> None:

@@ -147,8 +147,10 @@ class Team:
             lambda: run_and_attach_otel_context(
                 lambda: Synapse.get_client(synapse_client=synapse_client).create_team(
                     name=self.name,
-                    description=self.description if self.description else None,
-                    icon=self.icon if self.icon else None,
+                    description=self.description,
+                    icon=self.icon,
+                    canPublicJoin=self.can_public_join,
+                    canRequestMembership=self.can_request_membership,
                 ),
                 current_context,
             ),
