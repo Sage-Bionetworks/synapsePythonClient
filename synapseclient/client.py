@@ -3852,8 +3852,8 @@ class Synapse(object):
         name: str,
         description: str = None,
         icon: str = None,
-        canPublicJoin: bool = False,
-        canRequestMembership: bool = True,
+        can_public_join: bool = False,
+        can_request_membership: bool = True,
     ) -> Team:
         """
         Creates a new team.
@@ -3873,8 +3873,8 @@ class Synapse(object):
                 "name": name,
                 "description": description,
                 "icon": icon,
-                "canPublicJoin": canPublicJoin,
-                "canRequestMembership": canRequestMembership,
+                "canPublicJoin": can_public_join,
+                "canRequestMembership": can_request_membership,
             }
             return Team(
                 **self.restPOST(

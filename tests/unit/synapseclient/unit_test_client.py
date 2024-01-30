@@ -3676,6 +3676,8 @@ def test_create_team(syn):
             name="python-client-test-team",
             description="test description",
             icon="test_file_handle_id",
+            can_public_join=False,
+            can_request_membership=True,
         )
         mock_post.assert_called_once_with("/team", json.dumps(request_body))
         assert team.id == "1"

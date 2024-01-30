@@ -90,8 +90,8 @@ class TestTeam:
                 name=self.NAME,
                 description=self.DESCRIPTION,
                 icon=None,
-                canPublicJoin=False,
-                canRequestMembership=True,
+                can_public_join=False,
+                can_request_membership=True,
             )
             # AND I expect the original team to be returned
             assert team.id == 1
