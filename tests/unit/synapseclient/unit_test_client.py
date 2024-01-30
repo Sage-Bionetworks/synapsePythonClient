@@ -3654,6 +3654,8 @@ def test_create_team(syn):
         "name": "python-client-test-team",
         "description": "test description",
         "icon": "test_file_handle_id",
+        "canPublicJoin": False,
+        "canRequestMembership": True,
     }
     with patch.object(
         syn,
