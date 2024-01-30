@@ -18,6 +18,7 @@ from synapseclient.table import (
 from synapseclient.models import Annotations, Activity
 from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models.mixins.access_control import AccessControllable
 from opentelemetry import trace, context
 
 
@@ -337,7 +338,7 @@ class Column:
 
 
 @dataclass()
-class Table:
+class Table(AccessControllable):
     """A Table represents the metadata of a table.
 
     Attributes:

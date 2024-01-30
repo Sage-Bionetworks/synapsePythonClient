@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import platform
 import uuid
@@ -8,6 +9,9 @@ import tempfile
 
 import pytest
 
+from synapseclient.models import (
+    Project as Project_Model,
+)
 from synapseclient import Entity, Synapse, Project
 from synapseclient.core import utils
 from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
@@ -45,6 +49,34 @@ def syn() -> Synapse:
     syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
     syn.login()
     return syn
+
+
+@pytest.fixture(scope="session")
+@tracer.start_as_current_span("conftest::project")
+@pytest.mark.asyncio
+def project_model(request, syn: Synapse) -> Project_Model:
+    """
+    Create a project to be shared by all tests in the session. If xdist is being used
+    a project is created for each worker node.
+    """
+
+    # Make one project for all the tests to use
+    proj = asyncio.run(
+        Project_Model(name="integration_test_project" + str(uuid.uuid4())).store()
+    )
+
+    # set the working directory to a temp directory
+    _old_working_directory = os.getcwd()
+    working_directory = tempfile.mkdtemp(prefix="someTestFolder_models")
+    os.chdir(working_directory)
+
+    def project_teardown() -> None:
+        _cleanup(syn, [working_directory, proj.id])
+        os.chdir(_old_working_directory)
+
+    request.addfinalizer(project_teardown)
+
+    return proj
 
 
 @pytest.fixture(scope="session")
