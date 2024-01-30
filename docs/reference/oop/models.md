@@ -55,6 +55,7 @@ the client.
       - "!"
 ---
 ::: synapseclient.models.UserProfile
+    options:
       members:
       - get
       - from_id
