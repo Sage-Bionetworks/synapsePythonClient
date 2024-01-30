@@ -17,7 +17,7 @@ import synapseclient
 
 PROJECT_ID = "syn52948289"
 DPE_TEAM_SERVICE_ACCOUNT_NAME = "synapse-service-dpe-team"
-DPE_TEAM_SERVICE_ACCOUNT_ID = "3485485"
+DPE_TEAM_SERVICE_ACCOUNT_ID = 3485485
 
 syn = synapseclient.Synapse(debug=True)
 syn.login()

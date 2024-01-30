@@ -92,11 +92,11 @@ class AccessControllable:
 
     async def set_permissions(
         self,
-        principal_id=None,
+        principal_id: int = None,
         access_type: List[str] = None,
-        modify_benefactor=False,
-        warn_if_inherits=True,
-        overwrite=True,
+        modify_benefactor: bool = False,
+        warn_if_inherits: bool = True,
+        overwrite: bool = True,
         synapse_client: Optional[Synapse] = None,
     ) -> Dict[str, Union[str, list]]:
         """
@@ -104,9 +104,9 @@ class AccessControllable:
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
         Arguments:
-            principalId: Identifier of a user or group. '273948' is for all registered Synapse users
-                            and '273949' is for public access.
-            accessType: Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
+            principal_id: Identifier of a user or group. `273948` is for all registered Synapse users
+                            and `273949` is for public access. None implies public access.
+            access_type: Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
                             DELETE, CHANGE_PERMISSIONS.
 
                 **Defaults to ['READ', 'DOWNLOAD']**
@@ -122,10 +122,10 @@ class AccessControllable:
         Example: Setting permissions
             Grant all registered users download access
 
-                File(id="syn123").set_permissions(principal_id='273948', access_type=['READ','DOWNLOAD'])
+                File(id="syn123").set_permissions(principal_id=273948, access_type=['READ','DOWNLOAD'])
 
             Grant the public view access
-                File(id="syn123").set_permissions(principal_id='273949', access_type=['READ'])
+                File(id="syn123").set_permissions(principal_id=273949, access_type=['READ'])
         """
         if access_type is None:
             access_type = ["READ", "DOWNLOAD"]
