@@ -16,6 +16,10 @@ from synapseclient.models.table import (
     RowsetResultFormat,
     Row,
 )
+from synapseclient.models.user import (
+    UserProfile,
+    UserPreference,
+)
 
 __all__ = [
     "Activity",
@@ -32,4 +36,6 @@ __all__ = [
     "CsvResultFormat",
     "RowsetResultFormat",
     "Row",
+    "UserProfile",
+    "UserPreference",
 ]

@@ -53,8 +53,15 @@ the client.
     options:
       filters:
       - "!"
-
 ---
+::: synapseclient.models.UserProfile
+      members:
+      - get
+      - from_id
+      - from_username
+      - is_certified
+::: synapseclient.models.UserPreference
+::: synapseclient.models.mixins.AccessControllable
 
 ## Sample Scripts:
 

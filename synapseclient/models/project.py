@@ -9,6 +9,7 @@ from opentelemetry import trace, context
 from typing import Optional
 
 from synapseclient.models import Folder, File, Annotations
+from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient import Synapse
 from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
@@ -18,7 +19,7 @@ tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass()
-class Project:
+class Project(AccessControllable):
     """A Project is a top-level container for organizing data in Synapse.
 
     Attributes:

@@ -10,6 +10,7 @@ from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import File, Annotations
 from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models.mixins.access_control import AccessControllable
 
 if TYPE_CHECKING:
     from synapseclient.models import Project
@@ -18,7 +19,7 @@ tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass()
-class Folder:
+class Folder(AccessControllable):
     """Folder is a hierarchical container for organizing data in Synapse.
 
     Attributes:
