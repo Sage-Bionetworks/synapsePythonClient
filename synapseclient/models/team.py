@@ -253,7 +253,7 @@ class Team:
 
         *** You will be unable to retrieve a team by name immediately after its creation because
         the fragment service is eventually consistent. If you need to retrieve a team immediately following creation
-        you should use the `from_id` method. ***
+        you should use the [from_id][synapseclient.models.Team.from_id] method. ***
 
         Arguments:
             name: The name of the team.
