@@ -20,7 +20,6 @@ class UserPreference:
 
     Attributes:
         name: The name of the user preference.
-        concrete_type: The concrete type of the user preference.
         value: The value of the user preference.
     """
 
