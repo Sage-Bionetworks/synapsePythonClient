@@ -16,8 +16,8 @@ from synapseclient.models import (
 import synapseclient
 
 PROJECT_ID = "syn52948289"
-DPE_TEAM_SERVICE_ACCOUNT_NAME = "synapse-service-dpe-team"
-DPE_TEAM_SERVICE_ACCOUNT_ID = 3485485
+TEST_ACCOUNT_NAME = "bfauble_synapse_test_account"
+TEST_ACCOUNT_ID = 3489192
 
 syn = synapseclient.Synapse(debug=True)
 syn.login()
@@ -35,25 +35,23 @@ def create_random_file(
 
 
 async def user_profile():
-    dpe_team_profile = await UserProfile(username=DPE_TEAM_SERVICE_ACCOUNT_NAME).get()
+    dpe_team_profile = await UserProfile(username=TEST_ACCOUNT_NAME).get()
     print(f"Getting account by name: {dpe_team_profile}")
 
-    dpe_team_profile = await UserProfile(id=DPE_TEAM_SERVICE_ACCOUNT_ID).get()
+    dpe_team_profile = await UserProfile(id=TEST_ACCOUNT_ID).get()
     print(f"Getting account by id: {dpe_team_profile}")
 
-    dpe_team_profile = await UserProfile.from_username(
-        username=DPE_TEAM_SERVICE_ACCOUNT_NAME
-    )
+    dpe_team_profile = await UserProfile.from_username(username=TEST_ACCOUNT_NAME)
     print(f"Getting account by name: {dpe_team_profile}")
 
-    dpe_team_profile = await UserProfile.from_id(user_id=DPE_TEAM_SERVICE_ACCOUNT_ID)
+    dpe_team_profile = await UserProfile.from_id(user_id=TEST_ACCOUNT_ID)
     print(f"Getting account by id: {dpe_team_profile}")
 
     print(
-        f"is certified - By ID?: {await UserProfile(id=DPE_TEAM_SERVICE_ACCOUNT_ID).is_certified()}"
+        f"is certified - By ID?: {await UserProfile(id=TEST_ACCOUNT_ID).is_certified()}"
     )
     print(
-        f"is certified - By name?: {await UserProfile(username=DPE_TEAM_SERVICE_ACCOUNT_NAME).is_certified()}"
+        f"is certified - By name?: {await UserProfile(username=TEST_ACCOUNT_NAME).is_certified()}"
     )
 
 
@@ -79,15 +77,15 @@ async def set_permissions():
     ).store()
 
     await file_with_read.set_permissions(
-        principal_id=DPE_TEAM_SERVICE_ACCOUNT_ID, access_type=["READ"]
+        principal_id=TEST_ACCOUNT_ID, access_type=["READ"]
     )
-    await file_with_default.set_permissions(principal_id=DPE_TEAM_SERVICE_ACCOUNT_ID)
+    await file_with_default.set_permissions(principal_id=TEST_ACCOUNT_ID)
 
     print(
-        f"Read ACL for service account: {await file_with_read.get_acl(principal_id=DPE_TEAM_SERVICE_ACCOUNT_ID)}"
+        f"Read ACL for service account: {await file_with_read.get_acl(principal_id=TEST_ACCOUNT_ID)}"
     )
     print(
-        f"Read/Download ACL for service acccount: {await file_with_default.get_acl(principal_id=DPE_TEAM_SERVICE_ACCOUNT_ID)}"
+        f"Read/Download ACL for service acccount: {await file_with_default.get_acl(principal_id=TEST_ACCOUNT_ID)}"
     )
     print(f"Admin permissions for self: {await file_with_read.get_permissions()}")
     print(f"Admin permissions for self: {await file_with_default.get_permissions()}")
