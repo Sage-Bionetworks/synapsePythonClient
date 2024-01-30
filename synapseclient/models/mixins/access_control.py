@@ -35,7 +35,7 @@ class AccessControllable:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
-            An Permissions object
+            A Permissions object
 
 
         Example: Using this function:
