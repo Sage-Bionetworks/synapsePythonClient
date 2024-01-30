@@ -85,7 +85,7 @@ class TestTeam:
     async def test_get_with_name(self) -> None:
         # GIVEN a team created in Synapse
         synapse_team = await self.team.create()
-        # TODO why do we need to sleep here?
+        # This sleep is necessary because the API is eventually consistent
         await asyncio.sleep(5)
         # AND a locally created Team object with the same name, but no id
         name_team = Team(name=self.team.name)

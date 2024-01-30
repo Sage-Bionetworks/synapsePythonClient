@@ -251,6 +251,10 @@ class Team:
     ) -> "Team":
         """Gets Team object using its string name.
 
+        *** You will be unable to retrieve a team by name immediately after its creation because
+        the fragment service is eventually consistent. If you need to retrieve a team immediately following creation
+        you should use the `from_id` method. ***
+
         Arguments:
             name: The name of the team.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
