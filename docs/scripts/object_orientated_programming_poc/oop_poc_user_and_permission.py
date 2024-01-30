@@ -35,17 +35,17 @@ def create_random_file(
 
 
 async def user_profile():
-    dpe_team_profile = await UserProfile(username=TEST_ACCOUNT_NAME).get()
-    print(f"Getting account by name: {dpe_team_profile}")
+    test_profile = await UserProfile(username=TEST_ACCOUNT_NAME).get()
+    print(f"Getting account by name: {test_profile}")
 
-    dpe_team_profile = await UserProfile(id=TEST_ACCOUNT_ID).get()
-    print(f"Getting account by id: {dpe_team_profile}")
+    test_profile = await UserProfile(id=TEST_ACCOUNT_ID).get()
+    print(f"Getting account by id: {test_profile}")
 
-    dpe_team_profile = await UserProfile.from_username(username=TEST_ACCOUNT_NAME)
-    print(f"Getting account by name: {dpe_team_profile}")
+    test_profile = await UserProfile.from_username(username=TEST_ACCOUNT_NAME)
+    print(f"Getting account by name: {test_profile}")
 
-    dpe_team_profile = await UserProfile.from_id(user_id=TEST_ACCOUNT_ID)
-    print(f"Getting account by id: {dpe_team_profile}")
+    test_profile = await UserProfile.from_id(user_id=TEST_ACCOUNT_ID)
+    print(f"Getting account by id: {test_profile}")
 
     print(
         f"is certified - By ID?: {await UserProfile(id=TEST_ACCOUNT_ID).is_certified()}"
