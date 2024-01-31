@@ -2,25 +2,31 @@ import os
 from unittest.mock import patch
 
 import pytest
-import synapseutils.walk_functions
+
+import synapseutils
+from synapseutils.walk_functions import _help_walk, walk
 
 
-def test_helpWalk_not_container(syn):
+def test_help_walk_not_container(syn):
     """Test if entry entity isn't a container"""
     entity = {"id": "syn123", "concreteType": "File"}
-    with patch.object(syn, "get", return_value=entity):
-        result = synapseutils.walk_functions._helpWalk(
-            syn=syn, synId="syn123", includeTypes=["folder", "file"]
+    with patch.object(syn, "get", return_value=entity) as mock_syn_get:
+        result = _help_walk(
+            syn=syn,
+            syn_id="syn123",
+            include_types=["folder", "file"],
+            start_entity=None,
+            newpath=None,
         )
-        # Execute generator
         gen_result = list(result)
-    assert gen_result == []
+        mock_syn_get.assert_called_once_with("syn123", downloadFile=False)
+        assert gen_result == []
 
 
 @pytest.mark.parametrize(
     "include_types", [["folder", "file"], ["file", "folder", "dockerrepo", "table"]]
 )
-def test_helpWalk_one_child_file(syn, include_types):
+def test_help_walk_one_child_file(syn, include_types):
     """Test if there is one file in parent directory"""
     entity = {
         "id": "syn123",
@@ -32,18 +38,14 @@ def test_helpWalk_one_child_file(syn, include_types):
     with patch.object(syn, "get", return_value=entity) as mock_syn_get, patch.object(
         syn, "getChildren", return_value=child
     ) as mock_get_child:
-        result = synapseutils.walk_functions._helpWalk(
-            syn=syn, synId="syn123", includeTypes=include_types
-        )
-        # Execute generator
+        result = _help_walk(syn=syn, syn_id="syn123", include_types=include_types)
         gen_result = list(result)
         mock_syn_get.assert_called_once_with("syn123", downloadFile=False)
-        # Make sure the correct include types is passed into the code
         mock_get_child.assert_called_once_with("syn123", include_types)
-    assert gen_result == expected
+        assert gen_result == expected
 
 
-def test_helpWalk_recursive(syn):
+def test_help_walk_recursive(syn):
     """Test recursive functionality"""
     entity_list = [
         {
@@ -80,18 +82,19 @@ def test_helpWalk_recursive(syn):
             [("test_file_2", "syn22223")],
         ),
     ]
-    with patch.object(syn, "get", side_effect=entity_list), patch.object(
+    with patch.object(
+        syn, "get", side_effect=entity_list
+    ) as mock_syn_get, patch.object(
         syn, "getChildren", side_effect=child_list
-    ):
-        result = synapseutils.walk_functions._helpWalk(
-            syn=syn, synId="syn123", includeTypes=["folder", "file"]
-        )
-        # Execute generator
+    ) as mock_get_child:
+        result = _help_walk(syn=syn, syn_id="syn123", include_types=["folder", "file"])
         gen_result = list(result)
-    assert gen_result == expected
+        mock_syn_get.assert_called_once_with("syn123", downloadFile=False)
+        mock_get_child.assert_called()
+        assert gen_result == expected
 
 
-def test_helpWalk_newpath(syn):
+def test_help_walk_newpath(syn):
     """Test new path is utilized correctly"""
     entity = {
         "id": "syn123",
@@ -103,26 +106,25 @@ def test_helpWalk_newpath(syn):
     with patch.object(syn, "get", return_value=entity) as mock_syn_get, patch.object(
         syn, "getChildren", return_value=child
     ) as mock_get_child:
-        result = synapseutils.walk_functions._helpWalk(
+        result = _help_walk(
             syn=syn,
-            synId="syn123",
-            includeTypes=["folder", "file"],
+            syn_id="syn123",
+            include_types=["folder", "file"],
             newpath="testpathnow",
         )
-        # Execute generator
         gen_result = list(result)
         mock_syn_get.assert_called_once_with("syn123", downloadFile=False)
         mock_get_child.assert_called_once_with("syn123", ["folder", "file"])
-    assert gen_result == expected
+        assert gen_result == expected
 
 
 def test_walk_include_types(syn):
     """Test that "folder" is added to include types"""
     with patch.object(
-        synapseutils.walk_functions, "_helpWalk", return_value="test"
-    ) as mock_helpwalk:
-        results = synapseutils.walk(syn=syn, synId="syn123", includeTypes=["file"])
-        # Execute generator
-        mock_helpwalk.assert_called_once_with(syn, "syn123", ["file", "folder"])
-        # Make sure correct value is returned
+        synapseutils.walk_functions, "_help_walk", return_value="test"
+    ) as mock_help_walk:
+        results = walk(syn=syn, synId="syn123", includeTypes=["file"])
+        mock_help_walk.assert_called_once_with(
+            syn=syn, syn_id="syn123", include_types=["file", "folder"]
+        )
         assert results == "test"
