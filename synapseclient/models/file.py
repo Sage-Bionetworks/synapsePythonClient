@@ -8,6 +8,7 @@ from synapseclient.models import Annotations, Activity
 from synapseclient.entity import File as Synapse_File
 from synapseclient import Synapse
 from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.core.utils import run_and_attach_otel_context
 
 from typing import Optional, TYPE_CHECKING
@@ -21,7 +22,7 @@ tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass()
-class File:
+class File(AccessControllable):
     """A file within Synapse.
 
     Attributes:

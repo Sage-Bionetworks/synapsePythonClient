@@ -8,7 +8,7 @@ from synapseclient.entity import is_container
 def walk(
     syn: synapseclient.Synapse,
     synId: str,
-    includeTypes=[
+    includeTypes: typing.List[str] = [
         "folder",
         "file",
         "table",
@@ -67,14 +67,15 @@ def walk(
     # Ensure that "folder" is included so the hierarchy can be traversed
     if "folder" not in includeTypes:
         includeTypes.append("folder")
-    return _helpWalk(syn, synId, includeTypes)
+    return _help_walk(syn=syn, syn_id=synId, include_types=includeTypes)
 
 
 # Helper function to hide the newpath parameter
-def _helpWalk(
+def _help_walk(
     syn: synapseclient.Synapse,
-    synId: str,
-    includeTypes: typing.List[str],
+    syn_id: str,
+    include_types: typing.List[str],
+    start_entity: typing.Union[synapseclient.Entity, dict] = None,
     newpath: str = None,
 ):
     """Helper function that helps build the directory path per result by
@@ -83,32 +84,46 @@ def _helpWalk(
 
     Arguments:
         syn: A synapse object: syn = synapseclient.login()- Must be logged into synapse
-        synId: A synapse ID of a folder or project
-        includeTypes: Must be a list of entity types (ie. ["file", "table"]) which can be found here:
+        syn_id: A synapse ID of a folder or project
+        include_types: Must be a list of entity types (ie. ["file", "table"]) which can be found here:
                     http://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
-                    The "folder" type is always included so the hierarchy can be traversed
-        newpath: The directory path of the listed files
+                    The "folder" type is always included so the hierarchy can be traversed.
+                    This was converted from a list to a tuple to enable caching.
+        start_entity: A Synapse entity or Synapse entity represented as a dictionary. Typical use is to pass in
+                    a synapseclient.Entity first and then recursive calls will be made with dictionaries representing
+                    the first entity's children. Defaults to None.
+        newpath: The directory path of the listed files. Defaults to None.
     """
-    starting = syn.get(synId, downloadFile=False)
-    # If the first file is not a container, return immediately
-    if newpath is None and not is_container(starting):
+    if not start_entity:
+        start_entity = syn.get(syn_id, downloadFile=False)
+    if newpath is None and not is_container(start_entity):
         return
     elif newpath is None:
-        dirpath = (starting["name"], synId)
+        dirpath = (start_entity["name"], syn_id)
     else:
-        dirpath = (newpath, synId)
+        dirpath = (newpath, syn_id)
+    results = syn.getChildren(syn_id, include_types)
     dirs = []
+    dir_entities = []
     nondirs = []
-    results = syn.getChildren(synId, includeTypes)
     for i in results:
         if is_container(i):
             dirs.append((i["name"], i["id"]))
+            dir_entities.append(i)
         else:
             nondirs.append((i["name"], i["id"]))
     yield dirpath, dirs, nondirs
-    for name in dirs:
-        # The directory path for each os.walk() result needs to be built up
-        # This is why newpath is passed in
+    for i, name in enumerate(dirs):
+        # The directory path for each os.walk() result needs to be built up.
+        # This is why newpath is passed in.
         newpath = os.path.join(dirpath[0], name[0])
-        for x in _helpWalk(syn, name[1], includeTypes, newpath=newpath):
+        # pass the appropriate entity dictionary to the recursive call
+        next_entity = dir_entities[i]
+        for x in _help_walk(
+            syn=syn,
+            syn_id=name[1],
+            include_types=include_types,
+            start_entity=next_entity,
+            newpath=newpath,
+        ):
             yield x

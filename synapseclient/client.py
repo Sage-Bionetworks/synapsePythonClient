@@ -2619,7 +2619,7 @@ class Synapse(object):
         Arguments:
             entity: An Entity or Synapse ID to modify
             principalId: Identifier of a user or group. '273948' is for all registered Synapse users
-                            and '273949' is for public access.
+                            and '273949' is for public access. None implies public access.
             accessType: Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
                             DELETE, CHANGE_PERMISSIONS
             modify_benefactor: Set as True when modifying a benefactor's ACL
