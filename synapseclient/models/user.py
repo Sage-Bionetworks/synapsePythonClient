@@ -6,11 +6,57 @@ from synapseclient import Synapse
 from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.team import (
     UserProfile as Synapse_UserProfile,
+    UserGroupHeader as Synapse_UserGroupHeader,
 )
 from opentelemetry import trace, context
 from synapseclient.core.utils import run_and_attach_otel_context
 
 tracer = trace.get_tracer("synapseclient")
+
+
+@dataclass
+class UserGroupHeader:
+    """
+    Select metadata about a Synapse principal.
+    In practice the constructor is not called directly by the client.
+
+    Attributes:
+        owner_id: A foreign key to the ID of the 'principal' object for the user.
+        first_name: First Name
+        last_name: Last Name
+        user_name: A name chosen by the user that uniquely identifies them.
+        email: User's current email address
+        is_individual: True if this is a user, false if it is a group
+    """
+
+    owner_id: Optional[int] = None
+    """A foreign key to the ID of the 'principal' object for the user."""
+
+    first_name: Optional[str] = None
+    """First Name"""
+
+    last_name: Optional[str] = None
+    """Last Name"""
+
+    user_name: Optional[str] = None
+    """A name chosen by the user that uniquely identifies them."""
+
+    is_individual: Optional[bool] = None
+    """True if this is a user, false if it is a group"""
+
+    email: Optional[str] = None
+    """User's current email address"""
+
+    def fill_from_dict(
+        self, synapse_user_group_header: Union[Synapse_UserGroupHeader, Dict[str, str]]
+    ) -> "UserGroupHeader":
+        self.owner_id = synapse_user_group_header.get("ownerId", None)
+        self.first_name = synapse_user_group_header.get("firstName", None)
+        self.last_name = synapse_user_group_header.get("lastName", None)
+        self.user_name = synapse_user_group_header.get("userName", None)
+        self.email = synapse_user_group_header.get("email", None)
+        self.is_individual = synapse_user_group_header.get("isIndividual", None)
+        return self
 
 
 @dataclass()

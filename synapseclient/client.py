@@ -3847,8 +3847,54 @@ class Synapse(object):
         for result in self._GET_paginated(f"/user/{principal_id}/team"):
             yield Team(**result)
 
-    @tracer.start_as_current_span("Synapse::getTeam")
-    def getTeam(self, id):
+    def create_team(
+        self,
+        name: str,
+        description: str = None,
+        icon: str = None,
+        can_public_join: bool = False,
+        can_request_membership: bool = True,
+    ) -> Team:
+        """
+        Creates a new team.
+
+        Arguments:
+            name: The name of the team to create.
+            description: A description of the team.
+            icon: The FileHandleID of the icon to be used for the team.
+            canPublicJoin: Whether the team can be joined by anyone. Defaults to False.
+            canRequestMembership: Whether the team can request membership. Defaults to True.
+
+        Returns:
+            An object of type [synapseclient.team.Team][]
+        """
+        with tracer.start_as_current_span("Synapse::create_team"):
+            request_body = {
+                "name": name,
+                "description": description,
+                "icon": icon,
+                "canPublicJoin": can_public_join,
+                "canRequestMembership": can_request_membership,
+            }
+            return Team(
+                **self.restPOST(
+                    "/team",
+                    json.dumps(request_body),
+                )
+            )
+
+    def delete_team(self, id: int) -> None:
+        """
+        Deletes a team.
+
+        Arguments:
+            id: The ID of the team to delete.
+
+        """
+        with tracer.start_as_current_span("Synapse::delete_team"):
+            return self.restDELETE(f"/team/{id}")
+
+    def getTeam(self, id: Union[int, str]) -> Team:
         """
         Finds a team with a given ID or name.
 
@@ -3859,23 +3905,25 @@ class Synapse(object):
             An object of type [synapseclient.team.Team][]
         """
         # Retrieves team id
-        teamid = id_of(id)
-        try:
-            int(teamid)
-        except (TypeError, ValueError):
-            if isinstance(id, str):
-                for team in self._findTeam(id):
-                    if team.name == id:
-                        teamid = team.id
-                        break
+        with tracer.start_as_current_span("Synapse::getTeam"):
+            teamid = id_of(id)
+            try:
+                int(teamid)
+            except (TypeError, ValueError):
+                if isinstance(id, str):
+                    for team in self._findTeam(id):
+                        if team.name == id:
+                            teamid = team.id
+                            break
+                    else:
+                        raise ValueError('Can\'t find team "{}"'.format(teamid))
                 else:
                     raise ValueError('Can\'t find team "{}"'.format(teamid))
-            else:
-                raise ValueError('Can\'t find team "{}"'.format(teamid))
-        return Team(**self.restGET("/team/%s" % teamid))
+            return Team(**self.restGET("/team/%s" % teamid))
 
-    @tracer.start_as_current_span("Synapse::getTeamMembers")
-    def getTeamMembers(self, team):
+    def getTeamMembers(
+        self, team: Union[Team, int, str]
+    ) -> typing.Generator[TeamMember, None, None]:
         """
         Lists the members of the given team.
 
@@ -3886,8 +3934,11 @@ class Synapse(object):
             A generator over [synapseclient.team.TeamMember][] objects.
 
         """
-        for result in self._GET_paginated("/teamMembers/{id}".format(id=id_of(team))):
-            yield TeamMember(**result)
+        with tracer.start_as_current_span("Synapse::getTeamMembers"):
+            for result in self._GET_paginated(
+                "/teamMembers/{id}".format(id=id_of(team))
+            ):
+                yield TeamMember(**result)
 
     @tracer.start_as_current_span("Synapse::_get_docker_digest")
     def _get_docker_digest(
@@ -3919,8 +3970,9 @@ class Synapse(object):
             )
         return docker_digest
 
-    @tracer.start_as_current_span("Synapse::get_team_open_invitations")
-    def get_team_open_invitations(self, team):
+    def get_team_open_invitations(
+        self, team: Union[Team, int, str]
+    ) -> typing.Generator[dict, None, None]:
         """Retrieve the open requests submitted to a Team
         <https://rest-docs.synapse.org/rest/GET/team/id/openInvitation.html>
 
@@ -3928,12 +3980,13 @@ class Synapse(object):
             team: A [synapseclient.team.Team][] object or a team's ID.
 
         Yields:
-            Generator of MembershipRequest
+            Generator of MembershipRequest dictionaries
         """
-        teamid = id_of(team)
-        request = "/team/{team}/openInvitation".format(team=teamid)
-        open_requests = self._GET_paginated(request)
-        return open_requests
+        with tracer.start_as_current_span("Synapse::get_team_open_invitations"):
+            teamid = id_of(team)
+            request = "/team/{team}/openInvitation".format(team=teamid)
+            open_requests = self._GET_paginated(request)
+            return open_requests
 
     @tracer.start_as_current_span("Synapse::get_membership_status")
     def get_membership_status(self, userid, team):
@@ -3994,9 +4047,13 @@ class Synapse(object):
         )
         return response
 
-    @tracer.start_as_current_span("Synapse::invite_to_team")
     def invite_to_team(
-        self, team, user=None, inviteeEmail=None, message=None, force=False
+        self,
+        team: Union[Team, int, str],
+        user: str = None,
+        inviteeEmail: str = None,
+        message: str = None,
+        force: bool = False,
     ):
         """Invite user to a Synapse team via Synapse username or email
         (choose one or the other)
@@ -4012,53 +4069,57 @@ class Synapse(object):
         Returns:
             MembershipInvitation or None if user is already a member
         """
-        # Throw error if both user and email is specified and if both not
-        # specified
-        id_email_specified = inviteeEmail is not None and user is not None
-        id_email_notspecified = inviteeEmail is None and user is None
-        if id_email_specified or id_email_notspecified:
-            raise ValueError("Must specify either 'user' or 'inviteeEmail'")
+        with tracer.start_as_current_span("Synapse::invite_to_team"):
+            # Throw error if both user and email is specified and if both not
+            # specified
+            id_email_specified = inviteeEmail is not None and user is not None
+            id_email_notspecified = inviteeEmail is None and user is None
+            if id_email_specified or id_email_notspecified:
+                raise ValueError("Must specify either 'user' or 'inviteeEmail'")
 
-        teamid = id_of(team)
-        is_member = False
-        open_invitations = self.get_team_open_invitations(teamid)
+            teamid = id_of(team)
+            is_member = False
+            open_invitations = self.get_team_open_invitations(teamid)
 
-        if user is not None:
-            inviteeId = self.getUserProfile(user)["ownerId"]
-            membership_status = self.get_membership_status(inviteeId, teamid)
-            is_member = membership_status["isMember"]
-            open_invites_to_user = [
-                invitation
-                for invitation in open_invitations
-                if invitation.get("inviteeId") == inviteeId
-            ]
-        else:
-            inviteeId = None
-            open_invites_to_user = [
-                invitation
-                for invitation in open_invitations
-                if invitation.get("inviteeEmail") == inviteeEmail
-            ]
-        # Only invite if the invitee is not a member and
-        # if invitee doesn't have an open invitation unless force=True
-        if not is_member and (not open_invites_to_user or force):
-            # Delete all old invitations
-            for invite in open_invites_to_user:
-                self._delete_membership_invitation(invite["id"])
-            return self.send_membership_invitation(
-                teamid, inviteeId=inviteeId, inviteeEmail=inviteeEmail, message=message
-            )
-        if is_member:
-            not_sent_reason = "invitee is already a member"
-        else:
-            not_sent_reason = (
-                "invitee already has an open invitation "
-                "Set force=True to send new invite."
-            )
+            if user is not None:
+                inviteeId = self.getUserProfile(user)["ownerId"]
+                membership_status = self.get_membership_status(inviteeId, teamid)
+                is_member = membership_status["isMember"]
+                open_invites_to_user = [
+                    invitation
+                    for invitation in open_invitations
+                    if invitation.get("inviteeId") == inviteeId
+                ]
+            else:
+                inviteeId = None
+                open_invites_to_user = [
+                    invitation
+                    for invitation in open_invitations
+                    if invitation.get("inviteeEmail") == inviteeEmail
+                ]
+            # Only invite if the invitee is not a member and
+            # if invitee doesn't have an open invitation unless force=True
+            if not is_member and (not open_invites_to_user or force):
+                # Delete all old invitations
+                for invite in open_invites_to_user:
+                    self._delete_membership_invitation(invite["id"])
+                return self.send_membership_invitation(
+                    teamid,
+                    inviteeId=inviteeId,
+                    inviteeEmail=inviteeEmail,
+                    message=message,
+                )
+            if is_member:
+                not_sent_reason = "invitee is already a member"
+            else:
+                not_sent_reason = (
+                    "invitee already has an open invitation "
+                    "Set force=True to send new invite."
+                )
 
-        self.logger.warning("No invitation sent: {}".format(not_sent_reason))
-        # Return None if no invite is sent.
-        return None
+            self.logger.warning("No invitation sent: {}".format(not_sent_reason))
+            # Return None if no invite is sent.
+            return None
 
     @tracer.start_as_current_span("Synapse::submit")
     def submit(

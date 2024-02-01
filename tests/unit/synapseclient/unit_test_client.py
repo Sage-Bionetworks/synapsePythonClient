@@ -3647,3 +3647,51 @@ class TestPermissionsOnProject:
                 "DOWNLOAD",
             ]
             assert set(expected_permissions) == set(permissions)
+
+
+def test_create_team(syn):
+    request_body = {
+        "name": "python-client-test-team",
+        "description": "test description",
+        "icon": "test_file_handle_id",
+        "canPublicJoin": False,
+        "canRequestMembership": True,
+    }
+    with patch.object(
+        syn,
+        "restPOST",
+        return_value={
+            "id": "1",
+            "name": "python-client-test-team",
+            "description": "test description",
+            "icon": "test_file_handle_id",
+            "etag": "11111111-1111-1111-1111-111111111111",
+            "createdOn": "2000-01-01T00:00:00.000Z",
+            "modifiedOn": "2000-01-01T00:00:00.000Z",
+            "createdBy": "1111111",
+            "modifiedBy": "1111111",
+        },
+    ) as mock_post:
+        team = syn.create_team(
+            name="python-client-test-team",
+            description="test description",
+            icon="test_file_handle_id",
+            can_public_join=False,
+            can_request_membership=True,
+        )
+        mock_post.assert_called_once_with("/team", json.dumps(request_body))
+        assert team.id == "1"
+        assert team.name == "python-client-test-team"
+        assert team.description == "test description"
+        assert team.icon == "test_file_handle_id"
+        assert team.etag == "11111111-1111-1111-1111-111111111111"
+        assert team.createdOn == "2000-01-01T00:00:00.000Z"
+        assert team.modifiedOn == "2000-01-01T00:00:00.000Z"
+        assert team.createdBy == "1111111"
+        assert team.modifiedBy == "1111111"
+
+
+def test_delete_team(syn):
+    with patch.object(syn, "restDELETE") as mock_delete:
+        syn.delete_team(1)
+        mock_delete.assert_called_once_with("/team/1")

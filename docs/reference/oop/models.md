@@ -54,6 +54,17 @@ the client.
       filters:
       - "!"
 ---
+::: synapseclient.models.Team
+    options:
+        members:
+        - create
+        - delete
+        - from_id
+        - from_name
+        - members
+        - invite
+        - open_invitations
+---
 ::: synapseclient.models.UserProfile
     options:
       members:
@@ -99,6 +110,14 @@ the client.
 </details>
 
 <details class="quote">
+  <summary>Current Synapse interface for working with a project</summary>
+
+```python
+{!docs/scripts/object_orientated_programming_poc/synapse_project.py!}
+```
+</details>
+
+<details class="quote">
   <summary>Working with activities</summary>
 
 ```python
@@ -107,9 +126,9 @@ the client.
 </details>
 
 <details class="quote">
-  <summary>Current Synapse interface for working with a project</summary>
+  <summary>Working with teams</summary>
 
 ```python
-{!docs/scripts/object_orientated_programming_poc/synapse_project.py!}
+{!docs/scripts/object_orientated_programming_poc/oop_poc_team.py!}
 ```
 </details>
