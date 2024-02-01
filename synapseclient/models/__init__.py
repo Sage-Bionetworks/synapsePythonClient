@@ -17,7 +17,6 @@ from synapseclient.models.table import (
     Row,
 )
 from synapseclient.models.team import Team, TeamMember
-=======
 from synapseclient.models.user import (
     UserProfile,
     UserPreference,

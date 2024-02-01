@@ -58,7 +58,7 @@ class UserGroupHeader:
         self.is_individual = synapse_user_group_header.get("isIndividual", None)
         return self
 
-      
+
 @dataclass()
 class UserPreference:
     """
