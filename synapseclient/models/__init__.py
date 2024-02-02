@@ -4,7 +4,7 @@ from synapseclient.models.activity import Activity, UsedURL, UsedEntity
 from synapseclient.models.annotations import (
     Annotations,
 )
-from synapseclient.models.file import File
+from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
 from synapseclient.models.project import Project
 from synapseclient.models.table import (
@@ -27,6 +27,7 @@ __all__ = [
     "UsedURL",
     "UsedEntity",
     "File",
+    "FileHandle",
     "Folder",
     "Project",
     "Annotations",

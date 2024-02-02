@@ -1297,3 +1297,11 @@ def run_and_attach_otel_context(
     """
     context.attach(current_context)
     return callable_function()
+
+
+def delete_none_keys(incoming_object: typing.Dict) -> None:
+    """Clean up the incoming object by removing any keys with None values."""
+    if incoming_object:
+        for key in list(incoming_object.keys()):
+            if incoming_object[key] is None:
+                del incoming_object[key]

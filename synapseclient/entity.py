@@ -232,7 +232,7 @@ class Entity(collections.abc.MutableMapping):
             "parentId" not in self
             and not isinstance(self, Project)
             and not type(self) == Entity
-        ):
+        ) and "id" not in self:
             raise SynapseMalformedEntityError(
                 "Entities of type %s must have a parentId." % type(self)
             )

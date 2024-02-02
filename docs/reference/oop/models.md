@@ -26,7 +26,15 @@ the client.
         members:
         - get
         - store
+        - copy
         - delete
+        - from_id
+        - from_path
+        - change_metadata
+::: synapseclient.models.file.FileHandle
+    options:
+      filters:
+      - "!"
 ---
 ::: synapseclient.models.Table
     options:

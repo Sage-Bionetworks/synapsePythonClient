@@ -15,6 +15,7 @@ from synapseclient.core.constants.concrete_types import (
     USED_ENTITY,
     USED_URL,
 )
+from synapseclient.core.exceptions import SynapseHTTPError
 
 if TYPE_CHECKING:
     from synapseclient.models import File, Table
@@ -247,7 +248,7 @@ class Activity:
         Raises:
             ValueError: Raised if both of the following are true:
 
-                - If the parent does not have an ID and optionally a `version_number`.
+                - If the parent does not have an ID.
                 - If the Activity does not have an ID and ETag.
         """
         # TODO: Input validation: SYNPY-1400
@@ -296,6 +297,9 @@ class Activity:
                 ),
             )
         self.fill_from_dict(synapse_activity=saved_activity)
+        Synapse.get_client(synapse_client=synapse_client).logger.debug(
+            f"Stored activity {self.id}"
+        )
 
         return self
 
@@ -304,16 +308,18 @@ class Activity:
         cls,
         parent: Union["Table", "File"],
         synapse_client: Optional[Synapse] = None,
-    ) -> "Activity":
+    ) -> Union["Activity", None]:
         """
         Get the Activity from Synapse based on the parent entity.
 
         Arguments:
-            parent: The parent entity this activity is associated with.
+            parent: The parent entity this activity is associated with. The parent may
+                also have a version_number. Gets the most recent version if version is
+                omitted.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
-            The activity object.
+            The activity object or None if it does not exist.
 
         Raises:
             ValueError: If the parent does not have an ID.
@@ -322,18 +328,22 @@ class Activity:
         with tracer.start_as_current_span(name=f"Activity_get: Parent_ID: {parent.id}"):
             loop = asyncio.get_event_loop()
             current_context = context.get_current()
-            synapse_activity = await loop.run_in_executor(
-                None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).getProvenance(
-                        entity=parent.id,
-                        version=parent.version_number,
+            try:
+                synapse_activity = await loop.run_in_executor(
+                    None,
+                    lambda: run_and_attach_otel_context(
+                        lambda: Synapse.get_client(
+                            synapse_client=synapse_client
+                        ).getProvenance(
+                            entity=parent.id,
+                            version=parent.version_number,
+                        ),
+                        current_context,
                     ),
-                    current_context,
-                ),
-            )
+                )
+            except SynapseHTTPError as ex:
+                if ex.response.status_code == 404:
+                    return None
             return cls().fill_from_dict(synapse_activity=synapse_activity)
 
     @classmethod
