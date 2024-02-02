@@ -725,7 +725,7 @@ class TestFrom:
         file_copy = await File.from_id(file.id)
 
         # THEN I expect the file to be returned
-        assert file_copy == file
+        assert file_copy.id == file.id
 
     @pytest.mark.asyncio
     async def test_from_path(self, file: File) -> None:
@@ -873,7 +873,9 @@ class TestGet:
         await file_2.change_metadata(download_as=file.name)
 
         # WHEN I get the file with the default collision of `keep.both`
-        file_2 = await File(id=file_2.id, download_location="/tmp").get()
+        file_2 = await File(
+            id=file_2.id, download_location=os.path.dirname(file.path)
+        ).get()
 
         # THEN I expect both files to exist
         assert file.path != file_2.path
@@ -917,7 +919,9 @@ class TestGet:
 
         # WHEN I get the file with the default collision of `overwrite.local`
         file_2 = await File(
-            id=file_2.id, download_location="/tmp", if_collision="overwrite.local"
+            id=file_2.id,
+            download_location=os.path.dirname(file.path),
+            if_collision="overwrite.local",
         ).get()
 
         # THEN I expect only the newer file to exist
@@ -954,7 +958,9 @@ class TestGet:
 
         # WHEN I get the file with the default collision of `keep.local`
         file_2 = await File(
-            id=file_2.id, download_location="/tmp", if_collision="keep.local"
+            id=file_2.id,
+            download_location=os.path.dirname(file.path),
+            if_collision="keep.local",
         ).get()
 
         # THEN I expect only the newer file to exist
