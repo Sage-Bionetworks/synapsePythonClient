@@ -410,7 +410,6 @@ class TestFileStore:
         # WHEN I store the file
         file = await file.store(parent=project_model)
         self.schedule_for_cleanup(file.id)
-        await file.get()
 
         # THEN I expect the file to be stored as an external file
         assert file.id is not None

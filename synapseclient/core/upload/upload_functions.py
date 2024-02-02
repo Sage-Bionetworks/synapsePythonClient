@@ -195,17 +195,18 @@ def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=No
     url = as_url(os.path.expandvars(os.path.expanduser(path)))
     if is_url(url):
         parsed_url = urllib_parse.urlparse(url)
-        if parsed_url.scheme == "file" and os.path.isfile(parsed_url.path):
-            actual_md5 = md5_for_file(parsed_url.path).hexdigest()
+        parsed_path = file_url_to_path(url)
+        if parsed_url.scheme == "file" and os.path.isfile(parsed_path):
+            actual_md5 = md5_for_file(parsed_path).hexdigest()
             if md5 is not None and md5 != actual_md5:
                 raise SynapseMd5MismatchError(
                     "The specified md5 [%s] does not match the calculated md5 [%s] for local file [%s]",
                     md5,
                     actual_md5,
-                    parsed_url.path,
+                    parsed_path,
                 )
             md5 = actual_md5
-            file_size = os.stat(parsed_url.path).st_size
+            file_size = os.stat(path).st_size
             is_local_file = True
     else:
         raise ValueError("externalUrl [%s] is not a valid url", url)

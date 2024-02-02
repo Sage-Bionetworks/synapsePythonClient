@@ -39,6 +39,7 @@ BUFFER_SIZE = 8 * KB
 
 tracer = trace.get_tracer("synapseclient")
 
+SLASH_PREFIX_REGEX = re.compile(r"\/[A-Za-z]:")
 
 def md5_for_file(
     filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
@@ -323,7 +324,7 @@ def file_url_to_path(url: str, verify_exists: bool = False) -> typing.Union[str,
         # will get back a path of: /c:/WINDOWS/asdf.txt, which we need to fix by
         # lopping off the leading slash character. Apparently, the Python developers
         # think this is not a bug: http://bugs.python.org/issue7965
-        if re.match(r"\/[A-Za-z]:", path):
+        if SLASH_PREFIX_REGEX.match(path):
             path = path[1:]
         if os.path.exists(path) or not verify_exists:
             return path
