@@ -344,6 +344,8 @@ class Activity:
             except SynapseHTTPError as ex:
                 if ex.response.status_code == 404:
                     return None
+                else:
+                    raise ex
             return cls().fill_from_dict(synapse_activity=synapse_activity)
 
     @classmethod
