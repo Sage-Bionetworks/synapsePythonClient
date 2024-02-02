@@ -41,6 +41,7 @@ tracer = trace.get_tracer("synapseclient")
 
 SLASH_PREFIX_REGEX = re.compile(r"\/[A-Za-z]:")
 
+
 def md5_for_file(
     filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
 ):
