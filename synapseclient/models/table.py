@@ -601,7 +601,13 @@ class Table(AccessControllable):
 
         self.fill_from_dict(synapse_table=entity, set_annotations=False)
 
-        await store_entity_components(root_resource=self, synapse_client=synapse_client)
+        re_read_required = await store_entity_components(
+            root_resource=self, synapse_client=synapse_client
+        )
+        if re_read_required:
+            await self.get(
+                synapse_client=synapse_client,
+            )
 
         return self
 
