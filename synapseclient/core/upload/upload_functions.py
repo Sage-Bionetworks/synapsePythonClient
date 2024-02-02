@@ -206,7 +206,7 @@ def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=No
                     parsed_path,
                 )
             md5 = actual_md5
-            file_size = os.stat(path).st_size
+            file_size = os.stat(parsed_path).st_size
             is_local_file = True
     else:
         raise ValueError("externalUrl [%s] is not a valid url", url)
