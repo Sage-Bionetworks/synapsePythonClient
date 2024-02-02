@@ -888,7 +888,7 @@ class TestGet:
         )
 
         # AND the second file to have a different path
-        assert file_2.path == expected_path_2
+        assert os.path.abspath(file_2.path) == expected_path_2
 
     @pytest.mark.asyncio
     async def test_get_overwrite_local_for_matching_filenames(self, file: File) -> None:
