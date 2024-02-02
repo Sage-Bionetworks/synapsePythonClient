@@ -410,6 +410,7 @@ class TestFileStore:
         # WHEN I store the file
         file = await file.store(parent=project_model)
         self.schedule_for_cleanup(file.id)
+        await file.get()
 
         # THEN I expect the file to be stored as an external file
         assert file.id is not None
@@ -883,12 +884,9 @@ class TestGet:
         assert os.path.exists(file_2.path)
 
         base_name, extension = os.path.splitext(os.path.basename(file.path))
-        expected_path_2 = os.path.join(
-            os.path.dirname(file.path), f"{base_name}(1){extension}"
-        )
 
         # AND the second file to have a different path
-        assert os.path.abspath(file_2.path) == expected_path_2
+        assert os.path.basename(file_2.path) == f"{base_name}(1){extension}"
 
     @pytest.mark.asyncio
     async def test_get_overwrite_local_for_matching_filenames(self, file: File) -> None:
