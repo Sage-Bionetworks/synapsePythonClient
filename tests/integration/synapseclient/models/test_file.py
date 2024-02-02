@@ -545,17 +545,15 @@ class TestFileStore:
         # AND the file is restricted
         file.is_restricted = True
 
-        with patch.object(
-            self.syn,
-            "_createAccessRequirementIfNone",
-            return_value=(None),
-        ) as mocked_client_call:
+        with patch(
+            "synapseclient.client.Synapse._createAccessRequirementIfNone"
+        ) as intercepted:
             # WHEN I store the file
             await file.store(parent=project_model)
             self.schedule_for_cleanup(file.id)
 
             # THEN I expect the file to be restricted
-            mocked_client_call.assert_called_once()
+            assert intercepted.called
 
     @pytest.mark.asyncio
     async def test_store_and_get_with_activity(
