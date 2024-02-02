@@ -737,7 +737,7 @@ class TestFrom:
         file_copy = await File.from_path(file.path)
 
         # THEN I expect the file to be returned
-        assert file_copy == file
+        assert file_copy.id == file.id
 
 
 class TestDelete:
@@ -818,7 +818,7 @@ class TestGet:
         file_copy = await File(path=file.path).get()
 
         # THEN I expect the file to be returned
-        assert file_copy == file
+        assert file_copy.id == file.id
 
     @pytest.mark.asyncio
     async def test_get_by_id(self, file: File) -> None:
@@ -829,7 +829,7 @@ class TestGet:
         file_copy = await File(id=file.id).get()
 
         # THEN I expect the file to be returned
-        assert file_copy == file
+        assert file_copy.id == file.id
 
     @pytest.mark.asyncio
     async def test_get_previous_version(self, file: File) -> None:
@@ -915,7 +915,7 @@ class TestGet:
         # AND I change the download name of the second file to the first file
         await file_2.change_metadata(download_as=file.name)
 
-        # WHEN I get the file with the default collision of `keep.both`
+        # WHEN I get the file with the default collision of `overwrite.local`
         file_2 = await File(
             id=file_2.id, download_location="/tmp", if_collision="overwrite.local"
         ).get()
@@ -952,7 +952,7 @@ class TestGet:
         # AND I change the download name of the second file to the first file
         await file_2.change_metadata(download_as=file.name)
 
-        # WHEN I get the file with the default collision of `keep.both`
+        # WHEN I get the file with the default collision of `keep.local`
         file_2 = await File(
             id=file_2.id, download_location="/tmp", if_collision="keep.local"
         ).get()

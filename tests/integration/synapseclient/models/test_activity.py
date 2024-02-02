@@ -208,8 +208,6 @@ class TestActivity:
         # WHEN I delete the activity
         await file.activity.delete(parent=file)
 
-        # THEN I expect to receieve a 404 error
-        with pytest.raises(
-            client.SynapseHTTPError, match="404 Client Error: \nNo activity"
-        ) as ex:
-            await Activity.from_parent(parent=file)
+        # THEN I expect to receieve None
+        activity = await Activity.from_parent(parent=file)
+        assert activity is None
