@@ -29,7 +29,7 @@ def js(syn):
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_json_schema_organization(js):
     # Schema organizations must start with a string
-    js_org = "a" + str(uuid.uuid4())
+    js_org = "a" + str(uuid.uuid4()).replace("-", "")
     # Create, manage, and delete a JSON Schema organization
     my_org = js.JsonSchemaOrganization(js_org)
     my_org.create()
@@ -65,7 +65,7 @@ def test_json_schema_organization(js):
 class TestJsonSchemaSchemas:
     @pytest.fixture(autouse=True)
     def setup(self, js):
-        self.js_org = "a" + str(uuid.uuid4())
+        self.js_org = "a" + str(uuid.uuid4()).replace("-", "")
         # Create, manage, and delete a JSON Schema organization
         self.my_org = js.JsonSchemaOrganization(self.js_org)
         self.my_org.create()
@@ -151,7 +151,7 @@ class TestJsonSchemaSchemas:
         "test_json_schema_services::TestJsonSchemaSchemas::test_json_schema_validate"
     )
     def test_json_schema_validate(self, js, syn, schedule_for_cleanup):
-        project_name = str(uuid.uuid4())
+        project_name = str(uuid.uuid4()).replace("-", "")
         project = synapseclient.Project(name=project_name)
         project.firstName = "test"
         project = syn.store(project)
