@@ -166,20 +166,22 @@ class File(AccessControllable):
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
-            associated with all values in the list.
+            associated with all values in the list. To remove all annotations set this
+            to an empty dict `{}`.
         create_or_update: (Store only)
             Indicates whether the method should automatically perform an
             update if the 'obj' conflicts with an existing Synapse object.
         force_version: (Store only)
             Indicates whether the method should increment the version of the
-            object even if nothing has changed.
+            object even if nothing has changed. An update to the MD5 of the file will
+            force a version update regardless of this flag.
         is_restricted: (Store only)
             If set to true, an email will be sent to the Synapse access control
             team to start the process of adding terms-of-use or review board approval for
             this entity. You will be contacted with regards to the specific data being
             restricted and the requirements of access.
         synapse_store: (Store only)
-            Whether the File should be uploaded or if only the path should
+            Whether the File should be uploaded or if false: only the path should
             be stored when [synapseclient.models.File.store][] is called.
         download_file: (Get only) If True the file will be downloaded.
         download_location: (Get only) The location to download the file to.
@@ -310,7 +312,8 @@ class File(AccessControllable):
     (Store only)
 
     Indicates whether the method should increment the version of the object even if
-    nothing has changed.
+    nothing has changed. An update to the MD5 of the file will force a version update
+    regardless of this flag.
     """
 
     is_restricted: bool = field(default=False, repr=False)
@@ -327,7 +330,7 @@ class File(AccessControllable):
     """
     (Store only)
 
-    Whether the File should be uploaded or if only the path should be stored when
+    Whether the File should be uploaded or if false: only the path should be stored when
     [synapseclient.models.File.store][] is called.
     """
 
@@ -360,7 +363,9 @@ class File(AccessControllable):
     file. That is, if the file is stored in multiple locations in Synapse only the
     ones in the specified folder/project will be returned."""
 
-    _last_persistent_instance: Optional["File"] = field(default=None, repr=False)
+    _last_persistent_instance: Optional["File"] = field(
+        default=None, repr=False, compare=False
+    )
     """The last persistent instance of this object. This is used to determine if the
     object has been changed and needs to be updated in Synapse."""
 
@@ -777,7 +782,7 @@ class File(AccessControllable):
         )
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"File_Change_Metadata: {self.id}"
+        method_to_trace_name=lambda self, **kwargs: f"File_Copy: {self.id}"
     )
     async def copy(
         self,
@@ -830,6 +835,7 @@ class File(AccessControllable):
             lambda: run_and_attach_otel_context(
                 lambda: copy(
                     syn=syn,
+                    version=self.version_number,
                     entity=self.id,
                     destinationId=destination_id,
                     skipCopyAnnotations=not copy_annotations,

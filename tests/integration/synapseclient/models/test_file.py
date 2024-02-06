@@ -1,4 +1,5 @@
 """Integration tests for the synapseclient.models.File class."""
+
 import os
 import asyncio
 from unittest.mock import patch
@@ -31,7 +32,7 @@ class TestFileStore:
 
     @pytest.fixture(autouse=True, scope="function")
     def file(self, schedule_for_cleanup: Callable[..., None]) -> None:
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
         return File(
             path=filename,
@@ -130,7 +131,7 @@ class TestFileStore:
     @pytest.mark.asyncio
     async def test_store_multiple_files(self, project_model: Project) -> None:
         # GIVEN a file
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file_1 = File(
             path=filename,
@@ -141,7 +142,7 @@ class TestFileStore:
         )
 
         # AND a second file
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file_2 = File(
             path=filename,
@@ -244,7 +245,7 @@ class TestFileStore:
     @pytest.mark.asyncio
     async def test_store_same_data_file_handle_id(self, project_model: Project) -> None:
         # GIVEN a file
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file_1 = await File(
             path=filename,
@@ -255,7 +256,7 @@ class TestFileStore:
         ).store(parent=project_model)
 
         # AND a second file
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file_2 = await File(
             path=filename,
@@ -280,7 +281,7 @@ class TestFileStore:
     @pytest.mark.asyncio
     async def test_store_updated_file(self, project_model: Project) -> None:
         # GIVEN a file
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file = await File(
             path=filename,
@@ -294,7 +295,7 @@ class TestFileStore:
         before_file_handle_id = file.file_handle.id
 
         # WHEN I update the file
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file.path = filename
         await file.store()
@@ -484,7 +485,7 @@ class TestFileStore:
         assert file.file_handle.external_url is None
 
         # WHEN I store a file with the same properties
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         new_file = File(
             path=filename,
@@ -625,7 +626,7 @@ class TestChangeMetadata:
     def file(
         self, schedule_for_cleanup: Callable[..., None], project_model: Project
     ) -> None:
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
         file = asyncio.run(
             File(
@@ -699,7 +700,7 @@ class TestFrom:
     def file(
         self, schedule_for_cleanup: Callable[..., None], project_model: Project
     ) -> File:
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
         file = asyncio.run(
             File(
@@ -750,7 +751,7 @@ class TestDelete:
     def file(
         self, schedule_for_cleanup: Callable[..., None], project_model: Project
     ) -> File:
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
         file = asyncio.run(
             File(
@@ -791,7 +792,7 @@ class TestGet:
     def file(
         self, schedule_for_cleanup: Callable[..., None], project_model: Project
     ) -> File:
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
         file = asyncio.run(
             File(
@@ -853,7 +854,7 @@ class TestGet:
         assert file.name is not None
 
         # AND I store a second file in another location
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
         await folder.store()
         file_2 = await File(
@@ -894,7 +895,7 @@ class TestGet:
         file_1_md5 = utils.md5_for_file(file.path).hexdigest()
 
         # AND I store a second file in another location
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         file_2_md5 = utils.md5_for_file(filename).hexdigest()
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
         await folder.store()
@@ -933,7 +934,7 @@ class TestGet:
         file_1_md5 = utils.md5_for_file(file.path).hexdigest()
 
         # AND I store a second file in another location
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         file_2_md5 = utils.md5_for_file(filename).hexdigest()
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
         await folder.store()
@@ -1005,7 +1006,7 @@ class TestCopy:
     def file(
         self, schedule_for_cleanup: Callable[..., None], project_model: Project
     ) -> File:
-        filename = utils.make_bogus_data_file(1)
+        filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
         file = asyncio.run(
             File(
@@ -1177,3 +1178,31 @@ class TestCopy:
         assert file_1.activity != file_2.activity
         assert file_2.annotations is None
         assert file_2.activity is None
+
+    @pytest.mark.asyncio
+    async def test_copy_previous_version(self, file: File) -> None:
+        # GIVEN a file stored in synapse
+        assert file.id is not None
+        assert file.path is not None
+        assert file.version_number == 1
+        file_first_md5 = utils.md5_for_file(file.path).hexdigest()
+
+        # AND the file MD5 is updated
+        filename = utils.make_bogus_uuid_file()
+        self.schedule_for_cleanup(filename)
+        file.path = filename
+        await file.store()
+        assert file.version_number == 2
+        second_first_md5 = utils.md5_for_file(file.path).hexdigest()
+
+        # WHEN I store a copy of the first version_number of the file in a folder
+        folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
+        await folder.store()
+        self.schedule_for_cleanup(folder.id)
+        file_copy = await File(id=file.id, version_number=1).copy(
+            destination_id=folder.id, copy_annotations=False, copy_activity=None
+        )
+
+        # THEN I expect the first version of the file to have been stored
+        assert file_copy.file_handle.content_md5 == file_first_md5
+        assert second_first_md5 != file_first_md5

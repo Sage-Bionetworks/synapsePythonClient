@@ -42,10 +42,11 @@ class Project(AccessControllable):
         alias: The project alias for use in friendly project urls.
         files: Any files that are at the root directory of the project.
         folders: Any folders that are at the root directory of the project.
-        annotations: Additional metadata associated with the folder. The key is the name of your
-                        desired annotations. The value is an object containing a list of values
-                        (use empty list to represent no values for key) and the value type associated with
-                        all values in the list.
+        annotations: Additional metadata associated with the folder. The key is the name
+            of your desired annotations. The value is an object containing a list of
+            values (use empty list to represent no values for key) and the value type
+            associated with all values in the list.  To remove all annotations set this
+            to an empty dict `{}`.
 
     Functions:
         store: Store project, files, and folders to synapse.

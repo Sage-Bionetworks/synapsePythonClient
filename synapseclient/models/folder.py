@@ -42,10 +42,11 @@ class Folder(AccessControllable):
         modified_by: The ID of the user that last modified this entity.
         files: Files that exist within this folder.
         folders: Folders that exist within this folder.
-        annotations: Additional metadata associated with the folder. The key is the name of your
-            desired annotations. The value is an object containing a list of values
-            (use empty list to represent no values for key) and the value type associated with
-            all values in the list.
+        annotations: Additional metadata associated with the folder. The key is the name
+            of your desired annotations. The value is an object containing a list of
+            values (use empty list to represent no values for key) and the value type
+            associated with all values in the list.  To remove all annotations set this
+            to an empty dict `{}`.
     """
 
     id: Optional[str] = None

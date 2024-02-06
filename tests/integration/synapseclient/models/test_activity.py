@@ -21,7 +21,7 @@ class TestActivity:
     @pytest.mark.asyncio
     async def test_store_with_parent_and_id(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project
-        path = utils.make_bogus_data_file()
+        path = utils.make_bogus_uuid_file()
         file = File(
             parent_id=project["id"], path=path, name=f"bogus_file_{str(uuid.uuid4())}"
         )
@@ -103,7 +103,7 @@ class TestActivity:
             name="some_name",
             description="some_description",
         )
-        path = utils.make_bogus_data_file()
+        path = utils.make_bogus_uuid_file()
         file = File(
             parent_id=project["id"],
             path=path,
@@ -146,7 +146,7 @@ class TestActivity:
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
-        path = utils.make_bogus_data_file()
+        path = utils.make_bogus_uuid_file()
         file = File(
             parent_id=project["id"],
             path=path,
@@ -189,7 +189,7 @@ class TestActivity:
             name="some_name",
             description="some_description",
         )
-        path = utils.make_bogus_data_file()
+        path = utils.make_bogus_uuid_file()
         file = File(
             parent_id=project["id"],
             path=path,

@@ -1,6 +1,7 @@
 """
 Utility functions useful in the implementation and testing of the Synapse client.
 """
+
 import base64
 import cgi
 import collections.abc
@@ -474,6 +475,27 @@ def _to_iterable(value):
     return (value,)
 
 
+def make_bogus_uuid_file() -> str:
+    """
+    Makes a bogus test file with a uuid4 string for testing. It is the caller's
+    responsibility to clean up the file when finished.
+
+    Returns:
+        The name of the file
+    """
+
+    data = uuid.uuid4()
+
+    f = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+    try:
+        f.write(str(data))
+        f.write("\n")
+    finally:
+        f.close()
+
+    return normalize_path(f.name)
+
+
 def make_bogus_data_file(n: int = 100, seed: int = None) -> str:
     """
     Makes a bogus data file for testing. It is the caller's responsibility
@@ -518,8 +540,10 @@ def make_bogus_binary_file(
         The name of the file
     """
 
-    with open(filepath, "wb") if filepath else tempfile.NamedTemporaryFile(
-        mode="wb", suffix=".dat", delete=False
+    with (
+        open(filepath, "wb")
+        if filepath
+        else tempfile.NamedTemporaryFile(mode="wb", suffix=".dat", delete=False)
     ) as f:
         if not filepath:
             filepath = f.name

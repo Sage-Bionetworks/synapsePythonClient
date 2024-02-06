@@ -567,7 +567,7 @@ class TestAclOnFile:
 
     @pytest.fixture(autouse=True, scope="function")
     def file(self, schedule_for_cleanup: Callable[..., None]) -> None:
-        filename = utils.make_bogus_data_file()
+        filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
         return File(path=filename)
 
