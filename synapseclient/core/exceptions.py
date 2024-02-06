@@ -15,6 +15,10 @@ class SynapseFileNotFoundError(SynapseError):
     """Error thrown when a local file is not found in Synapse."""
 
 
+class SynapseNotFoundError(SynapseError):
+    """Error thrown when a requested resource is not found in Synapse."""
+
+
 class SynapseTimeoutError(SynapseError):
     """Timed out waiting for response from Synapse."""
 

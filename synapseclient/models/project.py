@@ -15,6 +15,7 @@ from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
+    FailureStrategy,
 )
 
 
@@ -180,11 +181,17 @@ class Project(AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Project_Store: {self.name}"
     )
-    async def store(self, synapse_client: Optional[Synapse] = None) -> "Project":
+    async def store(
+        self,
+        failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Project":
         """
         Store project, files, and folders to synapse.
 
         Arguments:
+            failure_strategy: Determines how to handle failures when storing attached
+                Files and Folders under this Folder and an exception occurs.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
@@ -205,7 +212,11 @@ class Project(AccessControllable):
         )
         self.fill_from_dict(synapse_project=entity, set_annotations=False)
 
-        await store_entity_components(root_resource=self, synapse_client=synapse_client)
+        await store_entity_components(
+            root_resource=self,
+            failure_strategy=failure_strategy,
+            synapse_client=synapse_client,
+        )
 
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
             f"Saved Project {self.name}"

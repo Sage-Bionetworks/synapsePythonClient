@@ -816,14 +816,14 @@ class File(AccessControllable):
 
                 new_file_instance = await File(id="syn123").copy(destination_id="syn456")
 
-            Copy the file but do not persist annotations of activity:
+            Copy the file but do not persist annotations or activity:
 
                 new_file_instance = await File(id="syn123").copy(destination_id="syn456", copy_annotations=False, copy_activity=None)
 
         Raises:
             ValueError: If the file does not have an ID and destination_id to copy.
         """
-        if not self.id:
+        if not self.id or not destination_id:
             raise ValueError("The file must have an ID and destination_id to copy.")
 
         loop = asyncio.get_event_loop()
