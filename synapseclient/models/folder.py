@@ -10,9 +10,7 @@ from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import File, Annotations
-from synapseclient.core.async_utils import (
-    otel_trace_method,
-)
+from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context, delete_none_keys
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.models.mixins import AccessControllable, StorableContainer
@@ -232,11 +230,13 @@ class Folder(AccessControllable, StorableContainer):
         parent: Optional[Union["Folder", "Project"]] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
-        """Get the folder metadata from Synapse.
+        """Get the folder metadata from Synapse. You are able to find a folder by
+        either the id or the name and parent_id.
 
         Arguments:
             parent: The parent folder or project this folder exists under.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
 
         Returns:
             The folder object.
@@ -268,7 +268,8 @@ class Folder(AccessControllable, StorableContainer):
 
         if entity_id is None:
             raise SynapseNotFoundError(
-                f"Folder [Id: {self.id}, Name: {self.name}, Parent: {parent_id}] not found in Synapse."
+                f"Folder [Id: {self.id}, Name: {self.name}, Parent: {parent_id}] not "
+                "found in Synapse."
             )
 
         entity = await loop.run_in_executor(
@@ -290,10 +291,11 @@ class Folder(AccessControllable, StorableContainer):
         method_to_trace_name=lambda self, **kwargs: f"Folder_Delete: {self.id}"
     )
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
-        """Delete the folder from Synapse.
+        """Delete the folder from Synapse by its id.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
 
         Returns:
             None
@@ -311,30 +313,30 @@ class Folder(AccessControllable, StorableContainer):
                 lambda: Synapse.get_client(synapse_client=synapse_client).delete(
                     obj=self.id,
                 ),
-                current_context,
+                current_context=current_context,
             ),
         )
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"File_Copy: {self.id}"
+        method_to_trace_name=lambda self, **kwargs: f"Folder_Copy: {self.id}"
     )
     async def copy(
         self,
         destination_id: str,
         copy_annotations: bool = True,
+        exclude_types: Optional[List[str]] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
         """
-        Copy the folder to another Synpase location. Defaults to the latest version of the
-        file, or the version_number specified in the instance.
+        Copy the folder to another Synpase location. This will recursively copy all
+        Tables, Links, Files, and Folders within the folder.
 
         Arguments:
             destination_id: Synapse ID of a folder/project that the copied entity is
                 being copied to
             copy_annotations: True to copy the annotations.
-            exclude_types: Accepts a list of entity types ["file", "table", "link"]
-                        which determines which entity types to not copy.
-                        Defaults to an empty list.
+            exclude_types: A list of entity types ['file', 'table', 'link'] which determines
+                which entity types to not copy. Defaults to an empty list.
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
 
@@ -342,11 +344,12 @@ class Folder(AccessControllable, StorableContainer):
             The copied folder object.
 
         Example: Using this function
-            Assuming you have a folder with the ID "syn123" and you want to copy it to a project with the ID "syn456":
+            Assuming you have a folder with the ID "syn123" and you want to copy it to a
+            project with the ID "syn456":
 
                 new_folder_instance = await Folder(id="syn123").copy(destination_id="syn456")
 
-            Copy the folder but do not persist annotations or activity:
+            Copy the folder but do not persist annotations:
 
                 new_folder_instance = await Folder(id="syn123").copy(destination_id="syn456", copy_annotations=False)
 
@@ -367,17 +370,21 @@ class Folder(AccessControllable, StorableContainer):
                     syn=syn,
                     entity=self.id,
                     destinationId=destination_id,
+                    excludeTypes=exclude_types or [],
                     skipCopyAnnotations=not copy_annotations,
                 ),
                 current_context,
             ),
         )
 
-        destination_id = source_and_destination.get(self.id, None)
-        if not destination_id:
+        new_folder_id = source_and_destination.get(self.id, None)
+        if not new_folder_id:
             raise SynapseError("Failed to copy folder.")
-        folder_copy = await Folder(id=destination_id).get(synapse_client=synapse_client)
+        folder_copy = await (await Folder(id=new_folder_id).get()).sync_from_synapse(
+            download_file=False,
+            synapse_client=synapse_client,
+        )
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Copied from folder {self.id} to {destination_id}"
+            f"Copied folder [Source: {self.id}, Destination: {destination_id}, New ID: {folder_copy.id}]"
         )
         return folder_copy

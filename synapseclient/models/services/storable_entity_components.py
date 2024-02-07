@@ -11,9 +11,10 @@ if TYPE_CHECKING:
 
 class FailureStrategy(Enum):
     """
-    When storing a large number of items through bulk actions like `Project.store()` or
-    `Folder.store()` individual failures may occur. Passing this ENUM will allow you to
-    define how you want to respond to failures.
+    When storing a large number of items through bulk actions like
+    `Project(id="syn123").store()` or `Folder(id="syn456").store()` individual failures
+    may occur. Passing this ENUM will allow you to define how you want to respond to
+    failures.
     """
 
     RAISE_EXCEPTION = "RAISE_EXCEPTION"

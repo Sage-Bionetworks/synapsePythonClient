@@ -520,6 +520,10 @@ def _copyFolder(
             )
 
     newFolder = Folder(name=oldFolder.name, parent=destinationId)
+
+    if oldFolder.get("description", None):
+        newFolder.description = oldFolder.get("description")
+
     if not skipCopyAnnotations:
         newFolder.annotations = oldFolder.annotations
     newFolder = syn.store(newFolder)

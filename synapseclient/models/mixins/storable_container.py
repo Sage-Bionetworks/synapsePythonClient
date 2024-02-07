@@ -1,8 +1,7 @@
 import asyncio
 from dataclasses import dataclass, field
 import os
-from typing import List
-from typing import Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from opentelemetry import trace, context
 
 from synapseclient import Synapse
@@ -11,6 +10,7 @@ from synapseclient.core.async_utils import (
 )
 from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.core.exceptions import SynapseError
+from synapseclient.core.constants.concrete_types import FILE_ENTITY, FOLDER_ENTITY
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     wrap_coroutine,
@@ -49,17 +49,19 @@ class StorableContainer:
     )
     async def sync_from_synapse(
         self,
-        recursive: bool = False,
-        download_file=False,
         path: Optional[str] = None,
+        recursive: bool = True,
+        download_file: bool = True,
         if_collision: str = "overwrite.local",
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
         synapse_client: Optional[Synapse] = None,
     ):
         """
-        Sync this folder and all possible sub-folders from Synapse. By default this
-        will not download the files that are found, however, it will populate the
-        `files` and `folders` attributes with the found files and folders.
+        Sync this container and all possible sub-folders from Synapse. By default this
+        will download the files that are found and it will populate the
+        `files` and `folders` attributes with the found files and folders. If you only
+        want to retrieve the full tree of metadata about your container specify
+        `download_file` as False.
 
         This works similar to [synapseutils.syncFromSynapse][], however, this does not
         currently support the writing of data to a manifest TSV file. This will be a
@@ -68,11 +70,11 @@ class StorableContainer:
         Only Files and Folders are supported at this time to be synced from synapse.
 
         Arguments:
+            path: An optional path where the file hierarchy will be reproduced. If not
+                specified the files will by default be placed in the synapseCache.
             recursive: Whether or not to recursively get the entire hierarchy of the
                 folder and sub-folders.
             download_file: Whether to download the files found or not.
-            path: An optional path where the file hierarchy will be reproduced. If not
-                specified the files will by default be placed in the synapseCache.
             if_collision: Determines how to handle file collisions. May be
 
                 - `overwrite.local`
@@ -82,6 +84,10 @@ class StorableContainer:
                 under this Folder and an exception occurs.
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
+
+        Returns:
+            The object that was called on. This will be the same object that was called on
+                to start the sync.
 
         Raises:
             ValueError: If the folder does not have an id set.
@@ -200,7 +206,7 @@ class StorableContainer:
         synapse_id = child.get("id", None)
         child_type = child.get("type", None)
         name = child.get("name", None)
-        if synapse_id and child_type == "org.sagebionetworks.repo.model.Folder":
+        if synapse_id and child_type == FOLDER_ENTITY:
             # Lazy import to avoid circular import
             from synapseclient.models import Folder
 
@@ -222,7 +228,7 @@ class StorableContainer:
                     )
                 )
 
-        elif synapse_id and child_type == "org.sagebionetworks.repo.model.FileEntity":
+        elif synapse_id and child_type == FILE_ENTITY:
             # Lazy import to avoid circular import
             from synapseclient.models import File
 
@@ -238,13 +244,27 @@ class StorableContainer:
     def _resolve_sync_from_synapse_result(
         self, result, failure_strategy: FailureStrategy, synapse_client: Synapse
     ) -> None:
-        """TODO: Fill me out"""
-        if result.__class__.__name__ == "Folder":
+        """
+        Handle what to do based on what was returned from the latest task to complete.
+        We are updating the object in place and appending the returned Folder/Files to
+        the appropriate list.
+
+        Arguments:
+            result: The result of the task that was completed.
+            failure_strategy: Determines how to handle failures when retrieving children
+                under this Folder and an exception occurs.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
+        """
+        if result is None:
+            # We will recieve None when executing `wrap_recursive_get_children` as
+            # it will internally be recursively calling this method and setting the
+            # appropriate folder/file objects in place.
+            pass
+        elif result.__class__.__name__ == "Folder":
             self.folders.append(result)
         elif result.__class__.__name__ == "File":
             self.files.append(result)
-        elif result is None:
-            pass
         elif isinstance(result, BaseException):
             Synapse.get_client(synapse_client=synapse_client).logger.exception(result)
 
