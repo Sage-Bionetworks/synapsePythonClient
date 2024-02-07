@@ -1,0 +1,262 @@
+import asyncio
+from dataclasses import dataclass, field
+import os
+from typing import List
+from typing import Optional, TYPE_CHECKING
+from opentelemetry import trace, context
+
+from synapseclient import Synapse
+from synapseclient.core.async_utils import (
+    otel_trace_method,
+)
+from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.core.exceptions import SynapseError
+from synapseclient.models.services.storable_entity_components import (
+    FailureStrategy,
+    wrap_coroutine,
+)
+
+if TYPE_CHECKING:
+    from synapseclient.models import File, Folder
+
+tracer = trace.get_tracer("synapseclient")
+
+
+@dataclass()
+class StorableContainer:
+    """
+    Mixin for objects that can have Folders and Files stored in them.
+
+    In order to use this mixin, the class must have the following attributes:
+
+    - `id`
+    - `files`
+    - `folders`
+    """
+
+    id: Optional[str] = None
+    """The unique immutable ID for this entity. A new ID will be generated for new Files.
+    Once issued, this ID is guaranteed to never change or be re-issued."""
+
+    files: Optional[List["File"]] = field(default_factory=list, compare=False)
+    """Files that exist within this container."""
+
+    folders: Optional[List["Folder"]] = field(default_factory=list, compare=False)
+    """Folders that exist within this container."""
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Container_sync_from_synapse: {self.id}"
+    )
+    async def sync_from_synapse(
+        self,
+        recursive: bool = False,
+        download_file=False,
+        path: Optional[str] = None,
+        if_collision: str = "overwrite.local",
+        failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        synapse_client: Optional[Synapse] = None,
+    ):
+        """
+        Sync this folder and all possible sub-folders from Synapse. By default this
+        will not download the files that are found, however, it will populate the
+        `files` and `folders` attributes with the found files and folders.
+
+        This works similar to [synapseutils.syncFromSynapse][], however, this does not
+        currently support the writing of data to a manifest TSV file. This will be a
+        future enhancement.
+
+        Only Files and Folders are supported at this time to be synced from synapse.
+
+        Arguments:
+            recursive: Whether or not to recursively get the entire hierarchy of the
+                folder and sub-folders.
+            download_file: Whether to download the files found or not.
+            path: An optional path where the file hierarchy will be reproduced. If not
+                specified the files will by default be placed in the synapseCache.
+            if_collision: Determines how to handle file collisions. May be
+
+                - `overwrite.local`
+                - `keep.local`
+                - `keep.both`
+            failure_strategy: Determines how to handle failures when retrieving children
+                under this Folder and an exception occurs.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
+
+        Raises:
+            ValueError: If the folder does not have an id set.
+        """
+        if not self.id:
+            raise ValueError("The folder must have an id set.")
+        Synapse.get_client(synapse_client=synapse_client).logger.info(
+            f"Syncing {self.__class__.__name__} ({self.id}) from Synapse."
+        )
+
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
+        children_objects = await loop.run_in_executor(
+            None,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).getChildren(
+                    parent=self.id,
+                    includeTypes=["folder", "file"],
+                ),
+                current_context,
+            ),
+        )
+
+        pending_tasks = []
+        for child in children_objects:
+            pending_tasks.extend(
+                self._create_task_for_child(
+                    child=child,
+                    recursive=recursive,
+                    path=path,
+                    download_file=download_file,
+                    if_collision=if_collision,
+                    failure_strategy=failure_strategy,
+                    synapse_client=synapse_client,
+                )
+            )
+        self.folders = []
+        self.files = []
+
+        for task in asyncio.as_completed(pending_tasks):
+            result = await task
+            self._resolve_sync_from_synapse_result(
+                result=result,
+                failure_strategy=failure_strategy,
+                synapse_client=synapse_client,
+            )
+        return self
+
+    def _create_task_for_child(
+        self,
+        child,
+        recursive: bool = False,
+        path: Optional[str] = None,
+        download_file=False,
+        if_collision: str = "overwrite.local",
+        failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        synapse_client: Optional[Synapse] = None,
+    ) -> List[asyncio.Task]:
+        """
+        Determines based off the type of child which tasks should be created to handle
+        the child. This will return a list of tasks that will be executed in parallel
+        to handle the child. The tasks will retrieve the File and Folder objects from
+        Synapse. In the case of a Folder object, it will also retrieve the children of
+        that folder if `recursive` is set to True.
+
+
+        Arguments:
+            recursive: Whether or not to recursively get the entire hierarchy of the
+                folder and sub-folders.
+            download_file: Whether to download the files found or not.
+            path: An optional path where the file hierarchy will be reproduced. If not
+                specified the files will by default be placed in the synapseCache.
+            if_collision: Determines how to handle file collisions. May be
+
+                - `overwrite.local`
+                - `keep.local`
+                - `keep.both`
+            failure_strategy: Determines how to handle failures when retrieving children
+                under this Folder and an exception occurs.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
+
+        """
+
+        async def wrap_recursive_get_children(
+            folder: "Folder",
+            recursive: bool = False,
+            path: Optional[str] = None,
+            download_file=False,
+            if_collision: str = "overwrite.local",
+            failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+            synapse_client: Optional[Synapse] = None,
+        ) -> None:
+            """
+            Wrap the recursive get children method to return nothing. We are updating
+            the folder object in place. We do not want to cause the result of this
+            method to cause any folder of file objects to be added to this level of the
+            hierarchy.
+            """
+            new_resolved_path = (
+                os.path.join(path, folder.name) if path and folder.name else None
+            )
+            if new_resolved_path and not os.path.exists(new_resolved_path):
+                os.makedirs(new_resolved_path)
+            await folder.sync_from_synapse(
+                recursive=recursive,
+                download_file=download_file,
+                path=new_resolved_path,
+                if_collision=if_collision,
+                failure_strategy=failure_strategy,
+                synapse_client=synapse_client,
+            )
+            return
+
+        pending_tasks = []
+        synapse_id = child.get("id", None)
+        child_type = child.get("type", None)
+        name = child.get("name", None)
+        if synapse_id and child_type == "org.sagebionetworks.repo.model.Folder":
+            # Lazy import to avoid circular import
+            from synapseclient.models import Folder
+
+            folder = Folder(id=synapse_id, name=name)
+            pending_tasks.append(asyncio.create_task(wrap_coroutine(folder.get())))
+
+            if recursive:
+                pending_tasks.append(
+                    asyncio.create_task(
+                        wrap_recursive_get_children(
+                            folder=folder,
+                            recursive=recursive,
+                            path=path,
+                            download_file=download_file,
+                            if_collision=if_collision,
+                            failure_strategy=failure_strategy,
+                            synapse_client=synapse_client,
+                        )
+                    )
+                )
+
+        elif synapse_id and child_type == "org.sagebionetworks.repo.model.FileEntity":
+            # Lazy import to avoid circular import
+            from synapseclient.models import File
+
+            file = File(id=synapse_id, download_file=download_file)
+            if path:
+                file.download_location = path
+            if if_collision:
+                file.if_collision = if_collision
+
+            pending_tasks.append(asyncio.create_task(wrap_coroutine(file.get())))
+        return pending_tasks
+
+    def _resolve_sync_from_synapse_result(
+        self, result, failure_strategy: FailureStrategy, synapse_client: Synapse
+    ) -> None:
+        """TODO: Fill me out"""
+        if result.__class__.__name__ == "Folder":
+            self.folders.append(result)
+        elif result.__class__.__name__ == "File":
+            self.files.append(result)
+        elif result is None:
+            pass
+        elif isinstance(result, BaseException):
+            Synapse.get_client(synapse_client=synapse_client).logger.exception(result)
+
+            if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
+                raise result
+        else:
+            exception = SynapseError(
+                f"Unknown failure retrieving children of Folder ({self.id}): {type(result)}",
+                result,
+            )
+            Synapse.get_client(synapse_client=synapse_client).logger.exception(
+                exception
+            )
+            if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
+                raise exception
