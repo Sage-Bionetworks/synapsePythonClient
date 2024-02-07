@@ -476,7 +476,7 @@ class Folder(AccessControllable):
         """TODO: Fill me out"""
         if result.__class__.__name__ == "Folder":
             self.folders.append(result)
-        if result.__class__.__name__ == "File":
+        elif result.__class__.__name__ == "File":
             self.files.append(result)
         elif result is None:
             pass
