@@ -11,6 +11,9 @@ from synapseclient.models import File, Annotations
 from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.models.services.storable_entity_components import (
+    store_entity_components,
+)
 
 if TYPE_CHECKING:
     from synapseclient.models import Project
@@ -39,10 +42,11 @@ class Folder(AccessControllable):
         modified_by: The ID of the user that last modified this entity.
         files: Files that exist within this folder.
         folders: Folders that exist within this folder.
-        annotations: Additional metadata associated with the folder. The key is the name of your
-            desired annotations. The value is an object containing a list of values
-            (use empty list to represent no values for key) and the value type associated with
-            all values in the list.
+        annotations: Additional metadata associated with the folder. The key is the name
+            of your desired annotations. The value is an object containing a list of
+            values (use empty list to represent no values for key) and the value type
+            associated with all values in the list.  To remove all annotations set this
+            to an empty dict `{}`.
     """
 
     id: Optional[str] = None
@@ -101,7 +105,7 @@ class Folder(AccessControllable):
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
-    all values in the list."""
+    all values in the list. To remove all annotations set this to an empty dict `{}`."""
 
     # def __post_init__(self):
     #     # TODO - What is the best way to enforce this, basically we need a minimum amount
@@ -166,49 +170,11 @@ class Folder(AccessControllable):
 
         self.fill_from_dict(synapse_folder=entity, set_annotations=False)
 
-        tasks = []
-        if self.files:
-            tasks.extend(
-                file.store(parent=self, synapse_client=synapse_client)
-                for file in self.files
-            )
+        await store_entity_components(root_resource=self, synapse_client=synapse_client)
 
-        if self.folders:
-            tasks.extend(
-                folder.store(parent=self, synapse_client=synapse_client)
-                for folder in self.folders
-            )
-
-        if self.annotations:
-            tasks.append(
-                asyncio.create_task(
-                    Annotations(
-                        id=self.id, etag=self.etag, annotations=self.annotations
-                    ).store(synapse_client=synapse_client)
-                )
-            )
-
-        try:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            # TODO: Proper exception handling
-            for result in results:
-                if isinstance(result, Folder):
-                    print(f"Stored {result.name}")
-                elif isinstance(result, File):
-                    print(f"Stored {result.name} at: {result.path}")
-                elif isinstance(result, Annotations):
-                    self.annotations = result.annotations
-                    print(f"Stored annotations id: {result.id}, etag: {result.etag}")
-                else:
-                    if isinstance(result, BaseException):
-                        raise result
-                    raise ValueError(f"Unknown type: {type(result)}", result)
-        except Exception as ex:
-            Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
-            print("I hit an exception")
-
-        print(f"Saved all files and folders in {self.name}")
+        Synapse.get_client(synapse_client=synapse_client).logger.debug(
+            f"Saved Folder: {self.name}, parent: {self.parent_id}"
+        )
 
         return self
 

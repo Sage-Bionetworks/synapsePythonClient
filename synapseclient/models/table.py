@@ -19,6 +19,9 @@ from synapseclient.models import Annotations, Activity
 from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.models.services.storable_entity_components import (
+    store_entity_components,
+)
 from opentelemetry import trace, context
 
 
@@ -444,7 +447,7 @@ class Table(AccessControllable):
     """Additional metadata associated with the table. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
-    all values in the list."""
+    all values in the list. To remove all annotations set this to an empty dict `{}`."""
 
     def fill_from_dict(
         self, synapse_table: Synapse_Table, set_annotations: bool = True
@@ -598,40 +601,14 @@ class Table(AccessControllable):
 
         self.fill_from_dict(synapse_table=entity, set_annotations=False)
 
-        tasks = []
-        if self.annotations:
-            tasks.append(
-                asyncio.create_task(
-                    Annotations(
-                        id=self.id, etag=self.etag, annotations=self.annotations
-                    ).store(synapse_client=synapse_client)
-                )
+        re_read_required = await store_entity_components(
+            root_resource=self, synapse_client=synapse_client
+        )
+        if re_read_required:
+            await self.get(
+                synapse_client=synapse_client,
             )
 
-        if self.activity:
-            tasks.append(
-                asyncio.create_task(
-                    self.activity.store(parent=self, synapse_client=synapse_client)
-                )
-            )
-        try:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            # TODO: Proper exception handling
-            for result in results:
-                if isinstance(result, Activity):
-                    self.activity = result
-                    print(f"Stored activity id: {result.id}, etag: {result.etag}")
-                elif isinstance(result, Annotations):
-                    self.annotations = result.annotations
-                    print(f"Stored annotations id: {result.id}, etag: {result.etag}")
-                else:
-                    if isinstance(result, BaseException):
-                        raise result
-                    raise ValueError(f"Unknown type: {type(result)}", result)
-        except Exception as ex:
-            Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
-            print("I hit an exception")
         return self
 
     @otel_trace_method(

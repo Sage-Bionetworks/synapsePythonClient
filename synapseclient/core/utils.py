@@ -1,6 +1,7 @@
 """
 Utility functions useful in the implementation and testing of the Synapse client.
 """
+
 import base64
 import cgi
 import collections.abc
@@ -38,6 +39,8 @@ KB = 2**10
 BUFFER_SIZE = 8 * KB
 
 tracer = trace.get_tracer("synapseclient")
+
+SLASH_PREFIX_REGEX = re.compile(r"\/[A-Za-z]:")
 
 
 def md5_for_file(
@@ -323,7 +326,7 @@ def file_url_to_path(url: str, verify_exists: bool = False) -> typing.Union[str,
         # will get back a path of: /c:/WINDOWS/asdf.txt, which we need to fix by
         # lopping off the leading slash character. Apparently, the Python developers
         # think this is not a bug: http://bugs.python.org/issue7965
-        if re.match(r"\/[A-Za-z]:", path):
+        if SLASH_PREFIX_REGEX.match(path):
             path = path[1:]
         if os.path.exists(path) or not verify_exists:
             return path
@@ -472,6 +475,27 @@ def _to_iterable(value):
     return (value,)
 
 
+def make_bogus_uuid_file() -> str:
+    """
+    Makes a bogus test file with a uuid4 string for testing. It is the caller's
+    responsibility to clean up the file when finished.
+
+    Returns:
+        The name of the file
+    """
+
+    data = uuid.uuid4()
+
+    f = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+    try:
+        f.write(str(data))
+        f.write("\n")
+    finally:
+        f.close()
+
+    return normalize_path(f.name)
+
+
 def make_bogus_data_file(n: int = 100, seed: int = None) -> str:
     """
     Makes a bogus data file for testing. It is the caller's responsibility
@@ -516,8 +540,10 @@ def make_bogus_binary_file(
         The name of the file
     """
 
-    with open(filepath, "wb") if filepath else tempfile.NamedTemporaryFile(
-        mode="wb", suffix=".dat", delete=False
+    with (
+        open(filepath, "wb")
+        if filepath
+        else tempfile.NamedTemporaryFile(mode="wb", suffix=".dat", delete=False)
     ) as f:
         if not filepath:
             filepath = f.name
@@ -1297,3 +1323,11 @@ def run_and_attach_otel_context(
     """
     context.attach(current_context)
     return callable_function()
+
+
+def delete_none_keys(incoming_object: typing.Dict) -> None:
+    """Clean up the incoming object by removing any keys with None values."""
+    if incoming_object:
+        for key in list(incoming_object.keys()):
+            if incoming_object[key] is None:
+                del incoming_object[key]

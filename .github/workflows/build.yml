@@ -180,7 +180,8 @@ jobs:
           export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
           export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
           if [ ${{ steps.otel-check.outputs.run_opentelemetry }} == "true" ]; then
-            export SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER="otlp"
+            # Set to 'otlp' to enable OpenTelemetry
+            export SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER="none"
           fi
 
           # use loadscope to avoid issues running tests concurrently that share scoped fixtures

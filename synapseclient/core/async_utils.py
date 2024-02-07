@@ -1,4 +1,5 @@
 """This utility class is to hold any utilities that are needed for async operations."""
+
 from typing import Callable, Union
 from opentelemetry import trace
 

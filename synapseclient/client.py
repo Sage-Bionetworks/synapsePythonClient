@@ -82,6 +82,7 @@ from synapseclient.core.exceptions import (
     SynapseProvenanceError,
     SynapseTimeoutError,
     SynapseUnmetAccessRestrictions,
+    SynapseMalformedEntityError,
 )
 from synapseclient.core.logging_setup import (
     DEFAULT_LOGGER_NAME,
@@ -1244,10 +1245,6 @@ class Synapse(object):
         followLink = kwargs.pop("followLink", False)
         path = kwargs.pop("path", None)
 
-        # make sure user didn't accidentlaly pass a kwarg that we don't handle
-        if kwargs:  # if there are remaining items in the kwargs
-            raise TypeError("Unexpected **kwargs: %r" % kwargs)
-
         # If Link, get target ID entity bundle
         if (
             entityBundle["entity"]["concreteType"]
@@ -1493,6 +1490,7 @@ class Synapse(object):
         executed=None,
         activityName=None,
         activityDescription=None,
+        set_annotations=True,
     ):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
@@ -1514,6 +1512,7 @@ class Synapse(object):
                             process of adding terms-of-use or review board approval for this entity.
                             You will be contacted with regards to the specific data being restricted and the
                             requirements of access.
+            set_annotations: If True, set the annotations on the entity. If False, do not set the annotations.
 
         Returns:
             A Synapse Entity, Evaluation, or Wiki
@@ -1637,9 +1636,23 @@ class Synapse(object):
             if needs_upload:
                 local_state_fh = local_state.get("_file_handle", {})
                 synapseStore = local_state.get("synapseStore", True)
+
+                # parent_id_for_upload is allowing `store` to be called on files that have
+                # already been stored to Synapse, but did not specify a parentId in the
+                # FileEntity. This is useful as it prevents the need to specify the
+                # parentId every time a file is stored to Synapse when the ID is
+                # already known.
+                parent_id_for_upload = entity.get("parentId", None)
+                if not parent_id_for_upload and bundle and bundle.get("entity", None):
+                    parent_id_for_upload = bundle["entity"]["parentId"]
+
+                if not parent_id_for_upload:
+                    raise SynapseMalformedEntityError(
+                        "Entities of type File must have a parentId."
+                    )
                 fileHandle = upload_file_handle(
                     self,
-                    entity["parentId"],
+                    parent_id_for_upload,
                     local_state["path"]
                     if (synapseStore or local_state_fh.get("externalURL") is None)
                     else local_state_fh.get("externalURL"),
@@ -1751,8 +1764,11 @@ class Synapse(object):
             self._createAccessRequirementIfNone(properties)
 
         # Update annotations
-        if (not bundle and annotations) or (
-            bundle and check_annotations_changed(bundle["annotations"], annotations)
+        if set_annotations and (
+            (not bundle and annotations)
+            or (
+                bundle and check_annotations_changed(bundle["annotations"], annotations)
+            )
         ):
             annotations = self.set_annotations(
                 Annotations(properties["id"], properties["etag"], annotations)

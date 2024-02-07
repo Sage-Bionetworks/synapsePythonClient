@@ -1986,7 +1986,7 @@ class TestDownloadList:
         self.syn = syn
 
     def setup(self):
-        self.manifest_name = uuid.uuid4().hex
+        self.manifest_name = str(uuid.uuid4())
         self.patch_get_dl_manifest = patch.object(
             self.syn, "get_download_list_manifest"
         )

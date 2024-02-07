@@ -1,4 +1,7 @@
-"""The purpose of this script is to demonstrate how to use the new OOP interface for folders.
+"""
+Expects that ~/temp exists and is a directory.
+
+The purpose of this script is to demonstrate how to use the new OOP interface for folders.
 The following actions are shown in this script:
 1. Creating a folder
 2. Storing a folder to a project
@@ -114,6 +117,8 @@ async def store_folder():
     }
 
     for file in folder_copy.files:
+        file.download_file = False
+        await file.get()
         file.annotations = new_annotations
 
     for folder in folder_copy.folders:

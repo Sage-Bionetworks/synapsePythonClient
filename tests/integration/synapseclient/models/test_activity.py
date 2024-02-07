@@ -21,7 +21,7 @@ class TestActivity:
     @pytest.mark.asyncio
     async def test_store_with_parent_and_id(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project
-        path = utils.make_bogus_data_file()
+        path = utils.make_bogus_uuid_file()
         file = File(
             parent_id=project["id"], path=path, name=f"bogus_file_{str(uuid.uuid4())}"
         )
@@ -103,7 +103,7 @@ class TestActivity:
             name="some_name",
             description="some_description",
         )
-        path = utils.make_bogus_data_file()
+        path = utils.make_bogus_uuid_file()
         file = File(
             parent_id=project["id"],
             path=path,
@@ -146,7 +146,7 @@ class TestActivity:
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
-        path = utils.make_bogus_data_file()
+        path = utils.make_bogus_uuid_file()
         file = File(
             parent_id=project["id"],
             path=path,
@@ -189,7 +189,7 @@ class TestActivity:
             name="some_name",
             description="some_description",
         )
-        path = utils.make_bogus_data_file()
+        path = utils.make_bogus_uuid_file()
         file = File(
             parent_id=project["id"],
             path=path,
@@ -208,8 +208,6 @@ class TestActivity:
         # WHEN I delete the activity
         await file.activity.delete(parent=file)
 
-        # THEN I expect to receieve a 404 error
-        with pytest.raises(
-            client.SynapseHTTPError, match="404 Client Error: \nNo activity"
-        ) as ex:
-            await Activity.from_parent(parent=file)
+        # THEN I expect to receieve None
+        activity = await Activity.from_parent(parent=file)
+        assert activity is None

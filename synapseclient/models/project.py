@@ -13,6 +13,9 @@ from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient import Synapse
 from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models.services.storable_entity_components import (
+    store_entity_components,
+)
 
 
 tracer = trace.get_tracer("synapseclient")
@@ -39,10 +42,11 @@ class Project(AccessControllable):
         alias: The project alias for use in friendly project urls.
         files: Any files that are at the root directory of the project.
         folders: Any folders that are at the root directory of the project.
-        annotations: Additional metadata associated with the folder. The key is the name of your
-                        desired annotations. The value is an object containing a list of values
-                        (use empty list to represent no values for key) and the value type associated with
-                        all values in the list.
+        annotations: Additional metadata associated with the folder. The key is the name
+            of your desired annotations. The value is an object containing a list of
+            values (use empty list to represent no values for key) and the value type
+            associated with all values in the list.  To remove all annotations set this
+            to an empty dict `{}`.
 
     Functions:
         store: Store project, files, and folders to synapse.
@@ -53,6 +57,15 @@ class Project(AccessControllable):
     Example: Creating a project
         This example shows how to create a project
 
+            from synapseclient.models import Project, File
+            import synapseclient
+
+            synapseclient.login()
+
+            my_annotations = {
+                "my_single_key_string": "a",
+                "my_key_string": ["b", "a", "c"],
+            }
             project = Project(
                 name="bfauble_my_new_project_for_testing",
                 annotations=my_annotations,
@@ -133,11 +146,22 @@ class Project(AccessControllable):
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
-    all values in the list."""
+    all values in the list. To remove all annotations set this to an empty dict `{}`."""
 
     def fill_from_dict(
-        self, synapse_project: Synapse_Project, set_annotations: bool = True
+        self,
+        synapse_project: Union[Synapse_Project, Dict],
+        set_annotations: bool = True,
     ) -> "Project":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_project: The response from the REST API.
+
+        Returns:
+            The Project object.
+        """
         self.id = synapse_project.get("id", None)
         self.name = synapse_project.get("name", None)
         self.description = synapse_project.get("description", None)
@@ -157,7 +181,8 @@ class Project(AccessControllable):
         method_to_trace_name=lambda self, **kwargs: f"Project_Store: {self.name}"
     )
     async def store(self, synapse_client: Optional[Synapse] = None) -> "Project":
-        """Store project, files, and folders to synapse.
+        """
+        Store project, files, and folders to synapse.
 
         Arguments:
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
@@ -180,49 +205,11 @@ class Project(AccessControllable):
         )
         self.fill_from_dict(synapse_project=entity, set_annotations=False)
 
-        tasks = []
-        if self.files:
-            tasks.extend(
-                file.store(parent=self, synapse_client=synapse_client)
-                for file in self.files
-            )
+        await store_entity_components(root_resource=self, synapse_client=synapse_client)
 
-        if self.folders:
-            tasks.extend(
-                folder.store(parent=self, synapse_client=synapse_client)
-                for folder in self.folders
-            )
-
-        if self.annotations:
-            tasks.append(
-                asyncio.create_task(
-                    Annotations(
-                        id=self.id, etag=self.etag, annotations=self.annotations
-                    ).store(synapse_client=synapse_client)
-                )
-            )
-
-        try:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            # TODO: Proper exception handling
-
-            for result in results:
-                if isinstance(result, Folder):
-                    print(f"Stored {result.name}")
-                elif isinstance(result, File):
-                    print(f"Stored {result.name} at: {result.path}")
-                elif isinstance(result, Annotations):
-                    self.annotations = result.annotations
-                    print(f"Stored annotations id: {result.id}, etag: {result.etag}")
-                else:
-                    if isinstance(result, BaseException):
-                        raise result
-                    raise ValueError(f"Unknown type: {type(result)}", result)
-        except Exception as ex:
-            Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
-            print("I hit an exception")
-
-        print(f"Saved all files and folders in {self.name}")
+        Synapse.get_client(synapse_client=synapse_client).logger.debug(
+            f"Saved Project {self.name}"
+        )
 
         return self
 
@@ -285,6 +272,9 @@ class Project(AccessControllable):
                     "type" in child
                     and child["type"] == "org.sagebionetworks.repo.model.FileEntity"
                 ):
+                    # TODO: This child only contains a small slice of data, in order to
+                    # save the file again we need to call `.get()` on the file.
+                    # Perhaps we should not return this as a full File object?
                     file = File().fill_from_dict(synapse_file=child)
                     file.parent_id = self.id
                     files.append(file)
