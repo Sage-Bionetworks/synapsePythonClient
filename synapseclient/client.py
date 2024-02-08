@@ -1636,9 +1636,12 @@ class Synapse(object):
                         and os.path.isfile(entity["path"])
                         and needs_upload
                         and (
-                            md5_stored_in_synapse := local_state.get(
-                                "_file_handle", {}
-                            ).get("contentMd5", None)
+                            md5_stored_in_synapse := (
+                                local_state.get("_file_handle", {}).get(
+                                    "contentMd5", None
+                                )
+                                or (fileHandle or {}).get("contentMd5", None)
+                            )
                         )
                     ):
                         local_file_md5_hex = utils.md5_for_file(
