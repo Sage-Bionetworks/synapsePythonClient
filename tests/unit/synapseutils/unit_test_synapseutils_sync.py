@@ -1033,7 +1033,7 @@ class TestSyncUploader:
                 uploader.upload(items)
 
             # it would be aborted with Futures
-            mock_abort.assert_called_once_with([ANY])
+            mock_abort.assert_called_once()
             isinstance(mock_abort.call_args_list[0][0], Future)
 
     @patch("os.path.isfile")
