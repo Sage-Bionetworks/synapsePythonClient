@@ -41,10 +41,11 @@ def create_random_file(
         f.write(os.urandom(1))
 
 
-async def try_delete_folder(folder_name: str, parent_id: str):
+async def try_delete_folder(folder_name: str, parent_id: str) -> None:
+    """Simple try catch to delete a folder."""
     try:
         await (await Folder(name=folder_name, parent_id=parent_id).get()).delete()
-    except Exception as e:
+    except Exception:
         pass
 
 

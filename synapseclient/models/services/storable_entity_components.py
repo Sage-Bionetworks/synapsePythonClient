@@ -26,7 +26,7 @@ class FailureStrategy(Enum):
     processed."""
 
 
-async def wrap_coroutine(task, synapse_client: Optional[Synapse] = None):
+async def wrap_coroutine(task: asyncio.Task, synapse_client: Optional[Synapse] = None):
     """
     Wrapper to handle exceptions in async tasks. By default as_completed will cause
     sibiling tasks to be cancelled if one fails. This wrapper will catch the exception
@@ -91,34 +91,62 @@ async def store_entity_components(
         tasks = [wrap_coroutine(task) for task in tasks]
         for task in asyncio.as_completed(tasks):
             result = await task
-            if isinstance(result, bool):
-                re_read_required = result
-            elif result.__class__.__name__ == "Folder":
-                pass
-            elif result.__class__.__name__ == "File":
-                pass
-            else:
-                if isinstance(result, BaseException):
-                    Synapse.get_client(synapse_client=synapse_client).logger.exception(
-                        result
-                    )
-                    if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
-                        raise result
-                else:
-                    exception = SynapseError(
-                        f"Unknown failure saving entity components: {type(result)}",
-                        result,
-                    )
-                    Synapse.get_client(synapse_client=synapse_client).logger.exception(
-                        exception
-                    )
-                    if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
-                        raise exception
+            _resolve_store_task(
+                result=result,
+                failure_strategy=failure_strategy,
+                synapse_client=synapse_client,
+            )
     except Exception as ex:
         Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
         if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
             raise ex
 
+    return re_read_required
+
+
+def _resolve_store_task(
+    result: Union[bool, "Folder", "File", BaseException],
+    failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+    synapse_client: Optional[Synapse] = None,
+) -> bool:
+    """
+    Handle the result of a store task to Synapse depending on the failure strategy.
+
+    Arguments:
+        result: The result of the store task.
+        failure_strategy: The failure strategy to use.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
+
+    Returns:
+        If a read from Synapse is required to retireve the current state of the entity.
+
+    Raises:
+        If the failure strategy is to raise exceptions and the result is or causes
+            an exception.
+    """
+    re_read_required = False
+    if isinstance(result, bool):
+        re_read_required = re_read_required or result
+    elif result.__class__.__name__ == "Folder":
+        pass
+    elif result.__class__.__name__ == "File":
+        pass
+    else:
+        if isinstance(result, BaseException):
+            Synapse.get_client(synapse_client=synapse_client).logger.exception(result)
+            if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
+                raise result
+        else:
+            exception = SynapseError(
+                f"Unknown failure saving entity components: {type(result)}",
+                result,
+            )
+            Synapse.get_client(synapse_client=synapse_client).logger.exception(
+                exception
+            )
+            if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
+                raise exception
     return re_read_required
 
 

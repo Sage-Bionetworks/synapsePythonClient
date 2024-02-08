@@ -1,6 +1,8 @@
+"""Mixin for objects that can have Folders and Files stored in them."""
+
 import asyncio
 import os
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING, Union
 from opentelemetry import trace, context
 
 from synapseclient import Synapse
@@ -14,9 +16,10 @@ from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     wrap_coroutine,
 )
+from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
 
 if TYPE_CHECKING:
-    from synapseclient.models import Folder
+    from synapseclient.models import Folder, File
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -53,7 +56,7 @@ class StorableContainer:
         path: Optional[str] = None,
         recursive: bool = True,
         download_file: bool = True,
-        if_collision: str = "overwrite.local",
+        if_collision: str = COLLISION_OVERWRITE_LOCAL,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
         synapse_client: Optional[Synapse] = None,
     ):
@@ -187,13 +190,43 @@ class StorableContainer:
             )
         return self
 
+    async def _wrap_recursive_get_children(
+        self,
+        folder: "Folder",
+        recursive: bool = False,
+        path: Optional[str] = None,
+        download_file: bool = False,
+        if_collision: str = COLLISION_OVERWRITE_LOCAL,
+        failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """
+        Wrap the recursive get children method to return nothing. We are updating
+        the folder object in place. We do not want to cause the result of this
+        method to cause any folder of file objects to be added to this level of the
+        hierarchy.
+        """
+        new_resolved_path = (
+            os.path.join(path, folder.name) if path and folder.name else None
+        )
+        if new_resolved_path and not os.path.exists(new_resolved_path):
+            os.makedirs(new_resolved_path)
+        await folder.sync_from_synapse(
+            recursive=recursive,
+            download_file=download_file,
+            path=new_resolved_path,
+            if_collision=if_collision,
+            failure_strategy=failure_strategy,
+            synapse_client=synapse_client,
+        )
+
     def _create_task_for_child(
         self,
         child,
         recursive: bool = False,
         path: Optional[str] = None,
-        download_file=False,
-        if_collision: str = "overwrite.local",
+        download_file: bool = False,
+        if_collision: str = COLLISION_OVERWRITE_LOCAL,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
         synapse_client: Optional[Synapse] = None,
     ) -> List[asyncio.Task]:
@@ -223,36 +256,6 @@ class StorableContainer:
 
         """
 
-        async def wrap_recursive_get_children(
-            folder: "Folder",
-            recursive: bool = False,
-            path: Optional[str] = None,
-            download_file=False,
-            if_collision: str = "overwrite.local",
-            failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
-            synapse_client: Optional[Synapse] = None,
-        ) -> None:
-            """
-            Wrap the recursive get children method to return nothing. We are updating
-            the folder object in place. We do not want to cause the result of this
-            method to cause any folder of file objects to be added to this level of the
-            hierarchy.
-            """
-            new_resolved_path = (
-                os.path.join(path, folder.name) if path and folder.name else None
-            )
-            if new_resolved_path and not os.path.exists(new_resolved_path):
-                os.makedirs(new_resolved_path)
-            await folder.sync_from_synapse(
-                recursive=recursive,
-                download_file=download_file,
-                path=new_resolved_path,
-                if_collision=if_collision,
-                failure_strategy=failure_strategy,
-                synapse_client=synapse_client,
-            )
-            return
-
         pending_tasks = []
         synapse_id = child.get("id", None)
         child_type = child.get("type", None)
@@ -267,7 +270,7 @@ class StorableContainer:
             if recursive:
                 pending_tasks.append(
                     asyncio.create_task(
-                        wrap_recursive_get_children(
+                        self._wrap_recursive_get_children(
                             folder=folder,
                             recursive=recursive,
                             path=path,
@@ -293,7 +296,10 @@ class StorableContainer:
         return pending_tasks
 
     def _resolve_sync_from_synapse_result(
-        self, result, failure_strategy: FailureStrategy, synapse_client: Synapse
+        self,
+        result: Union[None, "Folder", "File", BaseException],
+        failure_strategy: FailureStrategy,
+        synapse_client: Synapse,
     ) -> None:
         """
         Handle what to do based on what was returned from the latest task to complete.
@@ -308,7 +314,7 @@ class StorableContainer:
                 the `.login()` method.
         """
         if result is None:
-            # We will recieve None when executing `wrap_recursive_get_children` as
+            # We will recieve None when executing `_wrap_recursive_get_children` as
             # it will internally be recursively calling this method and setting the
             # appropriate folder/file objects in place.
             pass

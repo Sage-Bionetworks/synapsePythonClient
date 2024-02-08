@@ -1,8 +1,6 @@
-"""Integration tests for the synapseclient.models.File class."""
+"""Integration tests for the synapseclient.models.Folder class."""
 
 import os
-import asyncio
-from unittest.mock import patch
 import uuid
 
 from typing import Callable
@@ -16,9 +14,6 @@ from synapseclient.models import (
     Project,
     Folder,
     File,
-    Activity,
-    UsedURL,
-    UsedEntity,
 )
 
 
@@ -106,7 +101,7 @@ class TestFolderStore:
 
     @pytest.mark.asyncio
     async def test_store_folder_with_multiple_files(
-        self, project_model: Project, file: File, folder: Folder
+        self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN multiple files in a folder
         files = []
@@ -142,7 +137,7 @@ class TestFolderStore:
 
     @pytest.mark.asyncio
     async def test_store_folder_with_multiple_files_and_folders(
-        self, project_model: Project, file: File, folder: Folder
+        self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN multiple files in a folder
         files = []
