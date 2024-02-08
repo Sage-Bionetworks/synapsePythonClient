@@ -77,11 +77,11 @@ def upload_file_handle(
             syn, path, mimetype=mimetype, md5=md5, file_size=file_size
         )
 
-    if md5 is None:
-        md5 = utils.md5_for_file(path).hexdigest()
-
     # expand the path because past this point an upload is required and some upload functions require an absolute path
     expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
+
+    if md5 is None and os.path.isfile(expanded_upload_path):
+        md5 = utils.md5_for_file(expanded_upload_path).hexdigest()
 
     entity_parent_id = id_of(parent_entity)
 
