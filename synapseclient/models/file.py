@@ -445,7 +445,18 @@ class File(AccessControllable):
         parent: Optional[Union["Folder", "Project"]] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
-        """Store the file in Synapse.
+        """
+        Store the file in Synapse. With this method you may:
+
+        - Upload a file into Synapse
+        - Update the metadata of a file in Synapse
+        - Store a File object in Synapse without updating a file by setting
+            `synapse_store` to False.
+        - Change the name of a file in Synapse by setting the `name` attribute of the
+            File object. Also see the [synapseclient.models.File.change_metadata][]
+            method for changing the name of the downloaded file.
+        - Moving a file to a new parent by setting the `parent_id` attribute of the
+            File object.
 
         Arguments:
             parent: The parent folder or project to store the file in. May also be
