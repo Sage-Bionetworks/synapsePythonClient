@@ -322,9 +322,9 @@ class Cache:
             # None if there are no unmodified files
             for cached_file_path, cache_map_entry in sorted(
                 cache_map.items(),
-                key=lambda item: item[1]["modified_time"]
-                if isinstance(item[1], dict)
-                else item[1],
+                key=lambda item: (
+                    item[1]["modified_time"] if isinstance(item[1], dict) else item[1]
+                ),
                 reverse=True,
             ):
                 if self._cache_item_unmodified(cache_map_entry, cached_file_path):
@@ -335,7 +335,10 @@ class Cache:
             return None
 
     def add(
-        self, file_handle_id: typing.Union[collections.abc.Mapping, str], path: str
+        self,
+        file_handle_id: typing.Union[collections.abc.Mapping, str],
+        path: str,
+        md5: str = None,
     ) -> dict:
         """
         Add a file to the cache
@@ -353,7 +356,7 @@ class Cache:
                 "modified_time": epoch_time_to_iso(
                     math.floor(_get_modified_time(path))
                 ),
-                "content_md5": utils.md5_for_file(path).hexdigest(),
+                "content_md5": md5 or utils.md5_for_file(path).hexdigest(),
             }
             self._write_cache_map(cache_dir, cache_map)
 

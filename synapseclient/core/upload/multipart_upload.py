@@ -445,6 +445,7 @@ def multipart_upload_file(
     preview: bool = True,
     force_restart: bool = False,
     max_threads: int = None,
+    md5: str = None,
 ) -> str:
     """Upload a file to a Synapse upload destination in chunks.
 
@@ -461,6 +462,7 @@ def multipart_upload_file(
                        from scratch, False to try to resume
         max_threads: number of concurrent threads to devote
                      to upload
+        md5: The MD5 of the file. If not provided, it will be calculated.
 
     Returns:
         a File Handle ID
@@ -471,9 +473,9 @@ def multipart_upload_file(
     """
     trace.get_current_span().set_attributes(
         {
-            "synapse.storage_location_id": storage_location_id
-            if storage_location_id is not None
-            else ""
+            "synapse.storage_location_id": (
+                storage_location_id if storage_location_id is not None else ""
+            )
         }
     )
 
@@ -491,7 +493,7 @@ def multipart_upload_file(
         content_type = mime_type or "application/octet-stream"
 
     callback_func = Spinner().print_tick if not syn.silent else None
-    md5_hex = md5_for_file(file_path, callback=callback_func).hexdigest()
+    md5_hex = md5 or md5_for_file(file_path, callback=callback_func).hexdigest()
 
     part_size = _get_part_size(part_size, file_size)
 

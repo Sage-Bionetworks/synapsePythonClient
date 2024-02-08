@@ -189,6 +189,78 @@ def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
     syn.get(entity["id"])
 
 
+@tracer.start_as_current_span(
+    "integration_test::test_upload_file_with_force_version_false"
+)
+def test_upload_file_with_force_version_false(
+    syn: Synapse, project: Project, schedule_for_cleanup
+) -> None:
+    # GIVEN A bogus file to upload to synapse
+    path = utils.make_bogus_uuid_file()
+    schedule_for_cleanup(path)
+    entity = File(
+        name="fooUploadFileEntity" + str(uuid.uuid4()),
+        path=path,
+        parentId=project["id"],
+        description="A test file entity",
+    )
+
+    # AND I store the file in Synapse
+    entity = syn.store(entity)
+    assert entity["versionNumber"] == 1
+
+    # AND I remove the file from the local cache map
+    syn.cache.remove(entity["dataFileHandleId"])
+
+    with patch("synapseclient.client.upload_file_handle") as mocked_file_handle_upload:
+        # WHEN I store the file again with forceVersion=False
+        entity = syn.store(entity, forceVersion=False)
+
+    # THEN I expect the version to remain the same
+    assert entity["versionNumber"] == 1
+
+    # AND I expect the file to not be uploaded again
+    assert not mocked_file_handle_upload.called
+
+
+@tracer.start_as_current_span(
+    "integration_test::test_upload_file_changed_with_force_version_false"
+)
+def test_upload_file_changed_with_force_version_false(
+    syn: Synapse, project: Project, schedule_for_cleanup
+) -> None:
+    # GIVEN A bogus file to upload to synapse
+    path = utils.make_bogus_uuid_file()
+    schedule_for_cleanup(path)
+    entity = File(
+        name="fooUploadFileEntity" + str(uuid.uuid4()),
+        path=path,
+        parentId=project["id"],
+        description="A test file entity",
+    )
+
+    # AND I store the file in Synapse
+    entity = syn.store(entity)
+    assert entity["versionNumber"] == 1
+    before_file_handle_id = entity["dataFileHandleId"]
+
+    # AND I remove the file from the local cache map
+    syn.cache.remove(entity["dataFileHandleId"])
+
+    # AND I update the content of the file
+    with open(entity.path, "w") as f:
+        f.write("I changed the content of the file")
+
+    # WHEN I store the file again with forceVersion=False
+    entity = syn.store(entity, forceVersion=False)
+
+    # THEN I expect the version to have been updated
+    assert entity["versionNumber"] == 2
+
+    # AND I expect the filehandle to have been updated
+    assert before_file_handle_id != entity["dataFileHandleId"]
+
+
 @tracer.start_as_current_span("integration_test::test_uploadFileEntity")
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_uploadFileEntity(syn, project, schedule_for_cleanup):
@@ -197,7 +269,7 @@ def test_uploadFileEntity(syn, project, schedule_for_cleanup):
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
     entity = File(
-        name="fooUploadFileEntity",
+        name="fooUploadFileEntity" + str(uuid.uuid4()),
         path=fname,
         parentId=project["id"],
         description="A test file entity",

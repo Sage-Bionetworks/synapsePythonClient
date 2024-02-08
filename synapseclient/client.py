@@ -1593,6 +1593,7 @@ class Synapse(object):
         # Anything with a path is treated as a cache-able item
         # Only Files are expected in the following logic
         if entity.get("path", False) and not isinstance(obj, Folder):
+            local_file_md5_hex = None
             if "concreteType" not in properties:
                 properties["concreteType"] = File._synapse_entity_type
             # Make sure the path is fully resolved
@@ -1628,6 +1629,18 @@ class Synapse(object):
                     ] or not self.cache.contains(
                         bundle["entity"]["dataFileHandleId"], entity["path"]
                     )
+
+                    # Check if we got an MD5 checksum from Synapse and compare it to the local file
+                    if needs_upload and (
+                        md5_stored_in_synapse := local_state.get(
+                            "_file_handle", {}
+                        ).get("contentMd5", None)
+                    ):
+                        local_file_md5_hex = utils.md5_for_file(
+                            entity["path"]
+                        ).hexdigest()
+                        if md5_stored_in_synapse == local_file_md5_hex:
+                            needs_upload = False
             elif entity.get("dataFileHandleId", None) is not None:
                 needs_upload = False
             else:
@@ -1657,7 +1670,7 @@ class Synapse(object):
                     if (synapseStore or local_state_fh.get("externalURL") is None)
                     else local_state_fh.get("externalURL"),
                     synapseStore=synapseStore,
-                    md5=local_state_fh.get("contentMd5"),
+                    md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
                     file_size=local_state_fh.get("contentSize"),
                     mimetype=local_state_fh.get("contentType"),
                     max_threads=self.max_threads,
@@ -3365,6 +3378,7 @@ class Synapse(object):
         file_path: str,
         storage_location_id: int,
         mimetype: str = None,
+        md5: str = None,
     ) -> Dict[str, Union[str, int]]:
         """
         Create a new FileHandle representing an external object.
@@ -3374,17 +3388,18 @@ class Synapse(object):
             file_path:           The local path of the uploaded file
             storage_location_id: The optional storage location descriptor
             mimetype:            The Mimetype of the file, if known.
+            md5:                 The file's content MD5, if known.
 
         Returns:
             A FileHandle for objects that are stored externally.
         """
         if mimetype is None:
-            mimetype, enc = mimetypes.guess_type(file_path, strict=False)
+            mimetype, _ = mimetypes.guess_type(file_path, strict=False)
         file_handle = {
             "concreteType": concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE,
             "fileKey": s3_file_key,
             "fileName": os.path.basename(file_path),
-            "contentMd5": utils.md5_for_file(file_path).hexdigest(),
+            "contentMd5": md5 or utils.md5_for_file(file_path).hexdigest(),
             "contentSize": os.stat(file_path).st_size,
             "storageLocationId": storage_location_id,
             "contentType": mimetype,
@@ -3404,6 +3419,7 @@ class Synapse(object):
         parent=None,
         storage_location_id=None,
         mimetype=None,
+        md5: str = None,
     ):
         """
         Create an external S3 file handle for e.g. a file that has been uploaded directly to
@@ -3419,6 +3435,7 @@ class Synapse(object):
             storage_location_id: Explicit storage location id to create the file handle in, mutually exclusive
                     with parent
             mimetype: Mimetype of the file, if known
+            md5: MD5 of the file, if known
 
         Raises:
             ValueError: If neither parent nor storage_location_id is specified, or if both are specified.
@@ -3434,14 +3451,14 @@ class Synapse(object):
             storage_location_id = upload_destination["storageLocationId"]
 
         if mimetype is None:
-            mimetype, enc = mimetypes.guess_type(file_path, strict=False)
+            mimetype, _ = mimetypes.guess_type(file_path, strict=False)
 
         file_handle = {
             "concreteType": concrete_types.S3_FILE_HANDLE,
             "key": s3_file_key,
             "bucketName": bucket_name,
             "fileName": os.path.basename(file_path),
-            "contentMd5": utils.md5_for_file(file_path).hexdigest(),
+            "contentMd5": md5 or utils.md5_for_file(file_path).hexdigest(),
             "contentSize": os.stat(file_path).st_size,
             "storageLocationId": storage_location_id,
             "contentType": mimetype,
