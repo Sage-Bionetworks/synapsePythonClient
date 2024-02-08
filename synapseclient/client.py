@@ -1632,7 +1632,8 @@ class Synapse(object):
 
                     # Check if we got an MD5 checksum from Synapse and compare it to the local file
                     if (
-                        os.path.isfile(entity["path"])
+                        (entity["synapseStore"] or local_state.get("synapseStore"))
+                        and os.path.isfile(entity["path"])
                         and needs_upload
                         and (
                             md5_stored_in_synapse := local_state.get(
