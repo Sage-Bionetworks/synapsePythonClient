@@ -12,6 +12,7 @@ The following actions are shown in this script:
 7. Deleting a folder
 8. Copying a folder
 9. Moving a folder
+10. Using sync_from_synapse to download the files and folders
 """
 
 import asyncio
@@ -180,6 +181,13 @@ async def store_folder():
     print(
         f"Moved folder from {current_parent_id} to {folder_i_am_going_to_move.parent_id}"
     )
+
+    # 10) Using sync_from_synapse to download the files and folders ======================
+    # This will download all the files and folders in the folder to the local file system
+    path_to_download = os.path.expanduser("~/temp/recursiveDownload")
+    if not os.path.exists(path_to_download):
+        os.mkdir(path_to_download)
+    await root_folder_for_my_project.sync_from_synapse(path=path_to_download)
 
 
 asyncio.run(store_folder())
