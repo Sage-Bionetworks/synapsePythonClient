@@ -607,7 +607,10 @@ class TestFolderSyncFromSynapse:
         for file in copied_folder.files:
             assert os.path.exists(file.path)
             assert os.path.isfile(file.path)
-            assert utils.md5_for_file(file.path).hexdigest() == file.md5
+            assert (
+                utils.md5_for_file(file.path).hexdigest()
+                == file.file_handle.content_md5
+            )
 
         # AND I expect the Folders to be stored on Synapse
         for sub_folder in stored_folder.folders:
@@ -618,4 +621,7 @@ class TestFolderSyncFromSynapse:
             for sub_file in sub_folder.files:
                 assert os.path.exists(sub_file.path)
                 assert os.path.isfile(sub_file.path)
-                assert utils.md5_for_file(sub_file.path).hexdigest() == sub_file.md5
+                assert (
+                    utils.md5_for_file(sub_file.path).hexdigest()
+                    == sub_file.file_handle.content_md5
+                )

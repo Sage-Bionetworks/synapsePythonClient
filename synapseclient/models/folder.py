@@ -1,6 +1,5 @@
 import asyncio
-from dataclasses import dataclass, field
-import dataclasses
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from typing import Dict, List, Union
 from typing import Optional, TYPE_CHECKING
@@ -124,7 +123,7 @@ class Folder(AccessControllable, StorableContainer):
         """Stash the last time this object interacted with Synapse. This is used to
         determine if the object has been changed and needs to be updated in Synapse."""
         del self._last_persistent_instance
-        self._last_persistent_instance = dataclasses.replace(self)
+        self._last_persistent_instance = replace(self)
 
     def fill_from_dict(
         self, synapse_folder: Synapse_Folder, set_annotations: bool = True

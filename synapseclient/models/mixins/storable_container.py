@@ -1,5 +1,4 @@
 import asyncio
-from dataclasses import dataclass, field
 import os
 from typing import List, Optional, TYPE_CHECKING
 from opentelemetry import trace, context
@@ -17,12 +16,11 @@ from synapseclient.models.services.storable_entity_components import (
 )
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder
+    from synapseclient.models import Folder
 
 tracer = trace.get_tracer("synapseclient")
 
 
-@dataclass()
 class StorableContainer:
     """
     Mixin for objects that can have Folders and Files stored in them.
@@ -32,17 +30,20 @@ class StorableContainer:
     - `id`
     - `files`
     - `folders`
+    - `_last_persistent_instance`
+
+    The class must have the following method:
+
+    - `get`
     """
 
-    id: Optional[str] = None
-    """The unique immutable ID for this entity. A new ID will be generated for new Files.
-    Once issued, this ID is guaranteed to never change or be re-issued."""
+    id: None = None
+    files: None = None
+    folders: None = None
+    _last_persistent_instance: None = None
 
-    files: Optional[List["File"]] = field(default_factory=list, compare=False)
-    """Files that exist within this container."""
-
-    folders: Optional[List["Folder"]] = field(default_factory=list, compare=False)
-    """Folders that exist within this container."""
+    async def get(self) -> None:
+        """Used to satisfy the usage in this mixin from the parent class."""
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Container_sync_from_synapse: {self.id}"
@@ -89,12 +90,62 @@ class StorableContainer:
             The object that was called on. This will be the same object that was called on
                 to start the sync.
 
+        Example: Using this function
+            Suppose I want to walk the immediate children of a folder without downloading the files:
+
+                from synapseclient import Synapse
+                from synapseclient.models import Folder
+
+                syn = Synapse()
+                syn.login()
+
+                my_folder = Folder(id="syn12345")
+                await my_folder.sync_from_synapse(download_file=False, recursive=False)
+
+                for folder in my_folder.folders:
+                    print(folder.name)
+
+                for file in my_folder.files:
+                    print(file.name)
+
+            Suppose I want to download the immediate children of a folder:
+
+                from synapseclient import Synapse
+                from synapseclient.models import Folder
+
+                syn = Synapse()
+                syn.login()
+
+                my_folder = Folder(id="syn12345")
+                await my_folder.sync_from_synapse(path="/path/to/folder", recursive=False)
+
+                for folder in my_folder.folders:
+                    print(folder.name)
+
+                for file in my_folder.files:
+                    print(file.name)
+
+
+            Suppose I want to download the immediate all children of a Project and all sub-folders and files:
+
+                from synapseclient import Synapse
+                from synapseclient.models import Project
+
+                syn = Synapse()
+                syn.login()
+
+                my_project = Project(id="syn12345")
+                await my_project.sync_from_synapse(path="/path/to/folder")
+
+
         Raises:
             ValueError: If the folder does not have an id set.
         """
         if not self.id:
             raise ValueError("The folder must have an id set.")
-        Synapse.get_client(synapse_client=synapse_client).logger.info(
+        if not self._last_persistent_instance:
+            await self.get()
+        Synapse.get_client(synapse_client=synapse_client).logger.debug(
             f"Syncing {self.__class__.__name__} ({self.id}) from Synapse."
         )
 

@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from typing import List, Dict, Union
 
@@ -152,6 +152,18 @@ class Project(AccessControllable, StorableContainer):
     (use empty list to represent no values for key) and the value type associated with
     all values in the list. To remove all annotations set this to an empty dict `{}`."""
 
+    _last_persistent_instance: Optional["Project"] = field(
+        default=None, repr=False, compare=False
+    )
+    """The last persistent instance of this object. This is used to determine if the
+    object has been changed and needs to be updated in Synapse."""
+
+    def _set_last_persistent_instance(self) -> None:
+        """Stash the last time this object interacted with Synapse. This is used to
+        determine if the object has been changed and needs to be updated in Synapse."""
+        del self._last_persistent_instance
+        self._last_persistent_instance = replace(self)
+
     def fill_from_dict(
         self,
         synapse_project: Union[Synapse_Project, Dict],
@@ -221,6 +233,7 @@ class Project(AccessControllable, StorableContainer):
             synapse_client=synapse_client,
         )
 
+        self._set_last_persistent_instance()
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
             f"Saved Project {self.name}"
         )
@@ -296,6 +309,7 @@ class Project(AccessControllable, StorableContainer):
             self.files.extend(files)
             self.folders.extend(folders)
 
+        self._set_last_persistent_instance()
         return self
 
     @otel_trace_method(
