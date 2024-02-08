@@ -71,14 +71,14 @@ def upload_file_handle(
     if path is None:
         raise ValueError("path can not be None")
 
-    if md5 is None:
-        md5 = utils.md5_for_file(path).hexdigest()
-
     # if doing a external file handle with no actual upload
     if not synapseStore:
         return create_external_file_handle(
             syn, path, mimetype=mimetype, md5=md5, file_size=file_size
         )
+
+    if md5 is None:
+        md5 = utils.md5_for_file(path).hexdigest()
 
     # expand the path because past this point an upload is required and some upload functions require an absolute path
     expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
