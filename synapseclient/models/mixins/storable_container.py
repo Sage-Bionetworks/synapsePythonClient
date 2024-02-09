@@ -154,7 +154,7 @@ class StorableContainer:
             activate project_or_folder
             project_or_folder->>sync_from_synapse: Recursive search and download files
             activate sync_from_synapse
-                alt Current instance not retrieved from Synapse
+                opt Current instance not retrieved from Synapse
                     sync_from_synapse->>project_or_folder: Call `.get()` method
                     project_or_folder-->>sync_from_synapse: .
                 end
