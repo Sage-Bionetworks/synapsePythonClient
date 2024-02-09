@@ -69,7 +69,6 @@ def walk(
     sequenceDiagram
         autonumber
         participant walk
-        activate walk
 
         opt Not start_entity
             walk->>client: Call `.get()` method
