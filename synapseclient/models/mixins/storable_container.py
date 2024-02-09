@@ -160,9 +160,13 @@ class StorableContainer:
                 end
 
                 loop For each return of the generator
-                    note over sync_from_synapse: Create all `pending_tasks` at current depth
-                    sync_from_synapse->>client: `.getChildren()` method
+                    sync_from_synapse->>client: call `.getChildren()` method
                     client-->>sync_from_synapse: .
+                    note over sync_from_synapse: Append to a running list
+                end
+
+                loop For each child
+                    note over sync_from_synapse: Create all `pending_tasks` at current depth
 
                     alt Child is File
                         note over sync_from_synapse: Append `file.get()` method
