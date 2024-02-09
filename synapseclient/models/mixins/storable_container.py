@@ -143,6 +143,58 @@ class StorableContainer:
 
         Raises:
             ValueError: If the folder does not have an id set.
+
+
+        A sequence diagram for this method is as follows:
+
+        ```mermaid
+        sequenceDiagram
+            autonumber
+            participant project_or_folder
+            activate project_or_folder
+            project_or_folder->>sync_from_synapse: Recursive search and download files
+            activate sync_from_synapse
+                alt Current instance not retrieved from Synapse
+                    sync_from_synapse->>project_or_folder: Call `.get()` method
+                    project_or_folder-->>sync_from_synapse: .
+                end
+
+                loop For each return of the generator
+                    note over sync_from_synapse: Create all `pending_tasks` at current depth
+                    sync_from_synapse->>client: `.getChildren()` method
+                    client-->>sync_from_synapse: .
+
+                    alt Child is File
+                        note over sync_from_synapse: Append `file.get()` method
+                    else Child is Folder
+                        note over sync_from_synapse: Append `folder.get()` method
+                        alt Recursive is True
+                            note over sync_from_synapse: Append `folder.sync_from_synapse()` method
+                        end
+                    end
+                end
+
+                loop For each task in pending_tasks
+                    alt `file.get()`
+                        sync_from_synapse->>File: Retrieve File metadata and Optionally download
+                        File->>client: `.get()`
+                        client-->>File: .
+                        File-->>sync_from_synapse: .
+                    else `folder.get()`
+                        sync_from_synapse->>Folder: Retrieve Folder metadataa
+                        Folder->>client: `.get()`
+                        client-->>Folder: .
+                        Folder-->>sync_from_synapse: .
+                    else `folder.sync_from_synapse()`
+                        note over sync_from_synapse: This is a recursive call to `sync_from_synapse`
+                        sync_from_synapse->>sync_from_synapse: Recursive call to `.sync_from_synapse()`
+                    end
+                end
+
+            deactivate sync_from_synapse
+            deactivate project_or_folder
+        ```
+
         """
         if not self.id:
             raise ValueError("The folder must have an id set.")

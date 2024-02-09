@@ -158,6 +158,10 @@ the client.
       - from_username
       - is_certified
 ::: synapseclient.models.UserPreference
+---
 ::: synapseclient.models.mixins.AccessControllable
+---
+
+::: synapseclient.models.mixins.StorableContainer
 ---
 ::: synapseclient.models.FailureStrategy
