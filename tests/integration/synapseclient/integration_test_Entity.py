@@ -515,6 +515,12 @@ def test_ExternalFileHandle(syn: Synapse, project: Project):
         == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
     )
     assert fileHandle["externalURL"] == singapore_url
+    file_handle = singapore["_file_handle"]
+    assert file_handle["contentMd5"] is None
+    assert (
+        file_handle["concreteType"]
+        == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+    )
 
     # The download should occur only on the client side
     singapore = syn.get(singapore, downloadFile=True)
@@ -551,6 +557,12 @@ def test_synapseStore_flag(syn: Synapse, project: Project, schedule_for_cleanup)
     assert bogus.name == file_name
     assert bogus.path == path, "Path: %s\nExpected: %s" % (bogus.path, path)
     assert not bogus.synapseStore
+    file_handle = bogus["_file_handle"]
+    assert file_handle["contentMd5"] is not None
+    assert (
+        file_handle["concreteType"]
+        == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+    )
 
     # Make sure the test runs on Windows and other OS's
     if path[0].isalpha() and path[1] == ":":
@@ -570,6 +582,13 @@ def test_synapseStore_flag(syn: Synapse, project: Project, schedule_for_cleanup)
     pytest.raises(IOError, syn.get, bogus)
     assert not bogus.synapseStore
 
+    file_handle = bogus["_file_handle"]
+    assert file_handle["contentMd5"] is None
+    assert (
+        file_handle["concreteType"]
+        == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+    )
+
     # Try a URL
     bogus = File(
         "http://dev-versions.synapse.sagebase.org/synapsePythonClient",
@@ -579,6 +598,13 @@ def test_synapseStore_flag(syn: Synapse, project: Project, schedule_for_cleanup)
     bogus = syn.store(bogus)
     bogus = syn.get(bogus)
     assert not bogus.synapseStore
+
+    file_handle = bogus["_file_handle"]
+    assert file_handle["contentMd5"] is None
+    assert (
+        file_handle["concreteType"]
+        == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+    )
 
 
 @tracer.start_as_current_span("integration_test_Entity::test_create_or_update_project")

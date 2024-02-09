@@ -1034,7 +1034,9 @@ class TestSyncUploader:
 
             # it would be aborted with Futures
             mock_abort.assert_called_once()
-            isinstance(mock_abort.call_args_list[0][0], Future)
+            assert isinstance(mock_abort.call_args_list[0][0], Future) or isinstance(
+                mock_abort.call_args_list[0][0][0][0], Future
+            )
 
     @patch("os.path.isfile")
     def test_upload(self, mock_os_isfile, syn):

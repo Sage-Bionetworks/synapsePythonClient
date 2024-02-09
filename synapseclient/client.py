@@ -1620,35 +1620,35 @@ class Synapse(object):
                         fileHandle["externalURL"] != entity["externalURL"]
                     )
                 else:
+                    synapse_store_flag = entity["synapseStore"] or local_state.get(
+                        "synapseStore"
+                    )
                     # Check if we need to upload a new version of an existing
                     # file. If the file referred to by entity['path'] has been
                     # modified, we want to upload the new version.
                     # If synapeStore is false then we must upload a ExternalFileHandle
-                    needs_upload = not entity[
-                        "synapseStore"
-                    ] or not self.cache.contains(
+                    needs_upload = not synapse_store_flag or not self.cache.contains(
                         bundle["entity"]["dataFileHandleId"], entity["path"]
                     )
 
+                    md5_stored_in_synapse = local_state.get("_file_handle", {}).get(
+                        "contentMd5", None
+                    ) or (fileHandle or {}).get("contentMd5", None)
+
                     # Check if we got an MD5 checksum from Synapse and compare it to the local file
                     if (
-                        (entity["synapseStore"] or local_state.get("synapseStore"))
-                        and os.path.isfile(entity["path"])
+                        synapse_store_flag
                         and needs_upload
-                        and (
-                            md5_stored_in_synapse := (
-                                local_state.get("_file_handle", {}).get(
-                                    "contentMd5", None
-                                )
-                                or (fileHandle or {}).get("contentMd5", None)
-                            )
+                        and os.path.isfile(entity["path"])
+                        and md5_stored_in_synapse
+                        and md5_stored_in_synapse
+                        == (
+                            local_file_md5_hex := utils.md5_for_file(
+                                entity["path"]
+                            ).hexdigest()
                         )
                     ):
-                        local_file_md5_hex = utils.md5_for_file(
-                            entity["path"]
-                        ).hexdigest()
-                        if md5_stored_in_synapse == local_file_md5_hex:
-                            needs_upload = False
+                        needs_upload = False
             elif entity.get("dataFileHandleId", None) is not None:
                 needs_upload = False
             else:
