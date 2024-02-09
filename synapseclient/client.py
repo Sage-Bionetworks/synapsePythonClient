@@ -2308,7 +2308,6 @@ class Synapse(object):
     #                         Querying                         #
     ############################################################
 
-    @tracer.start_as_current_span("Synapse::getChildren")
     def getChildren(
         self,
         parent,

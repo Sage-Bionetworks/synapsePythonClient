@@ -49,7 +49,7 @@ class StorableContainer:
         """Used to satisfy the usage in this mixin from the parent class."""
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Container_sync_from_synapse: {self.id}"
+        method_to_trace_name=lambda self, **kwargs: f"{self.__class__.__name__}_sync_from_synapse: {self.id}"
     )
     async def sync_from_synapse(
         self,
@@ -265,7 +265,6 @@ class StorableContainer:
             from synapseclient.models import Folder
 
             folder = Folder(id=synapse_id, name=name)
-            pending_tasks.append(asyncio.create_task(wrap_coroutine(folder.get())))
 
             if recursive:
                 pending_tasks.append(
@@ -281,6 +280,8 @@ class StorableContainer:
                         )
                     )
                 )
+            else:
+                pending_tasks.append(asyncio.create_task(wrap_coroutine(folder.get())))
 
         elif synapse_id and child_type == FILE_ENTITY:
             # Lazy import to avoid circular import
