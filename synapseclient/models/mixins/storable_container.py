@@ -206,19 +206,19 @@ class StorableContainer:
 
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
-        children_objects = await loop.run_in_executor(
+        children = await loop.run_in_executor(
             None,
             lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).getChildren(
-                    parent=self.id,
-                    includeTypes=["folder", "file"],
+                lambda: self._retrieve_children(
+                    synapse_client=synapse_client,
                 ),
                 current_context,
             ),
         )
 
         pending_tasks = []
-        for child in children_objects:
+
+        for child in children:
             pending_tasks.extend(
                 self._create_task_for_child(
                     child=child,
@@ -241,6 +241,22 @@ class StorableContainer:
                 synapse_client=synapse_client,
             )
         return self
+
+    def _retrieve_children(
+        self,
+        synapse_client: Optional[Synapse] = None,
+    ) -> List:
+        """This wraps the `getChildren` generator to return back a list of children."""
+        children_objects = Synapse.get_client(
+            synapse_client=synapse_client
+        ).getChildren(
+            parent=self.id,
+            includeTypes=["folder", "file"],
+        )
+        children = []
+        for child in children_objects:
+            children.append(child)
+        return children
 
     async def _wrap_recursive_get_children(
         self,
