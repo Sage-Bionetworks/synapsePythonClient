@@ -175,17 +175,17 @@ class StorableContainer:
                 end
 
                 loop For each task in pending_tasks
-                    alt `file.get()`
+                    par `file.get()`
                         sync_from_synapse->>File: Retrieve File metadata and Optionally download
                         File->>client: `.get()`
                         client-->>File: .
                         File-->>sync_from_synapse: .
-                    else `folder.get()`
+                    and `folder.get()`
                         sync_from_synapse->>Folder: Retrieve Folder metadataa
                         Folder->>client: `.get()`
                         client-->>Folder: .
                         Folder-->>sync_from_synapse: .
-                    else `folder.sync_from_synapse()`
+                    and `folder.sync_from_synapse()`
                         note over sync_from_synapse: This is a recursive call to `sync_from_synapse`
                         sync_from_synapse->>sync_from_synapse: Recursive call to `.sync_from_synapse()`
                     end
