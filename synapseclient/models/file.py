@@ -486,16 +486,13 @@ class File(AccessControllable):
 
                 file_instance = await File(id="syn123", download_file=False).get()
                 print(file_instance.name)  ## prints, e.g., "my_file.txt"
-                file_instance.name = "my_new_name_file.txt"
-                await file_instance.store()
+                await file_instance.change_metadata(name="my_new_name_file.txt")
 
             Rename a file, and the name of the file as downloaded (Does not update the file on disk):
 
                 file_instance = await File(id="syn123", download_file=False).get()
                 print(file_instance.name)  ## prints, e.g., "my_file.txt"
-                file_instance.name = "my_new_name_file.txt"
-                await file_instance.store()
-                await file_instance.change_metadata(download_as="my_new_name_file.txt")
+                await file_instance.change_metadata(name="my_new_name_file.txt", download_as="my_new_name_file.txt")
 
         """
         if not (
@@ -590,7 +587,7 @@ class File(AccessControllable):
 
             file_entity = await File(id="syn123").get()
             print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
-            file_entity = file_entity.change_metadata(name = "my_new_name_file.txt", download_as="my_new_downloadAs_name_file.txt", content_type="text/plain")
+            file_entity = file_entity.change_metadata(name="my_new_name_file.txt", download_as="my_new_downloadAs_name_file.txt", content_type="text/plain")
 
         Raises:
             ValueError: If the file does not have an ID to change metadata.
