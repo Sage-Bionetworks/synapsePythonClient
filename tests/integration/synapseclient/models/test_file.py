@@ -642,6 +642,27 @@ class TestChangeMetadata:
         return file
 
     @pytest.mark.asyncio
+    async def test_change_name(self, file: File) -> None:
+        # GIVEN a file stored in synapse
+        assert file.id is not None
+        assert file.name is not None
+        assert file.content_type == "text/plain"
+        current_download_as = file.file_handle.file_name
+
+        # WHEN I change the files metadata
+        new_filename = f"my_new_file_name_{str(uuid.uuid4())}.txt"
+        await file.change_metadata(name=new_filename)
+
+        # THEN I expect only the file name to have been updated
+        assert file.file_handle.file_name == current_download_as
+        assert file.name == new_filename
+        assert file.content_type == "text/plain"
+        file_copy = await File(id=file.id, download_file=False).get()
+        assert file_copy.file_handle.file_name == current_download_as
+        assert file_copy.name == new_filename
+        assert file_copy.content_type == "text/plain"
+
+    @pytest.mark.asyncio
     async def test_change_content_type_and_download(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
@@ -671,13 +692,11 @@ class TestChangeMetadata:
 
         # WHEN I change the files metadata
         new_filename = f"my_new_file_name_{str(uuid.uuid4())}.txt"
-        await file.change_metadata(download_as=new_filename, content_type="text/json")
+        await file.change_metadata(
+            name=new_filename, download_as=new_filename, content_type="text/json"
+        )
 
-        # AND I change the name of the file entity
-        file.name = new_filename
-        await file.store()
-
-        # THEN I expect the file download name and entity name to have been updated
+        # THEN I expect the file download name, entity name, and content type to have been updated
         assert file.file_handle.file_name == new_filename
         assert file.name == new_filename
         assert file.content_type == "text/json"

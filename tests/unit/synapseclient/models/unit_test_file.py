@@ -479,13 +479,16 @@ class TestFile:
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_change_meta_data:
             result = await file.change_metadata(
-                download_as="modified_file.txt", content_type="text/plain"
+                name="modified_file.txt",
+                download_as="modified_file.txt",
+                content_type="text/plain",
             )
 
             # THEN we should call the method with this data
             mocked_change_meta_data.assert_called_once_with(
                 syn=self.syn,
                 entity="syn123",
+                name="modified_file.txt",
                 downloadAs="modified_file.txt",
                 contentType="text/plain",
                 forceVersion=True,

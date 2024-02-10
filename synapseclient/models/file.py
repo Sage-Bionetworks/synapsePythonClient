@@ -567,6 +567,7 @@ class File(AccessControllable):
     )
     async def change_metadata(
         self,
+        name: Optional[str] = None,
         download_as: Optional[str] = None,
         content_type: Optional[str] = None,
         synapse_client: Optional[Synapse] = None,
@@ -576,6 +577,7 @@ class File(AccessControllable):
         through the store method.
 
         Arguments:
+            name: Specify filename to change the filename of a file.
             download_as: Specify filename to change the filename of a filehandle.
             content_type: Specify content type to change the content type of a filehandle.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
@@ -584,11 +586,11 @@ class File(AccessControllable):
             The file object.
 
         Example: Using this function
-            Can be used to change the filename or the file content-type without downloading:
+            Can be used to change the filename, the filename when the file is downloaded, or the file content-type without downloading:
 
             file_entity = await File(id="syn123").get()
             print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
-            file_entity = file_entity.change_metadata(download_as="my_new_name_file.txt", content_type="text/plain")
+            file_entity = file_entity.change_metadata(name = "my_new_name_file.txt", download_as="my_new_downloadAs_name_file.txt", content_type="text/plain")
 
         Raises:
             ValueError: If the file does not have an ID to change metadata.
@@ -606,6 +608,7 @@ class File(AccessControllable):
                 lambda: changeFileMetaData(
                     syn=syn,
                     entity=self.id,
+                    name=name,
                     downloadAs=download_as,
                     contentType=content_type,
                     forceVersion=self.force_version,
