@@ -11,6 +11,7 @@ The following actions are shown in this script:
 6. Updating the annotations in bulk for a number of folders and files
 7. Deleting a project
 """
+
 import asyncio
 import os
 from synapseclient.models import (
@@ -103,10 +104,9 @@ async def store_project():
     project = await project.store()
 
     # Getting metadata about a project ===============================================
-    project_copy = await Project(id=project.id).get(include_children=True)
+    project_copy = await Project(id=project.id).sync_from_synapse(download_file=False)
 
-    print("Project metadata:")
-    print(project_copy)
+    print(f"Project metadata: for {project_copy.name} with id: {project_copy.id}")
     for file in project_copy.files:
         print(f"File: {file.name}")
 
@@ -119,8 +119,6 @@ async def store_project():
     }
 
     for file in project_copy.files:
-        file.download_file = False
-        await file.get()
         file.annotations = new_annotations
 
     for folder in project_copy.folders:

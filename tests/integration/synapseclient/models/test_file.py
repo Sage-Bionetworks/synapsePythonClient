@@ -276,7 +276,7 @@ class TestFileStore:
 
         # THEN I expect the file handles to match
         assert file_2_etag != file_2.etag
-        assert (await file_1.get()).file_handle == file_2.file_handle
+        assert (await file_1.get()).file_handle == (await file_2.get()).file_handle
 
     @pytest.mark.asyncio
     async def test_store_updated_file(self, project_model: Project) -> None:
@@ -994,7 +994,7 @@ class TestGet:
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
         await folder.store()
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy(destination_id=folder.id)
+        file_copy = await file.copy(parent_id=folder.id)
 
         # WHEN I get the file by path and limit the search to the folder
         file_by_path = await File(
@@ -1050,7 +1050,7 @@ class TestCopy:
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
         await folder.store()
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy(destination_id=folder.id)
+        file_copy = await file.copy(parent_id=folder.id)
 
         # WHEN I get both files by ID:
         file_1 = await File(id=file.id, download_file=False).get()
@@ -1093,7 +1093,7 @@ class TestCopy:
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
         await folder.store()
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy(destination_id=folder.id)
+        file_copy = await file.copy(parent_id=folder.id)
 
         # WHEN I get both files by ID:
         file_1 = await File(id=file.id, download_file=False).get()
@@ -1137,7 +1137,7 @@ class TestCopy:
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
         await folder.store()
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy(destination_id=folder.id, copy_annotations=False)
+        file_copy = await file.copy(parent_id=folder.id, copy_annotations=False)
 
         # WHEN I get both files by ID:
         file_1 = await File(id=file.id, download_file=False).get()
@@ -1183,7 +1183,7 @@ class TestCopy:
         await folder.store()
         self.schedule_for_cleanup(folder.id)
         file_copy = await file.copy(
-            destination_id=folder.id, copy_annotations=False, copy_activity=None
+            parent_id=folder.id, copy_annotations=False, copy_activity=None
         )
 
         # WHEN I get both files by ID:
@@ -1219,7 +1219,7 @@ class TestCopy:
         await folder.store()
         self.schedule_for_cleanup(folder.id)
         file_copy = await File(id=file.id, version_number=1).copy(
-            destination_id=folder.id, copy_annotations=False, copy_activity=None
+            parent_id=folder.id, copy_annotations=False, copy_activity=None
         )
 
         # THEN I expect the first version of the file to have been stored

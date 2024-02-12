@@ -5,84 +5,6 @@ at your own risk.
 These APIs also introduce [AsyncIO](https://docs.python.org/3/library/asyncio.html) to
 the client.
 
-## API reference
-
-::: synapseclient.models.Project
-    options:
-        members:
-        - get
-        - store
-        - delete
----
-::: synapseclient.models.Folder
-    options:
-        members:
-        - get
-        - store
-        - delete
----
-::: synapseclient.models.File
-    options:
-        members:
-        - get
-        - store
-        - copy
-        - delete
-        - from_id
-        - from_path
-        - change_metadata
-::: synapseclient.models.file.FileHandle
-    options:
-      filters:
-      - "!"
----
-::: synapseclient.models.Table
-    options:
-        members:
-        - get
-        - store_schema
-        - store_rows_from_csv
-        - delete_rows
-        - query
-        - delete
----
-::: synapseclient.models.Activity
-    options:
-      members:
-      - from_parent
-      - store
-      - delete
-
-::: synapseclient.models.UsedEntity
-    options:
-      filters:
-      - "!"
-::: synapseclient.models.UsedURL
-    options:
-      filters:
-      - "!"
----
-::: synapseclient.models.Team
-    options:
-        members:
-        - create
-        - delete
-        - from_id
-        - from_name
-        - members
-        - invite
-        - open_invitations
----
-::: synapseclient.models.UserProfile
-    options:
-      members:
-      - get
-      - from_id
-      - from_username
-      - is_certified
-::: synapseclient.models.UserPreference
-::: synapseclient.models.mixins.AccessControllable
-
 ## Sample Scripts:
 
 <details class="quote">
@@ -140,3 +62,106 @@ the client.
 {!docs/scripts/object_orientated_programming_poc/oop_poc_team.py!}
 ```
 </details>
+
+## API reference
+
+::: synapseclient.models.Project
+    options:
+        inherited_members: true
+        members:
+        - get
+        - store
+        - delete
+        - sync_from_synapse
+        - get_permissions
+        - get_acl
+        - set_permissions
+---
+::: synapseclient.models.Folder
+    options:
+        inherited_members: true
+        members:
+        - get
+        - store
+        - delete
+        - copy
+        - sync_from_synapse
+        - get_permissions
+        - get_acl
+        - set_permissions
+---
+::: synapseclient.models.File
+    options:
+        inherited_members: true
+        members:
+        - get
+        - store
+        - copy
+        - delete
+        - from_id
+        - from_path
+        - change_metadata
+        - get_permissions
+        - get_acl
+        - set_permissions
+::: synapseclient.models.file.FileHandle
+    options:
+      filters:
+      - "!"
+---
+::: synapseclient.models.Table
+    options:
+        inherited_members: true
+        members:
+        - get
+        - store_schema
+        - store_rows_from_csv
+        - delete_rows
+        - query
+        - delete
+        - get_permissions
+        - get_acl
+        - set_permissions
+---
+::: synapseclient.models.Activity
+    options:
+      members:
+      - from_parent
+      - store
+      - delete
+
+::: synapseclient.models.UsedEntity
+    options:
+      filters:
+      - "!"
+::: synapseclient.models.UsedURL
+    options:
+      filters:
+      - "!"
+---
+::: synapseclient.models.Team
+    options:
+        members:
+        - create
+        - delete
+        - from_id
+        - from_name
+        - members
+        - invite
+        - open_invitations
+---
+::: synapseclient.models.UserProfile
+    options:
+      members:
+      - get
+      - from_id
+      - from_username
+      - is_certified
+::: synapseclient.models.UserPreference
+---
+::: synapseclient.models.mixins.AccessControllable
+---
+
+::: synapseclient.models.mixins.StorableContainer
+---
+::: synapseclient.models.FailureStrategy

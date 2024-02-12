@@ -21,11 +21,13 @@ from synapseclient.models.user import (
     UserProfile,
     UserPreference,
 )
+from synapseclient.models.services import FailureStrategy
 
 __all__ = [
     "Activity",
     "UsedURL",
     "UsedEntity",
+    "FailureStrategy",
     "File",
     "FileHandle",
     "Folder",

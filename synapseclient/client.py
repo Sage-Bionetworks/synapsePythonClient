@@ -2329,7 +2329,6 @@ class Synapse(object):
     #                         Querying                         #
     ############################################################
 
-    @tracer.start_as_current_span("Synapse::getChildren")
     def getChildren(
         self,
         parent,
@@ -2363,27 +2362,28 @@ class Synapse(object):
 
         - [synapseutils.walk][]
         """
-        parentId = id_of(parent) if parent is not None else None
+        with tracer.start_as_current_span("Synapse::getChildren"):
+            parentId = id_of(parent) if parent is not None else None
 
-        trace.get_current_span().set_attributes({"synapse.parent_id": parentId})
-        entityChildrenRequest = {
-            "parentId": parentId,
-            "includeTypes": includeTypes,
-            "sortBy": sortBy,
-            "sortDirection": sortDirection,
-            "nextPageToken": None,
-        }
-        entityChildrenResponse = {"nextPageToken": "first"}
-        while entityChildrenResponse.get("nextPageToken") is not None:
-            entityChildrenResponse = self.restPOST(
-                "/entity/children", body=json.dumps(entityChildrenRequest)
-            )
-            for child in entityChildrenResponse["page"]:
-                yield child
-            if entityChildrenResponse.get("nextPageToken") is not None:
-                entityChildrenRequest["nextPageToken"] = entityChildrenResponse[
-                    "nextPageToken"
-                ]
+            trace.get_current_span().set_attributes({"synapse.parent_id": parentId})
+            entityChildrenRequest = {
+                "parentId": parentId,
+                "includeTypes": includeTypes,
+                "sortBy": sortBy,
+                "sortDirection": sortDirection,
+                "nextPageToken": None,
+            }
+            entityChildrenResponse = {"nextPageToken": "first"}
+            while entityChildrenResponse.get("nextPageToken") is not None:
+                entityChildrenResponse = self.restPOST(
+                    "/entity/children", body=json.dumps(entityChildrenRequest)
+                )
+                for child in entityChildrenResponse["page"]:
+                    yield child
+                if entityChildrenResponse.get("nextPageToken") is not None:
+                    entityChildrenRequest["nextPageToken"] = entityChildrenResponse[
+                        "nextPageToken"
+                    ]
 
     @tracer.start_as_current_span("Synapse::md5Query")
     def md5Query(self, md5):

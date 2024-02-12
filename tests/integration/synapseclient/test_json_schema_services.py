@@ -63,13 +63,13 @@ def test_json_schema_organization(js):
 
 
 class TestJsonSchemaSchemas:
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope="function")
     def setup(self, js):
         self.js_org = "a" + str(uuid.uuid4()).replace("-", "")
         # Create, manage, and delete a JSON Schema organization
         self.my_org = js.JsonSchemaOrganization(self.js_org)
         self.my_org.create()
-        self.schema_name = "my.schema"
+        self.schema_name = "my.schema" + str(uuid.uuid4()).replace("-", "")
         self.rint = randint(0, 100000)
         self.simple_schema = {
             "$id": "https://example.com/person.schema.json",

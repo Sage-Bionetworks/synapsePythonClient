@@ -800,7 +800,7 @@ class File(AccessControllable):
     )
     async def copy(
         self,
-        destination_id: str,
+        parent_id: str,
         update_existing: bool = False,
         copy_annotations: bool = True,
         copy_activity: Union[str, None] = "traceback",
@@ -811,7 +811,8 @@ class File(AccessControllable):
         file, or the version_number specified in the instance.
 
         Arguments:
-            destination_id: Synapse ID of a folder/project that the copied entity is being copied to
+            parent_id: Synapse ID of a folder/project that the copied entity is being
+                copied to
             update_existing: When the destination has a file that has the same name,
                 users can choose to update that file.
             copy_annotations: True to copy the annotations.
@@ -820,7 +821,8 @@ class File(AccessControllable):
                     - traceback: Creates a copy of the source files Activity.
                     - existing: Link to the source file's original Activity (if it exists)
                     - None: No activity is set
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
 
         Returns:
             The copied file object.
@@ -828,17 +830,17 @@ class File(AccessControllable):
         Example: Using this function
             Assuming you have a file with the ID "syn123" and you want to copy it to a folder with the ID "syn456":
 
-                new_file_instance = await File(id="syn123").copy(destination_id="syn456")
+                new_file_instance = await File(id="syn123").copy(parent_id="syn456")
 
-            Copy the file but do not persist annotations of activity:
+            Copy the file but do not persist annotations or activity:
 
-                new_file_instance = await File(id="syn123").copy(destination_id="syn456", copy_annotations=False, copy_activity=None)
+                new_file_instance = await File(id="syn123").copy(parent_id="syn456", copy_annotations=False, copy_activity=None)
 
         Raises:
-            ValueError: If the file does not have an ID and destination_id to copy.
+            ValueError: If the file does not have an ID and parent_id to copy.
         """
-        if not self.id:
-            raise ValueError("The file must have an ID and destination_id to copy.")
+        if not self.id or not parent_id:
+            raise ValueError("The file must have an ID and parent_id to copy.")
 
         loop = asyncio.get_event_loop()
 
@@ -851,7 +853,7 @@ class File(AccessControllable):
                     syn=syn,
                     version=self.version_number,
                     entity=self.id,
-                    destinationId=destination_id,
+                    destinationId=parent_id,
                     skipCopyAnnotations=not copy_annotations,
                     updateExisting=update_existing,
                     setProvenance=copy_activity,
@@ -860,14 +862,14 @@ class File(AccessControllable):
             ),
         )
 
-        destination_id = source_and_destination.get(self.id, None)
-        if not destination_id:
+        parent_id = source_and_destination.get(self.id, None)
+        if not parent_id:
             raise SynapseError("Failed to copy file.")
-        file_copy = await File(id=destination_id, download_file=False).get(
+        file_copy = await File(id=parent_id, download_file=False).get(
             synapse_client=synapse_client
         )
         file_copy.download_file = True
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Copied from file {self.id} to {destination_id}"
+            f"Copied from file {self.id} to {parent_id} with new id of {file_copy.id}"
         )
         return file_copy
