@@ -206,7 +206,7 @@ class Project(AccessControllable, StorableContainer):
 
         Arguments:
             failure_strategy: Determines how to handle failures when storing attached
-                Files and Folders under this Folder and an exception occurs.
+                Files and Folders under this Project and an exception occurs.
             synapse_client: If not passed in or None this will use the last client from the `.login()` method.
 
         Returns:
