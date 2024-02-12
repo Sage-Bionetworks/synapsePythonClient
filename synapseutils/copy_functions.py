@@ -239,10 +239,10 @@ def _copy_cached_file_handles(cache: Cache, copiedFileHandles: dict) -> None:
 def changeFileMetaData(
     syn: synapseclient.Synapse,
     entity: typing.Union[str, Entity],
-    name: str = None,
     downloadAs: str = None,
     contentType: str = None,
     forceVersion: bool = True,
+    name: str = None,
 ) -> Entity:
     """
     Change File Entity metadata like the download as name.
@@ -250,11 +250,11 @@ def changeFileMetaData(
     Arguments:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
         entity: Synapse entity Id or object.
-        name: Specify filename to change the filename of the file.
         downloadAs: Specify filename to change the filename of a filehandle.
         contentType: Specify content type to change the content type of a filehandle.
         forceVersion: Indicates whether the method should increment the version of
                         the object even if nothing has changed. Defaults to True.
+        name: Specify filename to change the filename of the file.
 
     Returns:
         Synapse Entity
@@ -262,9 +262,11 @@ def changeFileMetaData(
     Example: Using this function
         Can be used to change the filename, the filename when the file is downloaded, or the file content-type without downloading:
 
-        file_entity = syn.get(synid)
-        print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
-        file_entity = synapseutils.changeFileMetaData(syn, file_entity, "my_new_name_file.txt", "my_new_downloadAs_name_file.txt")
+            file_entity = syn.get(synid)
+            print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
+            file_entity = synapseutils.changeFileMetaData(syn, file_entity, "my_new_name_file.txt", "my_new_downloadAs_name_file.txt")
+            print(os.path.basename(file_entity.path))  ## prints, "my_new_downloadAs_name_file.txt"
+            print(file_entity.name) ## prints, "my_new_name_file.txt"
     """
     ent = syn.get(entity, downloadFile=False)
     fileResult = syn._getFileHandleDownload(ent.dataFileHandleId, ent.id)
