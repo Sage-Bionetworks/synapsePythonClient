@@ -207,7 +207,8 @@ class Project(AccessControllable, StorableContainer):
         Arguments:
             failure_strategy: Determines how to handle failures when storing attached
                 Files and Folders under this Project and an exception occurs.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
 
         Returns:
             The project object.
@@ -245,14 +246,13 @@ class Project(AccessControllable, StorableContainer):
     )
     async def get(
         self,
-        include_children: Optional[bool] = False,
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
         """Get the project metadata from Synapse.
 
         Arguments:
-            include_children: If True, will also get the children of the project.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
 
         Returns:
             The project object.
@@ -270,44 +270,6 @@ class Project(AccessControllable, StorableContainer):
         )
 
         self.fill_from_dict(synapse_project=entity, set_annotations=True)
-        if include_children:
-            children_objects = await loop.run_in_executor(
-                None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).getChildren(
-                        parent=self.id,
-                        includeTypes=["folder", "file"],
-                    ),
-                    current_context,
-                ),
-            )
-
-            folders = []
-            files = []
-            for child in children_objects:
-                if (
-                    "type" in child
-                    and child["type"] == "org.sagebionetworks.repo.model.Folder"
-                ):
-                    folder = Folder().fill_from_dict(synapse_folder=child)
-                    folder.parent_id = self.id
-                    folders.append(folder)
-
-                elif (
-                    "type" in child
-                    and child["type"] == "org.sagebionetworks.repo.model.FileEntity"
-                ):
-                    # TODO: This child only contains a small slice of data, in order to
-                    # save the file again we need to call `.get()` on the file.
-                    # Perhaps we should not return this as a full File object?
-                    file = File().fill_from_dict(synapse_file=child)
-                    file.parent_id = self.id
-                    files.append(file)
-
-            self.files.extend(files)
-            self.folders.extend(folders)
 
         self._set_last_persistent_instance()
         return self
@@ -319,7 +281,8 @@ class Project(AccessControllable, StorableContainer):
         """Delete the project from Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
 
         Returns:
             None
