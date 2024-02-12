@@ -264,7 +264,7 @@ def changeFileMetaData(
 
             file_entity = syn.get(synid)
             print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
-            file_entity = synapseutils.changeFileMetaData(syn, file_entity, "my_new_name_file.txt", "my_new_downloadAs_name_file.txt")
+            file_entity = synapseutils.changeFileMetaData(syn=syn, entity=file_entity, downloadAs="my_new_downloadAs_name_file.txt", name="my_new_name_file.txt")
             print(os.path.basename(file_entity.path))  ## prints, "my_new_downloadAs_name_file.txt"
             print(file_entity.name) ## prints, "my_new_name_file.txt"
     """
