@@ -400,7 +400,7 @@ class TestFolder:
             "synapseclient.models.folder.Folder.sync_from_synapse",
             return_value=(returned_folder),
         ) as mocked_sync:
-            result = await folder.copy(destination_id="destination_id")
+            result = await folder.copy(parent_id="destination_id")
 
             # THEN we should call the method with this data
             mocked_copy.assert_called_once_with(
@@ -430,10 +430,10 @@ class TestFolder:
 
         # WHEN I call `copy` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.copy(destination_id="destination_id")
+            await folder.copy(parent_id="destination_id")
 
         # THEN we should get an error
-        assert str(e.value) == "The folder must have an ID and destination_id to copy."
+        assert str(e.value) == "The folder must have an ID and parent_id to copy."
 
     @pytest.mark.asyncio
     async def test_copy_missing_destination(self) -> None:
@@ -442,10 +442,10 @@ class TestFolder:
 
         # WHEN I call `copy` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.copy(destination_id=None)
+            await folder.copy(parent_id=None)
 
         # THEN we should get an error
-        assert str(e.value) == "The folder must have an ID and destination_id to copy."
+        assert str(e.value) == "The folder must have an ID and parent_id to copy."
 
     @pytest.mark.asyncio
     async def test_sync_from_synapse(self) -> None:

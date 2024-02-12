@@ -158,7 +158,7 @@ async def store_folder():
         name="destination_for_copy", parent_id=PROJECT_ID
     ).store()
     coped_folder = await root_folder_for_my_project.copy(
-        destination_id=destination_folder_to_copy_to.id
+        parent_id=destination_folder_to_copy_to.id
     )
 
     print(

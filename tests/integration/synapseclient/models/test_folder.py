@@ -432,7 +432,7 @@ class TestFolderCopy:
         self.schedule_for_cleanup(folder.id)
 
         # AND I copy the folder to the destination folder
-        copied_folder = await folder.copy(destination_id=destination_folder.id)
+        copied_folder = await folder.copy(parent_id=destination_folder.id)
 
         # AND I sync the destination folder from Synapse
         await destination_folder.sync_from_synapse(recursive=False, download_file=False)
@@ -506,7 +506,7 @@ class TestFolderCopy:
 
         # AND I copy the folder to the destination folder
         copied_folder = await folder.copy(
-            destination_id=destination_folder.id, exclude_types=["file"]
+            parent_id=destination_folder.id, exclude_types=["file"]
         )
 
         # AND I sync the destination folder from Synapse

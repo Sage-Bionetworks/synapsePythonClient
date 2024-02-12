@@ -321,7 +321,7 @@ class Folder(AccessControllable, StorableContainer):
     )
     async def copy(
         self,
-        destination_id: str,
+        parent_id: str,
         copy_annotations: bool = True,
         exclude_types: Optional[List[str]] = None,
         synapse_client: Optional[Synapse] = None,
@@ -331,11 +331,11 @@ class Folder(AccessControllable, StorableContainer):
         Tables, Links, Files, and Folders within the folder.
 
         Arguments:
-            destination_id: Synapse ID of a folder/project that the copied entity is
+            parent_id: Synapse ID of a folder/project that the copied entity is
                 being copied to
             copy_annotations: True to copy the annotations.
-            exclude_types: A list of entity types ['file', 'table', 'link'] which determines
-                which entity types to not copy. Defaults to an empty list.
+            exclude_types: A list of entity types ['file', 'table', 'link'] which
+                determines which entity types to not copy. Defaults to an empty list.
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
 
@@ -346,17 +346,17 @@ class Folder(AccessControllable, StorableContainer):
             Assuming you have a folder with the ID "syn123" and you want to copy it to a
             project with the ID "syn456":
 
-                new_folder_instance = await Folder(id="syn123").copy(destination_id="syn456")
+                new_folder_instance = await Folder(id="syn123").copy(parent_id="syn456")
 
             Copy the folder but do not persist annotations:
 
-                new_folder_instance = await Folder(id="syn123").copy(destination_id="syn456", copy_annotations=False)
+                new_folder_instance = await Folder(id="syn123").copy(parent_id="syn456", copy_annotations=False)
 
         Raises:
-            ValueError: If the folder does not have an ID and destination_id to copy.
+            ValueError: If the folder does not have an ID and parent_id to copy.
         """
-        if not self.id or not destination_id:
-            raise ValueError("The folder must have an ID and destination_id to copy.")
+        if not self.id or not parent_id:
+            raise ValueError("The folder must have an ID and parent_id to copy.")
 
         loop = asyncio.get_event_loop()
 
@@ -368,7 +368,7 @@ class Folder(AccessControllable, StorableContainer):
                 lambda: copy(
                     syn=syn,
                     entity=self.id,
-                    destinationId=destination_id,
+                    destinationId=parent_id,
                     excludeTypes=exclude_types or [],
                     skipCopyAnnotations=not copy_annotations,
                 ),
@@ -384,6 +384,6 @@ class Folder(AccessControllable, StorableContainer):
             synapse_client=synapse_client,
         )
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Copied folder [Source: {self.id}, Destination: {destination_id}, New ID: {folder_copy.id}]"
+            f"Copied from folder {self.id} to {parent_id} with new id of {folder_copy.id}"
         )
         return folder_copy

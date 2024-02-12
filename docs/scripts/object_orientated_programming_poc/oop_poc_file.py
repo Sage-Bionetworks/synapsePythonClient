@@ -13,6 +13,7 @@ The following actions are shown in this script:
 8. Storing an activity to a file
 9. Retrieve an activity from a file
 """
+
 import asyncio
 import os
 
@@ -174,9 +175,7 @@ async def store_file():
     new_sub_folder = await Folder(
         name="sub_sub_folder", parent_id=script_file_folder.id
     ).store()
-    copied_file_instance = await file_in_a_sub_folder.copy(
-        destination_id=new_sub_folder.id
-    )
+    copied_file_instance = await file_in_a_sub_folder.copy(parent_id=new_sub_folder.id)
     print(
         f"File I copied: ID: {copied_file_instance.id}, Parent ID: {copied_file_instance.parent_id}"
     )
