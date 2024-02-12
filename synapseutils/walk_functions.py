@@ -63,6 +63,36 @@ def walk(
                 print(dirname) #All the folders in the directory path
                 print(filename) #All the files in the directory path
 
+    This is a high level sequence diagram of the walk function:
+
+    ```mermaid
+    sequenceDiagram
+        autonumber
+        participant walk
+
+        opt Not start_entity
+            walk->>client: Call `.get()` method
+            client-->>walk: Metadata about the root start_entity
+        end
+
+        alt Root is not a container
+            note over walk: Return early
+        else newpath is none
+            note over walk: Get directory path from name of entity and synapse ID
+        else
+            note over walk: Use path passed in from recursive call
+        end
+
+        loop Get children for container
+            walk->>client: Call `.getChildren()` method
+            client-->>walk: return immediate children
+            note over walk: Aggregation of all children into dirs and non-dirs list
+        end
+
+        loop For each directory
+            walk->>walk: Recursively call walk
+        end
+    ```
     """
     # Ensure that "folder" is included so the hierarchy can be traversed
     if "folder" not in includeTypes:
