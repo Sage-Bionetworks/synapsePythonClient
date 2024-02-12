@@ -242,6 +242,7 @@ def changeFileMetaData(
     downloadAs: str = None,
     contentType: str = None,
     forceVersion: bool = True,
+    name: str = None,
 ) -> Entity:
     """
     Change File Entity metadata like the download as name.
@@ -249,20 +250,23 @@ def changeFileMetaData(
     Arguments:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
         entity: Synapse entity Id or object.
-        contentType: Specify content type to change the content type of a filehandle.
         downloadAs: Specify filename to change the filename of a filehandle.
+        contentType: Specify content type to change the content type of a filehandle.
         forceVersion: Indicates whether the method should increment the version of
                         the object even if nothing has changed. Defaults to True.
+        name: Specify filename to change the filename of the file.
 
     Returns:
         Synapse Entity
 
     Example: Using this function
-        Can be used to change the filename or the file content-type without downloading:
+        Can be used to change the filename, the filename when the file is downloaded, or the file content-type without downloading:
 
-        file_entity = syn.get(synid)
-        print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
-        file_entity = synapseutils.changeFileMetaData(syn, file_entity, "my_new_name_file.txt")
+            file_entity = syn.get(synid)
+            print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
+            file_entity = synapseutils.changeFileMetaData(syn=syn, entity=file_entity, downloadAs="my_new_downloadAs_name_file.txt", name="my_new_name_file.txt")
+            print(os.path.basename(file_entity.path))  ## prints, "my_new_downloadAs_name_file.txt"
+            print(file_entity.name) ## prints, "my_new_name_file.txt"
     """
     ent = syn.get(entity, downloadFile=False)
     fileResult = syn._getFileHandleDownload(ent.dataFileHandleId, ent.id)
@@ -285,6 +289,7 @@ def changeFileMetaData(
             % (copyResult["failureCode"], copyResult["originalFileHandleId"])
         )
     ent.dataFileHandleId = copyResult["newFileHandle"]["id"]
+    ent.name = ent.name if name is None else name
     ent = syn.store(ent, forceVersion=forceVersion)
     return ent
 
