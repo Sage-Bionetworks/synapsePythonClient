@@ -27,7 +27,9 @@ class TestUploadFileHandle:
         location = {"concreteType": concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
         syn._getDefaultUploadDestination.return_value = location
 
-        upload_functions.upload_file_handle(syn, parent_entity, path)
+        upload_functions.upload_file_handle(
+            syn=syn, parent_entity=parent_entity, path=path, md5="fake_md5"
+        )
 
         mock_sts_transfer.is_boto_sts_transfer_enabled.assert_called_once_with(syn)
         mock_sts_transfer.is_storage_location_sts_enabled.assert_called_once_with(
@@ -35,7 +37,12 @@ class TestUploadFileHandle:
         )
         syn._getDefaultUploadDestination.assert_called_once_with(parent_entity)
         mock_upload_synapse_sts_boto_s3.assert_called_once_with(
-            syn, parent_entity, location, path, mimetype=None
+            syn=syn,
+            parent_id=parent_entity,
+            upload_destination=location,
+            local_path=path,
+            mimetype=None,
+            md5="fake_md5",
         )
 
 
@@ -75,17 +82,19 @@ def test_upload_synapse_sts_boto_s3(
     mock_sts_transfer.with_boto_sts_credentials = mock_with_boto_sts_credentials
 
     returned_file_handle = upload_functions.upload_synapse_sts_boto_s3(
-        syn,
-        parent_id,
-        upload_destination,
-        local_path,
+        syn=syn,
+        parent_id=parent_id,
+        upload_destination=upload_destination,
+        local_path=local_path,
+        md5="fake_md5",
     )
     assert returned_file_handle == syn.create_external_s3_file_handle.return_value
     remote_file_key = "/".join([base_key, key_prefix, os.path.basename(local_path)])
     syn.create_external_s3_file_handle.assert_called_once_with(
-        bucket_name,
-        remote_file_key,
-        local_path,
+        bucket_name=bucket_name,
+        s3_file_key=remote_file_key,
+        file_path=local_path,
         storage_location_id=storage_location_id,
         mimetype=None,
+        md5="fake_md5",
     )

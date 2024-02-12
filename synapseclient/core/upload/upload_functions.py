@@ -1,7 +1,13 @@
+"""This module handles the various ways that a user can upload a file to Synapse."""
+
+# pylint: disable=protected-access
+import numbers
 import os
 import urllib.parse as urllib_parse
 import uuid
+import collections.abc
 
+from typing import TYPE_CHECKING, Dict, Union
 from synapseclient.core.utils import (
     is_url,
     md5_for_file,
@@ -15,12 +21,16 @@ from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFT
 from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload import multipart_upload_file
 from synapseclient.core.exceptions import SynapseMd5MismatchError
+from synapseclient.core import utils
 from opentelemetry import trace
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 tracer = trace.get_tracer("synapseclient")
 
 
-def log_upload_message(syn, message):
+def log_upload_message(syn: "Synapse", message: str) -> None:
     # if this upload is in the context of a larger, multi threaded sync upload as indicated by a cumulative progress
     # then we don't print the individual upload messages to the console since they wouldn't be properly interleaved.
     if not cumulative_transfer_progress.is_active():
@@ -29,14 +39,14 @@ def log_upload_message(syn, message):
 
 @tracer.start_as_current_span("upload_functions::upload_file_handle")
 def upload_file_handle(
-    syn,
-    parent_entity,
-    path,
-    synapseStore=True,
-    md5=None,
-    file_size=None,
-    mimetype=None,
-    max_threads=None,
+    syn: "Synapse",
+    parent_entity: Union[str, collections.abc.Mapping, numbers.Number],
+    path: str,
+    synapseStore: bool = True,
+    md5: str = None,
+    file_size: int = None,
+    mimetype: str = None,
+    max_threads: int = None,
 ):
     """
     Uploads the file in the provided path (if necessary) to a storage location based on project settings.
@@ -70,6 +80,9 @@ def upload_file_handle(
     # expand the path because past this point an upload is required and some upload functions require an absolute path
     expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
 
+    if md5 is None and os.path.isfile(expanded_upload_path):
+        md5 = utils.md5_for_file(expanded_upload_path).hexdigest()
+
     entity_parent_id = id_of(parent_entity)
 
     # determine the upload function based on the UploadDestination
@@ -99,11 +112,12 @@ def upload_file_handle(
         )
 
         return upload_synapse_sts_boto_s3(
-            syn,
-            entity_parent_id,
-            location,
-            expanded_upload_path,
+            syn=syn,
+            parent_id=entity_parent_id,
+            upload_destination=location,
+            local_path=expanded_upload_path,
             mimetype=mimetype,
+            md5=md5,
         )
 
     elif upload_destination_type in (
@@ -130,11 +144,12 @@ def upload_file_handle(
         )
 
         return upload_synapse_s3(
-            syn,
-            expanded_upload_path,
-            location["storageLocationId"],
+            syn=syn,
+            file_path=expanded_upload_path,
+            storageLocationId=location["storageLocationId"],
             mimetype=mimetype,
             max_threads=max_threads,
+            md5=md5,
         )
     # external file handle (sftp)
     elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
@@ -150,7 +165,11 @@ def upload_file_handle(
                 ),
             )
             return upload_external_file_handle_sftp(
-                syn, expanded_upload_path, location["url"], mimetype=mimetype
+                syn=syn,
+                file_path=expanded_upload_path,
+                sftp_url=location["url"],
+                mimetype=mimetype,
+                md5=md5,
             )
         else:
             raise NotImplementedError("Can only handle SFTP upload locations.")
@@ -171,13 +190,14 @@ def upload_file_handle(
             ),
         )
         return upload_client_auth_s3(
-            syn,
-            expanded_upload_path,
-            location["bucket"],
-            location["endpointUrl"],
-            location["keyPrefixUUID"],
-            location["storageLocationId"],
+            syn=syn,
+            file_path=expanded_upload_path,
+            bucket=location["bucket"],
+            endpoint_url=location["endpointUrl"],
+            key_prefix=location["keyPrefixUUID"],
+            storage_location_id=location["storageLocationId"],
             mimetype=mimetype,
+            md5=md5,
         )
     else:  # unknown storage location
         log_upload_message(
@@ -186,11 +206,22 @@ def upload_file_handle(
             % ("!" * 50, location.get("banner", ""), "!" * 50),
         )
         return upload_synapse_s3(
-            syn, expanded_upload_path, None, mimetype=mimetype, max_threads=max_threads
+            syn=syn,
+            file_path=expanded_upload_path,
+            storageLocationId=None,
+            mimetype=mimetype,
+            max_threads=max_threads,
+            md5=md5,
         )
 
 
-def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=None):
+def create_external_file_handle(
+    syn: "Synapse",
+    path: str,
+    mimetype: str = None,
+    md5: str = None,
+    file_size: int = None,
+) -> Dict[str, Union[str, int]]:
     is_local_file = False  # defaults to false
     url = as_url(os.path.expandvars(os.path.expanduser(path)))
     if is_url(url):
@@ -223,16 +254,18 @@ def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=No
     return file_handle
 
 
-def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
-    username, password = syn._getUserCredentials(sftp_url)
+def upload_external_file_handle_sftp(
+    syn: "Synapse", file_path: str, sftp_url: str, mimetype: str = None, md5: str = None
+) -> Dict[str, Union[str, int]]:
+    username, password = syn._getUserCredentials(url=sftp_url)
     uploaded_url = SFTPWrapper.upload_file(
         file_path, urllib_parse.unquote(sftp_url), username, password
     )
 
     file_handle = syn._createExternalFileHandle(
-        uploaded_url,
+        externalURL=uploaded_url,
         mimetype=mimetype,
-        md5=md5_for_file(file_path).hexdigest(),
+        md5=md5 or md5_for_file(file_path).hexdigest(),
         fileSize=os.stat(file_path).st_size,
     )
     syn.cache.add(file_handle["id"], file_path)
@@ -240,22 +273,33 @@ def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
 
 
 def upload_synapse_s3(
-    syn, file_path, storageLocationId=None, mimetype=None, max_threads=None
+    syn: "Synapse",
+    file_path: str,
+    storageLocationId=None,
+    mimetype: str = None,
+    max_threads: int = None,
+    md5: str = None,
 ):
     file_handle_id = multipart_upload_file(
-        syn,
-        file_path,
+        syn=syn,
+        file_path=file_path,
         content_type=mimetype,
         storage_location_id=storageLocationId,
         max_threads=max_threads,
+        md5=md5,
     )
-    syn.cache.add(file_handle_id, file_path)
+    syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
 
-    return syn._get_file_handle_as_creator(file_handle_id)
+    return syn._get_file_handle_as_creator(fileHandle=file_handle_id)
 
 
 def upload_synapse_sts_boto_s3(
-    syn, parent_id, upload_destination, local_path, mimetype=None
+    syn: "Synapse",
+    parent_id: str,
+    upload_destination,
+    local_path: str,
+    mimetype: str = None,
+    md5: str = None,
 ):
     """
     When uploading to Synapse storage normally the back end will generate a random prefix
@@ -266,11 +310,12 @@ def upload_synapse_sts_boto_s3(
     <https://aws.amazon.com/about-aws/whats-new/2018/07/amazon-s3-announces-increased-request-rate-performance/>
 
     Arguments:
-        syn: _description_
-        parent_id: _description_
-        upload_destination: _description_
-        local_path: _description_
-        mimetype: _description_. Defaults to None.
+        syn: The synapse client
+        parent_id: The synapse ID of the parent.
+        upload_destination: The upload destination
+        local_path: The local path to the file to upload.
+        mimetype: The mimetype is known. Defaults to None.
+        md5: MD5 checksum for the file, if known.
 
     Returns:
         _description_
@@ -285,27 +330,35 @@ def upload_synapse_sts_boto_s3(
 
     def upload_fn(credentials):
         return S3ClientWrapper.upload_file(
-            bucket_name,
-            None,
-            remote_file_key,
-            local_path,
+            bucket=bucket_name,
+            endpoint_url=None,
+            remote_file_key=remote_file_key,
+            upload_file_path=local_path,
             credentials=credentials,
             transfer_config_kwargs={"max_concurrency": syn.max_threads},
         )
 
     sts_transfer.with_boto_sts_credentials(upload_fn, syn, parent_id, "read_write")
     return syn.create_external_s3_file_handle(
-        bucket_name,
-        remote_file_key,
-        local_path,
+        bucket_name=bucket_name,
+        s3_file_key=remote_file_key,
+        file_path=local_path,
         storage_location_id=storage_location_id,
         mimetype=mimetype,
+        md5=md5,
     )
 
 
 def upload_client_auth_s3(
-    syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id, mimetype=None
-):
+    syn: "Synapse",
+    file_path: str,
+    bucket: str,
+    endpoint_url: str,
+    key_prefix: str,
+    storage_location_id: int,
+    mimetype: str = None,
+    md5: str = None,
+) -> Dict[str, Union[str, int]]:
     profile = syn._get_client_authenticated_s3_profile(endpoint_url, bucket)
     file_key = key_prefix + "/" + os.path.basename(file_path)
 
@@ -314,7 +367,11 @@ def upload_client_auth_s3(
     )
 
     file_handle = syn._createExternalObjectStoreFileHandle(
-        file_key, file_path, storage_location_id, mimetype=mimetype
+        s3_file_key=file_key,
+        file_path=file_path,
+        storage_location_id=storage_location_id,
+        mimetype=mimetype,
+        md5=md5,
     )
     syn.cache.add(file_handle["id"], file_path)
 
