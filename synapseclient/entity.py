@@ -454,6 +454,7 @@ class Project(Entity):
 
     Attributes:
         name: The name of the project
+        alias: The project alias for use in friendly project urls.
         properties: A map of Synapse properties
         annotations: A map of user defined annotations
         local_state: Internal use only
@@ -468,11 +469,21 @@ class Project(Entity):
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.Project"
 
+    _property_keys = Entity._property_keys + ["alias"]
+
     def __init__(
-        self, name=None, properties=None, annotations=None, local_state=None, **kwargs
+        self,
+        name=None,
+        properties=None,
+        annotations=None,
+        local_state=None,
+        alias=None,
+        **kwargs,
     ):
         if name:
             kwargs["name"] = name
+        if alias:
+            kwargs["alias"] = alias
         super(Project, self).__init__(
             concreteType=Project._synapse_entity_type,
             properties=properties,

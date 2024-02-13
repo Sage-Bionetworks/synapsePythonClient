@@ -15,12 +15,16 @@ from synapseclient.models.mixins import (
 )
 from synapseclient import Synapse
 from synapseclient.core.async_utils import otel_trace_method
-from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.core.utils import (
+    run_and_attach_otel_context,
+    delete_none_keys,
+    merge_dataclass_entities,
+)
 from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
     FailureStrategy,
 )
-
+from synapseclient.models.services.search import get_id
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -71,7 +75,7 @@ class Project(AccessControllable, StorableContainer):
                 "my_key_string": ["b", "a", "c"],
             }
             project = Project(
-                name="bfauble_my_new_project_for_testing",
+                name="My unique project name",
                 annotations=my_annotations,
                 description="This is a project with random data.",
             )
@@ -113,25 +117,25 @@ class Project(AccessControllable, StorableContainer):
     concurrent updates. Since the E-Tag changes every time an entity is updated it
     is used to detect when a client's current representation of an entity is out-of-date."""
 
-    created_on: Optional[str] = None
-    """The date this entity was created."""
+    created_on: Optional[str] = field(default=None, compare=False)
+    """(Read Only) The date this entity was created."""
 
-    modified_on: Optional[str] = None
-    """The date this entity was last modified."""
+    modified_on: Optional[str] = field(default=None, compare=False)
+    """(Read Only) The date this entity was last modified."""
 
-    created_by: Optional[str] = None
-    """The ID of the user that created this entity."""
+    created_by: Optional[str] = field(default=None, compare=False)
+    """(Read Only) The ID of the user that created this entity."""
 
-    modified_by: Optional[str] = None
-    """The ID of the user that last modified this entity."""
+    modified_by: Optional[str] = field(default=None, compare=False)
+    """(Read Only) The ID of the user that last modified this entity."""
 
     alias: Optional[str] = None
     """The project alias for use in friendly project urls."""
 
-    files: Optional[List["File"]] = field(default_factory=list)
+    files: Optional[List["File"]] = field(default_factory=list, compare=False)
     """Any files that are at the root directory of the project."""
 
-    folders: Optional[List["Folder"]] = field(default_factory=list)
+    folders: Optional[List["Folder"]] = field(default_factory=list, compare=False)
     """Any folders that are at the root directory of the project."""
 
     annotations: Optional[
@@ -146,17 +150,42 @@ class Project(AccessControllable, StorableContainer):
                 List[datetime],
             ],
         ]
-    ] = None
+    ] = field(default=None, compare=False)
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
     all values in the list. To remove all annotations set this to an empty dict `{}`."""
+
+    create_or_update: bool = field(default=True, repr=False)
+    """
+    (Store only)
+
+    Indicates whether the method should automatically perform an update if the resource
+    conflicts with an existing Synapse object. When True this means that any changes
+    to the resource will be non-destructive.
+
+    This boolean is ignored if you've already stored or retrieved the resource from
+    Synapse for this instance at least once. Any changes to the resource will be
+    destructive in this case. For example if you want to delete the content for a field
+    you will need to call `.get()` and then modify the field.
+    """
+
+    parent_id: Optional[str] = None
+    """The parent ID of the project. In practice projects do not have a parent, but this
+    is required for the inner workings of Synapse."""
 
     _last_persistent_instance: Optional["Project"] = field(
         default=None, repr=False, compare=False
     )
     """The last persistent instance of this object. This is used to determine if the
     object has been changed and needs to be updated in Synapse."""
+
+    @property
+    def has_changed(self) -> bool:
+        """Determines if the object has been changed and needs to be updated in Synapse."""
+        return (
+            not self._last_persistent_instance or self._last_persistent_instance != self
+        )
 
     def _set_last_persistent_instance(self) -> None:
         """Stash the last time this object interacted with Synapse. This is used to
@@ -187,6 +216,7 @@ class Project(AccessControllable, StorableContainer):
         self.created_by = synapse_project.get("createdBy", None)
         self.modified_by = synapse_project.get("modifiedBy", None)
         self.alias = synapse_project.get("alias", None)
+        self.parent_id = synapse_project.get("parentId", None)
         if set_annotations:
             self.annotations = Annotations.from_dict(
                 synapse_project.get("annotations", None)
@@ -194,7 +224,7 @@ class Project(AccessControllable, StorableContainer):
         return self
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Project_Store: {self.name}"
+        method_to_trace_name=lambda self, **kwargs: f"Project_Store: ID: {self.id}, Name: {self.name}"
     )
     async def store(
         self,
@@ -204,6 +234,12 @@ class Project(AccessControllable, StorableContainer):
         """
         Store project, files, and folders to synapse.
 
+        By default the store operation will non-destructively update the project if
+        you have not already retrieved the project from Synapse. If you have already
+        retrieved the project from Synapse then the store operation will be destructive
+        and will overwrite the project with the current state of this object. See the
+        `create_or_update` attribute for more information.
+
         Arguments:
             failure_strategy: Determines how to handle failures when storing attached
                 Files and Folders under this Project and an exception occurs.
@@ -212,21 +248,56 @@ class Project(AccessControllable, StorableContainer):
 
         Returns:
             The project object.
+
+        Example: Using this method to update the description
+            Store the project to Synapse using ID
+
+                project = await Project(id="syn123", description="new").store()
+
+            Store the project to Synapse using Name
+
+                project = await Project(name="my_project", description="new").store()
+
+        Raises:
+            ValueError: If the project name is not set.
         """
-        # Call synapse
-        loop = asyncio.get_event_loop()
-        synapse_project = Synapse_Project(self.name)
-        current_context = context.get_current()
-        entity = await loop.run_in_executor(
-            None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_project
+        if not self.name and not self.id:
+            raise ValueError("Project ID or Name is required")
+
+        if (
+            self.create_or_update
+            and not self._last_persistent_instance
+            and (
+                existing_project_id := await get_id(entity=self, failure_strategy=None)
+            )
+            and (existing_project := await Project(id=existing_project_id).get())
+        ):
+            merge_dataclass_entities(source=existing_project, destination=self)
+
+        if self.has_changed:
+            loop = asyncio.get_event_loop()
+            synapse_project = Synapse_Project(
+                id=self.id,
+                etag=self.etag,
+                name=self.name,
+                description=self.description,
+                alias=self.alias,
+                parentId=self.parent_id,
+            )
+            delete_none_keys(synapse_project)
+            current_context = context.get_current()
+            entity = await loop.run_in_executor(
+                None,
+                lambda: run_and_attach_otel_context(
+                    lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                        obj=synapse_project,
+                        set_annotations=False,
+                        createOrUpdate=False,
+                    ),
+                    current_context,
                 ),
-                current_context,
-            ),
-        )
-        self.fill_from_dict(synapse_project=entity, set_annotations=False)
+            )
+            self.fill_from_dict(synapse_project=entity, set_annotations=False)
 
         await store_entity_components(
             root_resource=self,
@@ -236,7 +307,7 @@ class Project(AccessControllable, StorableContainer):
 
         self._set_last_persistent_instance()
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Saved Project {self.name}"
+            f"Saved Project {self.name}, id: {self.id}"
         )
 
         return self
@@ -256,14 +327,29 @@ class Project(AccessControllable, StorableContainer):
 
         Returns:
             The project object.
+
+        Example: Using this method
+            Retrieve the project from Synapse using ID
+
+                project = await Project(id="syn123").get()
+
+            Retrieve the project from Synapse using Name
+
+                project = await Project(name="my_project").get()
+
+        Raises:
+            ValueError: If the project ID or Name is not set.
+            SynapseNotFoundError: If the project is not found in Synapse.
         """
+        entity_id = await get_id(entity=self, synapse_client=synapse_client)
+
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
             lambda: run_and_attach_otel_context(
                 lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                    entity=self.id,
+                    entity=entity_id,
                 ),
                 current_context,
             ),
@@ -275,7 +361,7 @@ class Project(AccessControllable, StorableContainer):
         return self
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Project_Delete: {self.id}"
+        method_to_trace_name=lambda self, **kwargs: f"Project_Delete: {self.id}, Name: {self.name}"
     )
     async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the project from Synapse.
@@ -286,14 +372,29 @@ class Project(AccessControllable, StorableContainer):
 
         Returns:
             None
+
+        Example: Using this method
+            Delete the project from Synapse using ID
+
+                await Project(id="syn123").delete()
+
+            Delete the project from Synapse using Name
+
+                await Project(name="my_project").delete()
+
+        Raises:
+            ValueError: If the project ID or Name is not set.
+            SynapseNotFoundError: If the project is not found in Synapse.
         """
+        entity_id = await get_id(entity=self, synapse_client=synapse_client)
+
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
         await loop.run_in_executor(
             None,
             lambda: run_and_attach_otel_context(
                 lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                    obj=self.id,
+                    obj=entity_id,
                 ),
                 current_context,
             ),

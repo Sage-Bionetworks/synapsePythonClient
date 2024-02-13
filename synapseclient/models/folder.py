@@ -10,13 +10,18 @@ from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import File, Annotations
 from synapseclient.core.async_utils import otel_trace_method
-from synapseclient.core.utils import run_and_attach_otel_context, delete_none_keys
+from synapseclient.core.utils import (
+    run_and_attach_otel_context,
+    delete_none_keys,
+    merge_dataclass_entities,
+)
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.models.mixins import AccessControllable, StorableContainer
 from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
     FailureStrategy,
 )
+from synapseclient.models.services.search import get_id
 from synapseutils import copy
 
 if TYPE_CHECKING:
@@ -107,17 +112,48 @@ class Folder(AccessControllable, StorableContainer):
                 List[datetime],
             ],
         ]
-    ] = None
+    ] = field(default=None, compare=False)
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
     all values in the list. To remove all annotations set this to an empty dict `{}`."""
+
+    is_restricted: bool = field(default=False, repr=False)
+    """
+    (Store only)
+
+    If set to true, an email will be sent to the Synapse access control team to start the
+    process of adding terms-of-use or review board approval for this entity.
+    You will be contacted with regards to the specific data being restricted and the
+    requirements of access.
+    """
+
+    create_or_update: bool = field(default=True, repr=False)
+    """
+    (Store only)
+
+    Indicates whether the method should automatically perform an update if the resource
+    conflicts with an existing Synapse object. When True this means that any changes
+    to the resource will be non-destructive.
+
+    This boolean is ignored if you've already stored or retrieved the resource from
+    Synapse for this instance at least once. Any changes to the resource will be
+    destructive in this case. For example if you want to delete the content for a field
+    you will need to call `.get()` and then modify the field.
+    """
 
     _last_persistent_instance: Optional["Folder"] = field(
         default=None, repr=False, compare=False
     )
     """The last persistent instance of this object. This is used to determine if the
     object has been changed and needs to be updated in Synapse."""
+
+    @property
+    def has_changed(self) -> bool:
+        """Determines if the object has been changed and needs to be updated in Synapse."""
+        return (
+            not self._last_persistent_instance or self._last_persistent_instance != self
+        )
 
     def _set_last_persistent_instance(self) -> None:
         """Stash the last time this object interacted with Synapse. This is used to
@@ -164,6 +200,12 @@ class Folder(AccessControllable, StorableContainer):
     ) -> "Folder":
         """Storing folder and files to synapse.
 
+        By default the store operation will non-destructively update the folder if
+        you have not already retrieved the folder from Synapse. If you have already
+        retrieved the folder from Synapse then the store operation will be destructive
+        and will overwrite the folder with the current state of this object. See the
+        `create_or_update` attribute for more information.
+
         Arguments:
             parent: The parent folder or project to store the folder in.
             failure_strategy: Determines how to handle failures when storing attached
@@ -185,7 +227,15 @@ class Folder(AccessControllable, StorableContainer):
                 "(name and (`parent_id` or parent with an id)) set."
             )
 
-        if not self._last_persistent_instance or self._last_persistent_instance != self:
+        if (
+            self.create_or_update
+            and not self._last_persistent_instance
+            and (existing_folder_id := await get_id(entity=self, failure_strategy=None))
+            and (existing_folder := await Folder(id=existing_folder_id).get())
+        ):
+            merge_dataclass_entities(source=existing_folder, destination=self)
+
+        if self.has_changed:
             loop = asyncio.get_event_loop()
             synapse_folder = Synapse_Folder(
                 id=self.id,
@@ -202,6 +252,8 @@ class Folder(AccessControllable, StorableContainer):
                     lambda: Synapse.get_client(synapse_client=synapse_client).store(
                         obj=synapse_folder,
                         set_annotations=False,
+                        isRestricted=self.is_restricted,
+                        createOrUpdate=False,
                     ),
                     current_context,
                 ),

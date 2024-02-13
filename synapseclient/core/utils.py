@@ -25,8 +25,12 @@ import uuid
 import warnings
 import zipfile
 
-from typing import Callable, TypeVar
+from dataclasses import asdict
+from typing import Callable, TypeVar, TYPE_CHECKING
 from opentelemetry import trace, context
+
+if TYPE_CHECKING:
+    from synapseclient.models import Project, Folder
 
 R = TypeVar("R")
 
@@ -1331,3 +1335,39 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
         for key in list(incoming_object.keys()):
             if incoming_object[key] is None:
                 del incoming_object[key]
+
+
+def merge_dataclass_entities(
+    source: typing.Union["Project", "Folder"],
+    destination: typing.Union["Project", "Folder"],
+) -> typing.Union["Project", "Folder"]:
+    """
+    Utility function to merge two dataclass entities together. This is used when we are
+    upserting an entity from the Synapse service with the requested changes.
+
+    Arguments:
+        source: The source entity to merge from.
+        destination: The destination entity to merge into.
+
+    Returns:
+        The destination entity with the merged values.
+    """
+    # Convert dataclasses to dictionaries
+    destination_dict = asdict(destination)
+    source_dict = asdict(source)
+
+    # Update destination_dict with source_dict, keeping destination's values in case of conflicts
+    for key, value in source_dict.items():
+        if key not in destination_dict or destination_dict[key] is None:
+            destination_dict[key] = value
+        elif key == "annotations":
+            destination_dict[key] = {
+                **value,
+                **destination_dict[key],
+            }
+
+    # Update destination's fields with the merged dictionary
+    for key, value in destination_dict.items():
+        setattr(destination, key, value)
+    destination._last_persistent_instance = source._last_persistent_instance
+    return destination
