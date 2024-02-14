@@ -361,7 +361,7 @@ class StorableContainer:
             # Lazy import to avoid circular import
             from synapseclient.models import File
 
-            file = File(id=synapse_id, download_file=download_file)
+            file = File(id=synapse_id, name=name, download_file=download_file)
             self.files.append(file)
             if path:
                 file.download_location = path

@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import patch
 import pytest
 from synapseclient.models import File, Folder, FailureStrategy
@@ -49,23 +50,39 @@ class TestFolder:
             id="syn123",
         )
 
+        # AND a random description
+        description = str(uuid.uuid4())
+        folder.description = description
+
         # WHEN I call `store` with the Folder object
         with patch.object(
             self.syn,
             "store",
             return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_client_call:
+        ) as mocked_client_call, patch.object(
+            self.syn,
+            "get",
+            return_value=Synapse_Folder(
+                id=folder.id,
+            ),
+        ) as mocked_get:
             result = await folder.store()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
                 obj=Synapse_Folder(
                     id=folder.id,
+                    description=description,
                 ),
                 set_annotations=False,
+                isRestricted=False,
+                createOrUpdate=False,
             )
 
-            # AND the folder should be stored
+            # AND we should call the get method
+            mocked_get.assert_called_once()
+
+            # AND the folder should be stored with the mock return data
             assert result.id == "syn123"
             assert result.name == "example_folder"
             assert result.parent_id == "parent_id_value"
@@ -90,33 +107,49 @@ class TestFolder:
             },
         )
 
+        # AND a random description
+        description = str(uuid.uuid4())
+        folder.description = description
+
         # WHEN I call `store` with the Folder object
         with patch(
             "synapseclient.models.folder.store_entity_components",
             return_value=(None),
-        ) as mocked_change_meta_data, patch.object(
+        ) as mocked_store_entity_components, patch.object(
             self.syn,
             "store",
             return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_client_call:
+        ) as mocked_client_call, patch.object(
+            self.syn,
+            "get",
+            return_value=Synapse_Folder(
+                id=folder.id,
+            ),
+        ) as mocked_get:
             result = await folder.store()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
                 obj=Synapse_Folder(
                     id=folder.id,
+                    description=description,
                 ),
                 set_annotations=False,
+                isRestricted=False,
+                createOrUpdate=False,
             )
 
+            # AND we should call the get method
+            mocked_get.assert_called_once()
+
             # AND we should store the annotations component
-            mocked_change_meta_data.assert_called_once_with(
+            mocked_store_entity_components.assert_called_once_with(
                 root_resource=folder,
                 failure_strategy=FailureStrategy.LOG_EXCEPTION,
                 synapse_client=None,
             )
 
-            # AND the folder should be stored
+            # AND the folder should be stored with the mock return data
             assert result.id == "syn123"
             assert result.name == "example_folder"
             assert result.parent_id == "parent_id_value"
@@ -135,22 +168,46 @@ class TestFolder:
             parent_id="parent_id_value",
         )
 
+        # AND a random description
+        description = str(uuid.uuid4())
+        folder.description = description
+
         # WHEN I call `store` with the Folder object
         with patch.object(
             self.syn,
             "store",
             return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_client_call:
+        ) as mocked_client_call, patch.object(
+            self.syn,
+            "findEntityId",
+            return_value="syn123",
+        ) as mocked_get, patch.object(
+            self.syn,
+            "get",
+            return_value=Synapse_Folder(
+                id=folder.id,
+            ),
+        ) as mocked_get:
             result = await folder.store()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
                 obj=Synapse_Folder(
+                    id=folder.id,
                     name=folder.name,
                     parent=folder.parent_id,
+                    description=description,
                 ),
                 set_annotations=False,
+                isRestricted=False,
+                createOrUpdate=False,
             )
+
+            # AND we should call the get method
+            mocked_get.assert_called_once()
+
+            # AND findEntityId should be called
+            mocked_get.assert_called_once()
 
             # AND the folder should be stored
             assert result.id == "syn123"
@@ -170,22 +227,46 @@ class TestFolder:
             name="example_folder",
         )
 
+        # AND a random description
+        description = str(uuid.uuid4())
+        folder.description = description
+
         # WHEN I call `store` with the Folder object
         with patch.object(
             self.syn,
             "store",
             return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_client_call:
+        ) as mocked_client_call, patch.object(
+            self.syn,
+            "findEntityId",
+            return_value="syn123",
+        ) as mocked_get, patch.object(
+            self.syn,
+            "get",
+            return_value=Synapse_Folder(
+                id=folder.id,
+            ),
+        ) as mocked_get:
             result = await folder.store(parent=Folder(id="parent_id_value"))
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
                 obj=Synapse_Folder(
+                    id=folder.id,
                     name=folder.name,
                     parent=folder.parent_id,
+                    description=description,
                 ),
                 set_annotations=False,
+                isRestricted=False,
+                createOrUpdate=False,
             )
+
+            # AND we should call the get method
+            mocked_get.assert_called_once()
+
+            # AND findEntityId should be called
+            mocked_get.assert_called_once()
 
             # AND the folder should be stored
             assert result.id == "syn123"

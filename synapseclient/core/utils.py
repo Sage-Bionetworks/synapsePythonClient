@@ -1362,7 +1362,7 @@ def merge_dataclass_entities(
             destination_dict[key] = value
         elif key == "annotations":
             destination_dict[key] = {
-                **value,
+                **(value or {}),
                 **destination_dict[key],
             }
 
