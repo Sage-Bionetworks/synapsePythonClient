@@ -207,6 +207,7 @@ class StorableContainer:
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
             f"Syncing {self.__class__.__name__} ({self.id}) from Synapse."
         )
+        path = os.path.expanduser(path) if path else None
 
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
@@ -221,6 +222,8 @@ class StorableContainer:
         )
 
         pending_tasks = []
+        self.folders = []
+        self.files = []
 
         for child in children:
             pending_tasks.extend(
@@ -234,8 +237,6 @@ class StorableContainer:
                     synapse_client=synapse_client,
                 )
             )
-        self.folders = []
-        self.files = []
 
         for task in asyncio.as_completed(pending_tasks):
             result = await task
@@ -337,6 +338,7 @@ class StorableContainer:
             from synapseclient.models import Folder
 
             folder = Folder(id=synapse_id, name=name)
+            self.folders.append(folder)
 
             if recursive:
                 pending_tasks.append(
@@ -360,6 +362,7 @@ class StorableContainer:
             from synapseclient.models import File
 
             file = File(id=synapse_id, download_file=download_file)
+            self.files.append(file)
             if path:
                 file.download_location = path
             if if_collision:
@@ -392,9 +395,9 @@ class StorableContainer:
             # appropriate folder/file objects in place.
             pass
         elif result.__class__.__name__ == "Folder":
-            self.folders.append(result)
+            pass
         elif result.__class__.__name__ == "File":
-            self.files.append(result)
+            pass
         elif isinstance(result, BaseException):
             Synapse.get_client(synapse_client=synapse_client).logger.exception(result)
 

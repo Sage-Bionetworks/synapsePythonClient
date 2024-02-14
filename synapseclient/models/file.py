@@ -1,6 +1,7 @@
 import asyncio
-from dataclasses import dataclass, field
 import dataclasses
+from copy import deepcopy
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Dict, List, Union
 from opentelemetry import trace, context
@@ -376,6 +377,9 @@ class File(AccessControllable):
         self._last_persistent_instance = dataclasses.replace(self)
         self._last_persistent_instance.activity = (
             dataclasses.replace(self.activity) if self.activity else None
+        )
+        self._last_persistent_instance.annotations = (
+            deepcopy(self.annotations) if self.annotations else None
         )
 
     def fill_from_dict(

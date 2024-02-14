@@ -1,4 +1,5 @@
 import asyncio
+from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from typing import Dict, List, Union
@@ -160,6 +161,9 @@ class Folder(AccessControllable, StorableContainer):
         determine if the object has been changed and needs to be updated in Synapse."""
         del self._last_persistent_instance
         self._last_persistent_instance = replace(self)
+        self._last_persistent_instance.annotations = (
+            deepcopy(self.annotations) if self.annotations else None
+        )
 
     def fill_from_dict(
         self, synapse_folder: Synapse_Folder, set_annotations: bool = True
@@ -226,6 +230,7 @@ class Folder(AccessControllable, StorableContainer):
                 "The folder must have an id or a "
                 "(name and (`parent_id` or parent with an id)) set."
             )
+        self.parent_id = parent_id
 
         if (
             self.create_or_update
