@@ -484,24 +484,29 @@ class TestCopy:
             self.syn, "restGET", side_effect=[permissions, access_requirements]
         ) as patch_rest_get, patch.object(
             self.syn, "getChildren"
-        ) as patch_get_children:
-            copied_file = synapseutils.copy(
+        ) as patch_get_children, patch.object(
+            self.syn, "store"
+        ) as patch_store:
+            copied_project = synapseutils.copy(
                 self.syn,
                 self.project_entity,
                 destinationId=self.second_project.id,
                 skipCopyWikiPage=True,
             )
-            assert copied_file == {self.project_entity.id: self.second_project.id}
+            assert copied_project == {self.project_entity.id: self.second_project.id}
             calls = [
                 call(self.project_entity, downloadFile=False),
                 call(self.second_project.id),
             ]
             patch_syn_get.assert_has_calls(calls)
             calls = [
-                call("/entity/{}/accessRequirement".format(self.file_ent.id)),
-                call("/entity/{}/permissions".format(self.file_ent.id)),
+                call("/entity/{}/permissions".format(self.project_entity.id)),
+                call("/entity/{}/accessRequirement".format(self.project_entity.id)),
             ]
-            patch_rest_get.has_calls(calls)
+            patch_rest_get.assert_has_calls(calls)
             patch_get_children.assert_called_once_with(
                 self.project_entity, includeTypes=["folder", "file", "table", "link"]
             )
+            # Normally this would be the destination project entity - But because the
+            # `get` method is mocked, the `store` method is called with the same entity.
+            patch_store.assert_called_once_with(self.project_entity)
