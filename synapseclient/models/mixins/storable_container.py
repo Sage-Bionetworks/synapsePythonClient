@@ -45,7 +45,7 @@ class StorableContainer:
     folders: None = None
     _last_persistent_instance: None = None
 
-    async def get(self) -> None:
+    async def get(self, synapse_client: Optional[Synapse] = None) -> None:
         """Used to satisfy the usage in this mixin from the parent class."""
 
     @otel_trace_method(
@@ -203,7 +203,7 @@ class StorableContainer:
         if not self.id:
             raise ValueError("The folder must have an id set.")
         if not self._last_persistent_instance:
-            await self.get()
+            await self.get(synapse_client=synapse_client)
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
             f"Syncing {self.__class__.__name__} ({self.id}) from Synapse."
         )

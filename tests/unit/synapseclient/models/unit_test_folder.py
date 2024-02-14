@@ -94,6 +94,141 @@ class TestFolder:
             assert result.modified_by == "modifiedBy_value"
 
     @pytest.mark.asyncio
+    async def test_store_with_no_changes(self) -> None:
+        # GIVEN a Folder object
+        folder = Folder(
+            id="syn123",
+        )
+
+        # WHEN I call `store` with the Folder object
+        with patch.object(
+            self.syn,
+            "store",
+        ) as mocked_store, patch.object(
+            self.syn,
+            "get",
+            return_value=Synapse_Folder(
+                id=folder.id,
+            ),
+        ) as mocked_get:
+            result = await folder.store()
+
+            # THEN we should not call store because there are no changes
+            mocked_store.assert_not_called()
+
+            # AND we should call the get method
+            mocked_get.assert_called_once()
+
+            # AND the folder should only contain the ID
+            assert result.id == "syn123"
+
+    @pytest.mark.asyncio
+    async def test_store_after_get(self) -> None:
+        # GIVEN a Folder object
+        folder = Folder(
+            id="syn123",
+        )
+
+        # AND I call `get` on the Folder object
+        with patch.object(
+            self.syn,
+            "get",
+            return_value=Synapse_Folder(
+                id=folder.id,
+            ),
+        ) as mocked_get:
+            await folder.get()
+
+            mocked_get.assert_called_once_with(
+                entity=folder.id,
+            )
+            assert folder.id == "syn123"
+
+        # WHEN I call `store` with the Folder object
+        with patch.object(
+            self.syn,
+            "store",
+        ) as mocked_store, patch.object(
+            self.syn,
+            "get",
+            return_value=Synapse_Folder(
+                id=folder.id,
+            ),
+        ) as mocked_get:
+            result = await folder.store()
+
+            # THEN we should not call store because there are no changes
+            mocked_store.assert_not_called()
+
+            # AND we should not call get as we already have
+            mocked_get.assert_not_called()
+
+            # AND the folder should only contain the ID
+            assert result.id == "syn123"
+
+    @pytest.mark.asyncio
+    async def test_store_after_get_with_changes(self) -> None:
+        # GIVEN a Folder object
+        folder = Folder(
+            id="syn123",
+        )
+
+        # AND I call `get` on the Folder object
+        with patch.object(
+            self.syn,
+            "get",
+            return_value=Synapse_Folder(
+                id=folder.id,
+            ),
+        ) as mocked_get:
+            await folder.get()
+
+            mocked_get.assert_called_once_with(
+                entity=folder.id,
+            )
+            assert folder.id == "syn123"
+
+        # AND I update a field on the folder
+        description = str(uuid.uuid4())
+        folder.description = description
+
+        # WHEN I call `store` with the Folder object
+        with patch.object(
+            self.syn,
+            "store",
+            return_value=(self.get_example_synapse_folder_output()),
+        ) as mocked_store, patch.object(
+            self.syn,
+            "get",
+        ) as mocked_get:
+            result = await folder.store()
+
+            # THEN we should  call store because there are changes
+            mocked_store.assert_called_once_with(
+                obj=Synapse_Folder(
+                    id=folder.id,
+                    description=description,
+                ),
+                set_annotations=False,
+                isRestricted=False,
+                createOrUpdate=False,
+            )
+
+            # AND we should not call get as we already have
+            mocked_get.assert_not_called()
+
+            # AND the folder should contained the mocked store return data
+            assert result.id == "syn123"
+            assert result.name == "example_folder"
+            assert result.parent_id == "parent_id_value"
+            assert result.description == "This is an example folder."
+            assert result.etag == "etag_value"
+            assert result.created_on == "createdOn_value"
+            assert result.modified_on == "modifiedOn_value"
+            assert result.created_by == "createdBy_value"
+            assert result.modified_by == "modifiedBy_value"
+
+    @pytest.mark.asyncio
     async def test_store_with_annotations(self) -> None:
         # GIVEN a Folder object
         folder = Folder(

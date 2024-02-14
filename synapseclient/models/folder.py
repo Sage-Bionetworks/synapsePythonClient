@@ -7,7 +7,6 @@ from typing import Optional, TYPE_CHECKING
 from opentelemetry import trace, context
 
 from synapseclient import Synapse
-from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import File, Annotations
 from synapseclient.core.async_utils import otel_trace_method
@@ -235,7 +234,11 @@ class Folder(AccessControllable, StorableContainer):
         if (
             self.create_or_update
             and not self._last_persistent_instance
-            and (existing_folder_id := await get_id(entity=self, failure_strategy=None))
+            and (
+                existing_folder_id := await get_id(
+                    entity=self, failure_strategy=None, synapse_client=synapse_client
+                )
+            )
             and (existing_folder := await Folder(id=existing_folder_id).get())
         ):
             merge_dataclass_entities(source=existing_folder, destination=self)
@@ -311,22 +314,7 @@ class Folder(AccessControllable, StorableContainer):
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
 
-        entity_id = self.id or await loop.run_in_executor(
-            None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).findEntityId(
-                    name=self.name,
-                    parent=parent_id,
-                ),
-                current_context,
-            ),
-        )
-
-        if entity_id is None:
-            raise SynapseNotFoundError(
-                f"Folder [Id: {self.id}, Name: {self.name}, Parent: {parent_id}] not "
-                "found in Synapse."
-            )
+        entity_id = await get_id(entity=self, synapse_client=synapse_client)
 
         entity = await loop.run_in_executor(
             None,

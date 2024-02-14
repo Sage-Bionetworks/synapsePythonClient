@@ -272,9 +272,15 @@ class Project(AccessControllable, StorableContainer):
             self.create_or_update
             and not self._last_persistent_instance
             and (
-                existing_project_id := await get_id(entity=self, failure_strategy=None)
+                existing_project_id := await get_id(
+                    entity=self, synapse_client=synapse_client, failure_strategy=None
+                )
             )
-            and (existing_project := await Project(id=existing_project_id).get())
+            and (
+                existing_project := await Project(id=existing_project_id).get(
+                    synapse_client=synapse_client
+                )
+            )
         ):
             merge_dataclass_entities(source=existing_project, destination=self)
 
