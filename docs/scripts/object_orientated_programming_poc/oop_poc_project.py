@@ -10,7 +10,8 @@ The following actions are shown in this script:
 5. Storing several folders in a project
 6. Updating the annotations in bulk for a number of folders and files
 7. Downloading an entire project structure to disk
-8. Deleting a project
+8. Copy a project and all content to a new project
+9. Deleting a project
 """
 
 import asyncio
@@ -145,12 +146,18 @@ async def store_project():
         download_file=True, path="~/temp/recursiveDownload", recursive=True
     )
 
-    # 8) Deleting a project ==============================================================
+    # 8) Copy a project and all content to a new project =================================
     project_to_delete = await Project(
         name="my_new_project_I_want_to_delete_" + str(uuid.uuid4()).replace("-", "_"),
     ).store()
     print(f"Project created with id: {project_to_delete.id}")
 
+    project_to_delete = await project.copy(destination_id=project_to_delete.id)
+    print(
+        f"Copied to new project, copied {len(project_to_delete.folders)} folders and {len(project_to_delete.files)} files"
+    )
+
+    # 9) Deleting a project ==============================================================
     await project_to_delete.delete()
     print(f"Project with id: {project_to_delete.id} deleted")
 

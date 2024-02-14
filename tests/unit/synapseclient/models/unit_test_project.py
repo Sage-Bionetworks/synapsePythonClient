@@ -1,23 +1,23 @@
 import uuid
 from unittest.mock import patch
 import pytest
-from synapseclient.models import File, Folder, FailureStrategy
-from synapseclient import Folder as Synapse_Folder
+from synapseclient.models import File, Project, FailureStrategy
+from synapseclient import Project as Synapse_Project
 from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
 
 
-class TestFolder:
+class TestProject:
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn):
         self.syn = syn
 
-    def get_example_synapse_folder_output(self) -> Synapse_Folder:
-        return Synapse_Folder(
+    def get_example_synapse_project_output(self) -> Synapse_Project:
+        return Synapse_Project(
             id="syn123",
-            name="example_folder",
+            name="example_project",
             parentId="parent_id_value",
-            description="This is an example folder.",
+            description="This is an example project.",
             etag="etag_value",
             createdOn="createdOn_value",
             modifiedOn="modifiedOn_value",
@@ -26,67 +26,66 @@ class TestFolder:
         )
 
     def test_fill_from_dict(self) -> None:
-        # GIVEN an example Synapse Folder `get_example_synapse_folder_output`
-        # WHEN I call `fill_from_dict` with the example Synapse Folder
-        folder_output = Folder().fill_from_dict(
-            self.get_example_synapse_folder_output()
+        # GIVEN an example Synapse Project `get_example_synapse_project_output`
+        # WHEN I call `fill_from_dict` with the example Synapse Project
+        project_output = Project().fill_from_dict(
+            self.get_example_synapse_project_output()
         )
 
-        # THEN the Folder object should be filled with the example Synapse Folder
-        assert folder_output.id == "syn123"
-        assert folder_output.name == "example_folder"
-        assert folder_output.parent_id == "parent_id_value"
-        assert folder_output.description == "This is an example folder."
-        assert folder_output.etag == "etag_value"
-        assert folder_output.created_on == "createdOn_value"
-        assert folder_output.modified_on == "modifiedOn_value"
-        assert folder_output.created_by == "createdBy_value"
-        assert folder_output.modified_by == "modifiedBy_value"
+        # THEN the Project object should be filled with the example Synapse Project
+        assert project_output.id == "syn123"
+        assert project_output.name == "example_project"
+        assert project_output.parent_id == "parent_id_value"
+        assert project_output.description == "This is an example project."
+        assert project_output.etag == "etag_value"
+        assert project_output.created_on == "createdOn_value"
+        assert project_output.modified_on == "modifiedOn_value"
+        assert project_output.created_by == "createdBy_value"
+        assert project_output.modified_by == "modifiedBy_value"
 
     @pytest.mark.asyncio
     async def test_store_with_id(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
+        # GIVEN a Project object
+        project = Project(
             id="syn123",
         )
 
         # AND a random description
         description = str(uuid.uuid4())
-        folder.description = description
+        project.description = description
 
-        # WHEN I call `store` with the Folder object
+        # WHEN I call `store` with the Project object
         with patch.object(
             self.syn,
             "store",
-            return_value=(self.get_example_synapse_folder_output()),
+            return_value=(self.get_example_synapse_project_output()),
         ) as mocked_client_call, patch.object(
             self.syn,
             "get",
-            return_value=Synapse_Folder(
-                id=folder.id,
+            return_value=Synapse_Project(
+                id=project.id,
             ),
         ) as mocked_get:
-            result = await folder.store()
+            result = await project.store()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
-                obj=Synapse_Folder(
-                    id=folder.id,
+                obj=Synapse_Project(
+                    id=project.id,
                     description=description,
                 ),
                 set_annotations=False,
-                isRestricted=False,
                 createOrUpdate=False,
             )
 
             # AND we should call the get method
             mocked_get.assert_called_once()
 
-            # AND the folder should be stored with the mock return data
+            # AND the project should be stored with the mock return data
             assert result.id == "syn123"
-            assert result.name == "example_folder"
+            assert result.name == "example_project"
             assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
+            assert result.description == "This is an example project."
             assert result.etag == "etag_value"
             assert result.created_on == "createdOn_value"
             assert result.modified_on == "modifiedOn_value"
@@ -95,23 +94,23 @@ class TestFolder:
 
     @pytest.mark.asyncio
     async def test_store_with_no_changes(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
+        # GIVEN a Project object
+        project = Project(
             id="syn123",
         )
 
-        # WHEN I call `store` with the Folder object
+        # WHEN I call `store` with the Project object
         with patch.object(
             self.syn,
             "store",
         ) as mocked_store, patch.object(
             self.syn,
             "get",
-            return_value=Synapse_Folder(
-                id=folder.id,
+            return_value=Synapse_Project(
+                id=project.id,
             ),
         ) as mocked_get:
-            result = await folder.store()
+            result = await project.store()
 
             # THEN we should not call store because there are no changes
             mocked_store.assert_not_called()
@@ -119,43 +118,43 @@ class TestFolder:
             # AND we should call the get method
             mocked_get.assert_called_once()
 
-            # AND the folder should only contain the ID
+            # AND the project should only contain the ID
             assert result.id == "syn123"
 
     @pytest.mark.asyncio
     async def test_store_after_get(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
+        # GIVEN a Project object
+        project = Project(
             id="syn123",
         )
 
-        # AND I call `get` on the Folder object
+        # AND I call `get` on the Project object
         with patch.object(
             self.syn,
             "get",
-            return_value=Synapse_Folder(
-                id=folder.id,
+            return_value=Synapse_Project(
+                id=project.id,
             ),
         ) as mocked_get:
-            await folder.get()
+            await project.get()
 
             mocked_get.assert_called_once_with(
-                entity=folder.id,
+                entity=project.id,
             )
-            assert folder.id == "syn123"
+            assert project.id == "syn123"
 
-        # WHEN I call `store` with the Folder object
+        # WHEN I call `store` with the Project object
         with patch.object(
             self.syn,
             "store",
         ) as mocked_store, patch.object(
             self.syn,
             "get",
-            return_value=Synapse_Folder(
-                id=folder.id,
+            return_value=Synapse_Project(
+                id=project.id,
             ),
         ) as mocked_get:
-            result = await folder.store()
+            result = await project.store()
 
             # THEN we should not call store because there are no changes
             mocked_store.assert_not_called()
@@ -163,65 +162,64 @@ class TestFolder:
             # AND we should not call get as we already have
             mocked_get.assert_not_called()
 
-            # AND the folder should only contain the ID
+            # AND the project should only contain the ID
             assert result.id == "syn123"
 
     @pytest.mark.asyncio
     async def test_store_after_get_with_changes(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
+        # GIVEN a Project object
+        project = Project(
             id="syn123",
         )
 
-        # AND I call `get` on the Folder object
+        # AND I call `get` on the Project object
         with patch.object(
             self.syn,
             "get",
-            return_value=Synapse_Folder(
-                id=folder.id,
+            return_value=Synapse_Project(
+                id=project.id,
             ),
         ) as mocked_get:
-            await folder.get()
+            await project.get()
 
             mocked_get.assert_called_once_with(
-                entity=folder.id,
+                entity=project.id,
             )
-            assert folder.id == "syn123"
+            assert project.id == "syn123"
 
-        # AND I update a field on the folder
+        # AND I update a field on the project
         description = str(uuid.uuid4())
-        folder.description = description
+        project.description = description
 
-        # WHEN I call `store` with the Folder object
+        # WHEN I call `store` with the Project object
         with patch.object(
             self.syn,
             "store",
-            return_value=(self.get_example_synapse_folder_output()),
+            return_value=(self.get_example_synapse_project_output()),
         ) as mocked_store, patch.object(
             self.syn,
             "get",
         ) as mocked_get:
-            result = await folder.store()
+            result = await project.store()
 
             # THEN we should  call store because there are changes
             mocked_store.assert_called_once_with(
-                obj=Synapse_Folder(
-                    id=folder.id,
+                obj=Synapse_Project(
+                    id=project.id,
                     description=description,
                 ),
                 set_annotations=False,
-                isRestricted=False,
                 createOrUpdate=False,
             )
 
             # AND we should not call get as we already have
             mocked_get.assert_not_called()
 
-            # AND the folder should contained the mocked store return data
+            # AND the project should contained the mocked store return data
             assert result.id == "syn123"
-            assert result.name == "example_folder"
+            assert result.name == "example_project"
             assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
+            assert result.description == "This is an example project."
             assert result.etag == "etag_value"
             assert result.created_on == "createdOn_value"
             assert result.modified_on == "modifiedOn_value"
@@ -230,8 +228,8 @@ class TestFolder:
 
     @pytest.mark.asyncio
     async def test_store_with_annotations(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
+        # GIVEN a Project object
+        project = Project(
             id="syn123",
             annotations={
                 "my_single_key_string": ["a"],
@@ -244,33 +242,32 @@ class TestFolder:
 
         # AND a random description
         description = str(uuid.uuid4())
-        folder.description = description
+        project.description = description
 
-        # WHEN I call `store` with the Folder object
+        # WHEN I call `store` with the Project object
         with patch(
-            "synapseclient.models.folder.store_entity_components",
+            "synapseclient.models.project.store_entity_components",
             return_value=(None),
         ) as mocked_store_entity_components, patch.object(
             self.syn,
             "store",
-            return_value=(self.get_example_synapse_folder_output()),
+            return_value=(self.get_example_synapse_project_output()),
         ) as mocked_client_call, patch.object(
             self.syn,
             "get",
-            return_value=Synapse_Folder(
-                id=folder.id,
+            return_value=Synapse_Project(
+                id=project.id,
             ),
         ) as mocked_get:
-            result = await folder.store()
+            result = await project.store()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
-                obj=Synapse_Folder(
-                    id=folder.id,
+                obj=Synapse_Project(
+                    id=project.id,
                     description=description,
                 ),
                 set_annotations=False,
-                isRestricted=False,
                 createOrUpdate=False,
             )
 
@@ -279,16 +276,16 @@ class TestFolder:
 
             # AND we should store the annotations component
             mocked_store_entity_components.assert_called_once_with(
-                root_resource=folder,
+                root_resource=project,
                 failure_strategy=FailureStrategy.LOG_EXCEPTION,
                 synapse_client=None,
             )
 
-            # AND the folder should be stored with the mock return data
+            # AND the project should be stored with the mock return data
             assert result.id == "syn123"
-            assert result.name == "example_folder"
+            assert result.name == "example_project"
             assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
+            assert result.description == "This is an example project."
             assert result.etag == "etag_value"
             assert result.created_on == "createdOn_value"
             assert result.modified_on == "modifiedOn_value"
@@ -297,21 +294,21 @@ class TestFolder:
 
     @pytest.mark.asyncio
     async def test_store_with_name_and_parent_id(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
-            name="example_folder",
+        # GIVEN a Project object
+        project = Project(
+            name="example_project",
             parent_id="parent_id_value",
         )
 
         # AND a random description
         description = str(uuid.uuid4())
-        folder.description = description
+        project.description = description
 
-        # WHEN I call `store` with the Folder object
+        # WHEN I call `store` with the Project object
         with patch.object(
             self.syn,
             "store",
-            return_value=(self.get_example_synapse_folder_output()),
+            return_value=(self.get_example_synapse_project_output()),
         ) as mocked_client_call, patch.object(
             self.syn,
             "findEntityId",
@@ -319,22 +316,21 @@ class TestFolder:
         ) as mocked_get, patch.object(
             self.syn,
             "get",
-            return_value=Synapse_Folder(
-                id=folder.id,
+            return_value=Synapse_Project(
+                id=project.id,
             ),
         ) as mocked_get:
-            result = await folder.store()
+            result = await project.store()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
-                obj=Synapse_Folder(
-                    id=folder.id,
-                    name=folder.name,
-                    parent=folder.parent_id,
+                obj=Synapse_Project(
+                    id=project.id,
+                    name=project.name,
+                    parent=project.parent_id,
                     description=description,
                 ),
                 set_annotations=False,
-                isRestricted=False,
                 createOrUpdate=False,
             )
 
@@ -344,146 +340,54 @@ class TestFolder:
             # AND findEntityId should be called
             mocked_get.assert_called_once()
 
-            # AND the folder should be stored
+            # AND the project should be stored
             assert result.id == "syn123"
-            assert result.name == "example_folder"
+            assert result.name == "example_project"
             assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
+            assert result.description == "This is an example project."
             assert result.etag == "etag_value"
             assert result.created_on == "createdOn_value"
             assert result.modified_on == "modifiedOn_value"
             assert result.created_by == "createdBy_value"
             assert result.modified_by == "modifiedBy_value"
-
-    @pytest.mark.asyncio
-    async def test_store_with_name_and_parent(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
-            name="example_folder",
-        )
-
-        # AND a random description
-        description = str(uuid.uuid4())
-        folder.description = description
-
-        # WHEN I call `store` with the Folder object
-        with patch.object(
-            self.syn,
-            "store",
-            return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_client_call, patch.object(
-            self.syn,
-            "findEntityId",
-            return_value="syn123",
-        ) as mocked_get, patch.object(
-            self.syn,
-            "get",
-            return_value=Synapse_Folder(
-                id=folder.id,
-            ),
-        ) as mocked_get:
-            result = await folder.store(parent=Folder(id="parent_id_value"))
-
-            # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Folder(
-                    id=folder.id,
-                    name=folder.name,
-                    parent=folder.parent_id,
-                    description=description,
-                ),
-                set_annotations=False,
-                isRestricted=False,
-                createOrUpdate=False,
-            )
-
-            # AND we should call the get method
-            mocked_get.assert_called_once()
-
-            # AND findEntityId should be called
-            mocked_get.assert_called_once()
-
-            # AND the folder should be stored
-            assert result.id == "syn123"
-            assert result.name == "example_folder"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
-
-    @pytest.mark.asyncio
-    async def test_store_no_id_name_or_parent(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder()
-
-        # WHEN I call `store` with the Folder object
-        with pytest.raises(ValueError) as e:
-            await folder.store()
-
-        # THEN we should get an error
-        assert (
-            str(e.value) == "The folder must have an id or a "
-            "(name and (`parent_id` or parent with an id)) set."
-        )
 
     @pytest.mark.asyncio
     async def test_store_no_id_or_name(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(parent_id="parent_id_value")
+        # GIVEN a Project object
+        project = Project(parent_id="parent_id_value")
 
-        # WHEN I call `store` with the Folder object
+        # WHEN I call `store` with the Project object
         with pytest.raises(ValueError) as e:
-            await folder.store()
+            await project.store()
 
         # THEN we should get an error
-        assert (
-            str(e.value) == "The folder must have an id or a "
-            "(name and (`parent_id` or parent with an id)) set."
-        )
-
-    @pytest.mark.asyncio
-    async def test_store_no_id_or_parent(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(name="example_folder")
-
-        # WHEN I call `store` with the Folder object
-        with pytest.raises(ValueError) as e:
-            await folder.store()
-
-        # THEN we should get an error
-        assert (
-            str(e.value) == "The folder must have an id or a "
-            "(name and (`parent_id` or parent with an id)) set."
-        )
+        assert str(e.value) == "Project ID or Name is required"
 
     @pytest.mark.asyncio
     async def test_get_by_id(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
+        # GIVEN a Project object
+        project = Project(
             id="syn123",
         )
 
-        # WHEN I call `get` with the Folder object
+        # WHEN I call `get` with the Project object
         with patch.object(
             self.syn,
             "get",
-            return_value=(self.get_example_synapse_folder_output()),
+            return_value=(self.get_example_synapse_project_output()),
         ) as mocked_client_call:
-            result = await folder.get()
+            result = await project.get()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
-                entity=folder.id,
+                entity=project.id,
             )
 
-            # AND the folder should be stored
+            # AND the project should be stored
             assert result.id == "syn123"
-            assert result.name == "example_folder"
+            assert result.name == "example_project"
             assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
+            assert result.description == "This is an example project."
             assert result.etag == "etag_value"
             assert result.created_on == "createdOn_value"
             assert result.modified_on == "modifiedOn_value"
@@ -492,13 +396,13 @@ class TestFolder:
 
     @pytest.mark.asyncio
     async def test_get_by_name_and_parent(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
-            name="example_folder",
+        # GIVEN a Project object
+        project = Project(
+            name="example_project",
             parent_id="parent_id_value",
         )
 
-        # WHEN I call `get` with the Folder object
+        # WHEN I call `get` with the Project object
         with patch.object(
             self.syn,
             "findEntityId",
@@ -506,26 +410,26 @@ class TestFolder:
         ) as mocked_client_search, patch.object(
             self.syn,
             "get",
-            return_value=(self.get_example_synapse_folder_output()),
+            return_value=(self.get_example_synapse_project_output()),
         ) as mocked_client_call:
-            result = await folder.get()
+            result = await project.get()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
-                entity=folder.id,
+                entity=project.id,
             )
 
             # AND we should search for the entity
             mocked_client_search.assert_called_once_with(
-                name=folder.name,
-                parent=folder.parent_id,
+                name=project.name,
+                parent=project.parent_id,
             )
 
-            # AND the folder should be stored
+            # AND the project should be stored
             assert result.id == "syn123"
-            assert result.name == "example_folder"
+            assert result.name == "example_project"
             assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
+            assert result.description == "This is an example project."
             assert result.etag == "etag_value"
             assert result.created_on == "createdOn_value"
             assert result.modified_on == "modifiedOn_value"
@@ -534,97 +438,98 @@ class TestFolder:
 
     @pytest.mark.asyncio
     async def test_get_by_name_and_parent_not_found(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
-            name="example_folder",
+        # GIVEN a Project object
+        project = Project(
+            name="example_project",
             parent_id="parent_id_value",
         )
 
-        # WHEN I call `get` with the Folder object
+        # WHEN I call `get` with the Project object
         with patch.object(
             self.syn,
             "findEntityId",
             return_value=(None),
         ) as mocked_client_search:
             with pytest.raises(SynapseNotFoundError) as e:
-                await folder.get()
+                await project.get()
             assert (
                 str(e.value)
-                == "Folder [Id: None, Name: example_folder, Parent: parent_id_value] not found in Synapse."
+                == "Project [Id: None, Name: example_project, Parent: parent_id_value] not found in Synapse."
             )
 
             mocked_client_search.assert_called_once_with(
-                name=folder.name,
-                parent=folder.parent_id,
+                name=project.name,
+                parent=project.parent_id,
             )
 
     @pytest.mark.asyncio
     async def test_delete_with_id(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
+        # GIVEN a Project object
+        project = Project(
             id="syn123",
         )
 
-        # WHEN I call `delete` with the Folder object
+        # WHEN I call `delete` with the Project object
         with patch.object(
             self.syn,
             "delete",
             return_value=(None),
         ) as mocked_client_call:
-            await folder.delete()
+            await project.delete()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
-                obj=folder.id,
+                obj=project.id,
             )
 
     @pytest.mark.asyncio
     async def test_delete_missing_id(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder()
+        # GIVEN a Project object
+        project = Project()
 
-        # WHEN I call `delete` with the Folder object
+        # WHEN I call `delete` with the Project object
         with pytest.raises(ValueError) as e:
-            await folder.delete()
+            await project.delete()
 
         # THEN we should get an error
-        assert str(e.value) == "The folder must have an id set."
+        assert str(e.value) == "Entity ID or Name/Parent is required"
 
     @pytest.mark.asyncio
     async def test_copy(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
+        # GIVEN a Project object
+        project = Project(
             id="syn123",
         )
 
-        # AND a returned Folder object
-        returned_folder = Folder(id="syn456")
+        # AND a returned Project object
+        returned_project = Project(id="syn456")
 
         # AND a copy mapping exists
         copy_mapping = {
             "syn123": "syn456",
         }
 
-        # WHEN I call `copy` with the Folder object
+        # WHEN I call `copy` with the Project object
         with patch(
-            "synapseclient.models.folder.copy",
+            "synapseclient.models.project.copy",
             return_value=(copy_mapping),
         ) as mocked_copy, patch(
-            "synapseclient.models.folder.Folder.get",
-            return_value=(returned_folder),
+            "synapseclient.models.project.Project.get",
+            return_value=(returned_project),
         ) as mocked_get, patch(
-            "synapseclient.models.folder.Folder.sync_from_synapse",
-            return_value=(returned_folder),
+            "synapseclient.models.project.Project.sync_from_synapse",
+            return_value=(returned_project),
         ) as mocked_sync:
-            result = await folder.copy(parent_id="destination_id")
+            result = await project.copy(destination_id="destination_id")
 
             # THEN we should call the method with this data
             mocked_copy.assert_called_once_with(
                 syn=self.syn,
-                entity=folder.id,
+                entity=project.id,
                 destinationId="destination_id",
                 excludeTypes=[],
                 skipCopyAnnotations=False,
+                skipCopyWikiPage=False,
                 updateExisting=False,
                 setProvenance="traceback",
             )
@@ -643,36 +548,36 @@ class TestFolder:
 
     @pytest.mark.asyncio
     async def test_copy_missing_id(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder()
+        # GIVEN a Project object
+        project = Project()
 
-        # WHEN I call `copy` with the Folder object
+        # WHEN I call `copy` with the Project object
         with pytest.raises(ValueError) as e:
-            await folder.copy(parent_id="destination_id")
+            await project.copy(destination_id="destination_id")
 
         # THEN we should get an error
-        assert str(e.value) == "The folder must have an ID and parent_id to copy."
+        assert str(e.value) == "The project must have an ID and destination_id to copy."
 
     @pytest.mark.asyncio
     async def test_copy_missing_destination(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(id="syn123")
+        # GIVEN a Project object
+        project = Project(id="syn123")
 
-        # WHEN I call `copy` with the Folder object
+        # WHEN I call `copy` with the Project object
         with pytest.raises(ValueError) as e:
-            await folder.copy(parent_id=None)
+            await project.copy(destination_id=None)
 
         # THEN we should get an error
-        assert str(e.value) == "The folder must have an ID and parent_id to copy."
+        assert str(e.value) == "The project must have an ID and destination_id to copy."
 
     @pytest.mark.asyncio
     async def test_sync_from_synapse(self) -> None:
-        # GIVEN a Folder object
-        folder = Folder(
+        # GIVEN a Project object
+        project = Project(
             id="syn123",
         )
 
-        # AND Children that exist on the folder in Synapse
+        # AND Children that exist on the project in Synapse
         children = [
             {
                 "id": "syn456",
@@ -681,7 +586,7 @@ class TestFolder:
             }
         ]
 
-        # WHEN I call `sync_from_synapse` with the Folder object
+        # WHEN I call `sync_from_synapse` with the Project object
         with patch.object(
             self.syn,
             "getChildren",
@@ -689,24 +594,24 @@ class TestFolder:
         ) as mocked_children_call, patch.object(
             self.syn,
             "get",
-            return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_folder_get, patch(
+            return_value=(self.get_example_synapse_project_output()),
+        ) as mocked_project_get, patch(
             "synapseclient.models.file.File.get",
             return_value=(File(id="syn456", name="example_file_1")),
         ):
-            result = await folder.sync_from_synapse()
+            result = await project.sync_from_synapse()
 
             # THEN we should call the method with this data
             mocked_children_call.assert_called_once()
 
             # AND we should call the get method
-            mocked_folder_get.assert_called_once()
+            mocked_project_get.assert_called_once()
 
-            # AND the file/folder should be retrieved
+            # AND the file/project should be retrieved
             assert result.id == "syn123"
-            assert result.name == "example_folder"
+            assert result.name == "example_project"
             assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
+            assert result.description == "This is an example project."
             assert result.etag == "etag_value"
             assert result.created_on == "createdOn_value"
             assert result.modified_on == "modifiedOn_value"

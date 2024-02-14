@@ -370,6 +370,8 @@ class Folder(AccessControllable, StorableContainer):
         parent_id: str,
         copy_annotations: bool = True,
         exclude_types: Optional[List[str]] = None,
+        file_update_existing: bool = False,
+        file_copy_activity: Union[str, None] = "traceback",
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
         """
@@ -382,6 +384,13 @@ class Folder(AccessControllable, StorableContainer):
             copy_annotations: True to copy the annotations.
             exclude_types: A list of entity types ['file', 'table', 'link'] which
                 determines which entity types to not copy. Defaults to an empty list.
+            file_update_existing: When the destination has a file that has the same name,
+                users can choose to update that file.
+            file_copy_activity: Has three options to set the activity of the copied file:
+
+                    - traceback: Creates a copy of the source files Activity.
+                    - existing: Link to the source file's original Activity (if it exists)
+                    - None: No activity is set
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
 
@@ -417,6 +426,8 @@ class Folder(AccessControllable, StorableContainer):
                     destinationId=parent_id,
                     excludeTypes=exclude_types or [],
                     skipCopyAnnotations=not copy_annotations,
+                    updateExisting=file_update_existing,
+                    setProvenance=file_copy_activity,
                 ),
                 current_context,
             ),

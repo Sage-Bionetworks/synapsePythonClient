@@ -21,6 +21,8 @@ from synapseclient.core.utils import (
     delete_none_keys,
     merge_dataclass_entities,
 )
+from synapseclient.core.exceptions import SynapseError
+from synapseutils.copy_functions import copy
 from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
     FailureStrategy,
@@ -409,3 +411,92 @@ class Project(AccessControllable, StorableContainer):
                 current_context,
             ),
         )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Project_Copy: {self.id}"
+    )
+    async def copy(
+        self,
+        destination_id: str,
+        copy_annotations: bool = True,
+        copy_wiki: bool = True,
+        exclude_types: Optional[List[str]] = None,
+        file_update_existing: bool = False,
+        file_copy_activity: Union[str, None] = "traceback",
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Folder":
+        """
+        You must have already created the Project you will be copying to. It will have
+        it's own Synapse ID and unique name that you will use as the destination_id.
+
+
+        Copy the project to another Synpase project. This will recursively copy all
+        Tables, Links, Files, and Folders within the project.
+
+        Arguments:
+            destination_id: Synapse ID of a project to copy to.
+            copy_annotations: True to copy the annotations.
+            copy_wiki: True to copy the wiki pages.
+            exclude_types: A list of entity types ['file', 'table', 'link'] which
+                determines which entity types to not copy. Defaults to an empty list.
+            file_update_existing: When the destination has a file that has the same name,
+                users can choose to update that file.
+            file_copy_activity: Has three options to set the activity of the copied file:
+
+                    - traceback: Creates a copy of the source files Activity.
+                    - existing: Link to the source file's original Activity (if it exists)
+                    - None: No activity is set
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
+
+        Returns:
+            The copied project object.
+
+        Example: Using this function
+            Assuming you have a project with the ID "syn123" and you want to copy it to a
+            project with the ID "syn456":
+
+                new_instance = await Project(id="syn123").copy(destination_id="syn456")
+
+            Copy the project but do not persist annotations:
+
+                new_instance = await Project(id="syn123").copy(destination_id="syn456", copy_annotations=False)
+
+        Raises:
+            ValueError: If the project does not have an ID and destination_id to copy.
+        """
+        if not self.id or not destination_id:
+            raise ValueError("The project must have an ID and destination_id to copy.")
+
+        loop = asyncio.get_event_loop()
+
+        current_context = context.get_current()
+        syn = Synapse.get_client(synapse_client=synapse_client)
+        source_and_destination = await loop.run_in_executor(
+            None,
+            lambda: run_and_attach_otel_context(
+                lambda: copy(
+                    syn=syn,
+                    entity=self.id,
+                    destinationId=destination_id,
+                    excludeTypes=exclude_types or [],
+                    skipCopyAnnotations=not copy_annotations,
+                    skipCopyWikiPage=not copy_wiki,
+                    updateExisting=file_update_existing,
+                    setProvenance=file_copy_activity,
+                ),
+                current_context,
+            ),
+        )
+
+        new_project_id = source_and_destination.get(self.id, None)
+        if not new_project_id:
+            raise SynapseError("Failed to copy project.")
+        project_copy = await (await Project(id=new_project_id).get()).sync_from_synapse(
+            download_file=False,
+            synapse_client=synapse_client,
+        )
+        Synapse.get_client(synapse_client=synapse_client).logger.debug(
+            f"Copied from project {self.id} to {destination_id}"
+        )
+        return project_copy
