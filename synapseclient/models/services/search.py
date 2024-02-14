@@ -56,7 +56,7 @@ async def get_id(
     if not can_search:
         if failure_strategy is None:
             return None
-        raise ValueError("Project ID or Name is required")
+        raise ValueError("Entity ID or Name/Parent is required")
 
     loop = asyncio.get_event_loop()
     current_context = context.get_current()

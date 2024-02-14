@@ -310,6 +310,7 @@ class Folder(AccessControllable, StorableContainer):
                 "The folder must have an id or a "
                 "(name and (`parent_id` or parent with an id)) set."
             )
+        self.parent_id = parent_id
 
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
