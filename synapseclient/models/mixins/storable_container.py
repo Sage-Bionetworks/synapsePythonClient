@@ -200,8 +200,6 @@ class StorableContainer:
         ```
 
         """
-        if not self.id:
-            raise ValueError("The folder must have an id set.")
         if not self._last_persistent_instance:
             await self.get(synapse_client=synapse_client)
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
