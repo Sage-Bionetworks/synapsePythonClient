@@ -394,9 +394,11 @@ class StorableContainer:
             # it will internally be recursively calling this method and setting the
             # appropriate folder/file objects in place.
             pass
-        elif result.__class__.__name__ == "Folder":
-            pass
-        elif result.__class__.__name__ == "File":
+        elif (
+            result.__class__.__name__ == "Folder" or result.__class__.__name__ == "File"
+        ):
+            # Do nothing as the objects are updated in place and the container has
+            # already been updated to append the new objects.
             pass
         elif isinstance(result, BaseException):
             Synapse.get_client(synapse_client=synapse_client).logger.exception(result)
