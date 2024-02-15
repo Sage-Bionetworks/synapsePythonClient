@@ -46,3 +46,10 @@ To work with data of your own or your team’s, you must become a
 
 To access mHealth data, you must become a
 [validated user](https://help.synapse.org/docs/Synapse-User-Account-Types.2007072795.html#SynapseUserAccountTypes-ValidatedUsers).
+
+## Debugging in the client
+Erorrs happen, and when they do it is useful to turn on debug level logging within the
+Synapse client. In order to turn on debug level logging see:
+
+- [Debug flag for the programmatic interface](../reference/client.md?h=debug#synapseclient.Synapse)
+- [Debug flag for the command line interface](./command_line_client.md?h=debug#options)
