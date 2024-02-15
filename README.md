@@ -94,6 +94,9 @@ The Synapse client can be used to write software that interacts with the Sage Bi
 import synapseclient
 
 syn = synapseclient.Synapse()
+## You may optionally specify the debug flag to True to print out debug level messages.
+## A debug level may help point to issues in your own code, or uncover a bug within ours.
+# syn = synapseclient.Synapse(debug=True)
 
 ## log in using auth token
 syn.login(authToken='auth_token')
