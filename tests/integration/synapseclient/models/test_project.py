@@ -10,7 +10,11 @@ from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
 
-from synapseclient.models import Project, Project, File, Folder
+from synapseclient.models import Project, File, Folder
+
+CONTENT_TYPE = "text/plain"
+DESCRIPTION_FILE = "This is an example file."
+DERSCRIPTION_PROJECT = "This is an example project."
 
 
 class TestProjectStore:
@@ -26,8 +30,8 @@ class TestProjectStore:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
         )
 
     @pytest.fixture(autouse=True, scope="function")
@@ -36,9 +40,7 @@ class TestProjectStore:
 
     @pytest.fixture(autouse=True, scope="function")
     def project(self) -> Project:
-        project = Project(
-            name=str(uuid.uuid4()), description="This is an example project."
-        )
+        project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
     @pytest.mark.asyncio
@@ -237,9 +239,7 @@ class TestProjectGet:
 
     @pytest.fixture(autouse=True, scope="function")
     def project(self) -> Project:
-        project = Project(
-            name=str(uuid.uuid4()), description="This is an example project."
-        )
+        project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
     @pytest.mark.asyncio
@@ -303,9 +303,7 @@ class TestProjectDelete:
 
     @pytest.fixture(autouse=True, scope="function")
     def project(self) -> Project:
-        project = Project(
-            name=str(uuid.uuid4()), description="This is an example project."
-        )
+        project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
     @pytest.mark.asyncio
@@ -342,15 +340,13 @@ class TestProjectCopy:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
         )
 
     @pytest.fixture(autouse=True, scope="function")
     def project(self) -> Project:
-        project = Project(
-            name=str(uuid.uuid4()), description="This is an example project."
-        )
+        project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
     @pytest.mark.asyncio
@@ -509,8 +505,8 @@ class TestProjectSyncFromSynapse:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
         )
 
     @pytest.fixture(autouse=True, scope="function")
@@ -519,9 +515,7 @@ class TestProjectSyncFromSynapse:
 
     @pytest.fixture(autouse=True, scope="function")
     def project(self) -> Project:
-        project = Project(
-            name=str(uuid.uuid4()), description="This is an example project."
-        )
+        project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
     @pytest.mark.asyncio

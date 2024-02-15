@@ -1,3 +1,5 @@
+"""Functional interface for searching for entities in Synapse."""
+
 import asyncio
 from typing import Union
 
@@ -25,9 +27,9 @@ tracer = trace.get_tracer("synapseclient")
 
 async def get_id(
     entity: Union["Project", "Folder"],
-    failure_strategy: FailureStrategy = FailureStrategy.RAISE_EXCEPTION,
+    failure_strategy: Optional[FailureStrategy] = FailureStrategy.RAISE_EXCEPTION,
     synapse_client: Optional[Synapse] = None,
-) -> str:
+) -> Union[str, None]:
     """
     Get the ID of the entity from either the ID field or the name/parent of the entity.
     This is a wrapper for the [synapseclient.Synapse.findEntityId][] method that is
@@ -75,7 +77,8 @@ async def get_id(
         if failure_strategy is None:
             return None
         raise SynapseNotFoundError(
-            f"{entity.__class__.__name__} [Id: {entity.id}, Name: {entity.name}, Parent: {entity.parent_id}] not found in Synapse."
+            f"{entity.__class__.__name__} [Id: {entity.id}, Name: {entity.name}, "
+            f"Parent: {entity.parent_id}] not found in Synapse."
         )
     entity.id = entity_id
     return entity_id

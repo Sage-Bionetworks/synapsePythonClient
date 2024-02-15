@@ -128,8 +128,10 @@ class TestTeam:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
         test_team = await self.team.create()
-        # TODO why do we need to sleep here?
+
+        # Searching by name is eventually consistent
         await asyncio.sleep(5)
+
         # THEN I expect the team to be returned by from_name
         test_team_from_name = await Team.from_name(name=test_team.name)
         assert test_team_from_name.id == test_team.id

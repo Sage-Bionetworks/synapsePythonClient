@@ -2,27 +2,39 @@ import uuid
 from unittest.mock import patch
 import pytest
 from synapseclient.models import File, Project, FailureStrategy
-from synapseclient import Project as Synapse_Project
+from synapseclient import Project as Synapse_Project, Synapse
 from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
 
+PROJECT_ID = "syn123"
+DERSCRIPTION_PROJECT = "This is an example project."
+PARENT_ID = "parent_id_value"
+PROJECT_NAME = "example_project"
+ETAG = "etag_value"
+CREATED_ON = "createdOn_value"
+MODIFIED_ON = "modifiedOn_value"
+CREATED_BY = "createdBy_value"
+MODIFIED_BY = "modifiedBy_value"
+
 
 class TestProject:
+    """Tests for the synapseclient.models.Project class."""
+
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     def get_example_synapse_project_output(self) -> Synapse_Project:
         return Synapse_Project(
-            id="syn123",
-            name="example_project",
-            parentId="parent_id_value",
-            description="This is an example project.",
-            etag="etag_value",
-            createdOn="createdOn_value",
-            modifiedOn="modifiedOn_value",
-            createdBy="createdBy_value",
-            modifiedBy="modifiedBy_value",
+            id=PROJECT_ID,
+            name=PROJECT_NAME,
+            parentId=PARENT_ID,
+            description=DERSCRIPTION_PROJECT,
+            etag=ETAG,
+            createdOn=CREATED_ON,
+            modifiedOn=MODIFIED_ON,
+            createdBy=CREATED_BY,
+            modifiedBy=MODIFIED_BY,
         )
 
     def test_fill_from_dict(self) -> None:
@@ -33,21 +45,21 @@ class TestProject:
         )
 
         # THEN the Project object should be filled with the example Synapse Project
-        assert project_output.id == "syn123"
-        assert project_output.name == "example_project"
-        assert project_output.parent_id == "parent_id_value"
-        assert project_output.description == "This is an example project."
-        assert project_output.etag == "etag_value"
-        assert project_output.created_on == "createdOn_value"
-        assert project_output.modified_on == "modifiedOn_value"
-        assert project_output.created_by == "createdBy_value"
-        assert project_output.modified_by == "modifiedBy_value"
+        assert project_output.id == PROJECT_ID
+        assert project_output.name == PROJECT_NAME
+        assert project_output.parent_id == PARENT_ID
+        assert project_output.description == DERSCRIPTION_PROJECT
+        assert project_output.etag == ETAG
+        assert project_output.created_on == CREATED_ON
+        assert project_output.modified_on == MODIFIED_ON
+        assert project_output.created_by == CREATED_BY
+        assert project_output.modified_by == MODIFIED_BY
 
     @pytest.mark.asyncio
     async def test_store_with_id(self) -> None:
         # GIVEN a Project object
         project = Project(
-            id="syn123",
+            id=PROJECT_ID,
         )
 
         # AND a random description
@@ -82,21 +94,21 @@ class TestProject:
             mocked_get.assert_called_once()
 
             # AND the project should be stored with the mock return data
-            assert result.id == "syn123"
-            assert result.name == "example_project"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example project."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == PROJECT_ID
+            assert result.name == PROJECT_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DERSCRIPTION_PROJECT
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     @pytest.mark.asyncio
     async def test_store_with_no_changes(self) -> None:
         # GIVEN a Project object
         project = Project(
-            id="syn123",
+            id=PROJECT_ID,
         )
 
         # WHEN I call `store` with the Project object
@@ -119,13 +131,13 @@ class TestProject:
             mocked_get.assert_called_once()
 
             # AND the project should only contain the ID
-            assert result.id == "syn123"
+            assert result.id == PROJECT_ID
 
     @pytest.mark.asyncio
     async def test_store_after_get(self) -> None:
         # GIVEN a Project object
         project = Project(
-            id="syn123",
+            id=PROJECT_ID,
         )
 
         # AND I call `get` on the Project object
@@ -141,7 +153,7 @@ class TestProject:
             mocked_get.assert_called_once_with(
                 entity=project.id,
             )
-            assert project.id == "syn123"
+            assert project.id == PROJECT_ID
 
         # WHEN I call `store` with the Project object
         with patch.object(
@@ -163,13 +175,13 @@ class TestProject:
             mocked_get.assert_not_called()
 
             # AND the project should only contain the ID
-            assert result.id == "syn123"
+            assert result.id == PROJECT_ID
 
     @pytest.mark.asyncio
     async def test_store_after_get_with_changes(self) -> None:
         # GIVEN a Project object
         project = Project(
-            id="syn123",
+            id=PROJECT_ID,
         )
 
         # AND I call `get` on the Project object
@@ -185,7 +197,7 @@ class TestProject:
             mocked_get.assert_called_once_with(
                 entity=project.id,
             )
-            assert project.id == "syn123"
+            assert project.id == PROJECT_ID
 
         # AND I update a field on the project
         description = str(uuid.uuid4())
@@ -216,21 +228,21 @@ class TestProject:
             mocked_get.assert_not_called()
 
             # AND the project should contained the mocked store return data
-            assert result.id == "syn123"
-            assert result.name == "example_project"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example project."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == PROJECT_ID
+            assert result.name == PROJECT_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DERSCRIPTION_PROJECT
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     @pytest.mark.asyncio
     async def test_store_with_annotations(self) -> None:
         # GIVEN a Project object
         project = Project(
-            id="syn123",
+            id=PROJECT_ID,
             annotations={
                 "my_single_key_string": ["a"],
                 "my_key_string": ["b", "a", "c"],
@@ -282,22 +294,22 @@ class TestProject:
             )
 
             # AND the project should be stored with the mock return data
-            assert result.id == "syn123"
-            assert result.name == "example_project"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example project."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == PROJECT_ID
+            assert result.name == PROJECT_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DERSCRIPTION_PROJECT
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     @pytest.mark.asyncio
     async def test_store_with_name_and_parent_id(self) -> None:
         # GIVEN a Project object
         project = Project(
-            name="example_project",
-            parent_id="parent_id_value",
+            name=PROJECT_NAME,
+            parent_id=PARENT_ID,
         )
 
         # AND a random description
@@ -312,7 +324,7 @@ class TestProject:
         ) as mocked_client_call, patch.object(
             self.syn,
             "findEntityId",
-            return_value="syn123",
+            return_value=PROJECT_ID,
         ) as mocked_get, patch.object(
             self.syn,
             "get",
@@ -341,20 +353,20 @@ class TestProject:
             mocked_get.assert_called_once()
 
             # AND the project should be stored
-            assert result.id == "syn123"
-            assert result.name == "example_project"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example project."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == PROJECT_ID
+            assert result.name == PROJECT_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DERSCRIPTION_PROJECT
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     @pytest.mark.asyncio
     async def test_store_no_id_or_name(self) -> None:
         # GIVEN a Project object
-        project = Project(parent_id="parent_id_value")
+        project = Project(parent_id=PARENT_ID)
 
         # WHEN I call `store` with the Project object
         with pytest.raises(ValueError) as e:
@@ -367,7 +379,7 @@ class TestProject:
     async def test_get_by_id(self) -> None:
         # GIVEN a Project object
         project = Project(
-            id="syn123",
+            id=PROJECT_ID,
         )
 
         # WHEN I call `get` with the Project object
@@ -384,29 +396,29 @@ class TestProject:
             )
 
             # AND the project should be stored
-            assert result.id == "syn123"
-            assert result.name == "example_project"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example project."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == PROJECT_ID
+            assert result.name == PROJECT_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DERSCRIPTION_PROJECT
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     @pytest.mark.asyncio
     async def test_get_by_name_and_parent(self) -> None:
         # GIVEN a Project object
         project = Project(
-            name="example_project",
-            parent_id="parent_id_value",
+            name=PROJECT_NAME,
+            parent_id=PARENT_ID,
         )
 
         # WHEN I call `get` with the Project object
         with patch.object(
             self.syn,
             "findEntityId",
-            return_value=("syn123"),
+            return_value=(PROJECT_ID),
         ) as mocked_client_search, patch.object(
             self.syn,
             "get",
@@ -426,22 +438,22 @@ class TestProject:
             )
 
             # AND the project should be stored
-            assert result.id == "syn123"
-            assert result.name == "example_project"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example project."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == PROJECT_ID
+            assert result.name == PROJECT_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DERSCRIPTION_PROJECT
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     @pytest.mark.asyncio
     async def test_get_by_name_and_parent_not_found(self) -> None:
         # GIVEN a Project object
         project = Project(
-            name="example_project",
-            parent_id="parent_id_value",
+            name=PROJECT_NAME,
+            parent_id=PARENT_ID,
         )
 
         # WHEN I call `get` with the Project object
@@ -466,7 +478,7 @@ class TestProject:
     async def test_delete_with_id(self) -> None:
         # GIVEN a Project object
         project = Project(
-            id="syn123",
+            id=PROJECT_ID,
         )
 
         # WHEN I call `delete` with the Project object
@@ -498,7 +510,7 @@ class TestProject:
     async def test_copy(self) -> None:
         # GIVEN a Project object
         project = Project(
-            id="syn123",
+            id=PROJECT_ID,
         )
 
         # AND a returned Project object
@@ -506,7 +518,7 @@ class TestProject:
 
         # AND a copy mapping exists
         copy_mapping = {
-            "syn123": "syn456",
+            PROJECT_ID: "syn456",
         }
 
         # WHEN I call `copy` with the Project object
@@ -561,7 +573,7 @@ class TestProject:
     @pytest.mark.asyncio
     async def test_copy_missing_destination(self) -> None:
         # GIVEN a Project object
-        project = Project(id="syn123")
+        project = Project(id=PROJECT_ID)
 
         # WHEN I call `copy` with the Project object
         with pytest.raises(ValueError) as e:
@@ -574,7 +586,7 @@ class TestProject:
     async def test_sync_from_synapse(self) -> None:
         # GIVEN a Project object
         project = Project(
-            id="syn123",
+            id=PROJECT_ID,
         )
 
         # AND Children that exist on the project in Synapse
@@ -608,14 +620,14 @@ class TestProject:
             mocked_project_get.assert_called_once()
 
             # AND the file/project should be retrieved
-            assert result.id == "syn123"
-            assert result.name == "example_project"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example project."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == PROJECT_ID
+            assert result.name == PROJECT_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DERSCRIPTION_PROJECT
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
             assert result.files[0].id == "syn456"
             assert result.files[0].name == "example_file_1"
