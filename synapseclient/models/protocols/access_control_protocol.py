@@ -39,6 +39,7 @@ class AccessControllableSynchronousProtocol(Protocol):
 
                 permissions.access_types
         """
+        return self
 
     def get_acl(
         self, principal_id: int = None, synapse_client: Optional[Synapse] = None
@@ -58,6 +59,7 @@ class AccessControllableSynchronousProtocol(Protocol):
                 'CHANGE_PERMISSIONS', 'CHANGE_SETTINGS']
                 or an empty array
         """
+        return [""]
 
     def set_permissions(
         self,
@@ -99,3 +101,4 @@ class AccessControllableSynchronousProtocol(Protocol):
 
                 File(id="syn123").set_permissions(principal_id=273949, access_type=['READ'])
         """
+        return {}
