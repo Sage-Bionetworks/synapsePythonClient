@@ -43,8 +43,7 @@ class TestFolder:
         assert folder_output.created_by == "createdBy_value"
         assert folder_output.modified_by == "modifiedBy_value"
 
-    @pytest.mark.asyncio
-    async def test_store_with_id(self) -> None:
+    def test_store_with_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             id="syn123",
@@ -66,7 +65,7 @@ class TestFolder:
                 id=folder.id,
             ),
         ) as mocked_get:
-            result = await folder.store()
+            result = folder.store()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -93,8 +92,7 @@ class TestFolder:
             assert result.created_by == "createdBy_value"
             assert result.modified_by == "modifiedBy_value"
 
-    @pytest.mark.asyncio
-    async def test_store_with_no_changes(self) -> None:
+    def test_store_with_no_changes(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             id="syn123",
@@ -111,7 +109,7 @@ class TestFolder:
                 id=folder.id,
             ),
         ) as mocked_get:
-            result = await folder.store()
+            result = folder.store()
 
             # THEN we should not call store because there are no changes
             mocked_store.assert_not_called()
@@ -122,8 +120,7 @@ class TestFolder:
             # AND the folder should only contain the ID
             assert result.id == "syn123"
 
-    @pytest.mark.asyncio
-    async def test_store_after_get(self) -> None:
+    def test_store_after_get(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             id="syn123",
@@ -137,7 +134,7 @@ class TestFolder:
                 id=folder.id,
             ),
         ) as mocked_get:
-            await folder.get()
+            folder.get()
 
             mocked_get.assert_called_once_with(
                 entity=folder.id,
@@ -155,7 +152,7 @@ class TestFolder:
                 id=folder.id,
             ),
         ) as mocked_get:
-            result = await folder.store()
+            result = folder.store()
 
             # THEN we should not call store because there are no changes
             mocked_store.assert_not_called()
@@ -166,8 +163,7 @@ class TestFolder:
             # AND the folder should only contain the ID
             assert result.id == "syn123"
 
-    @pytest.mark.asyncio
-    async def test_store_after_get_with_changes(self) -> None:
+    def test_store_after_get_with_changes(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             id="syn123",
@@ -181,7 +177,7 @@ class TestFolder:
                 id=folder.id,
             ),
         ) as mocked_get:
-            await folder.get()
+            folder.get()
 
             mocked_get.assert_called_once_with(
                 entity=folder.id,
@@ -201,7 +197,7 @@ class TestFolder:
             self.syn,
             "get",
         ) as mocked_get:
-            result = await folder.store()
+            result = folder.store()
 
             # THEN we should  call store because there are changes
             mocked_store.assert_called_once_with(
@@ -228,8 +224,7 @@ class TestFolder:
             assert result.created_by == "createdBy_value"
             assert result.modified_by == "modifiedBy_value"
 
-    @pytest.mark.asyncio
-    async def test_store_with_annotations(self) -> None:
+    def test_store_with_annotations(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             id="syn123",
@@ -261,7 +256,7 @@ class TestFolder:
                 id=folder.id,
             ),
         ) as mocked_get:
-            result = await folder.store()
+            result = folder.store()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -295,8 +290,7 @@ class TestFolder:
             assert result.created_by == "createdBy_value"
             assert result.modified_by == "modifiedBy_value"
 
-    @pytest.mark.asyncio
-    async def test_store_with_name_and_parent_id(self) -> None:
+    def test_store_with_name_and_parent_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             name="example_folder",
@@ -323,7 +317,7 @@ class TestFolder:
                 id=folder.id,
             ),
         ) as mocked_get:
-            result = await folder.store()
+            result = folder.store()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -355,8 +349,7 @@ class TestFolder:
             assert result.created_by == "createdBy_value"
             assert result.modified_by == "modifiedBy_value"
 
-    @pytest.mark.asyncio
-    async def test_store_with_name_and_parent(self) -> None:
+    def test_store_with_name_and_parent(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             name="example_folder",
@@ -382,7 +375,7 @@ class TestFolder:
                 id=folder.id,
             ),
         ) as mocked_get:
-            result = await folder.store(parent=Folder(id="parent_id_value"))
+            result = folder.store(parent=Folder(id="parent_id_value"))
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -414,14 +407,13 @@ class TestFolder:
             assert result.created_by == "createdBy_value"
             assert result.modified_by == "modifiedBy_value"
 
-    @pytest.mark.asyncio
-    async def test_store_no_id_name_or_parent(self) -> None:
+    def test_store_no_id_name_or_parent(self) -> None:
         # GIVEN a Folder object
         folder = Folder()
 
         # WHEN I call `store` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.store()
+            folder.store()
 
         # THEN we should get an error
         assert (
@@ -429,14 +421,13 @@ class TestFolder:
             "(name and (`parent_id` or parent with an id)) set."
         )
 
-    @pytest.mark.asyncio
-    async def test_store_no_id_or_name(self) -> None:
+    def test_store_no_id_or_name(self) -> None:
         # GIVEN a Folder object
         folder = Folder(parent_id="parent_id_value")
 
         # WHEN I call `store` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.store()
+            folder.store()
 
         # THEN we should get an error
         assert (
@@ -444,14 +435,13 @@ class TestFolder:
             "(name and (`parent_id` or parent with an id)) set."
         )
 
-    @pytest.mark.asyncio
-    async def test_store_no_id_or_parent(self) -> None:
+    def test_store_no_id_or_parent(self) -> None:
         # GIVEN a Folder object
         folder = Folder(name="example_folder")
 
         # WHEN I call `store` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.store()
+            folder.store()
 
         # THEN we should get an error
         assert (
@@ -459,8 +449,7 @@ class TestFolder:
             "(name and (`parent_id` or parent with an id)) set."
         )
 
-    @pytest.mark.asyncio
-    async def test_get_by_id(self) -> None:
+    def test_get_by_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             id="syn123",
@@ -472,7 +461,7 @@ class TestFolder:
             "get",
             return_value=(self.get_example_synapse_folder_output()),
         ) as mocked_client_call:
-            result = await folder.get()
+            result = folder.get()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -490,8 +479,7 @@ class TestFolder:
             assert result.created_by == "createdBy_value"
             assert result.modified_by == "modifiedBy_value"
 
-    @pytest.mark.asyncio
-    async def test_get_by_name_and_parent(self) -> None:
+    def test_get_by_name_and_parent(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             name="example_folder",
@@ -508,7 +496,7 @@ class TestFolder:
             "get",
             return_value=(self.get_example_synapse_folder_output()),
         ) as mocked_client_call:
-            result = await folder.get()
+            result = folder.get()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -532,8 +520,7 @@ class TestFolder:
             assert result.created_by == "createdBy_value"
             assert result.modified_by == "modifiedBy_value"
 
-    @pytest.mark.asyncio
-    async def test_get_by_name_and_parent_not_found(self) -> None:
+    def test_get_by_name_and_parent_not_found(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             name="example_folder",
@@ -547,7 +534,7 @@ class TestFolder:
             return_value=(None),
         ) as mocked_client_search:
             with pytest.raises(SynapseNotFoundError) as e:
-                await folder.get()
+                folder.get()
             assert (
                 str(e.value)
                 == "Folder [Id: None, Name: example_folder, Parent: parent_id_value] not found in Synapse."
@@ -558,8 +545,7 @@ class TestFolder:
                 parent=folder.parent_id,
             )
 
-    @pytest.mark.asyncio
-    async def test_delete_with_id(self) -> None:
+    def test_delete_with_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             id="syn123",
@@ -571,27 +557,25 @@ class TestFolder:
             "delete",
             return_value=(None),
         ) as mocked_client_call:
-            await folder.delete()
+            folder.delete()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
                 obj=folder.id,
             )
 
-    @pytest.mark.asyncio
-    async def test_delete_missing_id(self) -> None:
+    def test_delete_missing_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder()
 
         # WHEN I call `delete` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.delete()
+            folder.delete()
 
         # THEN we should get an error
         assert str(e.value) == "The folder must have an id set."
 
-    @pytest.mark.asyncio
-    async def test_copy(self) -> None:
+    def test_copy(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             id="syn123",
@@ -610,13 +594,13 @@ class TestFolder:
             "synapseclient.models.folder.copy",
             return_value=(copy_mapping),
         ) as mocked_copy, patch(
-            "synapseclient.models.folder.Folder.get",
+            "synapseclient.models.folder.Folder.get_async",
             return_value=(returned_folder),
         ) as mocked_get, patch(
-            "synapseclient.models.folder.Folder.sync_from_synapse",
+            "synapseclient.models.folder.Folder.sync_from_synapse_async",
             return_value=(returned_folder),
         ) as mocked_sync:
-            result = await folder.copy(parent_id="destination_id")
+            result = folder.copy(parent_id="destination_id")
 
             # THEN we should call the method with this data
             mocked_copy.assert_called_once_with(
@@ -641,32 +625,29 @@ class TestFolder:
             # AND the file should be stored
             assert result.id == "syn456"
 
-    @pytest.mark.asyncio
-    async def test_copy_missing_id(self) -> None:
+    def test_copy_missing_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder()
 
         # WHEN I call `copy` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.copy(parent_id="destination_id")
+            folder.copy(parent_id="destination_id")
 
         # THEN we should get an error
         assert str(e.value) == "The folder must have an ID and parent_id to copy."
 
-    @pytest.mark.asyncio
-    async def test_copy_missing_destination(self) -> None:
+    def test_copy_missing_destination(self) -> None:
         # GIVEN a Folder object
         folder = Folder(id="syn123")
 
         # WHEN I call `copy` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.copy(parent_id=None)
+            folder.copy(parent_id=None)
 
         # THEN we should get an error
         assert str(e.value) == "The folder must have an ID and parent_id to copy."
 
-    @pytest.mark.asyncio
-    async def test_sync_from_synapse(self) -> None:
+    def test_sync_from_synapse(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
             id="syn123",
@@ -691,10 +672,10 @@ class TestFolder:
             "get",
             return_value=(self.get_example_synapse_folder_output()),
         ) as mocked_folder_get, patch(
-            "synapseclient.models.file.File.get",
+            "synapseclient.models.file.File.get_async",
             return_value=(File(id="syn456", name="example_file_1")),
         ):
-            result = await folder.sync_from_synapse()
+            result = folder.sync_from_synapse()
 
             # THEN we should call the method with this data
             mocked_children_call.assert_called_once()

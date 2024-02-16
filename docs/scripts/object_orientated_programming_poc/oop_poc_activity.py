@@ -6,7 +6,7 @@ The following actions are shown in this script:
 4. Modifying the activity attached to both Files
 5. Creating a table with an Activity
 """
-import asyncio
+
 import os
 
 from synapseclient.models import (
@@ -38,7 +38,7 @@ def create_random_file(
         f.write(os.urandom(1))
 
 
-async def store_activity_on_file():
+def store_activity_on_file():
     name_of_file = "my_file_with_random_data.txt"
     path_to_file = os.path.join(os.path.expanduser("~/temp"), name_of_file)
     create_random_file(path_to_file)
@@ -72,12 +72,12 @@ async def store_activity_on_file():
         activity=activity,
     )
 
-    file = await file.store()
+    file = file.store()
 
     print("File created with activity:")
     print(activity)
 
-    activity_copy = await Activity.from_parent(parent=file)
+    activity_copy = Activity.from_parent(parent=file)
 
     # Storing a second file to a project and re-use the activity =========================
     second_file = File(
@@ -88,7 +88,7 @@ async def store_activity_on_file():
         activity=activity_copy,
     )
 
-    await second_file.store()
+    second_file.store()
 
     print("Second file created with activity:")
     print(second_file.activity)
@@ -110,12 +110,12 @@ async def store_activity_on_file():
     )
     # These 3 will be the same activity
     print("Modified activity showing name is updated for all files:")
-    print((await new_activity_instance.store()).name)
-    print((await Activity.from_parent(parent=file)).name)
-    print((await Activity.from_parent(parent=second_file)).name)
+    print(new_activity_instance.store().name)
+    print(Activity.from_parent(parent=file).name)
+    print(Activity.from_parent(parent=second_file).name)
 
 
-async def store_activity_on_table():
+def store_activity_on_table():
     # Create an activity =================================================================
     activity = Activity(
         name="My Activity",
@@ -143,11 +143,11 @@ async def store_activity_on_table():
         activity=activity,
     )
 
-    table = await table.store_schema()
+    table = table.store_schema()
 
     print("Table created with activity:")
     print(table.activity)
 
 
-asyncio.run(store_activity_on_file())
-asyncio.run(store_activity_on_table())
+store_activity_on_file()
+store_activity_on_table()

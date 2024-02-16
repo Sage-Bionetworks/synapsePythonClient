@@ -27,19 +27,18 @@ class TestAclOnProject:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.mark.asyncio
-    async def test_get_acl_default(self) -> None:
+    def test_get_acl_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_default_permissions = await Project(
+        project_with_default_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_acl_default_permissions"
         ).store()
         self.schedule_for_cleanup(project_with_default_permissions.id)
 
         # AND the user that created the project
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_default_permissions.get_acl(principal_id=p1.id)
+        permissions = project_with_default_permissions.get_acl(principal_id=p1.id)
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -54,41 +53,37 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_read_only_permissions_on_entity(self) -> None:
+    def test_get_acl_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_read_only_permissions = await Project(
+        project_with_read_only_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
         ).store()
         self.schedule_for_cleanup(project_with_read_only_permissions.id)
 
         # AND the user that created the project
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # AND the permissions for the user on the entity are set to READ only
-        await project_with_read_only_permissions.set_permissions(
+        project_with_read_only_permissions.set_permissions(
             principal_id=p1.id, access_type=["READ"]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_read_only_permissions.get_acl(
-            principal_id=p1.id
-        )
+        permissions = project_with_read_only_permissions.get_acl(principal_id=p1.id)
 
         # THEN I expect to see read only permissions
         expected_permissions = ["READ"]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_through_team_assigned_to_user(self) -> None:
+    def test_get_acl_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_permissions_through_single_team = await Project(
+        project_with_permissions_through_single_team = Project(
             name=str(uuid.uuid4())
             + "test_get_acl_through_team_assigned_to_user_and_project"
         ).store()
 
         # AND the user that created the project
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # TODO: Replace with the Team OOP model when it is available
         # AND a team is created
@@ -106,7 +101,7 @@ class TestAclOnProject:
         self.schedule_for_cleanup(project_with_permissions_through_single_team.id)
 
         # AND the permissions for the Team on the entity are set to all permissions except for DOWNLOAD
-        await project_with_permissions_through_single_team.set_permissions(
+        project_with_permissions_through_single_team.set_permissions(
             principal_id=team.id,
             access_type=[
                 "READ",
@@ -120,12 +115,12 @@ class TestAclOnProject:
         )
 
         # AND the permissions for the user on the entity are set to NONE
-        await project_with_permissions_through_single_team.set_permissions(
+        project_with_permissions_through_single_team.set_permissions(
             principal_id=p1.id, access_type=[]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_permissions_through_single_team.get_acl(
+        permissions = project_with_permissions_through_single_team.get_acl(
             principal_id=p1.id
         )
 
@@ -141,16 +136,15 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_through_multiple_teams_assigned_to_user(self) -> None:
+    def test_get_acl_through_multiple_teams_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_permissions_through_multiple_teams = await Project(
+        project_with_permissions_through_multiple_teams = Project(
             name=str(uuid.uuid4())
             + "test_get_acl_through_two_teams_assigned_to_user_and_project"
         ).store()
 
         # AND the user that created the project
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # TODO: Replace with the Team OOP model when it is available
         # AND a team is created
@@ -179,7 +173,7 @@ class TestAclOnProject:
         self.schedule_for_cleanup(project_with_permissions_through_multiple_teams.id)
 
         # AND the permissions for the Team 1 on the entity are set to all permissions except for DOWNLOAD
-        await project_with_permissions_through_multiple_teams.set_permissions(
+        project_with_permissions_through_multiple_teams.set_permissions(
             principal_id=team_1.id,
             access_type=[
                 "READ",
@@ -193,18 +187,18 @@ class TestAclOnProject:
         )
 
         # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
-        await project_with_permissions_through_multiple_teams.set_permissions(
+        project_with_permissions_through_multiple_teams.set_permissions(
             principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
         )
 
         # AND the permissions for the user on the entity are set to NONE
-        await project_with_permissions_through_multiple_teams.set_permissions(
+        project_with_permissions_through_multiple_teams.set_permissions(
             principal_id=p1.id, access_type=[]
         )
 
         # WHEN I get the permissions for the user on the entity
 
-        permissions = await project_with_permissions_through_multiple_teams.get_acl(
+        permissions = project_with_permissions_through_multiple_teams.get_acl(
             principal_id=p1.id
         )
 
@@ -221,10 +215,9 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_for_project_with_public_and_registered_user(self) -> None:
+    def test_get_acl_for_project_with_public_and_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_permissions_for_public_and_authenticated_users = await Project(
+        project_with_permissions_for_public_and_authenticated_users = Project(
             name=str(uuid.uuid4()) + "test_get_acl_for_project_with_registered_user"
         ).store()
         self.schedule_for_cleanup(
@@ -232,20 +225,20 @@ class TestAclOnProject:
         )
 
         # AND the user that created the project
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # AND the permissions for PUBLIC are set to 'READ'
-        await project_with_permissions_for_public_and_authenticated_users.set_permissions(
+        project_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=PUBLIC, access_type=["READ"]
         )
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
-        await project_with_permissions_for_public_and_authenticated_users.set_permissions(
+        project_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
-        await project_with_permissions_for_public_and_authenticated_users.set_permissions(
+        project_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=p1.id,
             access_type=[
                 "READ",
@@ -260,7 +253,7 @@ class TestAclOnProject:
 
         # WHEN I get the permissions for a public user on the entity
         permissions = (
-            await project_with_permissions_for_public_and_authenticated_users.get_acl()
+            project_with_permissions_for_public_and_authenticated_users.get_acl()
         )
 
         # THEN I expect to the public permissions
@@ -269,7 +262,7 @@ class TestAclOnProject:
 
         # and WHEN I get the permissions for an authenticated user on the entity
         permissions = (
-            await project_with_permissions_for_public_and_authenticated_users.get_acl(
+            project_with_permissions_for_public_and_authenticated_users.get_acl(
                 principal_id=p1.id
             )
         )
@@ -294,19 +287,18 @@ class TestAclOnFolder:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.mark.asyncio
-    async def test_get_acl_default(self, project_model) -> None:
+    def test_get_acl_default(self, project_model) -> None:
         # GIVEN a folder created with default permissions of administrator
-        folder_with_default_permissions = await Folder(
+        folder_with_default_permissions = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_default_permissions",
         ).store(parent=project_model)
         self.schedule_for_cleanup(folder_with_default_permissions.id)
 
         # AND the user that created the folder
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await folder_with_default_permissions.get_acl(principal_id=p1.id)
+        permissions = folder_with_default_permissions.get_acl(principal_id=p1.id)
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -321,41 +313,37 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_read_only_permissions_on_entity(self, project_model) -> None:
+    def test_get_acl_read_only_permissions_on_entity(self, project_model) -> None:
         # GIVEN a folder created with default permissions of administrator
-        project_with_read_only_permissions = await Folder(
+        project_with_read_only_permissions = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
         ).store(parent=project_model)
         self.schedule_for_cleanup(project_with_read_only_permissions.id)
 
         # AND the user that created the folder
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # AND the permissions for the user on the entity are set to READ only
-        await project_with_read_only_permissions.set_permissions(
+        project_with_read_only_permissions.set_permissions(
             principal_id=p1.id, access_type=["READ"]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_read_only_permissions.get_acl(
-            principal_id=p1.id
-        )
+        permissions = project_with_read_only_permissions.get_acl(principal_id=p1.id)
 
         # THEN I expect to see read only permissions
         expected_permissions = ["READ"]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_through_team_assigned_to_user(self, project_model) -> None:
+    def test_get_acl_through_team_assigned_to_user(self, project_model) -> None:
         # GIVEN a folder created with default permissions of administrator
-        folder_with_permissions_through_single_team = await Folder(
+        folder_with_permissions_through_single_team = Folder(
             name=str(uuid.uuid4())
             + "test_get_acl_through_team_assigned_to_user_and_project"
         ).store(parent=project_model)
 
         # AND the user that created the folder
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # TODO: Replace with the Team OOP model when it is available
         # AND a team is created
@@ -373,7 +361,7 @@ class TestAclOnFolder:
         self.schedule_for_cleanup(folder_with_permissions_through_single_team.id)
 
         # AND the permissions for the Team on the entity are set to all permissions except for DOWNLOAD
-        await folder_with_permissions_through_single_team.set_permissions(
+        folder_with_permissions_through_single_team.set_permissions(
             principal_id=team.id,
             access_type=[
                 "READ",
@@ -387,12 +375,12 @@ class TestAclOnFolder:
         )
 
         # AND the permissions for the user on the entity are set to NONE
-        await folder_with_permissions_through_single_team.set_permissions(
+        folder_with_permissions_through_single_team.set_permissions(
             principal_id=p1.id, access_type=[]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await folder_with_permissions_through_single_team.get_acl(
+        permissions = folder_with_permissions_through_single_team.get_acl(
             principal_id=p1.id
         )
 
@@ -408,18 +396,17 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_through_multiple_teams_assigned_to_user(
+    def test_get_acl_through_multiple_teams_assigned_to_user(
         self, project_model
     ) -> None:
         # GIVEN a folder created with default permissions of administrator
-        folder_with_permissions_through_multiple_teams = await Folder(
+        folder_with_permissions_through_multiple_teams = Folder(
             name=str(uuid.uuid4())
             + "test_get_acl_through_two_teams_assigned_to_user_and_project"
         ).store(parent=project_model)
 
         # AND the user that created the folder
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # TODO: Replace with the Team OOP model when it is available
         # AND a team is created
@@ -448,7 +435,7 @@ class TestAclOnFolder:
         self.schedule_for_cleanup(folder_with_permissions_through_multiple_teams.id)
 
         # AND the permissions for the Team 1 on the entity are set to all permissions except for DOWNLOAD
-        await folder_with_permissions_through_multiple_teams.set_permissions(
+        folder_with_permissions_through_multiple_teams.set_permissions(
             principal_id=team_1.id,
             access_type=[
                 "READ",
@@ -462,18 +449,18 @@ class TestAclOnFolder:
         )
 
         # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
-        await folder_with_permissions_through_multiple_teams.set_permissions(
+        folder_with_permissions_through_multiple_teams.set_permissions(
             principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
         )
 
         # AND the permissions for the user on the entity are set to NONE
-        await folder_with_permissions_through_multiple_teams.set_permissions(
+        folder_with_permissions_through_multiple_teams.set_permissions(
             principal_id=p1.id, access_type=[]
         )
 
         # WHEN I get the permissions for the user on the entity
 
-        permissions = await folder_with_permissions_through_multiple_teams.get_acl(
+        permissions = folder_with_permissions_through_multiple_teams.get_acl(
             principal_id=p1.id
         )
 
@@ -490,12 +477,11 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_for_project_with_public_and_registered_user(
+    def test_get_acl_for_project_with_public_and_registered_user(
         self, project_model
     ) -> None:
         # GIVEN a folder created with default permissions of administrator
-        folder_with_permissions_for_public_and_authenticated_users = await Folder(
+        folder_with_permissions_for_public_and_authenticated_users = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_for_project_with_registered_user"
         ).store(parent=project_model)
         self.schedule_for_cleanup(
@@ -503,20 +489,20 @@ class TestAclOnFolder:
         )
 
         # AND the user that created the folder
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # AND the permissions for PUBLIC are set to 'READ'
-        await folder_with_permissions_for_public_and_authenticated_users.set_permissions(
+        folder_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=PUBLIC, access_type=["READ"]
         )
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
-        await folder_with_permissions_for_public_and_authenticated_users.set_permissions(
+        folder_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
-        await folder_with_permissions_for_public_and_authenticated_users.set_permissions(
+        folder_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=p1.id,
             access_type=[
                 "READ",
@@ -531,7 +517,7 @@ class TestAclOnFolder:
 
         # WHEN I get the permissions for a public user on the entity
         permissions = (
-            await folder_with_permissions_for_public_and_authenticated_users.get_acl()
+            folder_with_permissions_for_public_and_authenticated_users.get_acl()
         )
 
         # THEN I expect to the public permissions
@@ -540,7 +526,7 @@ class TestAclOnFolder:
 
         # and WHEN I get the permissions for an authenticated user on the entity
         permissions = (
-            await folder_with_permissions_for_public_and_authenticated_users.get_acl(
+            folder_with_permissions_for_public_and_authenticated_users.get_acl(
                 principal_id=p1.id
             )
         )
@@ -571,18 +557,17 @@ class TestAclOnFile:
         schedule_for_cleanup(filename)
         return File(path=filename)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_default(self, project_model: Project, file: File) -> None:
+    def test_get_acl_default(self, project_model: Project, file: File) -> None:
         # GIVEN a file created with default permissions of administrator
         file.name = str(uuid.uuid4()) + "test_get_acl_default_permissions"
-        file_with_default_permissions = await file.store(parent=project_model)
+        file_with_default_permissions = file.store(parent=project_model)
         self.schedule_for_cleanup(file_with_default_permissions.id)
 
         # AND the user that created the file
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await file_with_default_permissions.get_acl(principal_id=p1.id)
+        permissions = file_with_default_permissions.get_acl(principal_id=p1.id)
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -597,46 +582,40 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_read_only_permissions_on_entity(
+    def test_get_acl_read_only_permissions_on_entity(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file created with default permissions of administrator
         file.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        project_with_read_only_permissions = await file.store(parent=project_model)
+        project_with_read_only_permissions = file.store(parent=project_model)
         self.schedule_for_cleanup(project_with_read_only_permissions.id)
 
         # AND the user that created the file
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # AND the permissions for the user on the entity are set to READ only
-        await project_with_read_only_permissions.set_permissions(
+        project_with_read_only_permissions.set_permissions(
             principal_id=p1.id, access_type=["READ"]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_read_only_permissions.get_acl(
-            principal_id=p1.id
-        )
+        permissions = project_with_read_only_permissions.get_acl(principal_id=p1.id)
 
         # THEN I expect to see read only permissions
         expected_permissions = ["READ"]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_through_team_assigned_to_user(
+    def test_get_acl_through_team_assigned_to_user(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file created with default permissions of administrator
         file.name = (
             str(uuid.uuid4()) + "test_get_acl_through_team_assigned_to_user_and_project"
         )
-        file_with_permissions_through_single_team = await file.store(
-            parent=project_model
-        )
+        file_with_permissions_through_single_team = file.store(parent=project_model)
 
         # AND the user that created the file
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # TODO: Replace with the Team OOP model when it is available
         # AND a team is created
@@ -654,7 +633,7 @@ class TestAclOnFile:
         self.schedule_for_cleanup(file_with_permissions_through_single_team.id)
 
         # AND the permissions for the Team on the entity are set to all permissions except for DOWNLOAD
-        await file_with_permissions_through_single_team.set_permissions(
+        file_with_permissions_through_single_team.set_permissions(
             principal_id=team.id,
             access_type=[
                 "READ",
@@ -668,12 +647,12 @@ class TestAclOnFile:
         )
 
         # AND the permissions for the user on the entity are set to NONE
-        await file_with_permissions_through_single_team.set_permissions(
+        file_with_permissions_through_single_team.set_permissions(
             principal_id=p1.id, access_type=[]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await file_with_permissions_through_single_team.get_acl(
+        permissions = file_with_permissions_through_single_team.get_acl(
             principal_id=p1.id
         )
 
@@ -689,8 +668,7 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_through_multiple_teams_assigned_to_user(
+    def test_get_acl_through_multiple_teams_assigned_to_user(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file created with default permissions of administrator
@@ -698,12 +676,10 @@ class TestAclOnFile:
             str(uuid.uuid4())
             + "test_get_acl_through_two_teams_assigned_to_user_and_project"
         )
-        file_with_permissions_through_multiple_teams = await file.store(
-            parent=project_model
-        )
+        file_with_permissions_through_multiple_teams = file.store(parent=project_model)
 
         # AND the user that created the file
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # TODO: Replace with the Team OOP model when it is available
         # AND a team is created
@@ -732,7 +708,7 @@ class TestAclOnFile:
         self.schedule_for_cleanup(file_with_permissions_through_multiple_teams.id)
 
         # AND the permissions for the Team 1 on the entity are set to all permissions except for DOWNLOAD
-        await file_with_permissions_through_multiple_teams.set_permissions(
+        file_with_permissions_through_multiple_teams.set_permissions(
             principal_id=team_1.id,
             access_type=[
                 "READ",
@@ -746,18 +722,18 @@ class TestAclOnFile:
         )
 
         # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
-        await file_with_permissions_through_multiple_teams.set_permissions(
+        file_with_permissions_through_multiple_teams.set_permissions(
             principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
         )
 
         # AND the permissions for the user on the entity are set to NONE
-        await file_with_permissions_through_multiple_teams.set_permissions(
+        file_with_permissions_through_multiple_teams.set_permissions(
             principal_id=p1.id, access_type=[]
         )
 
         # WHEN I get the permissions for the user on the entity
 
-        permissions = await file_with_permissions_through_multiple_teams.get_acl(
+        permissions = file_with_permissions_through_multiple_teams.get_acl(
             principal_id=p1.id
         )
 
@@ -774,13 +750,12 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_for_project_with_public_and_registered_user(
+    def test_get_acl_for_project_with_public_and_registered_user(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file created with default permissions of administrator
         file.name = str(uuid.uuid4()) + "test_get_acl_for_project_with_registered_user"
-        file_with_permissions_for_public_and_authenticated_users = await file.store(
+        file_with_permissions_for_public_and_authenticated_users = file.store(
             parent=project_model
         )
         self.schedule_for_cleanup(
@@ -788,20 +763,20 @@ class TestAclOnFile:
         )
 
         # AND the user that created the file
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # AND the permissions for PUBLIC are set to 'READ'
-        await file_with_permissions_for_public_and_authenticated_users.set_permissions(
+        file_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=PUBLIC, access_type=["READ"]
         )
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
-        await file_with_permissions_for_public_and_authenticated_users.set_permissions(
+        file_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
-        await file_with_permissions_for_public_and_authenticated_users.set_permissions(
+        file_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=p1.id,
             access_type=[
                 "READ",
@@ -815,19 +790,15 @@ class TestAclOnFile:
         )
 
         # WHEN I get the permissions for a public user on the entity
-        permissions = (
-            await file_with_permissions_for_public_and_authenticated_users.get_acl()
-        )
+        permissions = file_with_permissions_for_public_and_authenticated_users.get_acl()
 
         # THEN I expect to the public permissions
         expected_permissions = ["READ"]
         assert set(expected_permissions) == set(permissions)
 
         # and WHEN I get the permissions for an authenticated user on the entity
-        permissions = (
-            await file_with_permissions_for_public_and_authenticated_users.get_acl(
-                principal_id=p1.id
-            )
+        permissions = file_with_permissions_for_public_and_authenticated_users.get_acl(
+            principal_id=p1.id
         )
 
         # THEN I expect to see the permissions of the user, and the authenticated user, and the public user
@@ -851,7 +822,6 @@ class TestAclOnTable:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    @pytest.mark.asyncio
     def table(self, project_model: Project) -> Table:
         # Creating columns for my table ======================================================
         columns = [
@@ -867,18 +837,17 @@ class TestAclOnTable:
 
         return table
 
-    @pytest.mark.asyncio
-    async def test_get_acl_default(self, table: Table) -> None:
+    def test_get_acl_default(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_default_permissions"
-        table_with_default_permissions = await table.store_schema()
+        table_with_default_permissions = table.store_schema()
         self.schedule_for_cleanup(table_with_default_permissions.id)
 
         # AND the user that created the table
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await table_with_default_permissions.get_acl(principal_id=p1.id)
+        permissions = table_with_default_permissions.get_acl(principal_id=p1.id)
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -893,40 +862,36 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_read_only_permissions_on_entity(self, table: Table) -> None:
+    def test_get_acl_read_only_permissions_on_entity(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        project_with_read_only_permissions = await table.store_schema()
+        project_with_read_only_permissions = table.store_schema()
         self.schedule_for_cleanup(project_with_read_only_permissions.id)
 
         # AND the user that created the table
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # AND the permissions for the user on the entity are set to READ only
-        await project_with_read_only_permissions.set_permissions(
+        project_with_read_only_permissions.set_permissions(
             principal_id=p1.id, access_type=["READ"]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_read_only_permissions.get_acl(
-            principal_id=p1.id
-        )
+        permissions = project_with_read_only_permissions.get_acl(principal_id=p1.id)
 
         # THEN I expect to see read only permissions
         expected_permissions = ["READ"]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_through_team_assigned_to_user(self, table: Table) -> None:
+    def test_get_acl_through_team_assigned_to_user(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = (
             str(uuid.uuid4()) + "test_get_acl_through_team_assigned_to_user_and_project"
         )
-        table_with_permissions_through_single_team = await table.store_schema()
+        table_with_permissions_through_single_team = table.store_schema()
 
         # AND the user that created the table
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # TODO: Replace with the Team OOP model when it is available
         # AND a team is created
@@ -944,7 +909,7 @@ class TestAclOnTable:
         self.schedule_for_cleanup(table_with_permissions_through_single_team.id)
 
         # AND the permissions for the Team on the entity are set to all permissions except for DOWNLOAD
-        await table_with_permissions_through_single_team.set_permissions(
+        table_with_permissions_through_single_team.set_permissions(
             principal_id=team.id,
             access_type=[
                 "READ",
@@ -958,12 +923,12 @@ class TestAclOnTable:
         )
 
         # AND the permissions for the user on the entity are set to NONE
-        await table_with_permissions_through_single_team.set_permissions(
+        table_with_permissions_through_single_team.set_permissions(
             principal_id=p1.id, access_type=[]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await table_with_permissions_through_single_team.get_acl(
+        permissions = table_with_permissions_through_single_team.get_acl(
             principal_id=p1.id
         )
 
@@ -979,8 +944,7 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_through_multiple_teams_assigned_to_user(
+    def test_get_acl_through_multiple_teams_assigned_to_user(
         self, table: Table
     ) -> None:
         # GIVEN a table created with default permissions of administrator
@@ -988,10 +952,10 @@ class TestAclOnTable:
             str(uuid.uuid4())
             + "test_get_acl_through_two_teams_assigned_to_user_and_project"
         )
-        table_with_permissions_through_multiple_teams = await table.store_schema()
+        table_with_permissions_through_multiple_teams = table.store_schema()
 
         # AND the user that created the table
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # TODO: Replace with the Team OOP model when it is available
         # AND a team is created
@@ -1020,7 +984,7 @@ class TestAclOnTable:
         self.schedule_for_cleanup(table_with_permissions_through_multiple_teams.id)
 
         # AND the permissions for the Team 1 on the entity are set to all permissions except for DOWNLOAD
-        await table_with_permissions_through_multiple_teams.set_permissions(
+        table_with_permissions_through_multiple_teams.set_permissions(
             principal_id=team_1.id,
             access_type=[
                 "READ",
@@ -1034,18 +998,18 @@ class TestAclOnTable:
         )
 
         # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
-        await table_with_permissions_through_multiple_teams.set_permissions(
+        table_with_permissions_through_multiple_teams.set_permissions(
             principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
         )
 
         # AND the permissions for the user on the entity are set to NONE
-        await table_with_permissions_through_multiple_teams.set_permissions(
+        table_with_permissions_through_multiple_teams.set_permissions(
             principal_id=p1.id, access_type=[]
         )
 
         # WHEN I get the permissions for the user on the entity
 
-        permissions = await table_with_permissions_through_multiple_teams.get_acl(
+        permissions = table_with_permissions_through_multiple_teams.get_acl(
             principal_id=p1.id
         )
 
@@ -1062,35 +1026,32 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
-    async def test_get_acl_for_project_with_public_and_registered_user(
+    def test_get_acl_for_project_with_public_and_registered_user(
         self, table: Table
     ) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_for_project_with_registered_user"
-        table_with_permissions_for_public_and_authenticated_users = (
-            await table.store_schema()
-        )
+        table_with_permissions_for_public_and_authenticated_users = table.store_schema()
 
         self.schedule_for_cleanup(
             table_with_permissions_for_public_and_authenticated_users.id
         )
 
         # AND the user that created the table
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # AND the permissions for PUBLIC are set to 'READ'
-        await table_with_permissions_for_public_and_authenticated_users.set_permissions(
+        table_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=PUBLIC, access_type=["READ"]
         )
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
-        await table_with_permissions_for_public_and_authenticated_users.set_permissions(
+        table_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
-        await table_with_permissions_for_public_and_authenticated_users.set_permissions(
+        table_with_permissions_for_public_and_authenticated_users.set_permissions(
             principal_id=p1.id,
             access_type=[
                 "READ",
@@ -1105,7 +1066,7 @@ class TestAclOnTable:
 
         # WHEN I get the permissions for a public user on the entity
         permissions = (
-            await table_with_permissions_for_public_and_authenticated_users.get_acl()
+            table_with_permissions_for_public_and_authenticated_users.get_acl()
         )
 
         # THEN I expect to the public permissions
@@ -1113,10 +1074,8 @@ class TestAclOnTable:
         assert set(expected_permissions) == set(permissions)
 
         # and WHEN I get the permissions for an authenticated user on the entity
-        permissions = (
-            await table_with_permissions_for_public_and_authenticated_users.get_acl(
-                principal_id=p1.id
-            )
+        permissions = table_with_permissions_for_public_and_authenticated_users.get_acl(
+            principal_id=p1.id
         )
 
         # THEN I expect to see the permissions of the user, and the authenticated user, and the public user
@@ -1143,16 +1102,15 @@ class TestPermissionsOnEntityForCaller:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.mark.asyncio
-    async def test_get_permissions_default(self) -> None:
+    def test_get_permissions_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_default_permissions = await Project(
+        project_with_default_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_permissions_default_permissions"
         ).store()
         self.schedule_for_cleanup(project_with_default_permissions.id)
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_default_permissions.get_permissions()
+        permissions = project_with_default_permissions.get_permissions()
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -1167,24 +1125,23 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @pytest.mark.asyncio
-    async def test_get_permissions_read_only_permissions_on_entity(self) -> None:
+    def test_get_permissions_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_read_only_permissions = await Project(
+        project_with_read_only_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_permissions_read_permissions_on_project"
         ).store()
         self.schedule_for_cleanup(project_with_read_only_permissions.id)
 
         # AND the user that created the project
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # AND the permissions for the user on the entity are set to READ only
-        await project_with_read_only_permissions.set_permissions(
+        project_with_read_only_permissions.set_permissions(
             principal_id=p1.id, access_type=["READ"]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_read_only_permissions.get_permissions()
+        permissions = project_with_read_only_permissions.get_permissions()
 
         # THEN I expect to see read only permissions. CHANGE_SETTINGS is bound to ownerId.
         # Since the entity is created by the Caller, the CHANGE_SETTINGS will always be True.
@@ -1192,16 +1149,15 @@ class TestPermissionsOnEntityForCaller:
 
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @pytest.mark.asyncio
-    async def test_get_permissions_through_team_assigned_to_user(self) -> None:
+    def test_get_permissions_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_permissions_through_single_team = await Project(
+        project_with_permissions_through_single_team = Project(
             name=str(uuid.uuid4())
             + "test_get_permissions_through_team_assigned_to_user_and_project"
         ).store()
 
         # AND the user that created the project
-        p1: UserProfile = await UserProfile().get()
+        p1: UserProfile = UserProfile().get()
 
         # TODO: Replace with the Team OOP model
         # AND a team is created
@@ -1218,7 +1174,7 @@ class TestPermissionsOnEntityForCaller:
         self.schedule_for_cleanup(project_with_permissions_through_single_team.id)
 
         # AND the permissions for the Team on the entity are set to all permissions except for DOWNLOAD
-        await project_with_permissions_through_single_team.set_permissions(
+        project_with_permissions_through_single_team.set_permissions(
             principal_id=team.id,
             access_type=[
                 "READ",
@@ -1232,14 +1188,12 @@ class TestPermissionsOnEntityForCaller:
         )
 
         # AND the permissions for the user on the entity are set to NONE
-        await project_with_permissions_through_single_team.set_permissions(
+        project_with_permissions_through_single_team.set_permissions(
             principal_id=p1.id, access_type=[]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = (
-            await project_with_permissions_through_single_team.get_permissions()
-        )
+        permissions = project_with_permissions_through_single_team.get_permissions()
 
         # THEN I expect to see the permissions of the team
         expected_permissions = [
@@ -1253,18 +1207,17 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @pytest.mark.asyncio
-    async def test_get_permissions_through_multiple_teams_assigned_to_user(
+    def test_get_permissions_through_multiple_teams_assigned_to_user(
         self,
     ) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_permissions_through_multiple_teams = await Project(
+        project_with_permissions_through_multiple_teams = Project(
             name=str(uuid.uuid4())
             + "test_get_permissions_through_two_teams_assigned_to_user_and_project"
         ).store()
 
         # AND the user that created the project
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # TODO: Replace with the Team OOP model
         # AND a team is created
@@ -1292,7 +1245,7 @@ class TestPermissionsOnEntityForCaller:
         self.schedule_for_cleanup(project_with_permissions_through_multiple_teams.id)
 
         # AND the permissions for the Team 1 on the entity are set to all permissions except for DOWNLOAD
-        await project_with_permissions_through_multiple_teams.set_permissions(
+        project_with_permissions_through_multiple_teams.set_permissions(
             principal_id=team_1.id,
             access_type=[
                 "READ",
@@ -1306,19 +1259,17 @@ class TestPermissionsOnEntityForCaller:
         )
 
         # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
-        await project_with_permissions_through_multiple_teams.set_permissions(
+        project_with_permissions_through_multiple_teams.set_permissions(
             principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
         )
 
         # AND the permissions for the user on the entity are set to NONE
-        await project_with_permissions_through_multiple_teams.set_permissions(
+        project_with_permissions_through_multiple_teams.set_permissions(
             principal_id=p1.id, access_type=[]
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = (
-            await project_with_permissions_through_multiple_teams.get_permissions()
-        )
+        permissions = project_with_permissions_through_multiple_teams.get_permissions()
 
         # THEN I expect to see the permissions of both teams
         expected_permissions = [
@@ -1333,25 +1284,24 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @pytest.mark.asyncio
-    async def test_get_permissions_for_project_with_registered_user(self) -> None:
+    def test_get_permissions_for_project_with_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
-        project_with_permissions_for_authenticated_users = await Project(
+        project_with_permissions_for_authenticated_users = Project(
             name=str(uuid.uuid4())
             + "test_get_permissions_for_project_with_registered_user"
         ).store()
         self.schedule_for_cleanup(project_with_permissions_for_authenticated_users.id)
 
         # AND the user that created the project
-        p1 = await UserProfile().get()
+        p1 = UserProfile().get()
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
-        await project_with_permissions_for_authenticated_users.set_permissions(
+        project_with_permissions_for_authenticated_users.set_permissions(
             principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
-        await project_with_permissions_for_authenticated_users.set_permissions(
+        project_with_permissions_for_authenticated_users.set_permissions(
             principal_id=p1.id,
             access_type=[
                 "READ",
@@ -1365,9 +1315,7 @@ class TestPermissionsOnEntityForCaller:
         )
 
         # and WHEN I get the permissions for the user on the entity
-        permissions = (
-            await project_with_permissions_for_authenticated_users.get_permissions()
-        )
+        permissions = project_with_permissions_for_authenticated_users.get_permissions()
 
         # THEN I expect to see the permissions of the user, and the authenticated user
         expected_permissions = [

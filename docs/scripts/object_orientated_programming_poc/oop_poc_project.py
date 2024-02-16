@@ -14,7 +14,6 @@ The following actions are shown in this script:
 9. Deleting a project
 """
 
-import asyncio
 import os
 import uuid
 from synapseclient.models import (
@@ -37,7 +36,7 @@ def create_random_file(
         f.write(os.urandom(1))
 
 
-async def store_project():
+def store_project():
     # Creating annotations for my project ==================================================
     my_annotations = {
         "my_single_key_string": "a",
@@ -64,22 +63,22 @@ async def store_project():
         alias="my_project_alias_" + str(uuid.uuid4()).replace("-", "_"),
     )
 
-    project = await project.store()
+    project = project.store()
 
     print(f"Project created with id: {project.id}")
 
     # 2) Retrieving a project by id or name ==============================================
-    project = await Project(name="my_new_project_for_testing").get()
+    project = Project(name="my_new_project_for_testing").get()
     print(f"Project retrieved by name: {project.name} with id: {project.id}")
 
-    project = await Project(id=project.id).get()
+    project = Project(id=project.id).get()
     print(f"Project retrieved by id: {project.name} with id: {project.id}")
 
     # 3) Upserting data on a project =====================================================
     # When you have not already use `.store()` or `.get()` on a project any updates will
     # be a non-destructive upsert. This means that if the project does not exist it will
     # be created, if it does exist it will be updated.
-    project = await Project(
+    project = Project(
         name="my_new_project_for_testing", description="my new description"
     ).store()
     print(f"Project description updated to {project.description}")
@@ -88,7 +87,7 @@ async def store_project():
     # meaning changes in the data will act as a replacement instead of an addition.
     print(f"Annotations before update: {project.annotations}")
     del project.annotations["annotation_i_want_to_delete"]
-    project = await project.store()
+    project = project.store()
     print(f"Annotations after update: {project.annotations}")
 
     # 4) Storing several files to a project ==============================================
@@ -105,7 +104,7 @@ async def store_project():
         )
         files_to_store.append(file)
     project.files = files_to_store
-    project = await project.store()
+    project = project.store()
 
     # 5) Storing several folders in a project ============================================
     folders_to_store = []
@@ -119,10 +118,10 @@ async def store_project():
     print(
         f"Storing project ({project.id}) with {len(project.folders)} folders and {len(project.files)} files"
     )
-    project = await project.store()
+    project = project.store()
 
     # 6) Updating the annotations in bulk for a number of folders and files ==============
-    project_copy = await Project(id=project.id).sync_from_synapse(download_file=False)
+    project_copy = Project(id=project.id).sync_from_synapse(download_file=False)
 
     print(
         f"Found {len(project_copy.files)} files and {len(project_copy.folders)} folder at the root level for {project_copy.name} with id: {project_copy.id}"
@@ -138,28 +137,28 @@ async def store_project():
     for folder in project_copy.folders:
         folder.annotations = new_annotations
 
-    await project_copy.store()
+    project_copy.store()
 
     # 7) Downloading an entire project structure to disk =================================
     print(f"Downloading project ({project.id}) to ~/temp")
-    await Project(id=project.id).sync_from_synapse(
+    Project(id=project.id).sync_from_synapse(
         download_file=True, path="~/temp/recursiveDownload", recursive=True
     )
 
     # 8) Copy a project and all content to a new project =================================
-    project_to_delete = await Project(
+    project_to_delete = Project(
         name="my_new_project_I_want_to_delete_" + str(uuid.uuid4()).replace("-", "_"),
     ).store()
     print(f"Project created with id: {project_to_delete.id}")
 
-    project_to_delete = await project.copy(destination_id=project_to_delete.id)
+    project_to_delete = project.copy(destination_id=project_to_delete.id)
     print(
         f"Copied to new project, copied {len(project_to_delete.folders)} folders and {len(project_to_delete.files)} files"
     )
 
     # 9) Deleting a project ==============================================================
-    await project_to_delete.delete()
+    project_to_delete.delete()
     print(f"Project with id: {project_to_delete.id} deleted")
 
 
-asyncio.run(store_project())
+store_project()

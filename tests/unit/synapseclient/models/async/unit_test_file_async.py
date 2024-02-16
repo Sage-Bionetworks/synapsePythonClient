@@ -99,7 +99,7 @@ class TestFile:
             "store",
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_client_call:
-            result = await file.store()
+            result = await file.store_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -157,7 +157,7 @@ class TestFile:
             "store",
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_client_call:
-            result = await file.store()
+            result = await file.store_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -217,7 +217,7 @@ class TestFile:
             "store",
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_client_call:
-            result = await file.store(parent=Project(id="syn999"))
+            result = await file.store_async(parent=Project(id="syn999"))
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -275,7 +275,7 @@ class TestFile:
             "store",
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_client_call:
-            result = await file.store()
+            result = await file.store_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -347,9 +347,9 @@ class TestFile:
             return_value=True,
         ) as mocked_store_entity_components, patch.object(
             file,
-            "get",
+            "get_async",
         ) as mocked_get:
-            result = await file.store()
+            result = await file.store_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -409,7 +409,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            await file.store()
+            await file.store_async()
 
         # THEN we should get an error
         assert (
@@ -425,7 +425,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            await file.store()
+            await file.store_async()
 
         # THEN we should get an error
         assert (
@@ -441,7 +441,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            await file.store()
+            await file.store_async()
 
         # THEN we should get an error
         assert (
@@ -457,7 +457,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            await file.store(parent=Project(id="syn999"))
+            await file.store_async(parent=Project(id="syn999"))
 
         # THEN we should get an error
         assert (
@@ -478,7 +478,7 @@ class TestFile:
             "synapseclient.models.file.changeFileMetaData",
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_change_meta_data:
-            result = await file.change_metadata(
+            result = await file.change_metadata_async(
                 name="modified_file.txt",
                 download_as="modified_file.txt",
                 content_type="text/plain",
@@ -537,7 +537,7 @@ class TestFile:
 
         # WHEN I change the metadata on the example file
         with pytest.raises(ValueError) as e:
-            await file.change_metadata()
+            await file.change_metadata_async()
 
         # THEN we should get an error
         assert str(e.value) == "The file must have an ID to change metadata."
@@ -555,7 +555,7 @@ class TestFile:
             "get",
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_client_call:
-            result = await file.get()
+            result = await file.get_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -616,7 +616,7 @@ class TestFile:
             "get",
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_client_call:
-            result = await file.get()
+            result = await file.get_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -678,7 +678,7 @@ class TestFile:
             "get",
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_client_call:
-            result = await File.from_path(path=path)
+            result = await File.from_path_async(path=path)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -740,7 +740,7 @@ class TestFile:
             "get",
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_client_call:
-            result = await File.from_id(synapse_id=synapse_id)
+            result = await File.from_id_async(synapse_id=synapse_id)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -795,7 +795,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            await file.get()
+            await file.get_async()
 
         # THEN we should get an error
         assert str(e.value) == "The file must have an ID or path to get."
@@ -813,7 +813,7 @@ class TestFile:
             "delete",
             return_value=(None),
         ) as mocked_client_call:
-            await file.delete()
+            await file.delete_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -827,7 +827,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            await file.delete()
+            await file.delete_async()
 
         # THEN we should get an error
         assert str(e.value) == "The file must have an ID to delete."

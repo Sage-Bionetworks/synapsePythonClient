@@ -53,14 +53,11 @@ def otel_trace_method(method_to_trace_name: Union[Callable[..., str], None] = No
     return decorator
 
 
-class class_or_instance:
+class ClassOrInstance:
+    """Helper class to allow a method to be called as a class method or instance method."""
+
     def __init__(self, fn):
         self.fn = fn
-
-        # if hasattr(fn, "__doc__"):
-        #     self.__doc__ = fn.__doc__
-        # else:
-        #     self.__doc__ = ""
 
     def __get__(self, obj, cls):
         def f(*args, **kwds):
@@ -84,7 +81,7 @@ def async_to_sync(cls):
     """
 
     def create_method(async_method_name):
-        @class_or_instance
+        @ClassOrInstance
         def newmethod(self, *args, **kwargs):
             async def wrapper(*args, **kwargs):
                 """Wrapper for the function to be called in an async context."""
@@ -102,23 +99,25 @@ def async_to_sync(cls):
 
     methods = cls.__dict__.keys()
 
-    stuff_to_update_list = []
+    methods_to_update = []
     for k in methods:
-        newmethodname = k.replace("_async", "")
-        if "async" in k and newmethodname not in methods:
-            newmethod = create_method(k)
+        new_method_name = k.replace("_async", "")
+        if "async" in k and new_method_name not in methods:
+            new_method = create_method(k)
 
-            newmethod.fn.__name__ = newmethodname
-            newmethod.__name__ = newmethodname
+            new_method.fn.__name__ = new_method_name
+            new_method.__name__ = new_method_name
 
-            functools.update_wrapper(newmethod, newmethod.fn)
-            stuff_to_update_list.append(
+            functools.update_wrapper(new_method, new_method.fn)
+            methods_to_update.append(
                 {
-                    "newmethodname": newmethodname,
-                    "newmethod": newmethod,
+                    "new_method_name": new_method_name,
+                    "new_method": new_method,
                 }
             )
-    for stuff_to_update in stuff_to_update_list:
-        setattr(cls, stuff_to_update["newmethodname"], stuff_to_update["newmethod"])
+    for method_to_update in methods_to_update:
+        setattr(
+            cls, method_to_update["new_method_name"], method_to_update["new_method"]
+        )
 
     return cls

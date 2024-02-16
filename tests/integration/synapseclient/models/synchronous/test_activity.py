@@ -18,15 +18,14 @@ class TestActivity:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.mark.asyncio
-    async def test_store_with_parent_and_id(self, project: Synapse_Project) -> None:
+    def test_store_with_parent_and_id(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project
         path = utils.make_bogus_uuid_file()
         file = File(
             parent_id=project["id"], path=path, name=f"bogus_file_{str(uuid.uuid4())}"
         )
         self.schedule_for_cleanup(file.path)
-        await file.store()
+        file.store()
         self.schedule_for_cleanup(file.id)
 
         # AND an activity I want to store
@@ -44,7 +43,7 @@ class TestActivity:
         )
 
         # WHEN I store the activity
-        result = await activity.store(parent=file)
+        result = activity.store(parent=file)
         self.schedule_for_cleanup(result.id)
 
         # THEN I expect the activity to be stored
@@ -72,7 +71,7 @@ class TestActivity:
         modified_activity.description = "modified_description"
 
         # AND I store the modified activity without a parent
-        modified_result = await modified_activity.store()
+        modified_result = modified_activity.store()
 
         # THEN I expect the modified activity to be stored
         assert modified_result == modified_activity
@@ -94,10 +93,9 @@ class TestActivity:
         assert modified_result.executed[1].target_version_number == 1
 
         # Clean up
-        await result.delete(parent=file)
+        result.delete(parent=file)
 
-    @pytest.mark.asyncio
-    async def test_store_with_no_references(self, project: Synapse_Project) -> None:
+    def test_store_with_no_references(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project that has an activity with no references
         activity = Activity(
             name="some_name",
@@ -113,7 +111,7 @@ class TestActivity:
         self.schedule_for_cleanup(file.path)
 
         # WHEN I store the file with the activity
-        await file.store()
+        file.store()
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the activity to have been stored
@@ -129,10 +127,9 @@ class TestActivity:
         assert file.activity.modified_by is not None
 
         # Clean up
-        await file.activity.delete(parent=file)
+        file.activity.delete(parent=file)
 
-    @pytest.mark.asyncio
-    async def test_from_parent(self, project: Synapse_Project) -> None:
+    def test_from_parent(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project that has an activity
         activity = Activity(
             name="some_name",
@@ -154,11 +151,11 @@ class TestActivity:
             activity=activity,
         )
         self.schedule_for_cleanup(file.path)
-        await file.store()
+        file.store()
         self.schedule_for_cleanup(file.id)
 
         # WHEN I get the activity from the file
-        result = await Activity.from_parent(parent=file)
+        result = Activity.from_parent(parent=file)
 
         # THEN I expect the activity to be returned
         assert result == activity
@@ -180,10 +177,9 @@ class TestActivity:
         assert result.executed[1].target_version_number == 1
 
         # Clean up
-        await result.delete(parent=file)
+        result.delete(parent=file)
 
-    @pytest.mark.asyncio
-    async def test_delete(self, project: Synapse_Project) -> None:
+    def test_delete(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project that has an activity
         activity = Activity(
             name="some_name",
@@ -199,15 +195,15 @@ class TestActivity:
         self.schedule_for_cleanup(file.path)
 
         # AND I store the file with the activity
-        await file.store()
+        file.store()
         self.schedule_for_cleanup(file.id)
 
         # AND the activity exists
         assert file.activity.id is not None
 
         # WHEN I delete the activity
-        await file.activity.delete(parent=file)
+        file.activity.delete(parent=file)
 
         # THEN I expect to receieve None
-        activity = await Activity.from_parent(parent=file)
+        activity = Activity.from_parent(parent=file)
         assert activity is None

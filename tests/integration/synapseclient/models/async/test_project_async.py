@@ -48,7 +48,7 @@ class TestProjectStore:
         # GIVEN a Project object
 
         # WHEN I store the Project on Synapse
-        stored_project = await project.store()
+        stored_project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -71,7 +71,7 @@ class TestProjectStore:
         project.files.append(file)
 
         # WHEN I store the Project on Synapse
-        stored_project = await project.store()
+        stored_project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -104,7 +104,7 @@ class TestProjectStore:
         project.files = files
 
         # WHEN I store the Project on Synapse
-        stored_project = await project.store()
+        stored_project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -155,7 +155,7 @@ class TestProjectStore:
         project.folders = folders
 
         # WHEN I store the Project on Synapse
-        stored_project = await project.store()
+        stored_project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -207,7 +207,7 @@ class TestProjectStore:
         project.annotations = annotations
 
         # WHEN I store the Project on Synapse
-        stored_project = await project.store()
+        stored_project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -226,7 +226,9 @@ class TestProjectStore:
 
         # AND I expect the annotations to be stored on Synapse
         assert stored_project.annotations == annotations
-        assert (await Project(id=stored_project.id).get()).annotations == annotations
+        assert (
+            await Project(id=stored_project.id).get_async()
+        ).annotations == annotations
 
 
 class TestProjectGet:
@@ -247,11 +249,11 @@ class TestProjectGet:
         # GIVEN a Project object
 
         # AND the project is stored in synapse
-        stored_project = await project.store()
+        stored_project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # WHEN I get the Project from Synapse
-        project_copy = await Project(id=stored_project.id).get()
+        project_copy = await Project(id=stored_project.id).get_async()
 
         # THEN I expect the stored Project to have the expected properties
         assert project_copy.id is not None
@@ -272,11 +274,11 @@ class TestProjectGet:
         # GIVEN a Project object
 
         # AND the project is stored in synapse
-        stored_project = await project.store()
+        stored_project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # WHEN I get the Project from Synapse
-        project_copy = await Project(name=stored_project.name).get()
+        project_copy = await Project(name=stored_project.name).get_async()
 
         # THEN I expect the stored Project to have the expected properties
         assert project_copy.id is not None
@@ -311,15 +313,15 @@ class TestProjectDelete:
         # GIVEN a Project object
 
         # AND the project is stored in synapse
-        stored_project = await project.store()
+        stored_project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # WHEN I delete the Project from Synapse
-        await stored_project.delete()
+        await stored_project.delete_async()
 
         # THEN I expect the project to have been deleted
         with pytest.raises(SynapseHTTPError) as e:
-            await stored_project.get()
+            await stored_project.get_async()
 
         assert (
             str(e.value)
@@ -356,7 +358,7 @@ class TestProjectCopy:
         # GIVEN a project to copy to
         destination_project = await Project(
             name=str(uuid.uuid4()), description="Destination for project copy"
-        ).store()
+        ).store_async()
         self.schedule_for_cleanup(destination_project.id)
 
         # AND multiple files in the source project
@@ -382,14 +384,14 @@ class TestProjectCopy:
 
         # WHEN I store the Project on Synapse
         project.annotations = {"test": ["test"]}
-        project = await project.store()
+        project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # AND I copy the project to the destination project
-        copied_project = await project.copy(destination_id=destination_project.id)
+        copied_project = await project.copy_async(destination_id=destination_project.id)
 
         # AND I sync the destination project from Synapse
-        await destination_project.sync_from_synapse(
+        await destination_project.sync_from_synapse_async(
             recursive=False, download_file=False
         )
 
@@ -430,7 +432,7 @@ class TestProjectCopy:
         # GIVEN a project to copy to
         destination_project = await Project(
             name=str(uuid.uuid4()), description="Destination for project copy"
-        ).store()
+        ).store_async()
         self.schedule_for_cleanup(destination_project.id)
 
         # AND multiple files in the source project
@@ -456,16 +458,16 @@ class TestProjectCopy:
 
         # WHEN I store the Project on Synapse
         project.annotations = {"test": ["test"]}
-        project = await project.store()
+        project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # AND I copy the project to the destination project
-        copied_project = await project.copy(
+        copied_project = await project.copy_async(
             destination_id=destination_project.id, exclude_types=["file"]
         )
 
         # AND I sync the destination project from Synapse
-        await destination_project.sync_from_synapse(
+        await destination_project.sync_from_synapse_async(
             recursive=False, download_file=False
         )
 
@@ -493,7 +495,7 @@ class TestProjectCopy:
 
 
 class TestProjectSyncFromSynapse:
-    """Tests for the synapseclient.models.Project.sync_from_synapse method."""
+    """Tests for the synapseclient.models.Project.sync_from_synapse_async method."""
 
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
@@ -544,11 +546,11 @@ class TestProjectSyncFromSynapse:
         project.folders = folders
 
         # WHEN I store the Project on Synapse
-        stored_project = await project.store()
+        stored_project = await project.store_async()
         self.schedule_for_cleanup(project.id)
 
         # AND I sync the project from Synapse
-        copied_project = await stored_project.sync_from_synapse(
+        copied_project = await stored_project.sync_from_synapse_async(
             path=root_directory_path
         )
 

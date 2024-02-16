@@ -62,7 +62,7 @@ def project_model(request, syn: Synapse) -> Project_Model:
 
     # Make one project for all the tests to use
     proj = asyncio.run(
-        Project_Model(name="integration_test_project" + str(uuid.uuid4())).store()
+        Project_Model(name="integration_test_project" + str(uuid.uuid4())).store_async()
     )
 
     # set the working directory to a temp directory

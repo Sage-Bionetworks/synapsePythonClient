@@ -2,9 +2,6 @@ Contained within this file are experimental interfaces for working with the Syna
 Client. Unless otherwise noted these interfaces are subject to change at any time. Use
 at your own risk.
 
-These APIs also introduce [AsyncIO](https://docs.python.org/3/library/asyncio.html) to
-the client.
-
 ## Sample Scripts:
 
 <details class="quote">

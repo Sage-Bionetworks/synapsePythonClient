@@ -9,8 +9,9 @@ from synapseclient.team import (
     TeamMember as Synapse_TeamMember,
 )
 from synapseclient.models.user import UserGroupHeader
-from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.async_utils import otel_trace_method, async_to_sync
 from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models.protocols.team_protocol import TeamSynchronousProtocol
 
 
 tracer = trace.get_tracer("synapseclient")
@@ -54,7 +55,8 @@ class TeamMember:
 
 
 @dataclass
-class Team:
+@async_to_sync
+class Team(TeamSynchronousProtocol):
     """
     Represents a [Synapse Team](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html).
     User definable fields are:
@@ -66,9 +68,10 @@ class Team:
         icon: A file handle ID for the icon image of the team
         can_public_join: True if members can join without an invitation or approval
         can_request_membership: True if users can create a membership request to join
-        etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates
-                Since the E-Tag changes every time an entity is updated it is used to detect when
-                a client's current representation of an entity is out-of-date.
+        etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+            concurrent updates Since the E-Tag changes every time an entity is updated
+            it is used to detect when a client's current representation of an entity
+            is out-of-date.
         created_on: The date this team was created
         modified_on: The date this team was last modified
         created_by: The ID of the user that created this team
@@ -94,9 +97,11 @@ class Team:
     """True if users can create a membership request to join"""
 
     etag: Optional[str] = None
-    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates
-        Since the E-Tag changes every time an entity is updated it is used to detect when
-        a client's current representation of an entity is out-of-date."""
+    """
+    Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    concurrent updates Since the E-Tag changes every time an entity is updated it is
+    used to detect when a client's current representation of an entity is out-of-date.
+    """
 
     created_on: Optional[str] = None
     """The date this team was created"""
@@ -131,11 +136,12 @@ class Team:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Create: {self.name}"
     )
-    async def create(self, synapse_client: Optional[Synapse] = None) -> "Team":
+    async def create_async(self, synapse_client: Optional[Synapse] = None) -> "Team":
         """Creates a new team on Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             Team: The Team object.
@@ -161,11 +167,12 @@ class Team:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Delete: {self.id}"
     )
-    async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def delete_async(self, synapse_client: Optional[Synapse] = None) -> None:
         """Deletes a team from Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             None
@@ -185,11 +192,12 @@ class Team:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Get: {self.id if self.id else self.name}"
     )
-    async def get(self, synapse_client: Optional[Synapse] = None) -> "Team":
+    async def get_async(self, synapse_client: Optional[Synapse] = None) -> "Team":
         """Gets a Team from Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Raises:
             ValueError: If the Team object has neither an id nor a name.
@@ -229,51 +237,57 @@ class Team:
     @otel_trace_method(
         method_to_trace_name=lambda cls, id, **kwargs: f"Team_From_Id: {id}"
     )
-    async def from_id(cls, id: int, synapse_client: Optional[Synapse] = None) -> "Team":
+    async def from_id_async(
+        cls, id: int, synapse_client: Optional[Synapse] = None
+    ) -> "Team":
         """Gets Team object using its integer id.
 
         Arguments:
             id: The id of the team.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             Team: The Team object.
         """
 
-        return await cls(id=id).get(synapse_client=synapse_client)
+        return await cls(id=id).get_async(synapse_client=synapse_client)
 
     @classmethod
     @otel_trace_method(
         method_to_trace_name=lambda cls, name, **kwargs: f"Team_From_Name: {name}"
     )
-    async def from_name(
+    async def from_name_async(
         cls, name: str, synapse_client: Optional[Synapse] = None
     ) -> "Team":
         """Gets Team object using its string name.
 
-        *** You will be unable to retrieve a team by name immediately after its creation because
-        the fragment service is eventually consistent. If you need to retrieve a team immediately following creation
-        you should use the [from_id][synapseclient.models.Team.from_id] method. ***
+        *** You will be unable to retrieve a team by name immediately after its
+        creation because the fragment service is eventually consistent. If you need to
+        retrieve a team immediately following creation you should use the
+        [from_id][synapseclient.models.Team.from_id] method. ***
 
         Arguments:
             name: The name of the team.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             Team: The Team object.
         """
-        return await cls(name=name).get(synapse_client=synapse_client)
+        return await cls(name=name).get_async(synapse_client=synapse_client)
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Members: {self.name}"
     )
-    async def members(
+    async def members_async(
         self, synapse_client: Optional[Synapse] = None
     ) -> List[TeamMember]:
         """Gets the TeamMembers associated with a team.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             List[TeamMember]: A List of TeamMember objects.
@@ -298,7 +312,7 @@ class Team:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Invite: {self.name}"
     )
-    async def invite(
+    async def invite_async(
         self,
         user: str,
         message: str,
@@ -310,7 +324,8 @@ class Team:
         Arguments:
             user: The username of the user to invite.
             message: The message to send.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             dict: The invite response.
@@ -336,13 +351,14 @@ class Team:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Open_Invitations: {self.name}"
     )
-    async def open_invitations(
+    async def open_invitations_async(
         self, synapse_client: Optional[Synapse] = None
     ) -> List[Dict[str, str]]:
         """Gets all open invitations for a team.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             List[dict]: A list of invitations.

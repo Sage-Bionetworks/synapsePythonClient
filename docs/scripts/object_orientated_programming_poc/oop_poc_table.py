@@ -8,7 +8,7 @@ The following actions are shown in this script:
 6. Deleting a row from a table
 7. Deleting a table
 """
-import asyncio
+
 import os
 import csv
 import random
@@ -63,7 +63,7 @@ def write_random_csv_with_data(path: str):
             writer.writerow([values[i] for values in data.values()])
 
 
-async def store_table():
+def store_table():
     # Creating annotations for my table ==================================================
     annotations_for_my_table = {
         "my_single_key_string": "a",
@@ -97,7 +97,7 @@ async def store_table():
         annotations=annotations_for_my_table,
     )
 
-    table = await table.store_schema()
+    table = table.store_schema()
 
     print("Table created:")
     print(table)
@@ -105,14 +105,14 @@ async def store_table():
     # Getting a table =================================================================
     copy_of_table = Table(id=table.id)
 
-    copy_of_table = await copy_of_table.get()
+    copy_of_table = copy_of_table.get()
 
     print("Table retrieved:")
     print(copy_of_table)
 
     # Updating annotations on my table ===============================================
     copy_of_table.annotations["my_key_string"] = ["new", "values", "here"]
-    stored_table = await copy_of_table.store_schema()
+    stored_table = copy_of_table.store_schema()
     print("Table updated:")
     print(stored_table)
 
@@ -121,7 +121,7 @@ async def store_table():
     path_to_csv = os.path.join(os.path.expanduser("~/temp"), f"{name_of_csv}.csv")
     write_random_csv_with_data(path_to_csv)
 
-    csv_path = await copy_of_table.store_rows_from_csv(csv_path=path_to_csv)
+    csv_path = copy_of_table.store_rows_from_csv(csv_path=path_to_csv)
 
     print("Stored data to table from CSV:")
     print(csv_path)
@@ -130,7 +130,7 @@ async def store_table():
     destination_csv_location = os.path.expanduser("~/temp/my_query_results")
 
     table_id_to_query = copy_of_table.id
-    await Table.query(
+    Table.query(
         query=f"SELECT * FROM {table_id_to_query}",
         result_format=CsvResultFormat(download_location=destination_csv_location),
     )
@@ -138,16 +138,16 @@ async def store_table():
     print(f"Created results at: {destination_csv_location}")
 
     # Deleting rows from a table =====================================================
-    await copy_of_table.delete_rows(rows=[Row(row_id=1)])
+    copy_of_table.delete_rows(rows=[Row(row_id=1)])
 
     # Deleting a table ===============================================================
-    table_to_delete = await Table(
+    table_to_delete = Table(
         name="my_test_table_I_want_to_delete",
         columns=columns,
         parent_id=PROJECT_ID,
     ).store_schema()
 
-    await table_to_delete.delete()
+    table_to_delete.delete()
 
 
-asyncio.run(store_table())
+store_table()

@@ -78,7 +78,7 @@ class TestProject:
                 id=project.id,
             ),
         ) as mocked_get:
-            result = await project.store()
+            result = await project.store_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -122,7 +122,7 @@ class TestProject:
                 id=project.id,
             ),
         ) as mocked_get:
-            result = await project.store()
+            result = await project.store_async()
 
             # THEN we should not call store because there are no changes
             mocked_store.assert_not_called()
@@ -148,7 +148,7 @@ class TestProject:
                 id=project.id,
             ),
         ) as mocked_get:
-            await project.get()
+            await project.get_async()
 
             mocked_get.assert_called_once_with(
                 entity=project.id,
@@ -166,7 +166,7 @@ class TestProject:
                 id=project.id,
             ),
         ) as mocked_get:
-            result = await project.store()
+            result = await project.store_async()
 
             # THEN we should not call store because there are no changes
             mocked_store.assert_not_called()
@@ -192,7 +192,7 @@ class TestProject:
                 id=project.id,
             ),
         ) as mocked_get:
-            await project.get()
+            await project.get_async()
 
             mocked_get.assert_called_once_with(
                 entity=project.id,
@@ -212,7 +212,7 @@ class TestProject:
             self.syn,
             "get",
         ) as mocked_get:
-            result = await project.store()
+            result = await project.store_async()
 
             # THEN we should  call store because there are changes
             mocked_store.assert_called_once_with(
@@ -271,7 +271,7 @@ class TestProject:
                 id=project.id,
             ),
         ) as mocked_get:
-            result = await project.store()
+            result = await project.store_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -332,7 +332,7 @@ class TestProject:
                 id=project.id,
             ),
         ) as mocked_get:
-            result = await project.store()
+            result = await project.store_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -370,7 +370,7 @@ class TestProject:
 
         # WHEN I call `store` with the Project object
         with pytest.raises(ValueError) as e:
-            await project.store()
+            await project.store_async()
 
         # THEN we should get an error
         assert str(e.value) == "Project ID or Name is required"
@@ -388,7 +388,7 @@ class TestProject:
             "get",
             return_value=(self.get_example_synapse_project_output()),
         ) as mocked_client_call:
-            result = await project.get()
+            result = await project.get_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -424,7 +424,7 @@ class TestProject:
             "get",
             return_value=(self.get_example_synapse_project_output()),
         ) as mocked_client_call:
-            result = await project.get()
+            result = await project.get_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -463,7 +463,7 @@ class TestProject:
             return_value=(None),
         ) as mocked_client_search:
             with pytest.raises(SynapseNotFoundError) as e:
-                await project.get()
+                await project.get_async()
             assert (
                 str(e.value)
                 == "Project [Id: None, Name: example_project, Parent: parent_id_value] not found in Synapse."
@@ -487,7 +487,7 @@ class TestProject:
             "delete",
             return_value=(None),
         ) as mocked_client_call:
-            await project.delete()
+            await project.delete_async()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -501,7 +501,7 @@ class TestProject:
 
         # WHEN I call `delete` with the Project object
         with pytest.raises(ValueError) as e:
-            await project.delete()
+            await project.delete_async()
 
         # THEN we should get an error
         assert str(e.value) == "Entity ID or Name/Parent is required"
@@ -526,13 +526,13 @@ class TestProject:
             "synapseclient.models.project.copy",
             return_value=(copy_mapping),
         ) as mocked_copy, patch(
-            "synapseclient.models.project.Project.get",
+            "synapseclient.models.project.Project.get_async",
             return_value=(returned_project),
         ) as mocked_get, patch(
-            "synapseclient.models.project.Project.sync_from_synapse",
+            "synapseclient.models.project.Project.sync_from_synapse_async",
             return_value=(returned_project),
         ) as mocked_sync:
-            result = await project.copy(destination_id="destination_id")
+            result = await project.copy_async(destination_id="destination_id")
 
             # THEN we should call the method with this data
             mocked_copy.assert_called_once_with(
@@ -565,7 +565,7 @@ class TestProject:
 
         # WHEN I call `copy` with the Project object
         with pytest.raises(ValueError) as e:
-            await project.copy(destination_id="destination_id")
+            await project.copy_async(destination_id="destination_id")
 
         # THEN we should get an error
         assert str(e.value) == "The project must have an ID and destination_id to copy."
@@ -577,7 +577,7 @@ class TestProject:
 
         # WHEN I call `copy` with the Project object
         with pytest.raises(ValueError) as e:
-            await project.copy(destination_id=None)
+            await project.copy_async(destination_id=None)
 
         # THEN we should get an error
         assert str(e.value) == "The project must have an ID and destination_id to copy."
@@ -608,10 +608,10 @@ class TestProject:
             "get",
             return_value=(self.get_example_synapse_project_output()),
         ) as mocked_project_get, patch(
-            "synapseclient.models.file.File.get",
+            "synapseclient.models.file.File.get_async",
             return_value=(File(id="syn456", name="example_file_1")),
         ):
-            result = await project.sync_from_synapse()
+            result = await project.sync_from_synapse_async()
 
             # THEN we should call the method with this data
             mocked_children_call.assert_called_once()

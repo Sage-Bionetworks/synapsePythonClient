@@ -3,6 +3,7 @@
 import asyncio
 import os
 from typing import List, Optional, TYPE_CHECKING, Union
+from typing_extensions import Self
 from opentelemetry import trace, context
 
 from synapseclient import Synapse
@@ -18,6 +19,9 @@ from synapseclient.models.services.storable_entity_components import (
     wrap_coroutine,
 )
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
+from synapseclient.models.protocols.storable_container_protocol import (
+    StorableContainerSynchronousProtocol,
+)
 
 if TYPE_CHECKING:
     from synapseclient.models import Folder, File
@@ -26,7 +30,7 @@ tracer = trace.get_tracer("synapseclient")
 
 
 @async_to_sync
-class StorableContainer:
+class StorableContainer(StorableContainerSynchronousProtocol):
     """
     Mixin for objects that can have Folders and Files stored in them.
 
@@ -54,14 +58,14 @@ class StorableContainer:
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__.__name__}_sync_from_synapse: {self.id}"
     )
     async def sync_from_synapse_async(
-        self,
+        self: Self,
         path: Optional[str] = None,
         recursive: bool = True,
         download_file: bool = True,
         if_collision: str = COLLISION_OVERWRITE_LOCAL,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
         synapse_client: Optional[Synapse] = None,
-    ):
+    ) -> Self:
         """
         Sync this container and all possible sub-folders from Synapse. By default this
         will download the files that are found and it will populate the
@@ -105,7 +109,7 @@ class StorableContainer:
                 syn.login()
 
                 my_folder = Folder(id="syn12345")
-                await my_folder.sync_from_synapse(download_file=False, recursive=False)
+                await my_folder.sync_from_synapse_async(download_file=False, recursive=False)
 
                 for folder in my_folder.folders:
                     print(folder.name)
@@ -122,7 +126,7 @@ class StorableContainer:
                 syn.login()
 
                 my_folder = Folder(id="syn12345")
-                await my_folder.sync_from_synapse(path="/path/to/folder", recursive=False)
+                await my_folder.sync_from_synapse_async(path="/path/to/folder", recursive=False)
 
                 for folder in my_folder.folders:
                     print(folder.name)
@@ -140,7 +144,7 @@ class StorableContainer:
                 syn.login()
 
                 my_project = Project(id="syn12345")
-                await my_project.sync_from_synapse(path="/path/to/folder")
+                await my_project.sync_from_synapse_async(path="/path/to/folder")
 
 
         Raises:
@@ -191,9 +195,9 @@ class StorableContainer:
                         Folder->>client: `.get()`
                         client-->>Folder: .
                         Folder-->>sync_from_synapse: .
-                    and `folder.sync_from_synapse()`
+                    and `folder.sync_from_synapse_async()`
                         note over sync_from_synapse: This is a recursive call to `sync_from_synapse`
-                        sync_from_synapse->>sync_from_synapse: Recursive call to `.sync_from_synapse()`
+                        sync_from_synapse->>sync_from_synapse: Recursive call to `.sync_from_synapse_async()`
                     end
                 end
 
@@ -370,7 +374,7 @@ class StorableContainer:
             if if_collision:
                 file.if_collision = if_collision
 
-            pending_tasks.append(asyncio.create_task(wrap_coroutine(file.get())))
+            pending_tasks.append(asyncio.create_task(wrap_coroutine(file.get_async())))
         return pending_tasks
 
     def _resolve_sync_from_synapse_result(

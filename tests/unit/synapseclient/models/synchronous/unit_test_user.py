@@ -72,8 +72,7 @@ class TestUser:
         ]
         assert user_profile.created_on == "2020-01-01T00:00:00.000Z"
 
-    @pytest.mark.asyncio
-    async def test_get_id(self) -> None:
+    def test_get_id(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile(id=123)
 
@@ -83,7 +82,7 @@ class TestUser:
             "get_user_profile_by_id",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = await user_profile.get()
+            profile = user_profile.get()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(id=123)
@@ -113,8 +112,7 @@ class TestUser:
             ]
             assert profile.created_on == "2020-01-01T00:00:00.000Z"
 
-    @pytest.mark.asyncio
-    async def test_get_username(self) -> None:
+    def test_get_username(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile(username="johndoe")
 
@@ -124,7 +122,7 @@ class TestUser:
             "get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = await user_profile.get()
+            profile = user_profile.get()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(username="johndoe")
@@ -154,8 +152,7 @@ class TestUser:
             ]
             assert profile.created_on == "2020-01-01T00:00:00.000Z"
 
-    @pytest.mark.asyncio
-    async def test_get_neither(self) -> None:
+    def test_get_neither(self) -> None:
         # GIVEN a blank user profile
         user_profile = UserProfile()
 
@@ -165,7 +162,7 @@ class TestUser:
             "get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = await user_profile.get()
+            profile = user_profile.get()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with()
@@ -195,8 +192,7 @@ class TestUser:
             ]
             assert profile.created_on == "2020-01-01T00:00:00.000Z"
 
-    @pytest.mark.asyncio
-    async def test_get_from_id(self) -> None:
+    def test_get_from_id(self) -> None:
         # GIVEN no user profile
 
         # WHEN we get from ID
@@ -205,7 +201,7 @@ class TestUser:
             "get_user_profile_by_id",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = await UserProfile.from_id(user_id=123)
+            profile = UserProfile.from_id(user_id=123)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(id=123)
@@ -235,8 +231,7 @@ class TestUser:
             ]
             assert profile.created_on == "2020-01-01T00:00:00.000Z"
 
-    @pytest.mark.asyncio
-    async def test_get_from_username(self) -> None:
+    def test_get_from_username(self) -> None:
         # GIVEN no user profile
 
         # WHEN we get from ID
@@ -245,7 +240,7 @@ class TestUser:
             "get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = await UserProfile.from_username(username="johndoe")
+            profile = UserProfile.from_username(username="johndoe")
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(username="johndoe")
@@ -275,8 +270,7 @@ class TestUser:
             ]
             assert profile.created_on == "2020-01-01T00:00:00.000Z"
 
-    @pytest.mark.asyncio
-    async def test_is_certified_id(self) -> None:
+    def test_is_certified_id(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile(id=123)
 
@@ -286,7 +280,7 @@ class TestUser:
             "is_certified",
             return_value=True,
         ) as mocked_client_call:
-            is_certified = await user_profile.is_certified()
+            is_certified = user_profile.is_certified()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(user=123)
@@ -294,8 +288,7 @@ class TestUser:
             # AND we should get the profile back
             assert is_certified == True
 
-    @pytest.mark.asyncio
-    async def test_is_certified_username(self) -> None:
+    def test_is_certified_username(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile(username="johndoe")
 
@@ -305,7 +298,7 @@ class TestUser:
             "is_certified",
             return_value=True,
         ) as mocked_client_call:
-            is_certified = await user_profile.is_certified()
+            is_certified = user_profile.is_certified()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(user="johndoe")
@@ -313,14 +306,13 @@ class TestUser:
             # AND we should get the profile back
             assert is_certified == True
 
-    @pytest.mark.asyncio
-    async def test_is_certified_neither(self) -> None:
+    def test_is_certified_neither(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile()
 
         # WHEN we check if the user is certified
         with pytest.raises(ValueError) as e:
-            await user_profile.is_certified()
+            user_profile.is_certified()
 
         # THEN we should get an error
         assert str(e.value) == "Must specify either id or username"
