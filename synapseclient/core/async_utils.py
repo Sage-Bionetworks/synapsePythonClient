@@ -74,7 +74,7 @@ class class_or_instance:
 
 
 # Adapted from https://github.com/keflavich/astroquery/blob/30deafc3aa057916bcdca70733cba748f1b36b64/astroquery/utils/process_asyncs.py#L11
-def async_to_sync_new(cls):
+def async_to_sync(cls):
     """
     Convert all name_of_thing_async methods to name_of_thing methods
 
