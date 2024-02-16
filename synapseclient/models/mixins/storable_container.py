@@ -8,6 +8,7 @@ from opentelemetry import trace, context
 from synapseclient import Synapse
 from synapseclient.core.async_utils import (
     otel_trace_method,
+    async_to_sync,
 )
 from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.core.exceptions import SynapseError
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 tracer = trace.get_tracer("synapseclient")
 
 
+@async_to_sync
 class StorableContainer:
     """
     Mixin for objects that can have Folders and Files stored in them.
@@ -45,13 +47,13 @@ class StorableContainer:
     folders: None = None
     _last_persistent_instance: None = None
 
-    async def get(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def get_async(self, synapse_client: Optional[Synapse] = None) -> None:
         """Used to satisfy the usage in this mixin from the parent class."""
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__.__name__}_sync_from_synapse: {self.id}"
     )
-    async def sync_from_synapse(
+    async def sync_from_synapse_async(
         self,
         path: Optional[str] = None,
         recursive: bool = True,
@@ -201,7 +203,7 @@ class StorableContainer:
 
         """
         if not self._last_persistent_instance:
-            await self.get(synapse_client=synapse_client)
+            await self.get_async(synapse_client=synapse_client)
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
             f"Syncing {self.__class__.__name__} ({self.id}) from Synapse."
         )
@@ -282,7 +284,7 @@ class StorableContainer:
         )
         if new_resolved_path and not os.path.exists(new_resolved_path):
             os.makedirs(new_resolved_path)
-        await folder.sync_from_synapse(
+        await folder.sync_from_synapse_async(
             recursive=recursive,
             download_file=download_file,
             path=new_resolved_path,
@@ -353,7 +355,9 @@ class StorableContainer:
                     )
                 )
             else:
-                pending_tasks.append(asyncio.create_task(wrap_coroutine(folder.get())))
+                pending_tasks.append(
+                    asyncio.create_task(wrap_coroutine(folder.get_async()))
+                )
 
         elif synapse_id and child_type == FILE_ENTITY:
             # Lazy import to avoid circular import

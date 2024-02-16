@@ -15,7 +15,10 @@ from synapseclient.models.mixins import (
     StorableContainer,
 )
 from synapseclient import Synapse
-from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.async_utils import (
+    otel_trace_method,
+    async_to_sync,
+)
 from synapseclient.core.utils import (
     run_and_attach_otel_context,
     delete_none_keys,
@@ -33,6 +36,7 @@ tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass()
+@async_to_sync
 class Project(AccessControllable, StorableContainer):
     """A Project is a top-level container for organizing data in Synapse.
 
@@ -279,7 +283,7 @@ class Project(AccessControllable, StorableContainer):
                 )
             )
             and (
-                existing_project := await Project(id=existing_project_id).get(
+                existing_project := await Project(id=existing_project_id).get_async(
                     synapse_client=synapse_client
                 )
             )
@@ -327,7 +331,7 @@ class Project(AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Project_Get: ID: {self.id}, Name: {self.name}"
     )
-    async def get(
+    async def get_async(
         self,
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
@@ -492,7 +496,9 @@ class Project(AccessControllable, StorableContainer):
         new_project_id = source_and_destination.get(self.id, None)
         if not new_project_id:
             raise SynapseError("Failed to copy project.")
-        project_copy = await (await Project(id=new_project_id).get()).sync_from_synapse(
+        project_copy = await (
+            await Project(id=new_project_id).get_async()
+        ).sync_from_synapse_async(
             download_file=False,
             synapse_client=synapse_client,
         )

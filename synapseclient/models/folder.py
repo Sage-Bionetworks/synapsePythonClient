@@ -9,7 +9,7 @@ from opentelemetry import trace, context
 from synapseclient import Synapse
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import File, Annotations
-from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.async_utils import otel_trace_method, async_to_sync
 from synapseclient.core.utils import (
     run_and_attach_otel_context,
     delete_none_keys,
@@ -31,6 +31,7 @@ tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass()
+@async_to_sync
 class Folder(AccessControllable, StorableContainer):
     """Folder is a hierarchical container for organizing data in Synapse.
 
@@ -239,7 +240,7 @@ class Folder(AccessControllable, StorableContainer):
                     entity=self, failure_strategy=None, synapse_client=synapse_client
                 )
             )
-            and (existing_folder := await Folder(id=existing_folder_id).get())
+            and (existing_folder := await Folder(id=existing_folder_id).get_async())
         ):
             merge_dataclass_entities(source=existing_folder, destination=self)
 
@@ -284,7 +285,7 @@ class Folder(AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Folder_Get: {self.id}"
     )
-    async def get(
+    async def get_async(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
         synapse_client: Optional[Synapse] = None,
@@ -436,7 +437,9 @@ class Folder(AccessControllable, StorableContainer):
         new_folder_id = source_and_destination.get(self.id, None)
         if not new_folder_id:
             raise SynapseError("Failed to copy folder.")
-        folder_copy = await (await Folder(id=new_folder_id).get()).sync_from_synapse(
+        folder_copy = await (
+            await Folder(id=new_folder_id).get_async()
+        ).sync_from_synapse_async(
             download_file=False,
             synapse_client=synapse_client,
         )
