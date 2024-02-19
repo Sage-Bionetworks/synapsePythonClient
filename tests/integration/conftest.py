@@ -11,6 +11,7 @@ import pytest
 
 from synapseclient.models import (
     Project as Project_Model,
+    Team,
 )
 from synapseclient import Entity, Synapse, Project
 from synapseclient.core import utils
@@ -148,6 +149,14 @@ def _cleanup(syn: Synapse, items):
                         os.remove(item)
                 except Exception as ex:
                     print(ex)
+        elif isinstance(item, Team):
+            try:
+                item.delete()
+            except Exception as ex:
+                if hasattr(ex, "response") and ex.response.status_code in [404, 403]:
+                    pass
+                else:
+                    print("Error cleaning up entity: " + str(ex))
         else:
             sys.stderr.write("Don't know how to clean: %s" % str(item))
 

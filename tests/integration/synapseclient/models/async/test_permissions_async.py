@@ -115,7 +115,7 @@ class TestAclOnProject:
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
-        self.schedule_for_cleanup(team.id)
+        self.schedule_for_cleanup(team)
         self.schedule_for_cleanup(project_with_permissions_through_single_team.id)
 
         # AND the permissions for the Team on the entity are set to all permissions except for DOWNLOAD
