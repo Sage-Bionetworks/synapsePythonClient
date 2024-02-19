@@ -1,6 +1,7 @@
 """Integration tests for the synapseclient.models.File class."""
 
 import os
+import time
 from unittest.mock import patch
 import uuid
 
@@ -271,6 +272,7 @@ class TestFileStore:
 
         # THEN I expect the file handles to match
         assert file_2_etag != file_2.etag
+        time.sleep(5)
         assert (file_1.get()).file_handle == (file_2.get()).file_handle
 
     def test_store_updated_file(self, project_model: Project) -> None:

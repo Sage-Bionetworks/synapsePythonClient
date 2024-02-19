@@ -285,6 +285,7 @@ class TestFileStore:
 
         # THEN I expect the file handles to match
         assert file_2_etag != file_2.etag
+        await asyncio.sleep(5)
         assert (await file_1.get_async()).file_handle == (
             await file_2.get_async()
         ).file_handle
