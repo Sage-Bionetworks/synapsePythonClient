@@ -1,9 +1,10 @@
+"""Integration tests for ACL on several model."""
+
 import uuid
 
 import pytest
 
 from synapseclient import Synapse
-from synapseclient import Team
 from synapseclient.core import utils
 
 from synapseclient.models import (
@@ -14,14 +15,28 @@ from synapseclient.models import (
     ColumnType,
     Column,
     Table,
+    Team,
 )
 from typing import Callable
 
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 
+TEAM_PREFIX = "My Uniquely Named Team "
+DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT = (
+    "A fake team for testing permissions assigned to a single project"
+)
+DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1 = (
+    "A fake team for testing permissions assigned to a single project - 1"
+)
+DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2 = (
+    "A fake team for testing permissions assigned to a single project - 2"
+)
+
 
 class TestAclOnProject:
+    """Testing ACL for the Project model."""
+
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
@@ -85,19 +100,15 @@ class TestAclOnProject:
         # AND the user that created the project
         p1 = UserProfile().get()
 
-        # TODO: Replace with the Team OOP model when it is available
-        # AND a team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT,
+        ).create()
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
-        self.schedule_for_cleanup(team)
+        self.schedule_for_cleanup(team.id)
         self.schedule_for_cleanup(project_with_permissions_through_single_team.id)
 
         # AND the permissions for the Team on the entity are set to all permissions except for DOWNLOAD
@@ -146,25 +157,17 @@ class TestAclOnProject:
         # AND the user that created the project
         p1 = UserProfile().get()
 
-        # TODO: Replace with the Team OOP model when it is available
-        # AND a team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team_1 = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project - 1",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team_1 = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1,
+        ).create()
 
-        # TODO: Replace with the Team OOP model
-        # AND a second team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team_2 = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project - 2",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team_2 = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2,
+        ).create()
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -282,12 +285,14 @@ class TestAclOnProject:
 
 
 class TestAclOnFolder:
+    """Testing ACL for the Folder model."""
+
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def test_get_acl_default(self, project_model) -> None:
+    def test_get_acl_default(self, project_model: Project) -> None:
         # GIVEN a folder created with default permissions of administrator
         folder_with_default_permissions = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_default_permissions",
@@ -313,7 +318,9 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_read_only_permissions_on_entity(self, project_model) -> None:
+    def test_get_acl_read_only_permissions_on_entity(
+        self, project_model: Project
+    ) -> None:
         # GIVEN a folder created with default permissions of administrator
         project_with_read_only_permissions = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
@@ -335,7 +342,9 @@ class TestAclOnFolder:
         expected_permissions = ["READ"]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_through_team_assigned_to_user(self, project_model) -> None:
+    def test_get_acl_through_team_assigned_to_user(
+        self, project_model: Project
+    ) -> None:
         # GIVEN a folder created with default permissions of administrator
         folder_with_permissions_through_single_team = Folder(
             name=str(uuid.uuid4())
@@ -345,15 +354,11 @@ class TestAclOnFolder:
         # AND the user that created the folder
         p1 = UserProfile().get()
 
-        # TODO: Replace with the Team OOP model when it is available
-        # AND a team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT,
+        ).create()
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -397,7 +402,7 @@ class TestAclOnFolder:
         assert set(expected_permissions) == set(permissions)
 
     def test_get_acl_through_multiple_teams_assigned_to_user(
-        self, project_model
+        self, project_model: Project
     ) -> None:
         # GIVEN a folder created with default permissions of administrator
         folder_with_permissions_through_multiple_teams = Folder(
@@ -408,25 +413,17 @@ class TestAclOnFolder:
         # AND the user that created the folder
         p1 = UserProfile().get()
 
-        # TODO: Replace with the Team OOP model when it is available
-        # AND a team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team_1 = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project - 1",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team_1 = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1,
+        ).create()
 
-        # TODO: Replace with the Team OOP model
-        # AND a second team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team_2 = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project - 2",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team_2 = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2,
+        ).create()
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -478,7 +475,7 @@ class TestAclOnFolder:
         assert set(expected_permissions) == set(permissions)
 
     def test_get_acl_for_project_with_public_and_registered_user(
-        self, project_model
+        self, project_model: Project
     ) -> None:
         # GIVEN a folder created with default permissions of administrator
         folder_with_permissions_for_public_and_authenticated_users = Folder(
@@ -546,6 +543,8 @@ class TestAclOnFolder:
 
 
 class TestAclOnFile:
+    """Testing ACL for the File model."""
+
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
@@ -617,15 +616,11 @@ class TestAclOnFile:
         # AND the user that created the file
         p1 = UserProfile().get()
 
-        # TODO: Replace with the Team OOP model when it is available
-        # AND a team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT,
+        ).create()
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -681,25 +676,17 @@ class TestAclOnFile:
         # AND the user that created the file
         p1 = UserProfile().get()
 
-        # TODO: Replace with the Team OOP model when it is available
-        # AND a team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team_1 = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project - 1",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team_1 = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1,
+        ).create()
 
-        # TODO: Replace with the Team OOP model
-        # AND a second team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team_2 = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project - 2",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team_2 = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2,
+        ).create()
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -816,6 +803,8 @@ class TestAclOnFile:
 
 
 class TestAclOnTable:
+    """Testing ACL for the Table model."""
+
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
@@ -893,15 +882,11 @@ class TestAclOnTable:
         # AND the user that created the table
         p1 = UserProfile().get()
 
-        # TODO: Replace with the Team OOP model when it is available
-        # AND a team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT,
+        ).create()
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -957,25 +942,17 @@ class TestAclOnTable:
         # AND the user that created the table
         p1 = UserProfile().get()
 
-        # TODO: Replace with the Team OOP model when it is available
-        # AND a team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team_1 = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project - 1",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team_1 = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1,
+        ).create()
 
-        # TODO: Replace with the Team OOP model
-        # AND a second team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team_2 = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project - 2",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team_2 = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2,
+        ).create()
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -1159,17 +1136,14 @@ class TestPermissionsOnEntityForCaller:
         # AND the user that created the project
         p1: UserProfile = UserProfile().get()
 
-        # TODO: Replace with the Team OOP model
-        # AND a team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT,
+        ).create()
 
-        # Handle Cleanup - Note: When running this schedule for cleanup order can matter when there are dependent resources
+        # Note: When running this schedule for cleanup order can matter when
+        # there are dependent resources
         self.schedule_for_cleanup(team)
         self.schedule_for_cleanup(project_with_permissions_through_single_team.id)
 
@@ -1219,27 +1193,20 @@ class TestPermissionsOnEntityForCaller:
         # AND the user that created the project
         p1 = UserProfile().get()
 
-        # TODO: Replace with the Team OOP model
-        # AND a team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team_1 = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project - 1",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team_1 = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1,
+        ).create()
 
-        # TODO: Replace with the Team OOP model
-        # AND a second team is created
-        name = "My Uniquely Named Team " + str(uuid.uuid4())
-        team_2 = self.syn.store(
-            Team(
-                name=name,
-                description="A fake team for testing permissions assigned to a single project - 2",
-            )
-        )
+        name = TEAM_PREFIX + str(uuid.uuid4())
+        team_2 = Team(
+            name=name,
+            description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2,
+        ).create()
 
-        # Handle Cleanup - Note: When running this schedule for cleanup order can matter when there are dependent resources
+        # Note: When running this schedule for cleanup order can matter when
+        # there are dependent resources
         self.schedule_for_cleanup(team_1)
         self.schedule_for_cleanup(team_2)
         self.schedule_for_cleanup(project_with_permissions_through_multiple_teams.id)

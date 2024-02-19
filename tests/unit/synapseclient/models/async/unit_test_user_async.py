@@ -1,3 +1,5 @@
+"""Tests for the synapseclient.models.user module."""
+
 from unittest.mock import patch
 import pytest
 from synapseclient.models import UserPreference, UserProfile
@@ -5,16 +7,37 @@ from synapseclient.models.user import UserGroupHeader
 from synapseclient.team import (
     UserProfile as Synapse_UserProfile,
 )
+from synapseclient import Synapse
+
+FIRST_NAME = "John"
+LAST_NAME = "Doe"
+USER_NAME = "johndoe"
+EMAIL = "john.doe@sagebase.org"
+ETAG = "some_value"
+OPEN_IDS = ["aa222", "bb333"]
+BOGUS_URL = "https://sagebase.org"
+SUMMARY = "some summary"
+POSITION = "some position"
+LOCATION = "some location"
+INDUSTRY = "some industry"
+COMPANY = "some company"
+PROFILE_PICTURE_FILE_HANDLE_ID = "some_file_handle_id"
+TEAM_NAME = "some team name"
+PREFERENCE_1 = "false_value"
+PREFFERENCE_2 = "true_value"
+CREATED_ON = "2020-01-01T00:00:00.000Z"
 
 
 class TestUserGroupHeader:
+    """Tests for the UserGroupHeader class."""
+
     def test_fill_from_dict(self):
         test_dict = {
             "ownerId": 123,
-            "firstName": "John",
-            "lastName": "Doe",
-            "userName": "jdoe",
-            "email": "jdoe@me.com",
+            "firstName": FIRST_NAME,
+            "lastName": LAST_NAME,
+            "userName": USER_NAME,
+            "email": EMAIL,
             "isIndividual": True,
         }
         # GIVEN a blank UserGroupHeader
@@ -23,45 +46,47 @@ class TestUserGroupHeader:
         user_group_header.fill_from_dict(test_dict)
         # THEN I expect all fields to be set
         assert user_group_header.owner_id == 123
-        assert user_group_header.first_name == "John"
-        assert user_group_header.last_name == "Doe"
-        assert user_group_header.user_name == "jdoe"
-        assert user_group_header.email == "jdoe@me.com"
+        assert user_group_header.first_name == FIRST_NAME
+        assert user_group_header.last_name == LAST_NAME
+        assert user_group_header.user_name == USER_NAME
+        assert user_group_header.email == EMAIL
         assert user_group_header.is_individual == True
 
 
 class TestUser:
+    """Tests for the User class."""
+
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn) -> None:
         self.syn = syn
 
     def get_example_synapse_user_profile(self) -> Synapse_UserProfile:
         return Synapse_UserProfile(
             ownerId=123,
-            etag="some_value",
-            firstName="John",
-            lastName="Doe",
-            emails=["john.doe@sagebase.org"],
-            openIds=["aa222", "bb333"],
-            userName="johndoe",
-            rStudioUrl="https://sagebase.org",
-            summary="some summary",
-            position="some position",
-            location="some location",
-            industry="some industry",
-            company="some company",
-            profilePicureFileHandleId="some_file_handle_id",
-            url="https://sagebase.org",
-            teamName="some team name",
+            etag=ETAG,
+            firstName=FIRST_NAME,
+            lastName=LAST_NAME,
+            emails=[EMAIL],
+            openIds=OPEN_IDS,
+            userName=USER_NAME,
+            rStudioUrl=BOGUS_URL,
+            summary=SUMMARY,
+            position=POSITION,
+            location=LOCATION,
+            industry=INDUSTRY,
+            company=COMPANY,
+            profilePicureFileHandleId=PROFILE_PICTURE_FILE_HANDLE_ID,
+            url=BOGUS_URL,
+            teamName=TEAM_NAME,
             notificationSettings={
                 "sendEmailNotifications": True,
                 "markEmailedMessagesAsRead": False,
             },
             preferences=[
-                {"name": "false_value", "value": False},
-                {"name": "true_value", "value": True},
+                {"name": PREFERENCE_1, "value": False},
+                {"name": PREFFERENCE_2, "value": True},
             ],
-            createdOn="2020-01-01T00:00:00.000Z",
+            createdOn=CREATED_ON,
         )
 
     def test_fill_from_dict(self) -> None:
@@ -73,28 +98,30 @@ class TestUser:
 
         # THEN the user profile should be filled
         assert user_profile.id == 123
-        assert user_profile.etag == "some_value"
-        assert user_profile.first_name == "John"
-        assert user_profile.last_name == "Doe"
-        assert user_profile.emails == ["john.doe@sagebase.org"]
-        assert user_profile.open_ids == ["aa222", "bb333"]
-        assert user_profile.username == "johndoe"
-        assert user_profile.r_studio_url == "https://sagebase.org"
-        assert user_profile.summary == "some summary"
-        assert user_profile.position == "some position"
-        assert user_profile.location == "some location"
-        assert user_profile.industry == "some industry"
-        assert user_profile.company == "some company"
-        assert user_profile.profile_picure_file_handle_id == "some_file_handle_id"
-        assert user_profile.url == "https://sagebase.org"
-        assert user_profile.team_name == "some team name"
+        assert user_profile.etag == ETAG
+        assert user_profile.first_name == FIRST_NAME
+        assert user_profile.last_name == LAST_NAME
+        assert user_profile.emails == [EMAIL]
+        assert user_profile.open_ids == OPEN_IDS
+        assert user_profile.username == USER_NAME
+        assert user_profile.r_studio_url == BOGUS_URL
+        assert user_profile.summary == SUMMARY
+        assert user_profile.position == POSITION
+        assert user_profile.location == LOCATION
+        assert user_profile.industry == INDUSTRY
+        assert user_profile.company == COMPANY
+        assert (
+            user_profile.profile_picure_file_handle_id == PROFILE_PICTURE_FILE_HANDLE_ID
+        )
+        assert user_profile.url == BOGUS_URL
+        assert user_profile.team_name == TEAM_NAME
         assert user_profile.send_email_notifications == True
         assert user_profile.mark_emailed_messages_as_read == False
         assert user_profile.preferences == [
-            UserPreference(name="false_value", value=False),
-            UserPreference(name="true_value", value=True),
+            UserPreference(name=PREFERENCE_1, value=False),
+            UserPreference(name=PREFFERENCE_2, value=True),
         ]
-        assert user_profile.created_on == "2020-01-01T00:00:00.000Z"
+        assert user_profile.created_on == CREATED_ON
 
     @pytest.mark.asyncio
     async def test_get_id(self) -> None:
@@ -114,33 +141,35 @@ class TestUser:
 
             # AND we should get the profile back
             assert profile.id == 123
-            assert profile.etag == "some_value"
-            assert profile.first_name == "John"
-            assert profile.last_name == "Doe"
-            assert profile.emails == ["john.doe@sagebase.org"]
-            assert profile.open_ids == ["aa222", "bb333"]
-            assert profile.username == "johndoe"
-            assert profile.r_studio_url == "https://sagebase.org"
-            assert profile.summary == "some summary"
-            assert profile.position == "some position"
-            assert profile.location == "some location"
-            assert profile.industry == "some industry"
-            assert profile.company == "some company"
-            assert profile.profile_picure_file_handle_id == "some_file_handle_id"
-            assert profile.url == "https://sagebase.org"
-            assert profile.team_name == "some team name"
+            assert profile.etag == ETAG
+            assert profile.first_name == FIRST_NAME
+            assert profile.last_name == LAST_NAME
+            assert profile.emails == [EMAIL]
+            assert profile.open_ids == OPEN_IDS
+            assert profile.username == USER_NAME
+            assert profile.r_studio_url == BOGUS_URL
+            assert profile.summary == SUMMARY
+            assert profile.position == POSITION
+            assert profile.location == LOCATION
+            assert profile.industry == INDUSTRY
+            assert profile.company == COMPANY
+            assert (
+                profile.profile_picure_file_handle_id == PROFILE_PICTURE_FILE_HANDLE_ID
+            )
+            assert profile.url == BOGUS_URL
+            assert profile.team_name == TEAM_NAME
             assert profile.send_email_notifications == True
             assert profile.mark_emailed_messages_as_read == False
             assert profile.preferences == [
-                UserPreference(name="false_value", value=False),
-                UserPreference(name="true_value", value=True),
+                UserPreference(name=PREFERENCE_1, value=False),
+                UserPreference(name=PREFFERENCE_2, value=True),
             ]
-            assert profile.created_on == "2020-01-01T00:00:00.000Z"
+            assert profile.created_on == CREATED_ON
 
     @pytest.mark.asyncio
     async def test_get_username(self) -> None:
         # GIVEN a user profile
-        user_profile = UserProfile(username="johndoe")
+        user_profile = UserProfile(username=USER_NAME)
 
         # WHEN we get the ID
         with patch.object(
@@ -151,32 +180,34 @@ class TestUser:
             profile = await user_profile.get_async()
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(username="johndoe")
+            mocked_client_call.assert_called_once_with(username=USER_NAME)
 
             # AND we should get the profile back
             assert profile.id == 123
-            assert profile.etag == "some_value"
-            assert profile.first_name == "John"
-            assert profile.last_name == "Doe"
-            assert profile.emails == ["john.doe@sagebase.org"]
-            assert profile.open_ids == ["aa222", "bb333"]
-            assert profile.username == "johndoe"
-            assert profile.r_studio_url == "https://sagebase.org"
-            assert profile.summary == "some summary"
-            assert profile.position == "some position"
-            assert profile.location == "some location"
-            assert profile.industry == "some industry"
-            assert profile.company == "some company"
-            assert profile.profile_picure_file_handle_id == "some_file_handle_id"
-            assert profile.url == "https://sagebase.org"
-            assert profile.team_name == "some team name"
+            assert profile.etag == ETAG
+            assert profile.first_name == FIRST_NAME
+            assert profile.last_name == LAST_NAME
+            assert profile.emails == [EMAIL]
+            assert profile.open_ids == OPEN_IDS
+            assert profile.username == USER_NAME
+            assert profile.r_studio_url == BOGUS_URL
+            assert profile.summary == SUMMARY
+            assert profile.position == POSITION
+            assert profile.location == LOCATION
+            assert profile.industry == INDUSTRY
+            assert profile.company == COMPANY
+            assert (
+                profile.profile_picure_file_handle_id == PROFILE_PICTURE_FILE_HANDLE_ID
+            )
+            assert profile.url == BOGUS_URL
+            assert profile.team_name == TEAM_NAME
             assert profile.send_email_notifications == True
             assert profile.mark_emailed_messages_as_read == False
             assert profile.preferences == [
-                UserPreference(name="false_value", value=False),
-                UserPreference(name="true_value", value=True),
+                UserPreference(name=PREFERENCE_1, value=False),
+                UserPreference(name=PREFFERENCE_2, value=True),
             ]
-            assert profile.created_on == "2020-01-01T00:00:00.000Z"
+            assert profile.created_on == CREATED_ON
 
     @pytest.mark.asyncio
     async def test_get_neither(self) -> None:
@@ -196,28 +227,30 @@ class TestUser:
 
             # AND we should get the profile back
             assert profile.id == 123
-            assert profile.etag == "some_value"
-            assert profile.first_name == "John"
-            assert profile.last_name == "Doe"
-            assert profile.emails == ["john.doe@sagebase.org"]
-            assert profile.open_ids == ["aa222", "bb333"]
-            assert profile.username == "johndoe"
-            assert profile.r_studio_url == "https://sagebase.org"
-            assert profile.summary == "some summary"
-            assert profile.position == "some position"
-            assert profile.location == "some location"
-            assert profile.industry == "some industry"
-            assert profile.company == "some company"
-            assert profile.profile_picure_file_handle_id == "some_file_handle_id"
-            assert profile.url == "https://sagebase.org"
-            assert profile.team_name == "some team name"
+            assert profile.etag == ETAG
+            assert profile.first_name == FIRST_NAME
+            assert profile.last_name == LAST_NAME
+            assert profile.emails == [EMAIL]
+            assert profile.open_ids == OPEN_IDS
+            assert profile.username == USER_NAME
+            assert profile.r_studio_url == BOGUS_URL
+            assert profile.summary == SUMMARY
+            assert profile.position == POSITION
+            assert profile.location == LOCATION
+            assert profile.industry == INDUSTRY
+            assert profile.company == COMPANY
+            assert (
+                profile.profile_picure_file_handle_id == PROFILE_PICTURE_FILE_HANDLE_ID
+            )
+            assert profile.url == BOGUS_URL
+            assert profile.team_name == TEAM_NAME
             assert profile.send_email_notifications == True
             assert profile.mark_emailed_messages_as_read == False
             assert profile.preferences == [
-                UserPreference(name="false_value", value=False),
-                UserPreference(name="true_value", value=True),
+                UserPreference(name=PREFERENCE_1, value=False),
+                UserPreference(name=PREFFERENCE_2, value=True),
             ]
-            assert profile.created_on == "2020-01-01T00:00:00.000Z"
+            assert profile.created_on == CREATED_ON
 
     @pytest.mark.asyncio
     async def test_get_from_id(self) -> None:
@@ -236,28 +269,30 @@ class TestUser:
 
             # AND we should get the profile back
             assert profile.id == 123
-            assert profile.etag == "some_value"
-            assert profile.first_name == "John"
-            assert profile.last_name == "Doe"
-            assert profile.emails == ["john.doe@sagebase.org"]
-            assert profile.open_ids == ["aa222", "bb333"]
-            assert profile.username == "johndoe"
-            assert profile.r_studio_url == "https://sagebase.org"
-            assert profile.summary == "some summary"
-            assert profile.position == "some position"
-            assert profile.location == "some location"
-            assert profile.industry == "some industry"
-            assert profile.company == "some company"
-            assert profile.profile_picure_file_handle_id == "some_file_handle_id"
-            assert profile.url == "https://sagebase.org"
-            assert profile.team_name == "some team name"
+            assert profile.etag == ETAG
+            assert profile.first_name == FIRST_NAME
+            assert profile.last_name == LAST_NAME
+            assert profile.emails == [EMAIL]
+            assert profile.open_ids == OPEN_IDS
+            assert profile.username == USER_NAME
+            assert profile.r_studio_url == BOGUS_URL
+            assert profile.summary == SUMMARY
+            assert profile.position == POSITION
+            assert profile.location == LOCATION
+            assert profile.industry == INDUSTRY
+            assert profile.company == COMPANY
+            assert (
+                profile.profile_picure_file_handle_id == PROFILE_PICTURE_FILE_HANDLE_ID
+            )
+            assert profile.url == BOGUS_URL
+            assert profile.team_name == TEAM_NAME
             assert profile.send_email_notifications == True
             assert profile.mark_emailed_messages_as_read == False
             assert profile.preferences == [
-                UserPreference(name="false_value", value=False),
-                UserPreference(name="true_value", value=True),
+                UserPreference(name=PREFERENCE_1, value=False),
+                UserPreference(name=PREFFERENCE_2, value=True),
             ]
-            assert profile.created_on == "2020-01-01T00:00:00.000Z"
+            assert profile.created_on == CREATED_ON
 
     @pytest.mark.asyncio
     async def test_get_from_username(self) -> None:
@@ -269,35 +304,37 @@ class TestUser:
             "get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = await UserProfile.from_username_async(username="johndoe")
+            profile = await UserProfile.from_username_async(username=USER_NAME)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(username="johndoe")
+            mocked_client_call.assert_called_once_with(username=USER_NAME)
 
             # AND we should get the profile back
             assert profile.id == 123
-            assert profile.etag == "some_value"
-            assert profile.first_name == "John"
-            assert profile.last_name == "Doe"
-            assert profile.emails == ["john.doe@sagebase.org"]
-            assert profile.open_ids == ["aa222", "bb333"]
-            assert profile.username == "johndoe"
-            assert profile.r_studio_url == "https://sagebase.org"
-            assert profile.summary == "some summary"
-            assert profile.position == "some position"
-            assert profile.location == "some location"
-            assert profile.industry == "some industry"
-            assert profile.company == "some company"
-            assert profile.profile_picure_file_handle_id == "some_file_handle_id"
-            assert profile.url == "https://sagebase.org"
-            assert profile.team_name == "some team name"
+            assert profile.etag == ETAG
+            assert profile.first_name == FIRST_NAME
+            assert profile.last_name == LAST_NAME
+            assert profile.emails == [EMAIL]
+            assert profile.open_ids == OPEN_IDS
+            assert profile.username == USER_NAME
+            assert profile.r_studio_url == BOGUS_URL
+            assert profile.summary == SUMMARY
+            assert profile.position == POSITION
+            assert profile.location == LOCATION
+            assert profile.industry == INDUSTRY
+            assert profile.company == COMPANY
+            assert (
+                profile.profile_picure_file_handle_id == PROFILE_PICTURE_FILE_HANDLE_ID
+            )
+            assert profile.url == BOGUS_URL
+            assert profile.team_name == TEAM_NAME
             assert profile.send_email_notifications == True
             assert profile.mark_emailed_messages_as_read == False
             assert profile.preferences == [
-                UserPreference(name="false_value", value=False),
-                UserPreference(name="true_value", value=True),
+                UserPreference(name=PREFERENCE_1, value=False),
+                UserPreference(name=PREFFERENCE_2, value=True),
             ]
-            assert profile.created_on == "2020-01-01T00:00:00.000Z"
+            assert profile.created_on == CREATED_ON
 
     @pytest.mark.asyncio
     async def test_is_certified_id(self) -> None:
@@ -321,7 +358,7 @@ class TestUser:
     @pytest.mark.asyncio
     async def test_is_certified_username(self) -> None:
         # GIVEN a user profile
-        user_profile = UserProfile(username="johndoe")
+        user_profile = UserProfile(username=USER_NAME)
 
         # WHEN we check if the user is certified
         with patch.object(
@@ -332,7 +369,7 @@ class TestUser:
             is_certified = await user_profile.is_certified_async()
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(user="johndoe")
+            mocked_client_call.assert_called_once_with(user=USER_NAME)
 
             # AND we should get the profile back
             assert is_certified == True

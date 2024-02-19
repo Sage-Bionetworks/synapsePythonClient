@@ -1,3 +1,4 @@
+"""Tests for the synapseclient.models.Project class."""
 import uuid
 from unittest.mock import patch
 import pytest

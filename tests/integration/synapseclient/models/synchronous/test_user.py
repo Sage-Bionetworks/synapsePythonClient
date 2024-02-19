@@ -1,3 +1,5 @@
+"""Integration tests for UserProfile."""
+
 import pytest
 from synapseclient.models import UserProfile
 from typing import Callable

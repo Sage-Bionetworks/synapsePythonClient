@@ -1,3 +1,5 @@
+"""Tests for the synapseclient.models.team module."""
+
 from synapseclient.team import Team as Synapse_Team, TeamMember as Synapse_TeamMember
 from synapseclient.models.team import Team, TeamMember
 from synapseclient.models.user import UserGroupHeader
@@ -9,6 +11,8 @@ import pytest
 
 
 class TestTeamMember:
+    """Tests for the TeamMember class."""
+
     def test_fill_from_dict(self) -> None:
         # GIVEN a blank TeamMember
         team_member = TeamMember()
@@ -23,8 +27,10 @@ class TestTeamMember:
 
 
 class TestTeam:
+    """Tests for the Team class."""
+
     @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse):
+    def init(self, syn: Synapse) -> None:
         self.syn = syn
         self.MESSAGE = "test message"
         self.USER = "test_user"

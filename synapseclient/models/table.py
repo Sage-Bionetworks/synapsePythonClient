@@ -316,12 +316,15 @@ class Column(ColumnSynchronousProtocol):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Column_Store: {self.name}"
     )
-    async def store_async(self, synapse_client: Optional[Synapse] = None):
+    async def store_async(self, synapse_client: Optional[Synapse] = None) -> "Column":
         """Persist the column to Synapse.
 
-        :param synapse_client: If not passed in or None this will use the last client
-            from the `.login()` method.
-        :return: Column
+        Arguments:
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
+
+        Returns:
+            The Column instance stored in synapse.
         """
         # TODO - We need to add in some validation before the store to verify we have enough
         # information to store the data

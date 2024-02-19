@@ -2,6 +2,7 @@
 generatred at runtime."""
 
 from typing import Optional, TYPE_CHECKING, Protocol, Union, List
+from typing_extensions import Self
 from synapseclient import Synapse
 from synapseclient.table import (
     CsvFileTable as Synapse_CsvFileTable,
@@ -24,7 +25,7 @@ class ColumnSynchronousProtocol(Protocol):
     have a synchronous counterpart that may also be called.
     """
 
-    def store(self, synapse_client: Optional[Synapse] = None):
+    def store(self, synapse_client: Optional[Synapse] = None) -> Self:
         """Persist the column to Synapse.
 
         :param synapse_client: If not passed in or None this will use the last client
@@ -112,7 +113,7 @@ class TableSynchronousProtocol(Protocol):
         query: str,
         result_format: Union["CsvResultFormat", "RowsetResultFormat"] = None,
         synapse_client: Optional[Synapse] = None,
-    ) -> Union[Synapse_CsvFileTable, Synaspe_TableQueryResult]:
+    ) -> Union[Synapse_CsvFileTable, Synaspe_TableQueryResult, None]:
         """Query for data on a table stored in Synapse.
 
         Arguments:

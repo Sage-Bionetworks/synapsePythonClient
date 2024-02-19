@@ -16,6 +16,10 @@ from synapseclient.models import (
     File,
 )
 
+DESCRIPTION_FOLDER = "This is an example folder."
+DESCRIPTION_FILE = "This is an example file."
+CONTENT_TYPE = "text/plain"
+
 
 class TestFolderStore:
     """Tests for the synapseclient.models.Folder.store method."""
@@ -30,8 +34,8 @@ class TestFolderStore:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
         )
 
     @pytest.fixture(autouse=True, scope="function")
@@ -40,9 +44,7 @@ class TestFolderStore:
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
-        folder = Folder(
-            name=str(uuid.uuid4()), description="This is an example folder."
-        )
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
     @pytest.mark.asyncio
@@ -249,9 +251,7 @@ class TestFolderGet:
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
-        folder = Folder(
-            name=str(uuid.uuid4()), description="This is an example folder."
-        )
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
     @pytest.mark.asyncio
@@ -350,9 +350,7 @@ class TestFolderDelete:
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
-        folder = Folder(
-            name=str(uuid.uuid4()), description="This is an example folder."
-        )
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
     @pytest.mark.asyncio
@@ -389,15 +387,13 @@ class TestFolderCopy:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
         )
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
-        folder = Folder(
-            name=str(uuid.uuid4()), description="This is an example folder."
-        )
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
     @pytest.mark.asyncio
@@ -557,8 +553,8 @@ class TestFolderSyncFromSynapse:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
         )
 
     @pytest.fixture(autouse=True, scope="function")
@@ -567,9 +563,7 @@ class TestFolderSyncFromSynapse:
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
-        folder = Folder(
-            name=str(uuid.uuid4()), description="This is an example folder."
-        )
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
     @pytest.mark.asyncio

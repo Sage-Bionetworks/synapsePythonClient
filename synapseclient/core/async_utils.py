@@ -70,7 +70,8 @@ class ClassOrInstance:
         return f
 
 
-# Adapted from https://github.com/keflavich/astroquery/blob/30deafc3aa057916bcdca70733cba748f1b36b64/astroquery/utils/process_asyncs.py#L11
+# Adapted from
+# https://github.com/keflavich/astroquery/blob/30deafc3aa057916bcdca70733cba748f1b36b64/astroquery/utils/process_asyncs.py#L11
 def async_to_sync(cls):
     """
     Convert all name_of_thing_async methods to name_of_thing methods
@@ -80,9 +81,13 @@ def async_to_sync(cls):
     for help understanding)
     """
 
-    def create_method(async_method_name):
+    def create_method(async_method_name: str):
+        """Creates a replacement method for the async method."""
+
         @ClassOrInstance
         def newmethod(self, *args, **kwargs):
+            """The new method that will replace the non-async method."""
+
             async def wrapper(*args, **kwargs):
                 """Wrapper for the function to be called in an async context."""
                 return await getattr(self, async_method_name)(*args, **kwargs)
@@ -101,8 +106,7 @@ def async_to_sync(cls):
 
     methods_to_update = []
     for k in methods:
-        new_method_name = k.replace("_async", "")
-        if "async" in k and new_method_name not in methods:
+        if "async" in k and (new_method_name := k.replace("_async", "")) not in methods:
             new_method = create_method(k)
 
             new_method.fn.__name__ = new_method_name

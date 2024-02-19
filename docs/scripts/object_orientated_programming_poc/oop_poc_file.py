@@ -18,7 +18,6 @@ import os
 
 from synapseclient.models import File, Folder, Activity, UsedEntity, UsedURL
 from synapseclient.core import utils
-from synapseclient.core.exceptions import SynapseHTTPError
 from datetime import date, datetime, timedelta, timezone
 import synapseclient
 

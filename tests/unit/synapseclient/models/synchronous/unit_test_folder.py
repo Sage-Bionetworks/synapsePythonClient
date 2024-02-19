@@ -1,28 +1,43 @@
+"""Tests for the Folder class."""
 import uuid
 from unittest.mock import patch
 import pytest
 from synapseclient.models import File, Folder, FailureStrategy
-from synapseclient import Folder as Synapse_Folder
+from synapseclient import Folder as Synapse_Folder, Synapse
 from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
 
 
+SYN_123 = "syn123"
+SYN_456 = "syn456"
+FOLDER_NAME = "example_folder"
+PARENT_ID = "parent_id_value"
+DESCRIPTION = "This is an example folder."
+ETAG = "etag_value"
+CREATED_ON = "createdOn_value"
+MODIFIED_ON = "modifiedOn_value"
+CREATED_BY = "createdBy_value"
+MODIFIED_BY = "modifiedBy_value"
+
+
 class TestFolder:
+    """Tests for the Folder class."""
+
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     def get_example_synapse_folder_output(self) -> Synapse_Folder:
         return Synapse_Folder(
-            id="syn123",
-            name="example_folder",
-            parentId="parent_id_value",
-            description="This is an example folder.",
-            etag="etag_value",
-            createdOn="createdOn_value",
-            modifiedOn="modifiedOn_value",
-            createdBy="createdBy_value",
-            modifiedBy="modifiedBy_value",
+            id=SYN_123,
+            name=FOLDER_NAME,
+            parentId=PARENT_ID,
+            description=DESCRIPTION,
+            etag=ETAG,
+            createdOn=CREATED_ON,
+            modifiedOn=MODIFIED_ON,
+            createdBy=CREATED_BY,
+            modifiedBy=MODIFIED_BY,
         )
 
     def test_fill_from_dict(self) -> None:
@@ -33,20 +48,20 @@ class TestFolder:
         )
 
         # THEN the Folder object should be filled with the example Synapse Folder
-        assert folder_output.id == "syn123"
-        assert folder_output.name == "example_folder"
-        assert folder_output.parent_id == "parent_id_value"
-        assert folder_output.description == "This is an example folder."
-        assert folder_output.etag == "etag_value"
-        assert folder_output.created_on == "createdOn_value"
-        assert folder_output.modified_on == "modifiedOn_value"
-        assert folder_output.created_by == "createdBy_value"
-        assert folder_output.modified_by == "modifiedBy_value"
+        assert folder_output.id == SYN_123
+        assert folder_output.name == FOLDER_NAME
+        assert folder_output.parent_id == PARENT_ID
+        assert folder_output.description == DESCRIPTION
+        assert folder_output.etag == ETAG
+        assert folder_output.created_on == CREATED_ON
+        assert folder_output.modified_on == MODIFIED_ON
+        assert folder_output.created_by == CREATED_BY
+        assert folder_output.modified_by == MODIFIED_BY
 
     def test_store_with_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            id="syn123",
+            id=SYN_123,
         )
 
         # AND a random description
@@ -82,20 +97,20 @@ class TestFolder:
             mocked_get.assert_called_once()
 
             # AND the folder should be stored with the mock return data
-            assert result.id == "syn123"
-            assert result.name == "example_folder"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == SYN_123
+            assert result.name == FOLDER_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DESCRIPTION
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     def test_store_with_no_changes(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            id="syn123",
+            id=SYN_123,
         )
 
         # WHEN I call `store` with the Folder object
@@ -118,12 +133,12 @@ class TestFolder:
             mocked_get.assert_called_once()
 
             # AND the folder should only contain the ID
-            assert result.id == "syn123"
+            assert result.id == SYN_123
 
     def test_store_after_get(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            id="syn123",
+            id=SYN_123,
         )
 
         # AND I call `get` on the Folder object
@@ -139,7 +154,7 @@ class TestFolder:
             mocked_get.assert_called_once_with(
                 entity=folder.id,
             )
-            assert folder.id == "syn123"
+            assert folder.id == SYN_123
 
         # WHEN I call `store` with the Folder object
         with patch.object(
@@ -161,12 +176,12 @@ class TestFolder:
             mocked_get.assert_not_called()
 
             # AND the folder should only contain the ID
-            assert result.id == "syn123"
+            assert result.id == SYN_123
 
     def test_store_after_get_with_changes(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            id="syn123",
+            id=SYN_123,
         )
 
         # AND I call `get` on the Folder object
@@ -182,7 +197,7 @@ class TestFolder:
             mocked_get.assert_called_once_with(
                 entity=folder.id,
             )
-            assert folder.id == "syn123"
+            assert folder.id == SYN_123
 
         # AND I update a field on the folder
         description = str(uuid.uuid4())
@@ -214,20 +229,20 @@ class TestFolder:
             mocked_get.assert_not_called()
 
             # AND the folder should contained the mocked store return data
-            assert result.id == "syn123"
-            assert result.name == "example_folder"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == SYN_123
+            assert result.name == FOLDER_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DESCRIPTION
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     def test_store_with_annotations(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            id="syn123",
+            id=SYN_123,
             annotations={
                 "my_single_key_string": ["a"],
                 "my_key_string": ["b", "a", "c"],
@@ -280,21 +295,21 @@ class TestFolder:
             )
 
             # AND the folder should be stored with the mock return data
-            assert result.id == "syn123"
-            assert result.name == "example_folder"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == SYN_123
+            assert result.name == FOLDER_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DESCRIPTION
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     def test_store_with_name_and_parent_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            name="example_folder",
-            parent_id="parent_id_value",
+            name=FOLDER_NAME,
+            parent_id=PARENT_ID,
         )
 
         # AND a random description
@@ -309,7 +324,7 @@ class TestFolder:
         ) as mocked_client_call, patch.object(
             self.syn,
             "findEntityId",
-            return_value="syn123",
+            return_value=SYN_123,
         ) as mocked_get, patch.object(
             self.syn,
             "get",
@@ -339,20 +354,20 @@ class TestFolder:
             mocked_get.assert_called_once()
 
             # AND the folder should be stored
-            assert result.id == "syn123"
-            assert result.name == "example_folder"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == SYN_123
+            assert result.name == FOLDER_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DESCRIPTION
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     def test_store_with_name_and_parent(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            name="example_folder",
+            name=FOLDER_NAME,
         )
 
         # AND a random description
@@ -367,7 +382,7 @@ class TestFolder:
         ) as mocked_client_call, patch.object(
             self.syn,
             "findEntityId",
-            return_value="syn123",
+            return_value=SYN_123,
         ) as mocked_get, patch.object(
             self.syn,
             "get",
@@ -375,7 +390,7 @@ class TestFolder:
                 id=folder.id,
             ),
         ) as mocked_get:
-            result = folder.store(parent=Folder(id="parent_id_value"))
+            result = folder.store(parent=Folder(id=PARENT_ID))
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -397,15 +412,15 @@ class TestFolder:
             mocked_get.assert_called_once()
 
             # AND the folder should be stored
-            assert result.id == "syn123"
-            assert result.name == "example_folder"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == SYN_123
+            assert result.name == FOLDER_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DESCRIPTION
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     def test_store_no_id_name_or_parent(self) -> None:
         # GIVEN a Folder object
@@ -423,7 +438,7 @@ class TestFolder:
 
     def test_store_no_id_or_name(self) -> None:
         # GIVEN a Folder object
-        folder = Folder(parent_id="parent_id_value")
+        folder = Folder(parent_id=PARENT_ID)
 
         # WHEN I call `store` with the Folder object
         with pytest.raises(ValueError) as e:
@@ -437,7 +452,7 @@ class TestFolder:
 
     def test_store_no_id_or_parent(self) -> None:
         # GIVEN a Folder object
-        folder = Folder(name="example_folder")
+        folder = Folder(name=FOLDER_NAME)
 
         # WHEN I call `store` with the Folder object
         with pytest.raises(ValueError) as e:
@@ -452,7 +467,7 @@ class TestFolder:
     def test_get_by_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            id="syn123",
+            id=SYN_123,
         )
 
         # WHEN I call `get` with the Folder object
@@ -469,28 +484,28 @@ class TestFolder:
             )
 
             # AND the folder should be stored
-            assert result.id == "syn123"
-            assert result.name == "example_folder"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == SYN_123
+            assert result.name == FOLDER_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DESCRIPTION
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     def test_get_by_name_and_parent(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            name="example_folder",
-            parent_id="parent_id_value",
+            name=FOLDER_NAME,
+            parent_id=PARENT_ID,
         )
 
         # WHEN I call `get` with the Folder object
         with patch.object(
             self.syn,
             "findEntityId",
-            return_value=("syn123"),
+            return_value=(SYN_123),
         ) as mocked_client_search, patch.object(
             self.syn,
             "get",
@@ -510,21 +525,21 @@ class TestFolder:
             )
 
             # AND the folder should be stored
-            assert result.id == "syn123"
-            assert result.name == "example_folder"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
+            assert result.id == SYN_123
+            assert result.name == FOLDER_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DESCRIPTION
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
 
     def test_get_by_name_and_parent_not_found(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            name="example_folder",
-            parent_id="parent_id_value",
+            name=FOLDER_NAME,
+            parent_id=PARENT_ID,
         )
 
         # WHEN I call `get` with the Folder object
@@ -548,7 +563,7 @@ class TestFolder:
     def test_delete_with_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            id="syn123",
+            id=SYN_123,
         )
 
         # WHEN I call `delete` with the Folder object
@@ -578,15 +593,15 @@ class TestFolder:
     def test_copy(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            id="syn123",
+            id=SYN_123,
         )
 
         # AND a returned Folder object
-        returned_folder = Folder(id="syn456")
+        returned_folder = Folder(id=SYN_456)
 
         # AND a copy mapping exists
         copy_mapping = {
-            "syn123": "syn456",
+            SYN_123: SYN_456,
         }
 
         # WHEN I call `copy` with the Folder object
@@ -623,7 +638,7 @@ class TestFolder:
             )
 
             # AND the file should be stored
-            assert result.id == "syn456"
+            assert result.id == SYN_456
 
     def test_copy_missing_id(self) -> None:
         # GIVEN a Folder object
@@ -638,7 +653,7 @@ class TestFolder:
 
     def test_copy_missing_destination(self) -> None:
         # GIVEN a Folder object
-        folder = Folder(id="syn123")
+        folder = Folder(id=SYN_123)
 
         # WHEN I call `copy` with the Folder object
         with pytest.raises(ValueError) as e:
@@ -650,13 +665,13 @@ class TestFolder:
     def test_sync_from_synapse(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
-            id="syn123",
+            id=SYN_123,
         )
 
         # AND Children that exist on the folder in Synapse
         children = [
             {
-                "id": "syn456",
+                "id": SYN_456,
                 "type": FILE_ENTITY,
                 "name": "example_file_1",
             }
@@ -673,7 +688,7 @@ class TestFolder:
             return_value=(self.get_example_synapse_folder_output()),
         ) as mocked_folder_get, patch(
             "synapseclient.models.file.File.get_async",
-            return_value=(File(id="syn456", name="example_file_1")),
+            return_value=(File(id=SYN_456, name="example_file_1")),
         ):
             result = folder.sync_from_synapse()
 
@@ -684,14 +699,14 @@ class TestFolder:
             mocked_folder_get.assert_called_once()
 
             # AND the file/folder should be retrieved
-            assert result.id == "syn123"
-            assert result.name == "example_folder"
-            assert result.parent_id == "parent_id_value"
-            assert result.description == "This is an example folder."
-            assert result.etag == "etag_value"
-            assert result.created_on == "createdOn_value"
-            assert result.modified_on == "modifiedOn_value"
-            assert result.created_by == "createdBy_value"
-            assert result.modified_by == "modifiedBy_value"
-            assert result.files[0].id == "syn456"
+            assert result.id == SYN_123
+            assert result.name == FOLDER_NAME
+            assert result.parent_id == PARENT_ID
+            assert result.description == DESCRIPTION
+            assert result.etag == ETAG
+            assert result.created_on == CREATED_ON
+            assert result.modified_on == MODIFIED_ON
+            assert result.created_by == CREATED_BY
+            assert result.modified_by == MODIFIED_BY
+            assert result.files[0].id == SYN_456
             assert result.files[0].name == "example_file_1"

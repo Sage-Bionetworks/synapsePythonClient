@@ -1,3 +1,5 @@
+"""Integration tests for Team."""
+
 import asyncio
 import uuid
 

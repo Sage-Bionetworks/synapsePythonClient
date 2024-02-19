@@ -20,6 +20,12 @@ from synapseclient.models import (
     UsedEntity,
 )
 
+DESCRIPTION = "This is an example file."
+CONTENT_TYPE = "text/plain"
+VERSION_COMMENT = "My version comment"
+CONTENT_TYPE_JSON = "text/json"
+BOGUS_URL = "https://www.synapse.org/"
+
 
 class TestFileStore:
     """Tests for the synapseclient.models.File.store method."""
@@ -35,9 +41,9 @@ class TestFileStore:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         )
 
@@ -54,8 +60,8 @@ class TestFileStore:
         assert file_copy_object.id is not None
         assert file_copy_object == file
         assert file.parent_id == project_model.id
-        assert file.content_type == "text/plain"
-        assert file.version_comment == "My version comment"
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
         assert file.version_label is not None
         assert file.version_number == 1
         assert file.created_by is not None
@@ -97,8 +103,8 @@ class TestFileStore:
         assert file_copy_object.id is not None
         assert file_copy_object == file
         assert file.parent_id == folder.id
-        assert file.content_type == "text/plain"
-        assert file.version_comment == "My version comment"
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
         assert file.version_label is not None
         assert file.version_number == 1
         assert file.created_by is not None
@@ -129,9 +135,9 @@ class TestFileStore:
         self.schedule_for_cleanup(filename)
         file_1 = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         )
 
@@ -140,9 +146,9 @@ class TestFileStore:
         self.schedule_for_cleanup(filename)
         file_2 = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         )
 
@@ -159,8 +165,8 @@ class TestFileStore:
             assert file.id is not None
             assert file == file_1 or file == file_2
             assert file.parent_id == project_model.id
-            assert file.content_type == "text/plain"
-            assert file.version_comment == "My version comment"
+            assert file.content_type == CONTENT_TYPE
+            assert file.version_comment == VERSION_COMMENT
             assert file.version_label is not None
             assert file.version_number == 1
             assert file.created_by is not None
@@ -238,9 +244,9 @@ class TestFileStore:
         self.schedule_for_cleanup(filename)
         file_1 = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         ).store(parent=project_model)
 
@@ -249,9 +255,9 @@ class TestFileStore:
         self.schedule_for_cleanup(filename)
         file_2 = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         ).store(parent=project_model)
         assert file_1.data_file_handle_id is not None
@@ -273,9 +279,9 @@ class TestFileStore:
         self.schedule_for_cleanup(filename)
         file = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         ).store(parent=project_model)
         before_etag = file.etag
@@ -303,11 +309,11 @@ class TestFileStore:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -328,11 +334,11 @@ class TestFileStore:
         assert file_copy.activity.name == "some_name"
         assert file_copy.activity.description == "some_description"
         assert file_copy.activity.used[0].name == "example"
-        assert file_copy.activity.used[0].url == "https://www.synapse.org/"
+        assert file_copy.activity.used[0].url == BOGUS_URL
         assert file_copy.activity.used[1].target_id == "syn456"
         assert file_copy.activity.used[1].target_version_number == 1
         assert file_copy.activity.executed[0].name == "example"
-        assert file_copy.activity.executed[0].url == "https://www.synapse.org/"
+        assert file_copy.activity.executed[0].url == BOGUS_URL
         assert file_copy.activity.executed[1].target_id == "syn789"
         assert file_copy.activity.executed[1].target_version_number == 1
 
@@ -394,8 +400,8 @@ class TestFileStore:
         # THEN I expect the file to be stored as an external file
         assert file.id is not None
         assert file.parent_id == project_model.id
-        assert file.content_type == "text/plain"
-        assert file.version_comment == "My version comment"
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
         assert file.version_label is not None
         assert file.version_number == 1
         assert file.created_by is not None
@@ -413,7 +419,7 @@ class TestFileStore:
             file.file_handle.concrete_type
             == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
         )
-        assert file.file_handle.content_type == "text/plain"
+        assert file.file_handle.content_type == CONTENT_TYPE
         assert file.file_handle.content_md5 is not None
         assert file.file_handle.file_name is not None
         assert file.file_handle.content_size is not None
@@ -436,8 +442,8 @@ class TestFileStore:
         assert file_copy_object.id is not None
         assert file_copy_object == file
         assert file.parent_id == project_model.id
-        assert file.content_type == "text/plain"
-        assert file.version_comment == "My version comment"
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
         assert file.version_label is not None
         assert file.version_number == 1
         assert file.created_by is not None
@@ -539,11 +545,11 @@ class TestFileStore:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -558,8 +564,8 @@ class TestFileStore:
         assert file_copy_object.id is not None
         assert file_copy_object == file
         assert file.parent_id == project_model.id
-        assert file.content_type == "text/plain"
-        assert file.version_comment == "My version comment"
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
         assert file.version_label is not None
         assert file.version_number == 1
         assert file.created_by is not None
@@ -601,9 +607,9 @@ class TestChangeMetadata:
         schedule_for_cleanup(filename)
         file = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=project_model.id,
         ).store()
@@ -615,7 +621,7 @@ class TestChangeMetadata:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.name is not None
-        assert file.content_type == "text/plain"
+        assert file.content_type == CONTENT_TYPE
         current_download_as = file.file_handle.file_name
 
         # WHEN I change the files metadata
@@ -625,52 +631,52 @@ class TestChangeMetadata:
         # THEN I expect only the file name to have been updated
         assert file.file_handle.file_name == current_download_as
         assert file.name == new_filename
-        assert file.content_type == "text/plain"
+        assert file.content_type == CONTENT_TYPE
         file_copy = File(id=file.id, download_file=False).get()
         assert file_copy.file_handle.file_name == current_download_as
         assert file_copy.name == new_filename
-        assert file_copy.content_type == "text/plain"
+        assert file_copy.content_type == CONTENT_TYPE
 
     def test_change_content_type_and_download(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.name is not None
-        assert file.content_type == "text/plain"
+        assert file.content_type == CONTENT_TYPE
         current_filename = file.name
 
         # WHEN I change the files metadata
         new_filename = f"my_new_file_name_{str(uuid.uuid4())}.txt"
-        file.change_metadata(download_as=new_filename, content_type="text/json")
+        file.change_metadata(download_as=new_filename, content_type=CONTENT_TYPE_JSON)
 
         # THEN I expect the file download name to have been updated
         assert file.file_handle.file_name == new_filename
         assert file.name == current_filename
-        assert file.content_type == "text/json"
+        assert file.content_type == CONTENT_TYPE_JSON
         file_copy = File(id=file.id, download_file=False).get()
         assert file_copy.file_handle.file_name == new_filename
         assert file_copy.name == current_filename
-        assert file_copy.content_type == "text/json"
+        assert file_copy.content_type == CONTENT_TYPE_JSON
 
     def test_change_content_type_and_download_and_name(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.name is not None
-        assert file.content_type == "text/plain"
+        assert file.content_type == CONTENT_TYPE
 
         # WHEN I change the files metadata
         new_filename = f"my_new_file_name_{str(uuid.uuid4())}.txt"
         file.change_metadata(
-            name=new_filename, download_as=new_filename, content_type="text/json"
+            name=new_filename, download_as=new_filename, content_type=CONTENT_TYPE_JSON
         )
 
         # THEN I expect the file download name, entity name, and content type to have been updated
         assert file.file_handle.file_name == new_filename
         assert file.name == new_filename
-        assert file.content_type == "text/json"
+        assert file.content_type == CONTENT_TYPE_JSON
         file_copy = File(id=file.id, download_file=False).get()
         assert file_copy.file_handle.file_name == new_filename
         assert file_copy.name == new_filename
-        assert file_copy.content_type == "text/json"
+        assert file_copy.content_type == CONTENT_TYPE_JSON
 
 
 class TestFrom:
@@ -690,9 +696,9 @@ class TestFrom:
         schedule_for_cleanup(filename)
         file = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=project_model.id,
         ).store()
@@ -738,9 +744,9 @@ class TestDelete:
         schedule_for_cleanup(filename)
         file = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=project_model.id,
         ).store()
@@ -777,9 +783,9 @@ class TestGet:
         schedule_for_cleanup(filename)
         file = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=project_model.id,
         ).store()
@@ -836,9 +842,9 @@ class TestGet:
         file_2 = File(
             path=filename,
             name=file.name,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=folder.id,
         ).store()
@@ -875,9 +881,9 @@ class TestGet:
         file_2 = File(
             path=filename,
             name=file.name,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=folder.id,
         ).store()
@@ -913,9 +919,9 @@ class TestGet:
         file_2 = File(
             path=filename,
             name=file.name,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=folder.id,
         ).store()
@@ -981,9 +987,9 @@ class TestCopy:
         schedule_for_cleanup(filename)
         file = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=project_model.id,
         ).store()
@@ -1019,11 +1025,11 @@ class TestCopy:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -1062,11 +1068,11 @@ class TestCopy:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -1106,11 +1112,11 @@ class TestCopy:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
