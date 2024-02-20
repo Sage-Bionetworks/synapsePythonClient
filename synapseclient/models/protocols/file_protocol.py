@@ -1,5 +1,5 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
-generatred at runtime."""
+generated at runtime."""
 
 from typing import Optional, TYPE_CHECKING, Protocol, Union
 from synapseclient import Synapse

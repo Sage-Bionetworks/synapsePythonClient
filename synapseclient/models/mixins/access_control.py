@@ -36,7 +36,8 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         that the caller has on an Entity.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             A Permissions object
@@ -73,7 +74,8 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
         Arguments:
             principal_id: Identifier of a user or group (defaults to PUBLIC users)
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             An array containing some combination of
@@ -108,17 +110,21 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
         Arguments:
-            principal_id: Identifier of a user or group. `273948` is for all registered Synapse users
-                            and `273949` is for public access. None implies public access.
-            access_type: Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
-                            DELETE, CHANGE_PERMISSIONS.
+            principal_id: Identifier of a user or group. `273948` is for all
+                registered Synapse users and `273949` is for public access.
+                None implies public access.
+            access_type: Type of permission to be granted. One or more of CREATE,
+                READ, DOWNLOAD, UPDATE, DELETE, CHANGE_PERMISSIONS.
 
                 **Defaults to ['READ', 'DOWNLOAD']**
             modify_benefactor: Set as True when modifying a benefactor's ACL
-            warn_if_inherits: Set as False, when creating a new ACL.
-                                Trying to modify the ACL of an Entity that inherits its ACL will result in a warning
-            overwrite: By default this function overwrites existing permissions for the specified user.
-                        Set this flag to False to add new permissions non-destructively.
+            warn_if_inherits: Set as False, when creating a new ACL. Trying to modify
+                the ACL of an Entity that inherits its ACL will result in a warning
+            overwrite: By default this function overwrites existing permissions for
+                the specified user. Set this flag to False to add new permissions
+                non-destructively.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             An Access Control List object

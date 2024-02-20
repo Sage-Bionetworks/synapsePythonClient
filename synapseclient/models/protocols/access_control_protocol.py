@@ -1,5 +1,5 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
-generatred at runtime."""
+generated at runtime."""
 
 from typing import Dict, List, Optional, TYPE_CHECKING, Union, Protocol
 from synapseclient import Synapse
@@ -75,9 +75,9 @@ class AccessControllableSynchronousProtocol(Protocol):
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
         Arguments:
-            principal_id: Identifier of a user or group. `273948` is for all registered
-                Synapse users and `273949` is for public access. None implies
-                public access.
+            principal_id: Identifier of a user or group. `273948` is for all
+                registered Synapse users and `273949` is for public access.
+                None implies public access.
             access_type: Type of permission to be granted. One or more of CREATE,
                 READ, DOWNLOAD, UPDATE, DELETE, CHANGE_PERMISSIONS.
 
@@ -85,9 +85,11 @@ class AccessControllableSynchronousProtocol(Protocol):
             modify_benefactor: Set as True when modifying a benefactor's ACL
             warn_if_inherits: Set as False, when creating a new ACL. Trying to modify
                 the ACL of an Entity that inherits its ACL will result in a warning
-            overwrite: By default this function overwrites existing permissions for the
-                specified user. Set this flag to False to add new permissions
+            overwrite: By default this function overwrites existing permissions for
+                the specified user. Set this flag to False to add new permissions
                 non-destructively.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             An Access Control List object
