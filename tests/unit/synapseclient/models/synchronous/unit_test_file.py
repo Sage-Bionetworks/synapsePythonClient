@@ -818,7 +818,7 @@ class TestFile:
             id=SYN_123,
         )
 
-        # WHEN I get the example file
+        # WHEN I delete the example file
         with patch.object(
             self.syn,
             "delete",
@@ -829,15 +829,29 @@ class TestFile:
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
                 obj=SYN_123,
+                version=None,
             )
 
     def test_delete_missing_id(self) -> None:
         # GIVEN an example file
         file = File()
 
-        # WHEN I get the file
+        # WHEN I delete the file
         with pytest.raises(ValueError) as e:
             file.delete()
 
         # THEN we should get an error
         assert str(e.value) == "The file must have an ID to delete."
+
+    def test_delete_version_missing_version(self) -> None:
+        # GIVEN an example file
+        file = File(id="syn123")
+
+        # WHEN I delete the file
+        with pytest.raises(ValueError) as e:
+            file.delete(version_only=True)
+
+        # THEN we should get an error
+        assert (
+            str(e.value) == "The file must have a version number to delete a version."
+        )
