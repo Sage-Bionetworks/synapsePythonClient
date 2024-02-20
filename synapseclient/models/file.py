@@ -584,7 +584,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         through the store method.
 
         Arguments:
-            name: Specify filename to change the filename of a file.
+            name: Specify to change the filename of a file as seen on Synapse.
             download_as: Specify filename to change the filename of a filehandle.
             content_type: Specify content type to change the content type of a
                 filehandle.
