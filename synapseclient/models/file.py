@@ -773,10 +773,18 @@ class File(FileSynchronousProtocol, AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"File_Delete: {self.id}"
     )
-    async def delete_async(self, synapse_client: Optional[Synapse] = None) -> None:
-        """Delete the file from Synapse.
+    async def delete_async(
+        self,
+        version_only: Optional[bool] = False,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """
+        Delete the file from Synapse using the ID of the file.
 
         Arguments:
+            version_only: If True only the version specified in the `version_number`
+                attribute of the file will be deleted. If False the entire file will
+                be deleted.
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
 
@@ -785,6 +793,8 @@ class File(FileSynchronousProtocol, AccessControllable):
 
         Raises:
             ValueError: If the file does not have an ID to delete.
+            ValueError: If the file does not have a version number to delete a version,
+                and `version_only` is True.
 
         Example: Using this function
             Assuming you have a file with the ID "syn123":
@@ -793,6 +803,8 @@ class File(FileSynchronousProtocol, AccessControllable):
         """
         if not self.id:
             raise ValueError("The file must have an ID to delete.")
+        if version_only and not self.version_number:
+            raise ValueError("The file must have a version number to delete a version.")
 
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
@@ -801,6 +813,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             lambda: run_and_attach_otel_context(
                 lambda: Synapse.get_client(synapse_client=synapse_client).delete(
                     obj=self.id,
+                    version=self.version_number if version_only else None,
                 ),
                 current_context,
             ),

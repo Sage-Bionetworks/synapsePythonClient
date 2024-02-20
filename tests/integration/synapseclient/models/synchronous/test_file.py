@@ -768,6 +768,31 @@ class TestDelete:
             file.get()
         assert str(e.value) == f"404 Client Error: \nEntity {file.id} is in trash can."
 
+    def test_delete_specific_version(self, file: File) -> None:
+        # GIVEN a file stored in synapse
+        assert file.id is not None
+        assert file.version_number == 1
+
+        # AND I update the file
+        file.description = "new description"
+        file.store()
+        assert file.version_number == 2
+
+        # WHEN I delete the file for a specific version
+        File(id=file.id, version_number=1).delete(version_only=True)
+
+        # THEN I expect the file to be deleted
+        with pytest.raises(SynapseHTTPError) as e:
+            File(id=file.id, version_number=1).get()
+        assert (
+            str(e.value)
+            == f"404 Client Error: \nCannot find a node with id {file.id} and version 1"
+        )
+
+        # AND the second version to still exist
+        file_copy = File(id=file.id, version_number=2).get()
+        assert file_copy.id == file.id
+
 
 class TestGet:
     """Tests for the synapseclient.models.File.get method."""

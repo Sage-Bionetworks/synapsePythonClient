@@ -209,10 +209,17 @@ class FileSynchronousProtocol(Protocol):
 
         return File()
 
-    def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+    def delete(
+        self,
+        version_only: Optional[bool] = False,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
         """Delete the file from Synapse.
 
         Arguments:
+            version_only: If True only the version specified in the `version_number`
+                attribute of the file will be deleted. If False the entire file will
+                be deleted.
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
 
@@ -221,6 +228,8 @@ class FileSynchronousProtocol(Protocol):
 
         Raises:
             ValueError: If the file does not have an ID to delete.
+            ValueError: If the file does not have a version number to delete a version,
+                and `version_only` is True.
 
         Example: Using this function
             Assuming you have a file with the ID "syn123":

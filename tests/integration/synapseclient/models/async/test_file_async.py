@@ -812,6 +812,32 @@ class TestDelete:
             await file.get_async()
         assert str(e.value) == f"404 Client Error: \nEntity {file.id} is in trash can."
 
+    @pytest.mark.asyncio
+    async def test_delete_specific_version(self, file: File) -> None:
+        # GIVEN a file stored in synapse
+        assert file.id is not None
+        assert file.version_number == 1
+
+        # AND I update the file
+        file.description = "new description"
+        await file.store_async()
+        assert file.version_number == 2
+
+        # WHEN I delete the file for a specific version
+        await File(id=file.id, version_number=1).delete_async(version_only=True)
+
+        # THEN I expect the file to be deleted
+        with pytest.raises(SynapseHTTPError) as e:
+            await File(id=file.id, version_number=1).get_async()
+        assert (
+            str(e.value)
+            == f"404 Client Error: \nCannot find a node with id {file.id} and version 1"
+        )
+
+        # AND the second version to still exist
+        file_copy = await File(id=file.id, version_number=2).get_async()
+        assert file_copy.id == file.id
+
 
 class TestGet:
     """Tests for the synapseclient.models.File.get method."""
