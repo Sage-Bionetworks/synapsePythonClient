@@ -597,7 +597,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         Example: Using this function
             Can be used to change the filename, the filename when the file is downloaded, or the file content-type without downloading:
 
-                file_entity = await File(id="syn123").get_async()
+                file_entity = await File(id="syn123", download_file=False).get_async()
                 print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
                 file_entity = await file_entity.change_metadata_async(name="my_new_name_file.txt", download_as="my_new_downloadAs_name_file.txt", content_type="text/plain")
                 print(os.path.basename(file_entity.path))  ## prints, "my_new_downloadAs_name_file.txt"
