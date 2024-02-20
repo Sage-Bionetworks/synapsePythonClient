@@ -21,7 +21,9 @@ class ProjectSynchronousProtocol(Protocol):
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
         """
-        Store project, files, and folders to synapse.
+        Store project, files, and folders to synapse. If you have any files or folders
+        attached to this project they will be stored as well. You may attach files
+        and folders to this folder by setting the `files` and `folders` attributes.
 
         By default the store operation will non-destructively update the project if
         you have not already retrieved the project from Synapse. If you have already

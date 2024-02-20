@@ -203,7 +203,9 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
-        """Storing folder and files to synapse.
+        """Store folders and files to synapse. If you have any files or folders attached
+        to this folder they will be stored as well. You may attach files and folders
+        to this folder by setting the `files` and `folders` attributes.
 
         By default the store operation will non-destructively update the folder if
         you have not already retrieved the folder from Synapse. If you have already
