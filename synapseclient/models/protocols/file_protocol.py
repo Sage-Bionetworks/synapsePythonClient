@@ -248,7 +248,7 @@ class FileSynchronousProtocol(Protocol):
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
-        Copy the file to another Synpase location. Defaults to the latest version of the
+        Copy the file to another Synapse location. Defaults to the latest version of the
         file, or the version_number specified in the instance.
 
         Arguments:

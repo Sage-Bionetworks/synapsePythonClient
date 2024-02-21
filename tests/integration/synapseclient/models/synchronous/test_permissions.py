@@ -342,6 +342,51 @@ class TestAclOnFolder:
         expected_permissions = ["READ"]
         assert set(expected_permissions) == set(permissions)
 
+    def test_get_acl_read_only_permissions_on_sub_folder(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a parent folder with default permissions
+        parent_folder = Folder(
+            name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_sub_folder"
+        ).store(parent=project_model)
+
+        # AND a folder created with default permissions of administrator
+        folder_with_read_only_permissions = Folder(
+            name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
+        ).store(parent=parent_folder)
+        self.schedule_for_cleanup(folder_with_read_only_permissions.id)
+
+        # AND the user that created the folder
+        p1 = UserProfile().get()
+
+        # AND the permissions for the user on the entity are set to READ only
+        folder_with_read_only_permissions.set_permissions(
+            principal_id=p1.id, access_type=["READ"]
+        )
+
+        # WHEN I get the permissions for the user on the entity
+        permissions = folder_with_read_only_permissions.get_acl(principal_id=p1.id)
+
+        # AND I get the permissions for the user on the parent entity
+        permissions_on_parent = parent_folder.get_acl(principal_id=p1.id)
+
+        # THEN I expect to see read only permissions on the sub-folder
+        expected_permissions = ["READ"]
+        assert set(expected_permissions) == set(permissions)
+
+        # AND I expect to see the default admin permissions on the parent-folder
+        expected_permissions = [
+            "READ",
+            "DELETE",
+            "CHANGE_SETTINGS",
+            "UPDATE",
+            "CHANGE_PERMISSIONS",
+            "CREATE",
+            "MODERATE",
+            "DOWNLOAD",
+        ]
+        assert set(expected_permissions) == set(permissions_on_parent)
+
     def test_get_acl_through_team_assigned_to_user(
         self, project_model: Project
     ) -> None:

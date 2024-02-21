@@ -89,4 +89,4 @@ class UserProfileSynchronousProtocol(Protocol):
         Raises:
             ValueError: If id nor username is specified.
         """
-        return True
+        return bool()

@@ -379,7 +379,7 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
         """
-        Copy the folder to another Synpase location. This will recursively copy all
+        Copy the folder to another Synapse location. This will recursively copy all
         Tables, Links, Files, and Folders within the folder.
 
         Arguments:

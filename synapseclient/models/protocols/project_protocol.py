@@ -124,7 +124,7 @@ class ProjectSynchronousProtocol(Protocol):
         it's own Synapse ID and unique name that you will use as the destination_id.
 
 
-        Copy the project to another Synpase project. This will recursively copy all
+        Copy the project to another Synapse project. This will recursively copy all
         Tables, Links, Files, and Folders within the project.
 
         Arguments:

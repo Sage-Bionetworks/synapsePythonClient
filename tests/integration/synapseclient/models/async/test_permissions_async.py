@@ -358,6 +358,54 @@ class TestAclOnFolder:
         assert set(expected_permissions) == set(permissions)
 
     @pytest.mark.asyncio
+    async def test_get_acl_read_only_permissions_on_sub_folder(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a parent folder with default permissions
+        parent_folder = await Folder(
+            name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_sub_folder"
+        ).store_async(parent=project_model)
+
+        # AND a folder created with default permissions of administrator
+        folder_with_read_only_permissions = await Folder(
+            name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
+        ).store_async(parent=parent_folder)
+        self.schedule_for_cleanup(folder_with_read_only_permissions.id)
+
+        # AND the user that created the folder
+        p1 = await UserProfile().get_async()
+
+        # AND the permissions for the user on the entity are set to READ only
+        await folder_with_read_only_permissions.set_permissions_async(
+            principal_id=p1.id, access_type=["READ"]
+        )
+
+        # WHEN I get the permissions for the user on the entity
+        permissions = await folder_with_read_only_permissions.get_acl_async(
+            principal_id=p1.id
+        )
+
+        # AND I get the permissions for the user on the parent entity
+        permissions_on_parent = await parent_folder.get_acl_async(principal_id=p1.id)
+
+        # THEN I expect to see read only permissions on the sub-folder
+        expected_permissions = ["READ"]
+        assert set(expected_permissions) == set(permissions)
+
+        # AND I expect to see the default admin permissions on the parent-folder
+        expected_permissions = [
+            "READ",
+            "DELETE",
+            "CHANGE_SETTINGS",
+            "UPDATE",
+            "CHANGE_PERMISSIONS",
+            "CREATE",
+            "MODERATE",
+            "DOWNLOAD",
+        ]
+        assert set(expected_permissions) == set(permissions_on_parent)
+
+    @pytest.mark.asyncio
     async def test_get_acl_through_team_assigned_to_user(
         self, project_model: Project
     ) -> None:
