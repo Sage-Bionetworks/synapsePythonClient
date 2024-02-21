@@ -116,6 +116,15 @@ class Team(TeamSynchronousProtocol):
     def fill_from_dict(
         self, synapse_team: Union[Synapse_Team, Dict[str, str]]
     ) -> "Team":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_team: The response from the REST API.
+
+        Returns:
+            The Team object.
+        """
         self.id = (
             int(synapse_team.get("id", None)) if synapse_team.get("id", None) else None
         )
@@ -191,7 +200,9 @@ class Team(TeamSynchronousProtocol):
         method_to_trace_name=lambda self, **kwargs: f"Team_Get: {self.id if self.id else self.name}"
     )
     async def get_async(self, synapse_client: Optional[Synapse] = None) -> "Team":
-        """Gets a Team from Synapse.
+        """
+        Gets a Team from Synapse by ID or Name. If both are added to the Team instance
+        it will use the ID.
 
         Arguments:
             synapse_client: If not passed in or None this will use the last client
@@ -281,7 +292,9 @@ class Team(TeamSynchronousProtocol):
     async def members_async(
         self, synapse_client: Optional[Synapse] = None
     ) -> List[TeamMember]:
-        """Gets the TeamMembers associated with a team.
+        """
+        Gets the TeamMembers associated with a team given the ID field on the
+        Team instance.
 
         Arguments:
             synapse_client: If not passed in or None this will use the last client
@@ -317,7 +330,7 @@ class Team(TeamSynchronousProtocol):
         force: bool = True,
         synapse_client: Optional[Synapse] = None,
     ) -> Dict[str, str]:
-        """Invites a user to a team.
+        """Invites a user to a team given the ID field on the Team instance.
 
         Arguments:
             user: The username of the user to invite.
@@ -352,7 +365,7 @@ class Team(TeamSynchronousProtocol):
     async def open_invitations_async(
         self, synapse_client: Optional[Synapse] = None
     ) -> List[Dict[str, str]]:
-        """Gets all open invitations for a team.
+        """Gets all open invitations for a team given the ID field on the Team instance.
 
         Arguments:
             synapse_client: If not passed in or None this will use the last client

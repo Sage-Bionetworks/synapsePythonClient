@@ -40,7 +40,9 @@ class TeamSynchronousProtocol(Protocol):
         return None
 
     def get(self, synapse_client: Optional[Synapse] = None) -> "Team":
-        """Gets a Team from Synapse.
+        """
+        Gets a Team from Synapse by ID or Name. If both are added to the Team instance
+        it will use the ID.
 
         Arguments:
             synapse_client: If not passed in or None this will use the last client
@@ -92,7 +94,9 @@ class TeamSynchronousProtocol(Protocol):
         return Team()
 
     def members(self, synapse_client: Optional[Synapse] = None) -> List["TeamMember"]:
-        """Gets the TeamMembers associated with a team.
+        """
+        Gets the TeamMembers associated with a team given the ID field on the
+        Team instance.
 
         Arguments:
             synapse_client: If not passed in or None this will use the last client
@@ -112,7 +116,7 @@ class TeamSynchronousProtocol(Protocol):
         force: bool = True,
         synapse_client: Optional[Synapse] = None,
     ) -> Dict[str, str]:
-        """Invites a user to a team.
+        """Invites a user to a team given the ID field on the Team instance.
 
         Arguments:
             user: The username of the user to invite.
@@ -128,7 +132,7 @@ class TeamSynchronousProtocol(Protocol):
     def open_invitations(
         self, synapse_client: Optional[Synapse] = None
     ) -> List[Dict[str, str]]:
-        """Gets all open invitations for a team.
+        """Gets all open invitations for a team given the ID field on the Team instance.
 
         Arguments:
             synapse_client: If not passed in or None this will use the last client
