@@ -2,50 +2,48 @@ import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import List, Dict, Union
+from typing import Dict, List, Optional, Union
 
-from synapseclient.entity import Project as Synapse_Project
-from opentelemetry import trace, context
+from opentelemetry import context, trace
 
-from typing import Optional
-
-from synapseclient.models import Folder, File, Annotations
-from synapseclient.models.mixins import (
-    AccessControllable,
-    StorableContainer,
-)
 from synapseclient import Synapse
-from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import (
-    run_and_attach_otel_context,
     delete_none_keys,
     merge_dataclass_entities,
+    run_and_attach_otel_context,
 )
-from synapseclient.core.exceptions import SynapseError
-from synapseutils.copy_functions import copy
-from synapseclient.models.services.storable_entity_components import (
-    store_entity_components,
-    FailureStrategy,
-)
+from synapseclient.entity import Project as Synapse_Project
+from synapseclient.models import Annotations, File, Folder
+from synapseclient.models.mixins import AccessControllable, StorableContainer
+from synapseclient.models.protocols.project_protocol import ProjectSynchronousProtocol
 from synapseclient.models.services.search import get_id
+from synapseclient.models.services.storable_entity_components import (
+    FailureStrategy,
+    store_entity_components,
+)
+from synapseutils.copy_functions import copy
 
 tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass()
-class Project(AccessControllable, StorableContainer):
+@async_to_sync
+class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer):
     """A Project is a top-level container for organizing data in Synapse.
 
     Attributes:
         id: The unique immutable ID for this project. A new ID will be generated for new
             Projects. Once issued, this ID is guaranteed to never change or be re-issued
-        name: The name of this project. Must be 256 characters or less. Names may only contain:
-                letters, numbers, spaces, underscores, hyphens, periods, plus signs, apostrophes,
-                and parentheses
+        name: The name of this project. Must be 256 characters or less. Names may only
+            contain: letters, numbers, spaces, underscores, hyphens, periods, plus
+            signs, apostrophes, and parentheses
         description: The description of this entity. Must be 1000 characters or less.
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
-                concurrent updates. Since the E-Tag changes every time an entity is updated it
-                is used to detect when a client's current representation of an entity is out-of-date.
+            concurrent updates. Since the E-Tag changes every time an entity is updated
+            it is used to detect when a client's current representation of an entity
+            is out-of-date.
         created_on: The date this entity was created.
         modified_on: The date this entity was last modified.
         created_by: The ID of the user that created this entity.
@@ -58,12 +56,6 @@ class Project(AccessControllable, StorableContainer):
             values (use empty list to represent no values for key) and the value type
             associated with all values in the list.  To remove all annotations set this
             to an empty dict `{}`.
-
-    Functions:
-        store: Store project, files, and folders to synapse.
-        get: Get the project metadata from Synapse.
-        delete: Delete the project from Synapse.
-
 
     Example: Creating a project
         This example shows how to create a project
@@ -83,7 +75,7 @@ class Project(AccessControllable, StorableContainer):
                 description="This is a project with random data.",
             )
 
-            project = await project.store()
+            project = project.store()
 
             print(project)
 
@@ -99,7 +91,7 @@ class Project(AccessControllable, StorableContainer):
                 name=name_of_file_2,
             )
             project.files = [file_1, file_2]
-            project = await project.store()
+            project = project.store()
 
     """
 
@@ -232,13 +224,15 @@ class Project(AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Project_Store: ID: {self.id}, Name: {self.name}"
     )
-    async def store(
+    async def store_async(
         self,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
         """
-        Store project, files, and folders to synapse.
+        Store project, files, and folders to synapse. If you have any files or folders
+        attached to this project they will be stored as well. You may attach files
+        and folders to this project by setting the `files` and `folders` attributes.
 
         By default the store operation will non-destructively update the project if
         you have not already retrieved the project from Synapse. If you have already
@@ -258,11 +252,11 @@ class Project(AccessControllable, StorableContainer):
         Example: Using this method to update the description
             Store the project to Synapse using ID
 
-                project = await Project(id="syn123", description="new").store()
+                project = await Project(id="syn123", description="new").store_async()
 
             Store the project to Synapse using Name
 
-                project = await Project(name="my_project", description="new").store()
+                project = await Project(name="my_project", description="new").store_async()
 
         Raises:
             ValueError: If the project name is not set.
@@ -279,7 +273,7 @@ class Project(AccessControllable, StorableContainer):
                 )
             )
             and (
-                existing_project := await Project(id=existing_project_id).get(
+                existing_project := await Project(id=existing_project_id).get_async(
                     synapse_client=synapse_client
                 )
             )
@@ -327,7 +321,7 @@ class Project(AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Project_Get: ID: {self.id}, Name: {self.name}"
     )
-    async def get(
+    async def get_async(
         self,
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
@@ -343,11 +337,11 @@ class Project(AccessControllable, StorableContainer):
         Example: Using this method
             Retrieve the project from Synapse using ID
 
-                project = await Project(id="syn123").get()
+                project = await Project(id="syn123").get_async()
 
             Retrieve the project from Synapse using Name
 
-                project = await Project(name="my_project").get()
+                project = await Project(name="my_project").get_async()
 
         Raises:
             ValueError: If the project ID or Name is not set.
@@ -375,7 +369,7 @@ class Project(AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Project_Delete: {self.id}, Name: {self.name}"
     )
-    async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def delete_async(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the project from Synapse.
 
         Arguments:
@@ -388,11 +382,11 @@ class Project(AccessControllable, StorableContainer):
         Example: Using this method
             Delete the project from Synapse using ID
 
-                await Project(id="syn123").delete()
+                await Project(id="syn123").delete_async()
 
             Delete the project from Synapse using Name
 
-                await Project(name="my_project").delete()
+                await Project(name="my_project").delete_async()
 
         Raises:
             ValueError: If the project ID or Name is not set.
@@ -415,7 +409,7 @@ class Project(AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Project_Copy: {self.id}"
     )
-    async def copy(
+    async def copy_async(
         self,
         destination_id: str,
         copy_annotations: bool = True,
@@ -424,13 +418,13 @@ class Project(AccessControllable, StorableContainer):
         file_update_existing: bool = False,
         file_copy_activity: Union[str, None] = "traceback",
         synapse_client: Optional[Synapse] = None,
-    ) -> "Folder":
+    ) -> "Project":
         """
         You must have already created the Project you will be copying to. It will have
         it's own Synapse ID and unique name that you will use as the destination_id.
 
 
-        Copy the project to another Synpase project. This will recursively copy all
+        Copy the project to another Synapse project. This will recursively copy all
         Tables, Links, Files, and Folders within the project.
 
         Arguments:
@@ -439,8 +433,8 @@ class Project(AccessControllable, StorableContainer):
             copy_wiki: True to copy the wiki pages.
             exclude_types: A list of entity types ['file', 'table', 'link'] which
                 determines which entity types to not copy. Defaults to an empty list.
-            file_update_existing: When the destination has a file that has the same name,
-                users can choose to update that file.
+            file_update_existing: When the destination has a file that has the same
+                name, users can choose to update that file.
             file_copy_activity: Has three options to set the activity of the copied file:
 
                     - traceback: Creates a copy of the source files Activity.
@@ -456,11 +450,11 @@ class Project(AccessControllable, StorableContainer):
             Assuming you have a project with the ID "syn123" and you want to copy it to a
             project with the ID "syn456":
 
-                new_instance = await Project(id="syn123").copy(destination_id="syn456")
+                new_instance = await Project(id="syn123").copy_async(destination_id="syn456")
 
             Copy the project but do not persist annotations:
 
-                new_instance = await Project(id="syn123").copy(destination_id="syn456", copy_annotations=False)
+                new_instance = await Project(id="syn123").copy_async(destination_id="syn456", copy_annotations=False)
 
         Raises:
             ValueError: If the project does not have an ID and destination_id to copy.
@@ -492,7 +486,9 @@ class Project(AccessControllable, StorableContainer):
         new_project_id = source_and_destination.get(self.id, None)
         if not new_project_id:
             raise SynapseError("Failed to copy project.")
-        project_copy = await (await Project(id=new_project_id).get()).sync_from_synapse(
+        project_copy = await (
+            await Project(id=new_project_id).get_async()
+        ).sync_from_synapse_async(
             download_file=False,
             synapse_client=synapse_client,
         )

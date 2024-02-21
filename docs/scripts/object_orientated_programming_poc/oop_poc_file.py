@@ -14,7 +14,6 @@ The following actions are shown in this script:
 9. Retrieve an activity from a file
 """
 
-import asyncio
 import os
 
 from synapseclient.models import File, Folder, Activity, UsedEntity, UsedURL
@@ -39,15 +38,16 @@ def create_random_file(
         f.write(os.urandom(1))
 
 
-async def store_file():
+def store_file():
     # Cleanup synapse for previous runs - Does not delete local files/directories:
-    script_file_folder = Folder(name="file_script_folder", parent_id=PROJECT_ID)
+    try:
+        Folder(name="file_script_folder", parent_id=PROJECT_ID).get().delete()
+    except Exception:
+        pass
     if not os.path.exists(os.path.expanduser("~/temp/myNewFolder")):
         os.mkdir(os.path.expanduser("~/temp/myNewFolder"))
-    # Hack to get the ID as Folder does not support get by name/id yet
-    await script_file_folder.store()
-    await script_file_folder.delete()
-    await script_file_folder.store()
+
+    script_file_folder = Folder(name="file_script_folder", parent_id=PROJECT_ID).store()
 
     # Creating annotations for my file ==================================================
     annotations_for_my_file = {
@@ -79,7 +79,7 @@ async def store_file():
     )
 
     # 2. Storing a file ==================================================================
-    file = await file.store()
+    file = file.store()
 
     print(f"File created: ID: {file.id}, Parent ID: {file.parent_id}")
 
@@ -88,7 +88,7 @@ async def store_file():
     create_random_file(path_to_file)
 
     # 3. Storing a file to a sub-folder ==================================================
-    script_sub_folder = await Folder(
+    script_sub_folder = Folder(
         name="file_script_sub_folder", parent_id=script_file_folder.id
     ).store()
     file_in_a_sub_folder = File(
@@ -97,7 +97,7 @@ async def store_file():
         parent_id=script_sub_folder.id,
         description="This is a file with random data.",
     )
-    file_in_a_sub_folder = await file_in_a_sub_folder.store()
+    file_in_a_sub_folder = file_in_a_sub_folder.store()
 
     print(
         f"File created in sub folder: ID: {file_in_a_sub_folder.id}, Parent ID: {file_in_a_sub_folder.parent_id}"
@@ -111,7 +111,7 @@ async def store_file():
     # The name of the entity, and the name of the file is disjointed.
     # For example, the name of the file is "file_script_my_file_to_rename.txt"
     # and the name of the entity is "this_name_is_different"
-    file: File = await File(
+    file: File = File(
         path=path_to_file,
         name="this_name_is_different",
         parent_id=script_file_folder.id,
@@ -121,16 +121,16 @@ async def store_file():
 
     # You can change the name of the entity without changing the name of the file.
     file.name = "modified_name_attribute"
-    await file.store()
+    file.store()
     print(f"File renamed to: {file.name}")
 
     # You can then change the name of the file that would be downloaded like:
-    await file.change_metadata(download_as="new_name_for_downloading.txt")
+    file.change_metadata(download_as="new_name_for_downloading.txt")
     print(f"File download values changed to: {file.file_handle.file_name}")
 
     # 5. Downloading a file ===============================================================
     # Downloading a file to a location has a default beahvior of "keep.both"
-    downloaded_file = await File(
+    downloaded_file = File(
         id=file.id, download_location=os.path.expanduser("~/temp/myNewFolder")
     ).get()
     print(f"Downloaded file: {downloaded_file.path}")
@@ -140,7 +140,7 @@ async def store_file():
     path_to_file = downloaded_file.path
     create_random_file(path_to_file)
     print(f"Before file md5: {utils.md5_for_file(path_to_file).hexdigest()}")
-    downloaded_file = await File(
+    downloaded_file = File(
         id=downloaded_file.id,
         download_location=os.path.expanduser("~/temp/myNewFolder"),
         if_collision="overwrite.local",
@@ -151,7 +151,7 @@ async def store_file():
     path_to_file = downloaded_file.path
     create_random_file(path_to_file)
     print(f"Before file md5: {utils.md5_for_file(path_to_file).hexdigest()}")
-    downloaded_file = await File(
+    downloaded_file = File(
         id=downloaded_file.id,
         download_location=os.path.expanduser("~/temp/myNewFolder"),
         if_collision="keep.local",
@@ -163,19 +163,17 @@ async def store_file():
     name_of_file = "file_to_delete.txt"
     path_to_file = os.path.join(os.path.expanduser("~/temp"), name_of_file)
     create_random_file(path_to_file)
-    file_to_delete = await File(
-        path=path_to_file, parent_id=script_file_folder.id
-    ).store()
-    await file_to_delete.delete()
+    file_to_delete = File(path=path_to_file, parent_id=script_file_folder.id).store()
+    file_to_delete.delete()
 
     # 7. Copying a file ===================================================================
     print(
         f"File I am going to copy: ID: {file_in_a_sub_folder.id}, Parent ID: {file_in_a_sub_folder.parent_id}"
     )
-    new_sub_folder = await Folder(
+    new_sub_folder = Folder(
         name="sub_sub_folder", parent_id=script_file_folder.id
     ).store()
-    copied_file_instance = await file_in_a_sub_folder.copy(parent_id=new_sub_folder.id)
+    copied_file_instance = file_in_a_sub_folder.copy(parent_id=new_sub_folder.id)
     print(
         f"File I copied: ID: {copied_file_instance.id}, Parent ID: {copied_file_instance.parent_id}"
     )
@@ -197,17 +195,17 @@ async def store_file():
     name_of_file = "file_with_an_activity.txt"
     path_to_file = os.path.join(os.path.expanduser("~/temp"), name_of_file)
     create_random_file(path_to_file)
-    file_with_activity = await File(
+    file_with_activity = File(
         path=path_to_file, parent_id=script_file_folder.id, activity=activity
     ).store()
     print(file_with_activity.activity)
 
     # 9. When I am retrieving that file later on I can get the activity like =============
     # By also specifying download_file=False, I can get the activity without downloading the file.
-    new_file_with_activity_instance = await File(
+    new_file_with_activity_instance = File(
         id=file_with_activity.id, download_file=False
     ).get(include_activity=True)
     print(new_file_with_activity_instance.activity)
 
 
-asyncio.run(store_file())
+store_file()

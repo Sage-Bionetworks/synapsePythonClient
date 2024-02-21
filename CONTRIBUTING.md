@@ -18,6 +18,11 @@ By contributing, you are agreeing that we may redistribute your work under this 
    * [Testing](#testing)
       + [Integration testing against the dev synapse server](#integration-testing-against-the-dev-synapse-server)
       + [Running OpenTelemetry in Integration Tests](#running-opentelemetry-in-integration-tests)
+   * [Asynchronous methods](#asynchronous-methods)
+      + [Creating a new async method](#creating-a-new-async-method)
+      + [Creating a new async method to be called by someone using the client](#creating-a-new-async-method-to-be-called-by-someone-using-the-client)
+      + [Creating a new async method to be called internally by the client](#creating-a-new-async-method-to-be-called-internally-by-the-client)
+      + [Modifying an existing async method](#modifying-an-existing-async-method)
    * [Code style](#code-style)
    * [OpenTelemetry](#opentelemetry)
       + [Attributes within traces](#attributes-within-traces)
@@ -209,6 +214,59 @@ When integration tests are ran in the Github CI/CD pipeline it will upload the t
 
 #### Integration testing for external collaborators
 As an external collaborator you will not have access to a development account and environment to run the integration tests against. Either request that a Sage Bionetworks staff member run your integration tests via a pull request, or, contact us via the [Service Desk](https://sagebionetworks.jira.com/servicedesk/customer/portal/9) to requisition a development account for integration testing only.
+
+### Asynchronous methods
+[Asyncio](https://docs.python.org/3/library/asyncio.html) is the future of the Synapse
+Python Client. As such, the expectation is that all future methods that rely on async
+methods or network calls are asynchronous themselves.
+
+#### Creating a new async method
+When a new async method is created ask yourself if the method will be:
+* Accessed by someone using the client
+* An internal method only called within the client
+
+When an async method is expected to be called by someone using the client:
+* We will need to provide a non-async method for them to call.
+
+If the async method is expected to be called by an internal method only:
+* There is no need to create a non-async method.
+
+Read up on the expected syntax for an
+[async method here](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+##### Creating a new async method to be called by someone using the client
+
+1. Create the new method and make sure that it has an `_async` suffix.
+    * For example `async def my_method_async(self)`
+1. Use the `async_to_sync` decorator found in the `async_utils.py` script to
+automatically generate a non-async version of your code at runtime. Add the decorator
+to the class where the method exists.
+1. For static type checkers to see that a non-suffixed method will be
+available at runtime:
+    1. Create or update a Protocol class that is a copy of the method definitions
+    without the async keyword. See `project_protocol.py` for an example.
+    1. Copy the docstring of the original method to the method defined in the protocol.
+    1. Update the examples in the docstring to remove the await or async function calls.
+    1. Import the protocol class you created and add it to the class constructor to
+    inherit the protocol class.
+1. Write unit and integration tests for BOTH the async and non-async versions.
+    1. Write your tests once with async in mind.
+    1. Copy them to a non-async testing directory.
+    1. Remove the async-related keywords and imports.
+1. Add the method definitions to the appropriate markdown file for generated doc pages.
+
+##### Creating a new async method to be called internally by the client
+
+1. Create the new method with the async keyword. The name of the method should not be
+suffixed by `_async` to prevent it from accidentally being included with any runtime
+generation of non-async code.
+1. Write unit and integration tests for the async method.
+1. Add the method definitions to the appropriate markdown file for generated doc pages.
+
+##### Modifying an existing async method
+When you make a modification to an async method please also copy any changes to the
+definition of the method OR docstring into the non-async method defintion. It is
+expected that you manually keep them in-sync.
 
 ### Code style
 

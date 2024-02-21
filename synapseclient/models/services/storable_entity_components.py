@@ -67,7 +67,9 @@ async def store_entity_components(
         for file in root_resource.files:
             tasks.append(
                 asyncio.create_task(
-                    file.store(parent=root_resource, synapse_client=synapse_client)
+                    file.store_async(
+                        parent=root_resource, synapse_client=synapse_client
+                    )
                 )
             )
 
@@ -75,7 +77,9 @@ async def store_entity_components(
         for folder in root_resource.folders:
             tasks.append(
                 asyncio.create_task(
-                    folder.store(parent=root_resource, synapse_client=synapse_client)
+                    folder.store_async(
+                        parent=root_resource, synapse_client=synapse_client
+                    )
                 )
             )
 
@@ -192,7 +196,7 @@ async def _store_activity_and_annotations(
             id=root_resource.id,
             etag=root_resource.etag,
             annotations=root_resource.annotations,
-        ).store(synapse_client=synapse_client)
+        ).store_async(synapse_client=synapse_client)
 
         root_resource.annotations = result.annotations
         root_resource.etag = result.etag
@@ -205,7 +209,7 @@ async def _store_activity_and_annotations(
             or last_persistent_instance.activity != root_resource.activity
         )
     ):
-        result = await root_resource.activity.store(
+        result = await root_resource.activity.store_async(
             parent=root_resource, synapse_client=synapse_client
         )
 

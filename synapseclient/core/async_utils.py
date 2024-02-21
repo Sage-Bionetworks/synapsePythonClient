@@ -1,8 +1,11 @@
 """This utility class is to hold any utilities that are needed for async operations."""
 
+import asyncio
+import functools
 from typing import Callable, Union
-from opentelemetry import trace
 
+import nest_asyncio
+from opentelemetry import trace
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -48,3 +51,77 @@ def otel_trace_method(method_to_trace_name: Union[Callable[..., str], None] = No
         return otel_trace_method_wrapper
 
     return decorator
+
+
+class ClassOrInstance:
+    """Helper class to allow a method to be called as a class method or instance method."""
+
+    def __init__(self, fn):
+        self.fn = fn
+
+    def __get__(self, obj, cls):
+        def f(*args, **kwds):
+            if obj is not None:
+                return self.fn(obj, *args, **kwds)
+            else:
+                return self.fn(cls, *args, **kwds)
+
+        functools.update_wrapper(f, self.fn)
+        return f
+
+
+# Adapted from
+# https://github.com/keflavich/astroquery/blob/30deafc3aa057916bcdca70733cba748f1b36b64/astroquery/utils/process_asyncs.py#L11
+def async_to_sync(cls):
+    """
+    Convert all name_of_thing_async methods to name_of_thing methods
+
+    (see
+    http://stackoverflow.com/questions/18048341/add-methods-to-a-class-generated-from-other-methods
+    for help understanding)
+    """
+
+    def create_method(async_method_name: str):
+        """Creates a replacement method for the async method."""
+
+        @ClassOrInstance
+        def newmethod(self, *args, **kwargs):
+            """The new method that will replace the non-async method."""
+
+            async def wrapper(*args, **kwargs):
+                """Wrapper for the function to be called in an async context."""
+                return await getattr(self, async_method_name)(*args, **kwargs)
+
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                return asyncio.run(wrapper(*args, **kwargs))
+            else:
+                nest_asyncio.apply(loop=loop)
+                return loop.run_until_complete(wrapper(*args, **kwargs))
+
+        return newmethod
+
+    methods = cls.__dict__.keys()
+
+    methods_to_update = []
+    for k in methods:
+        if "async" in k and (new_method_name := k.replace("_async", "")) not in methods:
+            new_method = create_method(k)
+
+            new_method.fn.__name__ = new_method_name
+            new_method.__name__ = new_method_name
+
+            functools.update_wrapper(new_method, new_method.fn)
+            methods_to_update.append(
+                {
+                    "new_method_name": new_method_name,
+                    "new_method": new_method,
+                }
+            )
+    for method_to_update in methods_to_update:
+        setattr(
+            cls, method_to_update["new_method_name"], method_to_update["new_method"]
+        )
+
+    return cls

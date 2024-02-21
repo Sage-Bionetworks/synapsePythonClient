@@ -1,7 +1,7 @@
 """Integration tests for the synapseclient.models.File class."""
 
 import os
-import asyncio
+import time
 from unittest.mock import patch
 import uuid
 
@@ -21,6 +21,12 @@ from synapseclient.models import (
     UsedEntity,
 )
 
+DESCRIPTION = "This is an example file."
+CONTENT_TYPE = "text/plain"
+VERSION_COMMENT = "My version comment"
+CONTENT_TYPE_JSON = "text/json"
+BOGUS_URL = "https://www.synapse.org/"
+
 
 class TestFileStore:
     """Tests for the synapseclient.models.File.store method."""
@@ -36,19 +42,18 @@ class TestFileStore:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         )
 
-    @pytest.mark.asyncio
-    async def test_store_in_project(self, project_model: Project, file: File) -> None:
+    def test_store_in_project(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
 
         # WHEN I store the file
-        file_copy_object = await file.store(parent=project_model)
+        file_copy_object = file.store(parent=project_model)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -56,8 +61,8 @@ class TestFileStore:
         assert file_copy_object.id is not None
         assert file_copy_object == file
         assert file.parent_id == project_model.id
-        assert file.content_type == "text/plain"
-        assert file.version_comment == "My version comment"
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
         assert file.version_label is not None
         assert file.version_number == 1
         assert file.created_by is not None
@@ -82,19 +87,16 @@ class TestFileStore:
         assert file.file_handle.key is not None
         assert file.file_handle.external_url is None
 
-    @pytest.mark.asyncio
-    async def test_store_in_folder(self, project_model: Project, file: File) -> None:
+    def test_store_in_folder(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
 
         # AND a folder to store the file in
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store()
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I store the file
-        file_copy_object = await file.store(parent=folder)
+        file_copy_object = file.store(parent=folder)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -102,8 +104,8 @@ class TestFileStore:
         assert file_copy_object.id is not None
         assert file_copy_object == file
         assert file.parent_id == folder.id
-        assert file.content_type == "text/plain"
-        assert file.version_comment == "My version comment"
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
         assert file.version_label is not None
         assert file.version_number == 1
         assert file.created_by is not None
@@ -128,16 +130,15 @@ class TestFileStore:
         assert file.file_handle.key is not None
         assert file.file_handle.external_url is None
 
-    @pytest.mark.asyncio
-    async def test_store_multiple_files(self, project_model: Project) -> None:
+    def test_store_multiple_files(self, project_model: Project) -> None:
         # GIVEN a file
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file_1 = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         )
 
@@ -146,16 +147,18 @@ class TestFileStore:
         self.schedule_for_cleanup(filename)
         file_2 = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         )
 
         # WHEN I store both the file
-        files = await asyncio.gather(
-            *[file_1.store(parent=project_model), file_2.store(parent=project_model)]
-        )
+        files = [
+            file_1.store(parent=project_model),
+            file_2.store(parent=project_model),
+        ]
+
         for file in files:
             self.schedule_for_cleanup(file.id)
 
@@ -163,8 +166,8 @@ class TestFileStore:
             assert file.id is not None
             assert file == file_1 or file == file_2
             assert file.parent_id == project_model.id
-            assert file.content_type == "text/plain"
-            assert file.version_comment == "My version comment"
+            assert file.content_type == CONTENT_TYPE
+            assert file.version_comment == VERSION_COMMENT
             assert file.version_label is not None
             assert file.version_number == 1
             assert file.created_by is not None
@@ -189,16 +192,13 @@ class TestFileStore:
             assert file.file_handle.key is not None
             assert file.file_handle.external_url is None
 
-    @pytest.mark.asyncio
-    async def test_store_change_filename(
-        self, project_model: Project, file: File
-    ) -> None:
+    def test_store_change_filename(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
         file.parent_id = project_model.id
 
         # WHEN I store the file
-        file = await file.store()
+        file = file.store()
         self.schedule_for_cleanup(file.id)
         before_etag = file.etag
 
@@ -207,7 +207,7 @@ class TestFileStore:
         file.name = changed_file_name
 
         # AND I store the file again
-        file = await file.store()
+        file = file.store()
 
         # THEN I expect the file to be changed
         assert file.name == changed_file_name
@@ -215,26 +215,23 @@ class TestFileStore:
         assert file.etag is not None
         assert before_etag != file.etag
 
-    @pytest.mark.asyncio
-    async def test_store_move_file(self, project_model: Project, file: File) -> None:
+    def test_store_move_file(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
         file.parent_id = project_model.id
 
         # AND a folder to store the file in
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store()
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I store the file in the project
-        file = await file.store()
+        file = file.store()
         self.schedule_for_cleanup(file.id)
         assert file.parent_id == project_model.id
         before_file_id = file.id
 
         # AND I store the file under a new parent
-        file = await file.store(parent=folder)
+        file = file.store(parent=folder)
 
         # THEN I expect the file to have been moved
         assert file.parent_id == folder.id
@@ -242,27 +239,26 @@ class TestFileStore:
         # AND the file does not have an updated ID
         assert before_file_id == file.id
 
-    @pytest.mark.asyncio
-    async def test_store_same_data_file_handle_id(self, project_model: Project) -> None:
+    def test_store_same_data_file_handle_id(self, project_model: Project) -> None:
         # GIVEN a file
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
-        file_1 = await File(
+        file_1 = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         ).store(parent=project_model)
 
         # AND a second file
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
-        file_2 = await File(
+        file_2 = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         ).store(parent=project_model)
         assert file_1.data_file_handle_id is not None
@@ -272,22 +268,22 @@ class TestFileStore:
 
         # WHEN I store the data_file_handle_id onto the second file
         file_2.data_file_handle_id = file_1.data_file_handle_id
-        await file_2.store()
+        file_2.store()
 
         # THEN I expect the file handles to match
         assert file_2_etag != file_2.etag
-        assert (await file_1.get()).file_handle == (await file_2.get()).file_handle
+        time.sleep(5)
+        assert (file_1.get()).file_handle == (file_2.get()).file_handle
 
-    @pytest.mark.asyncio
-    async def test_store_updated_file(self, project_model: Project) -> None:
+    def test_store_updated_file(self, project_model: Project) -> None:
         # GIVEN a file
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
-        file = await File(
+        file = File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
         ).store(parent=project_model)
         before_etag = file.etag
@@ -298,7 +294,7 @@ class TestFileStore:
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file.path = filename
-        await file.store()
+        file.store()
 
         # THEN I expect the file to be updated
         assert before_etag is not None
@@ -309,20 +305,17 @@ class TestFileStore:
         assert file.file_handle.id is not None
         assert before_file_handle_id != file.file_handle.id
 
-    @pytest.mark.asyncio
-    async def test_store_and_get_activity(
-        self, project_model: Project, file: File
-    ) -> None:
+    def test_store_and_get_activity(self, project_model: Project, file: File) -> None:
         # GIVEN an activity
         activity = Activity(
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -332,35 +325,32 @@ class TestFileStore:
         file.activity = activity
 
         # WHEN I store the file
-        file = await file.store(parent=project_model)
+        file = file.store(parent=project_model)
         self.schedule_for_cleanup(file.id)
 
         # AND I get the file with the activity
-        file_copy = await File(id=file.id, download_file=False).get(
-            include_activity=True
-        )
+        file_copy = File(id=file.id, download_file=False).get(include_activity=True)
 
         # THEN I expect that the activity is returned
         assert file_copy.activity is not None
         assert file_copy.activity.name == "some_name"
         assert file_copy.activity.description == "some_description"
         assert file_copy.activity.used[0].name == "example"
-        assert file_copy.activity.used[0].url == "https://www.synapse.org/"
+        assert file_copy.activity.used[0].url == BOGUS_URL
         assert file_copy.activity.used[1].target_id == "syn456"
         assert file_copy.activity.used[1].target_version_number == 1
         assert file_copy.activity.executed[0].name == "example"
-        assert file_copy.activity.executed[0].url == "https://www.synapse.org/"
+        assert file_copy.activity.executed[0].url == BOGUS_URL
         assert file_copy.activity.executed[1].target_id == "syn789"
         assert file_copy.activity.executed[1].target_version_number == 1
 
         # WHEN I get the file without the activity flag
-        file_copy_2 = await File(id=file.id, download_file=False).get()
+        file_copy_2 = File(id=file.id, download_file=False).get()
 
         # THEN I expect that the activity is not returned
         assert file_copy_2.activity is None
 
-    @pytest.mark.asyncio
-    async def test_store_annotations(self, project_model: Project, file: File) -> None:
+    def test_store_annotations(self, project_model: Project, file: File) -> None:
         # GIVEN an annotation
         annotations_for_my_file = {
             "my_single_key_string": "a",
@@ -375,7 +365,7 @@ class TestFileStore:
         file.annotations = annotations_for_my_file
 
         # WHEN I store the file
-        file = await file.store(parent=project_model)
+        file = file.store(parent=project_model)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file annotations to have been stored
@@ -388,7 +378,7 @@ class TestFileStore:
 
         # WHEN I update the annotations and store the file again
         file.annotations["my_key_string"] = ["new", "values", "here"]
-        await file.store()
+        file.store()
 
         # THEN I expect the file annotations to have been updated
         assert file.annotations.keys() == annotations_for_my_file.keys()
@@ -398,10 +388,7 @@ class TestFileStore:
         assert file.annotations["my_key_double"] == [1.2, 3.4, 5.6]
         assert file.annotations["my_key_long"] == [1, 2, 3]
 
-    @pytest.mark.asyncio
-    async def test_store_without_upload(
-        self, project_model: Project, file: File
-    ) -> None:
+    def test_store_without_upload(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
 
@@ -409,14 +396,14 @@ class TestFileStore:
         file.synapse_store = False
 
         # WHEN I store the file
-        file = await file.store(parent=project_model)
+        file = file.store(parent=project_model)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored as an external file
         assert file.id is not None
         assert file.parent_id == project_model.id
-        assert file.content_type == "text/plain"
-        assert file.version_comment == "My version comment"
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
         assert file.version_label is not None
         assert file.version_number == 1
         assert file.created_by is not None
@@ -434,7 +421,7 @@ class TestFileStore:
             file.file_handle.concrete_type
             == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
         )
-        assert file.file_handle.content_type == "text/plain"
+        assert file.file_handle.content_type == CONTENT_TYPE
         assert file.file_handle.content_md5 is not None
         assert file.file_handle.file_name is not None
         assert file.file_handle.content_size is not None
@@ -442,15 +429,14 @@ class TestFileStore:
         assert file.file_handle.bucket_name is None
         assert file.file_handle.key is None
 
-    @pytest.mark.asyncio
-    async def test_store_conflict_with_existing_object(
+    def test_store_conflict_with_existing_object(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
 
         # WHEN I store the file
-        file_copy_object = await file.store(parent=project_model)
+        file_copy_object = file.store(parent=project_model)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -458,8 +444,8 @@ class TestFileStore:
         assert file_copy_object.id is not None
         assert file_copy_object == file
         assert file.parent_id == project_model.id
-        assert file.content_type == "text/plain"
-        assert file.version_comment == "My version comment"
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
         assert file.version_label is not None
         assert file.version_number == 1
         assert file.created_by is not None
@@ -496,22 +482,19 @@ class TestFileStore:
 
         # THEN I expect a SynapseHTTPError to be raised
         with pytest.raises(SynapseHTTPError) as e:
-            await new_file.store()
+            new_file.store()
 
         assert (
             str(e.value)
             == f"409 Client Error: \nAn entity with the name: {file.name} already exists with a parentId: {project_model.id}"
         )
 
-    @pytest.mark.asyncio
-    async def test_store_force_version(
-        self, project_model: Project, file: File
-    ) -> None:
+    def test_store_force_version(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
 
         # WHEN I store the file
-        await file.store(parent=project_model)
+        file.store(parent=project_model)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -520,22 +503,19 @@ class TestFileStore:
 
         # WHEN I store the file again with force_version=False
         file.force_version = False
-        await file.store()
+        file.store()
 
         # THEN the version should not be updated
         assert file.version_number == 1
 
         # WHEN I store the file again with force_version=True
         file.force_version = True
-        await file.store()
+        file.store()
 
         # THEN the version should be updated
         assert file.version_number == 2
 
-    @pytest.mark.asyncio
-    async def test_store_is_restricted(
-        self, project_model: Project, file: File
-    ) -> None:
+    def test_store_is_restricted(self, project_model: Project, file: File) -> None:
         """Tests that setting is_restricted is calling the correct Synapse method. We are
         not testing the actual behavior of the method, only that it is called with the
         correct arguments. We do not want to actually restrict the file in Synapse as it
@@ -550,14 +530,13 @@ class TestFileStore:
             "synapseclient.client.Synapse._createAccessRequirementIfNone"
         ) as intercepted:
             # WHEN I store the file
-            await file.store(parent=project_model)
+            file.store(parent=project_model)
             self.schedule_for_cleanup(file.id)
 
             # THEN I expect the file to be restricted
             assert intercepted.called
 
-    @pytest.mark.asyncio
-    async def test_store_and_get_with_activity(
+    def test_store_and_get_with_activity(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
@@ -568,18 +547,18 @@ class TestFileStore:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
         file.activity = activity
 
         # WHEN I store the file
-        file_copy_object = await file.store(parent=project_model)
+        file_copy_object = file.store(parent=project_model)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -587,8 +566,8 @@ class TestFileStore:
         assert file_copy_object.id is not None
         assert file_copy_object == file
         assert file.parent_id == project_model.id
-        assert file.content_type == "text/plain"
-        assert file.version_comment == "My version comment"
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
         assert file.version_label is not None
         assert file.version_number == 1
         assert file.created_by is not None
@@ -628,82 +607,78 @@ class TestChangeMetadata:
     ) -> None:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description="This is an example file.",
-                content_type="text/plain",
-                version_comment="My version comment",
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
-    @pytest.mark.asyncio
-    async def test_change_name(self, file: File) -> None:
+    def test_change_name(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.name is not None
-        assert file.content_type == "text/plain"
+        assert file.content_type == CONTENT_TYPE
         current_download_as = file.file_handle.file_name
 
         # WHEN I change the files metadata
         new_filename = f"my_new_file_name_{str(uuid.uuid4())}.txt"
-        await file.change_metadata(name=new_filename)
+        file.change_metadata(name=new_filename)
 
         # THEN I expect only the file name to have been updated
         assert file.file_handle.file_name == current_download_as
         assert file.name == new_filename
-        assert file.content_type == "text/plain"
-        file_copy = await File(id=file.id, download_file=False).get()
+        assert file.content_type == CONTENT_TYPE
+        file_copy = File(id=file.id, download_file=False).get()
         assert file_copy.file_handle.file_name == current_download_as
         assert file_copy.name == new_filename
-        assert file_copy.content_type == "text/plain"
+        assert file_copy.content_type == CONTENT_TYPE
 
-    @pytest.mark.asyncio
-    async def test_change_content_type_and_download(self, file: File) -> None:
+    def test_change_content_type_and_download(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.name is not None
-        assert file.content_type == "text/plain"
+        assert file.content_type == CONTENT_TYPE
         current_filename = file.name
 
         # WHEN I change the files metadata
         new_filename = f"my_new_file_name_{str(uuid.uuid4())}.txt"
-        await file.change_metadata(download_as=new_filename, content_type="text/json")
+        file.change_metadata(download_as=new_filename, content_type=CONTENT_TYPE_JSON)
 
         # THEN I expect the file download name to have been updated
         assert file.file_handle.file_name == new_filename
         assert file.name == current_filename
-        assert file.content_type == "text/json"
-        file_copy = await File(id=file.id, download_file=False).get()
+        assert file.content_type == CONTENT_TYPE_JSON
+        file_copy = File(id=file.id, download_file=False).get()
         assert file_copy.file_handle.file_name == new_filename
         assert file_copy.name == current_filename
-        assert file_copy.content_type == "text/json"
+        assert file_copy.content_type == CONTENT_TYPE_JSON
 
-    @pytest.mark.asyncio
-    async def test_change_content_type_and_download_and_name(self, file: File) -> None:
+    def test_change_content_type_and_download_and_name(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.name is not None
-        assert file.content_type == "text/plain"
+        assert file.content_type == CONTENT_TYPE
 
         # WHEN I change the files metadata
         new_filename = f"my_new_file_name_{str(uuid.uuid4())}.txt"
-        await file.change_metadata(
-            name=new_filename, download_as=new_filename, content_type="text/json"
+        file.change_metadata(
+            name=new_filename, download_as=new_filename, content_type=CONTENT_TYPE_JSON
         )
 
         # THEN I expect the file download name, entity name, and content type to have been updated
         assert file.file_handle.file_name == new_filename
         assert file.name == new_filename
-        assert file.content_type == "text/json"
-        file_copy = await File(id=file.id, download_file=False).get()
+        assert file.content_type == CONTENT_TYPE_JSON
+        file_copy = File(id=file.id, download_file=False).get()
         assert file_copy.file_handle.file_name == new_filename
         assert file_copy.name == new_filename
-        assert file_copy.content_type == "text/json"
+        assert file_copy.content_type == CONTENT_TYPE_JSON
 
 
 class TestFrom:
@@ -721,38 +696,35 @@ class TestFrom:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description="This is an example file.",
-                content_type="text/plain",
-                version_comment="My version comment",
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
-    @pytest.mark.asyncio
-    async def test_from_id(self, file: File) -> None:
+    def test_from_id(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
 
         # WHEN I get the file by id
-        file_copy = await File.from_id(file.id)
+        file_copy = File.from_id(file.id)
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
 
-    @pytest.mark.asyncio
-    async def test_from_path(self, file: File) -> None:
+    def test_from_path(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
 
         # WHEN I get the file by path
-        file_copy = await File.from_path(file.path)
+        file_copy = File.from_path(file.path)
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
@@ -772,31 +744,54 @@ class TestDelete:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description="This is an example file.",
-                content_type="text/plain",
-                version_comment="My version comment",
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
-    @pytest.mark.asyncio
-    async def test_delete(self, file: File) -> None:
+    def test_delete(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
 
         # WHEN I delete the file
-        await file.delete()
+        file.delete()
 
         # THEN I expect the file to be deleted
         with pytest.raises(SynapseHTTPError) as e:
-            await file.get()
+            file.get()
         assert str(e.value) == f"404 Client Error: \nEntity {file.id} is in trash can."
+
+    def test_delete_specific_version(self, file: File) -> None:
+        # GIVEN a file stored in synapse
+        assert file.id is not None
+        assert file.version_number == 1
+
+        # AND I update the file
+        file.description = "new description"
+        file.store()
+        assert file.version_number == 2
+
+        # WHEN I delete the file for a specific version
+        File(id=file.id, version_number=1).delete(version_only=True)
+
+        # THEN I expect the file to be deleted
+        with pytest.raises(SynapseHTTPError) as e:
+            File(id=file.id, version_number=1).get()
+        assert (
+            str(e.value)
+            == f"404 Client Error: \nCannot find a node with id {file.id} and version 1"
+        )
+
+        # AND the second version to still exist
+        file_copy = File(id=file.id, version_number=2).get()
+        assert file_copy.id == file.id
 
 
 class TestGet:
@@ -813,60 +808,55 @@ class TestGet:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description="This is an example file.",
-                content_type="text/plain",
-                version_comment="My version comment",
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
-    @pytest.mark.asyncio
-    async def test_get_by_path(self, file: File) -> None:
+    def test_get_by_path(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
 
         # WHEN I get the file by path
-        file_copy = await File(path=file.path).get()
+        file_copy = File(path=file.path).get()
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
 
-    @pytest.mark.asyncio
-    async def test_get_by_id(self, file: File) -> None:
+    def test_get_by_id(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
 
         # WHEN I get the file by id
-        file_copy = await File(id=file.id).get()
+        file_copy = File(id=file.id).get()
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
 
-    @pytest.mark.asyncio
-    async def test_get_previous_version(self, file: File) -> None:
+    def test_get_previous_version(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.version_number == 1
 
         # WHEN I update the file
-        await file.store()
+        file.store()
 
         # AND I get the file by version
-        file_copy = await File(id=file.id, version_number=1).get()
+        file_copy = File(id=file.id, version_number=1).get()
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
         assert file_copy.version_number == 1
 
-    @pytest.mark.asyncio
-    async def test_get_keep_both_for_matching_filenames(self, file: File) -> None:
+    def test_get_keep_both_for_matching_filenames(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -875,25 +865,23 @@ class TestGet:
         # AND I store a second file in another location
         filename = utils.make_bogus_uuid_file()
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store()
-        file_2 = await File(
+        folder.store()
+        file_2 = File(
             path=filename,
             name=file.name,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=folder.id,
         ).store()
         self.schedule_for_cleanup(file_2.id)
 
         # AND I change the download name of the second file to the first file
-        await file_2.change_metadata(download_as=file.name)
+        file_2.change_metadata(download_as=file.name)
 
         # WHEN I get the file with the default collision of `keep.both`
-        file_2 = await File(
-            id=file_2.id, download_location=os.path.dirname(file.path)
-        ).get()
+        file_2 = File(id=file_2.id, download_location=os.path.dirname(file.path)).get()
 
         # THEN I expect both files to exist
         assert file.path != file_2.path
@@ -905,8 +893,7 @@ class TestGet:
         # AND the second file to have a different path
         assert os.path.basename(file_2.path) == f"{base_name}(1){extension}"
 
-    @pytest.mark.asyncio
-    async def test_get_overwrite_local_for_matching_filenames(self, file: File) -> None:
+    def test_get_overwrite_local_for_matching_filenames(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -917,23 +904,23 @@ class TestGet:
         filename = utils.make_bogus_uuid_file()
         file_2_md5 = utils.md5_for_file(filename).hexdigest()
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store()
-        file_2 = await File(
+        folder.store()
+        file_2 = File(
             path=filename,
             name=file.name,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=folder.id,
         ).store()
         self.schedule_for_cleanup(file_2.id)
 
         # AND I change the download name of the second file to the first file
-        await file_2.change_metadata(download_as=file.name)
+        file_2.change_metadata(download_as=file.name)
 
         # WHEN I get the file with the default collision of `overwrite.local`
-        file_2 = await File(
+        file_2 = File(
             id=file_2.id,
             download_location=os.path.dirname(file.path),
             if_collision="overwrite.local",
@@ -944,8 +931,7 @@ class TestGet:
         assert file_1_md5 != file_2_md5
         assert utils.md5_for_file(file_2.path).hexdigest() == file_2_md5
 
-    @pytest.mark.asyncio
-    async def test_get_keep_local_for_matching_filenames(self, file: File) -> None:
+    def test_get_keep_local_for_matching_filenames(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -956,23 +942,23 @@ class TestGet:
         filename = utils.make_bogus_uuid_file()
         file_2_md5 = utils.md5_for_file(filename).hexdigest()
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store()
-        file_2 = await File(
+        folder.store()
+        file_2 = File(
             path=filename,
             name=file.name,
-            description="This is an example file.",
-            content_type="text/plain",
-            version_comment="My version comment",
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=folder.id,
         ).store()
         self.schedule_for_cleanup(file_2.id)
 
         # AND I change the download name of the second file to the first file
-        await file_2.change_metadata(download_as=file.name)
+        file_2.change_metadata(download_as=file.name)
 
         # WHEN I get the file with the default collision of `keep.local`
-        file_2 = await File(
+        file_2 = File(
             id=file_2.id,
             download_location=os.path.dirname(file.path),
             if_collision="keep.local",
@@ -984,20 +970,19 @@ class TestGet:
         assert file_1_md5 != file_2_md5
         assert utils.md5_for_file(file.path).hexdigest() == file_1_md5
 
-    @pytest.mark.asyncio
-    async def test_get_by_path_limit_search(self, file: File) -> None:
+    def test_get_by_path_limit_search(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
 
         # AND I store a copy of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store()
+        folder.store()
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy(parent_id=folder.id)
+        file_copy = file.copy(parent_id=folder.id)
 
         # WHEN I get the file by path and limit the search to the folder
-        file_by_path = await File(
+        file_by_path = File(
             path=file.path, synapse_container_limit=folder.id, download_file=False
         ).get()
 
@@ -1005,7 +990,7 @@ class TestGet:
         assert file_by_path.id == file_copy.id
 
         # WHEN I get the file by path and limit the search to the project
-        file_by_path = await File(
+        file_by_path = File(
             path=file.path, synapse_container_limit=file.parent_id, download_file=False
         ).get()
 
@@ -1027,40 +1012,37 @@ class TestCopy:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description="This is an example file.",
-                content_type="text/plain",
-                version_comment="My version comment",
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
-    @pytest.mark.asyncio
-    async def test_copy_same_path(self, file: File) -> None:
+    def test_copy_same_path(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
 
         # AND I store a copy of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store()
+        folder.store()
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy(parent_id=folder.id)
+        file_copy = file.copy(parent_id=folder.id)
 
         # WHEN I get both files by ID:
-        file_1 = await File(id=file.id, download_file=False).get()
-        file_2 = await File(id=file_copy.id, download_file=False).get()
+        file_1 = File(id=file.id, download_file=False).get()
+        file_2 = File(id=file_copy.id, download_file=False).get()
 
         # THEN I expect the paths to be the same file
         assert file_1.path == file_2.path
 
-    @pytest.mark.asyncio
-    async def test_copy_annotations_and_activity(self, file: File) -> None:
+    def test_copy_annotations_and_activity(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1070,11 +1052,11 @@ class TestCopy:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -1087,24 +1069,23 @@ class TestCopy:
         }
         file.activity = activity
         file.annotations = annotations_for_my_file
-        await file.store()
+        file.store()
 
         # AND I store a copy of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store()
+        folder.store()
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy(parent_id=folder.id)
+        file_copy = file.copy(parent_id=folder.id)
 
         # WHEN I get both files by ID:
-        file_1 = await File(id=file.id, download_file=False).get()
-        file_2 = await File(id=file_copy.id, download_file=False).get()
+        file_1 = File(id=file.id, download_file=False).get()
+        file_2 = File(id=file_copy.id, download_file=False).get()
 
         # THEN I expect the activities and annotations to be the same
         assert file_1.annotations == file_2.annotations
         assert file_1.activity == file_2.activity
 
-    @pytest.mark.asyncio
-    async def test_copy_activity_only(self, file: File) -> None:
+    def test_copy_activity_only(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1114,11 +1095,11 @@ class TestCopy:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -1131,25 +1112,24 @@ class TestCopy:
         }
         file.activity = activity
         file.annotations = annotations_for_my_file
-        await file.store()
+        file.store()
 
         # AND I store a copy of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store()
+        folder.store()
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy(parent_id=folder.id, copy_annotations=False)
+        file_copy = file.copy(parent_id=folder.id, copy_annotations=False)
 
         # WHEN I get both files by ID:
-        file_1 = await File(id=file.id, download_file=False).get()
-        file_2 = await File(id=file_copy.id, download_file=False).get()
+        file_1 = File(id=file.id, download_file=False).get()
+        file_2 = File(id=file_copy.id, download_file=False).get()
 
         # THEN I expect the activities to be the same and annotations on the second to be None
         assert file_1.annotations != file_2.annotations
         assert file_2.annotations is None
         assert file_1.activity == file_2.activity
 
-    @pytest.mark.asyncio
-    async def test_copy_with_no_activity_or_annotations(self, file: File) -> None:
+    def test_copy_with_no_activity_or_annotations(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1159,11 +1139,11 @@ class TestCopy:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -1176,21 +1156,19 @@ class TestCopy:
         }
         file.activity = activity
         file.annotations = annotations_for_my_file
-        await file.store()
+        file.store()
 
         # AND I store a copy of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store()
+        folder.store()
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy(
+        file_copy = file.copy(
             parent_id=folder.id, copy_annotations=False, copy_activity=None
         )
 
         # WHEN I get both files by ID:
-        file_1 = await File(id=file.id, download_file=False).get(include_activity=True)
-        file_2 = await File(id=file_copy.id, download_file=False).get(
-            include_activity=True
-        )
+        file_1 = File(id=file.id, download_file=False).get(include_activity=True)
+        file_2 = File(id=file_copy.id, download_file=False).get(include_activity=True)
 
         # THEN I expect the activities to be the same and annotations on the second to be None
         assert file_1.annotations != file_2.annotations
@@ -1198,8 +1176,7 @@ class TestCopy:
         assert file_2.annotations is None
         assert file_2.activity is None
 
-    @pytest.mark.asyncio
-    async def test_copy_previous_version(self, file: File) -> None:
+    def test_copy_previous_version(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1210,15 +1187,15 @@ class TestCopy:
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file.path = filename
-        await file.store()
+        file.store()
         assert file.version_number == 2
         second_first_md5 = utils.md5_for_file(file.path).hexdigest()
 
         # WHEN I store a copy of the first version_number of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store()
+        folder.store()
         self.schedule_for_cleanup(folder.id)
-        file_copy = await File(id=file.id, version_number=1).copy(
+        file_copy = File(id=file.id, version_number=1).copy(
             parent_id=folder.id, copy_annotations=False, copy_activity=None
         )
 

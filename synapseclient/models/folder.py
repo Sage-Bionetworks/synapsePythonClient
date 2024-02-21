@@ -2,26 +2,27 @@ import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Dict, List, Union
-from typing import Optional, TYPE_CHECKING
-from opentelemetry import trace, context
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
+
+from opentelemetry import context, trace
 
 from synapseclient import Synapse
-from synapseclient.entity import Folder as Synapse_Folder
-from synapseclient.models import File, Annotations
-from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import (
-    run_and_attach_otel_context,
     delete_none_keys,
     merge_dataclass_entities,
+    run_and_attach_otel_context,
 )
-from synapseclient.core.exceptions import SynapseError
+from synapseclient.entity import Folder as Synapse_Folder
+from synapseclient.models import Annotations, File
 from synapseclient.models.mixins import AccessControllable, StorableContainer
-from synapseclient.models.services.storable_entity_components import (
-    store_entity_components,
-    FailureStrategy,
-)
+from synapseclient.models.protocols.folder_protocol import FolderSynchronousProtocol
 from synapseclient.models.services.search import get_id
+from synapseclient.models.services.storable_entity_components import (
+    FailureStrategy,
+    store_entity_components,
+)
 from synapseutils import copy
 
 if TYPE_CHECKING:
@@ -31,15 +32,16 @@ tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass()
-class Folder(AccessControllable, StorableContainer):
+@async_to_sync
+class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
     """Folder is a hierarchical container for organizing data in Synapse.
 
     Attributes:
         id: The unique immutable ID for this folder. A new ID will be generated for new
             Folders. Once issued, this ID is guaranteed to never change or be re-issued.
         name: The name of this folder. Must be 256 characters or less. Names may only
-            contain: letters, numbers, spaces, underscores, hyphens, periods, plus signs,
-            apostrophes, and parentheses.
+            contain: letters, numbers, spaces, underscores, hyphens, periods, plus
+            signs, apostrophes, and parentheses.
         parent_id: The ID of the Project or Folder that is the parent of this Folder.
         description: The description of this entity. Must be 1000 characters or less.
         etag: (Read Only)
@@ -122,8 +124,8 @@ class Folder(AccessControllable, StorableContainer):
     """
     (Store only)
 
-    If set to true, an email will be sent to the Synapse access control team to start the
-    process of adding terms-of-use or review board approval for this entity.
+    If set to true, an email will be sent to the Synapse access control team to start
+    the process of adding terms-of-use or review board approval for this entity.
     You will be contacted with regards to the specific data being restricted and the
     requirements of access.
     """
@@ -195,13 +197,15 @@ class Folder(AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Folder_Store: {self.name}"
     )
-    async def store(
+    async def store_async(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
-        """Storing folder and files to synapse.
+        """Store folders and files to synapse. If you have any files or folders attached
+        to this folder they will be stored as well. You may attach files and folders
+        to this folder by setting the `files` and `folders` attributes.
 
         By default the store operation will non-destructively update the folder if
         you have not already retrieved the folder from Synapse. If you have already
@@ -239,7 +243,7 @@ class Folder(AccessControllable, StorableContainer):
                     entity=self, failure_strategy=None, synapse_client=synapse_client
                 )
             )
-            and (existing_folder := await Folder(id=existing_folder_id).get())
+            and (existing_folder := await Folder(id=existing_folder_id).get_async())
         ):
             merge_dataclass_entities(source=existing_folder, destination=self)
 
@@ -284,7 +288,7 @@ class Folder(AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Folder_Get: {self.id}"
     )
-    async def get(
+    async def get_async(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
         synapse_client: Optional[Synapse] = None,
@@ -335,7 +339,7 @@ class Folder(AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Folder_Delete: {self.id}"
     )
-    async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def delete_async(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the folder from Synapse by its id.
 
         Arguments:
@@ -365,7 +369,7 @@ class Folder(AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Folder_Copy: {self.id}"
     )
-    async def copy(
+    async def copy_async(
         self,
         parent_id: str,
         copy_annotations: bool = True,
@@ -375,7 +379,7 @@ class Folder(AccessControllable, StorableContainer):
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
         """
-        Copy the folder to another Synpase location. This will recursively copy all
+        Copy the folder to another Synapse location. This will recursively copy all
         Tables, Links, Files, and Folders within the folder.
 
         Arguments:
@@ -401,11 +405,11 @@ class Folder(AccessControllable, StorableContainer):
             Assuming you have a folder with the ID "syn123" and you want to copy it to a
             project with the ID "syn456":
 
-                new_folder_instance = await Folder(id="syn123").copy(parent_id="syn456")
+                new_folder_instance = await Folder(id="syn123").copy_async(parent_id="syn456")
 
             Copy the folder but do not persist annotations:
 
-                new_folder_instance = await Folder(id="syn123").copy(parent_id="syn456", copy_annotations=False)
+                new_folder_instance = await Folder(id="syn123").copy_async(parent_id="syn456", copy_annotations=False)
 
         Raises:
             ValueError: If the folder does not have an ID and parent_id to copy.
@@ -436,7 +440,9 @@ class Folder(AccessControllable, StorableContainer):
         new_folder_id = source_and_destination.get(self.id, None)
         if not new_folder_id:
             raise SynapseError("Failed to copy folder.")
-        folder_copy = await (await Folder(id=new_folder_id).get()).sync_from_synapse(
+        folder_copy = await (
+            await Folder(id=new_folder_id).get_async()
+        ).sync_from_synapse_async(
             download_file=False,
             synapse_client=synapse_client,
         )

@@ -1,3 +1,5 @@
+"""Integration tests for UserProfile."""
+
 import pytest
 from synapseclient.models import UserProfile
 from typing import Callable
@@ -18,10 +20,10 @@ class TestUser:
     @pytest.mark.asyncio
     async def test_from_id(self) -> None:
         # GIVEN our test profile
-        integration_test_profile = await UserProfile().get()
+        integration_test_profile = await UserProfile().get_async()
 
         # WHEN we get the profile by ID
-        profile = await UserProfile.from_id(integration_test_profile.id)
+        profile = await UserProfile.from_id_async(integration_test_profile.id)
 
         # THEN we expect the profile to be the same as the one we got from the fixture
         assert profile == integration_test_profile
@@ -29,10 +31,12 @@ class TestUser:
     @pytest.mark.asyncio
     async def test_from_username(self) -> None:
         # GIVEN our test profile
-        integration_test_profile = await UserProfile().get()
+        integration_test_profile = await UserProfile().get_async()
 
         # WHEN we get the profile by username
-        profile = await UserProfile.from_username(integration_test_profile.username)
+        profile = await UserProfile.from_username_async(
+            integration_test_profile.username
+        )
 
         # THEN we expect the profile to be the same as the one we got from the fixture
         assert profile == integration_test_profile
@@ -40,13 +44,13 @@ class TestUser:
     @pytest.mark.asyncio
     async def test_is_certified_id(self) -> None:
         # GIVEN out test profile
-        integration_test_profile = await UserProfile().get()
+        integration_test_profile = await UserProfile().get_async()
 
         # AND a copy of the profile
         profile_copy = UserProfile(id=integration_test_profile.id)
 
         # WHEN we check if the profile is certified
-        is_certified = await profile_copy.is_certified()
+        is_certified = await profile_copy.is_certified_async()
 
         # THEN we expect the profile to not be certified
         assert is_certified is False
@@ -54,13 +58,13 @@ class TestUser:
     @pytest.mark.asyncio
     async def test_is_certified_username(self) -> None:
         # GIVEN out test profile
-        integration_test_profile = await UserProfile().get()
+        integration_test_profile = await UserProfile().get_async()
 
         # AND a copy of the profile
         profile_copy = UserProfile(username=integration_test_profile.username)
 
         # WHEN we check if the profile is certified
-        is_certified = await profile_copy.is_certified()
+        is_certified = await profile_copy.is_certified_async()
 
         # THEN we expect the profile to not be certified
         assert is_certified is False
