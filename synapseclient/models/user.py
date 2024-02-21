@@ -1,15 +1,15 @@
 import asyncio
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Union
-from synapseclient import Synapse
+from typing import Dict, List, Optional, Union
 
-from synapseclient.core.async_utils import otel_trace_method
-from synapseclient.team import (
-    UserProfile as Synapse_UserProfile,
-    UserGroupHeader as Synapse_UserGroupHeader,
-)
-from opentelemetry import trace, context
+from opentelemetry import context, trace
+
+from synapseclient import Synapse
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models.protocols.user_protocol import UserProfileSynchronousProtocol
+from synapseclient.team import UserGroupHeader as Synapse_UserGroupHeader
+from synapseclient.team import UserProfile as Synapse_UserProfile
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -77,7 +77,8 @@ class UserPreference:
 
 
 @dataclass()
-class UserProfile:
+@async_to_sync
+class UserProfile(UserProfileSynchronousProtocol):
     """
     UserProfile represents a user's profile in the system.
 
@@ -114,9 +115,11 @@ class UserProfile:
     """A name chosen by the user that uniquely identifies them."""
 
     etag: Optional[str] = None
-    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    """
+    Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
     concurrent updates. Since the E-Tag changes every time an entity is updated it is
-    used to detect when a client's current representation of an entity is out-of-date."""
+    used to detect when a client's current representation of an entity is out-of-date.
+    """
 
     first_name: Optional[str] = None
     """This person's given name (forename)"""
@@ -226,7 +229,7 @@ class UserProfile:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Profile_Get: Username: {self.username}, id: {self.id}"
     )
-    async def get(
+    async def get_async(
         self,
         synapse_client: Optional[Synapse] = None,
     ) -> "UserProfile":
@@ -235,7 +238,8 @@ class UserProfile:
         and username is not specified this will retrieve the current user's profile.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The UserProfile object.
@@ -282,7 +286,7 @@ class UserProfile:
     @otel_trace_method(
         method_to_trace_name=lambda cls, user_id, **kwargs: f"Profile_From_Id: {user_id}"
     )
-    async def from_id(
+    async def from_id_async(
         cls, user_id: int, synapse_client: Optional[Synapse] = None
     ) -> "UserProfile":
         """Gets UserProfile object using its integer id. Wrapper for the
@@ -290,19 +294,20 @@ class UserProfile:
 
         Arguments:
             user_id: The id of the user.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The UserProfile object.
         """
 
-        return await cls(id=user_id).get(synapse_client=synapse_client)
+        return await cls(id=user_id).get_async(synapse_client=synapse_client)
 
     @classmethod
     @otel_trace_method(
         method_to_trace_name=lambda cls, username, **kwargs: f"Profile_From_Username: {username}"
     )
-    async def from_username(
+    async def from_username_async(
         cls, username: str, synapse_client: Optional[Synapse] = None
     ) -> "UserProfile":
         """
@@ -311,17 +316,18 @@ class UserProfile:
 
         Arguments:
             username: A name chosen by the user that uniquely identifies them.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The UserProfile object.
         """
-        return await cls(username=username).get(synapse_client=synapse_client)
+        return await cls(username=username).get_async(synapse_client=synapse_client)
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Profile_is_certified: Username: {self.username}, id: {self.id}"
     )
-    async def is_certified(
+    async def is_certified_async(
         self,
         synapse_client: Optional[Synapse] = None,
     ) -> "bool":
@@ -329,7 +335,8 @@ class UserProfile:
         Determine whether a user is certified.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             True if the user is certified, False otherwise.

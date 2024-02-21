@@ -4,16 +4,18 @@ Expects that ~/temp exists and is a directory.
 The purpose of this script is to demonstrate how to use the new OOP interface for projects.
 The following actions are shown in this script:
 1. Creating a project
-2. Storing a folder to a project
-3. Storing several files to a project
-4. Storing several folders in a project
-5. Getting metadata about a project
+2. Retrieving a project by id or name
+3. Upserting data on a project
+4. Storing several files to a project
+5. Storing several folders in a project
 6. Updating the annotations in bulk for a number of folders and files
-7. Deleting a project
+7. Downloading an entire project structure to disk
+8. Copy a project and all content to a new project
+9. Deleting a project
 """
 
-import asyncio
 import os
+import uuid
 from synapseclient.models import (
     File,
     Folder,
@@ -29,15 +31,12 @@ syn.login()
 def create_random_file(
     path: str,
 ) -> None:
-    """Create a random file with random data.
-
-    :param path: The path to create the file at.
-    """
+    """Create a random file with random data."""
     with open(path, "wb") as f:
         f.write(os.urandom(1))
 
 
-async def store_project():
+def store_project():
     # Creating annotations for my project ==================================================
     my_annotations = {
         "my_single_key_string": "a",
@@ -53,35 +52,51 @@ async def store_project():
             datetime(2023, 12, 7, 13, 0, 0, tzinfo=timezone(timedelta(hours=0))),
             datetime(2023, 12, 7, 13, 0, 0, tzinfo=timezone(timedelta(hours=-7))),
         ],
+        "annotation_i_want_to_delete": "I want to delete this annotation",
     }
 
-    # Creating a project =============================================================
+    # 1) Creating a project ==============================================================
     project = Project(
         name="my_new_project_for_testing",
         annotations=my_annotations,
         description="This is a project with random data.",
+        alias="my_project_alias_" + str(uuid.uuid4()).replace("-", "_"),
     )
 
-    project = await project.store()
+    project = project.store()
 
-    print("Project created:")
-    print(project)
+    print(f"Project created with id: {project.id}")
 
-    # Updating and storing an annotation =============================================
-    project_copy = await Project(id=project.id).get()
-    project_copy.annotations["my_key_string"] = ["new", "values", "here"]
-    stored_project = await project_copy.store()
-    print("Project updated:")
-    print(stored_project)
+    # 2) Retrieving a project by id or name ==============================================
+    project = Project(name="my_new_project_for_testing").get()
+    print(f"Project retrieved by name: {project.name} with id: {project.id}")
 
-    # Storing several files to a project =============================================
+    project = Project(id=project.id).get()
+    print(f"Project retrieved by id: {project.name} with id: {project.id}")
+
+    # 3) Upserting data on a project =====================================================
+    # When you have not already use `.store()` or `.get()` on a project any updates will
+    # be a non-destructive upsert. This means that if the project does not exist it will
+    # be created, if it does exist it will be updated.
+    project = Project(
+        name="my_new_project_for_testing", description="my new description"
+    ).store()
+    print(f"Project description updated to {project.description}")
+
+    # After the instance has interacted with Synapse any changes will be destructive,
+    # meaning changes in the data will act as a replacement instead of an addition.
+    print(f"Annotations before update: {project.annotations}")
+    del project.annotations["annotation_i_want_to_delete"]
+    project = project.store()
+    print(f"Annotations after update: {project.annotations}")
+
+    # 4) Storing several files to a project ==============================================
     files_to_store = []
     for loop in range(1, 10):
         name_of_file = f"my_file_with_random_data_{loop}.txt"
         path_to_file = os.path.join(os.path.expanduser("~/temp"), name_of_file)
         create_random_file(path_to_file)
 
-        # Creating and uploading a file to a project =================================
         file = File(
             path=path_to_file,
             name=name_of_file,
@@ -89,31 +104,29 @@ async def store_project():
         )
         files_to_store.append(file)
     project.files = files_to_store
-    project = await project.store()
+    project = project.store()
 
-    # Storing several folders in a project ===========================================
+    # 5) Storing several folders in a project ============================================
     folders_to_store = []
     for loop in range(1, 10):
         folder_to_store = Folder(
-            name=f"my_new_folder_for_this_project_{loop}",
+            name=f"my_folder_for_this_project_{loop}",
             annotations=my_annotations,
         )
         folders_to_store.append(folder_to_store)
-    project.files = []
     project.folders = folders_to_store
-    project = await project.store()
+    print(
+        f"Storing project ({project.id}) with {len(project.folders)} folders and {len(project.files)} files"
+    )
+    project = project.store()
 
-    # Getting metadata about a project ===============================================
-    project_copy = await Project(id=project.id).sync_from_synapse(download_file=False)
+    # 6) Updating the annotations in bulk for a number of folders and files ==============
+    project_copy = Project(id=project.id).sync_from_synapse(download_file=False)
 
-    print(f"Project metadata: for {project_copy.name} with id: {project_copy.id}")
-    for file in project_copy.files:
-        print(f"File: {file.name}")
+    print(
+        f"Found {len(project_copy.files)} files and {len(project_copy.folders)} folder at the root level for {project_copy.name} with id: {project_copy.id}"
+    )
 
-    for folder in project_copy.folders:
-        print(f"Folder: {folder.name}")
-
-    # Updating the annotations in bulk for a number of folders and files =============
     new_annotations = {
         "my_new_key_string": ["b", "a", "c"],
     }
@@ -124,14 +137,28 @@ async def store_project():
     for folder in project_copy.folders:
         folder.annotations = new_annotations
 
-    await project_copy.store()
+    project_copy.store()
 
-    # Deleting a project =============================================================
-    project_to_delete = await Project(
-        name="my_new_project_I_want_to_delete",
+    # 7) Downloading an entire project structure to disk =================================
+    print(f"Downloading project ({project.id}) to ~/temp")
+    Project(id=project.id).sync_from_synapse(
+        download_file=True, path="~/temp/recursiveDownload", recursive=True
+    )
+
+    # 8) Copy a project and all content to a new project =================================
+    project_to_delete = Project(
+        name="my_new_project_I_want_to_delete_" + str(uuid.uuid4()).replace("-", "_"),
     ).store()
+    print(f"Project created with id: {project_to_delete.id}")
 
-    await project_to_delete.delete()
+    project_to_delete = project.copy(destination_id=project_to_delete.id)
+    print(
+        f"Copied to new project, copied {len(project_to_delete.folders)} folders and {len(project_to_delete.files)} files"
+    )
+
+    # 9) Deleting a project ==============================================================
+    project_to_delete.delete()
+    print(f"Project with id: {project_to_delete.id} deleted")
 
 
-asyncio.run(store_project())
+store_project()

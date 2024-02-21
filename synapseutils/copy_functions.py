@@ -440,7 +440,8 @@ def _copyRecursive(
     copiedId = None
 
     if isinstance(ent, Project):
-        if not isinstance(syn.get(destinationId), Project):
+        project = syn.get(destinationId)
+        if not isinstance(project, Project):
             raise ValueError(
                 "You must give a destinationId of a new project to copy projects"
             )
@@ -460,6 +461,10 @@ def _copyRecursive(
                 skipCopyAnnotations=skipCopyAnnotations,
                 **kwargs,
             )
+
+        if not skipCopyAnnotations:
+            project.annotations = ent.annotations
+            syn.store(project)
     elif isinstance(ent, Folder):
         copiedId = _copyFolder(
             syn,

@@ -1,13 +1,16 @@
+"""Integration tests for Activity."""
+
 from typing import Callable
 import uuid
 import pytest
 from synapseclient.models import Activity, UsedURL, UsedEntity, File
 from synapseclient import (
-    client,
     Synapse,
     Project as Synapse_Project,
 )
 import synapseclient.core.utils as utils
+
+BOGUS_URL = "https://www.synapse.org/"
 
 
 class TestActivity:
@@ -26,7 +29,7 @@ class TestActivity:
             parent_id=project["id"], path=path, name=f"bogus_file_{str(uuid.uuid4())}"
         )
         self.schedule_for_cleanup(file.path)
-        await file.store()
+        await file.store_async()
         self.schedule_for_cleanup(file.id)
 
         # AND an activity I want to store
@@ -34,17 +37,17 @@ class TestActivity:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
 
         # WHEN I store the activity
-        result = await activity.store(parent=file)
+        result = await activity.store_async(parent=file)
         self.schedule_for_cleanup(result.id)
 
         # THEN I expect the activity to be stored
@@ -55,11 +58,11 @@ class TestActivity:
         assert result.modified_on is not None
         assert result.created_by is not None
         assert result.modified_by is not None
-        assert result.used[0].url == "https://www.synapse.org/"
+        assert result.used[0].url == BOGUS_URL
         assert result.used[0].name == "example"
         assert result.used[1].target_id == "syn456"
         assert result.used[1].target_version_number == 1
-        assert result.executed[0].url == "https://www.synapse.org/"
+        assert result.executed[0].url == BOGUS_URL
         assert result.executed[0].name == "example"
         assert result.executed[1].target_id == "syn789"
         assert result.executed[1].target_version_number == 1
@@ -72,7 +75,7 @@ class TestActivity:
         modified_activity.description = "modified_description"
 
         # AND I store the modified activity without a parent
-        modified_result = await modified_activity.store()
+        modified_result = await modified_activity.store_async()
 
         # THEN I expect the modified activity to be stored
         assert modified_result == modified_activity
@@ -84,17 +87,17 @@ class TestActivity:
         assert modified_result.modified_by is not None
         assert modified_result.name == "modified_name"
         assert modified_result.description == "modified_description"
-        assert modified_result.used[0].url == "https://www.synapse.org/"
+        assert modified_result.used[0].url == BOGUS_URL
         assert modified_result.used[0].name == "example"
         assert modified_result.used[1].target_id == "syn456"
         assert modified_result.used[1].target_version_number == 1
-        assert modified_result.executed[0].url == "https://www.synapse.org/"
+        assert modified_result.executed[0].url == BOGUS_URL
         assert modified_result.executed[0].name == "example"
         assert modified_result.executed[1].target_id == "syn789"
         assert modified_result.executed[1].target_version_number == 1
 
         # Clean up
-        await result.delete(parent=file)
+        await result.delete_async(parent=file)
 
     @pytest.mark.asyncio
     async def test_store_with_no_references(self, project: Synapse_Project) -> None:
@@ -113,7 +116,7 @@ class TestActivity:
         self.schedule_for_cleanup(file.path)
 
         # WHEN I store the file with the activity
-        await file.store()
+        await file.store_async()
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the activity to have been stored
@@ -129,7 +132,7 @@ class TestActivity:
         assert file.activity.modified_by is not None
 
         # Clean up
-        await file.activity.delete(parent=file)
+        await file.activity.delete_async(parent=file)
 
     @pytest.mark.asyncio
     async def test_from_parent(self, project: Synapse_Project) -> None:
@@ -138,11 +141,11 @@ class TestActivity:
             name="some_name",
             description="some_description",
             used=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
             executed=[
-                UsedURL(name="example", url="https://www.synapse.org/"),
+                UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
@@ -154,11 +157,11 @@ class TestActivity:
             activity=activity,
         )
         self.schedule_for_cleanup(file.path)
-        await file.store()
+        await file.store_async()
         self.schedule_for_cleanup(file.id)
 
         # WHEN I get the activity from the file
-        result = await Activity.from_parent(parent=file)
+        result = await Activity.from_parent_async(parent=file)
 
         # THEN I expect the activity to be returned
         assert result == activity
@@ -170,17 +173,17 @@ class TestActivity:
         assert result.modified_on is not None
         assert result.created_by is not None
         assert result.modified_by is not None
-        assert result.used[0].url == "https://www.synapse.org/"
+        assert result.used[0].url == BOGUS_URL
         assert result.used[0].name == "example"
         assert result.used[1].target_id == "syn456"
         assert result.used[1].target_version_number == 1
-        assert result.executed[0].url == "https://www.synapse.org/"
+        assert result.executed[0].url == BOGUS_URL
         assert result.executed[0].name == "example"
         assert result.executed[1].target_id == "syn789"
         assert result.executed[1].target_version_number == 1
 
         # Clean up
-        await result.delete(parent=file)
+        await result.delete_async(parent=file)
 
     @pytest.mark.asyncio
     async def test_delete(self, project: Synapse_Project) -> None:
@@ -199,15 +202,15 @@ class TestActivity:
         self.schedule_for_cleanup(file.path)
 
         # AND I store the file with the activity
-        await file.store()
+        await file.store_async()
         self.schedule_for_cleanup(file.id)
 
         # AND the activity exists
         assert file.activity.id is not None
 
         # WHEN I delete the activity
-        await file.activity.delete(parent=file)
+        await file.activity.delete_async(parent=file)
 
         # THEN I expect to receieve None
-        activity = await Activity.from_parent(parent=file)
+        activity = await Activity.from_parent_async(parent=file)
         assert activity is None

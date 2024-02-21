@@ -1,28 +1,28 @@
 import asyncio
-from dataclasses import dataclass, field
 import dataclasses
+from copy import deepcopy
+from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Dict, List, Union
-from opentelemetry import trace, context
-from synapseclient.models import Annotations, Activity
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from synapseclient.entity import File as Synapse_File
+from opentelemetry import context, trace
+
 from synapseclient import Synapse
-from synapseclient.core.async_utils import otel_trace_method
-from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import (
-    run_and_attach_otel_context,
-    guess_file_name,
     delete_none_keys,
+    guess_file_name,
+    run_and_attach_otel_context,
 )
-from synapseutils.copy_functions import changeFileMetaData, copy
+from synapseclient.entity import File as Synapse_File
+from synapseclient.models import Activity, Annotations
+from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.models.protocols.file_protocol import FileSynchronousProtocol
 from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
 )
-from synapseclient.core.exceptions import SynapseError
-
-from typing import Optional, TYPE_CHECKING
-
+from synapseutils.copy_functions import changeFileMetaData, copy
 
 if TYPE_CHECKING:
     from synapseclient.models import Folder, Project
@@ -57,7 +57,8 @@ class FileHandle:
             cannot be changed, any file handle that is not AVAILABLE should not be used.
         bucket_name: The name of the bucket where this file resides.
         key: The path or resource name for this object.
-        preview_id: If this file has a preview, then this will be the file ID of the preview.
+        preview_id: If this file has a preview, then this will be the file ID of the
+            preview.
         is_preview: Whether or not this is a preview of another file.
         external_url: The URL of the file if it is stored externally.
     """
@@ -67,8 +68,10 @@ class FileHandle:
         Synapse will generate this ID when the FileHandle is created."""
 
     etag: Optional[str] = None
-    """FileHandles are immutable from the perspective of the API. The only field that can
-        be change is the previewId. When a new previewId is set, the etag will change."""
+    """
+    FileHandles are immutable from the perspective of the API. The only field that can
+    be change is the previewId. When a new previewId is set, the etag will change.
+    """
 
     created_by: Optional[str] = None
     """The ID Of the user that created this file."""
@@ -81,8 +84,10 @@ class FileHandle:
     be modified."""
 
     concrete_type: Optional[str] = None
-    """This is used to indicate the implementation of this interface. For example,
-    an S3FileHandle should be set to: org.sagebionetworks.repo.model.file.S3FileHandle"""
+    """
+    This is used to indicate the implementation of this interface. For example,
+    an S3FileHandle should be set to: org.sagebionetworks.repo.model.file.S3FileHandle
+    """
 
     content_type: Optional[str] = None
     """Must be: <http://en.wikipedia.org/wiki/Internet_media_type>."""
@@ -120,16 +125,17 @@ class FileHandle:
 
 
 @dataclass()
-class File(AccessControllable):
+@async_to_sync
+class File(FileSynchronousProtocol, AccessControllable):
     """A file within Synapse.
 
     Attributes:
-        id: The unique immutable ID for this file. A new ID will be generated for
-            new Files. Once issued, this ID is guaranteed to never change or be re-issued.
+        id: The unique immutable ID for this file. A new ID will be generated for new
+            Files. Once issued, this ID is guaranteed to never change or be re-issued.
         name: The name of this entity. Must be 256 characters or less. Names may only
-            contain: letters, numbers, spaces, underscores, hyphens, periods, plus signs,
-            apostrophes, and parentheses. If not specified, the name will be derived from
-            the file name.
+            contain: letters, numbers, spaces, underscores, hyphens, periods, plus
+            signs, apostrophes, and parentheses. If not specified, the name will be
+            derived from the file name.
         path: The path to the file on disk.
         content_type: Used to manually specify Content-type header, for example
             'application/png' or 'application/json; charset=UTF-8'. If not specified,
@@ -142,8 +148,8 @@ class File(AccessControllable):
             [synapseclient.models.File.change_metadata][].
         description: The description of this file. Must be 1000 characters or less.
         etag: (Read Only) Synapse employs an Optimistic Concurrency Control (OCC) scheme
-            to handle concurrent updates. Since the E-Tag changes every time an entity is
-            updated it is used to detect when a client's current representation of an
+            to handle concurrent updates. Since the E-Tag changes every time an entity
+            is updated it is used to detect when a client's current representation of an
             entity is out-of-date.
         created_on: (Read Only) The date this entity was created.
         modified_on: (Read Only) The date this entity was last modified.
@@ -151,17 +157,18 @@ class File(AccessControllable):
         modified_by: (Read Only) The ID of the user that last modified this entity.
         parent_id: The ID of the Entity that is the parent of this Entity. Setting this
             to a new value and storing it will move this File under the new parent.
-        version_number: (Read Only) The version number issued to this version on the object.
+        version_number: (Read Only) The version number issued to this version on the
+            object.
         version_label: The version label for this entity
         version_comment: The version comment for this entity
         is_latest_version: (Read Only) If this is the latest version of the object.
         data_file_handle_id: ID of the file associated with this entity. You may define
             an existing data_file_handle_id to use the existing data_file_handle_id. The
-            creator of the file must also be the owner of the data_file_handle_id to have
-            permission to store the file.
+            creator of the file must also be the owner of the data_file_handle_id to
+            have permission to store the file.
         file_handle: (Read Only) The file handle associated with this entity.
-        activity: The Activity model represents the main record of Provenance in Synapse.
-            It is analygous to the Activity defined in the
+        activity: The Activity model represents the main record of Provenance in
+            Synapse. It is analygous to the Activity defined in the
             [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
@@ -177,9 +184,9 @@ class File(AccessControllable):
             force a version update regardless of this flag.
         is_restricted: (Store only)
             If set to true, an email will be sent to the Synapse access control
-            team to start the process of adding terms-of-use or review board approval for
-            this entity. You will be contacted with regards to the specific data being
-            restricted and the requirements of access.
+            team to start the process of adding terms-of-use or review board approval
+            for this entity. You will be contacted with regards to the specific data
+            being restricted and the requirements of access.
         synapse_store: (Store only)
             Whether the File should be uploaded or if false: only the path should
             be stored when [synapseclient.models.File.store][] is called.
@@ -193,9 +200,9 @@ class File(AccessControllable):
             - `keep.both`
         synapse_container_limit: (Get only)
             A Synanpse ID used to limit the search in Synapse if
-            file is specified as a local file. That is, if the file is stored in multiple
-            locations in Synapse only the ones in the specified folder/project will be
-            returned.
+            file is specified as a local file. That is, if the file is stored in
+            multiple locations in Synapse only the ones in the specified folder/project
+            will be returned.
     """
 
     id: Optional[str] = None
@@ -233,8 +240,8 @@ class File(AccessControllable):
     """
     (Read Only)
     Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
-    concurrent updates. Since the E-Tag changes every time an entity is updated it
-    is used to detect when a client's current representation of an entity is out-of-date.
+    concurrent updates. Since the E-Tag changes every time an entity is updated it is
+    used to detect when a client's current representation of an entity is out-of-date.
     """
 
     created_on: Optional[str] = None
@@ -320,8 +327,8 @@ class File(AccessControllable):
     """
     (Store only)
 
-    If set to true, an email will be sent to the Synapse access control team to start the
-    process of adding terms-of-use or review board approval for this entity.
+    If set to true, an email will be sent to the Synapse access control team to start
+    the process of adding terms-of-use or review board approval for this entity.
     You will be contacted with regards to the specific data being restricted and the
     requirements of access.
     """
@@ -376,6 +383,9 @@ class File(AccessControllable):
         self._last_persistent_instance = dataclasses.replace(self)
         self._last_persistent_instance.activity = (
             dataclasses.replace(self.activity) if self.activity else None
+        )
+        self._last_persistent_instance.annotations = (
+            deepcopy(self.annotations) if self.annotations else None
         )
 
     def fill_from_dict(
@@ -440,7 +450,7 @@ class File(AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"File_Store: {self.path if self.path else self.id}"
     )
-    async def store(
+    async def store_async(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
         synapse_client: Optional[Synapse] = None,
@@ -472,27 +482,27 @@ class File(AccessControllable):
         Example: Using this function
             File with the ID `syn123` at path `path/to/file.txt`:
 
-                file_instance = await File(id="syn123", path="path/to/file.txt").store()
+                file_instance = await File(id="syn123", path="path/to/file.txt").store_async()
 
             File at the path `path/to/file.txt` and a parent folder with the ID `syn456`:
 
-                file_instance = await File(path="path/to/file.txt", parent_id="syn456").store()
+                file_instance = await File(path="path/to/file.txt", parent_id="syn456").store_async()
 
             File at the path `path/to/file.txt` and a parent folder with the ID `syn456`:
 
-                file_instance = await File(path="path/to/file.txt").store(parent=Folder(id="syn456"))
+                file_instance = await File(path="path/to/file.txt").store_async(parent=Folder(id="syn456"))
 
             Rename a file (Does not update the file on disk or the name of the downloaded file):
 
-                file_instance = await File(id="syn123", download_file=False).get()
+                file_instance = await File(id="syn123", download_file=False).get_async()
                 print(file_instance.name)  ## prints, e.g., "my_file.txt"
-                await file_instance.change_metadata(name="my_new_name_file.txt")
+                await file_instance.change_metadata_async(name="my_new_name_file.txt")
 
             Rename a file, and the name of the file as downloaded (Does not update the file on disk):
 
-                file_instance = await File(id="syn123", download_file=False).get()
+                file_instance = await File(id="syn123", download_file=False).get_async()
                 print(file_instance.name)  ## prints, e.g., "my_file.txt"
-                await file_instance.change_metadata(name="my_new_name_file.txt", download_as="my_new_name_file.txt")
+                await file_instance.change_metadata_async(name="my_new_name_file.txt", download_as="my_new_name_file.txt")
 
         """
         if not (
@@ -547,7 +557,7 @@ class File(AccessControllable):
         if re_read_required:
             before_download_file = self.download_file
             self.download_file = False
-            await self.get(
+            await self.get_async(
                 synapse_client=synapse_client,
             )
             self.download_file = before_download_file
@@ -562,7 +572,7 @@ class File(AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"File_Change_Metadata: {self.id}"
     )
-    async def change_metadata(
+    async def change_metadata_async(
         self,
         name: Optional[str] = None,
         download_as: Optional[str] = None,
@@ -574,9 +584,10 @@ class File(AccessControllable):
         through the store method.
 
         Arguments:
-            name: Specify filename to change the filename of a file.
+            name: Specify to change the filename of a file as seen on Synapse.
             download_as: Specify filename to change the filename of a filehandle.
-            content_type: Specify content type to change the content type of a filehandle.
+            content_type: Specify content type to change the content type of a
+                filehandle.
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
 
@@ -586,9 +597,9 @@ class File(AccessControllable):
         Example: Using this function
             Can be used to change the filename, the filename when the file is downloaded, or the file content-type without downloading:
 
-                file_entity = await File(id="syn123").get()
+                file_entity = await File(id="syn123", download_file=False).get_async()
                 print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
-                file_entity = file_entity.change_metadata(name="my_new_name_file.txt", download_as="my_new_downloadAs_name_file.txt", content_type="text/plain")
+                file_entity = await file_entity.change_metadata_async(name="my_new_name_file.txt", download_as="my_new_downloadAs_name_file.txt", content_type="text/plain")
                 print(os.path.basename(file_entity.path))  ## prints, "my_new_downloadAs_name_file.txt"
                 print(file_entity.name) ## prints, "my_new_name_file.txt"
 
@@ -627,7 +638,7 @@ class File(AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"File_Get: {self.id}, {self.path}"
     )
-    async def get(
+    async def get_async(
         self,
         include_activity: bool = False,
         synapse_client: Optional[Synapse] = None,
@@ -642,15 +653,16 @@ class File(AccessControllable):
         If you specify both, the `id` will take precedence.
 
 
-        If you specify the `path` and the file is stored in multiple locations in Synapse
-        only the first one found will be returned. The other matching files will be
-        printed to the console.
+        If you specify the `path` and the file is stored in multiple locations in
+        Synapse only the first one found will be returned. The other matching files
+        will be printed to the console.
 
 
         You may also specify a `version_number` to get a specific version of the file.
 
         Arguments:
-            include_activity: If True the activity will be included in the file if it exists.
+            include_activity: If True the activity will be included in the file
+                if it exists.
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
 
@@ -664,11 +676,11 @@ class File(AccessControllable):
         Example: Using this function
             Assuming you have a file with the ID "syn123":
 
-                file_instance = await File(id="syn123").get()
+                file_instance = await File(id="syn123").get_async()
 
             Assuming you have a file at the path "path/to/file.txt":
 
-                file_instance = await File(path="path/to/file.txt").get()
+                file_instance = await File(path="path/to/file.txt").get_async()
         """
         if not self.id and not self.path:
             raise ValueError("The file must have an ID or path to get.")
@@ -693,7 +705,7 @@ class File(AccessControllable):
         self.fill_from_dict(synapse_file=entity, set_annotations=True)
 
         if include_activity:
-            self.activity = await Activity.from_parent(
+            self.activity = await Activity.from_parent_async(
                 parent=self, synapse_client=synapse_client
             )
 
@@ -704,7 +716,7 @@ class File(AccessControllable):
         return self
 
     @classmethod
-    async def from_id(
+    async def from_id_async(
         cls,
         synapse_id: str,
         synapse_client: Optional[Synapse] = None,
@@ -713,7 +725,8 @@ class File(AccessControllable):
 
         Arguments:
             synapse_id: The ID of the file in Synapse.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The file object.
@@ -721,14 +734,14 @@ class File(AccessControllable):
         Example: Using this function
             Assuming you have a file with the ID "syn123":
 
-                file_instance = await File.from_id(synapse_id="syn123")
+                file_instance = await File.from_id_async(synapse_id="syn123")
         """
-        return await cls(id=synapse_id).get(
+        return await cls(id=synapse_id).get_async(
             synapse_client=synapse_client,
         )
 
     @classmethod
-    async def from_path(
+    async def from_path_async(
         cls,
         path: str,
         synapse_client: Optional[Synapse] = None,
@@ -742,7 +755,8 @@ class File(AccessControllable):
 
         Arguments:
             path: The path to the file on disk.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The file object.
@@ -750,19 +764,27 @@ class File(AccessControllable):
         Example: Using this function
             Assuming you have a file at the path "path/to/file.txt":
 
-                file_instance = await File.from_path(path="path/to/file.txt")
+                file_instance = await File.from_path_async(path="path/to/file.txt")
         """
-        return await cls(path=path).get(
+        return await cls(path=path).get_async(
             synapse_client=synapse_client,
         )
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"File_Delete: {self.id}"
     )
-    async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
-        """Delete the file from Synapse.
+    async def delete_async(
+        self,
+        version_only: Optional[bool] = False,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """
+        Delete the file from Synapse using the ID of the file.
 
         Arguments:
+            version_only: If True only the version specified in the `version_number`
+                attribute of the file will be deleted. If False the entire file will
+                be deleted.
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
 
@@ -771,14 +793,18 @@ class File(AccessControllable):
 
         Raises:
             ValueError: If the file does not have an ID to delete.
+            ValueError: If the file does not have a version number to delete a version,
+                and `version_only` is True.
 
         Example: Using this function
             Assuming you have a file with the ID "syn123":
 
-                await File(id="syn123").delete()
+                await File(id="syn123").delete_async()
         """
         if not self.id:
             raise ValueError("The file must have an ID to delete.")
+        if version_only and not self.version_number:
+            raise ValueError("The file must have a version number to delete a version.")
 
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
@@ -787,6 +813,7 @@ class File(AccessControllable):
             lambda: run_and_attach_otel_context(
                 lambda: Synapse.get_client(synapse_client=synapse_client).delete(
                     obj=self.id,
+                    version=self.version_number if version_only else None,
                 ),
                 current_context,
             ),
@@ -798,7 +825,7 @@ class File(AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"File_Copy: {self.id}"
     )
-    async def copy(
+    async def copy_async(
         self,
         parent_id: str,
         update_existing: bool = False,
@@ -807,7 +834,7 @@ class File(AccessControllable):
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
-        Copy the file to another Synpase location. Defaults to the latest version of the
+        Copy the file to another Synapse location. Defaults to the latest version of the
         file, or the version_number specified in the instance.
 
         Arguments:
@@ -830,11 +857,11 @@ class File(AccessControllable):
         Example: Using this function
             Assuming you have a file with the ID "syn123" and you want to copy it to a folder with the ID "syn456":
 
-                new_file_instance = await File(id="syn123").copy(parent_id="syn456")
+                new_file_instance = await File(id="syn123").copy_async(parent_id="syn456")
 
             Copy the file but do not persist annotations or activity:
 
-                new_file_instance = await File(id="syn123").copy(parent_id="syn456", copy_annotations=False, copy_activity=None)
+                new_file_instance = await File(id="syn123").copy_async(parent_id="syn456", copy_annotations=False, copy_activity=None)
 
         Raises:
             ValueError: If the file does not have an ID and parent_id to copy.
@@ -865,7 +892,7 @@ class File(AccessControllable):
         parent_id = source_and_destination.get(self.id, None)
         if not parent_id:
             raise SynapseError("Failed to copy file.")
-        file_copy = await File(id=parent_id, download_file=False).get(
+        file_copy = await File(id=parent_id, download_file=False).get_async(
             synapse_client=synapse_client
         )
         file_copy.download_file = True

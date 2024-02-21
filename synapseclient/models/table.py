@@ -1,29 +1,30 @@
 import asyncio
+import os
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-import os
 from typing import Any, Dict, List, Optional, Union
-from synapseclient import (
-    Synapse,
-    Schema as Synapse_Schema,
-    Table as Synapse_Table,
-    Column as Synapse_Column,
-)
-from synapseclient.table import (
-    CsvFileTable as Synapse_CsvFileTable,
-    TableQueryResult as Synaspe_TableQueryResult,
-    delete_rows,
-)
-from synapseclient.models import Annotations, Activity
-from synapseclient.core.async_utils import otel_trace_method
+
+from opentelemetry import context, trace
+
+from synapseclient import Column as Synapse_Column
+from synapseclient import Schema as Synapse_Schema
+from synapseclient import Synapse
+from synapseclient import Table as Synapse_Table
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.models.protocols.table_protocol import (
+    ColumnSynchronousProtocol,
+    TableSynchronousProtocol,
+)
 from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
 )
-from opentelemetry import trace, context
-
+from synapseclient.table import CsvFileTable as Synapse_CsvFileTable
+from synapseclient.table import TableQueryResult as Synaspe_TableQueryResult
+from synapseclient.table import delete_rows
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -252,7 +253,8 @@ class Row:
 
 
 @dataclass()
-class Column:
+@async_to_sync
+class Column(ColumnSynchronousProtocol):
     """A column model contains the metadata of a single column of a table or view."""
 
     id: str
@@ -310,11 +312,15 @@ class Column:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Column_Store: {self.name}"
     )
-    async def store(self, synapse_client: Optional[Synapse] = None):
+    async def store_async(self, synapse_client: Optional[Synapse] = None) -> "Column":
         """Persist the column to Synapse.
 
-        :param synapse_client: If not passed in or None this will use the last client from the `.login()` method.
-        :return: Column
+        Arguments:
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
+
+        Returns:
+            The Column instance stored in synapse.
         """
         # TODO - We need to add in some validation before the store to verify we have enough
         # information to store the data
@@ -341,36 +347,39 @@ class Column:
 
 
 @dataclass()
-class Table(AccessControllable):
+@async_to_sync
+class Table(TableSynchronousProtocol, AccessControllable):
     """A Table represents the metadata of a table.
 
     Attributes:
         id: The unique immutable ID for this table. A new ID will be generated for new
             Tables. Once issued, this ID is guaranteed to never change or be re-issued
         name: The name of this table. Must be 256 characters or less. Names may only
-            contain: letters, numbers, spaces, underscores, hyphens, periods, plus signs,
-            apostrophes, and parentheses
+            contain: letters, numbers, spaces, underscores, hyphens, periods, plus
+            signs, apostrophes, and parentheses
         parent_id: The ID of the Entity that is the parent of this table.
         columns: The columns of this table.
         description: The description of this entity. Must be 1000 characters or less.
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
-            concurrent updates. Since the E-Tag changes every time an entity is updated it
-            is used to detect when a client's current representation of an entity is out-of-date.
+            concurrent updates. Since the E-Tag changes every time an entity is updated
+            it is used to detect when a client's current representation of an entity is
+            out-of-date.
         created_on: The date this table was created.
         created_by: The ID of the user that created this table.
-        modified_on: The date this table was last modified. In YYYY-MM-DD-Thh:mm:ss.sssZ format
+        modified_on: The date this table was last modified.
+            In YYYY-MM-DD-Thh:mm:ss.sssZ format
         modified_by: The ID of the user that last modified this table.
         version_number: The version number issued to this version on the object.
         version_label: The version label for this table
         version_comment: The version comment for this table
         is_latest_version: If this is the latest version of the object.
-        is_search_enabled: When creating or updating a table or view specifies if full text search
-            should be enabled. Note that enabling full text search might slow down the
-            indexing of the table or view.
-        annotations: Additional metadata associated with the table. The key is the name of your
-            desired annotations. The value is an object containing a list of values
-            (use empty list to represent no values for key) and the value type associated with
-            all values in the list.
+        is_search_enabled: When creating or updating a table or view specifies if full
+            text search should be enabled. Note that enabling full text search might
+            slow down the indexing of the table or view.
+        annotations: Additional metadata associated with the table. The key is the
+            name of your desired annotations. The value is an object containing a list
+            of values (use empty list to represent no values for key) and the value
+            type associated with all values in the list.
 
     """
 
@@ -393,9 +402,11 @@ class Table(AccessControllable):
     # """The description of this entity. Must be 1000 characters or less."""
 
     etag: Optional[str] = None
-    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
-    concurrent updates. Since the E-Tag changes every time an entity is updated it
-    is used to detect when a client's current representation of an entity is out-of-date."""
+    """
+    Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    concurrent updates. Since the E-Tag changes every time an entity is updated it is
+    used to detect when a client's current representation of an entity is out-of-date.
+    """
 
     created_on: Optional[str] = None
     """The date this table was created."""
@@ -484,14 +495,15 @@ class Table(AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda _, **kwargs: f"Store_rows_by_csv: {kwargs.get('csv_path', None)}"
     )
-    async def store_rows_from_csv(
+    async def store_rows_from_csv_async(
         self, csv_path: str, synapse_client: Optional[Synapse] = None
     ) -> str:
         """Takes in a path to a CSV and stores the rows to Synapse.
 
         Arguments:
             csv_path: The path to the CSV to store.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The path to the CSV that was stored.
@@ -515,14 +527,15 @@ class Table(AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Delete_rows: {self.name}"
     )
-    async def delete_rows(
+    async def delete_rows_async(
         self, rows: List[Row], synapse_client: Optional[Synapse] = None
     ) -> None:
         """Delete rows from a table.
 
         Arguments:
             rows: The rows to delete.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             None
@@ -547,11 +560,14 @@ class Table(AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Table_Schema_Store: {self.name}"
     )
-    async def store_schema(self, synapse_client: Optional[Synapse] = None) -> "Table":
+    async def store_schema_async(
+        self, synapse_client: Optional[Synapse] = None
+    ) -> "Table":
         """Store non-row information about a table including the columns and annotations.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The Table instance stored in synapse.
@@ -564,7 +580,8 @@ class Table(AccessControllable):
             # TODO: Perhaps we should have a `has_changed` boolean on all dataclasses
             # TODO: That we can check to see if we need to store the data.
             tasks.extend(
-                column.store(synapse_client=synapse_client) for column in self.columns
+                column.store_async(synapse_client=synapse_client)
+                for column in self.columns
             )
             try:
                 results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -605,7 +622,7 @@ class Table(AccessControllable):
             root_resource=self, synapse_client=synapse_client
         )
         if re_read_required:
-            await self.get(
+            await self.get_async(
                 synapse_client=synapse_client,
             )
 
@@ -614,11 +631,12 @@ class Table(AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Table_Get: {self.name}"
     )
-    async def get(self, synapse_client: Optional[Synapse] = None) -> "Table":
+    async def get_async(self, synapse_client: Optional[Synapse] = None) -> "Table":
         """Get the metadata about the table from synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The Table instance stored in synapse.
@@ -643,11 +661,12 @@ class Table(AccessControllable):
     )
     # TODO: Synapse allows immediate deletion of entities, but the Synapse Client does not
     # TODO: Should we support immediate deletion?
-    async def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def delete_async(self, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the table from synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             None
@@ -665,7 +684,7 @@ class Table(AccessControllable):
         )
 
     @classmethod
-    async def query(
+    async def query_async(
         cls,
         query: str,
         result_format: Union[CsvResultFormat, RowsetResultFormat] = CsvResultFormat(),
@@ -676,7 +695,8 @@ class Table(AccessControllable):
         Arguments:
             query: The query to run.
             result_format: The format of the results. Defaults to CsvResultFormat().
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The results of the query.

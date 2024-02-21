@@ -1,10 +1,14 @@
 import asyncio
-from typing import Dict, List, Optional, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
+
+from opentelemetry import context, trace
+
 from synapseclient import Synapse
-
-
-from opentelemetry import trace, context
+from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models.protocols.access_control_protocol import (
+    AccessControllableSynchronousProtocol,
+)
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -12,7 +16,8 @@ if TYPE_CHECKING:
     from synapseclient.core.models.permission import Permissions
 
 
-class AccessControllable:
+@async_to_sync
+class AccessControllable(AccessControllableSynchronousProtocol):
     """
     Mixin for objects that can be controlled by an Access Control List (ACL).
 
@@ -23,7 +28,7 @@ class AccessControllable:
     """The unique immutable ID for this entity. A new ID will be generated for new Files.
     Once issued, this ID is guaranteed to never change or be re-issued."""
 
-    async def get_permissions(
+    async def get_permissions_async(
         self,
         synapse_client: Optional[Synapse] = None,
     ) -> "Permissions":
@@ -32,7 +37,8 @@ class AccessControllable:
         that the caller has on an Entity.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             A Permissions object
@@ -41,7 +47,7 @@ class AccessControllable:
         Example: Using this function:
             Getting permissions for a Synapse Entity
 
-                permissions = File(id="syn123").get_permissions()
+                permissions = await File(id="syn123").get_permissions_async()
 
             Getting access types list from the Permissions object
 
@@ -60,7 +66,7 @@ class AccessControllable:
             ),
         )
 
-    async def get_acl(
+    async def get_acl_async(
         self, principal_id: int = None, synapse_client: Optional[Synapse] = None
     ) -> List[str]:
         """
@@ -69,7 +75,8 @@ class AccessControllable:
 
         Arguments:
             principal_id: Identifier of a user or group (defaults to PUBLIC users)
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             An array containing some combination of
@@ -90,7 +97,7 @@ class AccessControllable:
             ),
         )
 
-    async def set_permissions(
+    async def set_permissions_async(
         self,
         principal_id: int = None,
         access_type: List[str] = None,
@@ -104,17 +111,21 @@ class AccessControllable:
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
         Arguments:
-            principal_id: Identifier of a user or group. `273948` is for all registered Synapse users
-                            and `273949` is for public access. None implies public access.
-            access_type: Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
-                            DELETE, CHANGE_PERMISSIONS.
+            principal_id: Identifier of a user or group. `273948` is for all
+                registered Synapse users and `273949` is for public access.
+                None implies public access.
+            access_type: Type of permission to be granted. One or more of CREATE,
+                READ, DOWNLOAD, UPDATE, DELETE, CHANGE_PERMISSIONS.
 
                 **Defaults to ['READ', 'DOWNLOAD']**
             modify_benefactor: Set as True when modifying a benefactor's ACL
-            warn_if_inherits: Set as False, when creating a new ACL.
-                                Trying to modify the ACL of an Entity that inherits its ACL will result in a warning
-            overwrite: By default this function overwrites existing permissions for the specified user.
-                        Set this flag to False to add new permissions non-destructively.
+            warn_if_inherits: Set as False, when creating a new ACL. Trying to modify
+                the ACL of an Entity that inherits its ACL will result in a warning
+            overwrite: By default this function overwrites existing permissions for
+                the specified user. Set this flag to False to add new permissions
+                non-destructively.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             An Access Control List object
@@ -122,10 +133,11 @@ class AccessControllable:
         Example: Setting permissions
             Grant all registered users download access
 
-                File(id="syn123").set_permissions(principal_id=273948, access_type=['READ','DOWNLOAD'])
+                await File(id="syn123").set_permissions_async(principal_id=273948, access_type=['READ','DOWNLOAD'])
 
             Grant the public view access
-                File(id="syn123").set_permissions(principal_id=273949, access_type=['READ'])
+
+                await File(id="syn123").set_permissions_async(principal_id=273949, access_type=['READ'])
         """
         if access_type is None:
             access_type = ["READ", "DOWNLOAD"]

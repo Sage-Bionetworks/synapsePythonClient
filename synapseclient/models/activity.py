@@ -1,21 +1,16 @@
 import asyncio
 from dataclasses import dataclass, field
-from typing import Dict, List, Union, NamedTuple
+from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Union
 
-from synapseclient.activity import Activity as Synapse_Activity
-
-from opentelemetry import trace, context
-
-from typing import Optional, TYPE_CHECKING
+from opentelemetry import context, trace
 
 from synapseclient import Synapse
-from synapseclient.core.utils import run_and_attach_otel_context
-from synapseclient.core.async_utils import otel_trace_method
-from synapseclient.core.constants.concrete_types import (
-    USED_ENTITY,
-    USED_URL,
-)
+from synapseclient.activity import Activity as Synapse_Activity
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.constants.concrete_types import USED_ENTITY, USED_URL
 from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models.protocols.activity_protocol import ActivitySynchronousProtocol
 
 if TYPE_CHECKING:
     from synapseclient.models import File, Table
@@ -75,7 +70,8 @@ class UsedAndExecutedSynapseActivities(NamedTuple):
 
 # TODO: When Views and Datasets are added we should add Activity to them.
 @dataclass
-class Activity:
+@async_to_sync
+class Activity(ActivitySynchronousProtocol):
     """
     An activity is a Synapse object that helps to keep track of what objects were used
     in an analysis step, as well as what objects were generated. Thus, all relationships
@@ -88,8 +84,9 @@ class Activity:
         name: A name for this Activity.
         description: A description for this Activity.
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
-            concurrent updates. Since the E-Tag changes every time an entity is updated it
-            is used to detect when a client's current representation of an entity is out-of-date.
+            concurrent updates. Since the E-Tag changes every time an entity is updated
+            it is used to detect when a client's current representation of an entity is
+            out-of-date.
         created_on: The date this object was created.
         modified_on: The date this object was last modified.
         created_by: The user that created this object.
@@ -108,9 +105,11 @@ class Activity:
     """A description for this Activity."""
 
     etag: Optional[str] = None
-    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
-    concurrent updates. Since the E-Tag changes every time an entity is updated it
-    is used to detect when a client's current representation of an entity is out-of-date."""
+    """
+    Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    concurrent updates. Since the E-Tag changes every time an entity is updated it is
+    used to detect when a client's current representation of an entity is out-of-date.
+    """
 
     created_on: Optional[str] = None
     """The date this object was created."""
@@ -182,7 +181,8 @@ class Activity:
         self,
     ) -> UsedAndExecutedSynapseActivities:
         """
-        Helper function to create the used and executed activities for the Synapse Activity.
+        Helper function to create the used and executed activities for the
+        Synapse Activity.
 
         Returns:
             A tuple of the used and executed activities.
@@ -230,7 +230,7 @@ class Activity:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Activity_store: {self.name}"
     )
-    async def store(
+    async def store_async(
         self,
         parent: Optional[Union["Table", "File"]] = None,
         synapse_client: Optional[Synapse] = None,
@@ -240,7 +240,8 @@ class Activity:
 
         Arguments:
             parent: The parent entity to associate this activity with.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The activity object.
@@ -304,7 +305,7 @@ class Activity:
         return self
 
     @classmethod
-    async def from_parent(
+    async def from_parent_async(
         cls,
         parent: Union["Table", "File"],
         synapse_client: Optional[Synapse] = None,
@@ -316,7 +317,8 @@ class Activity:
             parent: The parent entity this activity is associated with. The parent may
                 also have a version_number. Gets the most recent version if version is
                 omitted.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The activity object or None if it does not exist.
@@ -349,7 +351,7 @@ class Activity:
             return cls().fill_from_dict(synapse_activity=synapse_activity)
 
     @classmethod
-    async def delete(
+    async def delete_async(
         cls,
         parent: Union["Table", "File"],
         synapse_client: Optional[Synapse] = None,
@@ -364,7 +366,8 @@ class Activity:
 
         Arguments:
             parent: The parent entity this activity is associated with.
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Raises:
             ValueError: If the parent does not have an ID.

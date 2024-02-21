@@ -1,31 +1,35 @@
 import asyncio
-
-from datetime import datetime, date
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Dict, List, Optional, Union
-from synapseclient.api import set_annotations
-from opentelemetry import trace, context
+
+from opentelemetry import context, trace
 
 from synapseclient import Synapse
 from synapseclient.annotations import ANNO_TYPE_TO_FUNC
-from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.api import set_annotations
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
-
+from synapseclient.models.protocols.annotations_protocol import (
+    AnnotationsSynchronousProtocol,
+)
 
 tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass()
-class Annotations:
-    """Annotations that can be applied to a number of Synapse resources to provide additional information.
+@async_to_sync
+class Annotations(AnnotationsSynchronousProtocol):
+    """Annotations that can be applied to a number of Synapse resources to provide
+    additional information.
 
     Attributes:
         annotations: Additional metadata associated with the object. The key is the name
             of your desired annotations. The value is an object containing a list of
             string values (use empty list to represent no values for key) and the value
             type associated with all values in the list.
-        id: ID of the object to which this annotation belongs. Not required if being used
-            as a member variable on another class.
+        id: ID of the object to which this annotation belongs. Not required if being
+            used as a member variable on another class.
         etag: Etag of the object to which this annotation belongs. This field must match
             the current etag on the object. Not required if being used as a member
             variable on another class.
@@ -55,14 +59,15 @@ class Annotations:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Annotation_store: {self.id}"
     )
-    async def store(
+    async def store_async(
         self,
         synapse_client: Optional[Synapse] = None,
     ) -> "Annotations":
         """Storing annotations to synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
 
         Returns:
             The stored annotations.

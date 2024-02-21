@@ -16,6 +16,10 @@ from synapseclient.models import (
     File,
 )
 
+DESCRIPTION_FOLDER = "This is an example folder."
+DESCRIPTION_FILE = "This is an example file."
+CONTENT_TYPE = "text/plain"
+
 
 class TestFolderStore:
     """Tests for the synapseclient.models.Folder.store method."""
@@ -30,8 +34,8 @@ class TestFolderStore:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
         )
 
     @pytest.fixture(autouse=True, scope="function")
@@ -40,17 +44,14 @@ class TestFolderStore:
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
-        folder = Folder(
-            name=str(uuid.uuid4()), description="This is an example folder."
-        )
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    @pytest.mark.asyncio
-    async def test_store_folder(self, project_model: Project, folder: Folder) -> None:
+    def test_store_folder(self, project_model: Project, folder: Folder) -> None:
         # GIVEN a Folder object and a Project object
 
         # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -67,15 +68,14 @@ class TestFolderStore:
         assert stored_folder.folders == []
         assert stored_folder.annotations is None
 
-    @pytest.mark.asyncio
-    async def test_store_folder_with_file(
+    def test_store_folder_with_file(
         self, project_model: Project, file: File, folder: Folder
     ) -> None:
         # GIVEN a File on the folder
         folder.files.append(file)
 
         # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -99,8 +99,7 @@ class TestFolderStore:
         assert file.parent_id == stored_folder.id
         assert file.path is not None
 
-    @pytest.mark.asyncio
-    async def test_store_folder_with_multiple_files(
+    def test_store_folder_with_multiple_files(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN multiple files in a folder
@@ -110,7 +109,7 @@ class TestFolderStore:
         folder.files = files
 
         # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -135,8 +134,7 @@ class TestFolderStore:
             assert file.parent_id == stored_folder.id
             assert file.path is not None
 
-    @pytest.mark.asyncio
-    async def test_store_folder_with_multiple_files_and_folders(
+    def test_store_folder_with_multiple_files_and_folders(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN multiple files in a folder
@@ -161,7 +159,7 @@ class TestFolderStore:
         folder.folders = folders
 
         # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -199,8 +197,7 @@ class TestFolderStore:
                 assert sub_file.parent_id == sub_folder.id
                 assert sub_file.path is not None
 
-    @pytest.mark.asyncio
-    async def test_store_folder_with_annotations(
+    def test_store_folder_with_annotations(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a Folder object and a Project object
@@ -215,7 +212,7 @@ class TestFolderStore:
         folder.annotations = annotations
 
         # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -234,7 +231,7 @@ class TestFolderStore:
 
         # AND I expect the annotations to be stored on Synapse
         assert stored_folder.annotations == annotations
-        assert (await Folder(id=stored_folder.id).get()).annotations == annotations
+        assert (Folder(id=stored_folder.id).get()).annotations == annotations
 
 
 class TestFolderGet:
@@ -247,23 +244,18 @@ class TestFolderGet:
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
-        folder = Folder(
-            name=str(uuid.uuid4()), description="This is an example folder."
-        )
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    @pytest.mark.asyncio
-    async def test_get_folder_by_id(
-        self, project_model: Project, folder: Folder
-    ) -> None:
+    def test_get_folder_by_id(self, project_model: Project, folder: Folder) -> None:
         # GIVEN a Folder object and a Project object
 
         # AND the folder is stored in synapse
-        stored_folder = await folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I get the Folder from Synapse
-        folder_copy = await Folder(id=stored_folder.id).get()
+        folder_copy = Folder(id=stored_folder.id).get()
 
         # THEN I expect the stored Folder to have the expected properties
         assert folder_copy.id is not None
@@ -279,18 +271,17 @@ class TestFolderGet:
         assert folder_copy.folders == []
         assert folder_copy.annotations is None
 
-    @pytest.mark.asyncio
-    async def test_get_folder_by_name_and_parent_id_attribute(
+    def test_get_folder_by_name_and_parent_id_attribute(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a Folder object and a Project object
 
         # AND the folder is stored in synapse
-        stored_folder = await folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I get the Folder from Synapse
-        folder_copy = await Folder(
+        folder_copy = Folder(
             name=stored_folder.name, parent_id=stored_folder.parent_id
         ).get()
 
@@ -308,18 +299,17 @@ class TestFolderGet:
         assert folder_copy.folders == []
         assert folder_copy.annotations is None
 
-    @pytest.mark.asyncio
-    async def test_get_folder_by_name_and_parent(
+    def test_get_folder_by_name_and_parent(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a Folder object and a Project object
 
         # AND the folder is stored in synapse
-        stored_folder = await folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I get the Folder from Synapse
-        folder_copy = await Folder(name=stored_folder.name).get(parent=project_model)
+        folder_copy = Folder(name=stored_folder.name).get(parent=project_model)
 
         # THEN I expect the stored Folder to have the expected properties
         assert folder_copy.id is not None
@@ -346,25 +336,22 @@ class TestFolderDelete:
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
-        folder = Folder(
-            name=str(uuid.uuid4()), description="This is an example folder."
-        )
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    @pytest.mark.asyncio
-    async def test_delete_folder(self, project_model: Project, folder: Folder) -> None:
+    def test_delete_folder(self, project_model: Project, folder: Folder) -> None:
         # GIVEN a Folder object and a Project object
 
         # AND the folder is stored in synapse
-        stored_folder = await folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I delete the Folder from Synapse
-        await stored_folder.delete()
+        stored_folder.delete()
 
         # THEN I expect the folder to have been deleted
         with pytest.raises(SynapseHTTPError) as e:
-            await stored_folder.get()
+            stored_folder.get()
 
         assert (
             str(e.value)
@@ -385,23 +372,20 @@ class TestFolderCopy:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
         )
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
-        folder = Folder(
-            name=str(uuid.uuid4()), description="This is an example folder."
-        )
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    @pytest.mark.asyncio
-    async def test_copy_folder_with_multiple_files_and_folders(
+    def test_copy_folder_with_multiple_files_and_folders(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a folder to copy to
-        destination_folder = await Folder(
+        destination_folder = Folder(
             name=str(uuid.uuid4()), description="Destination for folder copy"
         ).store(parent=project_model)
 
@@ -428,14 +412,14 @@ class TestFolderCopy:
 
         # WHEN I store the Folder on Synapse
         folder.annotations = {"test": ["test"]}
-        folder = await folder.store(parent=project_model)
+        folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # AND I copy the folder to the destination folder
-        copied_folder = await folder.copy(parent_id=destination_folder.id)
+        copied_folder = folder.copy(parent_id=destination_folder.id)
 
         # AND I sync the destination folder from Synapse
-        await destination_folder.sync_from_synapse(recursive=False, download_file=False)
+        destination_folder.sync_from_synapse(recursive=False, download_file=False)
 
         # THEN I expect the copied Folder to have the expected properties
         assert len(destination_folder.folders) == 1
@@ -469,12 +453,11 @@ class TestFolderCopy:
                 assert sub_file.name is not None
                 assert sub_file.parent_id == sub_folder.id
 
-    @pytest.mark.asyncio
-    async def test_copy_folder_exclude_files(
+    def test_copy_folder_exclude_files(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a folder to copy to
-        destination_folder = await Folder(
+        destination_folder = Folder(
             name=str(uuid.uuid4()), description="Destination for folder copy"
         ).store(parent=project_model)
 
@@ -501,16 +484,16 @@ class TestFolderCopy:
 
         # WHEN I store the Folder on Synapse
         folder.annotations = {"test": ["test"]}
-        folder = await folder.store(parent=project_model)
+        folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # AND I copy the folder to the destination folder
-        copied_folder = await folder.copy(
+        copied_folder = folder.copy(
             parent_id=destination_folder.id, exclude_types=["file"]
         )
 
         # AND I sync the destination folder from Synapse
-        await destination_folder.sync_from_synapse(recursive=False, download_file=False)
+        destination_folder.sync_from_synapse(recursive=False, download_file=False)
 
         # THEN I expect the copied Folder to have the expected properties
         assert len(destination_folder.folders) == 1
@@ -549,8 +532,8 @@ class TestFolderSyncFromSynapse:
         schedule_for_cleanup(filename)
         return File(
             path=filename,
-            description="This is an example file.",
-            content_type="text/plain",
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
         )
 
     @pytest.fixture(autouse=True, scope="function")
@@ -559,13 +542,10 @@ class TestFolderSyncFromSynapse:
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
-        folder = Folder(
-            name=str(uuid.uuid4()), description="This is an example folder."
-        )
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    @pytest.mark.asyncio
-    async def test_sync_from_synapse(
+    def test_sync_from_synapse(
         self, project_model: Project, file: File, folder: Folder
     ) -> None:
         root_directory_path = os.path.dirname(file.path)
@@ -592,11 +572,11 @@ class TestFolderSyncFromSynapse:
         folder.folders = folders
 
         # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
         # AND I sync the folder from Synapse
-        copied_folder = await stored_folder.sync_from_synapse(path=root_directory_path)
+        copied_folder = stored_folder.sync_from_synapse(path=root_directory_path)
 
         # THEN I expect that the folder and its contents are synced from Synapse to disk
         for file in copied_folder.files:
