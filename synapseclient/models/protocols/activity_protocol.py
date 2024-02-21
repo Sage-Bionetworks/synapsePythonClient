@@ -1,12 +1,12 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import Optional, TYPE_CHECKING, Protocol, Union
+from typing import TYPE_CHECKING, Optional, Protocol, Union
 
 from synapseclient import Synapse
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Table, Activity
+    from synapseclient.models import Activity, File, Table
 
 
 class ActivitySynchronousProtocol(Protocol):

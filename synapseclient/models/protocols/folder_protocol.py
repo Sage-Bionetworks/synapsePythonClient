@@ -1,14 +1,13 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import Optional, TYPE_CHECKING, Protocol, Union, List
+from typing import TYPE_CHECKING, List, Optional, Protocol, Union
+
 from synapseclient import Synapse
-from synapseclient.models.services.storable_entity_components import (
-    FailureStrategy,
-)
+from synapseclient.models.services.storable_entity_components import FailureStrategy
 
 if TYPE_CHECKING:
-    from synapseclient.models import Project, Folder
+    from synapseclient.models import Folder, Project
 
 
 class FolderSynchronousProtocol(Protocol):

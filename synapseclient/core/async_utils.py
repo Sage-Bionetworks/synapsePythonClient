@@ -1,11 +1,11 @@
 """This utility class is to hold any utilities that are needed for async operations."""
 
 import asyncio
-from typing import Callable, Union
-from opentelemetry import trace
 import functools
-import nest_asyncio
+from typing import Callable, Union
 
+import nest_asyncio
+from opentelemetry import trace
 
 tracer = trace.get_tracer("synapseclient")
 

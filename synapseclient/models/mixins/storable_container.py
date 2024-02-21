@@ -2,29 +2,27 @@
 
 import asyncio
 import os
-from typing import List, Optional, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, List, Optional, Union
+
+from opentelemetry import context, trace
 from typing_extensions import Self
-from opentelemetry import trace, context
 
 from synapseclient import Synapse
-from synapseclient.core.async_utils import (
-    otel_trace_method,
-    async_to_sync,
-)
-from synapseclient.core.utils import run_and_attach_otel_context
-from synapseclient.core.exceptions import SynapseError
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants.concrete_types import FILE_ENTITY, FOLDER_ENTITY
+from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
+from synapseclient.core.exceptions import SynapseError
+from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models.protocols.storable_container_protocol import (
+    StorableContainerSynchronousProtocol,
+)
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     wrap_coroutine,
 )
-from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
-from synapseclient.models.protocols.storable_container_protocol import (
-    StorableContainerSynchronousProtocol,
-)
 
 if TYPE_CHECKING:
-    from synapseclient.models import Folder, File
+    from synapseclient.models import File, Folder
 
 tracer = trace.get_tracer("synapseclient")
 

@@ -1,34 +1,30 @@
 import asyncio
+import os
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-import os
 from typing import Any, Dict, List, Optional, Union
-from opentelemetry import trace, context
 
-from synapseclient import (
-    Synapse,
-    Schema as Synapse_Schema,
-    Table as Synapse_Table,
-    Column as Synapse_Column,
-)
-from synapseclient.table import (
-    CsvFileTable as Synapse_CsvFileTable,
-    TableQueryResult as Synaspe_TableQueryResult,
-    delete_rows,
-)
-from synapseclient.models import Annotations, Activity
-from synapseclient.core.async_utils import otel_trace_method, async_to_sync
+from opentelemetry import context, trace
+
+from synapseclient import Column as Synapse_Column
+from synapseclient import Schema as Synapse_Schema
+from synapseclient import Synapse
+from synapseclient import Table as Synapse_Table
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.models.protocols.table_protocol import (
+    ColumnSynchronousProtocol,
+    TableSynchronousProtocol,
+)
 from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
 )
-from synapseclient.models.protocols.table_protocol import (
-    TableSynchronousProtocol,
-    ColumnSynchronousProtocol,
-)
-
+from synapseclient.table import CsvFileTable as Synapse_CsvFileTable
+from synapseclient.table import TableQueryResult as Synaspe_TableQueryResult
+from synapseclient.table import delete_rows
 
 tracer = trace.get_tracer("synapseclient")
 

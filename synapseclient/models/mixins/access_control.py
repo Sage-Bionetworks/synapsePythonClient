@@ -1,13 +1,14 @@
 import asyncio
-from typing import Dict, List, Optional, TYPE_CHECKING, Union
-from opentelemetry import trace, context
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
+
+from opentelemetry import context, trace
 
 from synapseclient import Synapse
+from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.access_control_protocol import (
     AccessControllableSynchronousProtocol,
 )
-from synapseclient.core.async_utils import async_to_sync
 
 tracer = trace.get_tracer("synapseclient")
 

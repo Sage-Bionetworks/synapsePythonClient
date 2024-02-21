@@ -1,16 +1,15 @@
 import asyncio
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Union
-from opentelemetry import trace, context
+from typing import Dict, List, Optional, Union
+
+from opentelemetry import context, trace
 
 from synapseclient import Synapse
-from synapseclient.core.async_utils import otel_trace_method, async_to_sync
-from synapseclient.team import (
-    UserProfile as Synapse_UserProfile,
-    UserGroupHeader as Synapse_UserGroupHeader,
-)
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.user_protocol import UserProfileSynchronousProtocol
+from synapseclient.team import UserGroupHeader as Synapse_UserGroupHeader
+from synapseclient.team import UserProfile as Synapse_UserProfile
 
 tracer = trace.get_tracer("synapseclient")
 

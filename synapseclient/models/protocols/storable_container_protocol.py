@@ -2,11 +2,12 @@
 generated at runtime."""
 
 from typing import Optional, Protocol
+
 from typing_extensions import Self
 
 from synapseclient import Synapse
-from synapseclient.models.services.storable_entity_components import FailureStrategy
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
+from synapseclient.models.services.storable_entity_components import FailureStrategy
 
 
 class StorableContainerSynchronousProtocol(Protocol):

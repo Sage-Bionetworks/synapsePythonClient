@@ -1,21 +1,20 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import Optional, TYPE_CHECKING, Protocol, Union, List
-from typing_extensions import Self
-from synapseclient import Synapse
-from synapseclient.table import (
-    CsvFileTable as Synapse_CsvFileTable,
-    TableQueryResult as Synaspe_TableQueryResult,
-)
+from typing import TYPE_CHECKING, List, Optional, Protocol, Union
 
+from typing_extensions import Self
+
+from synapseclient import Synapse
+from synapseclient.table import CsvFileTable as Synapse_CsvFileTable
+from synapseclient.table import TableQueryResult as Synaspe_TableQueryResult
 
 if TYPE_CHECKING:
     from synapseclient.models.table import (
         CsvResultFormat,
+        Row,
         RowsetResultFormat,
         Table,
-        Row,
     )
 
 

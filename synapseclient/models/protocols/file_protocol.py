@@ -1,12 +1,13 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import Optional, TYPE_CHECKING, Protocol, Union
+from typing import TYPE_CHECKING, Optional, Protocol, Union
+
 from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync
 
 if TYPE_CHECKING:
-    from synapseclient.models import Folder, Project, File
+    from synapseclient.models import File, Folder, Project
 
 
 @async_to_sync

@@ -3,26 +3,26 @@ import dataclasses
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Dict, List, Union, Optional, TYPE_CHECKING
-from opentelemetry import trace, context
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from synapseclient.models import Annotations, Activity
-from synapseclient.entity import File as Synapse_File
+from opentelemetry import context, trace
+
 from synapseclient import Synapse
-from synapseclient.core.async_utils import otel_trace_method, async_to_sync
-from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import (
-    run_and_attach_otel_context,
-    guess_file_name,
     delete_none_keys,
+    guess_file_name,
+    run_and_attach_otel_context,
 )
+from synapseclient.entity import File as Synapse_File
+from synapseclient.models import Activity, Annotations
+from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.models.protocols.file_protocol import FileSynchronousProtocol
 from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
 )
-from synapseclient.core.exceptions import SynapseError
-from synapseclient.models.protocols.file_protocol import FileSynchronousProtocol
 from synapseutils.copy_functions import changeFileMetaData, copy
-
 
 if TYPE_CHECKING:
     from synapseclient.models import Folder, Project

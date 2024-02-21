@@ -2,28 +2,28 @@ import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Dict, List, Union
-from typing import Optional, TYPE_CHECKING
-from opentelemetry import trace, context
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
+
+from opentelemetry import context, trace
 
 from synapseclient import Synapse
-from synapseclient.entity import Folder as Synapse_Folder
-from synapseclient.models import File, Annotations
-from synapseclient.core.async_utils import otel_trace_method, async_to_sync
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import (
-    run_and_attach_otel_context,
     delete_none_keys,
     merge_dataclass_entities,
+    run_and_attach_otel_context,
 )
-from synapseclient.core.exceptions import SynapseError
+from synapseclient.entity import Folder as Synapse_Folder
+from synapseclient.models import Annotations, File
 from synapseclient.models.mixins import AccessControllable, StorableContainer
-from synapseclient.models.services.storable_entity_components import (
-    store_entity_components,
-    FailureStrategy,
-)
-from synapseclient.models.services.search import get_id
-from synapseutils import copy
 from synapseclient.models.protocols.folder_protocol import FolderSynchronousProtocol
+from synapseclient.models.services.search import get_id
+from synapseclient.models.services.storable_entity_components import (
+    FailureStrategy,
+    store_entity_components,
+)
+from synapseutils import copy
 
 if TYPE_CHECKING:
     from synapseclient.models import Project

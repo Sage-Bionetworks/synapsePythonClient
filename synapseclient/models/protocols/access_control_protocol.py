@@ -1,7 +1,8 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import Dict, List, Optional, TYPE_CHECKING, Union, Protocol
+from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, Union
+
 from synapseclient import Synapse
 
 if TYPE_CHECKING:

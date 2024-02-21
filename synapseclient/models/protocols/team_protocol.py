@@ -1,11 +1,12 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import Optional, TYPE_CHECKING, Protocol, List, Dict
+from typing import TYPE_CHECKING, Dict, List, Optional, Protocol
+
 from synapseclient import Synapse
 
 if TYPE_CHECKING:
-    from synapseclient.models import TeamMember, Team
+    from synapseclient.models import Team, TeamMember
 
 
 class TeamSynchronousProtocol(Protocol):

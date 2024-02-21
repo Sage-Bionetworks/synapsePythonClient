@@ -1,21 +1,15 @@
 import asyncio
 from dataclasses import dataclass, field
-from typing import Dict, List, Union, NamedTuple
+from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Union
 
-from synapseclient.activity import Activity as Synapse_Activity
-
-from opentelemetry import trace, context
-
-from typing import Optional, TYPE_CHECKING
+from opentelemetry import context, trace
 
 from synapseclient import Synapse
-from synapseclient.core.utils import run_and_attach_otel_context
-from synapseclient.core.async_utils import otel_trace_method, async_to_sync
-from synapseclient.core.constants.concrete_types import (
-    USED_ENTITY,
-    USED_URL,
-)
+from synapseclient.activity import Activity as Synapse_Activity
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.constants.concrete_types import USED_ENTITY, USED_URL
 from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.activity_protocol import ActivitySynchronousProtocol
 
 if TYPE_CHECKING:
