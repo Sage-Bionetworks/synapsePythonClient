@@ -96,10 +96,10 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
     modified_by: Optional[str] = None
     """(Read Only) The ID of the user that last modified this entity."""
 
-    files: Optional[List["File"]] = field(default_factory=list, compare=False)
+    files: List["File"] = field(default_factory=list, compare=False)
     """Files that exist within this folder."""
 
-    folders: Optional[List["Folder"]] = field(default_factory=list, compare=False)
+    folders: List["Folder"] = field(default_factory=list, compare=False)
     """Folders that exist within this folder."""
 
     annotations: Optional[

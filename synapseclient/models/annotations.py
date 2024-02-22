@@ -35,11 +35,19 @@ class Annotations(AnnotationsSynchronousProtocol):
             variable on another class.
     """
 
-    annotations: Dict[
-        str,
-        Union[
-            List[str], List[bool], List[float], List[int], List[date], List[datetime]
+    annotations: Union[
+        Dict[
+            str,
+            Union[
+                List[str],
+                List[bool],
+                List[float],
+                List[int],
+                List[date],
+                List[datetime],
+            ],
         ],
+        None,
     ]
     """Additional metadata associated with the object. The key is the name of your
     desired annotations. The value is an object containing a list of string values
@@ -99,8 +107,21 @@ class Annotations(AnnotationsSynchronousProtocol):
 
     @classmethod
     def from_dict(
-        self, synapse_annotations: dict
-    ) -> Union[Dict[str, List[Union[str, bool, float, int, date, datetime]]], None]:
+        cls, synapse_annotations: dict
+    ) -> Union[
+        Dict[
+            str,
+            Union[
+                List[str],
+                List[bool],
+                List[float],
+                List[int],
+                List[date],
+                List[datetime],
+            ],
+        ],
+        None,
+    ]:
         """Convert the annotations from the format the synapse rest API works in -
         to the format used by this class.
 
