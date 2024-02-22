@@ -1,5 +1,42 @@
 # Release Notes
 
+## 4.1.0 (2024-02-21)
+
+### Highlights
+- **New Interfaces:**
+    - Combines data and behavior into a single class, simplifying the understanding and usage of the system's models. Review the available [synchronous](./reference/oop/models.md) and [asynchronous](./reference/oop/models_async.md) models.
+    - **New Interface:** Introduced a revamped interface in the Synapse Python Client, shifting from a functional programming approach to an object-oriented one.
+    - **Enhanced Developer Experience:** This change highlights much needed quality of life updates for developers. Improved autocomplete, hoverdocs, and examples in docstrings provide a significantly better coding experience.
+    - **Asyncio Support:** Introduced support for asyncio, enabling more efficient use of system resources and enhancing performance for IO-bound tasks.
+    - **Extensibility:** Laying the foundation for an extensible platform, facilitating easier addition of new features, and improvements to the Synapse Python Client.
+
+- **synapseutils.walk Improvement:**
+    - Improved performance for [synapseutils.walk][].
+
+- **Pandas Range Expansion:**
+    - Expanded pandas range to `>=1.5, <3.0`.
+
+- **Version Notation Support:**
+    - Using `syn123.version` notation is now supported with [syn.get][synapseclient.Synapse.get], [synapseutils.syncFromSynapse][], and [syn.setProvenance][synapseclient.Synapse.setProvenance]. This enhances consistency in version management across various activities.
+
+
+### Bug Fixes
+-  \[[SYNPY-448](https://sagebionetworks.jira.com/browse/SYNPY-448)\] - synapseutils.changeFileMetaData should allow changing Synapse name (like web client) for consistency
+-  \[[SYNPY-1253](https://sagebionetworks.jira.com/browse/SYNPY-1253)\] - syn.store(forceVersion=False) created new versions of the same file
+-  \[[SYNPY-1398](https://sagebionetworks.jira.com/browse/SYNPY-1398)\] - syncToSynapse doesn't recognize a "valid" provenance synapse id
+-  \[[SYNPY-1412](https://sagebionetworks.jira.com/browse/SYNPY-1412)\] - Issue importing synapseutils in notebook
+
+### Stories
+-  \[[SYNPY-1326](https://sagebionetworks.jira.com/browse/SYNPY-1326)\] - Update pandas dependency to support pandas 2.1
+-  \[[SYNPY-1344](https://sagebionetworks.jira.com/browse/SYNPY-1344)\] - Implement 'Activity' model into OOP
+-  \[[SYNPY-1347](https://sagebionetworks.jira.com/browse/SYNPY-1347)\] - Implement 'Team' model into OOP
+-  \[[SYNPY-1348](https://sagebionetworks.jira.com/browse/SYNPY-1348)\] - Implement 'UserProfile' model into OOP
+-  \[[SYNPY-1401](https://sagebionetworks.jira.com/browse/SYNPY-1401)\] - Avoid repeatedly calling syn.get in `_helpWalk`
+-  \[[SYNPY-1414](https://sagebionetworks.jira.com/browse/SYNPY-1414)\] - Finish 'Project' OOP model
+-  \[[SYNPY-1415](https://sagebionetworks.jira.com/browse/SYNPY-1415)\] - Finish 'Folder' OOP model
+-  \[[SYNPY-1416](https://sagebionetworks.jira.com/browse/SYNPY-1416)\] - Finish 'File' OOP model
+-  \[[SYNPY-1434](https://sagebionetworks.jira.com/browse/SYNPY-1434)\] - Release python client 4.1
+
 ## 4.0.0 (2024-01-12)
 
 ### Highlights
