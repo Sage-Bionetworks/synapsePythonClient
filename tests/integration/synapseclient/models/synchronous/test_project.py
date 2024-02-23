@@ -93,50 +93,6 @@ class TestProjectStore:
         assert file.parent_id == stored_project.id
         assert file.path is not None
 
-    def test_store_project_with_folder_in_file_on_project_that_already_exists(
-        self, file: File, project: Project
-    ) -> None:
-        # GIVEN that the project is already stored in Synapse
-        project_copy = Project(name=project.name).store()
-        assert project_copy.id is not None
-
-        # AND a Folder under the project instance that didn't interact with Synapse
-        folder = Folder(name=str(uuid.uuid4()))
-        project.folders.append(folder)
-
-        # AND a File on the folder
-        folder.files.append(file)
-
-        # WHEN I store the Project on Synapse
-        stored_project = project.store()
-        self.schedule_for_cleanup(project.id)
-
-        # THEN I expect the stored Project to have the expected properties
-        assert stored_project.id is not None
-        assert stored_project.name is not None
-        assert stored_project.parent_id is not None
-        assert stored_project.description is not None
-        assert stored_project.etag is not None
-        assert stored_project.created_on is not None
-        assert stored_project.modified_on is not None
-        assert stored_project.created_by is not None
-        assert stored_project.modified_by is not None
-        assert len(stored_project.folders) == 1
-        assert stored_project.files == []
-        assert stored_project.folders == [folder]
-        assert stored_project.annotations is None
-
-        # AND I expect the Folder to be stored in Synapse
-        assert folder.id is not None
-        assert folder.name is not None
-        assert folder.parent_id == stored_project.id
-
-        # AND I expect the File to be stored on Synapse
-        assert file.id is not None
-        assert file.name is not None
-        assert file.parent_id == folder.id
-        assert file.path is not None
-
     def test_store_project_with_multiple_files(self, project: Project) -> None:
         # GIVEN multiple files in a project
         files = []

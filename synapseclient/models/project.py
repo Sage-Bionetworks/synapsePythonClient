@@ -56,18 +56,6 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
             values (use empty list to represent no values for key) and the value type
             associated with all values in the list.  To remove all annotations set this
             to an empty dict `{}`.
-        create_or_update: (Store only) Indicates whether the method should
-            automatically perform an update if the resource conflicts with an existing
-            Synapse object. When True this means that any changes to the resource will
-            be non-destructive.
-
-            This boolean is ignored if you've already stored or retrieved the resource
-            from Synapse for this instance at least once. Any changes to the resource
-            will be destructive in this case. For example if you want to delete the
-            content for a field you will need to call `.get()` and then modify the
-            field.
-        parent_id: The parent ID of the project. In practice projects do not have a
-            parent, but this is required for the inner workings of Synapse.
 
     Example: Creating a project
         This example shows how to create a project
