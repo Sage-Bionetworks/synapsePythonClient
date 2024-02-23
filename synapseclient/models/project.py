@@ -1,7 +1,6 @@
 import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
-from datetime import date, datetime
 from typing import Dict, List, Optional, Union
 
 from opentelemetry import context, trace
@@ -16,6 +15,7 @@ from synapseclient.core.utils import (
 )
 from synapseclient.entity import Project as Synapse_Project
 from synapseclient.models import Annotations, File, Folder
+from synapseclient.models.entity import Entity
 from synapseclient.models.mixins import AccessControllable, StorableContainer
 from synapseclient.models.protocols.project_protocol import ProjectSynchronousProtocol
 from synapseclient.models.services.search import get_id
@@ -30,7 +30,9 @@ tracer = trace.get_tracer("synapseclient")
 
 @dataclass()
 @async_to_sync
-class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer):
+class Project(
+    Entity, ProjectSynchronousProtocol, AccessControllable, StorableContainer
+):
     """A Project is a top-level container for organizing data in Synapse.
 
     Attributes:
@@ -51,9 +53,9 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         alias: The project alias for use in friendly project urls.
         files: Any files that are at the root directory of the project.
         folders: Any folders that are at the root directory of the project.
-        annotations: Additional metadata associated with the folder. The key is the name
-            of your desired annotations. The value is an object containing a list of
-            values (use empty list to represent no values for key) and the value type
+        annotations: Additional metadata associated with the project. The key is the
+            name of your desired annotations. The value is an object containing a list
+            of values (use empty list to represent no values for key) and the value type
             associated with all values in the list.  To remove all annotations set this
             to an empty dict `{}`.
 
@@ -132,24 +134,6 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
 
     folders: Optional[List["Folder"]] = field(default_factory=list, compare=False)
     """Any folders that are at the root directory of the project."""
-
-    annotations: Optional[
-        Dict[
-            str,
-            Union[
-                List[str],
-                List[bool],
-                List[float],
-                List[int],
-                List[date],
-                List[datetime],
-            ],
-        ]
-    ] = field(default=None, compare=False)
-    """Additional metadata associated with the folder. The key is the name of your
-    desired annotations. The value is an object containing a list of values
-    (use empty list to represent no values for key) and the value type associated with
-    all values in the list. To remove all annotations set this to an empty dict `{}`."""
 
     create_or_update: bool = field(default=True, repr=False)
     """

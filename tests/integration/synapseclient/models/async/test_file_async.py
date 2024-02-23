@@ -1185,7 +1185,7 @@ class TestCopy:
 
         # THEN I expect the activities to be the same and annotations on the second to be None
         assert file_1.annotations != file_2.annotations
-        assert file_2.annotations is None
+        assert file_2.annotations == {}
         assert file_1.activity == file_2.activity
 
     @pytest.mark.asyncio
@@ -1237,7 +1237,7 @@ class TestCopy:
         # THEN I expect the activities to be the same and annotations on the second to be None
         assert file_1.annotations != file_2.annotations
         assert file_1.activity != file_2.activity
-        assert file_2.annotations is None
+        assert file_2.annotations == {}
         assert file_2.activity is None
 
     @pytest.mark.asyncio

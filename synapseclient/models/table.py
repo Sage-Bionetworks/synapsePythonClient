@@ -1,9 +1,8 @@
 import asyncio
 import os
 from dataclasses import dataclass
-from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, List, Optional, Union
 
 from opentelemetry import context, trace
 
@@ -14,6 +13,7 @@ from synapseclient import Table as Synapse_Table
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models import Activity, Annotations
+from synapseclient.models.entity import Entity
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.protocols.table_protocol import (
     ColumnSynchronousProtocol,
@@ -348,7 +348,7 @@ class Column(ColumnSynchronousProtocol):
 
 @dataclass()
 @async_to_sync
-class Table(TableSynchronousProtocol, AccessControllable):
+class Table(Entity, TableSynchronousProtocol, AccessControllable):
     """A Table represents the metadata of a table.
 
     Attributes:
@@ -441,24 +441,6 @@ class Table(TableSynchronousProtocol, AccessControllable):
     """The Activity model represents the main record of Provenance in Synapse.  It is
     analygous to the Activity defined in the
     [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance. """
-
-    annotations: Optional[
-        Dict[
-            str,
-            Union[
-                List[str],
-                List[bool],
-                List[float],
-                List[int],
-                List[date],
-                List[datetime],
-            ],
-        ]
-    ] = None
-    """Additional metadata associated with the table. The key is the name of your
-    desired annotations. The value is an object containing a list of values
-    (use empty list to represent no values for key) and the value type associated with
-    all values in the list. To remove all annotations set this to an empty dict `{}`."""
 
     def fill_from_dict(
         self, synapse_table: Synapse_Table, set_annotations: bool = True

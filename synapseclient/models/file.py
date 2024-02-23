@@ -2,8 +2,7 @@ import asyncio
 import dataclasses
 from copy import deepcopy
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, Optional, Union
 
 from opentelemetry import context, trace
 
@@ -17,6 +16,7 @@ from synapseclient.core.utils import (
 )
 from synapseclient.entity import File as Synapse_File
 from synapseclient.models import Activity, Annotations
+from synapseclient.models.entity import Entity
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.protocols.file_protocol import FileSynchronousProtocol
 from synapseclient.models.services.storable_entity_components import (
@@ -126,7 +126,7 @@ class FileHandle:
 
 @dataclass()
 @async_to_sync
-class File(FileSynchronousProtocol, AccessControllable):
+class File(Entity, FileSynchronousProtocol, AccessControllable):
     """A file within Synapse.
 
     Attributes:
@@ -287,24 +287,6 @@ class File(FileSynchronousProtocol, AccessControllable):
     """The Activity model represents the main record of Provenance in Synapse.  It is
     analygous to the Activity defined in the
     [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance."""
-
-    annotations: Optional[
-        Dict[
-            str,
-            Union[
-                List[str],
-                List[bool],
-                List[float],
-                List[int],
-                List[date],
-                List[datetime],
-            ],
-        ]
-    ] = None
-    """Additional metadata associated with the folder. The key is the name of your
-    desired annotations. The value is an object containing a list of values
-    (use empty list to represent no values for key) and the value type associated with
-    all values in the list. To remove all annotations set this to an empty dict `{}`."""
 
     create_or_update: bool = field(default=True, repr=False)
     """

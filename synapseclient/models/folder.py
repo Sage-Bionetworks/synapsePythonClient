@@ -1,8 +1,7 @@
 import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
-from datetime import date, datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from opentelemetry import context, trace
 
@@ -16,6 +15,7 @@ from synapseclient.core.utils import (
 )
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import Annotations, File
+from synapseclient.models.entity import Entity
 from synapseclient.models.mixins import AccessControllable, StorableContainer
 from synapseclient.models.protocols.folder_protocol import FolderSynchronousProtocol
 from synapseclient.models.services.search import get_id
@@ -33,7 +33,7 @@ tracer = trace.get_tracer("synapseclient")
 
 @dataclass()
 @async_to_sync
-class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
+class Folder(Entity, FolderSynchronousProtocol, AccessControllable, StorableContainer):
     """Folder is a hierarchical container for organizing data in Synapse.
 
     Attributes:
@@ -101,24 +101,6 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
 
     folders: Optional[List["Folder"]] = field(default_factory=list, compare=False)
     """Folders that exist within this folder."""
-
-    annotations: Optional[
-        Dict[
-            str,
-            Union[
-                List[str],
-                List[bool],
-                List[float],
-                List[int],
-                List[date],
-                List[datetime],
-            ],
-        ]
-    ] = field(default=None, compare=False)
-    """Additional metadata associated with the folder. The key is the name of your
-    desired annotations. The value is an object containing a list of values
-    (use empty list to represent no values for key) and the value type associated with
-    all values in the list. To remove all annotations set this to an empty dict `{}`."""
 
     is_restricted: bool = field(default=False, repr=False)
     """

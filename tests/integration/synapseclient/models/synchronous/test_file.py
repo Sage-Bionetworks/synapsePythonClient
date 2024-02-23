@@ -1126,7 +1126,7 @@ class TestCopy:
 
         # THEN I expect the activities to be the same and annotations on the second to be None
         assert file_1.annotations != file_2.annotations
-        assert file_2.annotations is None
+        assert file_2.annotations == {}
         assert file_1.activity == file_2.activity
 
     def test_copy_with_no_activity_or_annotations(self, file: File) -> None:
@@ -1173,7 +1173,7 @@ class TestCopy:
         # THEN I expect the activities to be the same and annotations on the second to be None
         assert file_1.annotations != file_2.annotations
         assert file_1.activity != file_2.activity
-        assert file_2.annotations is None
+        assert file_2.annotations == {}
         assert file_2.activity is None
 
     def test_copy_previous_version(self, file: File) -> None:

@@ -24,10 +24,10 @@ class Annotations(AnnotationsSynchronousProtocol):
     additional information.
 
     Attributes:
-        annotations: Additional metadata associated with the object. The key is the name
-            of your desired annotations. The value is an object containing a list of
-            string values (use empty list to represent no values for key) and the value
-            type associated with all values in the list.
+        annotations: Additional metadata associated with the entity. The key is the
+            name of your desired annotations. The value is a list of values. To remove
+            all annotations delete all keys or set this to an empty dict `{}` after
+            you've retrieved the entity.
         id: ID of the object to which this annotation belongs. Not required if being
             used as a member variable on another class.
         etag: Etag of the object to which this annotation belongs. This field must match
@@ -38,13 +38,18 @@ class Annotations(AnnotationsSynchronousProtocol):
     annotations: Dict[
         str,
         Union[
-            List[str], List[bool], List[float], List[int], List[date], List[datetime]
+            List[str],
+            List[bool],
+            List[float],
+            List[int],
+            List[date],
+            List[datetime],
         ],
     ]
-    """Additional metadata associated with the object. The key is the name of your
-    desired annotations. The value is an object containing a list of string values
-    (use empty list to represent no values for key) and the value type associated with
-    all values in the list.
+    """Additional metadata associated with the entity. The key is the
+    name of your desired annotations. The value is a list of values. To remove
+    all annotations delete all keys or set this to an empty dict `{}` after you've
+    retrieved the entity.
     """
 
     id: Optional[str] = None
@@ -99,8 +104,21 @@ class Annotations(AnnotationsSynchronousProtocol):
 
     @classmethod
     def from_dict(
-        self, synapse_annotations: dict
-    ) -> Union[Dict[str, List[Union[str, bool, float, int, date, datetime]]], None]:
+        cls, synapse_annotations: dict
+    ) -> Union[
+        Dict[
+            str,
+            Union[
+                List[str],
+                List[bool],
+                List[float],
+                List[int],
+                List[date],
+                List[datetime],
+            ],
+        ],
+        None,
+    ]:
         """Convert the annotations from the format the synapse rest API works in -
         to the format used by this class.
 
