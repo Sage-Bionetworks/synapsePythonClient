@@ -1355,19 +1355,20 @@ def merge_dataclass_entities(
     # Convert dataclasses to dictionaries
     destination_dict = asdict(destination)
     source_dict = asdict(source)
+    modified_items = {}
 
     # Update destination_dict with source_dict, keeping destination's values in case of conflicts
     for key, value in source_dict.items():
         if key not in destination_dict or destination_dict[key] is None:
-            destination_dict[key] = value
+            modified_items[key] = value
         elif key == "annotations":
-            destination_dict[key] = {
+            modified_items[key] = {
                 **(value or {}),
                 **destination_dict[key],
             }
 
     # Update destination's fields with the merged dictionary
-    for key, value in destination_dict.items():
+    for key, value in modified_items.items():
         setattr(destination, key, value)
     destination._last_persistent_instance = source._last_persistent_instance
     return destination
