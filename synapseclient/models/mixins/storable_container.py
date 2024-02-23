@@ -45,6 +45,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     """
 
     id: None = None
+    name: None = None
     files: None = None
     folders: None = None
     _last_persistent_instance: None = None
@@ -206,8 +207,8 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         """
         if not self._last_persistent_instance:
             await self.get_async(synapse_client=synapse_client)
-        Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Syncing {self.__class__.__name__} ({self.id}) from Synapse."
+        Synapse.get_client(synapse_client=synapse_client).logger.info(
+            f"Syncing {self.__class__.__name__} ({self.id}:{self.name}) from Synapse."
         )
         path = os.path.expanduser(path) if path else None
 
@@ -379,7 +380,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         self,
         result: Union[None, "Folder", "File", BaseException],
         failure_strategy: FailureStrategy,
-        synapse_client: Synapse,
+        synapse_client: Union[None, Synapse],
     ) -> None:
         """
         Handle what to do based on what was returned from the latest task to complete.

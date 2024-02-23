@@ -337,7 +337,7 @@ class Synapse(object):
         logging.getLogger("py.warnings").handlers = self.logger.handlers
 
     @classmethod
-    def get_client(cls, synapse_client: None) -> "Synapse":
+    def get_client(cls, synapse_client: typing.Union[None, "Synapse"]) -> "Synapse":
         """
         Convience function to get an instance of 'Synapse'. The latest instance created
         by 'login()' or set via `set_client` will be returned.

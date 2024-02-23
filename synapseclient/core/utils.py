@@ -15,7 +15,6 @@ import os
 import platform
 import random
 import re
-import requests
 import sys
 import tempfile
 import threading
@@ -24,13 +23,15 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
-
 from dataclasses import asdict
-from typing import Callable, TypeVar, TYPE_CHECKING
-from opentelemetry import trace, context
+from typing import TYPE_CHECKING, Callable, TypeVar
+
+import requests
+from opentelemetry import context, trace
+from opentelemetry.context import Context
 
 if TYPE_CHECKING:
-    from synapseclient.models import Project, Folder
+    from synapseclient.models import Folder, Project
 
 R = TypeVar("R")
 
@@ -1296,7 +1297,7 @@ class Spinner:
 
 
 def run_and_attach_otel_context(
-    callable_function: Callable[..., R], current_context: context
+    callable_function: Callable[..., R], current_context: Context
 ) -> R:
     """
     This is a generic function that will run a callable function and attach the passed in

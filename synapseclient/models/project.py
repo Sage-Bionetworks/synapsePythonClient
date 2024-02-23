@@ -127,10 +127,10 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
     alias: Optional[str] = None
     """The project alias for use in friendly project urls."""
 
-    files: Optional[List["File"]] = field(default_factory=list, compare=False)
+    files: List["File"] = field(default_factory=list, compare=False)
     """Any files that are at the root directory of the project."""
 
-    folders: Optional[List["Folder"]] = field(default_factory=list, compare=False)
+    folders: List["Folder"] = field(default_factory=list, compare=False)
     """Any folders that are at the root directory of the project."""
 
     annotations: Optional[
