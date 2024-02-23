@@ -4,6 +4,7 @@ The Synapse command line client.
 For a description of its usage and parameters, see its documentation:
 https://python-docs.synapse.org/build/html/CommandLineClient.html
 """
+
 import argparse
 import collections.abc
 import logging
@@ -221,9 +222,11 @@ def store(args, syn):
     else:
         entity = {
             "concreteType": "org.sagebionetworks.repo.model.%s" % args.type,
-            "name": utils.guess_file_name(args.file)
-            if args.file and not args.name
-            else None,
+            "name": (
+                utils.guess_file_name(args.file)
+                if args.file and not args.name
+                else None
+            ),
             "parentId": None,
         }
     # Overide setting for parameters included in args
@@ -644,7 +647,7 @@ def submit(args, syn):
     )
 
 
-def get_download_list(args, syn):
+def get_download_list(args, syn: synapseclient.Synapse) -> None:
     """Download files from the Synapse download cart"""
     manifest_path = syn.get_download_list(downloadLocation=args.downloadLocation)
     syn.logger.info(f"Manifest file: {manifest_path}")
@@ -676,9 +679,11 @@ def test_encoding() -> None:
     print("python version =               ", platform.python_version())
     print(
         "sys.stdout.encoding =          ",
-        sys.stdout.encoding
-        if hasattr(sys.stdout, "encoding")
-        else "no encoding attribute",
+        (
+            sys.stdout.encoding
+            if hasattr(sys.stdout, "encoding")
+            else "no encoding attribute"
+        ),
     )
     print("sys.stdout.isatty() =          ", sys.stdout.isatty())
     print("locale.getpreferredencoding() =", locale.getpreferredencoding())

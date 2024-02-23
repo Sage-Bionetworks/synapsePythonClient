@@ -2204,7 +2204,7 @@ class Synapse(object):
                 except Exception:
                     row["path"] = ""
                     row["error"] = "DOWNLOAD FAILED"
-                    self.logger.error("Unable to download file")
+                    self.logger.exception("Unable to download file")
                 writer.writerow(row)
 
         # Don't want to clear all the download list because you can add things
