@@ -1,25 +1,25 @@
 import concurrent.futures
 import datetime
 import os
-import requests
+import unittest.mock as mock
+from unittest import TestCase
 
 import pytest
-from unittest import TestCase
-import unittest.mock as mock
+import requests
+from requests import Response
 
 import synapseclient.core.multithread_download.download_threads as download_threads
+from synapseclient import Synapse
+from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
 from synapseclient.core.multithread_download.download_threads import (
-    _MultithreadedDownloader,
-    download_file,
     DownloadRequest,
     PresignedUrlInfo,
     PresignedUrlProvider,
     TransferStatus,
+    _MultithreadedDownloader,
+    download_file,
 )
 from synapseclient.core.retry import DEFAULT_RETRIES
-
-from synapseclient import Synapse
-from synapseclient.core.exceptions import SynapseError
 
 
 class TestPresignedUrlProvider(object):
@@ -396,6 +396,57 @@ class MultithreadedDownloaderTests(TestCase):
 
             # should have been an attempt to cancel the Future
             part_future_2.cancel.assert_called_once_with()
+
+    def test_download_file_error_in_retrieving_file_from_storage(self) -> None:
+        """
+        Test that if an error occurs when retrieving the file from storage, the
+        error is raised.
+        """
+
+        # GIVEN a download request
+        file_handle_id = 1234
+        entity_id = "syn123"
+        path = "/tmp/foo"
+        url = "http://foo.com/bar"
+        request = DownloadRequest(file_handle_id, entity_id, None, path)
+
+        # AND A mocked session
+        with mock.patch.object(
+            download_threads, "_get_new_session"
+        ) as mock_get_new_session, mock.patch.object(
+            download_threads, "PresignedUrlProvider"
+        ) as mock_url_provider_init:
+            mock_url_info = mock.create_autospec(PresignedUrlInfo, url=url)
+            mock_url_provider = mock.create_autospec(PresignedUrlProvider)
+            mock_url_provider.get_info.return_value = mock_url_info
+
+            mock_url_provider_init.return_value = mock_url_provider
+
+            # Create a mock session
+            mock_session = mock.Mock()
+            mock_get_new_session.return_value = mock_session
+
+            # AND the session.get() method returns a 403 error
+            # Create a mock Response
+            mock_response = mock.Mock(spec=Response)
+            mock_response.status_code = 403
+            mock_response.headers = {}
+            mock_response.reason = "mocked response text"
+
+            # Mock the .get() method on the session mock to return the mock Response
+            mock_session.get.return_value = mock_response
+
+            syn = mock.Mock()
+            executor = mock.Mock()
+            max_concurrent_parts = 5
+            downloader = _MultithreadedDownloader(syn, executor, max_concurrent_parts)
+
+            # WHEN the download_file method is called
+            with pytest.raises(SynapseHTTPError) as e:
+                downloader.download_file(request)
+
+            # THEN the error should be raised
+            assert "403 Client Error: mocked response text" in str(e.value)
 
     @mock.patch.object(download_threads, "open")
     def test_prep_file(self, mock_open):

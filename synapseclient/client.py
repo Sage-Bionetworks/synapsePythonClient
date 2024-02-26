@@ -3087,6 +3087,7 @@ class Synapse(object):
             object_id=object_id,
             object_type=object_type,
             path=temp_destination,
+            debug=self.debug,
         )
 
         multithread_download.download_file(self, request)

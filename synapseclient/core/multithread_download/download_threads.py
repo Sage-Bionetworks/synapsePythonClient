@@ -2,25 +2,26 @@ try:
     import threading as _threading
 except ImportError:
     import dummy_threading as _threading
-import datetime
 
 import concurrent.futures
+import datetime
+import os
+import time
 from contextlib import contextmanager
 from http import HTTPStatus
-import os
-from requests import Session, Response
-from requests.adapters import HTTPAdapter
 from typing import Generator, NamedTuple
-from urllib.parse import urlparse, parse_qs
-from urllib3.util.retry import Retry
-import time
+from urllib.parse import parse_qs, urlparse
 
-from synapseclient.core.exceptions import SynapseError
+from requests import Response, Session
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+from synapseclient.core.exceptions import SynapseError, _raise_for_status
 from synapseclient.core.pool_provider import get_executor
 from synapseclient.core.retry import (
-    with_retry,
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
+    with_retry,
 )
 
 # constants
@@ -57,12 +58,14 @@ class DownloadRequest(NamedTuple):
         path : The local path to download the file to.
             This path can be either an absolute path or
             a relative path from where the code is executed to the download location.
+        debug: A boolean to specify if debug mode is on.
     """
 
     file_handle_id: int
     object_id: str
     object_type: str
     path: str
+    debug: bool = False
 
 
 class TransferStatus(object):
@@ -207,18 +210,20 @@ def _get_new_session() -> Session:
     return session
 
 
-def _get_file_size(url: str) -> int:
+def _get_file_size(url: str, debug: bool) -> int:
     """
     Gets the size of the file located at url
 
     Arguments:
         url: The pre-signed url of the file
+        debug: A boolean to specify if debug mode is on
 
     Returns:
         The size of the file in bytes
     """
     session = _get_new_session()
     res_get = session.get(url, stream=True)
+    _raise_for_status(res_get, verbose=debug)
     return int(res_get.headers["Content-Length"])
 
 
@@ -297,11 +302,17 @@ class _MultithreadedDownloader:
         self._executor = executor
         self._max_concurrent_parts = max_concurrent_parts
 
-    def download_file(self, request):
-        url_provider = PresignedUrlProvider(self._syn, request)
+    def download_file(self, request: DownloadRequest) -> None:
+        """
+        Splits up and downloads a file in chunks from a URL.
+
+        Arguments:
+            request: A DownloadRequest object specifying what Synapse file to download.
+        """
+        url_provider = PresignedUrlProvider(self._syn, request=request)
 
         url_info = url_provider.get_info()
-        file_size = _get_file_size(url_info.url)
+        file_size = _get_file_size(url_info.url, request.debug)
         chunk_range_generator = _generate_chunk_ranges(file_size)
 
         self._prep_file(request)
