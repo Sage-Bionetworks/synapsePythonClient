@@ -3,19 +3,20 @@ import configparser
 import datetime
 import errno
 import json
+import logging
 import os
-from pathlib import Path
-import requests
 import tempfile
 import urllib.request as urllib_request
 import uuid
+from pathlib import Path
+from unittest.mock import ANY, MagicMock, Mock, call, create_autospec, patch
 
 import pytest
-from unittest.mock import ANY, call, create_autospec, MagicMock, Mock, patch
+import requests
+from pytest_mock import MockerFixture
 
 import synapseclient
-from synapseclient.annotations import convert_old_annotation_json
-from synapseclient import client
+import synapseclient.core.utils as utils
 from synapseclient import (
     Activity,
     Annotations,
@@ -23,12 +24,21 @@ from synapseclient import (
     DockerRepository,
     Entity,
     EntityViewSchema,
-    Schema,
     File,
     Folder,
-    Team,
+    Schema,
     SubmissionViewSchema,
     Synapse,
+    Team,
+    client,
+)
+from synapseclient.annotations import convert_old_annotation_json
+from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
+from synapseclient.core.constants import concrete_types
+from synapseclient.core.credentials import UserLoginArgs
+from synapseclient.core.credentials.cred_data import SynapseAuthTokenCredentials
+from synapseclient.core.credentials.credential_provider import (
+    SynapseCredentialsProviderChain,
 )
 from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
@@ -39,20 +49,12 @@ from synapseclient.core.exceptions import (
     SynapseUnmetAccessRestrictions,
 )
 from synapseclient.core.logging_setup import (
-    DEFAULT_LOGGER_NAME,
     DEBUG_LOGGER_NAME,
+    DEFAULT_LOGGER_NAME,
     SILENT_LOGGER_NAME,
 )
-from synapseclient.core.upload import upload_functions
-import synapseclient.core.utils as utils
-from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
-from synapseclient.core.constants import concrete_types
-from synapseclient.core.credentials import UserLoginArgs
-from synapseclient.core.credentials.cred_data import SynapseAuthTokenCredentials
-from synapseclient.core.credentials.credential_provider import (
-    SynapseCredentialsProviderChain,
-)
 from synapseclient.core.models.dict_object import DictObject
+from synapseclient.core.upload import upload_functions
 
 
 class TestLogout:
@@ -2032,16 +2034,31 @@ class TestDownloadList:
         )
         os.remove(manifest_path)
 
-    def test_get_download_list_invalid_download(self):
+    def test_get_download_list_invalid_download(
+        self, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """If the file can't be downloaded, download list won't be cleared"""
         with open(self.manifest_name, "w") as temp:
             temp.write("ID,versionNumber\n")
             temp.write("syn123,2")
+
+        self.syn.logger = logging.getLogger(DEFAULT_LOGGER_NAME)
         self.mock_get_dl_manifest.return_value = self.manifest_name
-        self.mock_get.side_effect = Exception
+        self.mock_get.side_effect = Exception("This is an error being logged")
+
+        logger_exception_spy = mocker.spy(self.syn.logger, "exception")
         manifest_path = self.syn.get_download_list()
+
         self.mock_get_dl_manifest.assert_called_once()
         self.mock_remove_dl_list.assert_not_called()
+
+        # Check that the exception message was logged
+        assert logger_exception_spy.call_count == 1
+        call_args = logger_exception_spy.call_args[0]
+        assert "Unable to download file" in call_args[0]
+        assert "Exception: This is an error being logged" in caplog.text
+        self.syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
+
         os.remove(manifest_path)
 
 
