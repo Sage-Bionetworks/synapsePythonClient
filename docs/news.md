@@ -1,5 +1,21 @@
 # Release Notes
 
+## 4.1.1 (2024-02-28)
+
+### Highlights
+- **New Downloading Data in Bulk Tutorial**
+    - See [Downloading data in bulk tutorial](https://python-docs.synapse.org/tutorials/python/download_data_in_bulk/) for more details on downloading data in bulk from Synapse.
+- **Downloading Files Troubleshooting Improvement**
+    - Improved error logging for when users are downloading files using commands like `get-download-list` from Synapse.
+
+### Bug Fixes
+-  \[[SYNPY-1443](https://sagebionetworks.jira.com/browse/SYNPY-1443)\] - Storing container without retrieving it before setting files/folder breaks
+-  \[[SYNPY-1445](https://sagebionetworks.jira.com/browse/SYNPY-1445)\] - Improve error handling when unable to download file
+
+### Stories
+-  \[[SYNPY-1383](https://sagebionetworks.jira.com/browse/SYNPY-1383)\] - Downloading data in bulk documentation
+-  \[[SYNPY-1442](https://sagebionetworks.jira.com/browse/SYNPY-1442)\] - Log exception when `get_download_list` fails
+
 ## 4.1.0 (2024-02-21)
 
 ### Highlights
