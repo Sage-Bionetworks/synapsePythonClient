@@ -6130,7 +6130,7 @@ class Synapse(object):
             response = await with_retry_async(
                 lambda: requests_method_fn(
                     uri,
-                    data=data,
+                    content=data,
                     headers=headers,
                     auth=auth,
                     **kwargs,
