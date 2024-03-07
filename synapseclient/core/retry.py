@@ -230,7 +230,7 @@ async def with_retry_async(
     retry_status_codes: typing.List[int] = None,
     expected_status_codes: typing.List[int] = None,
     retry_errors: typing.List[str] = None,
-    retry_exceptions: typing.List[Exception] = None,
+    retry_exceptions: typing.List[typing.Union[Exception, str]] = None,
     retry_base_wait: float = DEFAULT_BASE_WAIT_ASYNC,
     retry_wait_random_lower: float = DEFAULT_WAIT_RANDOM_LOWER_ASYNC,
     retry_wait_random_upper: float = DEFAULT_WAIT_RANDOM_UPPER_ASYNC,
