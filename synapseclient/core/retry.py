@@ -268,7 +268,7 @@ async def with_retry_async(
 
             from synapseclient.core.retry import with_retry_async
 
-            def foo(a, b, c): return [a, b, c]
+            async def foo(a, b, c): return [a, b, c]
             result = await with_retry_async(lambda: foo("1", "2", "3"))
     """
     if not retry_status_codes:
