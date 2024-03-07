@@ -1,29 +1,40 @@
-import tempfile
-import os
-import filecmp
-import shutil
-import uuid
 import configparser
+import filecmp
+import json
+import os
+import shutil
+import tempfile
+import uuid
 from datetime import datetime
-
-import pytest
+from typing import Callable
 from unittest.mock import patch
 
-from synapseclient import Entity, Team, UserProfile, client, Synapse
-from synapseclient import Activity, Annotations, File, Folder, Project, Synapse
-from synapseclient.core.exceptions import (
-    SynapseHTTPError,
-    SynapseNoCredentialsError,
-)
-import synapseclient.core.utils as utils
-from synapseclient.core.version_check import version_check
+import pytest
 from opentelemetry import trace
-from typing import Callable
+
+import synapseclient.core.utils as utils
+from synapseclient import (
+    Activity,
+    Annotations,
+    Entity,
+    File,
+    Folder,
+    Project,
+    Synapse,
+    Team,
+    UserProfile,
+    client,
+)
+from synapseclient.core.exceptions import SynapseHTTPError, SynapseNoCredentialsError
+from synapseclient.core.version_check import version_check
 
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 
 tracer = trace.get_tracer("synapseclient")
+
+FILE_NAME_PREFIX = "fooUploadFileEntity"
+FILE_DESCRIPTION = "A test file entity"
 
 
 @tracer.start_as_current_span("integration_test::test_login")
@@ -199,10 +210,10 @@ def test_upload_file_with_force_version_false(
     path = utils.make_bogus_uuid_file()
     schedule_for_cleanup(path)
     entity = File(
-        name="fooUploadFileEntity" + str(uuid.uuid4()),
+        name=FILE_NAME_PREFIX + str(uuid.uuid4()),
         path=path,
         parentId=project["id"],
-        description="A test file entity",
+        description=FILE_DESCRIPTION,
     )
 
     # AND I store the file in Synapse
@@ -233,10 +244,10 @@ def test_upload_file_changed_with_force_version_false(
     path = utils.make_bogus_uuid_file()
     schedule_for_cleanup(path)
     entity = File(
-        name="fooUploadFileEntity" + str(uuid.uuid4()),
+        name=FILE_NAME_PREFIX + str(uuid.uuid4()),
         path=path,
         parentId=project["id"],
-        description="A test file entity",
+        description=FILE_DESCRIPTION,
     )
 
     # AND I store the file in Synapse
@@ -269,10 +280,10 @@ def test_uploadFileEntity(syn, project, schedule_for_cleanup):
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
     entity = File(
-        name="fooUploadFileEntity" + str(uuid.uuid4()),
+        name=FILE_NAME_PREFIX + str(uuid.uuid4()),
         path=fname,
         parentId=project["id"],
-        description="A test file entity",
+        description=FILE_DESCRIPTION,
     )
     entity = syn.store(entity)
 
@@ -1193,3 +1204,139 @@ def test_create_delete_team(syn: Synapse) -> None:
     # THEN I expect it to no longer exist in Synapse
     with pytest.raises(SynapseHTTPError):
         syn.getTeam(id=team.id)
+
+
+class TestAsyncRestInterfaces:
+    """Test the async interfaces for the rest methods of the Synapse client."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    @pytest.mark.asyncio
+    async def test_rest_get_async(self, project: Project) -> None:
+        # GIVEN a project stored in synapse
+
+        # WHEN I get the project from synapse
+        new_project_instance = await self.syn.rest_get_async(f"/entity/{project.id}")
+
+        # THEN I expect the project to be the same
+        assert new_project_instance["id"] == project["id"]
+        assert new_project_instance["name"] == project["name"]
+        assert new_project_instance["etag"] == project["etag"]
+
+    @pytest.mark.asyncio
+    async def test_rest_post_async(self, project: Project) -> None:
+        # GIVEN A bogus file to upload to synapse
+        path = utils.make_bogus_uuid_file()
+        self.schedule_for_cleanup(path)
+        entity = File(
+            name=FILE_NAME_PREFIX + str(uuid.uuid4()),
+            path=path,
+            parentId=project["id"],
+            description=FILE_DESCRIPTION,
+        )
+
+        # AND I store the file in Synapse
+        entity = self.syn.store(entity)
+        self.schedule_for_cleanup(entity.id)
+
+        # WHEN I used the rest_post_async method to get the bundle
+        request = {
+            "includeEntity": True,
+        }
+        entity_bundle = await self.syn.rest_post_async(
+            uri=f"/entity/{entity.id}/bundle2",
+            body=json.dumps(request),
+        )
+
+        # THEN I expect the bundle to contain the entity
+        assert entity_bundle["entity"]["id"] == entity.id
+        assert entity_bundle["entity"]["name"] == entity.name
+        assert entity_bundle["entity"]["etag"] == entity.etag
+
+    @pytest.mark.asyncio
+    async def test_rest_put_async(self, project: Project) -> None:
+        # GIVEN A bogus file to upload to synapse
+        path = utils.make_bogus_uuid_file()
+        self.schedule_for_cleanup(path)
+        entity = File(
+            name=FILE_NAME_PREFIX + str(uuid.uuid4()),
+            path=path,
+            parentId=project["id"],
+            description=FILE_DESCRIPTION,
+        )
+
+        # AND I store the file in Synapse
+        entity = self.syn.store(entity)
+        self.schedule_for_cleanup(entity.id)
+
+        # AND I used the rest_post_async method to get the bundle
+        request = {
+            "includeEntity": True,
+        }
+        entity_bundle = await self.syn.rest_post_async(
+            uri=f"/entity/{entity.id}/bundle2",
+            body=json.dumps(request),
+        )
+
+        # WHEN I updated a field on the entity
+        assert entity_bundle["entity"]["description"] == FILE_DESCRIPTION
+        entity_bundle["entity"]["description"] = "new description"
+
+        # AND I PUT the updated entity back to Synapse
+        updated_entity_bundle = await self.syn.rest_put_async(
+            uri=f"/entity/{entity_bundle['entity']['id']}/bundle2",
+            body=json.dumps({"entity": entity_bundle["entity"]}),
+        )
+
+        # THEN I expect the updated entity to have been stored to synapse
+        assert updated_entity_bundle["entity"]["description"] == "new description"
+
+        # AND getting the entity again from synapse should return the updated entity
+        entity_bundle_copy = await self.syn.rest_post_async(
+            uri=f"/entity/{entity.id}/bundle2",
+            body=json.dumps(
+                {
+                    "includeEntity": True,
+                }
+            ),
+        )
+        assert entity_bundle_copy["entity"]["description"] == "new description"
+
+    @pytest.mark.asyncio
+    async def test_rest_delete_async(self, project: Project) -> None:
+        # GIVEN A bogus file to upload to synapse
+        path = utils.make_bogus_uuid_file()
+        self.schedule_for_cleanup(path)
+        entity = File(
+            name=FILE_NAME_PREFIX + str(uuid.uuid4()),
+            path=path,
+            parentId=project["id"],
+            description=FILE_DESCRIPTION,
+        )
+
+        # AND I store the file in Synapse
+        entity = self.syn.store(entity)
+        self.schedule_for_cleanup(entity.id)
+
+        # WHEN I use rest_delete_async to delete the entity
+        await self.syn.rest_delete_async(uri=f"/entity/{entity.id}")
+
+        # AND I use the rest_post_async method to get the bundle
+        request = {
+            "includeEntity": True,
+        }
+        try:
+            await self.syn.rest_post_async(
+                uri=f"/entity/{entity.id}/bundle2",
+                body=json.dumps(request),
+            )
+        except SynapseHTTPError as ex:
+            # THEN I expect that nothing is found as it is in the trash can
+            assert ex.response.status_code == 404
+            assert (
+                f"404 Client Error: Entity {entity.id} is in trash can.\nEntity "
+                f"{entity.id} is in trash can." in str(ex)
+            )

@@ -319,7 +319,7 @@ async def with_retry_async(
                 ):
                     retry = True
                 # special case for message throttling
-                elif (
+                elif response_message and (
                     "Please slow down.  You may send a maximum of 10 message"
                     in response_message
                 ):
@@ -348,16 +348,16 @@ async def with_retry_async(
         if total_wait < retry_max_wait_before_failure and retry:
             if response is not None:
                 response_message = _get_message(response)
+                url_message_part = (
+                    f"{response.request.url.host}{response.request.url.path}"
+                    f"{f'?{response.request.url.params}' if response.request.url.params else ''}"
+                    if hasattr(response, "request") and hasattr(response.request, "url")
+                    else ""
+                )
                 logger.debug(
-                    "retrying on status code: %s - %s%s%s - %s",
+                    "retrying on status code: %s - %s - %s",
                     str(response.status_code),
-                    response.request.url.host,
-                    response.request.url.path,
-                    (
-                        f"?{response.request.url.params}"
-                        if response.request.url.params
-                        else ""
-                    ),
+                    url_message_part,
                     response_message,
                 )
             elif caught_exception is not None:
