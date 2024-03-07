@@ -27,6 +27,7 @@ import urllib.request as urllib_request
 import warnings
 import webbrowser
 import zipfile
+import httpx
 
 from deprecated import deprecated
 
@@ -104,6 +105,7 @@ from synapseclient.core.utils import (
 )
 from synapseclient.core.retry import (
     with_retry,
+    with_retry_async,
     DEFAULT_RETRY_STATUS_CODES,
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
@@ -120,7 +122,7 @@ from synapseclient.core.upload.upload_functions import (
 )
 from synapseclient.core.dozer import doze
 
-from typing import Union, Dict, List, Optional, Tuple
+from typing import Any, Union, Dict, List, Optional, Tuple
 from synapseclient.core.models.permission import Permissions
 from opentelemetry import trace
 
@@ -163,6 +165,12 @@ STANDARD_RETRY_PARAMS = {
     "wait": 1,
     "max_wait": 30,
     "back_off": 2,
+}
+
+STANDARD_RETRY_ASYNC_PARAMS = {
+    "retry_status_codes": DEFAULT_RETRY_STATUS_CODES,
+    "retry_errors": RETRYABLE_CONNECTION_ERRORS,
+    "retry_exceptions": RETRYABLE_CONNECTION_EXCEPTIONS,
 }
 
 # Add additional mimetypes
@@ -250,6 +258,8 @@ class Synapse(object):
         requests_session: requests.Session = None,
         cache_root_dir: str = None,
         silent: bool = None,
+        requests_session_async_synapse: httpx.AsyncClient = None,
+        requests_session_async_storage: httpx.AsyncClient = None,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -266,11 +276,31 @@ class Synapse(object):
                                 when making http requests.
             cache_root_dir:     Root directory for storing cache data.
             silent:             Suppresses message.
+            requests_session_async_synapse: The HTTPX Async client for interacting with
+                Synapse services.
+            requests_session_async_storage: The HTTPX Async client for interacting with
+                storage providers like AWS S3 and Google Cloud.
 
         Raises:
             ValueError: Warn for non-boolean debug value.
         """
         self._requests_session = requests_session or requests.Session()
+
+        httpx_timeout = httpx.Timeout(70)
+        self._requests_session_async_synapse = (
+            requests_session_async_synapse
+            or httpx.AsyncClient(
+                limits=httpx.Limits(max_connections=25),
+                timeout=httpx_timeout,
+            )
+        )
+
+        self._requests_session_async_storage = (
+            requests_session_async_storage
+            or httpx.AsyncClient(
+                timeout=httpx_timeout,
+            )
+        )
 
         cache_root_dir = (
             cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir
@@ -5796,6 +5826,28 @@ class Synapse(object):
 
             raise
 
+    def _handle_httpx_synapse_http_error(self, response: httpx.Response) -> None:
+        """Raise errors as appropriate for the HTTPX library returned Synapse http
+        status codes
+
+        Arguments:
+            response: The HTTPX response object
+        """
+
+        try:
+            exceptions._raise_for_status_httpx(response, verbose=self.debug)
+        except exceptions.SynapseHTTPError as ex:
+            # if we get a unauthenticated or forbidden error and the user is not logged in
+            # then we raise it as an authentication error.
+            # we can't know for certain that logging in to their particular account will grant them
+            # access to this resource but more than likely it's the cause of this error.
+            if response.status_code in (401, 403) and not self.credentials:
+                raise SynapseAuthenticationError(
+                    "You are not logged in and do not have access to a requested resource."
+                ) from ex
+
+            raise
+
     def _rest_call(
         self,
         method,
@@ -5987,7 +6039,9 @@ class Synapse(object):
             **kwargs,
         )
 
-    def _build_uri_and_headers(self, uri, endpoint=None, headers=None):
+    def _build_uri_and_headers(
+        self, uri: str, endpoint: str = None, headers: Dict[str, str] = None
+    ) -> Tuple[str, Dict[str, str]]:
         """Returns a tuple of the URI and headers to request with."""
 
         if endpoint is None:
@@ -6012,6 +6066,15 @@ class Synapse(object):
         defaults.update(retryPolicy)
         return defaults
 
+    def _build_retry_policy_async(
+        self, retryPolicy: Dict[str, Any] = {}
+    ) -> Dict[str, Any]:
+        """Returns a retry policy to be passed onto _with_retry_async."""
+
+        defaults = dict(STANDARD_RETRY_ASYNC_PARAMS)
+        defaults.update(retryPolicy)
+        return defaults
+
     def _return_rest_body(self, response):
         """Returns either a dictionary or a string depending on the 'content-type' of the response."""
         trace.get_current_span().set_attributes(
@@ -6020,3 +6083,235 @@ class Synapse(object):
         if is_json(response.headers.get("content-type", None)):
             return response.json()
         return response.text
+
+    async def _rest_call_async(
+        self,
+        method: str,
+        uri: str,
+        data: Any,
+        endpoint: str,
+        headers: Dict[str, str],
+        retry_policy: Dict[str, Any],
+        requests_session_async_synapse: httpx.AsyncClient,
+        **kwargs,
+    ):
+        """
+        Sends an HTTP request to the Synapse server.
+
+        Arguments:
+            method: The method to implement Create, Read, Update, Delete operations.
+                Should be post, get, put, delete.
+            uri: URI on which the method is performed.
+            data: The payload to be delivered.
+            endpoint: Server endpoint, defaults to self.repoEndpoint
+            headers: Dictionary of headers to use.
+            retry_policy: A retry policy that matches the arguments of
+                [synapseclient.core.retry#with_retry_async][].
+            requests_session_async_synapse: The async client to use when making this
+                specific call.
+            kwargs: Any other arguments taken by a
+                [request](https://www.python-httpx.org/api/) method
+
+        Returns:
+            JSON encoding of response
+        """
+        uri, headers = self._build_uri_and_headers(
+            uri, endpoint=endpoint, headers=headers
+        )
+
+        retry_policy = self._build_retry_policy_async(retry_policy)
+        requests_session = (
+            requests_session_async_synapse or self._requests_session_async_synapse
+        )
+
+        auth = kwargs.pop("auth", self.credentials)
+        requests_method_fn = getattr(requests_session, method)
+        if data:
+            response = await with_retry_async(
+                lambda: requests_method_fn(
+                    uri,
+                    data=data,
+                    headers=headers,
+                    auth=auth,
+                    **kwargs,
+                ),
+                verbose=self.debug,
+                **retry_policy,
+            )
+        else:
+            response = await with_retry_async(
+                lambda: requests_method_fn(
+                    uri,
+                    headers=headers,
+                    auth=auth,
+                    **kwargs,
+                ),
+                verbose=self.debug,
+                **retry_policy,
+            )
+
+        self._handle_httpx_synapse_http_error(response)
+        return response
+
+    async def rest_get_async(
+        self,
+        uri: str,
+        endpoint: str = None,
+        headers: httpx.Headers = None,
+        retry_policy: Dict[str, Any] = {},
+        requests_session_async_synapse: httpx.AsyncClient = None,
+        **kwargs,
+    ):
+        """
+        Sends an HTTP GET request to the Synapse server.
+
+        Arguments:
+            uri: URI on which get is performed
+            endpoint: Server endpoint, defaults to self.repoEndpoint
+            headers: Dictionary of headers to use.
+            retry_policy: A retry policy that matches the arguments of
+                [synapseclient.core.retry#with_retry_async][].
+            requests_session_async_synapse: The async client to use when making this
+                specific call.
+            kwargs: Any other arguments taken by a
+                [request](https://www.python-httpx.org/api/) method
+
+        Returns:
+            JSON encoding of response
+        """
+        try:
+            with tracer.start_as_current_span("SynapseAsync::rest_get_async"):
+                trace.get_current_span().set_attributes({"url.path": uri})
+                response = await self._rest_call_async(
+                    "get",
+                    uri,
+                    None,
+                    endpoint,
+                    headers,
+                    retry_policy,
+                    requests_session_async_synapse,
+                    **kwargs,
+                )
+                return self._return_rest_body(response)
+        except Exception:
+            self.logger.exception("Error in rest_get_async")
+
+    async def rest_post_async(
+        self,
+        uri,
+        body,
+        endpoint: str = None,
+        headers: httpx.Headers = None,
+        retry_policy: Dict[str, Any] = {},
+        requests_session_async_synapse: httpx.AsyncClient = None,
+        **kwargs,
+    ):
+        """
+        Sends an HTTP POST request to the Synapse server.
+
+        Arguments:
+            uri: URI on which get is performed
+            endpoint: Server endpoint, defaults to self.repoEndpoint
+            body: The payload to be delivered
+            headers: Dictionary of headers to use.
+            retry_policy: A retry policy that matches the arguments of
+                [synapseclient.core.retry#with_retry_async][].
+            requests_session_async_synapse: The async client to use when making this
+                specific call.
+            kwargs: Any other arguments taken by a
+                [request](https://www.python-httpx.org/api/) method
+
+        Returns:
+            JSON encoding of response
+        """
+        with tracer.start_as_current_span("SynapseAsync::rest_post_async"):
+            trace.get_current_span().set_attributes({"url.path": uri})
+            response = await self._rest_call_async(
+                "post",
+                uri,
+                body,
+                endpoint,
+                headers,
+                retry_policy,
+                requests_session_async_synapse,
+                **kwargs,
+            )
+            return self._return_rest_body(response)
+
+    async def rest_put_async(
+        self,
+        uri,
+        body=None,
+        endpoint=None,
+        headers=None,
+        retry_policy: Dict[str, Any] = {},
+        requests_session_async_synapse: httpx.AsyncClient = None,
+        **kwargs,
+    ):
+        """
+        Sends an HTTP PUT request to the Synapse server.
+
+        Arguments:
+            uri: URI on which get is performed
+            body: The payload to be delivered.
+            endpoint: Server endpoint, defaults to self.repoEndpoint
+            headers: Dictionary of headers to use.
+            retry_policy: A retry policy that matches the arguments of
+                [synapseclient.core.retry#with_retry_async][].
+            requests_session_async_synapse: The async client to use when making this
+                specific call.
+            kwargs: Any other arguments taken by a
+                [request](https://www.python-httpx.org/api/) method
+
+        Returns
+            JSON encoding of response
+        """
+        with tracer.start_as_current_span("SynapseAsync::rest_put_async"):
+            trace.get_current_span().set_attributes({"url.path": uri})
+            response = await self._rest_call_async(
+                "put",
+                uri,
+                body,
+                endpoint,
+                headers,
+                retry_policy,
+                requests_session_async_synapse,
+                **kwargs,
+            )
+            return self._return_rest_body(response)
+
+    async def rest_delete_async(
+        self,
+        uri,
+        endpoint=None,
+        headers=None,
+        retryPolicy: Dict[str, Any] = {},
+        requests_session_async_synapse: httpx.AsyncClient = None,
+        **kwargs,
+    ) -> None:
+        """
+        Sends an HTTP DELETE request to the Synapse server.
+
+        Arguments:
+            uri: URI of resource to be deleted
+            endpoint: Server endpoint, defaults to self.repoEndpoint
+            headers: Dictionary of headers to use.
+            retry_policy: A retry policy that matches the arguments of
+                [synapseclient.core.retry#with_retry_async][].
+            requests_session_async_synapse: The async client to use when making this
+                specific call
+            kwargs: Any other arguments taken by a [request](https://www.python-httpx.org/api/) method
+
+        """
+        with tracer.start_as_current_span("SynapseAsync::rest_delete_async"):
+            trace.get_current_span().set_attributes({"url.path": uri})
+            await self._rest_call_async(
+                "delete",
+                uri,
+                None,
+                endpoint,
+                headers,
+                retryPolicy,
+                requests_session_async_synapse,
+                **kwargs,
+            )
