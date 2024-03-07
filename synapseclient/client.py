@@ -6198,8 +6198,8 @@ class Synapse(object):
 
     async def rest_post_async(
         self,
-        uri,
-        body,
+        uri: str,
+        body: Any = None,
         endpoint: str = None,
         headers: httpx.Headers = None,
         retry_policy: Dict[str, Any] = {},
@@ -6240,10 +6240,10 @@ class Synapse(object):
 
     async def rest_put_async(
         self,
-        uri,
-        body=None,
-        endpoint=None,
-        headers=None,
+        uri: str,
+        body: Any = None,
+        endpoint: str = None,
+        headers: httpx.Headers = None,
         retry_policy: Dict[str, Any] = {},
         requests_session_async_synapse: httpx.AsyncClient = None,
         **kwargs,
@@ -6282,9 +6282,9 @@ class Synapse(object):
 
     async def rest_delete_async(
         self,
-        uri,
-        endpoint=None,
-        headers=None,
+        uri: str,
+        endpoint: str = None,
+        headers: httpx.Headers = None,
         retryPolicy: Dict[str, Any] = {},
         requests_session_async_synapse: httpx.AsyncClient = None,
         **kwargs,
