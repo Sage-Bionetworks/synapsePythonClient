@@ -74,6 +74,7 @@ nav:
     - Exceptions: reference/exceptions.md
     - Permissions: reference/permissions.md
     - Core: reference/core.md
+    - REST Apis: reference/rest_apis.md
     - Experimental:
       - Object-Orientated Models: reference/oop/models.md
       - Async Object-Orientated Models: reference/oop/models_async.md

@@ -6106,7 +6106,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry#with_retry_async][].
+                [synapseclient.core.retry.with_retry_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6170,7 +6170,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry#with_retry_async][].
+                [synapseclient.core.retry.with_retry_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6215,7 +6215,7 @@ class Synapse(object):
             body: The payload to be delivered
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry#with_retry_async][].
+                [synapseclient.core.retry.with_retry_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6257,7 +6257,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry#with_retry_async][].
+                [synapseclient.core.retry.with_retry_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6297,7 +6297,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry#with_retry_async][].
+                [synapseclient.core.retry.with_retry_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call
             kwargs: Any other arguments taken by a [request](https://www.python-httpx.org/api/) method
