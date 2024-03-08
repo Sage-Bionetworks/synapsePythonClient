@@ -133,31 +133,31 @@ class TestAsyncRetry:
     async def test_with_retry(self) -> None:
         retry_params = {"retry_max_wait_before_failure": 1}
         response = AsyncMock()
-        function = AsyncMock()
-        function.return_value = response
+        mocked_function = AsyncMock()
+        mocked_function.return_value = response
 
         # -- No failures --
         response.status_code.__eq__.side_effect = lambda x: x == 250
-        await with_retry_async(function, verbose=True, **retry_params)
-        assert function.call_count == 1
+        await with_retry_async(mocked_function, verbose=True, **retry_params)
+        assert mocked_function.call_count == 1
 
         # -- Always fail --
         response.status_code.__eq__.side_effect = lambda x: x == 503
-        await with_retry_async(function, verbose=True, **retry_params)
-        assert function.call_count > 5
+        await with_retry_async(mocked_function, verbose=True, **retry_params)
+        assert mocked_function.call_count > 5
 
         # -- Fail then succeed --
-        thirdTimes = [3, 2, 1]
+        fail_and_succeed = [3, 2, 1]
 
-        def the_charm(x):
+        def fail_then_succeed(x):
             if x == 503:
-                count = thirdTimes.pop()
+                count = fail_and_succeed.pop()
                 return count != 3
             return x == 503
 
-        response.status_code.__eq__.side_effect = the_charm
-        await with_retry_async(function, verbose=True, **retry_params)
-        assert function.call_count > 8
+        response.status_code.__eq__.side_effect = fail_then_succeed
+        await with_retry_async(mocked_function, verbose=True, **retry_params)
+        assert mocked_function.call_count > 8
 
         # -- Retry with an error message --
         retry_error_messages = ["Foo"]
@@ -169,21 +169,22 @@ class TestAsyncRetry:
             "application/json" if x == "content-type" else None
         )
         response.json.return_value = {"reason": retry_error_messages[0]}
-        await with_retry_async(function, **retry_params)
+        await with_retry_async(mocked_function, **retry_params)
         assert response.headers.get.called
-        assert function.call_count > 12
+        assert mocked_function.call_count > 12
 
         # -- Propagate an error up --
         print("Expect a SynapseError: Bar")
 
-        def foo():
+        def foo() -> None:
+            """Function that raises a SynapseError"""
             raise SynapseError("Bar")
 
-        function.side_effect = foo
+        mocked_function.side_effect = foo
         with pytest.raises(SynapseError) as ex_cm:
-            await with_retry_async(function, **retry_params)
+            await with_retry_async(mocked_function, **retry_params)
         assert "Bar" in str(ex_cm.value)
-        assert function.call_count > 13
+        assert mocked_function.call_count > 13
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -199,12 +200,12 @@ class TestAsyncRetry:
         response = AsyncMock(spec=Response)
         response.status_code = 200
 
-        fn = AsyncMock()
-        fn.return_value = response
+        mocked_function = AsyncMock()
+        mocked_function.return_value = response
 
         # no unexpected exceptions etc should be raised
         returned_response = await with_retry_async(
-            fn,
+            mocked_function,
             retry_status_codes=values,
             expected_status_codes=values,
             retry_exceptions=values,
@@ -222,13 +223,13 @@ class TestAsyncRetry:
         matching_response = AsyncMock(spec=Response)
         matching_response.status_code = 201
 
-        fn = AsyncMock()
-        fn.side_effect = [
+        mocked_function = AsyncMock()
+        mocked_function.side_effect = [
             non_matching_response,
             matching_response,
         ]
 
-        response = await with_retry_async(fn, expected_status_codes=[201])
+        response = await with_retry_async(mocked_function, expected_status_codes=[201])
         assert response == matching_response
 
     @pytest.mark.asyncio
@@ -240,7 +241,8 @@ class TestAsyncRetry:
 
         x = 0
 
-        async def fn():
+        async def fn() -> int:
+            """Function that raises a ValueError and then returns a value"""
             nonlocal x
             x += 1
             if x < 2:

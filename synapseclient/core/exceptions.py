@@ -1,9 +1,14 @@
+"""Contains all of the exceptions that can be thrown within this Python client as well
+as handling error cases for HTTP requests."""
+
+import logging
 from typing import Union
 
 import httpx
 import requests
 
 from synapseclient.core import utils
+from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME
 
 
 class SynapseError(Exception):
@@ -60,13 +65,9 @@ class SynapseUploadAbortedException(SynapseError):
     """Raised when a worker thread detects the upload was
     aborted and stops further processing."""
 
-    pass
-
 
 class SynapseUploadFailedException(SynapseError):
     """Raised when an upload failed. Should be chained to a cause Exception"""
-
-    pass
 
 
 def _get_message(response: httpx.Response) -> Union[str, None]:
@@ -83,6 +84,16 @@ def _get_message(response: httpx.Response) -> Union[str, None]:
     except (AttributeError, ValueError):
         # The response can be truncated. In which case, the message cannot be retrieved.
         return None
+
+
+CLIENT_ERROR = "Client Error:"
+SERVER_ERROR = "Server Error:"
+RESPONSE_PREFIX = ">>>>>> Response <<<<<<"
+REQUEST_PREFIX = ">>>>>> Request <<<<<<"
+HEADERS_PREFIX = ">>> Headers: "
+BODY_PREFIX = ">>> Body: "
+UNABLE_TO_APPEND_REQUEST = "Could not append all request info"
+UNABLE_TO_APPEND_RESPONSE = "Could not append all response info"
 
 
 def _raise_for_status(response, verbose=False):
@@ -129,7 +140,7 @@ def _raise_for_status(response, verbose=False):
         # 450: 'blocked_by_windows_parental_controls'
         # 451: 'unavailable_for_legal_reasons'
         # 499: 'client_closed_request'
-        message = "%s Client Error: %s" % (response.status_code, response.reason)
+        message = f"{response.status_code} {CLIENT_ERROR} {response.reason}"
 
     elif 500 <= response.status_code < 600:
         # TODOs:
@@ -143,7 +154,7 @@ def _raise_for_status(response, verbose=False):
         # 507: 'insufficient_storage'
         # 509: 'bandwidth_limit_exceeded'
         # 510: 'not_extended'
-        message = "%s Server Error: %s" % (response.status_code, response.reason)
+        message = f"{response.status_code} {SERVER_ERROR} {response.reason}"
 
     if message is not None:
         # Append the server's JSON error message
@@ -151,29 +162,26 @@ def _raise_for_status(response, verbose=False):
             utils.is_json(response.headers.get("content-type", None))
             and "reason" in response.json()
         ):
-            message += "\n%s" % response.json()["reason"]
+            message += f"\n{response.json()['reason']}"
         else:
-            message += "\n%s" % response.text
+            message += f"\n{response.text}"
 
         if verbose:
             try:
                 # Append the request sent
-                message += "\n\n>>>>>> Request <<<<<<\n%s %s" % (
-                    response.request.url,
-                    response.request.method,
-                )
-                message += "\n>>> Headers: %s" % response.request.headers
-                message += "\n>>> Body: %s" % response.request.body
+                message += f"\n\n{REQUEST_PREFIX}\n{response.request.url} {response.request.method}"
+                message += f"\n{HEADERS_PREFIX}{response.request.headers}"
+                message += f"\n{BODY_PREFIX}{response.request.body}"
             except:  # noqa
-                message += "\nCould not append all request info"
+                message += f"\n{UNABLE_TO_APPEND_REQUEST}"
 
             try:
                 # Append the response received
-                message += "\n\n>>>>>> Response <<<<<<\n%s" % str(response)
-                message += "\n>>> Headers: %s" % response.headers
-                message += "\n>>> Body: %s\n\n" % response.text
+                message += f"\n\n{RESPONSE_PREFIX}\n{str(response)}"
+                message += f"\n{HEADERS_PREFIX}{response.headers}"
+                message += f"\n{BODY_PREFIX}{response.text}\n\n"
             except:  # noqa
-                message += "\nCould not append all response info"
+                message += f"\n{UNABLE_TO_APPEND_RESPONSE}"
 
         raise SynapseHTTPError(message, response=response)
 
@@ -228,7 +236,7 @@ def _raise_for_status_httpx(response: httpx.Response, verbose: bool = False) -> 
         # 450: 'blocked_by_windows_parental_controls'
         # 451: 'unavailable_for_legal_reasons'
         # 499: 'client_closed_request'
-        message = "%s Client Error: %s" % (response.status_code, _get_message(response))
+        message = f"{response.status_code} {CLIENT_ERROR} {_get_message(response)}"
 
     elif 500 <= response.status_code < 600:
         # TODOs:
@@ -242,7 +250,7 @@ def _raise_for_status_httpx(response: httpx.Response, verbose: bool = False) -> 
         # 507: 'insufficient_storage'
         # 509: 'bandwidth_limit_exceeded'
         # 510: 'not_extended'
-        message = "%s Server Error: %s" % (response.status_code, _get_message(response))
+        message = f"{response.status_code} {SERVER_ERROR} {_get_message(response)}"
 
     if message is not None:
         # Append the server's JSON error message
@@ -250,28 +258,29 @@ def _raise_for_status_httpx(response: httpx.Response, verbose: bool = False) -> 
             utils.is_json(response.headers.get("content-type", None))
             and "reason" in response.json()
         ):
-            message += "\n%s" % response.json()["reason"]
+            message += f"\n{response.json()['reason']}"
         else:
-            message += "\n%s" % response.text
+            message += f"\n{response.text}"
 
         if verbose:
             try:
                 # Append the request sent
-                message += "\n\n>>>>>> Request <<<<<<\n%s %s" % (
-                    response.request.url,
-                    response.request.method,
-                )
-                message += "\n>>> Headers: %s" % response.request.headers
-                message += "\n>>> Body: %s" % response.request.content
-            except:  # noqa
-                message += "\nCould not append all request info"
+                message += f"\n\n{REQUEST_PREFIX}\n{response.request.url} {response.request.method}"
+                message += f"\n{HEADERS_PREFIX}{response.request.headers}"
+                message += f"\n{BODY_PREFIX}{response.request.content}"
+            except Exception:  # noqa
+                logging.getLogger(DEBUG_LOGGER_NAME).exception(UNABLE_TO_APPEND_REQUEST)
+                message += f"\n{UNABLE_TO_APPEND_REQUEST}"
 
             try:
                 # Append the response received
-                message += "\n\n>>>>>> Response <<<<<<\n%s" % str(response)
-                message += "\n>>> Headers: %s" % response.headers
-                message += "\n>>> Body: %s\n\n" % response.text
-            except:  # noqa
-                message += "\nCould not append all response info"
+                message += f"\n\n{RESPONSE_PREFIX}\n{str(response)}"
+                message += f"\n{HEADERS_PREFIX}{response.headers}"
+                message += f"\n{BODY_PREFIX}{response.text}\n\n"
+            except Exception:  # noqa
+                logging.getLogger(DEBUG_LOGGER_NAME).exception(
+                    UNABLE_TO_APPEND_RESPONSE
+                )
+                message += f"\n{UNABLE_TO_APPEND_RESPONSE}"
 
         raise SynapseHTTPError(message, response=response)

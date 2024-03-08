@@ -35,6 +35,7 @@ tracer = trace.get_tracer("synapseclient")
 
 FILE_NAME_PREFIX = "fooUploadFileEntity"
 FILE_DESCRIPTION = "A test file entity"
+NEW_DESCRIPTION = "new description"
 
 
 @tracer.start_as_current_span("integration_test::test_login")
@@ -1283,7 +1284,7 @@ class TestAsyncRestInterfaces:
 
         # WHEN I updated a field on the entity
         assert entity_bundle["entity"]["description"] == FILE_DESCRIPTION
-        entity_bundle["entity"]["description"] = "new description"
+        entity_bundle["entity"]["description"] = NEW_DESCRIPTION
 
         # AND I PUT the updated entity back to Synapse
         updated_entity_bundle = await self.syn.rest_put_async(
@@ -1292,7 +1293,7 @@ class TestAsyncRestInterfaces:
         )
 
         # THEN I expect the updated entity to have been stored to synapse
-        assert updated_entity_bundle["entity"]["description"] == "new description"
+        assert updated_entity_bundle["entity"]["description"] == NEW_DESCRIPTION
 
         # AND getting the entity again from synapse should return the updated entity
         entity_bundle_copy = await self.syn.rest_post_async(
@@ -1303,7 +1304,7 @@ class TestAsyncRestInterfaces:
                 }
             ),
         )
-        assert entity_bundle_copy["entity"]["description"] == "new description"
+        assert entity_bundle_copy["entity"]["description"] == NEW_DESCRIPTION
 
     @pytest.mark.asyncio
     async def test_rest_delete_async(self, project: Project) -> None:

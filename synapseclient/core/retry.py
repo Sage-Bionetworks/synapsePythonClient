@@ -11,6 +11,7 @@ import random
 import sys
 import logging
 import typing
+import httpx
 from opentelemetry import trace
 
 from synapseclient.core.logging_setup import (
@@ -237,7 +238,7 @@ async def with_retry_async(
     retry_back_off_factor: float = DEFAULT_BACK_OFF_FACTOR_ASYNC,
     retry_max_back_off: float = DEFAULT_MAX_BACK_OFF_ASYNC,
     retry_max_wait_before_failure: float = DEFAULT_MAX_WAIT_BEFORE_FAIL_ASYNC,
-):
+) -> typing.Union[Exception, httpx.Response, typing.Any, None]:
     """
     Retries the given function under certain conditions. This is created such that it
     will retry an unbounded number of times until the maximum wait time is reached. The
@@ -291,7 +292,6 @@ async def with_retry_async(
     while True:
         caught_exception = None
         caught_exception_info = None
-        retry = False
         response = None
 
         try:
@@ -303,65 +303,23 @@ async def with_retry_async(
             if hasattr(ex, "response"):
                 response = ex.response
 
-        # Check if we got a retry-able HTTP error
-        if response is not None and hasattr(response, "status_code"):
-            if (
-                expected_status_codes
-                and response.status_code not in expected_status_codes
-            ) or (retry_status_codes and response.status_code in retry_status_codes):
-                retry = True
-
-            elif response.status_code not in range(200, 299):
-                # For all other non 200 messages look for retryable errors in the body or reason field
-                response_message = _get_message(response)
-                if any(
-                    [msg.lower() in response_message.lower() for msg in retry_errors]
-                ):
-                    retry = True
-                # special case for message throttling
-                elif response_message and (
-                    "Please slow down.  You may send a maximum of 10 message"
-                    in response_message
-                ):
-                    retry = True
-
-        # Check if we got a retry-able exception
-        if (
-            not retry
-            and caught_exception is not None
-            and (
-                caught_exception.__class__.__name__ in retry_exceptions
-                or caught_exception.__class__ in retry_exceptions
-                or any(
-                    [
-                        msg.lower() in str(caught_exception_info[1]).lower()
-                        for msg in retry_errors
-                    ]
-                )
-            )
-        ):
-            retry = True
+        retry = _is_retryable(
+            response=response,
+            caught_exception=caught_exception,
+            caught_exception_info=caught_exception_info,
+            expected_status_codes=expected_status_codes,
+            retry_status_codes=retry_status_codes,
+            retry_exceptions=retry_exceptions,
+            retry_errors=retry_errors,
+        )
 
         # Wait then retry
         retries += 1
 
         if total_wait < retry_max_wait_before_failure and retry:
-            if response is not None:
-                response_message = _get_message(response)
-                url_message_part = (
-                    f"{response.request.url.host}{response.request.url.path}"
-                    f"{f'?{response.request.url.params}' if response.request.url.params else ''}"
-                    if hasattr(response, "request") and hasattr(response.request, "url")
-                    else ""
-                )
-                logger.debug(
-                    "retrying on status code: %s - %s - %s",
-                    str(response.status_code),
-                    url_message_part,
-                    response_message,
-                )
-            elif caught_exception is not None:
-                logger.debug("retrying exception: %s", str(caught_exception))
+            _log_for_retry(
+                logger=logger, response=response, caught_exception=caught_exception
+            )
 
             with tracer.start_as_current_span("Synapse::retry_wait"):
                 backoff_wait = calculate_exponential_backoff(
@@ -383,6 +341,92 @@ async def with_retry_async(
             )
             raise caught_exception
         return response
+
+
+def _is_retryable(
+    response: httpx.Response,
+    caught_exception: Exception,
+    caught_exception_info: typing.Tuple[typing.Type, Exception, typing.Any],
+    expected_status_codes: typing.List[int],
+    retry_status_codes: typing.List[int],
+    retry_exceptions: typing.List[typing.Union[Exception, str]],
+    retry_errors: typing.List[str],
+) -> bool:
+    """Determines if a request should be retried based on the response and caught
+    exception.
+
+    Arguments:
+        response: The response object from the request.
+        caught_exception: The exception caught from the request.
+        caught_exception_info: The exception info caught from the request.
+        expected_status_codes: The expected status codes for the request.
+        retry_status_codes: The status codes that should be retried.
+        retry_exceptions: The exceptions that should be retried.
+        retry_errors: The errors that should be retried.
+
+    Returns:
+        True if the request should be retried, False otherwise.
+    """
+    # Check if we got a retry-able HTTP error
+    if response is not None and hasattr(response, "status_code"):
+        if (
+            expected_status_codes and response.status_code not in expected_status_codes
+        ) or (retry_status_codes and response.status_code in retry_status_codes):
+            return True
+
+        elif response.status_code not in range(200, 299):
+            # For all other non 200 messages look for retryable errors in the body or reason field
+            response_message = _get_message(response)
+            if (
+                any([msg.lower() in response_message.lower() for msg in retry_errors])
+                # special case for message throttling
+                or response_message
+                and (
+                    "Please slow down.  You may send a maximum of 10 message"
+                    in response_message
+                )
+            ):
+                return True
+
+    # Check if we got a retry-able exception
+    if caught_exception is not None and (
+        caught_exception.__class__.__name__ in retry_exceptions
+        or caught_exception.__class__ in retry_exceptions
+        or any(
+            [
+                msg.lower() in str(caught_exception_info[1]).lower()
+                for msg in retry_errors
+            ]
+        )
+    ):
+        return True
+    return False
+
+
+def _log_for_retry(
+    logger: logging.Logger,
+    response: httpx.Response = None,
+    caught_exception: Exception = None,
+) -> None:
+    if response is not None:
+        response_message = _get_message(response)
+        url_param_part = (
+            f"?{response.request.url.params}" if response.request.url.params else ""
+        )
+
+        url_message_part = (
+            f"{response.request.url.host}{response.request.url.path}{url_param_part}"
+            if hasattr(response, "request") and hasattr(response.request, "url")
+            else ""
+        )
+        logger.debug(
+            "retrying on status code: %s - %s - %s",
+            str(response.status_code),
+            url_message_part,
+            response_message,
+        )
+    elif caught_exception is not None:
+        logger.debug("retrying exception: %s", str(caught_exception))
 
 
 def _get_message(response):

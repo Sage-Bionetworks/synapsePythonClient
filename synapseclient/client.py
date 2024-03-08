@@ -6067,15 +6067,15 @@ class Synapse(object):
         return defaults
 
     def _build_retry_policy_async(
-        self, retryPolicy: Dict[str, Any] = {}
+        self, retry_policy: Dict[str, Any] = {}
     ) -> Dict[str, Any]:
         """Returns a retry policy to be passed onto _with_retry_async."""
 
         defaults = dict(STANDARD_RETRY_ASYNC_PARAMS)
-        defaults.update(retryPolicy)
+        defaults.update(retry_policy)
         return defaults
 
-    def _return_rest_body(self, response):
+    def _return_rest_body(self, response) -> Union[Dict[str, Any], str]:
         """Returns either a dictionary or a string depending on the 'content-type' of the response."""
         trace.get_current_span().set_attributes(
             {"http.response.status_code": response.status_code}
@@ -6094,7 +6094,7 @@ class Synapse(object):
         retry_policy: Dict[str, Any],
         requests_session_async_synapse: httpx.AsyncClient,
         **kwargs,
-    ):
+    ) -> Union[httpx.Response, None]:
         """
         Sends an HTTP request to the Synapse server.
 
@@ -6161,7 +6161,7 @@ class Synapse(object):
         retry_policy: Dict[str, Any] = {},
         requests_session_async_synapse: httpx.AsyncClient = None,
         **kwargs,
-    ):
+    ) -> Union[Dict[str, Any], str, None]:
         """
         Sends an HTTP GET request to the Synapse server.
 
@@ -6205,7 +6205,7 @@ class Synapse(object):
         retry_policy: Dict[str, Any] = {},
         requests_session_async_synapse: httpx.AsyncClient = None,
         **kwargs,
-    ):
+    ) -> Union[Dict[str, Any], str]:
         """
         Sends an HTTP POST request to the Synapse server.
 
@@ -6247,7 +6247,7 @@ class Synapse(object):
         retry_policy: Dict[str, Any] = {},
         requests_session_async_synapse: httpx.AsyncClient = None,
         **kwargs,
-    ):
+    ) -> Union[Dict[str, Any], str]:
         """
         Sends an HTTP PUT request to the Synapse server.
 
@@ -6285,7 +6285,7 @@ class Synapse(object):
         uri: str,
         endpoint: str = None,
         headers: httpx.Headers = None,
-        retryPolicy: Dict[str, Any] = {},
+        retry_policy: Dict[str, Any] = {},
         requests_session_async_synapse: httpx.AsyncClient = None,
         **kwargs,
     ) -> None:
@@ -6311,7 +6311,7 @@ class Synapse(object):
                 None,
                 endpoint,
                 headers,
-                retryPolicy,
+                retry_policy,
                 requests_session_async_synapse,
                 **kwargs,
             )
