@@ -410,15 +410,13 @@ def _log_for_retry(
 ) -> None:
     if response is not None:
         response_message = _get_message(response)
-        url_param_part = (
-            f"?{response.request.url.params}" if response.request.url.params else ""
-        )
+        url_message_part = ""
 
-        url_message_part = (
-            f"{response.request.url.host}{response.request.url.path}{url_param_part}"
-            if hasattr(response, "request") and hasattr(response.request, "url")
-            else ""
-        )
+        if hasattr(response, "request") and hasattr(response.request, "url"):
+            url_param_part = (
+                f"?{response.request.url.params}" if response.request.url.params else ""
+            )
+            url_message_part = f"{response.request.url.host}{response.request.url.path}{url_param_part}"
         logger.debug(
             "retrying on status code: %s - %s - %s",
             str(response.status_code),
