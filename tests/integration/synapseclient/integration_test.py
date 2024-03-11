@@ -1337,7 +1337,4 @@ class TestAsyncRestInterfaces:
         except SynapseHTTPError as ex:
             # THEN I expect that nothing is found as it is in the trash can
             assert ex.response.status_code == 404
-            assert (
-                f"404 Client Error: Entity {entity.id} is in trash can.\nEntity "
-                f"{entity.id} is in trash can." in str(ex)
-            )
+            assert f"404 Client Error: Entity {entity.id} is in trash can." in str(ex)

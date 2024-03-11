@@ -233,7 +233,8 @@ def _raise_for_status_httpx(
         # 450: 'blocked_by_windows_parental_controls'
         # 451: 'unavailable_for_legal_reasons'
         # 499: 'client_closed_request'
-        message = f"{response.status_code} {CLIENT_ERROR}"
+        message_body = _get_message(response, logger)
+        message = f"{response.status_code} {CLIENT_ERROR} {message_body}"
 
     elif 500 <= response.status_code < 600:
         # TODOs:
@@ -247,7 +248,8 @@ def _raise_for_status_httpx(
         # 507: 'insufficient_storage'
         # 509: 'bandwidth_limit_exceeded'
         # 510: 'not_extended'
-        message = f"{response.status_code} {SERVER_ERROR}"
+        message_body = _get_message(response, logger)
+        message = f"{response.status_code} {SERVER_ERROR} {message_body}"
 
     if message is not None:
         if verbose:
@@ -264,7 +266,7 @@ def _raise_for_status_httpx(
                 # Append the response received
                 message += f"\n\n{RESPONSE_PREFIX}\n{str(response)}"
                 message += f"\n{HEADERS_PREFIX}{response.headers}"
-                message += f"\n{BODY_PREFIX}{_get_message(response, logger)}\n\n"
+                message += f"\n{BODY_PREFIX}{message_body}\n\n"
             except Exception:  # noqa
                 logger.exception(UNABLE_TO_APPEND_RESPONSE)
                 message += f"\n{UNABLE_TO_APPEND_RESPONSE}"
