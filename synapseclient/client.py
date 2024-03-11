@@ -5835,7 +5835,9 @@ class Synapse(object):
         """
 
         try:
-            exceptions._raise_for_status_httpx(response, verbose=self.debug)
+            exceptions._raise_for_status_httpx(
+                response=response, verbose=self.debug, logger=self.logger
+            )
         except exceptions.SynapseHTTPError as ex:
             # if we get a unauthenticated or forbidden error and the user is not logged in
             # then we raise it as an authentication error.

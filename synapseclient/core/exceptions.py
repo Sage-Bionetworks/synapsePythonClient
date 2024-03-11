@@ -8,7 +8,6 @@ import httpx
 import requests
 
 from synapseclient.core import utils
-from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME
 
 
 class SynapseError(Exception):
@@ -70,20 +69,16 @@ class SynapseUploadFailedException(SynapseError):
     """Raised when an upload failed. Should be chained to a cause Exception"""
 
 
-def _get_message(response: httpx.Response) -> Union[str, None]:
+def _get_message(response: httpx.Response, logger: logging.Logger) -> Union[str, None]:
     """Extracts the message body or a response object by checking for a json response
     and returning the reason otherwise getting body.
     """
-    try:
-        if utils.is_json(response.headers.get("content-type", None)):
-            json = response.json()
-            return json.get("reason", None)
-        else:
-            # if the response is not JSON, return the text content
-            return response.text
-    except (AttributeError, ValueError):
-        # The response can be truncated. In which case, the message cannot be retrieved.
-        return None
+    if utils.is_json(response.headers.get("content-type", None)):
+        json = response.json()
+        return json.get("reason", None)
+    else:
+        # if the response is not JSON, return the text content
+        return response.text
 
 
 CLIENT_ERROR = "Client Error:"
@@ -186,7 +181,9 @@ def _raise_for_status(response, verbose=False):
         raise SynapseHTTPError(message, response=response)
 
 
-def _raise_for_status_httpx(response: httpx.Response, verbose: bool = False) -> None:
+def _raise_for_status_httpx(
+    response: httpx.Response, logger: logging.Logger, verbose: bool = False
+) -> None:
     """
     Replacement for requests.response.raise_for_status().
     Catches and wraps any Synapse-specific HTTP errors with appropriate text with the
@@ -236,7 +233,7 @@ def _raise_for_status_httpx(response: httpx.Response, verbose: bool = False) -> 
         # 450: 'blocked_by_windows_parental_controls'
         # 451: 'unavailable_for_legal_reasons'
         # 499: 'client_closed_request'
-        message = f"{response.status_code} {CLIENT_ERROR} {_get_message(response)}"
+        message = f"{response.status_code} {CLIENT_ERROR}"
 
     elif 500 <= response.status_code < 600:
         # TODOs:
@@ -250,18 +247,9 @@ def _raise_for_status_httpx(response: httpx.Response, verbose: bool = False) -> 
         # 507: 'insufficient_storage'
         # 509: 'bandwidth_limit_exceeded'
         # 510: 'not_extended'
-        message = f"{response.status_code} {SERVER_ERROR} {_get_message(response)}"
+        message = f"{response.status_code} {SERVER_ERROR}"
 
     if message is not None:
-        # Append the server's JSON error message
-        if (
-            utils.is_json(response.headers.get("content-type", None))
-            and "reason" in response.json()
-        ):
-            message += f"\n{response.json()['reason']}"
-        else:
-            message += f"\n{response.text}"
-
         if verbose:
             try:
                 # Append the request sent
@@ -269,18 +257,16 @@ def _raise_for_status_httpx(response: httpx.Response, verbose: bool = False) -> 
                 message += f"\n{HEADERS_PREFIX}{response.request.headers}"
                 message += f"\n{BODY_PREFIX}{response.request.content}"
             except Exception:  # noqa
-                logging.getLogger(DEBUG_LOGGER_NAME).exception(UNABLE_TO_APPEND_REQUEST)
+                logger.exception(UNABLE_TO_APPEND_REQUEST)
                 message += f"\n{UNABLE_TO_APPEND_REQUEST}"
 
             try:
                 # Append the response received
                 message += f"\n\n{RESPONSE_PREFIX}\n{str(response)}"
                 message += f"\n{HEADERS_PREFIX}{response.headers}"
-                message += f"\n{BODY_PREFIX}{response.text}\n\n"
+                message += f"\n{BODY_PREFIX}{_get_message(response, logger)}\n\n"
             except Exception:  # noqa
-                logging.getLogger(DEBUG_LOGGER_NAME).exception(
-                    UNABLE_TO_APPEND_RESPONSE
-                )
+                logger.exception(UNABLE_TO_APPEND_RESPONSE)
                 message += f"\n{UNABLE_TO_APPEND_RESPONSE}"
 
         raise SynapseHTTPError(message, response=response)
