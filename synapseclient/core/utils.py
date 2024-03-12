@@ -23,7 +23,7 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Callable, TypeVar
 
 import requests
@@ -31,7 +31,7 @@ from opentelemetry import context, trace
 from opentelemetry.context import Context
 
 if TYPE_CHECKING:
-    from synapseclient.models import Folder, Project
+    from synapseclient.models import Folder, Project, File
 
 R = TypeVar("R")
 
@@ -933,7 +933,7 @@ def printTransferProgress(
     else:
         outOf = ""
         percentage = ""
-    text = "\r%s [%s]%s   %s%s %s %s %s    " % (
+    text = "\r%s [%s]%s   %s%s %s %s %s    \n" % (
         prefix,
         "#" * block + "-" * (barLength - block),
         percentage,
@@ -1339,7 +1339,7 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
 
 
 def merge_dataclass_entities(
-    source: typing.Union["Project", "Folder"],
+    source: typing.Union["Project", "Folder", "File"],
     destination: typing.Union["Project", "Folder"],
 ) -> typing.Union["Project", "Folder"]:
     """
@@ -1360,7 +1360,14 @@ def merge_dataclass_entities(
 
     # Update destination_dict with source_dict, keeping destination's values in case of conflicts
     for key, value in source_dict.items():
-        if key not in destination_dict or destination_dict[key] is None:
+        if is_dataclass(getattr(source, key)):
+            if hasattr(destination, key):
+                setattr(destination, key, getattr(source, key))
+            else:
+                modified_items[key] = merge_dataclass_entities(
+                    getattr(source, key), destination=getattr(destination, key)
+                )
+        elif key not in destination_dict or destination_dict[key] is None:
             modified_items[key] = value
         elif key == "annotations":
             modified_items[key] = {
@@ -1371,5 +1378,5 @@ def merge_dataclass_entities(
     # Update destination's fields with the merged dictionary
     for key, value in modified_items.items():
         setattr(destination, key, value)
-    destination._last_persistent_instance = source._last_persistent_instance
+
     return destination

@@ -2,6 +2,7 @@
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
 """
+import asyncio_atexit
 import collections
 import collections.abc
 import configparser
@@ -286,21 +287,9 @@ class Synapse(object):
         """
         self._requests_session = requests_session or requests.Session()
 
-        httpx_timeout = httpx.Timeout(70)
-        self._requests_session_async_synapse = (
-            requests_session_async_synapse
-            or httpx.AsyncClient(
-                limits=httpx.Limits(max_connections=25),
-                timeout=httpx_timeout,
-            )
-        )
+        self._requests_session_async_synapse = requests_session_async_synapse
 
-        self._requests_session_async_storage = (
-            requests_session_async_storage
-            or httpx.AsyncClient(
-                timeout=httpx_timeout,
-            )
-        )
+        self._requests_session_async_storage = requests_session_async_storage
 
         cache_root_dir = (
             cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir
@@ -350,6 +339,63 @@ class Synapse(object):
         transfer_config = self._get_transfer_config()
         self.max_threads = transfer_config["max_threads"]
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
+
+    def _get_requests_session_async_synapse(self) -> httpx.AsyncClient:
+        """
+        httpx.AsyncClient can only use connection pooling within the same event loop.
+        As a result an `atexit` handler is used to close the connection when the event
+        loop is closed. It will also delete the attribute from the object to prevent
+        it from being reused in the future.
+
+        Further documentation can be found here:
+        <https://github.com/encode/httpx/discussions/2959>
+
+
+        As a result of this issue: It is recommended to use the same event loop for all
+        requests. This means to enter into an event loop before making any requests.
+        """
+        if (
+            hasattr(self, "_requests_session_async_synapse")
+            and self._requests_session_async_synapse is not None
+        ):
+            return self._requests_session_async_synapse
+
+        async def close_connection() -> None:
+            """Close connection when event loop exits"""
+            await self._requests_session_async_synapse.aclose()
+            del self._requests_session_async_synapse
+
+        httpx_timeout = httpx.Timeout(70)
+        self._requests_session_async_synapse = httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=25),
+            timeout=httpx_timeout,
+        )
+
+        asyncio_atexit.register(close_connection)
+        return self._requests_session_async_synapse
+
+    def _get_requests_session_async_storage(self) -> httpx.AsyncClient:
+        """
+        See comments on #_get_requests_session_async_synapse.
+        """
+        if (
+            hasattr(self, "_requests_session_async_storage")
+            and self._requests_session_async_storage is not None
+        ):
+            return self._requests_session_async_storage
+
+        async def close_connection() -> None:
+            """Close connection when event loop exits"""
+            await self._requests_session_async_storage.aclose()
+            del self._requests_session_async_storage
+
+        httpx_timeout = httpx.Timeout(70)
+        self._requests_session_async_storage = httpx.AsyncClient(
+            timeout=httpx_timeout,
+        )
+
+        asyncio_atexit.register(close_connection)
+        return self._requests_session_async_storage
 
     # initialize logging
     def _init_logger(self):
@@ -6123,7 +6169,7 @@ class Synapse(object):
 
         retry_policy = self._build_retry_policy_async(retry_policy)
         requests_session = (
-            requests_session_async_synapse or self._requests_session_async_synapse
+            requests_session_async_synapse or self._get_requests_session_async_synapse()
         )
 
         auth = kwargs.pop("auth", self.credentials)
