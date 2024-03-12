@@ -67,7 +67,7 @@ def _executor(max_threads, shutdown_wait):
     executor = getattr(_thread_local, "executor", None)
     shutdown_after = False
     if not executor:
-        shutdown_after = True
+        # shutdown_after = True
         executor = pool_provider.get_executor(thread_count=max_threads)
 
     _thread_local.executor = executor
@@ -137,7 +137,10 @@ class UploadAttemptAsync:
         self,
         upload_id: str,
         part_numbers: List[int],
+        otel_context: Union[Context, None] = None,
     ) -> Mapping[int, str]:
+        if otel_context:
+            context.attach(otel_context)
         with tracer.start_as_current_span(
             "UploadAttemptAsync::_fetch_pre_signed_part_urls"
         ):
@@ -294,22 +297,34 @@ class UploadAttemptAsync:
 
             return part_number, part_size
 
-    async def _upload_parts(self, part_count, remaining_part_numbers):
+    def _upload_parts(self, part_count, remaining_part_numbers):
         with tracer.start_as_current_span("UploadAttempt::_upload_parts"):
             time_upload_started = time.time()
             completed_part_count = part_count - len(remaining_part_numbers)
             file_size = self._upload_request_payload.get("fileSizeBytes")
 
             # TODO: This likely needs to go into the executor
-            self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
-                self._upload_id,
-                remaining_part_numbers,
-            )
+            # self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
+            #     self._upload_id,
+            #     remaining_part_numbers,
+            # )
 
             futures = []
+            part_future = []
 
             with _executor(20, False) as executor:
                 # we don't wait on the shutdown since we do so ourselves below
+                part_future.append(
+                    executor.submit(
+                        self._fetch_pre_signed_part_urls,
+                        self._upload_id,
+                        remaining_part_numbers,
+                        context.get_current(),
+                    )
+                )
+
+                for result in concurrent.futures.as_completed(part_future):
+                    self._pre_signed_part_urls = result.result()
 
                 for part_number in remaining_part_numbers:
                     futures.append(
@@ -370,7 +385,7 @@ class UploadAttemptAsync:
                     # for future in futures:
                     #     future.cancel()
                     # await asyncio.gather(*futures)
-                    with self._lock:
+                    with self._thread_lock:
                         self._aborted = True
 
                     # wait for all threads to complete before
@@ -423,7 +438,12 @@ class UploadAttemptAsync:
                 # if no remaining part numbers then all the parts have been
                 # uploaded but the upload has not been marked complete.
                 if remaining_part_numbers:
-                    await self._upload_parts(part_count, remaining_part_numbers)
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(
+                        None,
+                        lambda: self._upload_parts(part_count, remaining_part_numbers),
+                    )
+                    # await self._upload_parts(part_count, remaining_part_numbers)
                 upload_status_response = await self._complete_upload()
 
             return upload_status_response
