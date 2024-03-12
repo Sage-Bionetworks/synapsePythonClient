@@ -6,6 +6,7 @@ from typing import Callable, Union
 
 import nest_asyncio
 from opentelemetry import trace
+from synapseclient import Synapse
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -93,12 +94,21 @@ def async_to_sync(cls):
                 return await getattr(self, async_method_name)(*args, **kwargs)
 
             try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                return asyncio.run(wrapper(*args, **kwargs))
-            else:
-                nest_asyncio.apply(loop=loop)
-                return loop.run_until_complete(wrapper(*args, **kwargs))
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    return asyncio.run(wrapper(*args, **kwargs))
+                else:
+                    nest_asyncio.apply(loop=loop)
+                    return loop.run_until_complete(wrapper(*args, **kwargs))
+            except Exception as ex:
+                synapse_client = Synapse.get_client(
+                    getattr(kwargs, "synapse_client", None)
+                )
+                synapse_client.logger.exception(
+                    f"Error occurred while running {async_method_name} on {self.__class__}."
+                )
+                raise ex
 
         return newmethod
 

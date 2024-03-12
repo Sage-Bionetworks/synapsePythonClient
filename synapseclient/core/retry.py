@@ -337,7 +337,12 @@ async def with_retry_async(
         # Out of retries, re-raise the exception or return the response
         if caught_exception_info is not None and caught_exception_info[0] is not None:
             logger.debug(
-                "retries have run out. re-raising the exception", exc_info=True
+                (
+                    "Retries have run out. re-raising the exception: %s"
+                    if retry
+                    else "Rasing the exception: %s"
+                ),
+                str(caught_exception_info[0]),
             )
             raise caught_exception
         return response
