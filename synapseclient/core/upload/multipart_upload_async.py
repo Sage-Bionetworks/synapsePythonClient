@@ -91,6 +91,7 @@ class UploadAttemptAsync:
         part_request_body_provider_fn,
         md5_fn,
         force_restart: bool,
+        max_threads: int,
         storage_str: str = None,
     ):
         self._syn = syn
@@ -107,7 +108,7 @@ class UploadAttemptAsync:
         self._lock = asyncio.Lock()
         self._thread_lock = threading.Lock()
         self._aborted = False
-
+        self._max_threads = max_threads
         self._storage_str = storage_str
 
         # populated later
@@ -312,7 +313,7 @@ class UploadAttemptAsync:
             futures = []
             part_future = []
 
-            with _executor(20, False) as executor:
+            with _executor(self._max_threads, False) as executor:
                 # we don't wait on the shutdown since we do so ourselves below
                 part_future.append(
                     executor.submit(
@@ -537,7 +538,7 @@ async def multipart_upload_file_async(
 
 
 async def _multipart_upload_async(
-    syn,
+    syn: "Synapse",
     dest_file_name,
     upload_request,
     part_fn,
@@ -579,6 +580,7 @@ async def _multipart_upload_async(
                     # a retry after a caught exception will not restart the upload
                     # from scratch.
                     force_restart and retry == 0,
+                    max_threads=syn.max_threads,
                     storage_str=storage_str,
                 )()
 
