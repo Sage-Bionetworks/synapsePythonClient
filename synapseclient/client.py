@@ -92,7 +92,7 @@ from synapseclient.core.logging_setup import (
     SILENT_LOGGER_NAME,
 )
 from synapseclient.core.version_check import version_check
-from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
+from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS, get_executor
 from synapseclient.core.utils import (
     id_of,
     get_properties,
@@ -293,7 +293,9 @@ class Synapse(object):
         self._requests_session_async_storage = requests_session_async_storage
 
         httpx_timeout = httpx.Timeout(70)
-        self._requests_session_storage = httpx.Client(timeout=httpx_timeout)
+        self._requests_session_storage = requests_session_storage or httpx.Client(
+            timeout=httpx_timeout
+        )
 
         cache_root_dir = (
             cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir
@@ -342,6 +344,9 @@ class Synapse(object):
 
         transfer_config = self._get_transfer_config()
         self.max_threads = transfer_config["max_threads"]
+        # TODO: Need to determine the best practices to close the executor, ie:
+        # >> executor.shutdown
+        self._executor = get_executor(thread_count=self.max_threads)
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
 
     def _get_requests_session_async_synapse(self) -> httpx.AsyncClient:
@@ -449,6 +454,7 @@ class Synapse(object):
 
     @property
     def max_threads(self) -> int:
+        print(f"max_threads: {self._max_threads}")
         return self._max_threads
 
     @max_threads.setter

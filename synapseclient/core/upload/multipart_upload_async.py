@@ -13,7 +13,6 @@ import os
 import re
 import threading
 import time
-from contextlib import contextmanager
 from typing import TYPE_CHECKING, List, Mapping, Union
 
 import httpx
@@ -27,7 +26,6 @@ from synapseclient.api import (
     put_file_multipart_add,
     put_file_multipart_complete,
 )
-from synapseclient.core import pool_provider
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
@@ -52,31 +50,6 @@ MAX_RETRIES = 30
 
 tracer = trace.get_tracer("synapseclient")
 
-_thread_local = threading.local()
-
-
-@contextmanager
-def _executor(max_threads, shutdown_wait):
-    """Yields an executor for running some asynchronous code, either obtaining the executor
-    from the shared_executor or otherwise creating one.
-
-    Arguments:
-        max_threads: the maxmimum number of threads a created executor should use
-        shutdown_wait: whether a created executor should shutdown after running the yielded to code
-    """
-    executor = getattr(_thread_local, "executor", None)
-    shutdown_after = False
-    if not executor:
-        # shutdown_after = True
-        executor = pool_provider.get_executor(thread_count=max_threads)
-
-    _thread_local.executor = executor
-    try:
-        yield executor
-    finally:
-        if shutdown_after:
-            executor.shutdown(wait=shutdown_wait)
-
 
 class UploadAttemptAsync:
     """
@@ -91,7 +64,6 @@ class UploadAttemptAsync:
         part_request_body_provider_fn,
         md5_fn,
         force_restart: bool,
-        max_threads: int,
         storage_str: str = None,
     ):
         self._syn = syn
@@ -108,7 +80,6 @@ class UploadAttemptAsync:
         self._lock = asyncio.Lock()
         self._thread_lock = threading.Lock()
         self._aborted = False
-        self._max_threads = max_threads
         self._storage_str = storage_str
 
         # populated later
@@ -300,7 +271,6 @@ class UploadAttemptAsync:
 
     async def _upload_parts(self, part_count, remaining_part_numbers):
         with tracer.start_as_current_span("UploadAttempt::_upload_parts"):
-            time_upload_started = time.time()
             completed_part_count = part_count - len(remaining_part_numbers)
             file_size = self._upload_request_payload.get("fileSizeBytes")
 
@@ -309,40 +279,26 @@ class UploadAttemptAsync:
             async_tasks = []
             loop = asyncio.get_event_loop()
             otel_context = context.get_current()
-            with _executor(self._max_threads, False) as executor:
-                self._pre_signed_part_urls = await loop.run_in_executor(
-                    executor,
-                    lambda: self._fetch_pre_signed_part_urls(
-                        self._upload_id,
-                        remaining_part_numbers,
-                    ),
+
+            self._pre_signed_part_urls = await loop.run_in_executor(
+                self._syn._executor,
+                lambda: self._fetch_pre_signed_part_urls(
+                    self._upload_id,
+                    remaining_part_numbers,
+                ),
+            )
+
+            # TODO: If I were to pass the async HTTPX client around would it work
+            # to re-use the same connections?
+            async def handle_part_wrapper(part_number):
+                return await loop.run_in_executor(
+                    self._syn._executor, self._handle_part, part_number, otel_context
                 )
 
-                # TODO: If I were to pass the async HTTPX client around would it work
-                # to re-use the same connections?
-                async def handle_part_wrapper(part_number):
-                    return await loop.run_in_executor(
-                        executor, self._handle_part, part_number, otel_context
-                    )
-
-                for part_number in remaining_part_numbers:
-                    async_tasks.append(
-                        asyncio.create_task(
-                            handle_part_wrapper(part_number=part_number)
-                        )
-                    )
-                    # futures.append(
-                    #     executor.submit(
-                    #         self._handle_part,
-                    #         part_number,
-                    #         context.get_current(),
-                    #     )
-                    # )
-
-            # for part_number in remaining_part_numbers:
-            #     futures.append(
-            #         asyncio.create_task(self._handle_part(part_number=part_number))
-            #     )
+            for part_number in remaining_part_numbers:
+                async_tasks.append(
+                    asyncio.create_task(handle_part_wrapper(part_number=part_number))
+                )
 
             if not self._is_copy():
                 # we won't have bytes to measure during a copy so the byte oriented progress bar is not useful
@@ -359,6 +315,7 @@ class UploadAttemptAsync:
                     previouslyTransferred=previously_transferred,
                 )
 
+            time_upload_started = time.time()
             # for result in concurrent.futures.as_completed(futures):
             for result in asyncio.as_completed(async_tasks):
                 try:
@@ -578,7 +535,6 @@ async def _multipart_upload_async(
                     # a retry after a caught exception will not restart the upload
                     # from scratch.
                     force_restart and retry == 0,
-                    max_threads=syn.max_threads,
                     storage_str=storage_str,
                 )()
 
