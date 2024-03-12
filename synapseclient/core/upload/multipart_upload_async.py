@@ -6,17 +6,28 @@ robust means of uploading large files (into the 10s of GiB). End users should no
 """
 
 import asyncio
+import concurrent.futures
 import math
 import mimetypes
 import os
 import re
+import threading
 import time
-from typing import TYPE_CHECKING, List, Mapping
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, List, Mapping, Union
 
 import httpx
 import requests
-from opentelemetry import trace
+from opentelemetry import context, trace
+from opentelemetry.context import Context
 
+from synapseclient.api import (
+    post_file_multipart,
+    post_file_multipart_presigned_urls,
+    put_file_multipart_add,
+    put_file_multipart_complete,
+)
+from synapseclient.core import pool_provider
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
@@ -24,14 +35,8 @@ from synapseclient.core.exceptions import (
     SynapseUploadFailedException,
     _raise_for_status,
 )
-from synapseclient.core.retry import with_retry_async
+from synapseclient.core.retry import with_retry_non_async
 from synapseclient.core.utils import MB, Spinner, md5_fn, md5_for_file
-from synapseclient.api import (
-    post_file_multipart,
-    put_file_multipart_add,
-    put_file_multipart_complete,
-    post_file_multipart_presigned_urls,
-)
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -46,6 +51,31 @@ MAX_RETRIES = 30
 
 
 tracer = trace.get_tracer("synapseclient")
+
+_thread_local = threading.local()
+
+
+@contextmanager
+def _executor(max_threads, shutdown_wait):
+    """Yields an executor for running some asynchronous code, either obtaining the executor
+    from the shared_executor or otherwise creating one.
+
+    Arguments:
+        max_threads: the maxmimum number of threads a created executor should use
+        shutdown_wait: whether a created executor should shutdown after running the yielded to code
+    """
+    executor = getattr(_thread_local, "executor", None)
+    shutdown_after = False
+    if not executor:
+        shutdown_after = True
+        executor = pool_provider.get_executor(thread_count=max_threads)
+
+    _thread_local.executor = executor
+    try:
+        yield executor
+    finally:
+        if shutdown_after:
+            executor.shutdown(wait=shutdown_wait)
 
 
 class UploadAttemptAsync:
@@ -75,6 +105,8 @@ class UploadAttemptAsync:
         self._force_restart = force_restart
 
         self._lock = asyncio.Lock()
+        self._thread_lock = threading.Lock()
+        self._aborted = False
 
         self._storage_str = storage_str
 
@@ -101,7 +133,7 @@ class UploadAttemptAsync:
             == concrete_types.MULTIPART_UPLOAD_COPY_REQUEST
         )
 
-    async def _fetch_pre_signed_part_urls(
+    def _fetch_pre_signed_part_urls(
         self,
         upload_id: str,
         part_numbers: List[int],
@@ -109,7 +141,7 @@ class UploadAttemptAsync:
         with tracer.start_as_current_span(
             "UploadAttemptAsync::_fetch_pre_signed_part_urls"
         ):
-            response = await post_file_multipart_presigned_urls(
+            response = post_file_multipart_presigned_urls(
                 upload_id=upload_id,
                 part_numbers=part_numbers,
                 synapse_client=self._syn,
@@ -124,7 +156,7 @@ class UploadAttemptAsync:
 
             return part_urls
 
-    async def _refresh_pre_signed_part_urls(
+    def _refresh_pre_signed_part_urls(
         self,
         part_number: int,
         expired_url: str,
@@ -147,7 +179,7 @@ class UploadAttemptAsync:
         with tracer.start_as_current_span(
             "UploadAttemptAsync::_refresh_pre_signed_part_urls"
         ):
-            async with self._lock:
+            with self._thread_lock:
                 current_url = self._pre_signed_part_urls[part_number]
                 if current_url != expired_url:
                     # if the url has already changed since the given url
@@ -156,7 +188,7 @@ class UploadAttemptAsync:
                     # fetch.
                     refreshed_url = current_url
                 else:
-                    self._pre_signed_part_urls = await self._fetch_pre_signed_part_urls(
+                    self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
                         self._upload_id,
                         list(self._pre_signed_part_urls.keys()),
                     )
@@ -165,11 +197,16 @@ class UploadAttemptAsync:
 
             return refreshed_url
 
-    async def _handle_part(self, part_number):
+    def _handle_part(self, part_number, otel_context: Union[Context, None]):
+        if otel_context:
+            context.attach(otel_context)
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
-            part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
+            # part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
 
-            session: httpx.AsyncClient = self._syn._get_requests_session_async_storage()
+            # TODO: Should the storage be non-async?
+            session: httpx.Client = self._syn._requests_session_storage
+
+            # with _executor(self._max_threads, False) as executor:
 
             # obtain the body (i.e. the upload bytes) for the given part number.
             body = (
@@ -181,17 +218,31 @@ class UploadAttemptAsync:
             self._syn.logger.debug(f"Uploading part {part_number} of size {part_size}")
             if body is None:
                 raise ValueError(f"No body for part {part_number}")
+            with self._thread_lock:
+                if self._aborted:
+                    # this upload attempt has already been aborted
+                    # so we short circuit the attempt to upload this part
+                    raise SynapseUploadAbortedException(
+                        "Upload aborted, skipping part {}".format(part_number)
+                    )
+
+                part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
+
             for retry in range(2):
                 try:
                     # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
-                    response = await with_retry_async(
-                        lambda: session.put(
-                            url=part_url,
-                            content=body,  # noqa: F821
-                            headers=signed_headers,
-                        ),
-                        retry_exceptions=[requests.exceptions.ConnectionError],
-                    )
+                    with tracer.start_as_current_span(
+                        "UploadAttempt::put_on_storage_provider"
+                    ):
+                        trace.get_current_span().set_attributes({"url.path": part_url})
+                        response = with_retry_non_async(
+                            lambda: session.put(
+                                url=part_url,
+                                content=body,  # noqa: F821
+                                headers=signed_headers,
+                            ),
+                            retry_exceptions=[requests.exceptions.ConnectionError],
+                        )
                     try:
                         _raise_for_status(response)
                     except Exception as ex:
@@ -216,7 +267,7 @@ class UploadAttemptAsync:
                             (
                                 part_url,
                                 signed_headers,
-                            ) = await self._refresh_pre_signed_part_urls(
+                            ) = self._refresh_pre_signed_part_urls(
                                 part_number,
                                 part_url,
                             )
@@ -229,7 +280,7 @@ class UploadAttemptAsync:
             del body
 
             # now tell synapse that we uploaded that part successfully
-            await put_file_multipart_add(
+            put_file_multipart_add(
                 upload_id=self._upload_id,
                 part_number=part_number,
                 md5_hex=md5_hex,
@@ -238,7 +289,7 @@ class UploadAttemptAsync:
             )
 
             # # remove so future batch pre_signed url fetches will exclude this part
-            async with self._lock:
+            with self._thread_lock:
                 del self._pre_signed_part_urls[part_number]
 
             return part_number, part_size
@@ -249,17 +300,30 @@ class UploadAttemptAsync:
             completed_part_count = part_count - len(remaining_part_numbers)
             file_size = self._upload_request_payload.get("fileSizeBytes")
 
-            self._pre_signed_part_urls = await self._fetch_pre_signed_part_urls(
+            # TODO: This likely needs to go into the executor
+            self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
                 self._upload_id,
                 remaining_part_numbers,
             )
 
             futures = []
 
-            for part_number in remaining_part_numbers:
-                futures.append(
-                    asyncio.create_task(self._handle_part(part_number=part_number))
-                )
+            with _executor(20, False) as executor:
+                # we don't wait on the shutdown since we do so ourselves below
+
+                for part_number in remaining_part_numbers:
+                    futures.append(
+                        executor.submit(
+                            self._handle_part,
+                            part_number,
+                            context.get_current(),
+                        )
+                    )
+
+            # for part_number in remaining_part_numbers:
+            #     futures.append(
+            #         asyncio.create_task(self._handle_part(part_number=part_number))
+            #     )
 
             if not self._is_copy():
                 # we won't have bytes to measure during a copy so the byte oriented progress bar is not useful
@@ -276,9 +340,11 @@ class UploadAttemptAsync:
                     previouslyTransferred=previously_transferred,
                 )
 
-            for result in asyncio.as_completed(futures):
+            for result in concurrent.futures.as_completed(futures):
+                # for result in asyncio.as_completed(futures):
                 try:
-                    _, part_size = await result
+                    # _, part_size = await result
+                    _, part_size = result.result()
 
                     if part_size and not self._is_copy():
                         progress += part_size
@@ -301,9 +367,17 @@ class UploadAttemptAsync:
                     # control while there are still threads from this
                     # upload attempt running
                     # await asyncio.wait(futures)
-                    for future in futures:
-                        future.cancel()
-                    await asyncio.gather(*futures)
+                    # for future in futures:
+                    #     future.cancel()
+                    # await asyncio.gather(*futures)
+                    with self._lock:
+                        self._aborted = True
+
+                    # wait for all threads to complete before
+                    # raising the exception, we don't want to return
+                    # control while there are still threads from this
+                    # upload attempt running
+                    concurrent.futures.wait(futures)
 
                     if isinstance(cause, KeyboardInterrupt):
                         raise SynapseUploadAbortedException(

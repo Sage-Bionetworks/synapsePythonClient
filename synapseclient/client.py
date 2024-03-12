@@ -261,6 +261,7 @@ class Synapse(object):
         silent: bool = None,
         requests_session_async_synapse: httpx.AsyncClient = None,
         requests_session_async_storage: httpx.AsyncClient = None,
+        requests_session_storage: httpx.Client = None,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -290,6 +291,9 @@ class Synapse(object):
         self._requests_session_async_synapse = requests_session_async_synapse
 
         self._requests_session_async_storage = requests_session_async_storage
+
+        httpx_timeout = httpx.Timeout(70)
+        self._requests_session_storage = httpx.Client(timeout=httpx_timeout)
 
         cache_root_dir = (
             cache.CACHE_ROOT_DIR if cache_root_dir is None else cache_root_dir
