@@ -298,43 +298,46 @@ class UploadAttemptAsync:
 
             return part_number, part_size
 
-    def _upload_parts(self, part_count, remaining_part_numbers):
+    async def _upload_parts(self, part_count, remaining_part_numbers):
         with tracer.start_as_current_span("UploadAttempt::_upload_parts"):
             time_upload_started = time.time()
             completed_part_count = part_count - len(remaining_part_numbers)
             file_size = self._upload_request_payload.get("fileSizeBytes")
 
-            # TODO: This likely needs to go into the executor
-            # self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
-            #     self._upload_id,
-            #     remaining_part_numbers,
-            # )
-
             futures = []
-            part_future = []
-
+            # part_future = []
+            async_tasks = []
+            loop = asyncio.get_event_loop()
+            otel_context = context.get_current()
             with _executor(self._max_threads, False) as executor:
-                # we don't wait on the shutdown since we do so ourselves below
-                part_future.append(
-                    executor.submit(
-                        self._fetch_pre_signed_part_urls,
+                self._pre_signed_part_urls = await loop.run_in_executor(
+                    executor,
+                    lambda: self._fetch_pre_signed_part_urls(
                         self._upload_id,
                         remaining_part_numbers,
-                        context.get_current(),
-                    )
+                    ),
                 )
 
-                for result in concurrent.futures.as_completed(part_future):
-                    self._pre_signed_part_urls = result.result()
+                # TODO: If I were to pass the async HTTPX client around would it work
+                # to re-use the same connections?
+                async def handle_part_wrapper(part_number):
+                    return await loop.run_in_executor(
+                        executor, self._handle_part, part_number, otel_context
+                    )
 
                 for part_number in remaining_part_numbers:
-                    futures.append(
-                        executor.submit(
-                            self._handle_part,
-                            part_number,
-                            context.get_current(),
+                    async_tasks.append(
+                        asyncio.create_task(
+                            handle_part_wrapper(part_number=part_number)
                         )
                     )
+                    # futures.append(
+                    #     executor.submit(
+                    #         self._handle_part,
+                    #         part_number,
+                    #         context.get_current(),
+                    #     )
+                    # )
 
             # for part_number in remaining_part_numbers:
             #     futures.append(
@@ -356,11 +359,11 @@ class UploadAttemptAsync:
                     previouslyTransferred=previously_transferred,
                 )
 
-            for result in concurrent.futures.as_completed(futures):
-                # for result in asyncio.as_completed(futures):
+            # for result in concurrent.futures.as_completed(futures):
+            for result in asyncio.as_completed(async_tasks):
                 try:
-                    # _, part_size = await result
-                    _, part_size = result.result()
+                    _, part_size = await result
+                    # _, part_size = result.result()
 
                     if part_size and not self._is_copy():
                         progress += part_size
@@ -439,12 +442,7 @@ class UploadAttemptAsync:
                 # if no remaining part numbers then all the parts have been
                 # uploaded but the upload has not been marked complete.
                 if remaining_part_numbers:
-                    loop = asyncio.get_event_loop()
-                    await loop.run_in_executor(
-                        None,
-                        lambda: self._upload_parts(part_count, remaining_part_numbers),
-                    )
-                    # await self._upload_parts(part_count, remaining_part_numbers)
+                    await self._upload_parts(part_count, remaining_part_numbers)
                 upload_status_response = await self._complete_upload()
 
             return upload_status_response
