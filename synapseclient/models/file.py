@@ -1000,7 +1000,14 @@ class File(FileSynchronousProtocol, AccessControllable):
                 and os.path.isfile(self.path)
                 and md5_stored_in_synapse
                 and md5_stored_in_synapse
-                == (local_file_md5_hex := utils.md5_for_file(self.path).hexdigest())
+                == (
+                    local_file_md5_hex := (
+                        await utils.md5_for_file_multithreading(
+                            filename=self.path,
+                            thread_pool_executor=syn._executor,
+                        )
+                    )
+                )
             ):
                 needs_upload = False
         if self.data_file_handle_id is not None:

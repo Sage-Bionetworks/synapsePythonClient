@@ -28,7 +28,6 @@ from synapseclient.core.utils import (
     file_url_to_path,
     id_of,
     is_url,
-    md5_for_file,
 )
 
 if TYPE_CHECKING:
@@ -87,7 +86,9 @@ async def upload_file_handle(
     expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
 
     if md5 is None and os.path.isfile(expanded_upload_path):
-        md5 = utils.md5_for_file(expanded_upload_path).hexdigest()
+        md5 = await utils.md5_for_file_multithreading(
+            filename=expanded_upload_path, thread_pool_executor=syn._executor
+        )
 
     entity_parent_id = id_of(parent_entity)
 
@@ -220,7 +221,9 @@ async def create_external_file_handle(
         parsed_url = urllib_parse.urlparse(url)
         parsed_path = file_url_to_path(url)
         if parsed_url.scheme == "file" and os.path.isfile(parsed_path):
-            actual_md5 = md5_for_file(parsed_path).hexdigest()
+            actual_md5 = await utils.md5_for_file_multithreading(
+                filename=parsed_path, thread_pool_executor=syn._executor
+            )
             if md5 is not None and md5 != actual_md5:
                 raise SynapseMd5MismatchError(
                     "The specified md5 [%s] does not match the calculated md5 [%s] for local file [%s]",
@@ -257,7 +260,10 @@ async def upload_external_file_handle_sftp(
     file_handle = await post_external_filehandle(
         external_url=uploaded_url,
         mimetype=mimetype,
-        md5=md5 or md5_for_file(file_path).hexdigest(),
+        md5=md5
+        or await utils.md5_for_file_multithreading(
+            filename=file_path, thread_pool_executor=syn._executor
+        ),
         file_size=os.stat(file_path).st_size,
     )
     syn.cache.add(file_handle["id"], file_path)

@@ -2,6 +2,7 @@
 Utility functions useful in the implementation and testing of the Synapse client.
 """
 
+import asyncio
 import base64
 import cgi
 import collections.abc
@@ -23,6 +24,7 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Callable, TypeVar
 
@@ -31,7 +33,7 @@ from opentelemetry import context, trace
 from opentelemetry.context import Context
 
 if TYPE_CHECKING:
-    from synapseclient.models import Folder, Project, File
+    from synapseclient.models import File, Folder, Project
 
 R = TypeVar("R")
 
@@ -48,7 +50,6 @@ tracer = trace.get_tracer("synapseclient")
 SLASH_PREFIX_REGEX = re.compile(r"\/[A-Za-z]:")
 
 
-@tracer.start_as_current_span("Utils::md5_for_file")
 def md5_for_file(
     filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
 ):
@@ -77,6 +78,36 @@ def md5_for_file(
                 break
             md5.update(data)
     return md5
+
+
+@tracer.start_as_current_span("Utils::md5_for_file")
+async def md5_for_file_multithreading(
+    filename: str,
+    thread_pool_executor: ThreadPoolExecutor,
+    block_size: int = 2 * MB,
+    callback: typing.Callable = None,
+):
+    """
+    Calculates the MD5 of the given file.
+    See source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>.
+
+    Arguments:
+        filename: The file to read in
+        thread_pool_executor: The thread pool executor to use for the calculation.
+        block_size: How much of the file to read in at once (bytes).
+                    Defaults to 2 MB.
+        callback: The callback function that help us show loading spinner on terminal.
+                    Defaults to None.
+
+    Returns:
+        The MD5 Checksum
+    """
+    loop = asyncio.get_event_loop()
+    return (
+        await loop.run_in_executor(
+            thread_pool_executor, md5_for_file, filename, block_size, callback
+        )
+    ).hexdigest()
 
 
 @tracer.start_as_current_span("Utils::md5_fn")
