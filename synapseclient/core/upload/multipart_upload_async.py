@@ -23,8 +23,8 @@ from opentelemetry.context import Context
 from synapseclient.api import (
     post_file_multipart,
     post_file_multipart_presigned_urls,
-    put_file_multipart_add,
     put_file_multipart_complete,
+    put_file_multipart_add_async,
 )
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
@@ -116,6 +116,7 @@ class UploadAttemptAsync:
         with tracer.start_as_current_span(
             "UploadAttemptAsync::_fetch_pre_signed_part_urls"
         ):
+            trace.get_current_span().set_attributes({"synapse.upload_id": upload_id})
             response = post_file_multipart_presigned_urls(
                 upload_id=upload_id,
                 part_numbers=part_numbers,
@@ -176,12 +177,7 @@ class UploadAttemptAsync:
         if otel_context:
             context.attach(otel_context)
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
-            # part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
-
-            # TODO: Should the storage be non-async?
             session: httpx.Client = self._syn._requests_session_storage
-
-            # with _executor(self._max_threads, False) as executor:
 
             # obtain the body (i.e. the upload bytes) for the given part number.
             body = (
@@ -254,20 +250,11 @@ class UploadAttemptAsync:
             del response
             del body
 
-            # now tell synapse that we uploaded that part successfully
-            put_file_multipart_add(
-                upload_id=self._upload_id,
-                part_number=part_number,
-                md5_hex=md5_hex,
-                endpoint=self._syn.fileHandleEndpoint,
-                synapse_client=self._syn,
-            )
-
             # # remove so future batch pre_signed url fetches will exclude this part
             with self._thread_lock:
                 del self._pre_signed_part_urls[part_number]
 
-            return part_number, part_size
+            return part_number, part_size, md5_hex
 
     async def _upload_parts(self, part_count, remaining_part_numbers):
         with tracer.start_as_current_span("UploadAttempt::_upload_parts"):
@@ -283,13 +270,15 @@ class UploadAttemptAsync:
             self._pre_signed_part_urls = await loop.run_in_executor(
                 self._syn._executor,
                 lambda: self._fetch_pre_signed_part_urls(
-                    self._upload_id,
-                    remaining_part_numbers,
+                    upload_id=self._upload_id,
+                    part_numbers=remaining_part_numbers,
+                    otel_context=otel_context,
                 ),
             )
 
             # TODO: If I were to pass the async HTTPX client around would it work
             # to re-use the same connections?
+            # TODO: If this executor correct getting the already retrieved _pre_signed_part_urls?
             async def handle_part_wrapper(part_number):
                 return await loop.run_in_executor(
                     self._syn._executor, self._handle_part, part_number, otel_context
@@ -319,8 +308,14 @@ class UploadAttemptAsync:
             # for result in concurrent.futures.as_completed(futures):
             for result in asyncio.as_completed(async_tasks):
                 try:
-                    _, part_size = await result
+                    part_number, part_size, part_md5_hex = await result
                     # _, part_size = result.result()
+                    await put_file_multipart_add_async(
+                        upload_id=self._upload_id,
+                        part_number=part_number,
+                        md5_hex=part_md5_hex,
+                        synapse_client=self._syn,
+                    )
 
                     if part_size and not self._is_copy():
                         progress += part_size
@@ -335,8 +330,9 @@ class UploadAttemptAsync:
                             previouslyTransferred=previously_transferred,
                         )
                     del result
-                    del _
+                    del part_number
                     del part_size
+                    del part_md5_hex
                 except (Exception, KeyboardInterrupt) as cause:
                     # wait for all threads to complete before
                     # raising the exception, we don't want to return

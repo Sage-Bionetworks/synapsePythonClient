@@ -23,6 +23,7 @@ from .file_services import (
     put_file_multipart_add,
     put_file_multipart_complete,
     post_file_multipart_presigned_urls_async,
+    put_file_multipart_add_async,
 )
 
 __all__ = [
@@ -43,6 +44,7 @@ __all__ = [
     "post_external_filehandle",
     "post_file_multipart_presigned_urls",
     "post_file_multipart_presigned_urls_async",
+    "put_file_multipart_add_async",
     # entity_services
     "get_entity",
     "put_entity",

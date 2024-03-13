@@ -48,7 +48,6 @@ async def put_file_multipart_add_async(
     upload_id: str,
     part_number: int,
     md5_hex: str,
-    endpoint: str,
     synapse_client: Optional[Synapse] = None,
 ) -> Dict[str, Any]:
     """
@@ -60,7 +59,6 @@ async def put_file_multipart_add_async(
         md5_hex: The MD5 of the uploaded part represented as a hexadecimal string. If
             the provided MD5 does not match the MD5 of the uploaded part, the add
             will fail.
-        endpoint: Server endpoint to call to
         synapse_client: If not passed in or None this will use the last client from
             the `.login()` method.
 
@@ -71,7 +69,7 @@ async def put_file_multipart_add_async(
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_put_async(
         f"/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5_hex}",
-        endpoint=endpoint,
+        endpoint=client.fileHandleEndpoint,
     )
 
 

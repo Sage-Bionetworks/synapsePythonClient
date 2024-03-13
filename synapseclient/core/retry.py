@@ -341,7 +341,7 @@ async def with_retry_async(
                 (
                     "Retries have run out. re-raising the exception: %s"
                     if retry
-                    else "Rasing the exception: %s"
+                    else "Raising the exception: %s"
                 ),
                 str(caught_exception_info[0]),
             )
@@ -464,7 +464,7 @@ def with_retry_non_async(
                 (
                     "Retries have run out. re-raising the exception: %s"
                     if retry
-                    else "Rasing the exception: %s"
+                    else "Raising the exception: %s"
                 ),
                 str(caught_exception_info[0]),
             )

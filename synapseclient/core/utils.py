@@ -48,6 +48,7 @@ tracer = trace.get_tracer("synapseclient")
 SLASH_PREFIX_REGEX = re.compile(r"\/[A-Za-z]:")
 
 
+@tracer.start_as_current_span("Utils::md5_for_file")
 def md5_for_file(
     filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
 ):
@@ -78,6 +79,7 @@ def md5_for_file(
     return md5
 
 
+@tracer.start_as_current_span("Utils::md5_fn")
 def md5_fn(part, _) -> str:
     """Calculate the MD5 of a file-like object.
 
