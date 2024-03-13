@@ -31,7 +31,9 @@ import zipfile
 import httpx
 
 from deprecated import deprecated
-from concurrent.futures import ProcessPoolExecutor
+
+# TODO: Using ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 import synapseclient
 from .annotations import (
@@ -261,7 +263,6 @@ class Synapse(object):
         cache_root_dir: str = None,
         silent: bool = None,
         requests_session_async_synapse: httpx.AsyncClient = None,
-        requests_session_async_storage: httpx.AsyncClient = None,
         requests_session_storage: httpx.Client = None,
     ) -> "Synapse":
         """
@@ -281,7 +282,7 @@ class Synapse(object):
             silent:             Suppresses message.
             requests_session_async_synapse: The HTTPX Async client for interacting with
                 Synapse services.
-            requests_session_async_storage: The HTTPX Async client for interacting with
+            requests_session_storage: The HTTPX client for interacting with
                 storage providers like AWS S3 and Google Cloud.
 
         Raises:
@@ -290,8 +291,6 @@ class Synapse(object):
         self._requests_session = requests_session or requests.Session()
 
         self._requests_session_async_synapse = requests_session_async_synapse
-
-        self._requests_session_async_storage = requests_session_async_storage
 
         httpx_timeout = httpx.Timeout(70)
         self._requests_session_storage = requests_session_storage or httpx.Client(
@@ -345,10 +344,8 @@ class Synapse(object):
 
         transfer_config = self._get_transfer_config()
         self.max_threads = transfer_config["max_threads"]
-        # TODO: Need to determine the best practices to close the executor, ie:
-        # >> executor.shutdown
-        self._executor = get_executor(thread_count=self.max_threads)
-        self._process_executor = ProcessPoolExecutor()
+        self._thread_executor = None
+        self._process_executor = None
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
 
     def _get_requests_session_async_synapse(self) -> httpx.AsyncClient:
@@ -364,6 +361,8 @@ class Synapse(object):
 
         As a result of this issue: It is recommended to use the same event loop for all
         requests. This means to enter into an event loop before making any requests.
+
+        This is expected to be called from within an AsyncIO loop.
         """
         if (
             hasattr(self, "_requests_session_async_synapse")
@@ -385,28 +384,46 @@ class Synapse(object):
         asyncio_atexit.register(close_connection)
         return self._requests_session_async_synapse
 
-    def _get_requests_session_async_storage(self) -> httpx.AsyncClient:
+    def _get_thread_pool_executor(self) -> ThreadPoolExecutor:
         """
-        See comments on #_get_requests_session_async_synapse.
+        Retrieve the thread pool executor for the Synapse client. Or create a new one if
+        it does not exist. This executor is used for concurrent uploads of data to
+        storage providers like AWS S3 and Google Cloud Storage.
+
+        This is expected to be called from within an AsyncIO loop.
         """
-        if (
-            hasattr(self, "_requests_session_async_storage")
-            and self._requests_session_async_storage is not None
-        ):
-            return self._requests_session_async_storage
+        if hasattr(self, "_thread_executor") and self._thread_executor is not None:
+            return self._thread_executor
 
-        async def close_connection() -> None:
-            """Close connection when event loop exits"""
-            await self._requests_session_async_storage.aclose()
-            del self._requests_session_async_storage
+        def close_pool() -> None:
+            """Close pool when event loop exits"""
+            self._thread_executor.shutdown()
+            del self._thread_executor
 
-        httpx_timeout = httpx.Timeout(70)
-        self._requests_session_async_storage = httpx.AsyncClient(
-            timeout=httpx_timeout,
-        )
+        self._thread_executor = get_executor(thread_count=self.max_threads)
 
-        asyncio_atexit.register(close_connection)
-        return self._requests_session_async_storage
+        asyncio_atexit.register(close_pool)
+        return self._thread_executor
+
+    def _get_process_pool_executor(self) -> ProcessPoolExecutor:
+        """
+        Retrieve the process pool executor for the Synapse client. Or create a new one
+        if it does not exist. This executor is used for parallel processing of data.
+
+        This is expected to be called from within an AsyncIO loop.
+        """
+        if hasattr(self, "_process_executor") and self._process_executor is not None:
+            return self._process_executor
+
+        def close_pool() -> None:
+            """Close pool when event loop exits"""
+            self._process_executor.shutdown()
+            del self._process_executor
+
+        self._process_executor = ProcessPoolExecutor()
+
+        asyncio_atexit.register(close_pool)
+        return self._process_executor
 
     # initialize logging
     def _init_logger(self):

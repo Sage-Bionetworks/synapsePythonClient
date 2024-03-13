@@ -1,19 +1,19 @@
-"""Implements the client side of
-Synapse's [Multipart File Upload API](https://rest-docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController), which provides a
-robust means of uploading large files (into the 10s of GiB). End users should not need to call any of the methods under
+"""Implements the client side of Synapse's
+[Multipart File Upload API](https://rest-docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController),
+which provides a robust means of uploading large files (into the 10s of GiB). End users
+should not need to call any of the methods under
 [UploadAttempt][synapseclient.core.upload.multipart_upload.UploadAttempt] directly.
 
 """
 
+# pylint: disable=protected-access
 import asyncio
 import concurrent.futures
-from dataclasses import dataclass
-import math
 import mimetypes
 import os
-import re
 import threading
 import time
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, Mapping, Union
 
 import httpx
@@ -24,8 +24,8 @@ from opentelemetry.context import Context
 from synapseclient.api import (
     post_file_multipart,
     post_file_multipart_presigned_urls,
-    put_file_multipart_complete,
     put_file_multipart_add_async,
+    put_file_multipart_complete,
 )
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
@@ -35,7 +35,14 @@ from synapseclient.core.exceptions import (
     _raise_for_status,
 )
 from synapseclient.core.retry import with_retry_non_async
-from synapseclient.core.utils import MB, Spinner, md5_fn, md5_for_file_multiprocessing
+from synapseclient.core.upload.upload_utils import (
+    copy_md5_fn,
+    copy_part_request_body_provider_fn,
+    get_data_chunk,
+    get_file_chunk,
+    get_part_size,
+)
+from synapseclient.core.utils import MB, md5_fn, md5_for_file_multiprocessing
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -280,13 +287,13 @@ class UploadAttemptAsync:
             file_size = self._upload_request_payload.get("fileSizeBytes")
 
             futures = []
-            # part_future = []
+
             async_tasks = []
             loop = asyncio.get_event_loop()
             otel_context = context.get_current()
 
             self._pre_signed_part_urls = await loop.run_in_executor(
-                self._syn._executor,
+                self._syn._get_thread_pool_executor(),
                 lambda: self._fetch_pre_signed_part_urls(
                     upload_id=self._upload_id,
                     part_numbers=remaining_part_numbers,
@@ -294,12 +301,12 @@ class UploadAttemptAsync:
                 ),
             )
 
-            # TODO: If I were to pass the async HTTPX client around would it work
-            # to re-use the same connections?
-            # TODO: If this executor correct getting the already retrieved _pre_signed_part_urls?
             async def handle_part_wrapper(part_number):
                 return await loop.run_in_executor(
-                    self._syn._executor, self._handle_part, part_number, otel_context
+                    self._syn._get_thread_pool_executor(),
+                    self._handle_part,
+                    part_number,
+                    otel_context,
                 )
 
             for part_number in remaining_part_numbers:
@@ -322,6 +329,8 @@ class UploadAttemptAsync:
                     previouslyTransferred=previously_transferred,
                 )
 
+            # TODO: The time when upload started technincally isn't here. This leads to
+            # The file transfer speed calculation to be off.
             time_upload_started = time.time()
 
             while async_tasks:
@@ -495,16 +504,19 @@ async def multipart_upload_file_async(
             mime_type, _ = mimetypes.guess_type(file_path, strict=False)
             content_type = mime_type or "application/octet-stream"
 
-        callback_func = Spinner().print_tick if not syn.silent else None
         md5_hex = md5 or (
             await md5_for_file_multiprocessing(
                 filename=file_path,
-                callback=callback_func,
-                process_pool_executor=syn._process_executor,
+                process_pool_executor=syn._get_process_pool_executor(),
             )
         )
 
-        part_size = _get_part_size(part_size, file_size)
+        part_size = get_part_size(
+            part_size or DEFAULT_PART_SIZE,
+            file_size,
+            MIN_PART_SIZE,
+            MAX_NUMBER_OF_PARTS,
+        )
 
         upload_request = {
             "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
@@ -518,7 +530,7 @@ async def multipart_upload_file_async(
         }
 
         def part_fn(part_number):
-            return _get_file_chunk(file_path, part_number, part_size)
+            return get_file_chunk(file_path, part_number, part_size)
 
         return await _multipart_upload_async(
             syn,
@@ -587,28 +599,6 @@ async def _multipart_upload_async(
                     raise
 
 
-def _get_file_chunk(file_path, part_number, chunk_size):
-    """Read the nth chunk from the file."""
-    with open(file_path, "rb") as f:
-        f.seek((part_number - 1) * chunk_size)
-        return f.read(chunk_size)
-
-
-def _get_data_chunk(data, part_number, chunk_size):
-    """Return the nth chunk of a buffer."""
-    return data[((part_number - 1) * chunk_size) : part_number * chunk_size]
-
-
-def _get_part_size(part_size, file_size):
-    part_size = part_size or DEFAULT_PART_SIZE
-
-    # can't exceed the maximum allowed num parts
-    part_size = max(
-        part_size, MIN_PART_SIZE, int(math.ceil(file_size / MAX_NUMBER_OF_PARTS))
-    )
-    return part_size
-
-
 @tracer.start_as_current_span("multipart_upload::multipart_upload_string")
 async def multipart_upload_string_async(
     syn,
@@ -651,7 +641,9 @@ async def multipart_upload_string_async(
     if not content_type:
         content_type = "text/plain; charset=utf-8"
 
-    part_size = _get_part_size(part_size, file_size)
+    part_size = get_part_size(
+        part_size or DEFAULT_PART_SIZE, file_size, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS
+    )
 
     upload_request = {
         "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
@@ -665,9 +657,11 @@ async def multipart_upload_string_async(
     }
 
     def part_fn(part_number):
-        return _get_data_chunk(data, part_number, part_size)
+        return get_data_chunk(data, part_number, part_size)
 
-    part_size = _get_part_size(part_size, file_size)
+    part_size = get_part_size(
+        part_size or DEFAULT_PART_SIZE, file_size, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS
+    )
     return await _multipart_upload_async(
         syn,
         dest_file_name,
@@ -720,30 +714,11 @@ async def multipart_copy_async(
         "storageLocationId": storage_location_id,
     }
 
-    def part_request_body_provider_fn(_) -> None:
-        # for an upload copy there are no bytes
-        return None
-
-    def md5_fn(_, response) -> str:
-        # for a multipart copy we use the md5 returned by the UploadPartCopy command
-        # when we add the part to the Synapse upload
-
-        # we extract the md5 from the <ETag> element in the response.
-        # use lookahead and lookbehind to find the opening and closing ETag elements but
-        # do not include those in the match, thus the entire matched string (group 0) will be
-        # what was between those elements.
-        md5_hex = re.search(
-            "(?<=<ETag>).*?(?=<\\/ETag>)", (response.content.decode("utf-8"))
-        ).group(0)
-
-        # remove quotes found in the ETag to get at the normalized ETag
-        return md5_hex.replace("&quot;", "").replace('"', "")
-
     return _multipart_upload_async(
         syn,
         dest_file_name,
         upload_request,
-        part_request_body_provider_fn,
-        md5_fn,
+        copy_part_request_body_provider_fn,
+        copy_md5_fn,
         force_restart=force_restart,
     )

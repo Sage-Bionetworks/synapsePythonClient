@@ -1,5 +1,6 @@
 """Script to work with Synapse files."""
 
+# pylint: disable=protected-access
 import asyncio
 import dataclasses
 import os
@@ -1004,7 +1005,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                     local_file_md5_hex := (
                         await utils.md5_for_file_multiprocessing(
                             filename=self.path,
-                            process_pool_executor=syn._process_executor,
+                            process_pool_executor=syn._get_process_pool_executor(),
                         )
                     )
                 )

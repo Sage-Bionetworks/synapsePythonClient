@@ -87,7 +87,8 @@ async def upload_file_handle(
 
     if md5 is None and os.path.isfile(expanded_upload_path):
         md5 = await utils.md5_for_file_multiprocessing(
-            filename=expanded_upload_path, process_pool_executor=syn._process_executor
+            filename=expanded_upload_path,
+            process_pool_executor=syn._get_process_pool_executor(),
         )
 
     entity_parent_id = id_of(parent_entity)
@@ -215,6 +216,8 @@ async def create_external_file_handle(
     md5: str = None,
     file_size: int = None,
 ) -> Dict[str, Union[str, int]]:
+    """Create a file handle in Synapse without uploading any files. This is used in
+    cases where one wishes to store a reference to a file that is not in Synapse."""
     is_local_file = False  # defaults to false
     url = as_url(os.path.expandvars(os.path.expanduser(path)))
     if is_url(url):
@@ -222,7 +225,8 @@ async def create_external_file_handle(
         parsed_path = file_url_to_path(url)
         if parsed_url.scheme == "file" and os.path.isfile(parsed_path):
             actual_md5 = await utils.md5_for_file_multiprocessing(
-                filename=parsed_path, process_pool_executor=syn._process_executor
+                filename=parsed_path,
+                process_pool_executor=syn._get_process_pool_executor(),
             )
             if md5 is not None and md5 != actual_md5:
                 raise SynapseMd5MismatchError(
@@ -252,6 +256,7 @@ async def create_external_file_handle(
 async def upload_external_file_handle_sftp(
     syn: "Synapse", file_path: str, sftp_url: str, mimetype: str = None, md5: str = None
 ) -> Dict[str, Union[str, int]]:
+    """Upload a file to an SFTP server and create a file handle in Synapse."""
     username, password = syn._getUserCredentials(url=sftp_url)
     uploaded_url = SFTPWrapper.upload_file(
         file_path, urllib_parse.unquote(sftp_url), username, password
@@ -262,7 +267,7 @@ async def upload_external_file_handle_sftp(
         mimetype=mimetype,
         md5=md5
         or await utils.md5_for_file_multiprocessing(
-            filename=file_path, process_pool_executor=syn._process_executor
+            filename=file_path, process_pool_executor=syn._get_process_pool_executor()
         ),
         file_size=os.stat(file_path).st_size,
     )
@@ -279,6 +284,7 @@ async def upload_synapse_s3(
     md5: str = None,
     storage_str: str = None,
 ):
+    """Upload a file to Synapse storage and create a file handle in Synapse."""
     file_handle_id = await multipart_upload_file_async(
         syn=syn,
         file_path=file_path,
@@ -341,7 +347,7 @@ async def upload_synapse_sts_boto_s3(
     loop = asyncio.get_event_loop()
 
     await loop.run_in_executor(
-        None,
+        syn._get_process_pool_executor(),
         lambda: sts_transfer.with_boto_sts_credentials(
             upload_fn, syn, parent_id, "read_write"
         ),
