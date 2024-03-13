@@ -7,6 +7,7 @@ robust means of uploading large files (into the 10s of GiB). End users should no
 
 import asyncio
 import concurrent.futures
+from dataclasses import dataclass
 import math
 import mimetypes
 import os
@@ -49,6 +50,21 @@ MAX_RETRIES = 30
 
 
 tracer = trace.get_tracer("synapseclient")
+
+
+@dataclass
+class HandlePartResult:
+    """Result of a part upload.
+
+    Attributes:
+        part_number: The part number that was uploaded.
+        part_size: The size of the part that was uploaded.
+        md5_hex: The MD5 hash of the part that was uploaded.
+    """
+
+    part_number: int
+    part_size: int
+    md5_hex: str
 
 
 class UploadAttemptAsync:
@@ -173,7 +189,9 @@ class UploadAttemptAsync:
 
             return refreshed_url
 
-    def _handle_part(self, part_number, otel_context: Union[Context, None]):
+    def _handle_part(
+        self, part_number, otel_context: Union[Context, None]
+    ) -> HandlePartResult:
         if otel_context:
             context.attach(otel_context)
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
@@ -254,7 +272,7 @@ class UploadAttemptAsync:
             with self._thread_lock:
                 del self._pre_signed_part_urls[part_number]
 
-            return part_number, part_size, md5_hex
+            return HandlePartResult(part_number, part_size, md5_hex)
 
     async def _upload_parts(self, part_count, remaining_part_numbers):
         with tracer.start_as_current_span("UploadAttempt::_upload_parts"):
@@ -305,57 +323,76 @@ class UploadAttemptAsync:
                 )
 
             time_upload_started = time.time()
-            # for result in concurrent.futures.as_completed(futures):
-            for result in asyncio.as_completed(async_tasks):
-                try:
-                    part_number, part_size, part_md5_hex = await result
-                    # _, part_size = result.result()
-                    await put_file_multipart_add_async(
-                        upload_id=self._upload_id,
-                        part_number=part_number,
-                        md5_hex=part_md5_hex,
-                        synapse_client=self._syn,
-                    )
 
-                    if part_size and not self._is_copy():
-                        progress += part_size
-                        self._syn._print_transfer_progress(
-                            min(progress, file_size),
-                            file_size,
-                            prefix=(
-                                self._storage_str if self._storage_str else "Uploading"
-                            ),
-                            postfix=self._dest_file_name,
-                            dt=time.time() - time_upload_started,
-                            previouslyTransferred=previously_transferred,
+            while async_tasks:
+                done_tasks, pending_tasks = await asyncio.wait(
+                    async_tasks, return_when=asyncio.FIRST_COMPLETED
+                )
+                async_tasks = pending_tasks
+                for completed_task in done_tasks:
+                    task_result = completed_task.result()
+
+                    try:
+                        if isinstance(task_result, Exception):
+                            raise task_result
+                        elif isinstance(task_result, HandlePartResult):
+                            part_number = task_result.part_number
+                            part_size = task_result.part_size
+                            part_md5_hex = task_result.md5_hex
+                        else:
+                            continue
+
+                        async_tasks.add(
+                            asyncio.create_task(
+                                put_file_multipart_add_async(
+                                    upload_id=self._upload_id,
+                                    part_number=part_number,
+                                    md5_hex=part_md5_hex,
+                                    synapse_client=self._syn,
+                                )
+                            )
                         )
-                    del result
-                    del part_number
-                    del part_size
-                    del part_md5_hex
-                except (Exception, KeyboardInterrupt) as cause:
-                    # wait for all threads to complete before
-                    # raising the exception, we don't want to return
-                    # control while there are still threads from this
-                    # upload attempt running
-                    # await asyncio.wait(futures)
-                    # for future in futures:
-                    #     future.cancel()
-                    # await asyncio.gather(*futures)
-                    with self._thread_lock:
-                        self._aborted = True
 
-                    # wait for all threads to complete before
-                    # raising the exception, we don't want to return
-                    # control while there are still threads from this
-                    # upload attempt running
-                    concurrent.futures.wait(futures)
+                        if part_size and not self._is_copy():
+                            progress += part_size
+                            self._syn._print_transfer_progress(
+                                min(progress, file_size),
+                                file_size,
+                                prefix=(
+                                    self._storage_str
+                                    if self._storage_str
+                                    else "Uploading"
+                                ),
+                                postfix=self._dest_file_name,
+                                dt=time.time() - time_upload_started,
+                                previouslyTransferred=previously_transferred,
+                            )
 
-                    if isinstance(cause, KeyboardInterrupt):
-                        raise SynapseUploadAbortedException(
-                            "User interrupted upload"
+                    except (Exception, KeyboardInterrupt) as cause:
+                        # wait for all threads to complete before
+                        # raising the exception, we don't want to return
+                        # control while there are still threads from this
+                        # upload attempt running
+                        # await asyncio.wait(futures)
+                        # for future in futures:
+                        #     future.cancel()
+                        # await asyncio.gather(*futures)
+                        with self._thread_lock:
+                            self._aborted = True
+
+                        # wait for all threads to complete before
+                        # raising the exception, we don't want to return
+                        # control while there are still threads from this
+                        # upload attempt running
+                        concurrent.futures.wait(futures)
+
+                        if isinstance(cause, KeyboardInterrupt):
+                            raise SynapseUploadAbortedException(
+                                "User interrupted upload"
+                            ) from cause
+                        raise SynapseUploadFailedException(
+                            "Part upload failed"
                         ) from cause
-                    raise SynapseUploadFailedException("Part upload failed") from cause
 
     async def _complete_upload(self):
         with tracer.start_as_current_span("UploadAttempt::_complete_upload"):
