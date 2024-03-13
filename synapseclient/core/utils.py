@@ -129,7 +129,6 @@ async def md5_for_file_multithreading(
     )
 
 
-@tracer.start_as_current_span("Utils::md5_for_file")
 async def md5_for_file_multiprocessing(
     filename: str,
     process_pool_executor: ProcessPoolExecutor,
@@ -150,10 +149,11 @@ async def md5_for_file_multiprocessing(
     Returns:
         The MD5 Checksum
     """
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        process_pool_executor, md5_for_file_hex, filename, block_size
-    )
+    with tracer.start_as_current_span("Utils::md5_for_file_multiprocessing"):
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            process_pool_executor, md5_for_file_hex, filename, block_size
+        )
 
 
 @tracer.start_as_current_span("Utils::md5_fn")
