@@ -34,7 +34,7 @@ from synapseclient.core.exceptions import (
     _raise_for_status,
 )
 from synapseclient.core.retry import with_retry_non_async
-from synapseclient.core.utils import MB, Spinner, md5_fn, md5_for_file_multithreading
+from synapseclient.core.utils import MB, Spinner, md5_fn, md5_for_file_multiprocessing
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -460,10 +460,10 @@ async def multipart_upload_file_async(
 
         callback_func = Spinner().print_tick if not syn.silent else None
         md5_hex = md5 or (
-            await md5_for_file_multithreading(
+            await md5_for_file_multiprocessing(
                 filename=file_path,
                 callback=callback_func,
-                thread_pool_executor=syn._executor,
+                process_pool_executor=syn._process_executor,
             )
         )
 

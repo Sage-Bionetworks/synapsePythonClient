@@ -1002,9 +1002,9 @@ class File(FileSynchronousProtocol, AccessControllable):
                 and md5_stored_in_synapse
                 == (
                     local_file_md5_hex := (
-                        await utils.md5_for_file_multithreading(
+                        await utils.md5_for_file_multiprocessing(
                             filename=self.path,
-                            thread_pool_executor=syn._executor,
+                            process_pool_executor=syn._process_executor,
                         )
                     )
                 )

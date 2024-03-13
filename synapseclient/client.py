@@ -31,6 +31,7 @@ import zipfile
 import httpx
 
 from deprecated import deprecated
+from concurrent.futures import ProcessPoolExecutor
 
 import synapseclient
 from .annotations import (
@@ -347,6 +348,7 @@ class Synapse(object):
         # TODO: Need to determine the best practices to close the executor, ie:
         # >> executor.shutdown
         self._executor = get_executor(thread_count=self.max_threads)
+        self._process_executor = ProcessPoolExecutor()
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
 
     def _get_requests_session_async_synapse(self) -> httpx.AsyncClient:
@@ -6269,8 +6271,8 @@ class Synapse(object):
 
         Arguments:
             uri: URI on which get is performed
-            endpoint: Server endpoint, defaults to self.repoEndpoint
             body: The payload to be delivered
+            endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
                 [synapseclient.core.retry.with_retry_async][].

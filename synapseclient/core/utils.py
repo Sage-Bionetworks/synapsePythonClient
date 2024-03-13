@@ -24,7 +24,7 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Callable, TypeVar
 
@@ -80,6 +80,27 @@ def md5_for_file(
     return md5
 
 
+def md5_for_file_hex(
+    filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
+):
+    """
+    Calculates the MD5 of the given file.
+    See source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>.
+
+    Arguments:
+        filename: The file to read in
+        block_size: How much of the file to read in at once (bytes).
+                    Defaults to 2 MB
+        callback: The callback function that help us show loading spinner on terminal.
+                    Defaults to None
+
+    Returns:
+        The MD5 Checksum
+    """
+
+    return md5_for_file(filename, block_size, callback).hexdigest()
+
+
 @tracer.start_as_current_span("Utils::md5_for_file")
 async def md5_for_file_multithreading(
     filename: str,
@@ -103,11 +124,36 @@ async def md5_for_file_multithreading(
         The MD5 Checksum
     """
     loop = asyncio.get_event_loop()
-    return (
-        await loop.run_in_executor(
-            thread_pool_executor, md5_for_file, filename, block_size, callback
-        )
-    ).hexdigest()
+    return await loop.run_in_executor(
+        thread_pool_executor, md5_for_file, filename, block_size, callback
+    )
+
+
+@tracer.start_as_current_span("Utils::md5_for_file")
+async def md5_for_file_multiprocessing(
+    filename: str,
+    process_pool_executor: ProcessPoolExecutor,
+    block_size: int = 2 * MB,
+):
+    """
+    Calculates the MD5 of the given file.
+    See source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>.
+
+    Arguments:
+        filename: The file to read in
+        process_pool_executor: The process pool executor to use for the calculation.
+        block_size: How much of the file to read in at once (bytes).
+                    Defaults to 2 MB.
+        callback: The callback function that help us show loading spinner on terminal.
+                    Defaults to None.
+
+    Returns:
+        The MD5 Checksum
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        process_pool_executor, md5_for_file_hex, filename, block_size
+    )
 
 
 @tracer.start_as_current_span("Utils::md5_fn")
