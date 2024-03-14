@@ -260,7 +260,37 @@ def changeFileMetaData(
         Synapse Entity
 
     Example: Using this function
-        Can be used to change the filename, the filename when the file is downloaded, or the file content-type without downloading:
+        Updating all file 'downloadAs' names within a folder to match the name of the
+        entity.
+
+            import synapseclient
+            import synapseutils
+
+
+            syn = synapseclient.Synapse()
+            syn.login()
+
+            MY_FOLDER_TO_UPDATE_ALL_FILES_IN = "syn123"
+
+            for files_to_update in syn.getChildren(
+                parent=MY_FOLDER_TO_UPDATE_ALL_FILES_IN, includeTypes=["file"]
+            ):
+                file_to_check = syn.get(files_to_update["id"], downloadFile=False)
+                if file_to_check.name != file_to_check["_file_handle"]["fileName"]:
+                    print(
+                        f"Updating downloadAs for {file_to_check['_file_handle']['fileName']} to {file_to_check.name}"
+                    )
+
+                    synapseutils.changeFileMetaData(
+                        syn=syn,
+                        entity=file_to_check.id,
+                        downloadAs=file_to_check.name,
+                        forceVersion=False,
+                    )
+
+
+        Can be used to change the filename, the filename when the file is downloaded,
+        or the file content-type without downloading:
 
             file_entity = syn.get(synid)
             print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
