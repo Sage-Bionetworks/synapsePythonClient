@@ -465,6 +465,7 @@ class UploadAttemptAsync:
 
     async def _complete_upload(self):
         with tracer.start_as_current_span("UploadAttempt::_complete_upload"):
+            self._progress_bar.close()
             upload_status_response = await put_file_multipart_complete(
                 upload_id=self._upload_id,
                 endpoint=self._syn.fileHandleEndpoint,
