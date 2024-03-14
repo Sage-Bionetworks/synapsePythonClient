@@ -6,9 +6,12 @@ i.e. for certain status codes, connection errors, and/or connection exceptions.
 
 """
 
+import asyncio
 import random
 import sys
 import logging
+import typing
+import httpx
 from opentelemetry import trace
 
 from synapseclient.core.logging_setup import (
@@ -18,10 +21,21 @@ from synapseclient.core.logging_setup import (
 from synapseclient.core.utils import is_json
 from synapseclient.core.dozer import doze
 
+# All of these constants are in seconds
 DEFAULT_RETRIES = 3
 DEFAULT_WAIT = 1
 DEFAULT_BACK_OFF = 2
 DEFAULT_MAX_WAIT = 30
+
+
+DEFAULT_BASE_WAIT_ASYNC = 0.001
+
+DEFAULT_WAIT_RANDOM_LOWER_ASYNC = 0.01
+DEFAULT_WAIT_RANDOM_UPPER_ASYNC = 0.1
+
+DEFAULT_BACK_OFF_FACTOR_ASYNC = 2
+DEFAULT_MAX_BACK_OFF_ASYNC = 10
+DEFAULT_MAX_WAIT_BEFORE_FAIL_ASYNC = 20 * 60
 
 DEFAULT_RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
 
@@ -179,6 +193,243 @@ def with_retry(
             )
             raise exc
         return response
+
+
+def calculate_exponential_backoff(
+    retries: int,
+    base_wait: float,
+    wait_random_lower: float,
+    wait_random_upper: float,
+    back_off_factor: float,
+    max_back_off: float,
+) -> float:
+    """
+    Handle calculating the exponential backoff.
+
+    Arguments:
+        retries: The number of retries that have been attempted
+        base_wait: The base wait time
+        wait_random_lower: The lower bound of the random wait time
+        wait_random_upper: The upper bound of the random wait time
+        back_off_factor: The factor to increase the wait time by for each retry
+        max_back_off: The maximum wait time
+
+    Returns:
+        The total wait time
+    """
+    random_jitter = random.uniform(wait_random_lower, wait_random_upper)
+    time_to_wait = min(
+        (base_wait * (back_off_factor**retries)) + random_jitter,
+        max_back_off,
+    )
+    return time_to_wait
+
+
+async def with_retry_async(
+    function,
+    verbose: bool = False,
+    retry_status_codes: typing.List[int] = None,
+    expected_status_codes: typing.List[int] = None,
+    retry_errors: typing.List[str] = None,
+    retry_exceptions: typing.List[typing.Union[Exception, str]] = None,
+    retry_base_wait: float = DEFAULT_BASE_WAIT_ASYNC,
+    retry_wait_random_lower: float = DEFAULT_WAIT_RANDOM_LOWER_ASYNC,
+    retry_wait_random_upper: float = DEFAULT_WAIT_RANDOM_UPPER_ASYNC,
+    retry_back_off_factor: float = DEFAULT_BACK_OFF_FACTOR_ASYNC,
+    retry_max_back_off: float = DEFAULT_MAX_BACK_OFF_ASYNC,
+    retry_max_wait_before_failure: float = DEFAULT_MAX_WAIT_BEFORE_FAIL_ASYNC,
+) -> typing.Union[Exception, httpx.Response, typing.Any, None]:
+    """
+    Retries the given function under certain conditions. This is created such that it
+    will retry an unbounded number of times until the maximum wait time is reached. The
+    backoff is calculated using an exponential backoff algorithm with a random jitter.
+    The maximum backoff inbetween retries is capped at `retry_max_back_off`.
+
+    Arguments:
+        verbose: Whether to log debug messages
+        function: A function with no arguments. If arguments are needed, use a lambda
+            (see example).
+        retry_status_codes: What status codes to retry upon in the case of a
+            SynapseHTTPError.
+        expected_status_codes: If specified responses with any other status codes result
+            in a retry.
+        retry_errors: What reasons to retry upon, if
+            `function().response.json()['reason']` exists.
+        retry_exceptions: What types of exceptions, specified as strings or Exception
+            classes, to retry upon.
+        retry_base_wait: The base wait time inbetween retries.
+        retry_wait_random_lower: The lower bound of the random wait time.
+        retry_wait_random_upper: The upper bound of the random wait time.
+        retry_back_off_factor: The factor to increase the wait time by for each retry.
+        retry_max_back_off: The maximum wait time.
+        retry_max_wait_before_failure: The maximum wait time before failure.
+
+    Example: Using with_retry
+        Using ``with_retry_async`` to consolidate inputs into a list.
+
+            from synapseclient.core.retry import with_retry_async
+
+            async def foo(a, b, c): return [a, b, c]
+            result = await with_retry_async(lambda: foo("1", "2", "3"))
+    """
+    if not retry_status_codes:
+        retry_status_codes = [429, 500, 502, 503, 504]
+    if not expected_status_codes:
+        expected_status_codes = []
+    if not retry_errors:
+        retry_errors = []
+    if not retry_exceptions:
+        retry_exceptions = []
+
+    if verbose:
+        logger = logging.getLogger(DEBUG_LOGGER_NAME)
+    else:
+        logger = logging.getLogger(DEFAULT_LOGGER_NAME)
+
+    # Retry until we succeed or run past the maximum wait time
+    total_wait = 0
+    retries = -1
+    while True:
+        caught_exception = None
+        caught_exception_info = None
+        response = None
+
+        try:
+            response = await function()
+        except Exception as ex:
+            caught_exception = ex
+            caught_exception_info = sys.exc_info()
+            logger.debug("calling %s resulted in an Exception", function)
+            if hasattr(ex, "response"):
+                response = ex.response
+
+        retry = _is_retryable(
+            response=response,
+            caught_exception=caught_exception,
+            caught_exception_info=caught_exception_info,
+            expected_status_codes=expected_status_codes,
+            retry_status_codes=retry_status_codes,
+            retry_exceptions=retry_exceptions,
+            retry_errors=retry_errors,
+        )
+
+        # Wait then retry
+        retries += 1
+
+        if total_wait < retry_max_wait_before_failure and retry:
+            _log_for_retry(
+                logger=logger, response=response, caught_exception=caught_exception
+            )
+
+            with tracer.start_as_current_span("Synapse::retry_wait"):
+                backoff_wait = calculate_exponential_backoff(
+                    retries=retries,
+                    base_wait=retry_base_wait,
+                    wait_random_lower=retry_wait_random_lower,
+                    wait_random_upper=retry_wait_random_upper,
+                    back_off_factor=retry_back_off_factor,
+                    max_back_off=retry_max_back_off,
+                )
+                total_wait += backoff_wait
+                await asyncio.sleep(backoff_wait)
+                continue
+
+        # Out of retries, re-raise the exception or return the response
+        if caught_exception_info is not None and caught_exception_info[0] is not None:
+            logger.debug(
+                (
+                    "Retries have run out. re-raising the exception: %s"
+                    if retry
+                    else "Rasing the exception: %s"
+                ),
+                str(caught_exception_info[0]),
+            )
+            raise caught_exception
+        return response
+
+
+def _is_retryable(
+    response: httpx.Response,
+    caught_exception: Exception,
+    caught_exception_info: typing.Tuple[typing.Type, Exception, typing.Any],
+    expected_status_codes: typing.List[int],
+    retry_status_codes: typing.List[int],
+    retry_exceptions: typing.List[typing.Union[Exception, str]],
+    retry_errors: typing.List[str],
+) -> bool:
+    """Determines if a request should be retried based on the response and caught
+    exception.
+
+    Arguments:
+        response: The response object from the request.
+        caught_exception: The exception caught from the request.
+        caught_exception_info: The exception info caught from the request.
+        expected_status_codes: The expected status codes for the request.
+        retry_status_codes: The status codes that should be retried.
+        retry_exceptions: The exceptions that should be retried.
+        retry_errors: The errors that should be retried.
+
+    Returns:
+        True if the request should be retried, False otherwise.
+    """
+    # Check if we got a retry-able HTTP error
+    if response is not None and hasattr(response, "status_code"):
+        if (
+            expected_status_codes and response.status_code not in expected_status_codes
+        ) or (retry_status_codes and response.status_code in retry_status_codes):
+            return True
+
+        elif response.status_code not in range(200, 299):
+            # For all other non 200 messages look for retryable errors in the body or reason field
+            response_message = _get_message(response)
+            if (
+                any([msg.lower() in response_message.lower() for msg in retry_errors])
+                # special case for message throttling
+                or response_message
+                and (
+                    "Please slow down.  You may send a maximum of 10 message"
+                    in response_message
+                )
+            ):
+                return True
+
+    # Check if we got a retry-able exception
+    if caught_exception is not None and (
+        caught_exception.__class__.__name__ in retry_exceptions
+        or caught_exception.__class__ in retry_exceptions
+        or any(
+            [
+                msg.lower() in str(caught_exception_info[1]).lower()
+                for msg in retry_errors
+            ]
+        )
+    ):
+        return True
+    return False
+
+
+def _log_for_retry(
+    logger: logging.Logger,
+    response: httpx.Response = None,
+    caught_exception: Exception = None,
+) -> None:
+    if response is not None:
+        response_message = _get_message(response)
+        url_message_part = ""
+
+        if hasattr(response, "request") and hasattr(response.request, "url"):
+            url_param_part = (
+                f"?{response.request.url.params}" if response.request.url.params else ""
+            )
+            url_message_part = f"{response.request.url.host}{response.request.url.path}{url_param_part}"
+        logger.debug(
+            "retrying on status code: %s - %s - %s",
+            str(response.status_code),
+            url_message_part,
+            response_message,
+        )
+    elif caught_exception is not None:
+        logger.debug("retrying exception: %s", str(caught_exception))
 
 
 def _get_message(response):

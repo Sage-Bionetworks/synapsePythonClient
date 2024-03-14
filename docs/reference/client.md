@@ -80,6 +80,10 @@ those memebrs. We are roughly grouping these for similar functionality. -->
         - restPOST
         - restPUT
         - restDELETE
+        - rest_get_async
+        - rest_post_async
+        - rest_put_async
+        - rest_delete_async
 
 ## More information
 
