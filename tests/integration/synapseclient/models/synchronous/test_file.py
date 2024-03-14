@@ -485,11 +485,13 @@ class TestFileStore:
             new_file.store()
 
         assert (
-            str(e.value)
-            == f"409 Client Error: \nAn entity with the name: {file.name} already exists with a parentId: {project_model.id}"
+            f"409 Client Error: An entity with the name: {file.name} already exists with a parentId: {project_model.id}"
+            in str(e.value)
         )
 
-    def test_store_force_version(self, project_model: Project, file: File) -> None:
+    def test_store_force_version_no_change(
+        self, project_model: Project, file: File
+    ) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
 
@@ -508,8 +510,38 @@ class TestFileStore:
         # THEN the version should not be updated
         assert file.version_number == 1
 
-        # WHEN I store the file again with force_version=True
+        # WHEN I store the file again with force_version=True and no change was made
         file.force_version = True
+        file.store()
+
+        # THEN the version should not be updated
+        assert file.version_number == 1
+
+    def test_store_force_version_with_change(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # WHEN I store the file
+        file.store(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored
+        assert file.id is not None
+        assert file.version_number == 1
+
+        # WHEN I store the file again with force_version=False
+        file.force_version = False
+        file.description = "aaaaaaaaaaaaaaaa"
+        file.store()
+
+        # THEN the version should not be updated
+        assert file.version_number == 1
+
+        # WHEN I store the file again with force_version=True and I update a field
+        file.force_version = True
+        file.description = "new description"
         file.store()
 
         # THEN the version should be updated
@@ -527,7 +559,7 @@ class TestFileStore:
         file.is_restricted = True
 
         with patch(
-            "synapseclient.client.Synapse._createAccessRequirementIfNone"
+            "synapseclient.models.services.storable_entity.create_access_requirements_if_none"
         ) as intercepted:
             # WHEN I store the file
             file.store(parent=project_model)
@@ -766,7 +798,7 @@ class TestDelete:
         # THEN I expect the file to be deleted
         with pytest.raises(SynapseHTTPError) as e:
             file.get()
-        assert str(e.value) == f"404 Client Error: \nEntity {file.id} is in trash can."
+        assert f"404 Client Error: \nEntity {file.id} is in trash can." in str(e.value)
 
     def test_delete_specific_version(self, file: File) -> None:
         # GIVEN a file stored in synapse
@@ -785,8 +817,8 @@ class TestDelete:
         with pytest.raises(SynapseHTTPError) as e:
             File(id=file.id, version_number=1).get()
         assert (
-            str(e.value)
-            == f"404 Client Error: \nCannot find a node with id {file.id} and version 1"
+            f"404 Client Error: \nCannot find a node with id {file.id} and version 1"
+            in str(e.value)
         )
 
         # AND the second version to still exist
@@ -834,12 +866,15 @@ class TestGet:
     def test_get_by_id(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
+        assert file.path is not None
+        path_for_file = file.path
 
         # WHEN I get the file by id
         file_copy = File(id=file.id).get()
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
+        assert file_copy.path == path_for_file
 
     def test_get_previous_version(self, file: File) -> None:
         # GIVEN a file stored in synapse

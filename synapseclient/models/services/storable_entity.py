@@ -5,7 +5,11 @@ from typing import TYPE_CHECKING, Dict, Optional, Union
 from opentelemetry import trace
 
 from synapseclient import Synapse
-from synapseclient.api import post_entity, put_entity
+from synapseclient.api import (
+    post_entity,
+    put_entity,
+    create_access_requirements_if_none,
+)
 from synapseclient.core.utils import get_properties
 
 if TYPE_CHECKING:
@@ -61,7 +65,7 @@ async def store_entity(
             synapse_client=synapse_client,
         )
     else:
-        # TODO
+        # TODO - When Link is implemented this needs to be completed
         # If Link, get the target name, version number and concrete type and store in link properties
         # if properties["concreteType"] == "org.sagebionetworks.repo.model.Link":
         #     target_properties = self._getEntity(
@@ -87,17 +91,12 @@ async def store_entity(
             synapse_client=synapse_client,
         )
 
-    # TODO: Deal with access restrictions
-    # if isRestricted:
-    #     self._createAccessRequirementIfNone(properties)
-
-    # Return the updated Entity object
-    # entity = Entity.create(properties, annotations, local_state)
-    # return_data = self.get(entity, downloadFile=False)
+    if hasattr(resource, "is_restricted") and resource.is_restricted:
+        await create_access_requirements_if_none(entity_id=updated_entity.get("id"))
 
     trace.get_current_span().set_attributes(
         {
-            "synapse.id": updated_entity.get("id", ""),
+            "synapse.id": updated_entity.get("id"),
             "synapse.concrete_type": updated_entity.get("concreteType", ""),
         }
     )

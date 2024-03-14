@@ -109,7 +109,7 @@ from synapseclient.core.utils import (
 )
 from synapseclient.core.retry import (
     with_retry,
-    with_retry_async,
+    with_retry_time_based_async,
     DEFAULT_RETRY_STATUS_CODES,
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
@@ -397,7 +397,7 @@ class Synapse(object):
 
         def close_pool() -> None:
             """Close pool when event loop exits"""
-            self._thread_executor.shutdown()
+            self._thread_executor.shutdown(wait=True)
             del self._thread_executor
 
         self._thread_executor = get_executor(thread_count=self.max_threads)
@@ -417,7 +417,7 @@ class Synapse(object):
 
         def close_pool() -> None:
             """Close pool when event loop exits"""
-            self._process_executor.shutdown()
+            self._process_executor.shutdown(wait=True)
             del self._process_executor
 
         self._process_executor = ProcessPoolExecutor()
@@ -473,7 +473,6 @@ class Synapse(object):
 
     @property
     def max_threads(self) -> int:
-        print(f"max_threads: {self._max_threads}")
         return self._max_threads
 
     @max_threads.setter
@@ -6204,7 +6203,7 @@ class Synapse(object):
         auth = kwargs.pop("auth", self.credentials)
         requests_method_fn = getattr(requests_session, method)
         if data:
-            response = await with_retry_async(
+            response = await with_retry_time_based_async(
                 lambda: requests_method_fn(
                     uri,
                     content=data,
@@ -6216,7 +6215,7 @@ class Synapse(object):
                 **retry_policy,
             )
         else:
-            response = await with_retry_async(
+            response = await with_retry_time_based_async(
                 lambda: requests_method_fn(
                     uri,
                     headers=headers,

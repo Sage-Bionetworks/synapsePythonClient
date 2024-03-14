@@ -1,28 +1,28 @@
+"""Set up for integration tests."""
+
 import asyncio
 import logging
+import os
 import platform
-import uuid
-import os, time
-import sys
 import shutil
+import sys
 import tempfile
+import time
+import uuid
 
 import pytest
-
-from synapseclient.models import (
-    Project as Project_Model,
-    Team,
-)
-from synapseclient import Entity, Synapse, Project
-from synapseclient.core import utils
-from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
-
 from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import OS_DESCRIPTION, OS_TYPE, SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, OS_TYPE, OS_DESCRIPTION, Resource
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
+
+from synapseclient import Entity, Project, Synapse
+from synapseclient.core import utils
+from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
+from synapseclient.models import Project as Project_Model
+from synapseclient.models import Team
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -31,7 +31,7 @@ pytest session level fixtures shared by all integration tests.
 """
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(autouse=True)
 def event_loop(request):
     """
     Redefine the event loop to support session/module-scoped fixtures;

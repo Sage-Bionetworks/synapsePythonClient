@@ -358,8 +358,8 @@ class TestProjectDelete:
             stored_project.get()
 
         assert (
-            str(e.value)
-            == f"404 Client Error: \nEntity {stored_project.id} is in trash can."
+            f"404 Client Error: \nEntity {stored_project.id} is in trash can."
+            in str(e.value)
         )
 
 

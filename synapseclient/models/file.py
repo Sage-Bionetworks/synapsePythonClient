@@ -14,7 +14,11 @@ from opentelemetry import context, trace
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
-from synapseclient.core.exceptions import SynapseError, SynapseMalformedEntityError
+from synapseclient.core.exceptions import (
+    SynapseError,
+    SynapseMalformedEntityError,
+    SynapseFileNotFoundError,
+)
 from synapseclient.core.upload.upload_functions_async import upload_file_handle
 from synapseclient.core.utils import (
     delete_none_keys,
@@ -180,36 +184,20 @@ class File(FileSynchronousProtocol, AccessControllable):
             signs, apostrophes, and parentheses. If not specified, the name will be
             derived from the file name.
         path: The path to the file on disk.
-        content_type: Used to manually specify Content-type header, for example
-            'application/png' or 'application/json; charset=UTF-8'. If not specified,
-            the content type will be derived from the file extension.
-
-
-            (Create Only)
-            This can be specified only during the initial store of this file.
-            In order to change this after the File has been created use
-            [synapseclient.models.File.change_metadata][].
         description: The description of this file. Must be 1000 characters or less.
-        etag: (Read Only) Synapse employs an Optimistic Concurrency Control (OCC) scheme
-            to handle concurrent updates. Since the E-Tag changes every time an entity
-            is updated it is used to detect when a client's current representation of an
-            entity is out-of-date.
-        created_on: (Read Only) The date this entity was created.
-        modified_on: (Read Only) The date this entity was last modified.
-        created_by: (Read Only) The ID of the user that created this entity.
-        modified_by: (Read Only) The ID of the user that last modified this entity.
         parent_id: The ID of the Entity that is the parent of this Entity. Setting this
             to a new value and storing it will move this File under the new parent.
-        version_number: (Read Only) The version number issued to this version on the
-            object.
-        version_label: The version label for this entity
+        version_label: The version label for this entity. Updates to the entity will
+            increment the version number.
         version_comment: The version comment for this entity
-        is_latest_version: (Read Only) If this is the latest version of the object.
         data_file_handle_id: ID of the file associated with this entity. You may define
             an existing data_file_handle_id to use the existing data_file_handle_id. The
             creator of the file must also be the owner of the data_file_handle_id to
             have permission to store the file.
-        file_handle: (Read Only) The file handle associated with this entity.
+        external_url: The external URL of this file. If this is set AND `synapse_store`
+            is False, only a reference to this URL and the file metadata will be stored
+            in Synapse. The file itself will not be uploaded. If this attribute is set
+            it will override the `path`.
         activity: The Activity model represents the main record of Provenance in
             Synapse. It is analygous to the Activity defined in the
             [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
@@ -218,21 +206,51 @@ class File(FileSynchronousProtocol, AccessControllable):
             values (use empty list to represent no values for key) and the value type
             associated with all values in the list. To remove all annotations set this
             to an empty dict `{}`.
+
+    Attributes:
+        content_type: (New Upload Only)
+            Used to manually specify Content-type header, for example
+            'application/png' or 'application/json; charset=UTF-8'. If not specified,
+            the content type will be derived from the file extension.
+
+
+            This can be specified only during the initial store of this file or any time
+            there is a new file to upload.
+            In order to change this after the File has been created use
+            [synapseclient.models.File.change_metadata][].
+        content_size: (New Upload Only)
+            The size of the file in bytes. This can be specified only during the initial
+            creation of the File. This is also only applicable to files not uploaded to
+            Synapse. ie: `synapse_store` is False.
+
+    Attributes:
         create_or_update: (Store only)
             Indicates whether the method should automatically perform an
-            update if the 'obj' conflicts with an existing Synapse object.
+            update if the `file` conflicts with an existing Synapse object.
         force_version: (Store only)
-            Indicates whether the method should increment the version of the
-            object even if nothing has changed. An update to the MD5 of the file will
-            force a version update regardless of this flag.
+            Indicates whether the method should increment the version of the object if
+            something within the entity has changed. For example updating the
+            description or annotations. You may set this to False and an update to the
+            entity will not increment the version.
+
+            Updating the `version_label` attribute will also cause a version update
+            regardless  of this flag.
+
+            An update to the MD5 of the file will force a version update regardless of
+            this  flag.
         is_restricted: (Store only)
             If set to true, an email will be sent to the Synapse access control
             team to start the process of adding terms-of-use or review board approval
             for this entity. You will be contacted with regards to the specific data
             being restricted and the requirements of access.
+
+            This may be used only by an administrator of the specified file.
+
         synapse_store: (Store only)
             Whether the File should be uploaded or if false: only the path should
             be stored when [synapseclient.models.File.store][] is called.
+
+    Attributes:
         download_file: (Get only) If True the file will be downloaded.
         download_location: (Get only) The location to download the file to.
         if_collision: (Get only)
@@ -246,6 +264,20 @@ class File(FileSynchronousProtocol, AccessControllable):
             file is specified as a local file. That is, if the file is stored in
             multiple locations in Synapse only the ones in the specified folder/project
             will be returned.
+
+    Attributes:
+        etag: (Read Only) Synapse employs an Optimistic Concurrency Control (OCC) scheme
+            to handle concurrent updates. Since the E-Tag changes every time an entity
+            is updated it is used to detect when a client's current representation of an
+            entity is out-of-date.
+        created_on: (Read Only) The date this entity was created.
+        modified_on: (Read Only) The date this entity was last modified.
+        created_by: (Read Only) The ID of the user that created this entity.
+        modified_by: (Read Only) The ID of the user that last modified this entity.
+        version_number: (Read Only) The version number issued to this version on the
+            object.
+        is_latest_version: (Read Only) If this is the latest version of the object.
+        file_handle: (Read Only) The file handle associated with this entity.
     """
 
     id: Optional[str] = None
@@ -260,80 +292,39 @@ class File(FileSynchronousProtocol, AccessControllable):
     derived from the file name.
     """
 
-    path: Optional[str] = None
+    path: Optional[str] = field(default=None, compare=False)
     """The path to the file on disk."""
-
-    content_type: Optional[str] = None
-    """
-    Used to manually specify Content-type header, for example 'application/png'
-    or 'application/json; charset=UTF-8'. If not specified, the content type will be
-    derived from the file extension.
-
-
-    (Create Only)
-    This can be specified only during the initial store of this file. In order to change
-    this after the File has been created use
-    [synapseclient.models.File.change_metadata][].
-    """
 
     description: Optional[str] = None
     """The description of this file. Must be 1000 characters or less."""
-
-    etag: Optional[str] = None
-    """
-    (Read Only)
-    Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
-    concurrent updates. Since the E-Tag changes every time an entity is updated it is
-    used to detect when a client's current representation of an entity is out-of-date.
-    """
-
-    created_on: Optional[str] = None
-    """(Read Only) The date this entity was created."""
-
-    modified_on: Optional[str] = None
-    """(Read Only) The date this entity was last modified."""
-
-    created_by: Optional[str] = None
-    """(Read Only) The ID of the user that created this entity."""
-
-    modified_by: Optional[str] = None
-    """(Read Only) The ID of the user that last modified this entity."""
 
     parent_id: Optional[str] = None
     """The ID of the Entity that is the parent of this Entity. Setting this to a new
     value and storing it will move this File under the new parent."""
 
-    version_number: Optional[int] = None
-    """(Read Only) The version number issued to this version on the object."""
-
     version_label: Optional[str] = None
-    """The version label for this entity"""
+    """The version label for this entity. Updates to the entity will increment the
+    version number."""
 
     version_comment: Optional[str] = None
-    """The version comment for this entity"""
-
-    is_latest_version: Optional[bool] = False
-    """(Read Only) If this is the latest version of the object."""
+    """The version comment for this entity."""
 
     data_file_handle_id: Optional[str] = None
     """
-    ID of the file associated with this entity. You may define an existing
+    ID of the file handle associated with this entity. You may define an existing
     data_file_handle_id to use the existing data_file_handle_id. The creator of the
     file must also be the owner of the data_file_handle_id to have permission to
     store the file.
     """
 
-    external_url: Optional[str] = None
+    external_url: Optional[str] = field(default=None, compare=False)
     """
-    The external URL of this file. If this is set AND `synapse_store` is False only
+    The external URL of this file. If this is set AND `synapse_store` is False, only
     a reference to this URL and the file metadata will be stored in Synapse. The file
-    itself will not be uploaded.
+    itself will not be uploaded. If this attribute is set it will override the `path`.
     """
 
-    file_handle: Optional[FileHandle] = None
-    """(Read Only) The file handle associated with this entity."""
-
-    activity: Optional[Activity] = None
+    activity: Optional[Activity] = field(default=None, compare=False)
     """The Activity model represents the main record of Provenance in Synapse.  It is
     analygous to the Activity defined in the
     [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance."""
@@ -350,13 +341,33 @@ class File(FileSynchronousProtocol, AccessControllable):
                 List[datetime],
             ],
         ]
-    ] = None
+    ] = field(default=None, compare=False)
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
     all values in the list. To remove all annotations set this to an empty dict `{}`."""
 
-    create_or_update: bool = field(default=True, repr=False)
+    content_type: Optional[str] = None
+    """
+    (New Upload Only)
+    Used to manually specify Content-type header, for example 'application/png'
+    or 'application/json; charset=UTF-8'. If not specified, the content type will be
+    derived from the file extension.
+
+    This can be specified only during the initial store of this file. In order to change
+    this after the File has been created use
+    [synapseclient.models.File.change_metadata][].
+    """
+
+    content_size: Optional[int] = None
+    """
+    (New Upload Only)
+    The size of the file in bytes. This can be specified only during the initial
+    creation of the File. This is also only applicable to files not uploaded to Synapse.
+    ie: `synapse_store` is False.
+    """
+
+    create_or_update: bool = field(default=True, repr=False, compare=False)
     """
     (Store only)
 
@@ -364,13 +375,20 @@ class File(FileSynchronousProtocol, AccessControllable):
     conflicts with an existing Synapse object.
     """
 
-    force_version: bool = field(default=True, repr=False)
+    force_version: bool = field(default=True, repr=False, compare=False)
     """
     (Store only)
 
-    Indicates whether the method should increment the version of the object even if
-    nothing has changed. An update to the MD5 of the file will force a version update
-    regardless of this flag.
+    Indicates whether the method should increment the version of the object if something
+    within the entity has changed. For example updating the description or annotations.
+    You may set this to False and an update to the entity will not increment the
+    version.
+
+    Updating the `version_label` attribute will also cause a version update regardless
+    of this flag.
+
+    An update to the MD5 of the file will force a version update regardless of this
+    flag.
     """
 
     is_restricted: bool = field(default=False, repr=False)
@@ -381,6 +399,8 @@ class File(FileSynchronousProtocol, AccessControllable):
     the process of adding terms-of-use or review board approval for this entity.
     You will be contacted with regards to the specific data being restricted and the
     requirements of access.
+
+    This may be used only by an administrator of the specified file.
     """
 
     synapse_store: bool = field(default=True, repr=False)
@@ -391,19 +411,19 @@ class File(FileSynchronousProtocol, AccessControllable):
     [synapseclient.models.File.store][] is called.
     """
 
-    download_file: bool = field(default=True, repr=False)
+    download_file: bool = field(default=True, repr=False, compare=False)
     """
     (Get only)
 
     If True the file will be downloaded."""
 
-    download_location: str = field(default=None, repr=False)
+    download_location: str = field(default=None, repr=False, compare=False)
     """
     (Get only)
 
     The location to download the file to."""
 
-    if_collision: str = field(default="keep.both", repr=False)
+    if_collision: str = field(default="keep.both", repr=False, compare=False)
     """
     (Get only)
 
@@ -415,10 +435,41 @@ class File(FileSynchronousProtocol, AccessControllable):
             - `keep.both`
     """
 
-    synapse_container_limit: Optional[str] = field(default=None, repr=False)
+    synapse_container_limit: Optional[str] = field(
+        default=None, repr=False, compare=False
+    )
     """A Synanpse ID used to limit the search in Synapse if file is specified as a local
     file. That is, if the file is stored in multiple locations in Synapse only the
     ones in the specified folder/project will be returned."""
+
+    etag: Optional[str] = field(default=None, compare=False)
+    """
+    (Read Only)
+    Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    concurrent updates. Since the E-Tag changes every time an entity is updated it is
+    used to detect when a client's current representation of an entity is out-of-date.
+    """
+
+    created_on: Optional[str] = field(default=None, compare=False)
+    """(Read Only) The date this entity was created."""
+
+    modified_on: Optional[str] = field(default=None, compare=False)
+    """(Read Only) The date this entity was last modified."""
+
+    created_by: Optional[str] = field(default=None, compare=False)
+    """(Read Only) The ID of the user that created this entity."""
+
+    modified_by: Optional[str] = field(default=None, compare=False)
+    """(Read Only) The ID of the user that last modified this entity."""
+
+    version_number: Optional[int] = field(default=None, compare=False)
+    """(Read Only) The version number issued to this version on the object."""
+
+    is_latest_version: Optional[bool] = field(default=None, compare=False)
+    """(Read Only) If this is the latest version of the object."""
+
+    file_handle: Optional[FileHandle] = field(default=None, compare=False)
+    """(Read Only) The file handle associated with this entity."""
 
     _last_persistent_instance: Optional["File"] = field(
         default=None, repr=False, compare=False
@@ -460,7 +511,6 @@ class File(FileSynchronousProtocol, AccessControllable):
         """
         self.id = synapse_file.get("id", None)
         self.name = synapse_file.get("name", None)
-        self.path = synapse_file.get("path", None)
         self.description = synapse_file.get("description", None)
         self.etag = synapse_file.get("etag", None)
         self.created_on = synapse_file.get("createdOn", None)
@@ -480,8 +530,8 @@ class File(FileSynchronousProtocol, AccessControllable):
                 synapse_instance=synapse_file_handle
             )
             self.content_type = synapse_file_handle.get("contentType", None)
-            # TODO: Should I fill this in?
-            # self.external_url = synapse_file_handle.get("externalURL", None)
+            self.content_size = synapse_file_handle.get("contentSize", None)
+            self.external_url = synapse_file_handle.get("externalURL", None)
 
         if set_annotations:
             self.annotations = Annotations.from_dict(
@@ -559,19 +609,49 @@ class File(FileSynchronousProtocol, AccessControllable):
                 "(path with a (`parent_id` or parent with an id)) to store."
             )
         self.parent_id = parent.id if parent else self.parent_id
+        self.name = self.name or (guess_file_name(self.path) if self.path else None)
+
+        async def get_file(
+            existing_id: str, path: str, parent_entity_id: str
+        ) -> "File":
+            """Small wrapper to retrieve a file instance without raising an error if it
+            does not exist.
+
+            Arguments:
+                existing_id: The ID of the file to retrieve.
+
+            Returns:
+                The file object if it exists, otherwise None.
+            """
+            try:
+                return await File(
+                    id=existing_id,
+                    path=path,
+                    download_file=False,
+                    parent_id=parent_entity_id,
+                ).get_async()
+            except SynapseFileNotFoundError:
+                return None
+
         if (
             self.create_or_update
             and not self._last_persistent_instance
             and (
-                existing_file_id := await get_id(
-                    entity=self, failure_strategy=None, synapse_client=synapse_client
+                (
+                    existing_file_id := await get_id(
+                        entity=self,
+                        failure_strategy=None,
+                        synapse_client=synapse_client,
+                    )
                 )
+                or self.path
             )
-            # TODO: This search isn't working right to compare the files
             and (
-                existing_file := await File(
-                    id=existing_file_id, path=self.path, download_file=False
-                ).get_async()
+                existing_file := await get_file(
+                    existing_id=existing_file_id,
+                    path=self.path,
+                    parent_entity_id=self.parent_id,
+                )
             )
         ):
             merge_dataclass_entities(source=existing_file, destination=self)
@@ -580,16 +660,16 @@ class File(FileSynchronousProtocol, AccessControllable):
             self.path = os.path.expanduser(self.path)
             await self._upload_file(synapse_client=synapse_client)
 
-        # TODO: This has_changed check is not working correctly
         if self.has_changed:
             synapse_file = Synapse_File(
                 id=self.id,
                 path=self.path,
                 description=self.description,
                 etag=self.etag,
-                name=self.name or (guess_file_name(self.path) if self.path else None),
+                name=self.name,
                 parent=parent.id if parent else self.parent_id,
                 contentType=self.content_type,
+                contentSize=self.content_size,
                 dataFileHandleId=self.data_file_handle_id,
                 synapseStore=self.synapse_store,
                 modifiedOn=self.modified_on,
@@ -598,13 +678,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                 versionComment=self.version_comment,
             )
             delete_none_keys(synapse_file)
-            # entity = await Synapse.get_client(synapse_client=synapse_client).store_async(
-            #     obj=synapse_file,
-            #     createOrUpdate=self.create_or_update,
-            #     forceVersion=self.force_version,
-            #     isRestricted=self.is_restricted,
-            #     set_annotations=False,
-            # )
+
             entity = await store_entity(
                 resource=self, entity=synapse_file, synapse_client=synapse_client
             )
@@ -655,7 +729,8 @@ class File(FileSynchronousProtocol, AccessControllable):
             The file object.
 
         Example: Using this function
-            Can be used to change the filename, the filename when the file is downloaded, or the file content-type without downloading:
+            Can be used to change the filename, the filename when the file is
+            downloaded, or the file content-type without downloading:
 
                 file_entity = await File(id="syn123", download_file=False).get_async()
                 print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
@@ -744,13 +819,14 @@ class File(FileSynchronousProtocol, AccessControllable):
         """
         if not self.id and not self.path:
             raise ValueError("The file must have an ID or path to get.")
+        syn = Synapse.get_client(synapse_client=synapse_client)
 
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
             lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                lambda: syn.get(
                     entity=self.id or self.path,
                     version=self.version_number,
                     ifcollision=self.if_collision,
@@ -763,6 +839,13 @@ class File(FileSynchronousProtocol, AccessControllable):
         )
 
         self.fill_from_dict(synapse_file=entity, set_annotations=True)
+
+        if (
+            not self.path
+            and self.data_file_handle_id
+            and (cached_path := syn.cache.get(file_handle_id=self.data_file_handle_id))
+        ):
+            self.path = cached_path
 
         if include_activity:
             self.activity = await Activity.from_parent_async(
@@ -970,48 +1053,66 @@ class File(FileSynchronousProtocol, AccessControllable):
         local_file_md5_hex = None
 
         # Check if the file should be uploaded
-        if (
-            self.file_handle
-            and self.file_handle.concrete_type
-            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
-        ):
-            # switching away from ExternalFileHandle or the url was updated
-            needs_upload = self.synapse_store or (
-                self.file_handle.external_url != self.external_url
-            )
-        else:
-            # Check if we need to upload a new version of an existing
-            # file. If the file referred to by entity['path'] has been
-            # modified, we want to upload the new version.
-            # If synapeStore is false then we must upload a ExternalFileHandle
-            needs_upload = (
-                not self.synapse_store
-                or not self.file_handle
-                or not syn.cache.contains(self.file_handle.id, self.path)
-            )
-
-            md5_stored_in_synapse = (
-                self.file_handle.content_md5 if self.file_handle else None
-            )
-
-            # Check if we got an MD5 checksum from Synapse and compare it to the local file
+        if self._last_persistent_instance is not None:
             if (
-                self.synapse_store
-                and needs_upload
-                and os.path.isfile(self.path)
-                and md5_stored_in_synapse
-                and md5_stored_in_synapse
-                == (
-                    local_file_md5_hex := (
-                        await utils.md5_for_file_multiprocessing(
-                            filename=self.path,
-                            process_pool_executor=syn._get_process_pool_executor(),
+                self.file_handle
+                and self.file_handle.concrete_type
+                == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+            ):
+                # switching away from ExternalFileHandle or the url was updated
+                needs_upload = self.synapse_store or (
+                    self.file_handle.external_url != self.external_url
+                )
+            else:
+                # Check if we need to upload a new version of an existing
+                # file. If the file referred to by entity['path'] has been
+                # modified, we want to upload the new version.
+                # If synapeStore is false then we must upload a ExternalFileHandle
+                needs_upload = (
+                    not self.synapse_store
+                    or not self.file_handle
+                    or not (
+                        exists_in_cache := syn.cache.contains(
+                            self.file_handle.id, self.path
                         )
                     )
                 )
-            ):
-                needs_upload = False
-        if self.data_file_handle_id is not None:
+
+                md5_stored_in_synapse = (
+                    self.file_handle.content_md5 if self.file_handle else None
+                )
+
+                # Check if we got an MD5 checksum from Synapse and compare it to the local file
+                if (
+                    self.synapse_store
+                    and needs_upload
+                    and os.path.isfile(self.path)
+                    and md5_stored_in_synapse
+                ):
+                    if md5_stored_in_synapse == (
+                        local_file_md5_hex := (
+                            await utils.md5_for_file_multiprocessing(
+                                filename=self.path,
+                                process_pool_executor=syn._get_process_pool_executor(),
+                            )
+                        )
+                    ):
+                        needs_upload = False
+
+                    # If we had a cache miss, but already uploaded to Synapse we
+                    # can add the file to the cache.
+                    if (
+                        not exists_in_cache
+                        and self.file_handle
+                        and self.file_handle.id
+                        and local_file_md5_hex
+                    ):
+                        syn.cache.add(
+                            file_handle_id=self.file_handle.id,
+                            path=self.path,
+                            md5=local_file_md5_hex,
+                        )
+        elif self.data_file_handle_id is not None:
             needs_upload = False
         else:
             needs_upload = True
@@ -1026,7 +1127,7 @@ class File(FileSynchronousProtocol, AccessControllable):
 
             updated_file_handle = await upload_file_handle(
                 syn=syn,
-                parent_entity=parent_id_for_upload,
+                parent_entity_id=parent_id_for_upload,
                 path=(
                     self.path
                     if (self.synapse_store or self.external_url is None)
@@ -1034,7 +1135,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                 ),
                 synapse_store=self.synapse_store,
                 md5=local_file_md5_hex,
-                # file_size=local_state_fh.get("contentSize"),
+                file_size=self.content_size,
                 mimetype=self.content_type,
             )
 

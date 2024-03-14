@@ -2,8 +2,6 @@
 
 # pylint: disable=protected-access
 import asyncio
-import collections.abc
-import numbers
 import os
 import urllib.parse as urllib_parse
 import uuid
@@ -46,7 +44,7 @@ def log_upload_message(syn: "Synapse", message: str) -> None:
 @tracer.start_as_current_span("upload_functions::upload_file_handle")
 async def upload_file_handle(
     syn: "Synapse",
-    parent_entity: Union[str, collections.abc.Mapping, numbers.Number],
+    parent_entity_id: str,
     path: str,
     synapse_store: bool = True,
     md5: str = None,
@@ -54,21 +52,24 @@ async def upload_file_handle(
     mimetype: str = None,
 ):
     """
-    Uploads the file in the provided path (if necessary) to a storage location based on project settings.
-    Returns a new FileHandle as a dict to represent the stored file.
+    Uploads the file in the provided path (if necessary) to a storage location based
+    on project settings. Returns a new FileHandle as a dict to represent the
+    stored file.
 
     Arguments:
-        parent_entity: Entity object or id of the parent entity.
-        path:          The file path to the file being uploaded
-        synapse_store: If False, will not upload the file, but instead create an ExternalFileHandle that references
-                       the file on the local machine.
-                       If True, will upload the file based on StorageLocation determined by the entity_parent_id
-        md5:           The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be
-                       calculated automatically.
-        file_size:     The size the file, if known. Otherwise if the file is a local file, it will be calculated
-                       automatically.
-        mimetype:      The MIME type the file, if known. Otherwise if the file is a local file, it will be
-                       calculated automatically.
+        syn: The synapse client
+        parent_entity_id: The ID of the parent entity that the file will be attached to.
+        path: The file path to the file being uploaded
+        synapse_store: If False, will not upload the file, but instead create an
+            ExternalFileHandle that references the file on the local machine. If True,
+            will upload the file based on StorageLocation determined by the
+            parent_entity_id.
+        md5: The MD5 checksum for the file, if known. Otherwise if the file is a
+            local file, it will be calculated automatically.
+        file_size: The size the file, if known. Otherwise if the file is a local file,
+            it will be calculated automatically.
+        mimetype: The MIME type the file, if known. Otherwise if the file is a local
+            file, it will be calculated automatically.
 
     Returns:
         A dictionary of a new FileHandle as a dict that represents the uploaded file
@@ -91,7 +92,7 @@ async def upload_file_handle(
             process_pool_executor=syn._get_process_pool_executor(),
         )
 
-    entity_parent_id = id_of(parent_entity)
+    entity_parent_id = id_of(parent_entity_id)
 
     # determine the upload function based on the UploadDestination
     location = await get_upload_destination(
@@ -230,23 +231,23 @@ async def create_external_file_handle(
             )
             if md5 is not None and md5 != actual_md5:
                 raise SynapseMd5MismatchError(
-                    "The specified md5 [%s] does not match the calculated md5 [%s] for local file [%s]",
-                    md5,
-                    actual_md5,
-                    parsed_path,
+                    f"The specified md5 [{md5}] does not match the calculated md5 "
+                    f"[{actual_md5}] for local file [{parsed_path}]",
                 )
             md5 = actual_md5
             file_size = os.stat(parsed_path).st_size
             is_local_file = True
     else:
-        raise ValueError("externalUrl [%s] is not a valid url", url)
+        raise ValueError(f"externalUrl [{url}] is not a valid url")
 
     # just creates the file handle because there is nothing to upload
     file_handle = await post_external_filehandle(
         external_url=url, mimetype=mimetype, md5=md5, file_size=file_size
     )
     if is_local_file:
-        syn.cache.add(file_handle["id"], file_url_to_path(url))
+        syn.cache.add(
+            file_handle_id=file_handle["id"], path=file_url_to_path(url), md5=md5
+        )
     trace.get_current_span().set_attributes(
         {"synapse.file_handle_id": file_handle["id"]}
     )
@@ -262,16 +263,16 @@ async def upload_external_file_handle_sftp(
         file_path, urllib_parse.unquote(sftp_url), username, password
     )
 
+    file_md5 = md5 or await utils.md5_for_file_multiprocessing(
+        filename=file_path, process_pool_executor=syn._get_process_pool_executor()
+    )
     file_handle = await post_external_filehandle(
         external_url=uploaded_url,
         mimetype=mimetype,
-        md5=md5
-        or await utils.md5_for_file_multiprocessing(
-            filename=file_path, process_pool_executor=syn._get_process_pool_executor()
-        ),
+        md5=file_md5,
         file_size=os.stat(file_path).st_size,
     )
-    syn.cache.add(file_handle["id"], file_path)
+    syn.cache.add(file_handle_id=file_handle["id"], path=file_path, md5=file_md5)
     return file_handle
 
 
@@ -347,7 +348,7 @@ async def upload_synapse_sts_boto_s3(
     loop = asyncio.get_event_loop()
 
     await loop.run_in_executor(
-        syn._get_process_pool_executor(),
+        syn._get_thread_pool_executor(),
         lambda: sts_transfer.with_boto_sts_credentials(
             upload_fn, syn, parent_id, "read_write"
         ),
@@ -380,7 +381,7 @@ async def upload_client_auth_s3(
     loop = asyncio.get_event_loop()
 
     await loop.run_in_executor(
-        None,
+        syn._get_thread_pool_executor(),
         lambda: S3ClientWrapper.upload_file(
             bucket, endpoint_url, file_key, file_path, profile_name=profile
         ),
@@ -394,6 +395,6 @@ async def upload_client_auth_s3(
         md5=md5,
         synapse_client=syn,
     )
-    syn.cache.add(file_handle["id"], file_path)
+    syn.cache.add(file_handle_id=file_handle["id"], path=file_path, md5=md5)
 
     return file_handle

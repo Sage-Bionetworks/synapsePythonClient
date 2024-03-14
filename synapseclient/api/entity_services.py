@@ -128,3 +128,30 @@ async def get_upload_destination_location(
         uri=f"/entity/{entity_id}/uploadDestination/{location}",
         endpoint=client.fileHandleEndpoint,
     )
+
+
+async def create_access_requirements_if_none(
+    entity_id: str, synapse_client: Optional[Synapse] = None
+) -> None:
+    """
+    Checks to see if the given entity has access requirements. If not, then one is added
+
+    Arguments:
+        entity_id: The ID of the entity.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
+    """
+    client = Synapse.get_client(synapse_client=synapse_client)
+    existing_restrictions = await client.rest_get_async(
+        f"/entity/{entity_id}/accessRequirement?offset=0&limit=1"
+    )
+    if len(existing_restrictions["results"]) <= 0:
+        access_requirements = await client.rest_post_async(
+            f"/entity/{entity_id}/lockAccessRequirement"
+        )
+        client.logger.info(
+            "Created an access requirements request for "
+            f"{entity_id}: {access_requirements['jiraKey']}. An email will be sent to "
+            "the Synapse access control team to start the process of adding "
+            "terms-of-use or review board approval for this entity."
+        )

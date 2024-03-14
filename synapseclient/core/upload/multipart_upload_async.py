@@ -67,9 +67,9 @@ import asyncio
 import mimetypes
 import os
 import threading
-import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, Mapping, Union
+from tqdm import tqdm
 
 import httpx
 import requests
@@ -90,7 +90,7 @@ from synapseclient.core.exceptions import (
     SynapseUploadFailedException,
     _raise_for_status,
 )
-from synapseclient.core.retry import with_retry_non_async
+from synapseclient.core.retry import with_retry_time_based
 from synapseclient.core.upload.upload_utils import (
     copy_md5_fn,
     copy_part_request_body_provider_fn,
@@ -109,7 +109,7 @@ MIN_PART_SIZE = 5 * MB
 
 # ancient tribal knowledge
 DEFAULT_PART_SIZE = 8 * MB
-MAX_RETRIES = 30
+MAX_RETRIES = 7
 
 
 tracer = trace.get_tracer("synapseclient")
@@ -164,6 +164,7 @@ class UploadAttemptAsync:
         # populated later
         self._upload_id: str = None
         self._pre_signed_part_urls: Mapping[int, str] = None
+        self._progress_bar = None
 
     @classmethod
     def _get_remaining_part_numbers(cls, upload_status):
@@ -312,7 +313,7 @@ class UploadAttemptAsync:
                         "UploadAttempt::put_on_storage_provider"
                     ):
                         trace.get_current_span().set_attributes({"url.path": part_url})
-                        response = with_retry_non_async(
+                        response = with_retry_time_based(
                             lambda: session.put(
                                 url=part_url,
                                 content=body,  # noqa: F821
@@ -402,17 +403,14 @@ class UploadAttemptAsync:
                     file_size,
                 )
 
-                self._syn._print_transfer_progress(
-                    progress,
-                    file_size,
-                    prefix=self._storage_str if self._storage_str else "Uploading",
+                self._progress_bar = tqdm(
+                    total=file_size,
+                    desc=self._storage_str if self._storage_str else "Uploading",
+                    unit="B",
+                    unit_scale=True,
                     postfix=self._dest_file_name,
-                    previouslyTransferred=previously_transferred,
                 )
-
-            # TODO: The time when upload started technincally isn't here. This leads to
-            # The file transfer speed calculation to be off.
-            time_upload_started = time.time()
+                self._progress_bar.update(previously_transferred)
 
             raised_exception = None
 
@@ -444,19 +442,8 @@ class UploadAttemptAsync:
                         )
 
                         if part_size and not self._is_copy():
+                            self._progress_bar.update(part_size)
                             progress += part_size
-                            self._syn._print_transfer_progress(
-                                min(progress, file_size),
-                                file_size,
-                                prefix=(
-                                    self._storage_str
-                                    if self._storage_str
-                                    else "Uploading"
-                                ),
-                                postfix=self._dest_file_name,
-                                dt=time.time() - time_upload_started,
-                                previouslyTransferred=previously_transferred,
-                            )
 
                     except (Exception, KeyboardInterrupt) as cause:
                         with self._thread_lock:

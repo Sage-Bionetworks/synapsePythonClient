@@ -4,7 +4,7 @@ import pytest
 from requests import Response
 
 from synapseclient.core.exceptions import SynapseError
-from synapseclient.core.retry import with_retry, with_retry_async
+from synapseclient.core.retry import with_retry, with_retry_time_based_async
 
 
 def test_with_retry():
@@ -138,12 +138,12 @@ class TestAsyncRetry:
 
         # -- No failures --
         response.status_code.__eq__.side_effect = lambda x: x == 250
-        await with_retry_async(mocked_function, verbose=True, **retry_params)
+        await with_retry_time_based_async(mocked_function, verbose=True, **retry_params)
         assert mocked_function.call_count == 1
 
         # -- Always fail --
         response.status_code.__eq__.side_effect = lambda x: x == 503
-        await with_retry_async(mocked_function, verbose=True, **retry_params)
+        await with_retry_time_based_async(mocked_function, verbose=True, **retry_params)
         assert mocked_function.call_count > 5
 
         # -- Fail then succeed --
@@ -156,7 +156,7 @@ class TestAsyncRetry:
             return x == 503
 
         response.status_code.__eq__.side_effect = fail_then_succeed
-        await with_retry_async(mocked_function, verbose=True, **retry_params)
+        await with_retry_time_based_async(mocked_function, verbose=True, **retry_params)
         assert mocked_function.call_count > 8
 
         # -- Retry with an error message --
@@ -169,7 +169,7 @@ class TestAsyncRetry:
             "application/json" if x == "content-type" else None
         )
         response.json.return_value = {"reason": retry_error_messages[0]}
-        await with_retry_async(mocked_function, **retry_params)
+        await with_retry_time_based_async(mocked_function, **retry_params)
         assert response.headers.get.called
         assert mocked_function.call_count > 12
 
@@ -182,7 +182,7 @@ class TestAsyncRetry:
 
         mocked_function.side_effect = foo
         with pytest.raises(SynapseError) as ex_cm:
-            await with_retry_async(mocked_function, **retry_params)
+            await with_retry_time_based_async(mocked_function, **retry_params)
         assert "Bar" in str(ex_cm.value)
         assert mocked_function.call_count > 13
 
@@ -204,7 +204,7 @@ class TestAsyncRetry:
         mocked_function.return_value = response
 
         # no unexpected exceptions etc should be raised
-        returned_response = await with_retry_async(
+        returned_response = await with_retry_time_based_async(
             mocked_function,
             retry_status_codes=values,
             expected_status_codes=values,
@@ -229,7 +229,9 @@ class TestAsyncRetry:
             matching_response,
         ]
 
-        response = await with_retry_async(mocked_function, expected_status_codes=[201])
+        response = await with_retry_time_based_async(
+            mocked_function, expected_status_codes=[201]
+        )
         assert response == matching_response
 
     @pytest.mark.asyncio
@@ -249,5 +251,5 @@ class TestAsyncRetry:
                 raise ValueError("not yet")
             return x
 
-        response = await with_retry_async(fn, retry_exceptions=[ValueError])
+        response = await with_retry_time_based_async(fn, retry_exceptions=[ValueError])
         assert 2 == response

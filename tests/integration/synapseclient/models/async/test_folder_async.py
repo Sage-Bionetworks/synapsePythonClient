@@ -368,9 +368,8 @@ class TestFolderDelete:
         with pytest.raises(SynapseHTTPError) as e:
             await stored_folder.get()
 
-        assert (
-            str(e.value)
-            == f"404 Client Error: \nEntity {stored_folder.id} is in trash can."
+        assert f"404 Client Error: \nEntity {stored_folder.id} is in trash can." in str(
+            e.value
         )
 
 

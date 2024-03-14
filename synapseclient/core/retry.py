@@ -226,7 +226,7 @@ def calculate_exponential_backoff(
     return time_to_wait
 
 
-async def with_retry_async(
+async def with_retry_time_based_async(
     function,
     verbose: bool = False,
     retry_status_codes: typing.List[int] = None,
@@ -266,12 +266,12 @@ async def with_retry_async(
         retry_max_wait_before_failure: The maximum wait time before failure.
 
     Example: Using with_retry
-        Using ``with_retry_async`` to consolidate inputs into a list.
+        Using ``with_retry_time_based_async`` to consolidate inputs into a list.
 
-            from synapseclient.core.retry import with_retry_async
+            from synapseclient.core.retry import with_retry_time_based_async
 
             async def foo(a, b, c): return [a, b, c]
-            result = await with_retry_async(lambda: foo("1", "2", "3"))
+            result = await with_retry_time_based_async(lambda: foo("1", "2", "3"))
     """
     if not retry_status_codes:
         retry_status_codes = [429, 500, 502, 503, 504]
@@ -349,7 +349,7 @@ async def with_retry_async(
         return response
 
 
-def with_retry_non_async(
+def with_retry_time_based(
     function,
     verbose: bool = False,
     retry_status_codes: typing.List[int] = None,
@@ -389,12 +389,12 @@ def with_retry_non_async(
         retry_max_wait_before_failure: The maximum wait time before failure.
 
     Example: Using with_retry
-        Using ``with_retry_async`` to consolidate inputs into a list.
+        Using ``with_retry_time_based`` to consolidate inputs into a list.
 
-            from synapseclient.core.retry import with_retry_async
+            from synapseclient.core.retry import with_retry_time_based
 
             async def foo(a, b, c): return [a, b, c]
-            result = await with_retry_async(lambda: foo("1", "2", "3"))
+            result = with_retry_time_based(lambda: foo("1", "2", "3"))
     """
     if not retry_status_codes:
         retry_status_codes = [429, 500, 502, 503, 504]
