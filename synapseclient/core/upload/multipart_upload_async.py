@@ -694,7 +694,7 @@ async def _multipart_upload_async(
     md5_fn,
     force_restart: bool = False,
     storage_str: str = None,
-):
+) -> str:
     """Calls upon an [UploadAttempt][synapseclient.core.upload.multipart_upload.UploadAttempt]
     object to initiate and/or retry a multipart file upload or copy. This function is wrapped by
     [multipart_upload_file][synapseclient.core.upload.multipart_upload.multipart_upload_file],
@@ -751,7 +751,7 @@ async def multipart_upload_string_async(
     storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
-):
+) -> str:
     """Upload a file to a Synapse upload destination in chunks.
 
     Arguments:
@@ -823,7 +823,7 @@ async def multipart_copy_async(
     storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
-):
+) -> str:
     """Makes a
     [Multipart Upload Copy Request](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadCopyRequest.html).
     This request performs a copy of an existing file handle without data transfer from the client.
@@ -856,7 +856,7 @@ async def multipart_copy_async(
         "storageLocationId": storage_location_id,
     }
 
-    return _multipart_upload_async(
+    return await _multipart_upload_async(
         syn,
         dest_file_name,
         upload_request,
