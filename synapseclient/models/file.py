@@ -198,6 +198,9 @@ class File(FileSynchronousProtocol, AccessControllable):
             is False, only a reference to this URL and the file metadata will be stored
             in Synapse. The file itself will not be uploaded. If this attribute is set
             it will override the `path`.
+        content_md5: The MD5 of the file is known. If not supplied this will be computed
+            in the client is possible. If supplied for a file entity already stored in
+            Synapse it will be calculated again to check if a new upload needs to occur.
         activity: The Activity model represents the main record of Provenance in
             Synapse. It is analygous to the Activity defined in the
             [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
@@ -322,6 +325,13 @@ class File(FileSynchronousProtocol, AccessControllable):
     The external URL of this file. If this is set AND `synapse_store` is False, only
     a reference to this URL and the file metadata will be stored in Synapse. The file
     itself will not be uploaded. If this attribute is set it will override the `path`.
+    """
+
+    content_md5: Optional[str] = field(default=None, compare=False)
+    """
+    The MD5 of the file is known. If not supplied this will be computed in the client
+    is possible. If supplied for a file entity already stored in Synapse it will be
+    calculated again to check if a new upload needs to occur.
     """
 
     activity: Optional[Activity] = field(default=None, compare=False)
@@ -496,6 +506,15 @@ class File(FileSynchronousProtocol, AccessControllable):
             deepcopy(self.annotations) if self.annotations else None
         )
 
+    def _fill_from_file_handle(self) -> None:
+        """Fill the file object from the file handle."""
+        if self.file_handle:
+            self.data_file_handle_id = self.file_handle.id
+            self.content_type = self.file_handle.content_type
+            self.content_size = self.file_handle.content_size
+            self.external_url = self.file_handle.external_url
+            self.content_md5 = self.file_handle.content_md5
+
     def fill_from_dict(
         self, synapse_file: Union[Synapse_File, Dict], set_annotations: bool = True
     ) -> "File":
@@ -529,9 +548,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             self.file_handle = file_handle.fill_from_dict(
                 synapse_instance=synapse_file_handle
             )
-            self.content_type = synapse_file_handle.get("contentType", None)
-            self.content_size = synapse_file_handle.get("contentSize", None)
-            self.external_url = synapse_file_handle.get("externalURL", None)
+            self._fill_from_file_handle()
 
         if set_annotations:
             self.annotations = Annotations.from_dict(
@@ -1134,12 +1151,12 @@ class File(FileSynchronousProtocol, AccessControllable):
                     else self.external_url
                 ),
                 synapse_store=self.synapse_store,
-                md5=local_file_md5_hex,
+                md5=local_file_md5_hex or self.content_md5,
                 file_size=self.content_size,
                 mimetype=self.content_type,
             )
 
             self.file_handle = FileHandle().fill_from_dict(updated_file_handle)
-            self.data_file_handle_id = self.file_handle.id
+            self._fill_from_file_handle()
 
         return self

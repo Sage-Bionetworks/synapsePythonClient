@@ -68,21 +68,22 @@ import mimetypes
 import os
 import threading
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Mapping, Union
-from tqdm import tqdm
+from typing import TYPE_CHECKING, Dict, List, Mapping, Union
 
 import httpx
 import requests
 from opentelemetry import context, trace
 from opentelemetry.context import Context
+from tqdm import tqdm
 
 from synapseclient.api import (
     post_file_multipart,
     post_file_multipart_presigned_urls,
-    put_file_multipart_add_async,
-    put_file_multipart_complete,
     post_file_multipart_presigned_urls_async,
+    put_file_multipart_add,
+    put_file_multipart_complete,
 )
+from synapseclient.core.async_utils import otel_trace_method
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
@@ -166,6 +167,33 @@ class UploadAttemptAsync:
         self._pre_signed_part_urls: Mapping[int, str] = None
         self._progress_bar = None
 
+    @otel_trace_method(
+        method_to_trace_name=lambda *args, **kwargs: "UploadAttemptAsync"
+    )
+    async def __call__(self) -> Dict[str, str]:
+        """Orchestrate the upload of a file to Synapse."""
+        upload_status_response = await post_file_multipart(
+            upload_request_payload=self._upload_request_payload,
+            force_restart=self._force_restart,
+            endpoint=self._syn.fileHandleEndpoint,
+            synapse_client=self._syn,
+        )
+        upload_state = upload_status_response.get("state")
+
+        if upload_state != "COMPLETED":
+            self._upload_id = upload_status_response["uploadId"]
+            part_count, remaining_part_numbers = self._get_remaining_part_numbers(
+                upload_status_response
+            )
+
+            # if no remaining part numbers then all the parts have been
+            # uploaded but the upload has not been marked complete.
+            if remaining_part_numbers:
+                await self._upload_parts(part_count, remaining_part_numbers)
+            upload_status_response = await self._complete_upload()
+
+        return upload_status_response
+
     @classmethod
     def _get_remaining_part_numbers(cls, upload_status):
         part_numbers = []
@@ -185,29 +213,29 @@ class UploadAttemptAsync:
             == concrete_types.MULTIPART_UPLOAD_COPY_REQUEST
         )
 
+    @otel_trace_method(
+        method_to_trace_name=lambda *args, **kwargs: "UploadAttemptAsync::_fetch_pre_signed_part_urls_async"
+    )
     async def _fetch_pre_signed_part_urls_async(
         self,
         upload_id: str,
         part_numbers: List[int],
     ) -> Mapping[int, str]:
-        with tracer.start_as_current_span(
-            "UploadAttemptAsync::_fetch_pre_signed_part_urls_async"
-        ):
-            trace.get_current_span().set_attributes({"synapse.upload_id": upload_id})
-            response = await post_file_multipart_presigned_urls_async(
-                upload_id=upload_id,
-                part_numbers=part_numbers,
-                synapse_client=self._syn,
+        trace.get_current_span().set_attributes({"synapse.upload_id": upload_id})
+        response = await post_file_multipart_presigned_urls_async(
+            upload_id=upload_id,
+            part_numbers=part_numbers,
+            synapse_client=self._syn,
+        )
+
+        part_urls = {}
+        for part in response["partPresignedUrls"]:
+            part_urls[part["partNumber"]] = (
+                part["uploadPresignedUrl"],
+                part.get("signedHeaders", {}),
             )
 
-            part_urls = {}
-            for part in response["partPresignedUrls"]:
-                part_urls[part["partNumber"]] = (
-                    part["uploadPresignedUrl"],
-                    part.get("signedHeaders", {}),
-                )
-
-            return part_urls
+        return part_urls
 
     def _fetch_pre_signed_part_urls(
         self,
@@ -277,9 +305,171 @@ class UploadAttemptAsync:
 
             return refreshed_url
 
+    async def _handle_part_wrapper(self, part_number: int) -> HandlePartResult:
+        loop = asyncio.get_event_loop()
+        otel_context = context.get_current()
+
+        return await loop.run_in_executor(
+            self._syn._get_thread_pool_executor(),
+            self._handle_part,
+            part_number,
+            otel_context,
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda *args, **kwargs: "UploadAttempt::_upload_parts"
+    )
+    async def _upload_parts(self, part_count: int, remaining_part_numbers: int) -> None:
+        """Take a list of part numbers and upload them to the pre-signed URLs.
+
+        Arguments:
+            part_count: The total number of parts in the upload.
+            remaining_part_numbers: The parts that still need to be uploaded.
+        """
+        completed_part_count = part_count - len(remaining_part_numbers)
+        file_size = self._upload_request_payload.get("fileSizeBytes")
+
+        self._pre_signed_part_urls = await self._fetch_pre_signed_part_urls_async(
+            upload_id=self._upload_id,
+            part_numbers=remaining_part_numbers,
+        )
+
+        async_tasks = []
+
+        for part_number in remaining_part_numbers:
+            async_tasks.append(
+                asyncio.create_task(self._handle_part_wrapper(part_number=part_number))
+            )
+
+        if not self._is_copy():
+            # we won't have bytes to measure during a copy so the byte oriented
+            # progress bar is not useful
+            previously_transferred = min(
+                completed_part_count * self._part_size,
+                file_size,
+            )
+
+            if not self._syn.silent:
+                self._progress_bar = tqdm(
+                    total=file_size,
+                    desc=self._storage_str if self._storage_str else "Uploading",
+                    unit="B",
+                    unit_scale=True,
+                    postfix=self._dest_file_name,
+                )
+                self._progress_bar.update(previously_transferred)
+
+        raised_exception = await self._orchestrate_upload_part_tasks(async_tasks)
+
+        if raised_exception is not None:
+            if isinstance(raised_exception, KeyboardInterrupt):
+                raise SynapseUploadAbortedException(
+                    "User interrupted upload"
+                ) from raised_exception
+            raise SynapseUploadFailedException(
+                "Part upload failed"
+            ) from raised_exception
+
+    async def _orchestrate_upload_part_tasks(
+        self, async_tasks
+    ) -> Union[Exception, KeyboardInterrupt, None]:
+        """
+        Orchestrate the result of the upload part tasks. If successful, send a
+        request to the server to add the part to the upload.
+
+        Arguments:
+            async_tasks: A set of tasks to orchestrate.
+
+        Returns:
+            An exception if one was raised, otherwise None.
+        """
+        raised_exception = None
+
+        while async_tasks:
+            done_tasks, pending_tasks = await asyncio.wait(
+                async_tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+            async_tasks = pending_tasks
+            for completed_task in done_tasks:
+                try:
+                    task_result = completed_task.result()
+
+                    if isinstance(task_result, HandlePartResult):
+                        part_number = task_result.part_number
+                        part_size = task_result.part_size
+                        part_md5_hex = task_result.md5_hex
+                    else:
+                        continue
+
+                    async_tasks.add(
+                        asyncio.create_task(
+                            put_file_multipart_add(
+                                upload_id=self._upload_id,
+                                part_number=part_number,
+                                md5_hex=part_md5_hex,
+                                synapse_client=self._syn,
+                            )
+                        )
+                    )
+
+                    if part_size and not self._is_copy() and not self._syn.silent:
+                        self._progress_bar.update(part_size)
+
+                except (Exception, KeyboardInterrupt) as cause:
+                    with self._thread_lock:
+                        if self._aborted:
+                            # we've already aborted, no need to raise
+                            # another exception
+                            continue
+                        self._aborted = True
+                    raised_exception = cause
+                    continue
+        return raised_exception
+
+    @otel_trace_method(
+        method_to_trace_name=lambda *args, **kwargs: "UploadAttempt::_complete_upload"
+    )
+    async def _complete_upload(self) -> Dict[str, str]:
+        """Close the upload and mark it as complete.
+
+        Returns:
+            The response from the server for the completed upload.
+        """
+        if not self._syn.silent:
+            self._progress_bar.close()
+        upload_status_response = await put_file_multipart_complete(
+            upload_id=self._upload_id,
+            endpoint=self._syn.fileHandleEndpoint,
+            synapse_client=self._syn,
+        )
+
+        upload_state = upload_status_response.get("state")
+        if upload_state != "COMPLETED":
+            # at this point we think successfully uploaded all the parts
+            # but the upload status isn't complete, we'll throw an error
+            # and let a subsequent attempt try to reconcile
+            raise SynapseUploadFailedException(
+                f"Upload status has an unexpected state {upload_state}"
+            )
+
+        return upload_status_response
+
     def _handle_part(
         self, part_number: int, otel_context: Union[Context, None]
     ) -> HandlePartResult:
+        """Take an individual part number and upload it to the pre-signed URL.
+
+        Arguments:
+            part_number: The part number to upload.
+            otel_context: The OpenTelemetry context to use for tracing.
+
+        Returns:
+            The result of the part upload.
+
+        Raises:
+            SynapseUploadAbortedException: If the upload has been aborted.
+            ValueError: If the part body is None.
+        """
         if otel_context:
             context.attach(otel_context)
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
@@ -306,52 +496,13 @@ class UploadAttemptAsync:
             if body is None:
                 raise ValueError(f"No body for part {part_number}")
 
-            for retry in range(2):
-                try:
-                    # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
-                    with tracer.start_as_current_span(
-                        "UploadAttempt::put_on_storage_provider"
-                    ):
-                        trace.get_current_span().set_attributes({"url.path": part_url})
-                        response = with_retry_time_based(
-                            lambda: session.put(
-                                url=part_url,
-                                content=body,  # noqa: F821
-                                headers=signed_headers,
-                            ),
-                            retry_exceptions=[requests.exceptions.ConnectionError],
-                        )
-                    try:
-                        _raise_for_status(response)
-                    except Exception as ex:
-                        raise ex
-
-                    # completed upload part to s3 successfully
-                    break
-
-                except SynapseHTTPError as ex:
-                    if ex.response.status_code == 403 and retry < 1:
-                        # we interpret this to mean our pre_signed url expired.
-                        self._syn.logger.debug(
-                            f"The pre-signed upload URL for part {part_number} has expired."
-                            "Refreshing urls and retrying.\n"
-                        )
-
-                        # we refresh all the urls and obtain this part's
-                        # specific url for the retry
-                        with tracer.start_as_current_span(
-                            "UploadAttempt::refresh_pre_signed_part_urls"
-                        ):
-                            (
-                                part_url,
-                                signed_headers,
-                            ) = self._refresh_pre_signed_part_urls(
-                                part_number,
-                                part_url,
-                            )
-
-                    else:
-                        raise
+            response = self._put_part_with_retry(
+                session=session,
+                body=body,
+                part_url=part_url,
+                signed_headers=signed_headers,
+                part_number=part_number,
+            )
 
             md5_hex = self._md5_fn(body, response)
             del response
@@ -363,149 +514,77 @@ class UploadAttemptAsync:
 
             return HandlePartResult(part_number, part_size, md5_hex)
 
-    async def _upload_parts(self, part_count: int, remaining_part_numbers: int) -> None:
-        """Take a list of part numbers and upload them to the pre-signed URLs.
+    def _put_part_with_retry(
+        self,
+        session: httpx.Client,
+        body: bytes,
+        part_url: str,
+        signed_headers: Dict[str, str],
+        part_number: int,
+    ) -> Union[httpx.Response, None]:
+        """Put a part to the storage provider with retries.
 
         Arguments:
-            part_count: The total number of parts in the upload.
-            remaining_part_numbers: The parts that still need to be uploaded.
+            session: The requests session to use for the put.
+            body: The body of the part to put.
+            part_url: The URL to put the part to.
+            signed_headers: The signed headers to use for the put.
+            part_number: The part number being put.
+
+        Returns:
+            The response from the put.
+
+        Raises:
+            SynapseHTTPError: If the put fails.
         """
-        with tracer.start_as_current_span("UploadAttempt::_upload_parts"):
-            completed_part_count = part_count - len(remaining_part_numbers)
-            file_size = self._upload_request_payload.get("fileSizeBytes")
+        response = None
+        for retry in range(2):
+            try:
+                # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
+                with tracer.start_as_current_span(
+                    "UploadAttempt::put_on_storage_provider"
+                ):
+                    trace.get_current_span().set_attributes({"url.path": part_url})
+                    response = with_retry_time_based(
+                        lambda: session.put(
+                            url=part_url,
+                            content=body,  # noqa: F821
+                            headers=signed_headers,
+                        ),
+                        retry_exceptions=[requests.exceptions.ConnectionError],
+                    )
+                try:
+                    _raise_for_status(response)
+                except Exception as ex:
+                    raise ex
 
-            self._pre_signed_part_urls = await self._fetch_pre_signed_part_urls_async(
-                upload_id=self._upload_id,
-                part_numbers=remaining_part_numbers,
-            )
+                # completed upload part to s3 successfully
+                break
 
-            async_tasks = []
-            loop = asyncio.get_event_loop()
-            otel_context = context.get_current()
+            except SynapseHTTPError as ex:
+                if ex.response.status_code == 403 and retry < 1:
+                    # we interpret this to mean our pre_signed url expired.
+                    self._syn.logger.debug(
+                        f"The pre-signed upload URL for part {part_number} has expired."
+                        "Refreshing urls and retrying.\n"
+                    )
 
-            async def handle_part_wrapper(part_number):
-                return await loop.run_in_executor(
-                    self._syn._get_thread_pool_executor(),
-                    self._handle_part,
-                    part_number,
-                    otel_context,
-                )
-
-            for part_number in remaining_part_numbers:
-                async_tasks.append(
-                    asyncio.create_task(handle_part_wrapper(part_number=part_number))
-                )
-
-            if not self._is_copy():
-                # we won't have bytes to measure during a copy so the byte oriented progress bar is not useful
-                progress = previously_transferred = min(
-                    completed_part_count * self._part_size,
-                    file_size,
-                )
-
-                self._progress_bar = tqdm(
-                    total=file_size,
-                    desc=self._storage_str if self._storage_str else "Uploading",
-                    unit="B",
-                    unit_scale=True,
-                    postfix=self._dest_file_name,
-                )
-                self._progress_bar.update(previously_transferred)
-
-            raised_exception = None
-
-            while async_tasks:
-                done_tasks, pending_tasks = await asyncio.wait(
-                    async_tasks, return_when=asyncio.FIRST_COMPLETED
-                )
-                async_tasks = pending_tasks
-                for completed_task in done_tasks:
-                    try:
-                        task_result = completed_task.result()
-
-                        if isinstance(task_result, HandlePartResult):
-                            part_number = task_result.part_number
-                            part_size = task_result.part_size
-                            part_md5_hex = task_result.md5_hex
-                        else:
-                            continue
-
-                        async_tasks.add(
-                            asyncio.create_task(
-                                put_file_multipart_add_async(
-                                    upload_id=self._upload_id,
-                                    part_number=part_number,
-                                    md5_hex=part_md5_hex,
-                                    synapse_client=self._syn,
-                                )
-                            )
+                    # we refresh all the urls and obtain this part's
+                    # specific url for the retry
+                    with tracer.start_as_current_span(
+                        "UploadAttempt::refresh_pre_signed_part_urls"
+                    ):
+                        (
+                            part_url,
+                            signed_headers,
+                        ) = self._refresh_pre_signed_part_urls(
+                            part_number,
+                            part_url,
                         )
 
-                        if part_size and not self._is_copy():
-                            self._progress_bar.update(part_size)
-                            progress += part_size
-
-                    except (Exception, KeyboardInterrupt) as cause:
-                        with self._thread_lock:
-                            if self._aborted:
-                                # we've already aborted, no need to raise
-                                # another exception
-                                continue
-                            self._aborted = True
-                        raised_exception = cause
-                        continue
-            if raised_exception is not None:
-                if isinstance(raised_exception, KeyboardInterrupt):
-                    raise SynapseUploadAbortedException(
-                        "User interrupted upload"
-                    ) from raised_exception
-                raise SynapseUploadFailedException(
-                    "Part upload failed"
-                ) from raised_exception
-
-    async def _complete_upload(self):
-        with tracer.start_as_current_span("UploadAttempt::_complete_upload"):
-            self._progress_bar.close()
-            upload_status_response = await put_file_multipart_complete(
-                upload_id=self._upload_id,
-                endpoint=self._syn.fileHandleEndpoint,
-                synapse_client=self._syn,
-            )
-
-            upload_state = upload_status_response.get("state")
-            if upload_state != "COMPLETED":
-                # at this point we think successfully uploaded all the parts
-                # but the upload status isn't complete, we'll throw an error
-                # and let a subsequent attempt try to reconcile
-                raise SynapseUploadFailedException(
-                    f"Upload status has an unexpected state {upload_state}"
-                )
-
-            return upload_status_response
-
-    async def __call__(self):
-        with tracer.start_as_current_span("UploadAttempt::__call__"):
-            upload_status_response = await post_file_multipart(
-                upload_request_payload=self._upload_request_payload,
-                force_restart=self._force_restart,
-                endpoint=self._syn.fileHandleEndpoint,
-                synapse_client=self._syn,
-            )
-            upload_state = upload_status_response.get("state")
-
-            if upload_state != "COMPLETED":
-                self._upload_id = upload_status_response["uploadId"]
-                part_count, remaining_part_numbers = self._get_remaining_part_numbers(
-                    upload_status_response
-                )
-
-                # if no remaining part numbers then all the parts have been
-                # uploaded but the upload has not been marked complete.
-                if remaining_part_numbers:
-                    await self._upload_parts(part_count, remaining_part_numbers)
-                upload_status_response = await self._complete_upload()
-
-            return upload_status_response
+                else:
+                    raise
+        return response
 
 
 async def multipart_upload_file_async(
@@ -604,6 +683,9 @@ async def multipart_upload_file_async(
         )
 
 
+@otel_trace_method(
+    method_to_trace_name=lambda *args, **kwargs: "_multipart_upload_async"
+)
 async def _multipart_upload_async(
     syn: "Synapse",
     dest_file_name,
@@ -633,31 +715,30 @@ async def _multipart_upload_async(
         A File Handle ID
 
     """
-    with tracer.start_as_current_span("multipart_upload::_multipart_upload_async"):
-        retry = 0
-        while True:
-            try:
-                upload_status_response = await UploadAttemptAsync(
-                    syn,
-                    dest_file_name,
-                    upload_request,
-                    part_fn,
-                    md5_fn,
-                    # only force_restart the first time through (if requested).
-                    # a retry after a caught exception will not restart the upload
-                    # from scratch.
-                    force_restart and retry == 0,
-                    storage_str=storage_str,
-                )()
+    retry = 0
+    while True:
+        try:
+            upload_status_response = await UploadAttemptAsync(
+                syn,
+                dest_file_name,
+                upload_request,
+                part_fn,
+                md5_fn,
+                # only force_restart the first time through (if requested).
+                # a retry after a caught exception will not restart the upload
+                # from scratch.
+                force_restart and retry == 0,
+                storage_str=storage_str,
+            )()
 
-                # success
-                return upload_status_response["resultFileHandleId"]
+            # success
+            return upload_status_response["resultFileHandleId"]
 
-            except SynapseUploadFailedException:
-                if retry < MAX_RETRIES:
-                    retry += 1
-                else:
-                    raise
+        except SynapseUploadFailedException:
+            if retry < MAX_RETRIES:
+                retry += 1
+            else:
+                raise
 
 
 @tracer.start_as_current_span("multipart_upload::multipart_upload_string")

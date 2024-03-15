@@ -32,7 +32,6 @@ import httpx
 
 from deprecated import deprecated
 
-# TODO: Using ProcessPoolExecutor
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 import synapseclient

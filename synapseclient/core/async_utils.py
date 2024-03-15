@@ -93,14 +93,19 @@ def async_to_sync(cls):
                 """Wrapper for the function to be called in an async context."""
                 return await getattr(self, async_method_name)(*args, **kwargs)
 
+            loop = None
             try:
                 try:
                     loop = asyncio.get_running_loop()
                 except RuntimeError:
-                    return asyncio.run(wrapper(*args, **kwargs))
-                else:
+                    pass
+
+                if loop:
                     nest_asyncio.apply(loop=loop)
                     return loop.run_until_complete(wrapper(*args, **kwargs))
+                else:
+                    return asyncio.run(wrapper(*args, **kwargs))
+
             except Exception as ex:
                 synapse_client = Synapse.get_client(
                     getattr(kwargs, "synapse_client", None)

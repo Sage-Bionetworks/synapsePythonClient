@@ -410,6 +410,8 @@ class TestFileStore:
         assert file.created_on is not None
         assert file.modified_by is not None
         assert file.modified_on is not None
+        assert file.content_size is not None
+        assert file.content_type == CONTENT_TYPE
         assert file.data_file_handle_id is not None
         assert file.file_handle is not None
         assert file.file_handle.id is not None
