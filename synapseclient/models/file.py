@@ -710,7 +710,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         self.name = self.name or (guess_file_name(self.path) if self.path else None)
         client = Synapse.get_client(synapse_client=synapse_client)
 
-        if existing_file := self._find_existing_file(synapse_client=client):
+        if existing_file := await self._find_existing_file(synapse_client=client):
             merge_dataclass_entities(source=existing_file, destination=self)
 
         if self.path:
