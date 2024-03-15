@@ -349,7 +349,7 @@ class UploadAttemptAsync:
                 file_size,
             )
 
-            if not self._syn.silent:
+            if not self._syn.silent and not self._progress_bar:
                 self._progress_bar = tqdm(
                     total=file_size,
                     desc=self._storage_str if self._storage_str else "Uploading",
@@ -358,6 +358,15 @@ class UploadAttemptAsync:
                     postfix=self._dest_file_name,
                 )
                 self._progress_bar.update(previously_transferred)
+        else:
+            if not self._syn.silent and not self._progress_bar:
+                self._progress_bar = tqdm(
+                    total=part_count,
+                    desc=self._storage_str if self._storage_str else "Copying",
+                    unit_scale=True,
+                    postfix=self._dest_file_name,
+                )
+                self._progress_bar.update(completed_part_count)
 
         raised_exception = await self._orchestrate_upload_part_tasks(async_tasks)
 
@@ -412,8 +421,11 @@ class UploadAttemptAsync:
                         )
                     )
 
-                    if part_size and not self._is_copy() and not self._syn.silent:
-                        self._progress_bar.update(part_size)
+                    if not self._syn.silent:
+                        if self._is_copy():
+                            self._progress_bar.update(1)
+                        elif part_size:
+                            self._progress_bar.update(part_size)
 
                 except (Exception, KeyboardInterrupt) as cause:
                     with self._thread_lock:
@@ -493,7 +505,7 @@ class UploadAttemptAsync:
             )
             part_size = len(body) if body else 0
             self._syn.logger.debug(f"Uploading part {part_number} of size {part_size}")
-            if body is None:
+            if not self._is_copy() and body is None:
                 raise ValueError(f"No body for part {part_number}")
 
             response = self._put_part_with_retry(

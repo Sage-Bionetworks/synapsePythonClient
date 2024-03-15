@@ -127,7 +127,7 @@ def test_with_retry__no_status_code():
 
 
 class TestAsyncRetry:
-    """Unit tests for the with_retry_async function."""
+    """Unit tests for the with_retry_time_based_async function."""
 
     @pytest.mark.asyncio
     async def test_with_retry(self) -> None:

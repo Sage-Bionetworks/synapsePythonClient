@@ -6144,7 +6144,7 @@ class Synapse(object):
     def _build_retry_policy_async(
         self, retry_policy: Dict[str, Any] = {}
     ) -> Dict[str, Any]:
-        """Returns a retry policy to be passed onto _with_retry_async."""
+        """Returns a retry policy to be passed onto with_retry_time_based_async."""
 
         defaults = dict(STANDARD_RETRY_ASYNC_PARAMS)
         defaults.update(retry_policy)
@@ -6181,7 +6181,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry.with_retry_async][].
+                [synapseclient.core.retry.with_retry_time_based_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6245,7 +6245,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry.with_retry_async][].
+                [synapseclient.core.retry.with_retry_time_based_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6290,7 +6290,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry.with_retry_async][].
+                [synapseclient.core.retry.with_retry_time_based_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6332,7 +6332,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry.with_retry_async][].
+                [synapseclient.core.retry.with_retry_time_based_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6372,7 +6372,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry.with_retry_async][].
+                [synapseclient.core.retry.with_retry_time_based_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call
             kwargs: Any other arguments taken by a [request](https://www.python-httpx.org/api/) method

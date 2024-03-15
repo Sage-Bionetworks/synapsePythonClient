@@ -556,77 +556,26 @@ class File(FileSynchronousProtocol, AccessControllable):
             )
         return self
 
-    @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"File_Store: {self.path if self.path else self.id}"
-    )
-    async def store_async(
-        self,
-        parent: Optional[Union["Folder", "Project"]] = None,
-        synapse_client: Optional[Synapse] = None,
-    ) -> "File":
-        """
-        Store the file in Synapse. With this method you may:
-
-        - Upload a file into Synapse
-        - Update the metadata of a file in Synapse
-        - Store a File object in Synapse without updating a file by setting
-            `synapse_store` to False.
-        - Change the name of a file in Synapse by setting the `name` attribute of the
-            File object. Also see the [synapseclient.models.File.change_metadata][]
-            method for changing the name of the downloaded file.
-        - Moving a file to a new parent by setting the `parent_id` attribute of the
-            File object.
-
-        Arguments:
-            parent: The parent folder or project to store the file in. May also be
-                specified in the File object. If both are provided the parent passed
-                into `store` will take precedence.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
-
-        Returns:
-            The file object.
-
-
-        Example: Using this function
-            File with the ID `syn123` at path `path/to/file.txt`:
-
-                file_instance = await File(id="syn123", path="path/to/file.txt").store_async()
-
-            File at the path `path/to/file.txt` and a parent folder with the ID `syn456`:
-
-                file_instance = await File(path="path/to/file.txt", parent_id="syn456").store_async()
-
-            File at the path `path/to/file.txt` and a parent folder with the ID `syn456`:
-
-                file_instance = await File(path="path/to/file.txt").store_async(parent=Folder(id="syn456"))
-
-            Rename a file (Does not update the file on disk or the name of the downloaded file):
-
-                file_instance = await File(id="syn123", download_file=False).get_async()
-                print(file_instance.name)  ## prints, e.g., "my_file.txt"
-                await file_instance.change_metadata_async(name="my_new_name_file.txt")
-
-            Rename a file, and the name of the file as downloaded (Does not update the file on disk):
-
-                file_instance = await File(id="syn123", download_file=False).get_async()
-                print(file_instance.name)  ## prints, e.g., "my_file.txt"
-                await file_instance.change_metadata_async(name="my_new_name_file.txt", download_as="my_new_name_file.txt")
-
-        """
-        if not (
-            self.id is not None
-            and (self.path is not None or self.data_file_handle_id is not None)
-        ) and not (
-            self.path is not None
-            and (parent.id if parent else self.parent_id) is not None
-        ):
-            raise ValueError(
-                "The file must have an (ID with a (path or `data_file_handle_id`)), or a "
-                "(path with a (`parent_id` or parent with an id)) to store."
+    def _cannot_store(self) -> bool:
+        """Determines based on some guard conditions if we are unable to continue with
+        a store operation."""
+        return (
+            not (
+                self.id is not None
+                and (self.path is not None or self.data_file_handle_id is not None)
             )
-        self.parent_id = parent.id if parent else self.parent_id
-        self.name = self.name or (guess_file_name(self.path) if self.path else None)
+            and not (self.path is not None and self.parent_id is not None)
+            and not (
+                self.parent_id is not None and self.data_file_handle_id is not None
+            )
+        )
+
+    async def _find_existing_file(
+        self, synapse_client: Optional[Synapse] = None
+    ) -> Union["File", None]:
+        """Determines if the file already exists in Synapse. If it does it will return
+        the file object, otherwise it will return None. This is used to determine if the
+        file should be updated or created."""
 
         async def get_file(
             existing_id: str, path: str, parent_entity_id: str
@@ -646,7 +595,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                     path=path,
                     download_file=False,
                     parent_id=parent_entity_id,
-                ).get_async()
+                ).get_async(synapse_client=synapse_client)
             except SynapseFileNotFoundError:
                 return None
 
@@ -671,11 +620,104 @@ class File(FileSynchronousProtocol, AccessControllable):
                 )
             )
         ):
+            return existing_file
+        return None
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"File_Store: {self.path if self.path else self.id}"
+    )
+    async def store_async(
+        self,
+        parent: Optional[Union["Folder", "Project"]] = None,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "File":
+        """
+        Store the file in Synapse. With this method you may:
+
+        - Upload a file into Synapse
+        - Update the metadata of a file in Synapse
+        - Store a File object in Synapse without updating a file by setting
+            `synapse_store` to False.
+        - Change the name of a file in Synapse by setting the `name` attribute of the
+            File object. Also see the [synapseclient.models.File.change_metadata][]
+            method for changing the name of the downloaded file.
+        - Moving a file to a new parent by setting the `parent_id` attribute of the
+            File object.
+
+        If no Name is specified this will be derived from the file name. This is the
+        reccommended way to store a file in Synapse.
+
+        Please note:
+        The file, as it appears on disk, will be the file that is downloaded from
+        Synapse. The name of the actual File is different from the name of the File
+        Entity in Synapse. It is generally not reccommended to specify a different
+        name for the Entity and the file as it will cause confusion and potential
+        conflicts later on.
+
+        Arguments:
+            parent: The parent folder or project to store the file in. May also be
+                specified in the File object. If both are provided the parent passed
+                into `store` will take precedence.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
+
+        Returns:
+            The file object.
+
+        Raises:
+            ValueError: If the file does not have an ID and a path, or a path and a
+                parent ID, or a data file handle ID and a parent ID.
+
+        Example: Using this function
+            File with the ID `syn123` at path `path/to/file.txt`:
+
+                file_instance = await File(id="syn123", path="path/to/file.txt").store_async()
+
+            File at the path `path/to/file.txt` and a parent folder with the ID `syn456`:
+
+                file_instance = await File(path="path/to/file.txt", parent_id="syn456").store_async()
+
+            File at the path `path/to/file.txt` and a parent folder with the ID `syn456`:
+
+                file_instance = await File(path="path/to/file.txt").store_async(parent=Folder(id="syn456"))
+
+            File with a parent and existing file handle (This allows multiple entities to reference the underlying file):
+
+                file_instance = await File(data_file_handle_id="123", parent_id="syn456").store_async()
+
+            Rename a file (Does not update the file on disk or the name of the downloaded file):
+
+                file_instance = await File(id="syn123", download_file=False).get_async()
+                print(file_instance.name)  ## prints, e.g., "my_file.txt"
+                await file_instance.change_metadata_async(name="my_new_name_file.txt")
+
+            Rename a file, and the name of the file as downloaded
+                (Does not update the file on disk). Is is reccommended that `name` and
+                `download_as` match to prevent confusion later on:
+
+                file_instance = await File(id="syn123", download_file=False).get_async()
+                print(file_instance.name)  ## prints, e.g., "my_file.txt"
+                await file_instance.change_metadata_async(name="my_new_name_file.txt", download_as="my_new_name_file.txt")
+
+        """
+        self.parent_id = parent.id if parent else self.parent_id
+        if self._cannot_store():
+            raise ValueError(
+                "The file must have an (ID with a (path or `data_file_handle_id`)), or a "
+                "(path with a (`parent_id` or parent with an id)), or a "
+                "(data_file_handle_id with a (`parent_id` or parent with an id)) to store."
+            )
+        self.name = self.name or (guess_file_name(self.path) if self.path else None)
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if existing_file := self._find_existing_file(synapse_client=client):
             merge_dataclass_entities(source=existing_file, destination=self)
 
         if self.path:
             self.path = os.path.expanduser(self.path)
-            await self._upload_file(synapse_client=synapse_client)
+            await self._upload_file(synapse_client=client)
+        elif self.data_file_handle_id:
+            self.path = client.cache.get(file_handle_id=self.data_file_handle_id)
 
         if self.has_changed:
             synapse_file = Synapse_File(
@@ -697,27 +739,25 @@ class File(FileSynchronousProtocol, AccessControllable):
             delete_none_keys(synapse_file)
 
             entity = await store_entity(
-                resource=self, entity=synapse_file, synapse_client=synapse_client
+                resource=self, entity=synapse_file, synapse_client=client
             )
 
             self.fill_from_dict(synapse_file=entity, set_annotations=False)
 
         re_read_required = await store_entity_components(
-            root_resource=self, synapse_client=synapse_client
+            root_resource=self, synapse_client=client
         )
         if re_read_required:
             before_download_file = self.download_file
             self.download_file = False
             await self.get_async(
-                synapse_client=synapse_client,
+                synapse_client=client,
             )
             self.download_file = before_download_file
 
         self._set_last_persistent_instance()
 
-        Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Stored File {self.name}, id: {self.id}: {self.path}"
-        )
+        client.logger.debug(f"Stored File {self.name}, id: {self.id}: {self.path}")
         return self
 
     @otel_trace_method(
