@@ -421,7 +421,7 @@ class UploadAttemptAsync:
                         )
                     )
 
-                    if not self._syn.silent:
+                    if not self._syn.silent and self._progress_bar:
                         if self._is_copy():
                             self._progress_bar.update(1)
                         elif part_size:
@@ -447,7 +447,7 @@ class UploadAttemptAsync:
         Returns:
             The response from the server for the completed upload.
         """
-        if not self._syn.silent:
+        if not self._syn.silent and self._progress_bar:
             self._progress_bar.close()
         upload_status_response = await put_file_multipart_complete(
             upload_id=self._upload_id,

@@ -40,6 +40,8 @@ FILE_HANDLE_EXTERNAL_URL = "file_handle_externalURL_value"
 MODIFIED_DESCRIPTION = "This is a modified description."
 ACTUAL_PARENT_ID = "syn999"
 
+CANNOT_STORE_FILE_ERROR = "The file must have an (ID with a (path or `data_file_handle_id`)), or a (path with a (`parent_id` or parent with an id)), or a (data_file_handle_id with a (`parent_id` or parent with an id)) to store."
+
 
 class TestFile:
     """Tests for the File model."""
@@ -596,11 +598,7 @@ class TestFile:
             await file.store_async()
 
         # THEN we should get an error
-        assert (
-            str(e.value)
-            == "The file must have an (ID with a (path or `data_file_handle_id`)), or "
-            "a (path with a (`parent_id` or parent with an id)) to store."
-        )
+        assert str(e.value) == CANNOT_STORE_FILE_ERROR
 
     @pytest.mark.asyncio
     async def test_store_path_with_no_id(self) -> None:
@@ -612,11 +610,7 @@ class TestFile:
             await file.store_async()
 
         # THEN we should get an error
-        assert (
-            str(e.value)
-            == "The file must have an (ID with a (path or `data_file_handle_id`)), or "
-            "a (path with a (`parent_id` or parent with an id)) to store."
-        )
+        assert str(e.value) == CANNOT_STORE_FILE_ERROR
 
     @pytest.mark.asyncio
     async def test_store_id_with_parent_id(self) -> None:
@@ -630,11 +624,7 @@ class TestFile:
             await file.store_async()
 
         # THEN we should get an error
-        assert (
-            str(e.value)
-            == "The file must have an (ID with a (path or `data_file_handle_id`)), or "
-            "a (path with a (`parent_id` or parent with an id)) to store."
-        )
+        assert str(e.value) == CANNOT_STORE_FILE_ERROR
 
     @pytest.mark.asyncio
     async def test_store_id_with_parent(self) -> None:
@@ -646,11 +636,7 @@ class TestFile:
             await file.store_async(parent=Project(id=ACTUAL_PARENT_ID))
 
         # THEN we should get an error
-        assert (
-            str(e.value)
-            == "The file must have an (ID with a (path or `data_file_handle_id`)), or "
-            "a (path with a (`parent_id` or parent with an id)) to store."
-        )
+        assert str(e.value) == CANNOT_STORE_FILE_ERROR
 
     @pytest.mark.asyncio
     async def test_change_file_metadata(self) -> None:
