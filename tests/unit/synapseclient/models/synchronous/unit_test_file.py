@@ -178,6 +178,7 @@ class TestFile:
                 limitSearch=None,
                 downloadFile=False,
                 downloadLocation=None,
+                md5=None,
             )
 
             # AND We should upload the file handle
@@ -262,6 +263,7 @@ class TestFile:
                 limitSearch=None,
                 downloadFile=False,
                 downloadLocation=None,
+                md5=None,
             )
 
             # AND We should not upload the file handle
@@ -337,6 +339,7 @@ class TestFile:
                 limitSearch=None,
                 downloadFile=False,
                 downloadLocation=None,
+                md5=None,
             )
 
             # AND We should upload the file handle
@@ -423,6 +426,7 @@ class TestFile:
                 limitSearch=None,
                 downloadFile=False,
                 downloadLocation=None,
+                md5=None,
             )
 
             # AND We should upload the file handle
@@ -524,6 +528,7 @@ class TestFile:
                 limitSearch=None,
                 downloadFile=False,
                 downloadLocation=None,
+                md5=None,
             )
 
             # AND We should upload the file handle
@@ -729,6 +734,7 @@ class TestFile:
                 limitSearch=file.synapse_container_limit,
                 downloadFile=file.download_file,
                 downloadLocation=file.download_location,
+                md5=None,
             )
 
             # THEN the file should be retrieved
@@ -787,6 +793,7 @@ class TestFile:
                 limitSearch=file.synapse_container_limit,
                 downloadFile=file.download_file,
                 downloadLocation=file.download_location,
+                md5=None,
             )
 
             # THEN the file should be stored
@@ -848,6 +855,7 @@ class TestFile:
                 limitSearch=default_file.synapse_container_limit,
                 downloadFile=default_file.download_file,
                 downloadLocation=default_file.download_location,
+                md5=None,
             )
 
             # THEN the file should be retrieved
@@ -919,6 +927,7 @@ class TestFile:
                 limitSearch=default_file.synapse_container_limit,
                 downloadFile=default_file.download_file,
                 downloadLocation=default_file.download_location,
+                md5=None,
             )
 
             # THEN the file should be retrieved
