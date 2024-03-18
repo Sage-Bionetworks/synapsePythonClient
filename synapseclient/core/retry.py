@@ -62,6 +62,7 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
     "Timeout",
     "timeout",
     "ReadError",
+    "ReadTimeout",
 ]
 
 tracer = trace.get_tracer("synapseclient")
