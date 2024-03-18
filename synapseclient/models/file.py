@@ -334,6 +334,11 @@ class File(FileSynchronousProtocol, AccessControllable):
     calculated again to check if a new upload needs to occur.
     """
 
+    _retrieved_local_md5: Optional[bool] = field(
+        default=False, repr=False, compare=False
+    )
+    """Flag to track when we've already loaded the MD5 of the file."""
+
     activity: Optional[Activity] = field(default=None, compare=False)
     """The Activity model represents the main record of Provenance in Synapse.  It is
     analygous to the Activity defined in the
@@ -513,7 +518,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             self.content_type = self.file_handle.content_type
             self.content_size = self.file_handle.content_size
             self.external_url = self.file_handle.external_url
-            self.content_md5 = self.file_handle.content_md5
+            self.content_md5 = self.file_handle.content_md5 or self.content_md5
 
     def fill_from_dict(
         self, synapse_file: Union[Synapse_File, Dict], set_annotations: bool = True
@@ -570,16 +575,25 @@ class File(FileSynchronousProtocol, AccessControllable):
             )
         )
 
+    async def _load_local_md5(self, syn: "Synapse") -> None:
+        """Load the MD5 of the file if it's a local file and we have not already loaded
+        it."""
+        if not self._retrieved_local_md5 and self.path and os.path.isfile(self.path):
+            self.content_md5 = await utils.md5_for_file_multiprocessing(
+                filename=self.path,
+                process_pool_executor=syn._get_process_pool_executor(),
+            )
+            self._retrieved_local_md5 = True
+
     async def _find_existing_file(
         self, synapse_client: Optional[Synapse] = None
     ) -> Union["File", None]:
         """Determines if the file already exists in Synapse. If it does it will return
         the file object, otherwise it will return None. This is used to determine if the
         file should be updated or created."""
+        syn = Synapse.get_client(synapse_client=synapse_client)
 
-        async def get_file(
-            existing_id: str, path: str, parent_entity_id: str
-        ) -> "File":
+        async def get_file(existing_id: str) -> "File":
             """Small wrapper to retrieve a file instance without raising an error if it
             does not exist.
 
@@ -590,12 +604,11 @@ class File(FileSynchronousProtocol, AccessControllable):
                 The file object if it exists, otherwise None.
             """
             try:
-                return await File(
-                    id=existing_id,
-                    path=path,
-                    download_file=False,
-                    parent_id=parent_entity_id,
-                ).get_async(synapse_client=synapse_client)
+                await self._load_local_md5(syn)
+                file_copy = dataclasses.replace(self)
+                file_copy.id = existing_id
+                file_copy.download_file = False
+                return await file_copy.get_async(synapse_client=synapse_client)
             except SynapseFileNotFoundError:
                 return None
 
@@ -612,13 +625,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                 )
                 or self.path
             )
-            and (
-                existing_file := await get_file(
-                    existing_id=existing_file_id,
-                    path=self.path,
-                    parent_entity_id=self.parent_id,
-                )
-            )
+            and (existing_file := await get_file(existing_file_id))
         ):
             return existing_file
         return None
@@ -880,6 +887,8 @@ class File(FileSynchronousProtocol, AccessControllable):
 
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
+        await self._load_local_md5(syn)
+
         entity = await loop.run_in_executor(
             None,
             lambda: run_and_attach_otel_context(
@@ -890,6 +899,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                     limitSearch=self.synapse_container_limit,
                     downloadFile=self.download_file,
                     downloadLocation=self.download_location,
+                    md5=self.content_md5,
                 ),
                 current_context,
             ),
@@ -1146,13 +1156,9 @@ class File(FileSynchronousProtocol, AccessControllable):
                     and os.path.isfile(self.path)
                     and md5_stored_in_synapse
                 ):
+                    await self._load_local_md5(syn)
                     if md5_stored_in_synapse == (
-                        local_file_md5_hex := (
-                            await utils.md5_for_file_multiprocessing(
-                                filename=self.path,
-                                process_pool_executor=syn._get_process_pool_executor(),
-                            )
-                        )
+                        local_file_md5_hex := self.content_md5
                     ):
                         needs_upload = False
 

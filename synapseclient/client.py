@@ -1180,6 +1180,8 @@ class Synapse(object):
             limitSearch:      A Synanpse ID used to limit the search in Synapse if entity is specified as a local
                                 file.  That is, if the file is stored in multiple locations in Synapse only the ones
                                 in the specified folder/project will be returned.
+            md5: The MD5 checksum for the file, if known. Otherwise if the file is a
+                local file, it will be calculated automatically.
 
         Returns:
             A new Synapse Entity object of the appropriate type.
@@ -1204,7 +1206,9 @@ class Synapse(object):
         """
         # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, str) and os.path.isfile(entity):
-            bundle = self._getFromFile(entity, kwargs.pop("limitSearch", None))
+            bundle = self._getFromFile(
+                entity, kwargs.pop("limitSearch", None), md5=kwargs["md5"]
+            )
             kwargs["downloadFile"] = False
             kwargs["path"] = entity
 
@@ -1274,7 +1278,9 @@ class Synapse(object):
             warnings.warn(warning_message)
 
     @tracer.start_as_current_span("Synapse::_getFromFile")
-    def _getFromFile(self, filepath: str, limitSearch: str = None) -> Dict[str, dict]:
+    def _getFromFile(
+        self, filepath: str, limitSearch: str = None, md5: str = None
+    ) -> Dict[str, dict]:
         """
         Gets a Synapse entityBundle based on the md5 of a local file.
         See [get][synapseclient.Synapse.get].
@@ -1282,6 +1288,9 @@ class Synapse(object):
         Arguments:
             filepath:    The path to local file
             limitSearch: Limits the places in Synapse where the file is searched for.
+            md5: The MD5 checksum for the file, if known. Otherwise if the file is a
+                local file, it will be calculated automatically.
+
 
         Raises:
             SynapseFileNotFoundError: If the file is not in Synapse.
@@ -1290,7 +1299,7 @@ class Synapse(object):
             A Synapse entityBundle
         """
         results = self.restGET(
-            "/entity/md5/%s" % utils.md5_for_file(filepath).hexdigest()
+            "/entity/md5/%s" % (md5 or utils.md5_for_file(filepath).hexdigest())
         )["results"]
         if limitSearch is not None:
             # Go through and find the path of every entity found
