@@ -571,7 +571,7 @@ class TestFileStore:
             == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
         )
         assert file.file_handle.content_type == CONTENT_TYPE
-        assert file.file_handle.content_md5 is None
+        assert file.file_handle.content_md5 is not None
         assert file.file_handle.file_name is not None
         assert file.file_handle.content_size is None
         assert file.file_handle.status is not None
@@ -625,7 +625,7 @@ class TestFileStore:
             == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
         )
         assert file.file_handle.content_type == CONTENT_TYPE
-        assert file.file_handle.content_md5 is None
+        assert file.file_handle.content_md5 is not None
         assert file.file_handle.file_name is not None
         assert file.file_handle.content_size == 123
         assert file.file_handle.status is not None
@@ -670,7 +670,7 @@ class TestFileStore:
         assert file.content_size == 123
         assert file.content_type == CONTENT_TYPE
         assert file.external_url == BOGUS_URL
-        assert file.content_md5 == BOGUS_MD5
+        assert file.content_md5 is None
         assert file.data_file_handle_id is not None
         assert file.file_handle is not None
         assert file.file_handle.id is not None

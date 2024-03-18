@@ -198,9 +198,6 @@ class File(FileSynchronousProtocol, AccessControllable):
             is False, only a reference to this URL and the file metadata will be stored
             in Synapse. The file itself will not be uploaded. If this attribute is set
             it will override the `path`.
-        content_md5: The MD5 of the file is known. If not supplied this will be computed
-            in the client is possible. If supplied for a file entity already stored in
-            Synapse it will be calculated again to check if a new upload needs to occur.
         activity: The Activity model represents the main record of Provenance in
             Synapse. It is analygous to the Activity defined in the
             [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
@@ -227,6 +224,12 @@ class File(FileSynchronousProtocol, AccessControllable):
             Synapse. ie: `synapse_store` is False.
 
     Attributes:
+        content_md5: (Store only) The MD5 of the file is known. If not supplied this
+            will be computed in the client is possible. If supplied for a file entity
+            already stored in Synapse it will be calculated again to check if a new
+            upload needs to occur. This will not be filled in during a read for data. It
+            is only used during a store operation. To retrieve the md5 of the file after
+            read from synapse use the `.file_handle.content_md5` attribute.
         create_or_update: (Store only)
             Indicates whether the method should automatically perform an
             update if the `file` conflicts with an existing Synapse object.
@@ -327,18 +330,6 @@ class File(FileSynchronousProtocol, AccessControllable):
     itself will not be uploaded. If this attribute is set it will override the `path`.
     """
 
-    content_md5: Optional[str] = field(default=None, compare=False)
-    """
-    The MD5 of the file is known. If not supplied this will be computed in the client
-    is possible. If supplied for a file entity already stored in Synapse it will be
-    calculated again to check if a new upload needs to occur.
-    """
-
-    _retrieved_local_md5: Optional[bool] = field(
-        default=False, repr=False, compare=False
-    )
-    """Flag to track when we've already loaded the MD5 of the file."""
-
     activity: Optional[Activity] = field(default=None, compare=False)
     """The Activity model represents the main record of Provenance in Synapse.  It is
     analygous to the Activity defined in the
@@ -380,6 +371,17 @@ class File(FileSynchronousProtocol, AccessControllable):
     The size of the file in bytes. This can be specified only during the initial
     creation of the File. This is also only applicable to files not uploaded to Synapse.
     ie: `synapse_store` is False.
+    """
+
+    content_md5: Optional[str] = field(default=None, compare=False)
+    """
+    (Store only)
+    The MD5 of the file is known. If not supplied this will be computed in the client
+    is possible. If supplied for a file entity already stored in Synapse it will be
+    calculated again to check if a new upload needs to occur. This will not be filled
+    in during a read for data. It is only used during a store operation. To retrieve
+    the md5 of the file after read from synapse use the `.file_handle.content_md5`
+    attribute.
     """
 
     create_or_update: bool = field(default=True, repr=False, compare=False)
@@ -518,7 +520,6 @@ class File(FileSynchronousProtocol, AccessControllable):
             self.content_type = self.file_handle.content_type
             self.content_size = self.file_handle.content_size
             self.external_url = self.file_handle.external_url
-            self.content_md5 = self.file_handle.content_md5 or self.content_md5
 
     def fill_from_dict(
         self, synapse_file: Union[Synapse_File, Dict], set_annotations: bool = True
@@ -578,12 +579,11 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def _load_local_md5(self, syn: "Synapse") -> None:
         """Load the MD5 of the file if it's a local file and we have not already loaded
         it."""
-        if not self._retrieved_local_md5 and self.path and os.path.isfile(self.path):
+        if not self.content_md5 and self.path and os.path.isfile(self.path):
             self.content_md5 = await utils.md5_for_file_multiprocessing(
                 filename=self.path,
                 process_pool_executor=syn._get_process_pool_executor(),
             )
-            self._retrieved_local_md5 = True
 
     async def _find_existing_file(
         self, synapse_client: Optional[Synapse] = None
@@ -765,6 +765,8 @@ class File(FileSynchronousProtocol, AccessControllable):
         self._set_last_persistent_instance()
 
         client.logger.debug(f"Stored File {self.name}, id: {self.id}: {self.path}")
+        # Clear the content_md5 so that it is recalculated if the file is updated
+        self.content_md5 = None
         return self
 
     @otel_trace_method(
