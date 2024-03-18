@@ -187,7 +187,7 @@ class TestFile:
                 parent_entity_id=PARENT_ID,
                 path=PATH,
                 synapse_store=True,
-                md5=FILE_HANDLE_CONTENT_MD5,
+                md5=None,
                 file_size=FILE_HANDLE_CONTENT_SIZE,
                 mimetype=FILE_HANDLE_CONTENT_TYPE,
             )
@@ -348,7 +348,7 @@ class TestFile:
                 parent_entity_id=ACTUAL_PARENT_ID,
                 path=PATH,
                 synapse_store=True,
-                md5=FILE_HANDLE_CONTENT_MD5,
+                md5=None,
                 file_size=FILE_HANDLE_CONTENT_SIZE,
                 mimetype=FILE_HANDLE_CONTENT_TYPE,
             )
@@ -435,7 +435,7 @@ class TestFile:
                 parent_entity_id=ACTUAL_PARENT_ID,
                 path=PATH,
                 synapse_store=True,
-                md5=FILE_HANDLE_CONTENT_MD5,
+                md5=None,
                 file_size=FILE_HANDLE_CONTENT_SIZE,
                 mimetype=FILE_HANDLE_CONTENT_TYPE,
             )
@@ -537,7 +537,7 @@ class TestFile:
                 parent_entity_id=ACTUAL_PARENT_ID,
                 path=PATH,
                 synapse_store=True,
-                md5=FILE_HANDLE_CONTENT_MD5,
+                md5=None,
                 file_size=FILE_HANDLE_CONTENT_SIZE,
                 mimetype=FILE_HANDLE_CONTENT_TYPE,
             )
