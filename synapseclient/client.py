@@ -1207,7 +1207,7 @@ class Synapse(object):
         # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, str) and os.path.isfile(entity):
             bundle = self._getFromFile(
-                entity, kwargs.pop("limitSearch", None), md5=kwargs["md5"]
+                entity, kwargs.pop("limitSearch", None), md5=kwargs.get("md5", None)
             )
             kwargs["downloadFile"] = False
             kwargs["path"] = entity
