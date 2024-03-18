@@ -114,16 +114,20 @@ from synapseclient.core.retry import (
     RETRYABLE_CONNECTION_EXCEPTIONS,
 )
 from synapseclient.core import sts_transfer
-from synapseclient.core.upload.multipart_upload import (
-    multipart_upload_file,
-    multipart_upload_string,
+from synapseclient.core.upload.multipart_upload_async import (
+    multipart_upload_file_async,
+    multipart_upload_string_async,
 )
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.upload_functions import (
     upload_file_handle,
+)
+from synapseclient.core.upload.upload_functions_async import (
+    upload_file_handle as upload_file_handle_async,
     upload_synapse_s3,
 )
 from synapseclient.core.dozer import doze
+from synapseclient.core.async_utils import wrap_async_to_sync
 
 from typing import Any, Union, Dict, List, Optional, Tuple
 from synapseclient.core.models.permission import Permissions
@@ -289,7 +293,17 @@ class Synapse(object):
         """
         self._requests_session = requests_session or requests.Session()
 
-        self._requests_session_async_synapse = requests_session_async_synapse
+        # `requests_session_async_synapse` and the thread pools are being stored in
+        # a dict based on the current thread ID to handle for cases where someone
+        # using the client may be using multiple threads to execute this code. This is
+        # what the `test_caching.py` integration test is doing.
+        current_tid = str(threading.get_ident())
+        if requests_session_async_synapse:
+            self._requests_session_async_synapse = {
+                current_tid: requests_session_async_synapse
+            }
+        else:
+            self._requests_session_async_synapse = {}
 
         httpx_timeout = httpx.Timeout(70)
         self._requests_session_storage = requests_session_storage or httpx.Client(
@@ -343,8 +357,8 @@ class Synapse(object):
 
         transfer_config = self._get_transfer_config()
         self.max_threads = transfer_config["max_threads"]
-        self._thread_executor = None
-        self._process_executor = None
+        self._thread_executor = {}
+        self._process_executor = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
 
     def _get_requests_session_async_synapse(self) -> httpx.AsyncClient:
@@ -363,25 +377,32 @@ class Synapse(object):
 
         This is expected to be called from within an AsyncIO loop.
         """
+        current_tid = str(threading.get_ident())
         if (
             hasattr(self, "_requests_session_async_synapse")
-            and self._requests_session_async_synapse is not None
+            and current_tid in self._requests_session_async_synapse
+            and self._requests_session_async_synapse[current_tid] is not None
         ):
-            return self._requests_session_async_synapse
+            return self._requests_session_async_synapse[current_tid]
 
         async def close_connection() -> None:
             """Close connection when event loop exits"""
-            await self._requests_session_async_synapse.aclose()
-            del self._requests_session_async_synapse
+            await self._requests_session_async_synapse[current_tid].aclose()
+            del self._requests_session_async_synapse[current_tid]
 
         httpx_timeout = httpx.Timeout(70)
-        self._requests_session_async_synapse = httpx.AsyncClient(
-            limits=httpx.Limits(max_connections=25),
-            timeout=httpx_timeout,
+
+        self._requests_session_async_synapse.update(
+            {
+                current_tid: httpx.AsyncClient(
+                    limits=httpx.Limits(max_connections=25),
+                    timeout=httpx_timeout,
+                )
+            }
         )
 
         asyncio_atexit.register(close_connection)
-        return self._requests_session_async_synapse
+        return self._requests_session_async_synapse[current_tid]
 
     def _get_thread_pool_executor(self) -> ThreadPoolExecutor:
         """
@@ -391,18 +412,25 @@ class Synapse(object):
 
         This is expected to be called from within an AsyncIO loop.
         """
-        if hasattr(self, "_thread_executor") and self._thread_executor is not None:
-            return self._thread_executor
+        current_tid = str(threading.get_ident())
+        if (
+            hasattr(self, "_thread_executor")
+            and current_tid in self._thread_executor
+            and self._thread_executor[current_tid] is not None
+        ):
+            return self._thread_executor[current_tid]
 
         def close_pool() -> None:
             """Close pool when event loop exits"""
-            self._thread_executor.shutdown(wait=True)
-            del self._thread_executor
+            self._thread_executor[current_tid].shutdown(wait=True)
+            del self._thread_executor[current_tid]
 
-        self._thread_executor = get_executor(thread_count=self.max_threads)
+        self._thread_executor.update(
+            {current_tid: get_executor(thread_count=self.max_threads)}
+        )
 
         asyncio_atexit.register(close_pool)
-        return self._thread_executor
+        return self._thread_executor[current_tid]
 
     def _get_process_pool_executor(self) -> ProcessPoolExecutor:
         """
@@ -411,18 +439,23 @@ class Synapse(object):
 
         This is expected to be called from within an AsyncIO loop.
         """
-        if hasattr(self, "_process_executor") and self._process_executor is not None:
-            return self._process_executor
+        current_pid = str(os.getpid())
+        if (
+            hasattr(self, "_process_executor")
+            and current_pid in self._process_executor
+            and self._process_executor[current_pid] is not None
+        ):
+            return self._process_executor[current_pid]
 
         def close_pool() -> None:
             """Close pool when event loop exits"""
-            self._process_executor.shutdown(wait=True)
-            del self._process_executor
+            self._process_executor[current_pid].shutdown(wait=True)
+            del self._process_executor[current_pid]
 
-        self._process_executor = ProcessPoolExecutor()
+        self._process_executor.update({current_pid: ProcessPoolExecutor()})
 
         asyncio_atexit.register(close_pool)
-        return self._process_executor
+        return self._process_executor[current_pid]
 
     # initialize logging
     def _init_logger(self):
@@ -1594,6 +1627,7 @@ class Synapse(object):
         activityName=None,
         activityDescription=None,
         set_annotations=True,
+        async_file_handle_upload=True,
     ):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
@@ -1616,6 +1650,11 @@ class Synapse(object):
                             You will be contacted with regards to the specific data being restricted and the
                             requirements of access.
             set_annotations: If True, set the annotations on the entity. If False, do not set the annotations.
+            async_file_handle_upload: Temporary feature flag that will be removed at an
+                unannounced later date. This is used during the Synapse Utils
+                syncToSynapse to disable the async file handle upload. The is because
+                the multi-threaded logic in the syncToSynapse is not compatible with
+                the async file handle upload.
 
         Returns:
             A Synapse Entity, Evaluation, or Wiki
@@ -1774,18 +1813,38 @@ class Synapse(object):
                     raise SynapseMalformedEntityError(
                         "Entities of type File must have a parentId."
                     )
-                fileHandle = upload_file_handle(
-                    self,
-                    parent_id_for_upload,
-                    local_state["path"]
-                    if (synapseStore or local_state_fh.get("externalURL") is None)
-                    else local_state_fh.get("externalURL"),
-                    synapseStore=synapseStore,
-                    md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
-                    file_size=local_state_fh.get("contentSize"),
-                    mimetype=local_state_fh.get("contentType"),
-                    max_threads=self.max_threads,
-                )
+
+                if async_file_handle_upload:
+                    fileHandle = wrap_async_to_sync(
+                        upload_file_handle_async(
+                            self,
+                            parent_id_for_upload,
+                            local_state["path"]
+                            if (
+                                synapseStore
+                                or local_state_fh.get("externalURL") is None
+                            )
+                            else local_state_fh.get("externalURL"),
+                            synapse_store=synapseStore,
+                            md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
+                            file_size=local_state_fh.get("contentSize"),
+                            mimetype=local_state_fh.get("contentType"),
+                        ),
+                        self,
+                    )
+                else:
+                    fileHandle = upload_file_handle(
+                        self,
+                        parent_id_for_upload,
+                        local_state["path"]
+                        if (synapseStore or local_state_fh.get("externalURL") is None)
+                        else local_state_fh.get("externalURL"),
+                        synapseStore=synapseStore,
+                        md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
+                        file_size=local_state_fh.get("contentSize"),
+                        mimetype=local_state_fh.get("contentType"),
+                        max_threads=self.max_threads,
+                    )
                 properties["dataFileHandleId"] = fileHandle["id"]
                 local_state["_file_handle"] = fileHandle
 
@@ -2179,8 +2238,11 @@ class Synapse(object):
         Returns:
             A dict of a new FileHandle as a dict that represents the uploaded file
         """
-        return upload_file_handle(
-            self, parent, path, synapseStore, md5, file_size, mimetype
+        return wrap_async_to_sync(
+            upload_file_handle_async(
+                self, parent, path, synapseStore, md5, file_size, mimetype
+            ),
+            self,
         )
 
     ############################################################
@@ -4826,7 +4888,9 @@ class Synapse(object):
         # Convert all attachments into file handles
         if wiki.get("attachments") is not None:
             for attachment in wiki["attachments"]:
-                fileHandle = upload_synapse_s3(self, attachment)
+                fileHandle = wrap_async_to_sync(
+                    upload_synapse_s3(self, attachment), self
+                )
                 wiki["attachmentFileHandleIds"].append(fileHandle["id"])
             del wiki["attachments"]
 
@@ -5308,7 +5372,9 @@ class Synapse(object):
             [UploadToTableResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html)
         """
 
-        fileHandleId = multipart_upload_file(self, filepath, content_type="text/csv")
+        fileHandleId = wrap_async_to_sync(
+            multipart_upload_file_async(self, filepath, content_type="text/csv"), self
+        )
 
         uploadRequest = {
             "concreteType": "org.sagebionetworks.repo.model.table.UploadToTableRequest",
@@ -5859,8 +5925,9 @@ class Synapse(object):
             The metadata of the created message
         """
 
-        fileHandleId = multipart_upload_string(
-            self, messageBody, content_type=contentType
+        fileHandleId = wrap_async_to_sync(
+            multipart_upload_string_async(self, messageBody, content_type=contentType),
+            self,
         )
         message = dict(
             recipients=userIds, subject=messageSubject, fileHandleId=fileHandleId

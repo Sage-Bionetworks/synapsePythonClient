@@ -908,16 +908,15 @@ class TestChangeMetadata:
     ) -> None:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description=DESCRIPTION,
-                content_type=CONTENT_TYPE,
-                version_comment=VERSION_COMMENT,
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store_async()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
@@ -1003,16 +1002,15 @@ class TestFrom:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description=DESCRIPTION,
-                content_type=CONTENT_TYPE,
-                version_comment=VERSION_COMMENT,
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store_async()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
@@ -1054,16 +1052,15 @@ class TestDelete:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description=DESCRIPTION,
-                content_type=CONTENT_TYPE,
-                version_comment=VERSION_COMMENT,
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store_async()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
@@ -1121,16 +1118,15 @@ class TestGet:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description=DESCRIPTION,
-                content_type=CONTENT_TYPE,
-                version_comment=VERSION_COMMENT,
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store_async()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
@@ -1338,16 +1334,15 @@ class TestCopy:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description=DESCRIPTION,
-                content_type=CONTENT_TYPE,
-                version_comment=VERSION_COMMENT,
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store_async()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 

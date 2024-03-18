@@ -306,7 +306,7 @@ class UploadAttemptAsync:
             return refreshed_url
 
     async def _handle_part_wrapper(self, part_number: int) -> HandlePartResult:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         otel_context = context.get_current()
 
         return await loop.run_in_executor(

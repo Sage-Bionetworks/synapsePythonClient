@@ -5,19 +5,22 @@
 import json
 import mimetypes
 import os
-from typing import Any, Dict, Optional, List, Union
+from typing import Any, Dict, Optional, List, Union, TYPE_CHECKING
 
-from synapseclient import Synapse
+
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.api.entity_services import get_upload_destination
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 
 async def post_file_multipart(
     upload_request_payload: Dict[str, Any],
     force_restart: bool,
     endpoint: str,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, str]:
     """
     <https://rest-docs.synapse.org/rest/POST/file/multipart.html>
@@ -35,6 +38,7 @@ async def post_file_multipart(
         The requested multipart upload status matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html>
     """
+    from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_post_async(
@@ -48,7 +52,7 @@ async def put_file_multipart_add(
     upload_id: str,
     part_number: int,
     md5_hex: str,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     <https://rest-docs.synapse.org/rest/PUT/file/multipart/uploadId/add/partNumber.html>
@@ -66,6 +70,8 @@ async def put_file_multipart_add(
         Object matching
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/AddPartResponse.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_put_async(
         f"/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5_hex}",
@@ -76,7 +82,7 @@ async def put_file_multipart_add(
 async def put_file_multipart_complete(
     upload_id: str,
     endpoint: str,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, str]:
     """
     <https://rest-docs.synapse.org/rest/PUT/file/multipart/uploadId/complete.html>
@@ -91,6 +97,8 @@ async def put_file_multipart_complete(
         Object matching
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_put_async(
         f"/file/multipart/{upload_id}/complete",
@@ -101,7 +109,7 @@ async def put_file_multipart_complete(
 async def post_file_multipart_presigned_urls_async(
     upload_id: str,
     part_numbers: List[int],
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     <https://rest-docs.synapse.org/rest/PUT/file/multipart/uploadId/add/partNumber.html>
@@ -116,6 +124,8 @@ async def post_file_multipart_presigned_urls_async(
         Object matching
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/AddPartResponse.html>
     """
+    from synapseclient import Synapse
+
     uri = f"/file/multipart/{upload_id}/presigned/url/batch"
     body = {
         "uploadId": upload_id,
@@ -133,7 +143,7 @@ async def post_file_multipart_presigned_urls_async(
 def post_file_multipart_presigned_urls(
     upload_id: str,
     part_numbers: List[int],
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     <https://rest-docs.synapse.org/rest/PUT/file/multipart/uploadId/add/partNumber.html>
@@ -148,6 +158,8 @@ def post_file_multipart_presigned_urls(
         Object matching
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/AddPartResponse.html>
     """
+    from synapseclient import Synapse
+
     uri = f"/file/multipart/{upload_id}/presigned/url/batch"
     body = {
         "uploadId": upload_id,
@@ -168,7 +180,7 @@ async def post_external_object_store_filehandle(
     storage_location_id: int,
     mimetype: str = None,
     md5: str = None,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int]]:
     """
     Create a new FileHandle representing an external object.
@@ -187,6 +199,8 @@ async def post_external_object_store_filehandle(
         A FileHandle for objects that are stored externally.
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/ExternalFileHandleInterface.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     if mimetype is None:
         mimetype, _ = mimetypes.guess_type(file_path, strict=False)
@@ -210,7 +224,7 @@ async def post_external_filehandle(
     mimetype: str = None,
     md5: str = None,
     file_size: int = None,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int]]:
     """
     Create a new FileHandle representing an external object.
@@ -228,6 +242,8 @@ async def post_external_filehandle(
         A FileHandle for objects that are stored externally.
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/ExternalFileHandleInterface.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     file_name = external_url.split("/")[-1]
     external_url = utils.as_url(external_url)
@@ -255,7 +271,7 @@ async def post_external_s3_file_handle(
     storage_location_id: str = None,
     mimetype: str = None,
     md5: str = None,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int, bool]]:
     """
     Create an external S3 file handle for e.g. a file that has been uploaded directly to
@@ -285,6 +301,8 @@ async def post_external_s3_file_handle(
         ValueError: If neither parent nor storage_location_id is specified, or if
             both are specified.
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
 
     if storage_location_id:
@@ -320,7 +338,8 @@ async def post_external_s3_file_handle(
 
 
 async def get_file_handle(
-    file_handle_id: Dict[str, Union[str, int]], synapse_client: Optional[Synapse] = None
+    file_handle_id: Dict[str, Union[str, int]],
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int]]:
     """
     Retrieve a fileHandle from the fileHandle service.
@@ -338,6 +357,8 @@ async def get_file_handle(
         A file handle retrieved from the file handle service.
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
 
     return await client.rest_get_async(

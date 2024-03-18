@@ -3,15 +3,16 @@
 """
 
 import json
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, TYPE_CHECKING
 
-from synapseclient import Synapse
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 
 async def post_entity(
     request: Dict[str, Any],
     generated_by: Optional[str] = None,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     Arguments:
@@ -25,6 +26,8 @@ async def post_entity(
         The requested entity matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Entity.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     params = {}
     if generated_by:
@@ -39,7 +42,7 @@ async def put_entity(
     request: Dict[str, Any],
     new_version: bool = False,
     generated_by: Optional[str] = None,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     Arguments:
@@ -54,6 +57,8 @@ async def put_entity(
         The requested entity bundle matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Entity.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     params = {}
     if generated_by:
@@ -67,7 +72,7 @@ async def put_entity(
 
 async def get_entity(
     entity_id: str,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     Arguments:
@@ -79,6 +84,8 @@ async def get_entity(
         The requested entity bundle matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Entity.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_get_async(
         uri=f"/entity/{entity_id}",
@@ -86,7 +93,7 @@ async def get_entity(
 
 
 async def get_upload_destination(
-    entity_id: str, synapse_client: Optional[Synapse] = None
+    entity_id: str, synapse_client: Optional["Synapse"] = None
 ) -> Dict[str, Union[str, int]]:
     """
     <https://rest-docs.synapse.org/rest/GET/entity/id/uploadDestination.html>
@@ -101,6 +108,8 @@ async def get_upload_destination(
         The upload destination.
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/UploadDestination.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_get_async(
         uri=f"/entity/{entity_id}/uploadDestination",
@@ -109,7 +118,7 @@ async def get_upload_destination(
 
 
 async def get_upload_destination_location(
-    entity_id: str, location: str, synapse_client: Optional[Synapse] = None
+    entity_id: str, location: str, synapse_client: Optional["Synapse"] = None
 ) -> Dict[str, Union[str, int]]:
     """
     <https://rest-docs.synapse.org/rest/GET/entity/id/uploadDestination/storageLocationId.html>
@@ -123,6 +132,8 @@ async def get_upload_destination_location(
         The upload destination.
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/UploadDestination.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_get_async(
         uri=f"/entity/{entity_id}/uploadDestination/{location}",
@@ -131,7 +142,7 @@ async def get_upload_destination_location(
 
 
 async def create_access_requirements_if_none(
-    entity_id: str, synapse_client: Optional[Synapse] = None
+    entity_id: str, synapse_client: Optional["Synapse"] = None
 ) -> None:
     """
     Checks to see if the given entity has access requirements. If not, then one is added
@@ -141,6 +152,8 @@ async def create_access_requirements_if_none(
         synapse_client: If not passed in or None this will use the last client from
             the `.login()` method.
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     existing_restrictions = await client.rest_get_async(
         f"/entity/{entity_id}/accessRequirement?offset=0&limit=1"
