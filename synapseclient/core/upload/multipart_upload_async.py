@@ -83,13 +83,13 @@ from synapseclient.api import (
     put_file_multipart_add,
     put_file_multipart_complete,
 )
-from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.async_utils import otel_trace_function
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
-    _raise_for_status,
+    _raise_for_status_httpx,
 )
 from synapseclient.core.retry import with_retry_time_based
 from synapseclient.core.upload.upload_utils import (
@@ -98,6 +98,7 @@ from synapseclient.core.upload.upload_utils import (
     get_data_chunk,
     get_file_chunk,
     get_part_size,
+    get_file_chunk_yield,
 )
 from synapseclient.core.utils import MB, md5_fn, md5_for_file_multiprocessing
 
@@ -144,11 +145,13 @@ class UploadAttemptAsync:
         part_request_body_provider_fn,
         md5_fn,
         force_restart: bool,
+        file_path: str,
         storage_str: str = None,
     ):
         self._syn = syn
         self._dest_file_name = dest_file_name
         self._part_size = upload_request_payload["partSizeBytes"]
+        self._file_path = file_path
 
         self._upload_request_payload = upload_request_payload
 
@@ -167,8 +170,8 @@ class UploadAttemptAsync:
         self._pre_signed_part_urls: Mapping[int, str] = None
         self._progress_bar = None
 
-    @otel_trace_method(
-        method_to_trace_name=lambda *args, **kwargs: "UploadAttemptAsync"
+    @otel_trace_function(
+        function_to_trace_name=lambda *args, **kwargs: "UploadAttemptAsync"
     )
     async def __call__(self) -> Dict[str, str]:
         """Orchestrate the upload of a file to Synapse."""
@@ -189,7 +192,10 @@ class UploadAttemptAsync:
             # if no remaining part numbers then all the parts have been
             # uploaded but the upload has not been marked complete.
             if remaining_part_numbers:
-                await self._upload_parts(part_count, remaining_part_numbers)
+                # with open(self._file_path, "rb") as f:
+                await self._upload_parts(
+                    part_count, remaining_part_numbers, opened_file=None
+                )
             upload_status_response = await self._complete_upload()
 
         return upload_status_response
@@ -213,8 +219,8 @@ class UploadAttemptAsync:
             == concrete_types.MULTIPART_UPLOAD_COPY_REQUEST
         )
 
-    @otel_trace_method(
-        method_to_trace_name=lambda *args, **kwargs: "UploadAttemptAsync::_fetch_pre_signed_part_urls_async"
+    @otel_trace_function(
+        function_to_trace_name=lambda *args, **kwargs: "UploadAttemptAsync::_fetch_pre_signed_part_urls_async"
     )
     async def _fetch_pre_signed_part_urls_async(
         self,
@@ -305,21 +311,28 @@ class UploadAttemptAsync:
 
             return refreshed_url
 
-    async def _handle_part_wrapper(self, part_number: int) -> HandlePartResult:
+    async def _handle_part_wrapper(
+        self, part_number: int, opened_file
+    ) -> HandlePartResult:
         loop = asyncio.get_running_loop()
         otel_context = context.get_current()
 
         return await loop.run_in_executor(
             self._syn._get_thread_pool_executor(),
             self._handle_part,
+            self._file_path,
+            self._part_size,
             part_number,
+            opened_file,
             otel_context,
         )
 
-    @otel_trace_method(
-        method_to_trace_name=lambda *args, **kwargs: "UploadAttempt::_upload_parts"
+    @otel_trace_function(
+        function_to_trace_name=lambda *args, **kwargs: "UploadAttempt::_upload_parts"
     )
-    async def _upload_parts(self, part_count: int, remaining_part_numbers: int) -> None:
+    async def _upload_parts(
+        self, part_count: int, remaining_part_numbers: int, opened_file
+    ) -> None:
         """Take a list of part numbers and upload them to the pre-signed URLs.
 
         Arguments:
@@ -335,10 +348,13 @@ class UploadAttemptAsync:
         )
 
         async_tasks = []
-
         for part_number in remaining_part_numbers:
             async_tasks.append(
-                asyncio.create_task(self._handle_part_wrapper(part_number=part_number))
+                asyncio.create_task(
+                    self._handle_part_wrapper(
+                        part_number=part_number, opened_file=opened_file
+                    )
+                )
             )
 
         if not self._is_copy():
@@ -440,8 +456,8 @@ class UploadAttemptAsync:
                     continue
         return raised_exception
 
-    @otel_trace_method(
-        method_to_trace_name=lambda *args, **kwargs: "UploadAttempt::_complete_upload"
+    @otel_trace_function(
+        function_to_trace_name=lambda *args, **kwargs: "UploadAttempt::_complete_upload"
     )
     async def _complete_upload(self) -> Dict[str, str]:
         """Close the upload and mark it as complete.
@@ -469,7 +485,12 @@ class UploadAttemptAsync:
         return upload_status_response
 
     def _handle_part(
-        self, part_number: int, otel_context: Union[Context, None]
+        self,
+        file_path: str,
+        part_size: int,
+        part_number: int,
+        opened_file,
+        otel_context: Union[Context, None],
     ) -> HandlePartResult:
         """Take an individual part number and upload it to the pre-signed URL.
 
@@ -500,41 +521,46 @@ class UploadAttemptAsync:
             session: httpx.Client = self._syn._requests_session_storage
 
             # obtain the body (i.e. the upload bytes) for the given part number.
-            body = (
-                self._part_request_body_provider_fn(part_number)
-                if self._part_request_body_provider_fn
-                else None
-            )
-            part_size = len(body) if body else 0
-            self._syn.logger.debug(f"Uploading part {part_number} of size {part_size}")
-            if not self._is_copy() and body is None:
-                raise ValueError(f"No body for part {part_number}")
+            # body_generator = (
+            #     self._part_request_body_provider_fn(file_path, part_number, part_size)
+            #     if self._part_request_body_provider_fn
+            #     else None
+            # )
+            # part_size = len(body_generator) if body_generator else 0
+            self._syn.logger.debug(f"Uploading part {part_number}.")
+            # if not self._is_copy() and body_generator is None:
+            #     raise ValueError(f"No body for part {part_number}")
 
             response = self._put_part_with_retry(
                 session=session,
-                body=body,
+                # body=body_generator,
+                # content=body_generator,
+                content=None,
                 part_url=part_url,
                 signed_headers=signed_headers,
                 part_number=part_number,
+                opened_file=opened_file,
             )
 
-            md5_hex = self._md5_fn(body, response)
+            md5_hex = self._md5_fn(response.request.content, response)
+            actual_part_size = len(response.request.content)
             del response
-            del body
+            # del body_generator
 
             # # remove so future batch pre_signed url fetches will exclude this part
             with self._thread_lock:
                 del self._pre_signed_part_urls[part_number]
 
-            return HandlePartResult(part_number, part_size, md5_hex)
+            return HandlePartResult(part_number, actual_part_size, md5_hex)
 
     def _put_part_with_retry(
         self,
         session: httpx.Client,
-        body: bytes,
+        content,
         part_url: str,
         signed_headers: Dict[str, str],
         part_number: int,
+        opened_file,
     ) -> Union[httpx.Response, None]:
         """Put a part to the storage provider with retries.
 
@@ -559,16 +585,23 @@ class UploadAttemptAsync:
                     "UploadAttempt::put_on_storage_provider"
                 ):
                     trace.get_current_span().set_attributes({"url.path": part_url})
-                    response = with_retry_time_based(
-                        lambda: session.put(
-                            url=part_url,
-                            content=body,  # noqa: F821
-                            headers=signed_headers,
-                        ),
-                        retry_exceptions=[requests.exceptions.ConnectionError],
-                    )
+
+                    with open(self._file_path, "rb") as f:
+                        f.seek((part_number - 1) * self._part_size)
+                        response = with_retry_time_based(
+                            lambda: session.put(
+                                url=part_url,
+                                data=f.read(self._part_size),  # noqa: F821
+                                headers=signed_headers,
+                            ),
+                            retry_exceptions=[requests.exceptions.ConnectionError],
+                        )
                 try:
-                    _raise_for_status(response)
+                    _raise_for_status_httpx(
+                        response=response,
+                        logger=self._syn.logger,
+                        verbose=self._syn.debug,
+                    )
                 except Exception as ex:
                     raise ex
 
@@ -686,19 +719,23 @@ async def multipart_upload_file_async(
         def part_fn(part_number):
             return get_file_chunk(file_path, part_number, part_size)
 
+        # def part_fn_modified(part_number):
+        #     return get_file_chunk_yield(file_path, part_number, part_size)
+
         return await _multipart_upload_async(
-            syn,
-            dest_file_name,
-            upload_request,
-            part_fn,
-            md5_fn,
+            syn=syn,
+            dest_file_name=dest_file_name,
+            upload_request=upload_request,
+            part_fn=get_file_chunk_yield,
+            md5_fn=md5_fn,
             force_restart=force_restart,
             storage_str=storage_str,
+            file_path=file_path,
         )
 
 
-@otel_trace_method(
-    method_to_trace_name=lambda *args, **kwargs: "_multipart_upload_async"
+@otel_trace_function(
+    function_to_trace_name=lambda *args, **kwargs: "_multipart_upload_async"
 )
 async def _multipart_upload_async(
     syn: "Synapse",
@@ -706,6 +743,7 @@ async def _multipart_upload_async(
     upload_request,
     part_fn,
     md5_fn,
+    file_path: str,
     force_restart: bool = False,
     storage_str: str = None,
 ) -> str:
@@ -732,7 +770,7 @@ async def _multipart_upload_async(
     retry = 0
     while True:
         try:
-            upload_status_response = await UploadAttemptAsync(
+            upload_status_response: Dict[str, str] = await UploadAttemptAsync(
                 syn,
                 dest_file_name,
                 upload_request,
@@ -743,6 +781,7 @@ async def _multipart_upload_async(
                 # from scratch.
                 force_restart and retry == 0,
                 storage_str=storage_str,
+                file_path=file_path,
             )()
 
             # success

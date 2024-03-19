@@ -11,6 +11,13 @@ def get_file_chunk(file_path, part_number, chunk_size) -> bytes:
         return f.read(chunk_size)
 
 
+def get_file_chunk_yield(file_path, part_number, chunk_size) -> bytes:
+    """Read the nth chunk from the file."""
+    with open(file_path, "rb") as f:
+        f.seek((part_number - 1) * chunk_size)
+        yield f.read(chunk_size)
+
+
 def get_data_chunk(data: bytes, part_number: int, chunk_size: int) -> bytes:
     """Return the nth chunk of a buffer."""
     return data[((part_number - 1) * chunk_size) : part_number * chunk_size]
