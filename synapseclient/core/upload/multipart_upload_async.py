@@ -356,6 +356,7 @@ class UploadAttemptAsync:
                     unit="B",
                     unit_scale=True,
                     postfix=self._dest_file_name,
+                    smoothing=0,
                 )
                 self._progress_bar.update(previously_transferred)
         else:
@@ -365,6 +366,7 @@ class UploadAttemptAsync:
                     desc=self._storage_str if self._storage_str else "Copying",
                     unit_scale=True,
                     postfix=self._dest_file_name,
+                    smoothing=0,
                 )
                 self._progress_bar.update(completed_part_count)
 
