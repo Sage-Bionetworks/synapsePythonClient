@@ -101,6 +101,11 @@ from synapseclient.core.upload.upload_utils import (
     get_file_chunk_yield,
 )
 from synapseclient.core.utils import MB, md5_fn, md5_for_file_multiprocessing
+from iometrics import DiskMetrics, NetworkMetrics
+from iometrics.example import DUAL_METRICS_HEADER
+
+disk = DiskMetrics()
+net = NetworkMetrics()
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -193,11 +198,25 @@ class UploadAttemptAsync:
             # uploaded but the upload has not been marked complete.
             if remaining_part_numbers:
                 # with open(self._file_path, "rb") as f:
+
+                disk.update_stats()
+                net.update_stats()
                 await self._upload_parts(
                     part_count, remaining_part_numbers, opened_file=None
                 )
             upload_status_response = await self._complete_upload()
-
+        row = (
+            f"{DUAL_METRICS_HEADER}\n"
+            f"| {net.mb_recv_ps.val:6.1f} | {net.mb_recv_ps.avg:6.1f} "
+            f"| {net.mb_sent_ps.val:5.1f} | {net.mb_sent_ps.avg:5.1f} "
+            f"| {int(disk.io_util.val):3d} | {int(disk.io_util.avg):3d} "
+            f"| {disk.mb_read.val:6.1f} | {disk.mb_read.avg:6.1f} "
+            f"| {disk.mb_writ.val:5.1f} | {disk.mb_writ.avg:5.1f} "
+            f"| {int(disk.io_read.val):4d}   | {int(disk.io_read.avg):4d}   "
+            f"| {int(disk.io_writ.val):3d}   | {int(disk.io_writ.avg):3d}   "
+            f"|"
+        )
+        print(row)
         return upload_status_response
 
     @classmethod
@@ -550,7 +569,8 @@ class UploadAttemptAsync:
             # # remove so future batch pre_signed url fetches will exclude this part
             with self._thread_lock:
                 del self._pre_signed_part_urls[part_number]
-
+                disk.update_stats()
+                net.update_stats()
             return HandlePartResult(part_number, actual_part_size, md5_hex)
 
     def _put_part_with_retry(
