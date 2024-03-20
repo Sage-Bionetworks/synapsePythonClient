@@ -459,14 +459,8 @@ class Synapse(object):
         ):
             return self._process_executor[current_pid]
 
-        def close_pool() -> None:
-            """Close pool when event loop exits"""
-            self._process_executor[current_pid].shutdown(wait=True)
-            del self._process_executor[current_pid]
-
         self._process_executor.update({current_pid: get_reusable_executor(1)})
 
-        asyncio_atexit.register(close_pool)
         return self._process_executor[current_pid]
 
     def _get_md5_semaphore(self) -> asyncio.Semaphore:
@@ -486,13 +480,8 @@ class Synapse(object):
         ):
             return self._md5_semaphore[current_pid]
 
-        def close_semaphore() -> None:
-            """Close when event loop exits"""
-            del self._md5_semaphore[current_pid]
-
         self._md5_semaphore.update({current_pid: asyncio.Semaphore(1)})
 
-        asyncio_atexit.register(close_semaphore)
         return self._md5_semaphore[current_pid]
 
     # initialize logging
