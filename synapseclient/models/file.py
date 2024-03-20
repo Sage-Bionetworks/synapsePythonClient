@@ -584,9 +584,9 @@ class File(FileSynchronousProtocol, AccessControllable):
         """Load the MD5 of the file if it's a local file and we have not already loaded
         it."""
         if not self.content_md5 and self.path and os.path.isfile(self.path):
-            self.content_md5 = await utils.md5_for_file_multiprocessing(
+            self.content_md5 = await utils.md5_for_file_multithreading(
                 filename=self.path,
-                process_pool_executor=syn._get_process_pool_executor(),
+                thread_pool_executor=syn._get_thread_pool_executor(),
             )
 
     async def _find_existing_file(

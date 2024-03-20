@@ -24,7 +24,7 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Callable, TypeVar
 
@@ -101,9 +101,9 @@ def md5_for_file_hex(
     return md5_for_file(filename, block_size, callback).hexdigest()
 
 
-async def md5_for_file_multiprocessing(
+async def md5_for_file_multithreading(
     filename: str,
-    process_pool_executor: ProcessPoolExecutor,
+    thread_pool_executor: ThreadPoolExecutor,
     block_size: int = 2 * MB,
 ) -> str:
     """
@@ -112,7 +112,7 @@ async def md5_for_file_multiprocessing(
 
     Arguments:
         filename: The file to read in
-        process_pool_executor: The process pool executor to use for the calculation.
+        thread_pool_executor: The thread pool executor to use for the calculation.
         block_size: How much of the file to read in at once (bytes).
                     Defaults to 2 MB.
 
@@ -122,7 +122,7 @@ async def md5_for_file_multiprocessing(
     with tracer.start_as_current_span("Utils::md5_for_file_multiprocessing"):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            process_pool_executor, md5_for_file_hex, filename, block_size
+            thread_pool_executor, md5_for_file_hex, filename, block_size
         )
 
 

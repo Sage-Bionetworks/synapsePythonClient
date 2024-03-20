@@ -32,7 +32,7 @@ import httpx
 
 from deprecated import deprecated
 
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
 import synapseclient
 from .annotations import (
@@ -431,31 +431,6 @@ class Synapse(object):
 
         asyncio_atexit.register(close_pool)
         return self._thread_executor[current_tid]
-
-    def _get_process_pool_executor(self) -> ProcessPoolExecutor:
-        """
-        Retrieve the process pool executor for the Synapse client. Or create a new one
-        if it does not exist. This executor is used for parallel processing of data.
-
-        This is expected to be called from within an AsyncIO loop.
-        """
-        current_pid = str(os.getpid())
-        if (
-            hasattr(self, "_process_executor")
-            and current_pid in self._process_executor
-            and self._process_executor[current_pid] is not None
-        ):
-            return self._process_executor[current_pid]
-
-        def close_pool() -> None:
-            """Close pool when event loop exits"""
-            self._process_executor[current_pid].shutdown(wait=True)
-            del self._process_executor[current_pid]
-
-        self._process_executor.update({current_pid: ProcessPoolExecutor()})
-
-        asyncio_atexit.register(close_pool)
-        return self._process_executor[current_pid]
 
     # initialize logging
     def _init_logger(self):
