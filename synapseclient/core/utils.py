@@ -25,7 +25,6 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
-from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Callable, TypeVar
 
@@ -109,7 +108,8 @@ def md5_for_file_hex(
 
 async def md5_for_file_multiprocessing(
     filename: str,
-    process_pool_executor: ProcessPoolExecutor,
+    process_pool_executor,
+    md5_semaphore: asyncio.Semaphore,
     block_size: int = 2 * MB,
 ) -> str:
     """
@@ -119,6 +119,7 @@ async def md5_for_file_multiprocessing(
     Arguments:
         filename: The file to read in
         process_pool_executor: The process pool executor to use for the calculation.
+        md5_semaphore: The semaphore to use for waiting to calculate.
         block_size: How much of the file to read in at once (bytes).
                     Defaults to 2 MB.
 
@@ -126,10 +127,11 @@ async def md5_for_file_multiprocessing(
         The MD5 Checksum
     """
     with tracer.start_as_current_span("Utils::md5_for_file_multiprocessing"):
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            process_pool_executor, md5_for_file_hex, filename, block_size
-        )
+        async with md5_semaphore:
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(
+                process_pool_executor, md5_for_file_hex, filename, block_size
+            )
 
 
 @tracer.start_as_current_span("Utils::md5_fn")

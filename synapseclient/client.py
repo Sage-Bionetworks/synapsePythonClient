@@ -2,6 +2,7 @@
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
 """
+import asyncio
 import asyncio_atexit
 import collections
 import collections.abc
@@ -360,6 +361,7 @@ class Synapse(object):
         self.max_threads = transfer_config["max_threads"]
         self._thread_executor = {}
         self._process_executor = {}
+        self._md5_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
 
     def _get_requests_session_async_synapse(self) -> httpx.AsyncClient:
@@ -466,6 +468,32 @@ class Synapse(object):
 
         asyncio_atexit.register(close_pool)
         return self._process_executor[current_pid]
+
+    def _get_md5_semaphore(self) -> asyncio.Semaphore:
+        """
+        Retrieve the semaphore for the Synapse client. Or create a new one if it does not
+        exist. This semaphore is used to ensure that only one process is calculating the
+        MD5 hash at a time. This is to prevent the custom process pool executor from
+        thrashing or handling the waiting. We should let asyncio handle the waiting.
+
+        This is expected to be called from within an AsyncIO loop.
+        """
+        current_pid = str(os.getpid())
+        if (
+            hasattr(self, "_md5_semaphore")
+            and current_pid in self._md5_semaphore
+            and self._md5_semaphore[current_pid] is not None
+        ):
+            return self._md5_semaphore[current_pid]
+
+        def close_semaphore() -> None:
+            """Close when event loop exits"""
+            del self._md5_semaphore[current_pid]
+
+        self._md5_semaphore.update({current_pid: asyncio.Semaphore(1)})
+
+        asyncio_atexit.register(close_semaphore)
+        return self._md5_semaphore[current_pid]
 
     # initialize logging
     def _init_logger(self):
