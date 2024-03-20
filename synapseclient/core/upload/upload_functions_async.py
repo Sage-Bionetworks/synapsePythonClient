@@ -80,9 +80,9 @@ async def upload_file_handle(
     expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
 
     if md5 is None and os.path.isfile(expanded_upload_path):
-        md5 = await utils.md5_for_file_multithreading(
+        md5 = await utils.md5_for_file_multiprocessing(
             filename=expanded_upload_path,
-            thread_pool_executor=syn._get_thread_pool_executor(),
+            process_pool_executor=syn._get_process_pool_executor(),
         )
 
     entity_parent_id = id_of(parent_entity_id)
@@ -201,9 +201,9 @@ async def create_external_file_handle(
         parsed_url = urllib_parse.urlparse(url)
         parsed_path = file_url_to_path(url)
         if parsed_url.scheme == "file" and os.path.isfile(parsed_path):
-            actual_md5 = await utils.md5_for_file_multithreading(
+            actual_md5 = await utils.md5_for_file_multiprocessing(
                 filename=parsed_path,
-                thread_pool_executor=syn._get_thread_pool_executor(),
+                process_pool_executor=syn._get_process_pool_executor(),
             )
             if md5 is not None and md5 != actual_md5:
                 raise SynapseMd5MismatchError(
@@ -248,8 +248,8 @@ async def upload_external_file_handle_sftp(
         storage_str=storage_str,
     )
 
-    file_md5 = md5 or await utils.md5_for_file_multithreading(
-        filename=file_path, thread_pool_executor=syn._get_thread_pool_executor()
+    file_md5 = md5 or await utils.md5_for_file_multiprocessing(
+        filename=file_path, process_pool_executor=syn._get_process_pool_executor()
     )
     file_handle = await post_external_filehandle(
         external_url=uploaded_url,

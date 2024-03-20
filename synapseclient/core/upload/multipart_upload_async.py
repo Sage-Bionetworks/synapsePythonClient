@@ -13,7 +13,7 @@ flowchart  TD
     upload_file_handle --> before-upload
     subgraph before-upload
         subgraph Disk I/O & CPU
-            subgraph Multi-Threading
+            subgraph Multi-Processing
                 md5["Calculate MD5"]
             end
             mime["Guess mime type"]
@@ -110,7 +110,7 @@ from synapseclient.core.upload.upload_utils import (
 )
 from synapseclient.core.utils import MB
 from synapseclient.core.utils import md5_fn as md5_fn_util
-from synapseclient.core.utils import md5_for_file_multithreading
+from synapseclient.core.utils import md5_for_file_multiprocessing
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -649,9 +649,9 @@ async def multipart_upload_file_async(
             content_type = mime_type or "application/octet-stream"
 
         md5_hex = md5 or (
-            await md5_for_file_multithreading(
+            await md5_for_file_multiprocessing(
                 filename=file_path,
-                thread_pool_executor=syn._get_thread_pool_executor(),
+                process_pool_executor=syn._get_process_pool_executor(),
             )
         )
 
