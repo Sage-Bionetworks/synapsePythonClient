@@ -587,6 +587,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             self.content_md5 = await utils.md5_for_file_multithreading(
                 filename=self.path,
                 thread_pool_executor=syn._get_thread_pool_executor(),
+                md5_semaphore=syn._get_md5_semaphore(),
             )
 
     async def _find_existing_file(

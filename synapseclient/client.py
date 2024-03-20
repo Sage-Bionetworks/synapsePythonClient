@@ -2,6 +2,7 @@
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
 """
+import asyncio
 import asyncio_atexit
 import collections
 import collections.abc
@@ -358,7 +359,7 @@ class Synapse(object):
         transfer_config = self._get_transfer_config()
         self.max_threads = transfer_config["max_threads"]
         self._thread_executor = {}
-        self._process_executor = {}
+        self._md5_calculation_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
 
     def _get_requests_session_async_synapse(self) -> httpx.AsyncClient:
@@ -431,6 +432,33 @@ class Synapse(object):
 
         asyncio_atexit.register(close_pool)
         return self._thread_executor[current_tid]
+
+    def _get_md5_semaphore(self) -> asyncio.Semaphore:
+        """
+        Hold onto a Semaphore for calculating MD5s. This is used to limit the number of
+        concurrent MD5 calculations that can occur at any given time. This is important
+        because MD5 calculations are CPU bound and can be slow. During this time we
+        want other processes to start uploading data to storage providers like AWS S3
+        and Google Cloud Storage.
+        """
+        current_tid = str(threading.get_ident())
+        if (
+            hasattr(self, "_md5_calculation_semaphore")
+            and current_tid in self._md5_calculation_semaphore
+            and self._md5_calculation_semaphore[current_tid] is not None
+        ):
+            return self._md5_calculation_semaphore[current_tid]
+
+        def close() -> None:
+            """Close when event loop exits"""
+            del self._md5_calculation_semaphore[current_tid]
+
+        self._md5_calculation_semaphore.update(
+            {current_tid: asyncio.Semaphore(self.max_threads // 2)}
+        )
+
+        asyncio_atexit.register(close)
+        return self._md5_calculation_semaphore[current_tid]
 
     # initialize logging
     def _init_logger(self):
