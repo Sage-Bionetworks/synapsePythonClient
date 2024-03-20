@@ -32,7 +32,8 @@ import httpx
 
 from deprecated import deprecated
 
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
+from loky import get_reusable_executor
 
 import synapseclient
 from .annotations import (
@@ -432,12 +433,21 @@ class Synapse(object):
         asyncio_atexit.register(close_pool)
         return self._thread_executor[current_tid]
 
-    def _get_process_pool_executor(self) -> ProcessPoolExecutor:
+    def _get_process_pool_executor(self):
         """
         Retrieve the process pool executor for the Synapse client. Or create a new one
         if it does not exist. This executor is used for parallel processing of data.
 
         This is expected to be called from within an AsyncIO loop.
+
+        Note: Within Windows a ProcessPoolExecutor requires that the initial entry point
+        into the code be within a `if __name__ == "__main__":` block. This is not
+        possible within the current codebase as it would require everyone using this
+        library to have this as their entry point. As a result, the ProcessPoolExecutor
+        will not work within Windows.
+
+        To get around this Windows limitation this is using this package:
+        https://github.com/joblib/loky
         """
         current_pid = str(os.getpid())
         if (
@@ -452,7 +462,7 @@ class Synapse(object):
             self._process_executor[current_pid].shutdown(wait=True)
             del self._process_executor[current_pid]
 
-        self._process_executor.update({current_pid: ProcessPoolExecutor()})
+        self._process_executor.update({current_pid: get_reusable_executor()})
 
         asyncio_atexit.register(close_pool)
         return self._process_executor[current_pid]
