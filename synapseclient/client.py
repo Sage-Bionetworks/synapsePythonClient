@@ -453,9 +453,7 @@ class Synapse(object):
             """Close when event loop exits"""
             del self._md5_calculation_semaphore[current_tid]
 
-        self._md5_calculation_semaphore.update(
-            {current_tid: asyncio.Semaphore(self.max_threads // 2)}
-        )
+        self._md5_calculation_semaphore.update({current_tid: asyncio.Semaphore(1)})
 
         asyncio_atexit.register(close)
         return self._md5_calculation_semaphore[current_tid]
