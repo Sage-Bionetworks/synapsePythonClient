@@ -462,7 +462,9 @@ class Synapse(object):
             self._process_executor[current_pid].shutdown(wait=True)
             del self._process_executor[current_pid]
 
-        self._process_executor.update({current_pid: get_reusable_executor()})
+        self._process_executor.update(
+            {current_pid: get_reusable_executor(min(32, os.cpu_count() + 4))}
+        )
 
         asyncio_atexit.register(close_pool)
         return self._process_executor[current_pid]
