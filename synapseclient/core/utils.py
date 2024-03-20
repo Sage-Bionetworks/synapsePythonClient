@@ -68,16 +68,21 @@ def md5_for_file(
     Returns:
         The MD5 Checksum
     """
-
+    loop_iteration = 0
     md5 = hashlib.new("md5", usedforsecurity=False)
     with open(filename, "rb") as f:
         while True:
+            loop_iteration += 1
             if callback:
                 callback()
             data = f.read(block_size)
             if not data:
                 break
             md5.update(data)
+            del data
+            # Garbage collect every 100 iterations
+            if loop_iteration % 100 == 0:
+                gc.collect()
     return md5
 
 
@@ -122,11 +127,9 @@ async def md5_for_file_multiprocessing(
     """
     with tracer.start_as_current_span("Utils::md5_for_file_multiprocessing"):
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
+        return await loop.run_in_executor(
             process_pool_executor, md5_for_file_hex, filename, block_size
         )
-        gc.collect()
-        return result
 
 
 @tracer.start_as_current_span("Utils::md5_fn")
