@@ -652,7 +652,6 @@ async def multipart_upload_file_async(
             await md5_for_file_multithreading(
                 filename=file_path,
                 thread_pool_executor=syn._get_thread_pool_executor(),
-                md5_semaphore=syn._get_md5_semaphore(),
             )
         )
 
