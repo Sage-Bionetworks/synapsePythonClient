@@ -1636,7 +1636,7 @@ class Synapse(object):
         activityName=None,
         activityDescription=None,
         set_annotations=True,
-        async_file_handle_upload=True,
+        async_file_handle_upload: bool = True,
     ):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.

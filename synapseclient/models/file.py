@@ -136,7 +136,9 @@ class FileHandle:
     external_url: Optional[str] = None
     """The URL of the file if it is stored externally."""
 
-    def fill_from_dict(self, synapse_instance: Dict) -> "FileHandle":
+    def fill_from_dict(
+        self, synapse_instance: Dict[str, Union[bool, str, int]]
+    ) -> "FileHandle":
         """
         Converts a response from the REST API into this dataclass.
 
@@ -522,7 +524,9 @@ class File(FileSynchronousProtocol, AccessControllable):
             self.external_url = self.file_handle.external_url
 
     def fill_from_dict(
-        self, synapse_file: Union[Synapse_File, Dict], set_annotations: bool = True
+        self,
+        synapse_file: Union[Synapse_File, Dict[str, Union[bool, str, int]]],
+        set_annotations: bool = True,
     ) -> "File":
         """
         Converts a response from the REST API into this dataclass.
@@ -898,7 +902,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                     entity=self.id or self.path,
                     version=self.version_number,
                     ifcollision=self.if_collision,
-                    limitSearch=self.synapse_container_limit,
+                    limitSearch=self.synapse_container_limit or self.parent_id,
                     downloadFile=self.download_file,
                     downloadLocation=self.download_location,
                     md5=self.content_md5,
@@ -1113,14 +1117,28 @@ class File(FileSynchronousProtocol, AccessControllable):
         )
         return file_copy
 
-    async def _upload_file(
-        self,
-        synapse_client: Optional[Synapse] = None,
-    ) -> "File":
-        syn = Synapse.get_client(synapse_client=synapse_client)
-        needs_upload = False
-        local_file_md5_hex = None
+    async def _needs_upload(self, syn: Synapse) -> bool:
+        """
+        Determines if a file needs to be uploaded to Synapse. The following conditions
+        apply:
 
+        - The file exists and is an ExternalFileHandle and the url has changed
+        - The file exists and is a local file and the MD5 has changed
+        - The file is not present in Synapse
+
+        If the file is already specifying a data_file_handle_id then it is assumed that
+        the file is already uploaded to Synapse. It does not need to be uploaded and
+        the only thing that will occur is the File metadata will be added to Synapse
+        outside of this upload process.
+
+        Arguments:
+            syn: If not passed in or None this will use the last client from
+                the `.login()` method.
+
+        Returns:
+            True if the file needs to be uploaded, otherwise False.
+        """
+        needs_upload = False
         # Check if the file should be uploaded
         if self._last_persistent_instance is not None:
             if (
@@ -1181,6 +1199,26 @@ class File(FileSynchronousProtocol, AccessControllable):
             needs_upload = False
         else:
             needs_upload = True
+        return needs_upload
+
+    async def _upload_file(
+        self,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "File":
+        """The upload process for a file. This will upload the file to Synapse if it
+        needs to be uploaded. If the file does not need to be uploaded the file
+        metadata will be added to Synapse outside of this upload process.
+
+        Arguments:
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
+
+        Returns:
+            The file object.
+        """
+        syn = Synapse.get_client(synapse_client=synapse_client)
+
+        needs_upload = await self._needs_upload(syn=syn)
 
         if needs_upload:
             parent_id_for_upload = self.parent_id
@@ -1199,7 +1237,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                     else self.external_url
                 ),
                 synapse_store=self.synapse_store,
-                md5=local_file_md5_hex or self.content_md5,
+                md5=self.content_md5,
                 file_size=self.content_size,
                 mimetype=self.content_type,
             )

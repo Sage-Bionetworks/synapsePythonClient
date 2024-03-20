@@ -20,9 +20,8 @@ from .file_services import (
     post_external_object_store_filehandle,
     post_external_s3_file_handle,
     post_file_multipart,
-    post_file_multipart_presigned_urls,
     put_file_multipart_complete,
-    post_file_multipart_presigned_urls_async,
+    post_file_multipart_presigned_urls,
     put_file_multipart_add,
 )
 
@@ -37,13 +36,11 @@ __all__ = [
     "post_file_multipart",
     "put_file_multipart_add",
     "put_file_multipart_complete",
-    "post_file_multipart_presigned_urls",
     "post_external_object_store_filehandle",
     "post_external_s3_file_handle",
     "get_file_handle",
     "post_external_filehandle",
     "post_file_multipart_presigned_urls",
-    "post_file_multipart_presigned_urls_async",
     "put_file_multipart_add",
     # entity_services
     "get_entity",

@@ -49,6 +49,7 @@ async def put_entity(
         entity_id: The ID of the entity to update.
         request: The request for the entity matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Entity.html>
+        new_version: If true, a new version of the entity will be created.
         generated_by: The ID of the activity to associate with the entity.
         synapse_client: If not passed in or None this will use the last client from
             the `.login()` method.
@@ -100,7 +101,6 @@ async def get_upload_destination(
 
     Arguments:
         entity_id: The ID of the entity.
-        endpoint: Server endpoint to call to.
         synapse_client: If not passed in or None this will use the last client from
             the `.login()` method.
 
@@ -125,6 +125,7 @@ async def get_upload_destination_location(
 
     Arguments:
         entity_id: The ID of the entity.
+        location: A storage location ID of the upload destination.
         synapse_client: If not passed in or None this will use the last client from
             the `.login()` method.
 

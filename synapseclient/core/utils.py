@@ -82,7 +82,7 @@ def md5_for_file(
 
 def md5_for_file_hex(
     filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
-):
+) -> str:
     """
     Calculates the MD5 of the given file.
     See source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>.
@@ -105,7 +105,7 @@ async def md5_for_file_multiprocessing(
     filename: str,
     process_pool_executor: ProcessPoolExecutor,
     block_size: int = 2 * MB,
-):
+) -> str:
     """
     Calculates the MD5 of the given file.
     See source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>.

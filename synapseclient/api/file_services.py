@@ -106,7 +106,7 @@ async def put_file_multipart_complete(
     )
 
 
-async def post_file_multipart_presigned_urls_async(
+async def post_file_multipart_presigned_urls(
     upload_id: str,
     part_numbers: List[int],
     synapse_client: Optional["Synapse"] = None,
@@ -133,41 +133,10 @@ async def post_file_multipart_presigned_urls_async(
     }
 
     client = Synapse.get_client(synapse_client=synapse_client)
-    return await client.rest_post_async(
-        uri,
-        json.dumps(body),
-        endpoint=client.fileHandleEndpoint,
+    client.logger.debug(
+        f"Fetching presigned URLs for {part_numbers} with upload_id {upload_id}"
     )
-
-
-def post_file_multipart_presigned_urls(
-    upload_id: str,
-    part_numbers: List[int],
-    synapse_client: Optional["Synapse"] = None,
-) -> Dict[str, Any]:
-    """
-    <https://rest-docs.synapse.org/rest/PUT/file/multipart/uploadId/add/partNumber.html>
-
-    Arguments:
-        upload_id: The unique identifier of the file upload.
-        part_numbers: The part numbers to get pre-signed URLs for.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
-
-    Returns:
-        Object matching
-        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/AddPartResponse.html>
-    """
-    from synapseclient import Synapse
-
-    uri = f"/file/multipart/{upload_id}/presigned/url/batch"
-    body = {
-        "uploadId": upload_id,
-        "partNumbers": part_numbers,
-    }
-
-    client = Synapse.get_client(synapse_client=synapse_client)
-    return client.restPOST(
+    return await client.rest_post_async(
         uri,
         json.dumps(body),
         endpoint=client.fileHandleEndpoint,

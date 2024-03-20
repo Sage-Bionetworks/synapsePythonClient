@@ -68,7 +68,17 @@ import mimetypes
 import os
 import threading
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, List, Mapping, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import httpx
 import requests
@@ -79,17 +89,16 @@ from tqdm import tqdm
 from synapseclient.api import (
     post_file_multipart,
     post_file_multipart_presigned_urls,
-    post_file_multipart_presigned_urls_async,
     put_file_multipart_add,
     put_file_multipart_complete,
 )
-from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.async_utils import otel_trace_method, wrap_async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
-    _raise_for_status,
+    _raise_for_status_httpx,
 )
 from synapseclient.core.retry import with_retry_time_based
 from synapseclient.core.upload.upload_utils import (
@@ -99,7 +108,9 @@ from synapseclient.core.upload.upload_utils import (
     get_file_chunk,
     get_part_size,
 )
-from synapseclient.core.utils import MB, md5_fn, md5_for_file_multiprocessing
+from synapseclient.core.utils import MB
+from synapseclient.core.utils import md5_fn as md5_fn_util
+from synapseclient.core.utils import md5_for_file_multiprocessing
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -140,9 +151,9 @@ class UploadAttemptAsync:
         self,
         syn: "Synapse",
         dest_file_name: str,
-        upload_request_payload,
-        part_request_body_provider_fn,
-        md5_fn,
+        upload_request_payload: Dict[str, Any],
+        part_request_body_provider_fn: Union[None, Callable[[int], bytes]],
+        md5_fn: Callable[[bytes, httpx.Response], str],
         force_restart: bool,
         storage_str: str = None,
     ):
@@ -163,8 +174,8 @@ class UploadAttemptAsync:
         self._storage_str = storage_str
 
         # populated later
-        self._upload_id: str = None
-        self._pre_signed_part_urls: Mapping[int, str] = None
+        self._upload_id: Optional[str] = None
+        self._pre_signed_part_urls: Optional[Mapping[int, str]] = None
         self._progress_bar = None
 
     @otel_trace_method(
@@ -195,7 +206,9 @@ class UploadAttemptAsync:
         return upload_status_response
 
     @classmethod
-    def _get_remaining_part_numbers(cls, upload_status):
+    def _get_remaining_part_numbers(
+        cls, upload_status: Dict[str, str]
+    ) -> Tuple[int, List[int]]:
         part_numbers = []
         parts_state = upload_status["partsState"]
 
@@ -206,7 +219,7 @@ class UploadAttemptAsync:
 
         return len(parts_state), part_numbers
 
-    def _is_copy(self):
+    def _is_copy(self) -> bool:
         # is this a copy or upload request
         return (
             self._upload_request_payload.get("concreteType")
@@ -222,7 +235,7 @@ class UploadAttemptAsync:
         part_numbers: List[int],
     ) -> Mapping[int, str]:
         trace.get_current_span().set_attributes({"synapse.upload_id": upload_id})
-        response = await post_file_multipart_presigned_urls_async(
+        response = await post_file_multipart_presigned_urls(
             upload_id=upload_id,
             part_numbers=part_numbers,
             synapse_client=self._syn,
@@ -236,33 +249,6 @@ class UploadAttemptAsync:
             )
 
         return part_urls
-
-    def _fetch_pre_signed_part_urls(
-        self,
-        upload_id: str,
-        part_numbers: List[int],
-        otel_context: Union[Context, None] = None,
-    ) -> Mapping[int, str]:
-        if otel_context:
-            context.attach(otel_context)
-        with tracer.start_as_current_span(
-            "UploadAttemptAsync::_fetch_pre_signed_part_urls"
-        ):
-            trace.get_current_span().set_attributes({"synapse.upload_id": upload_id})
-            response = post_file_multipart_presigned_urls(
-                upload_id=upload_id,
-                part_numbers=part_numbers,
-                synapse_client=self._syn,
-            )
-
-            part_urls = {}
-            for part in response["partPresignedUrls"]:
-                part_urls[part["partNumber"]] = (
-                    part["uploadPresignedUrl"],
-                    part.get("signedHeaders", {}),
-                )
-
-            return part_urls
 
     def _refresh_pre_signed_part_urls(
         self,
@@ -288,17 +274,20 @@ class UploadAttemptAsync:
             "UploadAttemptAsync::_refresh_pre_signed_part_urls"
         ):
             with self._thread_lock:
-                current_url = self._pre_signed_part_urls[part_number]
+                current_url, headers = self._pre_signed_part_urls[part_number]
                 if current_url != expired_url:
                     # if the url has already changed since the given url
                     # was detected as expired we can assume that another
                     # thread already refreshed the url and can avoid the extra
                     # fetch.
-                    refreshed_url = current_url
+                    refreshed_url = current_url, headers
                 else:
-                    self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
-                        self._upload_id,
-                        list(self._pre_signed_part_urls.keys()),
+                    self._pre_signed_part_urls = wrap_async_to_sync(
+                        self._fetch_pre_signed_part_urls_async(
+                            self._upload_id,
+                            list(self._pre_signed_part_urls.keys()),
+                        ),
+                        syn=self._syn,
                     )
 
                     refreshed_url = self._pre_signed_part_urls[part_number]
@@ -319,7 +308,9 @@ class UploadAttemptAsync:
     @otel_trace_method(
         method_to_trace_name=lambda *args, **kwargs: "UploadAttempt::_upload_parts"
     )
-    async def _upload_parts(self, part_count: int, remaining_part_numbers: int) -> None:
+    async def _upload_parts(
+        self, part_count: int, remaining_part_numbers: List[int]
+    ) -> None:
         """Take a list of part numbers and upload them to the pre-signed URLs.
 
         Arguments:
@@ -341,34 +332,33 @@ class UploadAttemptAsync:
                 asyncio.create_task(self._handle_part_wrapper(part_number=part_number))
             )
 
-        if not self._is_copy():
-            # we won't have bytes to measure during a copy so the byte oriented
-            # progress bar is not useful
-            previously_transferred = min(
-                completed_part_count * self._part_size,
-                file_size,
-            )
+        if not self._syn.silent and not self._progress_bar:
+            if self._is_copy():
+                # we won't have bytes to measure during a copy so the byte oriented
+                # progress bar is not useful
+                self._progress_bar = tqdm(
+                    total=part_count,
+                    desc=self._storage_str or "Copying",
+                    unit_scale=True,
+                    postfix=self._dest_file_name,
+                    smoothing=0,
+                )
+                self._progress_bar.update(completed_part_count)
+            else:
+                previously_transferred = min(
+                    completed_part_count * self._part_size,
+                    file_size,
+                )
 
-            if not self._syn.silent and not self._progress_bar:
                 self._progress_bar = tqdm(
                     total=file_size,
-                    desc=self._storage_str if self._storage_str else "Uploading",
+                    desc=self._storage_str or "Uploading",
                     unit="B",
                     unit_scale=True,
                     postfix=self._dest_file_name,
                     smoothing=0,
                 )
                 self._progress_bar.update(previously_transferred)
-        else:
-            if not self._syn.silent and not self._progress_bar:
-                self._progress_bar = tqdm(
-                    total=part_count,
-                    desc=self._storage_str if self._storage_str else "Copying",
-                    unit_scale=True,
-                    postfix=self._dest_file_name,
-                    smoothing=0,
-                )
-                self._progress_bar.update(completed_part_count)
 
         raised_exception = await self._orchestrate_upload_part_tasks(async_tasks)
 
@@ -381,8 +371,14 @@ class UploadAttemptAsync:
                 "Part upload failed"
             ) from raised_exception
 
+    def _update_progress_bar(self, part_size: int) -> None:
+        """Update the progress bar with the given part size."""
+        if self._syn.silent or not self._progress_bar:
+            return
+        self._progress_bar.update(1 if self._is_copy() else part_size)
+
     async def _orchestrate_upload_part_tasks(
-        self, async_tasks
+        self, async_tasks: List[asyncio.Task]
     ) -> Union[Exception, KeyboardInterrupt, None]:
         """
         Orchestrate the result of the upload part tasks. If successful, send a
@@ -423,11 +419,7 @@ class UploadAttemptAsync:
                         )
                     )
 
-                    if not self._syn.silent and self._progress_bar:
-                        if self._is_copy():
-                            self._progress_bar.update(1)
-                        elif part_size:
-                            self._progress_bar.update(part_size)
+                    self._update_progress_bar(part_size=part_size)
 
                 except (Exception, KeyboardInterrupt) as cause:
                     with self._thread_lock:
@@ -560,17 +552,15 @@ class UploadAttemptAsync:
                 ):
                     trace.get_current_span().set_attributes({"url.path": part_url})
                     response = with_retry_time_based(
-                        lambda: session.put(
+                        lambda part_url=part_url, signed_headers=signed_headers: session.put(
                             url=part_url,
                             content=body,  # noqa: F821
                             headers=signed_headers,
                         ),
                         retry_exceptions=[requests.exceptions.ConnectionError],
                     )
-                try:
-                    _raise_for_status(response)
-                except Exception as ex:
-                    raise ex
+
+                _raise_for_status_httpx(response=response, logger=self._syn.logger)
 
                 # completed upload part to s3 successfully
                 break
@@ -579,7 +569,7 @@ class UploadAttemptAsync:
                 if ex.response.status_code == 403 and retry < 1:
                     # we interpret this to mean our pre_signed url expired.
                     self._syn.logger.debug(
-                        f"The pre-signed upload URL for part {part_number} has expired."
+                        f"The pre-signed upload URL for part {part_number} has expired. "
                         "Refreshing urls and retrying.\n"
                     )
 
@@ -683,7 +673,8 @@ async def multipart_upload_file_async(
             "storageLocationId": storage_location_id,
         }
 
-        def part_fn(part_number):
+        def part_fn(part_number: int) -> bytes:
+            """Return the nth chunk of a file."""
             return get_file_chunk(file_path, part_number, part_size)
 
         return await _multipart_upload_async(
@@ -691,7 +682,7 @@ async def multipart_upload_file_async(
             dest_file_name,
             upload_request,
             part_fn,
-            md5_fn,
+            md5_fn_util,
             force_restart=force_restart,
             storage_str=storage_str,
         )
@@ -702,10 +693,10 @@ async def multipart_upload_file_async(
 )
 async def _multipart_upload_async(
     syn: "Synapse",
-    dest_file_name,
-    upload_request,
-    part_fn,
-    md5_fn,
+    dest_file_name: str,
+    upload_request: Dict[str, Any],
+    part_fn: Callable[[int], bytes],
+    md5_fn: Callable[[bytes, httpx.Response], str],
     force_restart: bool = False,
     storage_str: str = None,
 ) -> str:
@@ -757,7 +748,7 @@ async def _multipart_upload_async(
 
 @tracer.start_as_current_span("multipart_upload::multipart_upload_string")
 async def multipart_upload_string_async(
-    syn,
+    syn: "Synapse",
     text: str,
     dest_file_name: str = None,
     part_size: int = None,
@@ -789,7 +780,7 @@ async def multipart_upload_string_async(
     """
     data = text.encode("utf-8")
     file_size = len(data)
-    md5_hex = md5_fn(data, None)
+    md5_hex = md5_fn_util(data, None)
 
     if not dest_file_name:
         dest_file_name = "message.txt"
@@ -812,7 +803,8 @@ async def multipart_upload_string_async(
         "storageLocationId": storage_location_id,
     }
 
-    def part_fn(part_number):
+    def part_fn(part_number: int) -> bytes:
+        """Get the nth chunk of a buffer."""
         return get_data_chunk(data, part_number, part_size)
 
     part_size = get_part_size(
@@ -823,15 +815,15 @@ async def multipart_upload_string_async(
         dest_file_name,
         upload_request,
         part_fn,
-        md5_fn,
+        md5_fn_util,
         force_restart=force_restart,
     )
 
 
 @tracer.start_as_current_span("multipart_upload::multipart_copy")
 async def multipart_copy_async(
-    syn,
-    source_file_handle_association,
+    syn: "Synapse",
+    source_file_handle_association: Dict[str, str],
     dest_file_name: str = None,
     part_size: int = None,
     storage_location_id: str = None,
