@@ -609,9 +609,15 @@ class File(FileSynchronousProtocol, AccessControllable):
             """
             try:
                 await self._load_local_md5(syn)
-                file_copy = dataclasses.replace(self)
-                file_copy.id = existing_id
-                file_copy.download_file = False
+                file_copy = File(
+                    id=existing_id,
+                    path=self.path,
+                    download_file=False,
+                    version_number=self.version_number,
+                    synapse_container_limit=self.synapse_container_limit,
+                    parent_id=self.parent_id,
+                    content_md5=self.content_md5,
+                )
                 return await file_copy.get_async(synapse_client=synapse_client)
             except SynapseFileNotFoundError:
                 return None
