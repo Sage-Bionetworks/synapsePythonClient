@@ -8,6 +8,7 @@ import cgi
 import collections.abc
 import datetime
 import errno
+import gc
 import hashlib
 import importlib
 import inspect
@@ -121,9 +122,11 @@ async def md5_for_file_multiprocessing(
     """
     with tracer.start_as_current_span("Utils::md5_for_file_multiprocessing"):
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
+        result = await loop.run_in_executor(
             process_pool_executor, md5_for_file_hex, filename, block_size
         )
+        gc.collect()
+        return result
 
 
 @tracer.start_as_current_span("Utils::md5_fn")

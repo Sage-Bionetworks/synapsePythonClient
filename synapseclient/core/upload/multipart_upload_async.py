@@ -64,6 +64,7 @@ flowchart  TD
 
 # pylint: disable=protected-access
 import asyncio
+import gc
 import mimetypes
 import os
 import threading
@@ -513,6 +514,7 @@ class UploadAttemptAsync:
             md5_hex = self._md5_fn(body, response)
             del response
             del body
+            gc.collect()
 
             # # remove so future batch pre_signed url fetches will exclude this part
             with self._thread_lock:
