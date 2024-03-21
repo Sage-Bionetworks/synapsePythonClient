@@ -132,7 +132,7 @@ async def md5_for_file_multiprocessing(
                 md5_for_file_hex, filename, block_size
             )
             while not future.done():
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0)
             result = future.result()
             return result
 
