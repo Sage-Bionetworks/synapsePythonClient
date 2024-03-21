@@ -8,6 +8,7 @@ import cgi
 import collections.abc
 import datetime
 import errno
+import gc
 import hashlib
 import importlib
 import inspect
@@ -66,9 +67,11 @@ def md5_for_file(
     Returns:
         The MD5 Checksum
     """
+    loop_iteration = 0
     md5 = hashlib.new("md5", usedforsecurity=False)
     with open(filename, "rb") as f:
         while True:
+            loop_iteration += 1
             if callback:
                 callback()
             data = f.read(block_size)
@@ -76,6 +79,9 @@ def md5_for_file(
                 break
             md5.update(data)
             del data
+            # Garbage collect every 100 iterations
+            if loop_iteration % 100 == 0:
+                gc.collect()
     return md5
 
 
@@ -126,7 +132,6 @@ async def md5_for_file_multiprocessing(
                 md5_for_file_hex, filename, block_size
             )
             while not future.done():
-                # 0 sleep allows this to yield control to the event loop
                 await asyncio.sleep(0)
             result = future.result()
             return result
