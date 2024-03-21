@@ -128,10 +128,13 @@ async def md5_for_file_multiprocessing(
     """
     with tracer.start_as_current_span("Utils::md5_for_file_multiprocessing"):
         async with md5_semaphore:
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                process_pool_executor, md5_for_file_hex, filename, block_size
+            future = process_pool_executor.submit(
+                md5_for_file_hex, filename, block_size
             )
+            while not future.done():
+                await asyncio.sleep(0.1)
+            result = future.result()
+            return result
 
 
 @tracer.start_as_current_span("Utils::md5_fn")
