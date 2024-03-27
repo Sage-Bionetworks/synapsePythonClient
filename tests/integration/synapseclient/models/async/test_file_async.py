@@ -571,7 +571,7 @@ class TestFileStore:
             == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
         )
         assert file.file_handle.content_type == CONTENT_TYPE
-        assert file.file_handle.content_md5 is not None
+        assert file.file_handle.content_md5 is None
         assert file.file_handle.file_name is not None
         assert file.file_handle.content_size is None
         assert file.file_handle.status is not None

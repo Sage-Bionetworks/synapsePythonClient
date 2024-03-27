@@ -596,7 +596,6 @@ class File(FileSynchronousProtocol, AccessControllable):
         """Determines if the file already exists in Synapse. If it does it will return
         the file object, otherwise it will return None. This is used to determine if the
         file should be updated or created."""
-        syn = Synapse.get_client(synapse_client=synapse_client)
 
         async def get_file(existing_id: str) -> "File":
             """Small wrapper to retrieve a file instance without raising an error if it
@@ -609,15 +608,12 @@ class File(FileSynchronousProtocol, AccessControllable):
                 The file object if it exists, otherwise None.
             """
             try:
-                await self._load_local_md5(syn)
                 file_copy = File(
                     id=existing_id,
-                    path=self.path,
                     download_file=False,
                     version_number=self.version_number,
                     synapse_container_limit=self.synapse_container_limit,
                     parent_id=self.parent_id,
-                    content_md5=self.content_md5,
                 )
                 return await file_copy.get_async(synapse_client=synapse_client)
             except SynapseFileNotFoundError:
@@ -627,14 +623,11 @@ class File(FileSynchronousProtocol, AccessControllable):
             self.create_or_update
             and not self._last_persistent_instance
             and (
-                (
-                    existing_file_id := await get_id(
-                        entity=self,
-                        failure_strategy=None,
-                        synapse_client=synapse_client,
-                    )
+                existing_file_id := await get_id(
+                    entity=self,
+                    failure_strategy=None,
+                    synapse_client=synapse_client,
                 )
-                or self.path
             )
             and (existing_file := await get_file(existing_file_id))
         ):
