@@ -20,13 +20,13 @@ from synapseclient.core.exceptions import (
 )
 
 if TYPE_CHECKING:
-    from synapseclient.models import Folder, Project
+    from synapseclient.models import Folder, Project, File
 
 tracer = trace.get_tracer("synapseclient")
 
 
 async def get_id(
-    entity: Union["Project", "Folder"],
+    entity: Union["Project", "Folder", "File"],
     failure_strategy: Optional[FailureStrategy] = FailureStrategy.RAISE_EXCEPTION,
     synapse_client: Optional[Synapse] = None,
 ) -> Union[str, None]:

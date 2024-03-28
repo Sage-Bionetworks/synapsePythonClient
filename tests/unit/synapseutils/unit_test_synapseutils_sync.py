@@ -920,7 +920,11 @@ class TestSyncUploader:
             )
 
         mock_store.assert_called_once_with(
-            item.entity, used=used, executed=executed, **item.store_kwargs
+            item.entity,
+            used=used,
+            executed=executed,
+            **item.store_kwargs,
+            async_file_handle_upload=False,
         )
 
         # item should be finished and removed from pending provenance

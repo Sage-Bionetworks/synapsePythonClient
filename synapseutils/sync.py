@@ -549,9 +549,9 @@ class _SyncUploader:
 
     def __init__(
         self,
-        syn,
+        syn: Synapse,
         executor: concurrent.futures.Executor,
-        max_concurrent_file_transfers=None,
+        max_concurrent_file_transfers: int = None,
     ):
         """
         Arguments:
@@ -745,7 +745,11 @@ class _SyncUploader:
 
                 with progress.accumulate_progress():
                     entity = self._syn.store(
-                        item.entity, used=used, executed=executed, **item.store_kwargs
+                        item.entity,
+                        used=used,
+                        executed=executed,
+                        **item.store_kwargs,
+                        async_file_handle_upload=False,
                     )
 
                 with dependency_condition:

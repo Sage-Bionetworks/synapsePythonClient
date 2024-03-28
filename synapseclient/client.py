@@ -2,6 +2,8 @@
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
 """
+import asyncio
+import asyncio_atexit
 import collections
 import collections.abc
 import configparser
@@ -30,6 +32,9 @@ import zipfile
 import httpx
 
 from deprecated import deprecated
+
+from concurrent.futures import ThreadPoolExecutor
+from loky import get_reusable_executor
 
 import synapseclient
 from .annotations import (
@@ -91,7 +96,7 @@ from synapseclient.core.logging_setup import (
     SILENT_LOGGER_NAME,
 )
 from synapseclient.core.version_check import version_check
-from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
+from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS, get_executor
 from synapseclient.core.utils import (
     id_of,
     get_properties,
@@ -105,22 +110,26 @@ from synapseclient.core.utils import (
 )
 from synapseclient.core.retry import (
     with_retry,
-    with_retry_async,
+    with_retry_time_based_async,
     DEFAULT_RETRY_STATUS_CODES,
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
 )
 from synapseclient.core import sts_transfer
-from synapseclient.core.upload.multipart_upload import (
-    multipart_upload_file,
-    multipart_upload_string,
+from synapseclient.core.upload.multipart_upload_async import (
+    multipart_upload_file_async,
+    multipart_upload_string_async,
 )
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.upload_functions import (
     upload_file_handle,
+)
+from synapseclient.core.upload.upload_functions_async import (
+    upload_file_handle as upload_file_handle_async,
     upload_synapse_s3,
 )
 from synapseclient.core.dozer import doze
+from synapseclient.core.async_utils import wrap_async_to_sync
 
 from typing import Any, Union, Dict, List, Optional, Tuple
 from synapseclient.core.models.permission import Permissions
@@ -259,7 +268,7 @@ class Synapse(object):
         cache_root_dir: str = None,
         silent: bool = None,
         requests_session_async_synapse: httpx.AsyncClient = None,
-        requests_session_async_storage: httpx.AsyncClient = None,
+        requests_session_storage: httpx.Client = None,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -278,7 +287,7 @@ class Synapse(object):
             silent:             Suppresses message.
             requests_session_async_synapse: The HTTPX Async client for interacting with
                 Synapse services.
-            requests_session_async_storage: The HTTPX Async client for interacting with
+            requests_session_storage: The HTTPX client for interacting with
                 storage providers like AWS S3 and Google Cloud.
 
         Raises:
@@ -286,20 +295,21 @@ class Synapse(object):
         """
         self._requests_session = requests_session or requests.Session()
 
-        httpx_timeout = httpx.Timeout(70)
-        self._requests_session_async_synapse = (
-            requests_session_async_synapse
-            or httpx.AsyncClient(
-                limits=httpx.Limits(max_connections=25),
-                timeout=httpx_timeout,
-            )
-        )
+        # `requests_session_async_synapse` and the thread pools are being stored in
+        # a dict based on the current thread ID to handle for cases where someone
+        # using the client may be using multiple threads to execute this code. This is
+        # what the `test_caching.py` integration test is doing.
+        current_tid = str(threading.get_ident())
+        if requests_session_async_synapse:
+            self._requests_session_async_synapse = {
+                current_tid: requests_session_async_synapse
+            }
+        else:
+            self._requests_session_async_synapse = {}
 
-        self._requests_session_async_storage = (
-            requests_session_async_storage
-            or httpx.AsyncClient(
-                timeout=httpx_timeout,
-            )
+        httpx_timeout = httpx.Timeout(70)
+        self._requests_session_storage = requests_session_storage or httpx.Client(
+            timeout=httpx_timeout
         )
 
         cache_root_dir = (
@@ -349,7 +359,130 @@ class Synapse(object):
 
         transfer_config = self._get_transfer_config()
         self.max_threads = transfer_config["max_threads"]
+        self._thread_executor = {}
+        self._process_executor = {}
+        self._md5_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
+
+    def _get_requests_session_async_synapse(self) -> httpx.AsyncClient:
+        """
+        httpx.AsyncClient can only use connection pooling within the same event loop.
+        As a result an `atexit` handler is used to close the connection when the event
+        loop is closed. It will also delete the attribute from the object to prevent
+        it from being reused in the future.
+
+        Further documentation can be found here:
+        <https://github.com/encode/httpx/discussions/2959>
+
+
+        As a result of this issue: It is recommended to use the same event loop for all
+        requests. This means to enter into an event loop before making any requests.
+
+        This is expected to be called from within an AsyncIO loop.
+        """
+        current_tid = str(threading.get_ident())
+        if (
+            hasattr(self, "_requests_session_async_synapse")
+            and current_tid in self._requests_session_async_synapse
+            and self._requests_session_async_synapse[current_tid] is not None
+        ):
+            return self._requests_session_async_synapse[current_tid]
+
+        async def close_connection() -> None:
+            """Close connection when event loop exits"""
+            await self._requests_session_async_synapse[current_tid].aclose()
+            del self._requests_session_async_synapse[current_tid]
+
+        httpx_timeout = httpx.Timeout(70)
+
+        self._requests_session_async_synapse.update(
+            {
+                current_tid: httpx.AsyncClient(
+                    limits=httpx.Limits(max_connections=25),
+                    timeout=httpx_timeout,
+                )
+            }
+        )
+
+        asyncio_atexit.register(close_connection)
+        return self._requests_session_async_synapse[current_tid]
+
+    def _get_thread_pool_executor(self) -> ThreadPoolExecutor:
+        """
+        Retrieve the thread pool executor for the Synapse client. Or create a new one if
+        it does not exist. This executor is used for concurrent uploads of data to
+        storage providers like AWS S3 and Google Cloud Storage.
+
+        This is expected to be called from within an AsyncIO loop.
+        """
+        current_tid = str(threading.get_ident())
+        if (
+            hasattr(self, "_thread_executor")
+            and current_tid in self._thread_executor
+            and self._thread_executor[current_tid] is not None
+        ):
+            return self._thread_executor[current_tid]
+
+        def close_pool() -> None:
+            """Close pool when event loop exits"""
+            self._thread_executor[current_tid].shutdown(wait=True)
+            del self._thread_executor[current_tid]
+
+        self._thread_executor.update(
+            {current_tid: get_executor(thread_count=self.max_threads)}
+        )
+
+        asyncio_atexit.register(close_pool)
+        return self._thread_executor[current_tid]
+
+    def _get_process_pool_executor(self):
+        """
+        Retrieve the process pool executor for the Synapse client. Or create a new one
+        if it does not exist. This executor is used for parallel processing of data.
+
+        This is expected to be called from within an AsyncIO loop.
+
+        Note: Within Windows a ProcessPoolExecutor requires that the initial entry point
+        into the code be within a `if __name__ == "__main__":` block. This is not
+        possible within the current codebase as it would require everyone using this
+        library to have this as their entry point. As a result, the ProcessPoolExecutor
+        will not work within Windows.
+
+        To get around this Windows limitation this is using this package:
+        https://github.com/joblib/loky
+        """
+        current_pid = str(os.getpid())
+        if (
+            hasattr(self, "_process_executor")
+            and current_pid in self._process_executor
+            and self._process_executor[current_pid] is not None
+        ):
+            return self._process_executor[current_pid]
+
+        self._process_executor.update({current_pid: get_reusable_executor(1)})
+
+        return self._process_executor[current_pid]
+
+    def _get_md5_semaphore(self) -> asyncio.Semaphore:
+        """
+        Retrieve the semaphore for the Synapse client. Or create a new one if it does not
+        exist. This semaphore is used to ensure that only one process is calculating the
+        MD5 hash at a time. This is to prevent the custom process pool executor from
+        thrashing or handling the waiting. We should let asyncio handle the waiting.
+
+        This is expected to be called from within an AsyncIO loop.
+        """
+        current_pid = str(os.getpid())
+        if (
+            hasattr(self, "_md5_semaphore")
+            and current_pid in self._md5_semaphore
+            and self._md5_semaphore[current_pid] is not None
+        ):
+            return self._md5_semaphore[current_pid]
+
+        self._md5_semaphore.update({current_pid: asyncio.Semaphore(1)})
+
+        return self._md5_semaphore[current_pid]
 
     # initialize logging
     def _init_logger(self):
@@ -1074,6 +1207,8 @@ class Synapse(object):
             limitSearch:      A Synanpse ID used to limit the search in Synapse if entity is specified as a local
                                 file.  That is, if the file is stored in multiple locations in Synapse only the ones
                                 in the specified folder/project will be returned.
+            md5: The MD5 checksum for the file, if known. Otherwise if the file is a
+                local file, it will be calculated automatically.
 
         Returns:
             A new Synapse Entity object of the appropriate type.
@@ -1098,7 +1233,9 @@ class Synapse(object):
         """
         # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, str) and os.path.isfile(entity):
-            bundle = self._getFromFile(entity, kwargs.pop("limitSearch", None))
+            bundle = self._getFromFile(
+                entity, kwargs.pop("limitSearch", None), md5=kwargs.get("md5", None)
+            )
             kwargs["downloadFile"] = False
             kwargs["path"] = entity
 
@@ -1168,7 +1305,9 @@ class Synapse(object):
             warnings.warn(warning_message)
 
     @tracer.start_as_current_span("Synapse::_getFromFile")
-    def _getFromFile(self, filepath: str, limitSearch: str = None) -> Dict[str, dict]:
+    def _getFromFile(
+        self, filepath: str, limitSearch: str = None, md5: str = None
+    ) -> Dict[str, dict]:
         """
         Gets a Synapse entityBundle based on the md5 of a local file.
         See [get][synapseclient.Synapse.get].
@@ -1176,6 +1315,9 @@ class Synapse(object):
         Arguments:
             filepath:    The path to local file
             limitSearch: Limits the places in Synapse where the file is searched for.
+            md5: The MD5 checksum for the file, if known. Otherwise if the file is a
+                local file, it will be calculated automatically.
+
 
         Raises:
             SynapseFileNotFoundError: If the file is not in Synapse.
@@ -1184,7 +1326,7 @@ class Synapse(object):
             A Synapse entityBundle
         """
         results = self.restGET(
-            "/entity/md5/%s" % utils.md5_for_file(filepath).hexdigest()
+            "/entity/md5/%s" % (md5 or utils.md5_for_file(filepath).hexdigest())
         )["results"]
         if limitSearch is not None:
             # Go through and find the path of every entity found
@@ -1521,6 +1663,7 @@ class Synapse(object):
         activityName=None,
         activityDescription=None,
         set_annotations=True,
+        async_file_handle_upload: bool = True,
     ):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
@@ -1543,6 +1686,11 @@ class Synapse(object):
                             You will be contacted with regards to the specific data being restricted and the
                             requirements of access.
             set_annotations: If True, set the annotations on the entity. If False, do not set the annotations.
+            async_file_handle_upload: Temporary feature flag that will be removed at an
+                unannounced later date. This is used during the Synapse Utils
+                syncToSynapse to disable the async file handle upload. The is because
+                the multi-threaded logic in the syncToSynapse is not compatible with
+                the async file handle upload.
 
         Returns:
             A Synapse Entity, Evaluation, or Wiki
@@ -1701,18 +1849,38 @@ class Synapse(object):
                     raise SynapseMalformedEntityError(
                         "Entities of type File must have a parentId."
                     )
-                fileHandle = upload_file_handle(
-                    self,
-                    parent_id_for_upload,
-                    local_state["path"]
-                    if (synapseStore or local_state_fh.get("externalURL") is None)
-                    else local_state_fh.get("externalURL"),
-                    synapseStore=synapseStore,
-                    md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
-                    file_size=local_state_fh.get("contentSize"),
-                    mimetype=local_state_fh.get("contentType"),
-                    max_threads=self.max_threads,
-                )
+
+                if async_file_handle_upload:
+                    fileHandle = wrap_async_to_sync(
+                        upload_file_handle_async(
+                            self,
+                            parent_id_for_upload,
+                            local_state["path"]
+                            if (
+                                synapseStore
+                                or local_state_fh.get("externalURL") is None
+                            )
+                            else local_state_fh.get("externalURL"),
+                            synapse_store=synapseStore,
+                            md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
+                            file_size=local_state_fh.get("contentSize"),
+                            mimetype=local_state_fh.get("contentType"),
+                        ),
+                        self,
+                    )
+                else:
+                    fileHandle = upload_file_handle(
+                        self,
+                        parent_id_for_upload,
+                        local_state["path"]
+                        if (synapseStore or local_state_fh.get("externalURL") is None)
+                        else local_state_fh.get("externalURL"),
+                        synapseStore=synapseStore,
+                        md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
+                        file_size=local_state_fh.get("contentSize"),
+                        mimetype=local_state_fh.get("contentType"),
+                        max_threads=self.max_threads,
+                    )
                 properties["dataFileHandleId"] = fileHandle["id"]
                 local_state["_file_handle"] = fileHandle
 
@@ -2106,8 +2274,11 @@ class Synapse(object):
         Returns:
             A dict of a new FileHandle as a dict that represents the uploaded file
         """
-        return upload_file_handle(
-            self, parent, path, synapseStore, md5, file_size, mimetype
+        return wrap_async_to_sync(
+            upload_file_handle_async(
+                self, parent, path, synapseStore, md5, file_size, mimetype
+            ),
+            self,
         )
 
     ############################################################
@@ -4753,7 +4924,9 @@ class Synapse(object):
         # Convert all attachments into file handles
         if wiki.get("attachments") is not None:
             for attachment in wiki["attachments"]:
-                fileHandle = upload_synapse_s3(self, attachment)
+                fileHandle = wrap_async_to_sync(
+                    upload_synapse_s3(self, attachment), self
+                )
                 wiki["attachmentFileHandleIds"].append(fileHandle["id"])
             del wiki["attachments"]
 
@@ -5235,7 +5408,9 @@ class Synapse(object):
             [UploadToTableResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html)
         """
 
-        fileHandleId = multipart_upload_file(self, filepath, content_type="text/csv")
+        fileHandleId = wrap_async_to_sync(
+            multipart_upload_file_async(self, filepath, content_type="text/csv"), self
+        )
 
         uploadRequest = {
             "concreteType": "org.sagebionetworks.repo.model.table.UploadToTableRequest",
@@ -5786,8 +5961,9 @@ class Synapse(object):
             The metadata of the created message
         """
 
-        fileHandleId = multipart_upload_string(
-            self, messageBody, content_type=contentType
+        fileHandleId = wrap_async_to_sync(
+            multipart_upload_string_async(self, messageBody, content_type=contentType),
+            self,
         )
         message = dict(
             recipients=userIds, subject=messageSubject, fileHandleId=fileHandleId
@@ -6071,7 +6247,7 @@ class Synapse(object):
     def _build_retry_policy_async(
         self, retry_policy: Dict[str, Any] = {}
     ) -> Dict[str, Any]:
-        """Returns a retry policy to be passed onto _with_retry_async."""
+        """Returns a retry policy to be passed onto with_retry_time_based_async."""
 
         defaults = dict(STANDARD_RETRY_ASYNC_PARAMS)
         defaults.update(retry_policy)
@@ -6108,7 +6284,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry.with_retry_async][].
+                [synapseclient.core.retry.with_retry_time_based_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6123,13 +6299,13 @@ class Synapse(object):
 
         retry_policy = self._build_retry_policy_async(retry_policy)
         requests_session = (
-            requests_session_async_synapse or self._requests_session_async_synapse
+            requests_session_async_synapse or self._get_requests_session_async_synapse()
         )
 
         auth = kwargs.pop("auth", self.credentials)
         requests_method_fn = getattr(requests_session, method)
         if data:
-            response = await with_retry_async(
+            response = await with_retry_time_based_async(
                 lambda: requests_method_fn(
                     uri,
                     content=data,
@@ -6141,7 +6317,7 @@ class Synapse(object):
                 **retry_policy,
             )
         else:
-            response = await with_retry_async(
+            response = await with_retry_time_based_async(
                 lambda: requests_method_fn(
                     uri,
                     headers=headers,
@@ -6172,7 +6348,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry.with_retry_async][].
+                [synapseclient.core.retry.with_retry_time_based_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6213,11 +6389,11 @@ class Synapse(object):
 
         Arguments:
             uri: URI on which get is performed
-            endpoint: Server endpoint, defaults to self.repoEndpoint
             body: The payload to be delivered
+            endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry.with_retry_async][].
+                [synapseclient.core.retry.with_retry_time_based_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6259,7 +6435,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry.with_retry_async][].
+                [synapseclient.core.retry.with_retry_time_based_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call.
             kwargs: Any other arguments taken by a
@@ -6299,7 +6475,7 @@ class Synapse(object):
             endpoint: Server endpoint, defaults to self.repoEndpoint
             headers: Dictionary of headers to use.
             retry_policy: A retry policy that matches the arguments of
-                [synapseclient.core.retry.with_retry_async][].
+                [synapseclient.core.retry.with_retry_time_based_async][].
             requests_session_async_synapse: The async client to use when making this
                 specific call
             kwargs: Any other arguments taken by a [request](https://www.python-httpx.org/api/) method

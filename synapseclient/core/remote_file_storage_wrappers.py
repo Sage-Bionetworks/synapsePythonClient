@@ -1,12 +1,14 @@
-from contextlib import contextmanager
-import os
-import time
-import typing
-import multiprocessing
-import urllib.parse as urllib_parse
+"""Wrappers for remote file storage clients like S3 and SFTP."""
 
-from synapseclient.core.retry import with_retry
+import os
+import typing
+import urllib.parse as urllib_parse
+from contextlib import contextmanager
+
+from tqdm import tqdm
+
 from synapseclient.core.cumulative_transfer_progress import printTransferProgress
+from synapseclient.core.retry import with_retry
 from synapseclient.core.utils import attempt_import
 
 
@@ -35,7 +37,7 @@ class S3ClientWrapper:
 
     @staticmethod
     def _create_progress_callback_func(
-        file_size: int, filename: str, prefix: str = None
+        progress_bar: tqdm,
     ) -> callable:
         """
         Creates a progress callback function for tracking the progress of a file transfer.
@@ -48,26 +50,15 @@ class S3ClientWrapper:
         Returns:
             progress_callback: The progress callback function.
         """
-        bytes_transferred = multiprocessing.Value("d", 0)
-        t0 = time.time()
 
-        def progress_callback(bytes: int) -> None:
+        def progress_callback(transferred_bytes: int) -> None:
             """
             Update the progress of a transfer.
 
             Arguments:
                 bytes: The number of bytes transferred.
             """
-            with bytes_transferred.get_lock():
-                bytes_transferred.value += bytes
-                printTransferProgress(
-                    bytes_transferred.value,
-                    file_size,
-                    prefix=prefix,
-                    postfix=filename,
-                    dt=time.time() - t0,
-                    previouslyTransferred=0,
-                )
+            progress_bar.update(transferred_bytes)
 
         return progress_callback
 
@@ -112,8 +103,8 @@ class S3ClientWrapper:
 
         S3ClientWrapper._attempt_import_boto3()
 
-        import botocore
         import boto3.s3.transfer
+        import botocore
 
         transfer_config = boto3.s3.transfer.TransferConfig(
             **(transfer_config_kwargs or {})
@@ -127,14 +118,21 @@ class S3ClientWrapper:
             s3_obj = s3.Object(bucket, remote_file_key)
 
             progress_callback = None
+            progress_bar = None
             if show_progress:
                 s3_obj.load()
                 file_size = s3_obj.content_length
                 filename = os.path.basename(download_file_path)
+                progress_bar = tqdm(
+                    total=file_size,
+                    desc="Downloading",
+                    unit="B",
+                    unit_scale=True,
+                    postfix=filename,
+                    smoothing=0,
+                )
                 progress_callback = S3ClientWrapper._create_progress_callback_func(
-                    file_size,
-                    filename,
-                    prefix="Downloading",
+                    progress_bar
                 )
 
             s3_obj.download_file(
@@ -142,6 +140,8 @@ class S3ClientWrapper:
                 Callback=progress_callback,
                 Config=transfer_config,
             )
+            if progress_bar:
+                progress_bar.close()
 
             # why return what we were passed...?
             return download_file_path
@@ -157,7 +157,7 @@ class S3ClientWrapper:
     @staticmethod
     def upload_file(
         bucket: str,
-        endpoint_url: str,
+        endpoint_url: typing.Optional[str],
         remote_file_key: str,
         upload_file_path: str,
         *,
@@ -165,6 +165,7 @@ class S3ClientWrapper:
         credentials: typing.Dict[str, str] = None,
         show_progress: bool = True,
         transfer_config_kwargs: dict = None,
+        storage_str: str = None,
     ) -> str:
         """
         Upload a file to s3 using boto3.
@@ -210,11 +211,20 @@ class S3ClientWrapper:
         s3 = boto_session.resource("s3", endpoint_url=endpoint_url)
 
         progress_callback = None
+        progress_bar = None
         if show_progress:
             file_size = os.stat(upload_file_path).st_size
             filename = os.path.basename(upload_file_path)
+            progress_bar = tqdm(
+                total=file_size,
+                desc=storage_str,
+                unit="B",
+                unit_scale=True,
+                postfix=filename,
+                smoothing=0,
+            )
             progress_callback = S3ClientWrapper._create_progress_callback_func(
-                file_size, filename, prefix="Uploading"
+                progress_bar
             )
 
         # automatically determines whether to perform multi-part upload
@@ -225,6 +235,8 @@ class S3ClientWrapper:
             Config=transfer_config,
             ExtraArgs={"ACL": "bucket-owner-full-control"},
         )
+        if progress_bar:
+            progress_bar.close()
         return upload_file_path
 
 
@@ -261,7 +273,11 @@ class SFTPWrapper:
 
     @staticmethod
     def upload_file(
-        filepath: str, url: str, username: str = None, password: str = None
+        filepath: str,
+        url: str,
+        username: str = None,
+        password: str = None,
+        storage_str: str = None,
     ) -> str:
         """
         Performs upload of a local file to an sftp server.
@@ -276,14 +292,27 @@ class SFTPWrapper:
         Returns:
             The URL of the uploaded file.
         """
+        progress_bar = tqdm(
+            desc=storage_str,
+            unit="B",
+            unit_scale=True,
+            smoothing=0,
+            postfix=filepath,
+        )
+
+        def progress_callback(*args, **kwargs) -> None:
+            if not progress_bar.total:
+                progress_bar.total = args[1]
+            progress_bar.update(args[0] - progress_bar.n)
+
         parsedURL = SFTPWrapper._parse_for_sftp(url)
         with _retry_pysftp_connection(
             parsedURL.hostname, username=username, password=password
         ) as sftp:
             sftp.makedirs(parsedURL.path)
             with sftp.cd(parsedURL.path):
-                sftp.put(filepath, preserve_mtime=True, callback=printTransferProgress)
-
+                sftp.put(filepath, preserve_mtime=True, callback=progress_callback)
+        progress_bar.close()
         path = urllib_parse.quote(parsedURL.path + "/" + os.path.split(filepath)[-1])
         parsedURL = parsedURL._replace(path=path)
         return urllib_parse.urlunparse(parsedURL)

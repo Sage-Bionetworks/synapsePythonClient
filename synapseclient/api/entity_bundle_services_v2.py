@@ -3,15 +3,16 @@
 """
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
-from synapseclient import Synapse
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 
 async def get_entity_id_bundle2(
     entity_id: str,
     request: Optional[Dict[str, bool]] = None,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     Arguments:
@@ -31,6 +32,8 @@ async def get_entity_id_bundle2(
         The requested entity bundle matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/entitybundle/v2/EntityBundle.html>
     """
+    from synapseclient import Synapse
+
     if not request:
         request = {
             "includeEntity": True,
@@ -38,6 +41,7 @@ async def get_entity_id_bundle2(
             "includeFileHandles": True,
             "includeRestrictionInformation": True,
         }
+
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_post_async(
         uri=f"/entity/{entity_id}/bundle2",
@@ -49,7 +53,7 @@ async def get_entity_id_version_bundle2(
     entity_id: str,
     version: int,
     request: Optional[Dict[str, bool]] = None,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     Arguments:
@@ -70,6 +74,8 @@ async def get_entity_id_version_bundle2(
         The requested entity bundle matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/entitybundle/v2/EntityBundle.html>
     """
+    from synapseclient import Synapse
+
     if not request:
         request = {
             "includeEntity": True,
@@ -87,7 +93,7 @@ async def get_entity_id_version_bundle2(
 async def post_entity_bundle2_create(
     request: Dict[str, Any],
     generated_by: Optional[str] = None,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     Arguments:
@@ -101,6 +107,8 @@ async def post_entity_bundle2_create(
         The requested entity bundle matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/entitybundle/v2/EntityBundle.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_post_async(
         uri="/entity/bundle2/create"
@@ -113,7 +121,7 @@ async def put_entity_id_bundle2(
     entity_id: str,
     request: Dict[str, Any],
     generated_by: Optional[str] = None,
-    synapse_client: Optional[Synapse] = None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     Arguments:
@@ -128,6 +136,8 @@ async def put_entity_id_bundle2(
         The requested entity bundle matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/entitybundle/v2/EntityBundle.html>
     """
+    from synapseclient import Synapse
+
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_put_async(
         uri=f"/entity/{entity_id}/bundle2"

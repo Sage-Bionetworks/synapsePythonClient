@@ -19,6 +19,14 @@ functions.  Use at your own risk.
         - multipart_copy
         - _multipart_upload
 
+
+## Upload Async
+::: synapseclient.core.upload.upload_functions_async
+
+## Multipart Upload Async
+
+::: synapseclient.core.upload.multipart_upload_async
+
 ## Multithreaded Downloading
 ::: synapseclient.core.multithread_download
 
@@ -36,7 +44,6 @@ functions.  Use at your own risk.
 ## Retry
 
 ::: synapseclient.core.retry
-
 
 ## Utils
 

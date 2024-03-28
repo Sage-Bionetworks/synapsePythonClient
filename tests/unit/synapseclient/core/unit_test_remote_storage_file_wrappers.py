@@ -1,9 +1,8 @@
-import botocore.exceptions
-import os.path
 import urllib.parse as urllib_parse
-
-import pytest
 from unittest import mock
+
+import botocore.exceptions
+import pytest
 
 from synapseclient.core import remote_file_storage_wrappers
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
@@ -11,7 +10,7 @@ from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFT
 
 class TestS3ClientWrapper:
     @mock.patch.object(remote_file_storage_wrappers, "attempt_import")
-    def test_download__import_error(self, mock_attempt_import):
+    def test_download__import_error(self, mock_attempt_import) -> None:
         """Verify an error importing boto3 is raised as expected"""
         mock_attempt_import.side_effect = ImportError("can't import boto3")
 
@@ -26,7 +25,7 @@ class TestS3ClientWrapper:
             )
 
     @staticmethod
-    def _download_test(**kwargs):
+    def _download_test(**kwargs) -> None:
         bucket_name = "foo_bucket"
         remote_file_key = "foo/bar/baz"
         download_file_path = "/tmp/download"
@@ -39,6 +38,13 @@ class TestS3ClientWrapper:
         ) as mock_create_progress_callback, mock.patch(
             "boto3.s3.transfer.TransferConfig"
         ) as mock_TransferConfig:
+            # Create a mock object for s3.Object with content_length set to an integer
+            mock_s3_object = mock.Mock(content_length=1234)
+            # Make resource().Object return the mock object
+            mock_boto_session.return_value.resource.return_value.Object.return_value = (
+                mock_s3_object
+            )
+
             returned_download_file_path = S3ClientWrapper.download_file(
                 bucket_name, endpoint_url, remote_file_key, download_file_path, **kwargs
             )
@@ -64,11 +70,7 @@ class TestS3ClientWrapper:
             progress_callback = None
             if kwargs.get("show_progress", True):
                 s3_object.load.assert_called_once_with()
-                mock_create_progress_callback.assert_called_once_with(
-                    s3_object.content_length,
-                    os.path.basename(download_file_path),
-                    prefix="Downloading",
-                )
+                mock_create_progress_callback.assert_called_once()
                 progress_callback = mock_create_progress_callback.return_value
             else:
                 assert not mock_create_progress_callback.called
@@ -80,13 +82,13 @@ class TestS3ClientWrapper:
             # why do we return something we passed...?
             assert download_file_path == returned_download_file_path
 
-    def test_download__profile(self):
+    def test_download__profile(self) -> None:
         """Verify downloading using a profile name passes through to to the session."""
         self._download_test(
             profile_name="foo", transfer_config_kwargs={"max_concurency": 10}
         )
 
-    def test_download__credentials(self):
+    def test_download__credentials(self) -> None:
         """Verify downloading using a supplied credential dictionary"""
         credentials = {
             "aws_access_key_id": "foo",
@@ -96,7 +98,7 @@ class TestS3ClientWrapper:
         self._download_test(credentials=credentials, show_progress=False)
 
     @staticmethod
-    def _download_error_test(exception, raised_type):
+    def _download_error_test(exception, raised_type) -> None:
         bucket_name = "foo_bucket"
         remote_file_key = "/foo/bar/baz"
         download_file_path = "/tmp/download"
@@ -162,6 +164,7 @@ class TestS3ClientWrapper:
         ) as mock_TransferConfig, mock.patch.object(
             remote_file_storage_wrappers, "os"
         ) as mock_os:
+            mock_os.stat.return_value = mock.Mock(st_size=1234)
             returned_upload_path = S3ClientWrapper.upload_file(
                 bucket_name, endpoint_url, remote_file_key, upload_file_path, **kwargs
             )
@@ -184,23 +187,17 @@ class TestS3ClientWrapper:
             )
             transfer_config = mock_TransferConfig.return_value
 
-            progress_callback = None
             if kwargs.get("show_progress", True):
                 mock_os.stat.assert_called_once_with(upload_file_path)
-                file_size = mock_os.stat.return_value
 
                 mock_os.path.basename.assert_called_once_with(upload_file_path)
-                filename = mock_os.path.basename(upload_file_path)
-                progress_callback = S3ClientWrapper._create_progress_callback_func(
-                    file_size, filename, prefix="Uploading"
-                )
             else:
                 assert not mock_create_progress_callback.called
 
             s3_bucket.upload_file.assert_called_once_with(
                 upload_file_path,
                 remote_file_key,
-                Callback=progress_callback,
+                Callback=mock.ANY,
                 Config=transfer_config,
                 ExtraArgs={"ACL": "bucket-owner-full-control"},
             )
@@ -226,11 +223,8 @@ class TestS3ClientWrapper:
 
 class TestSftpClientWrapper:
     @mock.patch.object(remote_file_storage_wrappers, "_retry_pysftp_connection")
-    @mock.patch.object(remote_file_storage_wrappers, "printTransferProgress")
     @mock.patch.object(remote_file_storage_wrappers, "os")
-    def test_download_file(
-        self, mock_os, mock_printTransferProgress, mock_retry_pysftp_connection
-    ):
+    def test_download_file(self, mock_os, mock_retry_pysftp_connection) -> None:
         """
         Verify the download_file method that pass in the callback function according to the boolean show_progress
         """
@@ -258,7 +252,7 @@ class TestSftpClientWrapper:
             path,
             mock_local_file_path,
             preserve_mtime=True,
-            callback=mock_printTransferProgress,
+            callback=mock.ANY,
         )
 
         # test if localFilepath is None
@@ -276,14 +270,11 @@ class TestSftpClientWrapper:
             path,
             "/home/foo/bar",
             preserve_mtime=True,
-            callback=mock_printTransferProgress,
+            callback=mock.ANY,
         )
 
     @mock.patch.object(remote_file_storage_wrappers, "_retry_pysftp_connection")
-    @mock.patch.object(remote_file_storage_wrappers, "printTransferProgress")
-    def test_upload_file(
-        self, mock_printTransferProgress, mock_retry_pysftp_connection
-    ):
+    def test_upload_file(self, mock_retry_pysftp_connection) -> None:
         """
         Verify the upload_file method that working correctly with valid input path and url
         """
@@ -302,5 +293,5 @@ class TestSftpClientWrapper:
             mock_sftp.put.assert_called_once_with(
                 mock_local_file_path,
                 preserve_mtime=True,
-                callback=mock_printTransferProgress,
+                callback=mock.ANY,
             )
