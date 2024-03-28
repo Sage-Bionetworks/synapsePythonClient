@@ -4,6 +4,7 @@
 
 import json
 from typing import Any, Dict, Optional, Union, TYPE_CHECKING
+from async_lru import alru_cache
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -93,6 +94,7 @@ async def get_entity(
     )
 
 
+@alru_cache(ttl=60)
 async def get_upload_destination(
     entity_id: str, synapse_client: Optional["Synapse"] = None
 ) -> Dict[str, Union[str, int]]:
