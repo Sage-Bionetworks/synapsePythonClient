@@ -312,14 +312,22 @@ class TestFile:
 
     @pytest.mark.asyncio
     async def test_store_with_parent_and_path(self) -> None:
-        # GIVEN an example file
-        file = File(path=PATH, description=MODIFIED_DESCRIPTION)
+        # GIVEN An actual file
+        bogus_file = utils.make_bogus_uuid_file()
+
+        # AND a file object
+        file = File(
+            path=bogus_file,
+            description=MODIFIED_DESCRIPTION,
+            content_size=os.path.getsize(bogus_file),
+            content_type="text/plain",
+        )
 
         # WHEN I store the example file
         with patch.object(
             self.syn,
             "get",
-            return_value=(self.get_example_synapse_file_output()),
+            return_value=None,
         ) as mocked_get_call, patch(
             "synapseclient.models.file.get_id",
             new_callable=AsyncMock,
@@ -335,26 +343,18 @@ class TestFile:
         ) as mocked_store_entity:
             result = await file.store_async(parent=Project(id=ACTUAL_PARENT_ID))
 
-            # THEN we should call the method with this data
-            mocked_get_call.assert_called_once_with(
-                entity=PATH,
-                version=None,
-                ifcollision=file.if_collision,
-                limitSearch=None,
-                downloadFile=False,
-                downloadLocation=None,
-                md5=None,
-            )
+            # THEN we should not call the get method when just the path is supplied.
+            mocked_get_call.assert_not_called()
 
             # AND We should upload the file handle
             mocked_file_handle_upload.assert_called_once_with(
                 syn=self.syn,
                 parent_entity_id=ACTUAL_PARENT_ID,
-                path=PATH,
+                path=bogus_file,
                 synapse_store=True,
                 md5=None,
-                file_size=FILE_HANDLE_CONTENT_SIZE,
-                mimetype=FILE_HANDLE_CONTENT_TYPE,
+                file_size=os.path.getsize(bogus_file),
+                mimetype="text/plain",
             )
 
             # AND We should store the entity
@@ -363,7 +363,7 @@ class TestFile:
             # THEN the file should be stored
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == PATH
+            assert result.path == bogus_file
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON
@@ -398,16 +398,23 @@ class TestFile:
 
     @pytest.mark.asyncio
     async def test_store_with_parent_id_and_path(self) -> None:
-        # GIVEN an example file
+        # GIVEN An actual file
+        bogus_file = utils.make_bogus_uuid_file()
+
+        # AND a file object
         file = File(
-            path=PATH, parent_id=ACTUAL_PARENT_ID, description=MODIFIED_DESCRIPTION
+            path=bogus_file,
+            parent_id=ACTUAL_PARENT_ID,
+            description=MODIFIED_DESCRIPTION,
+            content_size=os.path.getsize(bogus_file),
+            content_type="text/plain",
         )
 
         # WHEN I store the example file
         with patch.object(
             self.syn,
             "get",
-            return_value=(self.get_example_synapse_file_output()),
+            return_value=None,
         ) as mocked_get_call, patch(
             "synapseclient.models.file.get_id",
             new_callable=AsyncMock,
@@ -421,28 +428,20 @@ class TestFile:
             new_callable=AsyncMock,
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_store_entity:
-            result = await file.store_async()
+            result = await file.store_async(parent=Project(id=ACTUAL_PARENT_ID))
 
-            # THEN we should call the method with this data
-            mocked_get_call.assert_called_once_with(
-                entity=PATH,
-                version=None,
-                ifcollision=file.if_collision,
-                limitSearch=None,
-                downloadFile=False,
-                downloadLocation=None,
-                md5=None,
-            )
+            # THEN we should not call the get method when just the path is supplied.
+            mocked_get_call.assert_not_called()
 
             # AND We should upload the file handle
             mocked_file_handle_upload.assert_called_once_with(
                 syn=self.syn,
                 parent_entity_id=ACTUAL_PARENT_ID,
-                path=PATH,
+                path=bogus_file,
                 synapse_store=True,
                 md5=None,
-                file_size=FILE_HANDLE_CONTENT_SIZE,
-                mimetype=FILE_HANDLE_CONTENT_TYPE,
+                file_size=os.path.getsize(bogus_file),
+                mimetype="text/plain",
             )
 
             # AND We should store the entity
@@ -451,7 +450,7 @@ class TestFile:
             # THEN the file should be stored
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == PATH
+            assert result.path == bogus_file
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON
@@ -486,9 +485,12 @@ class TestFile:
 
     @pytest.mark.asyncio
     async def test_store_with_components(self) -> None:
-        # GIVEN an example file
+        # GIVEN An actual file
+        bogus_file = utils.make_bogus_uuid_file()
+
+        # AND a file object
         file = File(
-            path=PATH,
+            path=bogus_file,
             parent_id=ACTUAL_PARENT_ID,
             annotations={"key": "value"},
             activity=Activity(
@@ -498,13 +500,15 @@ class TestFile:
                 ],
             ),
             description=MODIFIED_DESCRIPTION,
+            content_size=os.path.getsize(bogus_file),
+            content_type="text/plain",
         )
 
         # WHEN I store the example file
         with patch.object(
             self.syn,
             "get",
-            return_value=(self.get_example_synapse_file_output()),
+            return_value=None,
         ) as mocked_get_call, patch(
             "synapseclient.models.file.get_id",
             new_callable=AsyncMock,
@@ -523,29 +527,22 @@ class TestFile:
         ) as mocked_store_entity_components, patch.object(
             file,
             "get_async",
+            return_value=file,
         ) as mocked_get:
             result = await file.store_async()
 
-            # THEN we should call the method with this data
-            mocked_get_call.assert_called_once_with(
-                entity=PATH,
-                version=None,
-                ifcollision=file.if_collision,
-                limitSearch=None,
-                downloadFile=False,
-                downloadLocation=None,
-                md5=None,
-            )
+            # THEN we should not call the get method when just the path is supplied.
+            mocked_get_call.assert_not_called()
 
             # AND We should upload the file handle
             mocked_file_handle_upload.assert_called_once_with(
                 syn=self.syn,
                 parent_entity_id=ACTUAL_PARENT_ID,
-                path=PATH,
+                path=bogus_file,
                 synapse_store=True,
                 md5=None,
-                file_size=FILE_HANDLE_CONTENT_SIZE,
-                mimetype=FILE_HANDLE_CONTENT_TYPE,
+                file_size=os.path.getsize(bogus_file),
+                mimetype="text/plain",
             )
 
             # AND We should store the entity
@@ -560,7 +557,7 @@ class TestFile:
             # THEN the file should be stored
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == PATH
+            assert result.path == bogus_file
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON

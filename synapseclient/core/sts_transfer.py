@@ -45,7 +45,7 @@ class _TokenCache(collections.OrderedDict):
             self.popitem(last=False)
 
         to_delete = []
-        before_timestamp = datetime.datetime.now(datetime.timezone.utc).timestamp()
+        before_timestamp = datetime.datetime.utcnow().timestamp()
         for entity_id, token in self.items():
             expiration_iso_str = token["expiration"]
 
@@ -82,7 +82,7 @@ class StsTokenStore:
         self, syn, entity_id, permission, min_remaining_life: datetime.timedelta
     ):
         with self._lock:
-            utcnow = datetime.datetime.now(datetime.timezone.utc)
+            utcnow = datetime.datetime.utcnow()
             token_cache = self._tokens.get(permission)
             if token_cache is None:
                 raise ValueError(f"Invalid STS permission {permission}")

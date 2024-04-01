@@ -82,6 +82,7 @@ from typing import (
 )
 
 import httpx
+import psutil
 import requests
 from opentelemetry import context, trace
 from opentelemetry.context import Context
@@ -299,6 +300,11 @@ class UploadAttemptAsync:
         loop = asyncio.get_running_loop()
         otel_context = context.get_current()
 
+        mem_info = psutil.virtual_memory()
+
+        if mem_info.available <= self._part_size * 2:
+            gc.collect()
+
         return await loop.run_in_executor(
             self._syn._get_thread_pool_executor(),
             self._handle_part,
@@ -514,7 +520,6 @@ class UploadAttemptAsync:
             md5_hex = self._md5_fn(body, response)
             del response
             del body
-            gc.collect()
 
             # # remove so future batch pre_signed url fetches will exclude this part
             with self._thread_lock:
