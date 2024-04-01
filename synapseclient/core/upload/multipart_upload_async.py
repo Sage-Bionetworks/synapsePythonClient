@@ -306,7 +306,7 @@ class UploadAttemptAsync:
             gc.collect()
 
         return await loop.run_in_executor(
-            self._syn._get_thread_pool_executor(),
+            self._syn._get_thread_pool_executor(asyncio_event_loop=loop),
             self._handle_part,
             part_number,
             otel_context,
@@ -658,8 +658,12 @@ async def multipart_upload_file_async(
         md5_hex = md5 or (
             await md5_for_file_multiprocessing(
                 filename=file_path,
-                process_pool_executor=syn._get_process_pool_executor(),
-                md5_semaphore=syn._get_md5_semaphore(),
+                process_pool_executor=syn._get_process_pool_executor(
+                    asyncio_event_loop=asyncio.get_running_loop()
+                ),
+                md5_semaphore=syn._get_md5_semaphore(
+                    asyncio_event_loop=asyncio.get_running_loop()
+                ),
             )
         )
 

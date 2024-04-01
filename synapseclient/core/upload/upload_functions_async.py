@@ -82,8 +82,12 @@ async def upload_file_handle(
     if md5 is None and os.path.isfile(expanded_upload_path):
         md5 = await utils.md5_for_file_multiprocessing(
             filename=expanded_upload_path,
-            process_pool_executor=syn._get_process_pool_executor(),
-            md5_semaphore=syn._get_md5_semaphore(),
+            process_pool_executor=syn._get_process_pool_executor(
+                asyncio_event_loop=asyncio.get_running_loop()
+            ),
+            md5_semaphore=syn._get_md5_semaphore(
+                asyncio_event_loop=asyncio.get_running_loop()
+            ),
         )
 
     entity_parent_id = id_of(parent_entity_id)
@@ -204,8 +208,12 @@ async def create_external_file_handle(
         if parsed_url.scheme == "file" and os.path.isfile(parsed_path):
             actual_md5 = await utils.md5_for_file_multiprocessing(
                 filename=parsed_path,
-                process_pool_executor=syn._get_process_pool_executor(),
-                md5_semaphore=syn._get_md5_semaphore(),
+                process_pool_executor=syn._get_process_pool_executor(
+                    asyncio_event_loop=asyncio.get_running_loop()
+                ),
+                md5_semaphore=syn._get_md5_semaphore(
+                    asyncio_event_loop=asyncio.get_running_loop()
+                ),
             )
             if md5 is not None and md5 != actual_md5:
                 raise SynapseMd5MismatchError(
@@ -252,8 +260,12 @@ async def upload_external_file_handle_sftp(
 
     file_md5 = md5 or await utils.md5_for_file_multiprocessing(
         filename=file_path,
-        process_pool_executor=syn._get_process_pool_executor(),
-        md5_semaphore=syn._get_md5_semaphore(),
+        process_pool_executor=syn._get_process_pool_executor(
+            asyncio_event_loop=asyncio.get_running_loop()
+        ),
+        md5_semaphore=syn._get_md5_semaphore(
+            asyncio_event_loop=asyncio.get_running_loop()
+        ),
     )
     file_handle = await post_external_filehandle(
         external_url=uploaded_url,
@@ -357,7 +369,7 @@ async def upload_synapse_sts_boto_s3(
     loop = asyncio.get_event_loop()
 
     await loop.run_in_executor(
-        syn._get_thread_pool_executor(),
+        syn._get_thread_pool_executor(asyncio_event_loop=loop),
         lambda: sts_transfer.with_boto_sts_credentials(
             upload_fn, syn, parent_id, "read_write"
         ),
@@ -391,7 +403,7 @@ async def upload_client_auth_s3(
     loop = asyncio.get_event_loop()
 
     await loop.run_in_executor(
-        syn._get_thread_pool_executor(),
+        syn._get_thread_pool_executor(asyncio_event_loop=loop),
         lambda: S3ClientWrapper.upload_file(
             bucket,
             endpoint_url,

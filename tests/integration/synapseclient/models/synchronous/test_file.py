@@ -155,12 +155,10 @@ class TestFileStore:
         )
 
         # WHEN I store both the file
-        files = asyncio.gather(
-            *[
-                file_1.store(parent=project_model),
-                file_2.store(parent=project_model),
-            ]
-        )
+        files = [
+            file_1.store(parent=project_model),
+            file_2.store(parent=project_model),
+        ]
         for file in files:
             self.schedule_for_cleanup(file.id)
 

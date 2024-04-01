@@ -269,6 +269,7 @@ class Synapse(object):
         silent: bool = None,
         requests_session_async_synapse: httpx.AsyncClient = None,
         requests_session_storage: httpx.Client = None,
+        asyncio_event_loop: asyncio.AbstractEventLoop = None,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -289,6 +290,9 @@ class Synapse(object):
                 Synapse services.
             requests_session_storage: The HTTPX client for interacting with
                 storage providers like AWS S3 and Google Cloud.
+            asyncio_event_loop: The event loop that is going to be used while executing
+                this code. This is optional and only used when you are manually
+                specifying an async HTTPX client.
 
         Raises:
             ValueError: Warn for non-boolean debug value.
@@ -296,13 +300,12 @@ class Synapse(object):
         self._requests_session = requests_session or requests.Session()
 
         # `requests_session_async_synapse` and the thread pools are being stored in
-        # a dict based on the current thread ID to handle for cases where someone
-        # using the client may be using multiple threads to execute this code. This is
-        # what the `test_caching.py` integration test is doing.
-        current_tid = str(threading.get_ident())
-        if requests_session_async_synapse:
+        # a dict based on the current running event loop. This is to ensure that the
+        # connection pooling is maintained within the same event loop. This is to
+        # prevent the connection pooling from being shared across different event loops.
+        if requests_session_async_synapse and asyncio_event_loop:
             self._requests_session_async_synapse = {
-                current_tid: requests_session_async_synapse
+                asyncio_event_loop: requests_session_async_synapse
             }
         else:
             self._requests_session_async_synapse = {}
@@ -364,7 +367,9 @@ class Synapse(object):
         self._md5_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
 
-    def _get_requests_session_async_synapse(self) -> httpx.AsyncClient:
+    def _get_requests_session_async_synapse(
+        self, asyncio_event_loop: asyncio.AbstractEventLoop
+    ) -> httpx.AsyncClient:
         """
         httpx.AsyncClient can only use connection pooling within the same event loop.
         As a result an `atexit` handler is used to close the connection when the event
@@ -380,24 +385,23 @@ class Synapse(object):
 
         This is expected to be called from within an AsyncIO loop.
         """
-        current_tid = str(threading.get_ident())
         if (
             hasattr(self, "_requests_session_async_synapse")
-            and current_tid in self._requests_session_async_synapse
-            and self._requests_session_async_synapse[current_tid] is not None
+            and asyncio_event_loop in self._requests_session_async_synapse
+            and self._requests_session_async_synapse[asyncio_event_loop] is not None
         ):
-            return self._requests_session_async_synapse[current_tid]
+            return self._requests_session_async_synapse[asyncio_event_loop]
 
         async def close_connection() -> None:
             """Close connection when event loop exits"""
-            await self._requests_session_async_synapse[current_tid].aclose()
-            del self._requests_session_async_synapse[current_tid]
+            await self._requests_session_async_synapse[asyncio_event_loop].aclose()
+            del self._requests_session_async_synapse[asyncio_event_loop]
 
         httpx_timeout = httpx.Timeout(70)
 
         self._requests_session_async_synapse.update(
             {
-                current_tid: httpx.AsyncClient(
+                asyncio_event_loop: httpx.AsyncClient(
                     limits=httpx.Limits(max_connections=25),
                     timeout=httpx_timeout,
                 )
@@ -405,9 +409,11 @@ class Synapse(object):
         )
 
         asyncio_atexit.register(close_connection)
-        return self._requests_session_async_synapse[current_tid]
+        return self._requests_session_async_synapse[asyncio_event_loop]
 
-    def _get_thread_pool_executor(self) -> ThreadPoolExecutor:
+    def _get_thread_pool_executor(
+        self, asyncio_event_loop: asyncio.AbstractEventLoop
+    ) -> ThreadPoolExecutor:
         """
         Retrieve the thread pool executor for the Synapse client. Or create a new one if
         it does not exist. This executor is used for concurrent uploads of data to
@@ -415,27 +421,26 @@ class Synapse(object):
 
         This is expected to be called from within an AsyncIO loop.
         """
-        current_tid = str(threading.get_ident())
         if (
             hasattr(self, "_thread_executor")
-            and current_tid in self._thread_executor
-            and self._thread_executor[current_tid] is not None
+            and asyncio_event_loop in self._thread_executor
+            and self._thread_executor[asyncio_event_loop] is not None
         ):
-            return self._thread_executor[current_tid]
+            return self._thread_executor[asyncio_event_loop]
 
         def close_pool() -> None:
             """Close pool when event loop exits"""
-            self._thread_executor[current_tid].shutdown(wait=True)
-            del self._thread_executor[current_tid]
+            self._thread_executor[asyncio_event_loop].shutdown(wait=True)
+            del self._thread_executor[asyncio_event_loop]
 
         self._thread_executor.update(
-            {current_tid: get_executor(thread_count=self.max_threads)}
+            {asyncio_event_loop: get_executor(thread_count=self.max_threads)}
         )
 
         asyncio_atexit.register(close_pool)
-        return self._thread_executor[current_tid]
+        return self._thread_executor[asyncio_event_loop]
 
-    def _get_process_pool_executor(self):
+    def _get_process_pool_executor(self, asyncio_event_loop: asyncio.AbstractEventLoop):
         """
         Retrieve the process pool executor for the Synapse client. Or create a new one
         if it does not exist. This executor is used for parallel processing of data.
@@ -451,19 +456,20 @@ class Synapse(object):
         To get around this Windows limitation this is using this package:
         https://github.com/joblib/loky
         """
-        current_tid = str(threading.get_ident())
         if (
             hasattr(self, "_process_executor")
-            and current_tid in self._process_executor
-            and self._process_executor[current_tid] is not None
+            and asyncio_event_loop in self._process_executor
+            and self._process_executor[asyncio_event_loop] is not None
         ):
-            return self._process_executor[current_tid]
+            return self._process_executor[asyncio_event_loop]
 
-        self._process_executor.update({current_tid: get_reusable_executor(1)})
+        self._process_executor.update({asyncio_event_loop: get_reusable_executor(1)})
 
-        return self._process_executor[current_tid]
+        return self._process_executor[asyncio_event_loop]
 
-    def _get_md5_semaphore(self) -> asyncio.Semaphore:
+    def _get_md5_semaphore(
+        self, asyncio_event_loop: asyncio.AbstractEventLoop
+    ) -> asyncio.Semaphore:
         """
         Retrieve the semaphore for the Synapse client. Or create a new one if it does not
         exist. This semaphore is used to ensure that only one process is calculating the
@@ -472,17 +478,16 @@ class Synapse(object):
 
         This is expected to be called from within an AsyncIO loop.
         """
-        current_tid = str(threading.get_ident())
         if (
             hasattr(self, "_md5_semaphore")
-            and current_tid in self._md5_semaphore
-            and self._md5_semaphore[current_tid] is not None
+            and asyncio_event_loop in self._md5_semaphore
+            and self._md5_semaphore[asyncio_event_loop] is not None
         ):
-            return self._md5_semaphore[current_tid]
+            return self._md5_semaphore[asyncio_event_loop]
 
-        self._md5_semaphore.update({current_tid: asyncio.Semaphore(1)})
+        self._md5_semaphore.update({asyncio_event_loop: asyncio.Semaphore(1)})
 
-        return self._md5_semaphore[current_tid]
+        return self._md5_semaphore[asyncio_event_loop]
 
     # initialize logging
     def _init_logger(self):
@@ -6299,7 +6304,10 @@ class Synapse(object):
 
         retry_policy = self._build_retry_policy_async(retry_policy)
         requests_session = (
-            requests_session_async_synapse or self._get_requests_session_async_synapse()
+            requests_session_async_synapse
+            or self._get_requests_session_async_synapse(
+                asyncio_event_loop=asyncio.get_running_loop()
+            )
         )
 
         auth = kwargs.pop("auth", self.credentials)

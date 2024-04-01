@@ -175,7 +175,7 @@ async def wrap_function_as_child_thread(syn: Synapse, function, *args, **kwargs)
 
     try:
         loop.run_in_executor(
-            syn._get_thread_pool_executor(),
+            syn._get_thread_pool_executor(asyncio_event_loop=loop),
             lambda: function(*args, **kwargs),
         )
     except Exception:

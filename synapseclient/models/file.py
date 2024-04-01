@@ -586,8 +586,12 @@ class File(FileSynchronousProtocol, AccessControllable):
         if not self.content_md5 and self.path and os.path.isfile(self.path):
             self.content_md5 = await utils.md5_for_file_multiprocessing(
                 filename=self.path,
-                process_pool_executor=syn._get_process_pool_executor(),
-                md5_semaphore=syn._get_md5_semaphore(),
+                process_pool_executor=syn._get_process_pool_executor(
+                    asyncio_event_loop=asyncio.get_running_loop()
+                ),
+                md5_semaphore=syn._get_md5_semaphore(
+                    asyncio_event_loop=asyncio.get_running_loop()
+                ),
             )
 
     async def _find_existing_file(

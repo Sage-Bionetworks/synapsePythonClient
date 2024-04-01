@@ -127,6 +127,12 @@ def clear_cache() -> None:
     """
     from synapseclient.api.entity_services import get_upload_destination
 
+    # Clear the cache before each test
+    get_upload_destination.cache_clear()
+
+    yield
+
+    # Clear the cache after each test
     get_upload_destination.cache_clear()
 
 
