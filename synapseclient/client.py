@@ -451,17 +451,17 @@ class Synapse(object):
         To get around this Windows limitation this is using this package:
         https://github.com/joblib/loky
         """
-        current_pid = str(os.getpid())
+        current_tid = str(threading.get_ident())
         if (
             hasattr(self, "_process_executor")
-            and current_pid in self._process_executor
-            and self._process_executor[current_pid] is not None
+            and current_tid in self._process_executor
+            and self._process_executor[current_tid] is not None
         ):
-            return self._process_executor[current_pid]
+            return self._process_executor[current_tid]
 
-        self._process_executor.update({current_pid: get_reusable_executor(1)})
+        self._process_executor.update({current_tid: get_reusable_executor(1)})
 
-        return self._process_executor[current_pid]
+        return self._process_executor[current_tid]
 
     def _get_md5_semaphore(self) -> asyncio.Semaphore:
         """
@@ -472,17 +472,17 @@ class Synapse(object):
 
         This is expected to be called from within an AsyncIO loop.
         """
-        current_pid = str(os.getpid())
+        current_tid = str(threading.get_ident())
         if (
             hasattr(self, "_md5_semaphore")
-            and current_pid in self._md5_semaphore
-            and self._md5_semaphore[current_pid] is not None
+            and current_tid in self._md5_semaphore
+            and self._md5_semaphore[current_tid] is not None
         ):
-            return self._md5_semaphore[current_pid]
+            return self._md5_semaphore[current_tid]
 
-        self._md5_semaphore.update({current_pid: asyncio.Semaphore(1)})
+        self._md5_semaphore.update({current_tid: asyncio.Semaphore(1)})
 
-        return self._md5_semaphore[current_pid]
+        return self._md5_semaphore[current_tid]
 
     # initialize logging
     def _init_logger(self):
