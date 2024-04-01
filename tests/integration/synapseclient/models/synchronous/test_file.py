@@ -1,7 +1,7 @@
 """Integration tests for the synapseclient.models.File class."""
 
 import os
-import time
+import asyncio
 from unittest.mock import patch
 import uuid
 
@@ -10,7 +10,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core import utils
-from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError
 
 from synapseclient.models import (
     Project,
@@ -26,6 +26,7 @@ CONTENT_TYPE = "text/plain"
 VERSION_COMMENT = "My version comment"
 CONTENT_TYPE_JSON = "text/json"
 BOGUS_URL = "https://www.synapse.org/"
+BOGUS_MD5 = "1234567890"
 
 
 class TestFileStore:
@@ -154,11 +155,12 @@ class TestFileStore:
         )
 
         # WHEN I store both the file
-        files = [
-            file_1.store(parent=project_model),
-            file_2.store(parent=project_model),
-        ]
-
+        files = asyncio.gather(
+            *[
+                file_1.store(parent=project_model),
+                file_2.store(parent=project_model),
+            ]
+        )
         for file in files:
             self.schedule_for_cleanup(file.id)
 
@@ -272,7 +274,7 @@ class TestFileStore:
 
         # THEN I expect the file handles to match
         assert file_2_etag != file_2.etag
-        time.sleep(5)
+        asyncio.sleep(5)
         assert (file_1.get()).file_handle == (file_2.get()).file_handle
 
     def test_store_updated_file(self, project_model: Project) -> None:
@@ -430,6 +432,233 @@ class TestFileStore:
         assert file.file_handle.status is not None
         assert file.file_handle.bucket_name is None
         assert file.file_handle.key is None
+
+    def test_store_without_upload_non_matching_md5(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file is not to be uploaded
+        file.synapse_store = False
+
+        # AND the file has a content md5
+        file.content_md5 = BOGUS_MD5
+
+        # WHEN I store the file
+        with pytest.raises(SynapseMd5MismatchError) as e:
+            file.store(parent=project_model)
+
+        assert (
+            f"The specified md5 [{BOGUS_MD5}] does not match the calculated md5 "
+            f"[{utils.md5_for_file_hex(file.path)}] for local file" in str(e.value)
+        )
+
+    def test_store_without_upload_non_matching_size(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file is not to be uploaded
+        file.synapse_store = False
+
+        # AND the file has a content size
+        file.content_size = 123
+
+        # WHEN I store the file
+        file = file.store(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored as an external file
+        assert file.id is not None
+        assert file.parent_id == project_model.id
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
+        assert file.version_label is not None
+        assert file.version_number == 1
+        assert file.created_by is not None
+        assert file.created_on is not None
+        assert file.modified_by is not None
+        assert file.modified_on is not None
+        assert file.content_size != 123
+        assert file.content_type == CONTENT_TYPE
+        assert file.data_file_handle_id is not None
+        assert file.file_handle is not None
+        assert file.file_handle.id is not None
+        assert file.file_handle.etag is not None
+        assert file.file_handle.created_by is not None
+        assert file.file_handle.created_on is not None
+        assert file.file_handle.modified_on is not None
+        assert (
+            file.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        )
+        assert file.file_handle.content_type == CONTENT_TYPE
+        assert file.file_handle.content_md5 is not None
+        assert file.file_handle.file_name is not None
+        assert file.file_handle.content_size != 123
+        assert file.file_handle.status is not None
+        assert file.file_handle.bucket_name is None
+        assert file.file_handle.key is None
+
+    def test_store_as_external_url(self, project_model: Project, file: File) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file is not to be uploaded
+        file.synapse_store = False
+
+        # AND the file is an external URL
+        file.external_url = BOGUS_URL
+
+        # WHEN I store the file
+        file = file.store(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored as an external file
+        assert file.id is not None
+        assert file.parent_id == project_model.id
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
+        assert file.version_label is not None
+        assert file.version_number == 1
+        assert file.created_by is not None
+        assert file.created_on is not None
+        assert file.modified_by is not None
+        assert file.modified_on is not None
+        assert file.content_size is None
+        assert file.content_type == CONTENT_TYPE
+        assert file.external_url == BOGUS_URL
+        assert file.data_file_handle_id is not None
+        assert file.file_handle is not None
+        assert file.file_handle.id is not None
+        assert file.file_handle.etag is not None
+        assert file.file_handle.created_by is not None
+        assert file.file_handle.created_on is not None
+        assert file.file_handle.modified_on is not None
+        assert (
+            file.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        )
+        assert file.file_handle.content_type == CONTENT_TYPE
+        assert file.file_handle.content_md5 is None
+        assert file.file_handle.file_name is not None
+        assert file.file_handle.content_size is None
+        assert file.file_handle.status is not None
+        assert file.file_handle.bucket_name is None
+        assert file.file_handle.key is None
+        assert file.file_handle.external_url == BOGUS_URL
+
+    def test_store_as_external_url_with_content_size(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file is not to be uploaded
+        file.synapse_store = False
+
+        # AND the file is an external URL
+        file.external_url = BOGUS_URL
+
+        # AND the file has a content size
+        file.content_size = 123
+
+        # WHEN I store the file
+        file = file.store(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored as an external file
+        assert file.id is not None
+        assert file.parent_id == project_model.id
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
+        assert file.version_label is not None
+        assert file.version_number == 1
+        assert file.created_by is not None
+        assert file.created_on is not None
+        assert file.modified_by is not None
+        assert file.modified_on is not None
+        assert file.content_size == 123
+        assert file.content_type == CONTENT_TYPE
+        assert file.external_url == BOGUS_URL
+        assert file.data_file_handle_id is not None
+        assert file.file_handle is not None
+        assert file.file_handle.id is not None
+        assert file.file_handle.etag is not None
+        assert file.file_handle.created_by is not None
+        assert file.file_handle.created_on is not None
+        assert file.file_handle.modified_on is not None
+        assert (
+            file.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        )
+        assert file.file_handle.content_type == CONTENT_TYPE
+        assert file.file_handle.content_md5 is None
+        assert file.file_handle.file_name is not None
+        assert file.file_handle.content_size == 123
+        assert file.file_handle.status is not None
+        assert file.file_handle.bucket_name is None
+        assert file.file_handle.key is None
+        assert file.file_handle.external_url == BOGUS_URL
+
+    def test_store_as_external_url_with_content_size_and_md5(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file is not to be uploaded
+        file.synapse_store = False
+
+        # AND the file is an external URL
+        file.external_url = BOGUS_URL
+
+        # AND the file has a content size
+        file.content_size = 123
+
+        # AND the file has a content md5
+        file.content_md5 = BOGUS_MD5
+
+        # WHEN I store the file
+        file = file.store(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored as an external file
+        assert file.id is not None
+        assert file.parent_id == project_model.id
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
+        assert file.version_label is not None
+        assert file.version_number == 1
+        assert file.created_by is not None
+        assert file.created_on is not None
+        assert file.modified_by is not None
+        assert file.modified_on is not None
+        assert file.content_size == 123
+        assert file.content_type == CONTENT_TYPE
+        assert file.external_url == BOGUS_URL
+        assert file.content_md5 is None
+        assert file.data_file_handle_id is not None
+        assert file.file_handle is not None
+        assert file.file_handle.id is not None
+        assert file.file_handle.etag is not None
+        assert file.file_handle.created_by is not None
+        assert file.file_handle.created_on is not None
+        assert file.file_handle.modified_on is not None
+        assert (
+            file.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        )
+        assert file.file_handle.content_type == CONTENT_TYPE
+        assert file.file_handle.file_name is not None
+        assert file.file_handle.content_size == 123
+        assert file.file_handle.status is not None
+        assert file.file_handle.bucket_name is None
+        assert file.file_handle.key is None
+        assert file.file_handle.external_url == BOGUS_URL
+        assert file.file_handle.content_md5 == BOGUS_MD5
 
     def test_store_conflict_with_existing_object(
         self, project_model: Project, file: File
