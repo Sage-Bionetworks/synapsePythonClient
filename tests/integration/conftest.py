@@ -120,6 +120,16 @@ def project(request, syn: Synapse) -> Project:
     return proj
 
 
+@pytest.fixture(scope="function", autouse=True)
+def clear_cache() -> None:
+    """
+    Clear all LRU caches before each test to avoid any side effects.
+    """
+    from synapseclient.api.entity_services import get_upload_destination
+
+    get_upload_destination.cache_clear()
+
+
 @pytest.fixture(scope="module")
 def schedule_for_cleanup(request, syn: Synapse):
     """Returns a closure that takes an item that should be scheduled for cleanup.
