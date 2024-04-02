@@ -161,7 +161,11 @@ async def create_access_requirements_if_none(
     existing_restrictions = await client.rest_get_async(
         f"/entity/{entity_id}/accessRequirement?offset=0&limit=1"
     )
-    if len(existing_restrictions["results"]) <= 0:
+    if (
+        existing_restrictions is None
+        or not hasattr(existing_restrictions, "results")
+        or len(existing_restrictions["results"]) == 0
+    ):
         access_requirements = await client.rest_post_async(
             f"/entity/{entity_id}/lockAccessRequirement"
         )

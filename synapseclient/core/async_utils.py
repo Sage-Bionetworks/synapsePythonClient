@@ -2,7 +2,7 @@
 
 import asyncio
 import functools
-from typing import Callable, Union, TYPE_CHECKING
+from typing import Any, Callable, Coroutine, Union, TYPE_CHECKING
 
 import nest_asyncio
 from opentelemetry import trace
@@ -73,7 +73,7 @@ class ClassOrInstance:
         return f
 
 
-def wrap_async_to_sync(coroutine, syn: "Synapse"):
+def wrap_async_to_sync(coroutine: Coroutine[Any, Any, Any], syn: "Synapse") -> Any:
     """Wrap an async function to be called in a sync context."""
     loop = None
     try:
