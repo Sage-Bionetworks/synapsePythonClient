@@ -158,7 +158,7 @@ class UploadAttemptAsync:
         md5_fn: Callable[[bytes, httpx.Response], str],
         force_restart: bool,
         storage_str: str = None,
-    ):
+    ) -> None:
         self._syn = syn
         self._dest_file_name = dest_file_name
         self._part_size = upload_request_payload["partSizeBytes"]
@@ -256,7 +256,7 @@ class UploadAttemptAsync:
         self,
         part_number: int,
         expired_url: str,
-    ):
+    ) -> Tuple[str, Dict[str, str]]:
         """Refresh all unfetched presigned urls, and return the refreshed
         url for the given part number. If an existing expired_url is passed
         and the url for the given part has already changed that new url

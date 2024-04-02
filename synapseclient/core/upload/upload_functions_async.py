@@ -5,7 +5,7 @@ import asyncio
 import os
 import urllib.parse as urllib_parse
 import uuid
-from typing import TYPE_CHECKING, Dict, Union
+from typing import TYPE_CHECKING, Dict, Union, Optional
 
 from opentelemetry import trace
 
@@ -280,7 +280,7 @@ async def upload_external_file_handle_sftp(
 async def upload_synapse_s3(
     syn: "Synapse",
     file_path: str,
-    storage_location_id: int = None,
+    storage_location_id: Optional[int] = None,
     mimetype: str = None,
     force_restart: bool = False,
     md5: str = None,
