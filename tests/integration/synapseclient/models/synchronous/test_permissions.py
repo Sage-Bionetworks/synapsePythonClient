@@ -80,14 +80,27 @@ class TestAclOnProject:
 
         # AND the permissions for the user on the entity are set to READ only
         project_with_read_only_permissions.set_permissions(
-            principal_id=p1.id, access_type=["READ"]
+            principal_id=p1.id,
+            access_type=[
+                "READ",
+                "CHANGE_SETTINGS",
+                "CHANGE_PERMISSIONS",
+                "UPDATE",
+                "DELETE",
+            ],
         )
 
         # WHEN I get the permissions for the user on the entity
         permissions = project_with_read_only_permissions.get_acl(principal_id=p1.id)
 
         # THEN I expect to see read only permissions
-        expected_permissions = ["READ"]
+        expected_permissions = [
+            "READ",
+            "CHANGE_SETTINGS",
+            "CHANGE_PERMISSIONS",
+            "UPDATE",
+            "DELETE",
+        ]
         assert set(expected_permissions) == set(permissions)
 
     def test_get_acl_through_team_assigned_to_user(self) -> None:
@@ -108,7 +121,7 @@ class TestAclOnProject:
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
-        self.schedule_for_cleanup(team.id)
+        self.schedule_for_cleanup(team)
         self.schedule_for_cleanup(project_with_permissions_through_single_team.id)
 
         # AND the permissions for the Team on the entity are set to all permissions except for DOWNLOAD
@@ -318,31 +331,44 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_read_only_permissions_on_entity(
+    def test_get_acl_minimal_permissions_on_entity(
         self, project_model: Project
     ) -> None:
         # GIVEN a folder created with default permissions of administrator
-        project_with_read_only_permissions = Folder(
-            name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
+        project_with_minimal_permissions = Folder(
+            name=str(uuid.uuid4()) + "test_get_acl_minimal_permissions_on_project"
         ).store(parent=project_model)
-        self.schedule_for_cleanup(project_with_read_only_permissions.id)
+        self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the folder
         p1 = UserProfile().get()
 
-        # AND the permissions for the user on the entity are set to READ only
-        project_with_read_only_permissions.set_permissions(
-            principal_id=p1.id, access_type=["READ"]
+        # AND the permissions for the user on the entity are set
+        project_with_minimal_permissions.set_permissions(
+            principal_id=p1.id,
+            access_type=[
+                "READ",
+                "CHANGE_SETTINGS",
+                "CHANGE_PERMISSIONS",
+                "UPDATE",
+                "DELETE",
+            ],
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_read_only_permissions.get_acl(principal_id=p1.id)
+        permissions = project_with_minimal_permissions.get_acl(principal_id=p1.id)
 
-        # THEN I expect to see read only permissions
-        expected_permissions = ["READ"]
+        # THEN I expect to see minimal permissions
+        expected_permissions = [
+            "READ",
+            "CHANGE_SETTINGS",
+            "CHANGE_PERMISSIONS",
+            "UPDATE",
+            "DELETE",
+        ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_read_only_permissions_on_sub_folder(
+    def test_get_acl_minimal_permissions_on_sub_folder(
         self, project_model: Project
     ) -> None:
         # GIVEN a parent folder with default permissions
@@ -351,27 +377,40 @@ class TestAclOnFolder:
         ).store(parent=project_model)
 
         # AND a folder created with default permissions of administrator
-        folder_with_read_only_permissions = Folder(
+        folder_with_minimal_permissions = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
         ).store(parent=parent_folder)
-        self.schedule_for_cleanup(folder_with_read_only_permissions.id)
+        self.schedule_for_cleanup(folder_with_minimal_permissions.id)
 
         # AND the user that created the folder
         p1 = UserProfile().get()
 
-        # AND the permissions for the user on the entity are set to READ only
-        folder_with_read_only_permissions.set_permissions(
-            principal_id=p1.id, access_type=["READ"]
+        # AND the permissions for the user on the entity are set
+        folder_with_minimal_permissions.set_permissions(
+            principal_id=p1.id,
+            access_type=[
+                "READ",
+                "CHANGE_SETTINGS",
+                "CHANGE_PERMISSIONS",
+                "UPDATE",
+                "DELETE",
+            ],
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = folder_with_read_only_permissions.get_acl(principal_id=p1.id)
+        permissions = folder_with_minimal_permissions.get_acl(principal_id=p1.id)
 
         # AND I get the permissions for the user on the parent entity
         permissions_on_parent = parent_folder.get_acl(principal_id=p1.id)
 
-        # THEN I expect to see read only permissions on the sub-folder
-        expected_permissions = ["READ"]
+        # THEN I expect to see minimal permissions on the sub-folder
+        expected_permissions = [
+            "READ",
+            "CHANGE_SETTINGS",
+            "CHANGE_PERMISSIONS",
+            "UPDATE",
+            "DELETE",
+        ]
         assert set(expected_permissions) == set(permissions)
 
         # AND I expect to see the default admin permissions on the parent-folder
@@ -626,27 +665,40 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_read_only_permissions_on_entity(
+    def test_get_acl_minimal_permissions_on_entity(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file created with default permissions of administrator
         file.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        project_with_read_only_permissions = file.store(parent=project_model)
-        self.schedule_for_cleanup(project_with_read_only_permissions.id)
+        project_with_minimal_permissions = file.store(parent=project_model)
+        self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the file
         p1 = UserProfile().get()
 
-        # AND the permissions for the user on the entity are set to READ only
-        project_with_read_only_permissions.set_permissions(
-            principal_id=p1.id, access_type=["READ"]
+        # AND the permissions for the user on the entity are set
+        project_with_minimal_permissions.set_permissions(
+            principal_id=p1.id,
+            access_type=[
+                "READ",
+                "CHANGE_SETTINGS",
+                "CHANGE_PERMISSIONS",
+                "UPDATE",
+                "DELETE",
+            ],
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_read_only_permissions.get_acl(principal_id=p1.id)
+        permissions = project_with_minimal_permissions.get_acl(principal_id=p1.id)
 
-        # THEN I expect to see read only permissions
-        expected_permissions = ["READ"]
+        # THEN I expect to see minimal permissions
+        expected_permissions = [
+            "READ",
+            "CHANGE_SETTINGS",
+            "CHANGE_PERMISSIONS",
+            "UPDATE",
+            "DELETE",
+        ]
         assert set(expected_permissions) == set(permissions)
 
     def test_get_acl_through_team_assigned_to_user(
@@ -896,25 +948,38 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_read_only_permissions_on_entity(self, table: Table) -> None:
+    def test_get_acl_minimal_permissions_on_entity(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        project_with_read_only_permissions = table.store_schema()
-        self.schedule_for_cleanup(project_with_read_only_permissions.id)
+        project_with_minimal_permissions = table.store_schema()
+        self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the table
         p1 = UserProfile().get()
 
-        # AND the permissions for the user on the entity are set to READ only
-        project_with_read_only_permissions.set_permissions(
-            principal_id=p1.id, access_type=["READ"]
+        # AND the permissions for the user on the entity are set
+        project_with_minimal_permissions.set_permissions(
+            principal_id=p1.id,
+            access_type=[
+                "READ",
+                "CHANGE_SETTINGS",
+                "CHANGE_PERMISSIONS",
+                "UPDATE",
+                "DELETE",
+            ],
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_read_only_permissions.get_acl(principal_id=p1.id)
+        permissions = project_with_minimal_permissions.get_acl(principal_id=p1.id)
 
-        # THEN I expect to see read only permissions
-        expected_permissions = ["READ"]
+        # THEN I expect to see minimal permissions
+        expected_permissions = [
+            "READ",
+            "CHANGE_SETTINGS",
+            "CHANGE_PERMISSIONS",
+            "UPDATE",
+            "DELETE",
+        ]
         assert set(expected_permissions) == set(permissions)
 
     def test_get_acl_through_team_assigned_to_user(self, table: Table) -> None:
