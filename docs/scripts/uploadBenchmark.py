@@ -46,6 +46,8 @@ PARENT_PROJECT = "syn$FILL_ME_IN"
 S3_BUCKET = "s3://$FILL_ME_IN"
 S3_PROFILE = "$FILL_ME_IN"
 
+MiB: int = 2**20
+
 
 def create_folder_structure(
     path: str,
