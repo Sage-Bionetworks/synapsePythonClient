@@ -230,3 +230,28 @@ def set_timezone():
     os.environ["TZ"] = "UTC"
     if platform.system() != "Windows":
         time.tzset()
+
+
+def alternative_uuid_generation() -> uuid.UUID:
+    """Alternative UUID generation function that includes the system timestamp."""
+    timestamp = str(os.times()[4])
+    return str(f"{uuid.UUID(bytes=os.urandom(16), version=4)}-{timestamp}")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def replace_uuid_generation() -> None:
+    """
+    This is an attempt to make UUID generation collisions never happen during
+    integration testing. The issue being solved is that for some reason when running
+    the tests with pytest-xdist, the UUID generation would collide and cause tests to
+    fail.
+
+    Here are 5 cases I found with recent integration tests:
+
+    synapseclient.core.exceptions.SynapseHTTPError: 409 Client Error: An entity with the name: 78ef8002-fcaf-41c4-914f-1313771b82f4 already exists with a parentId: syn13491817
+    Name My Uniquely Named Team 49025ca1-5bc7-490d-bbcc-84804b1b3b8e is already used.
+    An entity with the name: PartialRowTestViews42735d66-ebe5-40e0-9b04-0f88a80b3cf2 already exists with a parentId: syn13276338
+    Name My Uniquely Named Team 42eb7452-dcdf-4f30-b962-715a4369a67e is already used.
+    An Organization with the name: 'a10dc9a5e64264414958bb979b2fa1852' already exists
+    """
+    uuid.uuid4 = alternative_uuid_generation
