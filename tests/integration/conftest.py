@@ -233,8 +233,7 @@ def set_timezone():
 
 
 def alternative_uuid_generation() -> str:
-    """
-    Alternative UUID generation function that includes the system timestamp."""
+    """Alternative UUID generation function that includes the system timestamp."""
     timestamp = str(os.times()[4])
     return str(f"{uuid.UUID(bytes=os.urandom(16), version=4)}-{timestamp}").replace(
         ".", ""
