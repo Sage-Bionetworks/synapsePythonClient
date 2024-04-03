@@ -286,10 +286,12 @@ class TestFileStore:
 
         # THEN I expect the file handles to match
         assert file_2_etag != file_2.etag
-        await asyncio.sleep(5)
-        assert (await file_1.get_async()).file_handle == (
+
+        # The file_handle is eventually consistent & changes when a file preview is
+        # created. To handle for this I am just confirming the IDs match
+        assert (await file_1.get_async()).file_handle.id == (
             await file_2.get_async()
-        ).file_handle
+        ).file_handle.id
 
     @pytest.mark.asyncio
     async def test_store_updated_file(self, project_model: Project) -> None:

@@ -272,8 +272,10 @@ class TestFileStore:
 
         # THEN I expect the file handles to match
         assert file_2_etag != file_2.etag
-        time.sleep(5)
-        assert (file_1.get()).file_handle == (file_2.get()).file_handle
+
+        # The file_handle is eventually consistent & changes when a file preview is
+        # created. To handle for this I am just confirming the IDs match
+        assert (file_1.get()).file_handle.id == (file_2.get()).file_handle.id
 
     def test_store_updated_file(self, project_model: Project) -> None:
         # GIVEN a file
