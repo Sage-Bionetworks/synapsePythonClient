@@ -153,6 +153,9 @@ class Cache:
         then it is a new entry and we can return the value. If it does not, then it
         is an old entry and we should return the `cache_map_entry` itself.
 
+        The caveat is that `cache_map_entry` needs to be a string to return the value
+        otherwise it will return None.
+
         Arguments:
             cache_map_entry: The entry from the cache map
 
@@ -161,8 +164,9 @@ class Cache:
         """
         if cache_map_entry is not None and "modified_time" in cache_map_entry:
             return cache_map_entry.get("modified_time", None)
-        else:
+        elif cache_map_entry is not None and isinstance(cache_map_entry, str):
             return cache_map_entry
+        return None
 
     def _get_cache_content_md5(
         self, cache_map_entry: typing.Union[str, dict, None]
