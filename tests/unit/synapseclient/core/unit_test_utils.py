@@ -529,6 +529,7 @@ class TestSpinner:
     Verify the Spinner object work correctly
     """
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.msg = "test_msg"
         self.spinner = utils.Spinner(self.msg)

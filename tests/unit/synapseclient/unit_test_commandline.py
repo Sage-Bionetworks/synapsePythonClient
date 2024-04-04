@@ -605,6 +605,7 @@ def test_config_replace(
 
 
 class TestGetFunction:
+    @pytest.fixture(scope="function", autouse=True)
     @patch("synapseclient.client.Synapse")
     def setup(self, mock_syn):
         self.syn = mock_syn
@@ -695,6 +696,7 @@ class TestGetFunction:
 
 
 class TestStoreFunction:
+    @pytest.fixture(scope="function", autouse=True)
     @patch("synapseclient.client.Synapse")
     def setup(self, mock_syn):
         self.syn = mock_syn

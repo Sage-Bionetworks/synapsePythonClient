@@ -1128,6 +1128,7 @@ class TestGetFileEntityProvenanceDict:
     test synapseutils.sync._get_file_entity_provenance_dict
     """
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.mock_syn = create_autospec(Synapse)
 
