@@ -6127,7 +6127,7 @@ class Synapse(object):
         with tracer.start_as_current_span(f"{method.upper()} {uri}"):
             current_span = trace.get_current_span()
             current_span.set_attributes({"url": uri, "http.method": method.upper()})
-            if data:
+            if data and isinstance(data, dict):
                 if hasattr("parentId", data):
                     current_span.set_attribute("synapse.parent_id", data["parentId"])
                 if hasattr("id", data):
