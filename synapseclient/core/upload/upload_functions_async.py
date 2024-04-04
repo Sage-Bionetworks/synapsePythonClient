@@ -34,7 +34,6 @@ if TYPE_CHECKING:
 tracer = trace.get_tracer("synapseclient")
 
 
-@tracer.start_as_current_span("upload_functions::upload_file_handle")
 async def upload_file_handle(
     syn: "Synapse",
     parent_entity_id: str,

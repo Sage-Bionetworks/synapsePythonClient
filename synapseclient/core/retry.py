@@ -355,18 +355,17 @@ async def with_retry_time_based_async(
                 logger=logger, response=response, caught_exception=caught_exception
             )
 
-            with tracer.start_as_current_span("Synapse::retry_wait"):
-                backoff_wait = calculate_exponential_backoff(
-                    retries=retries,
-                    base_wait=retry_base_wait,
-                    wait_random_lower=retry_wait_random_lower,
-                    wait_random_upper=retry_wait_random_upper,
-                    back_off_factor=retry_back_off_factor,
-                    max_back_off=retry_max_back_off,
-                )
-                total_wait += backoff_wait
-                await asyncio.sleep(backoff_wait)
-                continue
+            backoff_wait = calculate_exponential_backoff(
+                retries=retries,
+                base_wait=retry_base_wait,
+                wait_random_lower=retry_wait_random_lower,
+                wait_random_upper=retry_wait_random_upper,
+                back_off_factor=retry_back_off_factor,
+                max_back_off=retry_max_back_off,
+            )
+            total_wait += backoff_wait
+            await asyncio.sleep(backoff_wait)
+            continue
 
         # Out of retries, re-raise the exception or return the response
         if caught_exception_info is not None and caught_exception_info[0] is not None:
@@ -478,18 +477,17 @@ def with_retry_time_based(
                 logger=logger, response=response, caught_exception=caught_exception
             )
 
-            with tracer.start_as_current_span("Synapse::retry_wait"):
-                backoff_wait = calculate_exponential_backoff(
-                    retries=retries,
-                    base_wait=retry_base_wait,
-                    wait_random_lower=retry_wait_random_lower,
-                    wait_random_upper=retry_wait_random_upper,
-                    back_off_factor=retry_back_off_factor,
-                    max_back_off=retry_max_back_off,
-                )
-                total_wait += backoff_wait
-                time.sleep(backoff_wait)
-                continue
+            backoff_wait = calculate_exponential_backoff(
+                retries=retries,
+                base_wait=retry_base_wait,
+                wait_random_lower=retry_wait_random_lower,
+                wait_random_upper=retry_wait_random_upper,
+                back_off_factor=retry_back_off_factor,
+                max_back_off=retry_max_back_off,
+            )
+            total_wait += backoff_wait
+            time.sleep(backoff_wait)
+            continue
 
         # Out of retries, re-raise the exception or return the response
         if caught_exception_info is not None and caught_exception_info[0] is not None:

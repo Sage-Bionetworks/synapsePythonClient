@@ -8,7 +8,7 @@ from opentelemetry import context, trace
 from synapseclient import Synapse
 from synapseclient.annotations import ANNO_TYPE_TO_FUNC
 from synapseclient.api import set_annotations
-from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.annotations_protocol import (
     AnnotationsSynchronousProtocol,
@@ -64,9 +64,6 @@ class Annotations(AnnotationsSynchronousProtocol):
     this field must match the current etag on the object. Not required if being used as
     a member variable on another class."""
 
-    @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Annotation_store: {self.id}"
-    )
     async def store_async(
         self,
         synapse_client: Optional[Synapse] = None,

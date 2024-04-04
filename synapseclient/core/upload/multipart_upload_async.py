@@ -94,7 +94,7 @@ from synapseclient.api import (
     put_file_multipart_add,
     put_file_multipart_complete,
 )
-from synapseclient.core.async_utils import otel_trace_method, wrap_async_to_sync
+from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
@@ -180,9 +180,6 @@ class UploadAttemptAsync:
         self._pre_signed_part_urls: Optional[Mapping[int, str]] = None
         self._progress_bar = None
 
-    @otel_trace_method(
-        method_to_trace_name=lambda *args, **kwargs: "UploadAttemptAsync"
-    )
     async def __call__(self) -> Dict[str, str]:
         """Orchestrate the upload of a file to Synapse."""
         upload_status_response = await post_file_multipart(
@@ -228,9 +225,6 @@ class UploadAttemptAsync:
             == concrete_types.MULTIPART_UPLOAD_COPY_REQUEST
         )
 
-    @otel_trace_method(
-        method_to_trace_name=lambda *args, **kwargs: "UploadAttemptAsync::_fetch_pre_signed_part_urls_async"
-    )
     async def _fetch_pre_signed_part_urls_async(
         self,
         upload_id: str,
@@ -312,9 +306,6 @@ class UploadAttemptAsync:
             otel_context,
         )
 
-    @otel_trace_method(
-        method_to_trace_name=lambda *args, **kwargs: "UploadAttempt::_upload_parts"
-    )
     async def _upload_parts(
         self, part_count: int, remaining_part_numbers: List[int]
     ) -> None:
@@ -439,9 +430,6 @@ class UploadAttemptAsync:
                     continue
         return raised_exception
 
-    @otel_trace_method(
-        method_to_trace_name=lambda *args, **kwargs: "UploadAttempt::_complete_upload"
-    )
     async def _complete_upload(self) -> Dict[str, str]:
         """Close the upload and mark it as complete.
 
@@ -485,47 +473,46 @@ class UploadAttemptAsync:
         """
         if otel_context:
             context.attach(otel_context)
-        with tracer.start_as_current_span("UploadAttempt::_handle_part"):
-            with self._thread_lock:
-                if self._aborted:
-                    # this upload attempt has already been aborted
-                    # so we short circuit the attempt to upload this part
-                    raise SynapseUploadAbortedException(
-                        f"Upload aborted, skipping part {part_number}"
-                    )
+        with self._thread_lock:
+            if self._aborted:
+                # this upload attempt has already been aborted
+                # so we short circuit the attempt to upload this part
+                raise SynapseUploadAbortedException(
+                    f"Upload aborted, skipping part {part_number}"
+                )
 
-                part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
+            part_url, signed_headers = self._pre_signed_part_urls.get(part_number)
 
-            session: httpx.Client = self._syn._requests_session_storage
+        session: httpx.Client = self._syn._requests_session_storage
 
-            # obtain the body (i.e. the upload bytes) for the given part number.
-            body = (
-                self._part_request_body_provider_fn(part_number)
-                if self._part_request_body_provider_fn
-                else None
-            )
-            part_size = len(body) if body else 0
-            self._syn.logger.debug(f"Uploading part {part_number} of size {part_size}")
-            if not self._is_copy() and body is None:
-                raise ValueError(f"No body for part {part_number}")
+        # obtain the body (i.e. the upload bytes) for the given part number.
+        body = (
+            self._part_request_body_provider_fn(part_number)
+            if self._part_request_body_provider_fn
+            else None
+        )
+        part_size = len(body) if body else 0
+        self._syn.logger.debug(f"Uploading part {part_number} of size {part_size}")
+        if not self._is_copy() and body is None:
+            raise ValueError(f"No body for part {part_number}")
 
-            response = self._put_part_with_retry(
-                session=session,
-                body=body,
-                part_url=part_url,
-                signed_headers=signed_headers,
-                part_number=part_number,
-            )
+        response = self._put_part_with_retry(
+            session=session,
+            body=body,
+            part_url=part_url,
+            signed_headers=signed_headers,
+            part_number=part_number,
+        )
 
-            md5_hex = self._md5_fn(body, response)
-            del response
-            del body
+        md5_hex = self._md5_fn(body, response)
+        del response
+        del body
 
-            # # remove so future batch pre_signed url fetches will exclude this part
-            with self._thread_lock:
-                del self._pre_signed_part_urls[part_number]
+        # # remove so future batch pre_signed url fetches will exclude this part
+        with self._thread_lock:
+            del self._pre_signed_part_urls[part_number]
 
-            return HandlePartResult(part_number, part_size, md5_hex)
+        return HandlePartResult(part_number, part_size, md5_hex)
 
     def _put_part_with_retry(
         self,
@@ -554,18 +541,15 @@ class UploadAttemptAsync:
         for retry in range(2):
             try:
                 # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
-                with tracer.start_as_current_span(
-                    "UploadAttempt::put_on_storage_provider"
-                ):
-                    trace.get_current_span().set_attributes({"url.path": part_url})
-                    response = with_retry_time_based(
-                        lambda part_url=part_url, signed_headers=signed_headers: session.put(
-                            url=part_url,
-                            content=body,  # noqa: F821
-                            headers=signed_headers,
-                        ),
-                        retry_exceptions=[requests.exceptions.ConnectionError],
-                    )
+
+                response = with_retry_time_based(
+                    lambda part_url=part_url, signed_headers=signed_headers: session.put(
+                        url=part_url,
+                        content=body,  # noqa: F821
+                        headers=signed_headers,
+                    ),
+                    retry_exceptions=[requests.exceptions.ConnectionError],
+                )
 
                 _raise_for_status_httpx(response=response, logger=self._syn.logger)
 
@@ -633,76 +617,72 @@ async def multipart_upload_file_async(
     [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
 
     """
-    with tracer.start_as_current_span("multipart_upload::multipart_upload_file"):
-        trace.get_current_span().set_attributes(
-            {
-                "synapse.storage_location_id": (
-                    storage_location_id if storage_location_id is not None else ""
-                )
-            }
-        )
-
-        if not os.path.exists(file_path):
-            raise IOError(f'File "{file_path}" not found.')
-        if os.path.isdir(file_path):
-            raise IOError(f'File "{file_path}" is a directory.')
-
-        file_size = os.path.getsize(file_path)
-        if not dest_file_name:
-            dest_file_name = os.path.basename(file_path)
-
-        if content_type is None:
-            mime_type, _ = mimetypes.guess_type(file_path, strict=False)
-            content_type = mime_type or "application/octet-stream"
-
-        md5_hex = md5 or (
-            await md5_for_file_multiprocessing(
-                filename=file_path,
-                process_pool_executor=syn._get_process_pool_executor(
-                    asyncio_event_loop=asyncio.get_running_loop()
-                ),
-                md5_semaphore=syn._get_md5_semaphore(
-                    asyncio_event_loop=asyncio.get_running_loop()
-                ),
+    trace.get_current_span().set_attributes(
+        {
+            "synapse.storage_location_id": (
+                storage_location_id if storage_location_id is not None else ""
             )
-        )
-
-        part_size = get_part_size(
-            part_size or DEFAULT_PART_SIZE,
-            file_size,
-            MIN_PART_SIZE,
-            MAX_NUMBER_OF_PARTS,
-        )
-
-        upload_request = {
-            "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
-            "contentType": content_type,
-            "contentMD5Hex": md5_hex,
-            "fileName": dest_file_name,
-            "fileSizeBytes": file_size,
-            "generatePreview": preview,
-            "partSizeBytes": part_size,
-            "storageLocationId": storage_location_id,
         }
+    )
 
-        def part_fn(part_number: int) -> bytes:
-            """Return the nth chunk of a file."""
-            return get_file_chunk(file_path, part_number, part_size)
+    if not os.path.exists(file_path):
+        raise IOError(f'File "{file_path}" not found.')
+    if os.path.isdir(file_path):
+        raise IOError(f'File "{file_path}" is a directory.')
 
-        return await _multipart_upload_async(
-            syn,
-            dest_file_name,
-            upload_request,
-            part_fn,
-            md5_fn_util,
-            force_restart=force_restart,
-            storage_str=storage_str,
+    file_size = os.path.getsize(file_path)
+    if not dest_file_name:
+        dest_file_name = os.path.basename(file_path)
+
+    if content_type is None:
+        mime_type, _ = mimetypes.guess_type(file_path, strict=False)
+        content_type = mime_type or "application/octet-stream"
+
+    md5_hex = md5 or (
+        await md5_for_file_multiprocessing(
+            filename=file_path,
+            process_pool_executor=syn._get_process_pool_executor(
+                asyncio_event_loop=asyncio.get_running_loop()
+            ),
+            md5_semaphore=syn._get_md5_semaphore(
+                asyncio_event_loop=asyncio.get_running_loop()
+            ),
         )
+    )
+
+    part_size = get_part_size(
+        part_size or DEFAULT_PART_SIZE,
+        file_size,
+        MIN_PART_SIZE,
+        MAX_NUMBER_OF_PARTS,
+    )
+
+    upload_request = {
+        "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
+        "contentType": content_type,
+        "contentMD5Hex": md5_hex,
+        "fileName": dest_file_name,
+        "fileSizeBytes": file_size,
+        "generatePreview": preview,
+        "partSizeBytes": part_size,
+        "storageLocationId": storage_location_id,
+    }
+
+    def part_fn(part_number: int) -> bytes:
+        """Return the nth chunk of a file."""
+        return get_file_chunk(file_path, part_number, part_size)
+
+    return await _multipart_upload_async(
+        syn,
+        dest_file_name,
+        upload_request,
+        part_fn,
+        md5_fn_util,
+        force_restart=force_restart,
+        storage_str=storage_str,
+    )
 
 
-@otel_trace_method(
-    method_to_trace_name=lambda *args, **kwargs: "_multipart_upload_async"
-)
 async def _multipart_upload_async(
     syn: "Synapse",
     dest_file_name: str,
@@ -758,7 +738,6 @@ async def _multipart_upload_async(
                 raise
 
 
-@tracer.start_as_current_span("multipart_upload::multipart_upload_string")
 async def multipart_upload_string_async(
     syn: "Synapse",
     text: str,
@@ -832,7 +811,6 @@ async def multipart_upload_string_async(
     )
 
 
-@tracer.start_as_current_span("multipart_upload::multipart_copy")
 async def multipart_copy_async(
     syn: "Synapse",
     source_file_handle_association: Dict[str, str],
