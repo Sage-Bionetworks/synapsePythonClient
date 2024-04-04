@@ -6086,6 +6086,31 @@ class Synapse(object):
 
             raise
 
+    def _attach_rest_data_to_otel(self, method, uri, data) -> None:
+        current_span = trace.get_current_span()
+        current_span.set_attributes({"url": uri, "http.method": method.upper()})
+        if current_span.is_recording and data and isinstance(data, str):
+            try:
+                data_dict = json.loads(data)
+                if "parentId" in data_dict:
+                    current_span.set_attribute(
+                        "synapse.parent_id", data_dict["parentId"]
+                    )
+                if "id" in data_dict:
+                    current_span.set_attribute("synapse.id", data_dict["id"])
+                if "concreteType" in data_dict:
+                    current_span.set_attribute(
+                        "synapse.concrete_type", data_dict["concreteType"]
+                    )
+                if "entityName" in data_dict:
+                    current_span.set_attribute("synapse.name", data_dict["entityName"])
+                elif "name" in data_dict:
+                    current_span.set_attribute("synapse.name", data_dict["name"])
+            except Exception as ex:
+                self.logger.debug(
+                    "Failed to parse data for OTEL span in _rest_call", ex
+                )
+
     def _rest_call(
         self,
         method,
@@ -6125,15 +6150,7 @@ class Synapse(object):
         auth = kwargs.pop("auth", self.credentials)
         requests_method_fn = getattr(requests_session, method)
         with tracer.start_as_current_span(f"{method.upper()} {uri}"):
-            current_span = trace.get_current_span()
-            current_span.set_attributes({"url": uri, "http.method": method.upper()})
-            if data and isinstance(data, dict):
-                if hasattr("parentId", data):
-                    current_span.set_attribute("synapse.parent_id", data["parentId"])
-                if hasattr("id", data):
-                    current_span.set_attribute("synapse.id", data["id"])
-                if hasattr("entityName", data):
-                    current_span.set_attribute("synapse.name", data["entityName"])
+            self._attach_rest_data_to_otel(method, uri, data)
             response = with_retry(
                 lambda: requests_method_fn(
                     uri,
