@@ -388,6 +388,119 @@ class TestFileStore:
         assert file.annotations["my_key_double"] == [1.2, 3.4, 5.6]
         assert file.annotations["my_key_long"] == [1, 2, 3]
 
+    def test_setting_annotations_directly(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file with the annotation
+        file.name = str(uuid.uuid4())
+        file.annotations["my_single_key_string"] = "a"
+        file.annotations["my_key_string"] = ["b", "a", "c"]
+        file.annotations["my_key_bool"] = [False, False, False]
+        file.annotations["my_key_double"] = [1.2, 3.4, 5.6]
+        file.annotations["my_key_long"] = [1, 2, 3]
+
+        # WHEN I store the file
+        file = file.store(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file annotations to have been stored
+        assert len(file.annotations.keys()) == 5
+        assert file.annotations["my_single_key_string"] == ["a"]
+        assert file.annotations["my_key_string"] == ["b", "a", "c"]
+        assert file.annotations["my_key_bool"] == [False, False, False]
+        assert file.annotations["my_key_double"] == [1.2, 3.4, 5.6]
+        assert file.annotations["my_key_long"] == [1, 2, 3]
+
+        # WHEN I update the annotations and store the file again
+        file.annotations["my_key_string"] = ["new", "values", "here"]
+        file.store()
+
+        # THEN I expect the file annotations to have been updated
+        assert len(file.annotations.keys()) == 5
+        assert file.annotations["my_single_key_string"] == ["a"]
+        assert file.annotations["my_key_string"] == ["new", "values", "here"]
+        assert file.annotations["my_key_bool"] == [False, False, False]
+        assert file.annotations["my_key_double"] == [1.2, 3.4, 5.6]
+        assert file.annotations["my_key_long"] == [1, 2, 3]
+
+    def test_removing_annotations_to_none(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN an annotation
+        annotations_for_my_file = {
+            "my_single_key_string": "a",
+            "my_key_string": ["b", "a", "c"],
+            "my_key_bool": [False, False, False],
+            "my_key_double": [1.2, 3.4, 5.6],
+            "my_key_long": [1, 2, 3],
+        }
+
+        # AND a file with the annotation
+        file.name = str(uuid.uuid4())
+        file.annotations = annotations_for_my_file
+
+        # WHEN I store the file
+        file = file.store(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file annotations to have been stored
+        assert file.annotations.keys() == annotations_for_my_file.keys()
+        assert file.annotations["my_single_key_string"] == ["a"]
+        assert file.annotations["my_key_string"] == ["b", "a", "c"]
+        assert file.annotations["my_key_bool"] == [False, False, False]
+        assert file.annotations["my_key_double"] == [1.2, 3.4, 5.6]
+        assert file.annotations["my_key_long"] == [1, 2, 3]
+
+        # WHEN I update the annotations to None
+        file.annotations = None
+        file.store()
+
+        # THEN I expect the file annotations to have been removed
+        assert not file.annotations and isinstance(file.annotations, dict)
+
+        # AND retrieving the file gives an empty dict for the annoations
+        file_copy = File(id=file.id, download_file=False).get()
+        assert not file_copy.annotations and isinstance(file_copy.annotations, dict)
+
+    def test_removing_annotations_to_empty_dict(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN an annotation
+        annotations_for_my_file = {
+            "my_single_key_string": "a",
+            "my_key_string": ["b", "a", "c"],
+            "my_key_bool": [False, False, False],
+            "my_key_double": [1.2, 3.4, 5.6],
+            "my_key_long": [1, 2, 3],
+        }
+
+        # AND a file with the annotation
+        file.name = str(uuid.uuid4())
+        file.annotations = annotations_for_my_file
+
+        # WHEN I store the file
+        file = file.store(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file annotations to have been stored
+        assert file.annotations.keys() == annotations_for_my_file.keys()
+        assert file.annotations["my_single_key_string"] == ["a"]
+        assert file.annotations["my_key_string"] == ["b", "a", "c"]
+        assert file.annotations["my_key_bool"] == [False, False, False]
+        assert file.annotations["my_key_double"] == [1.2, 3.4, 5.6]
+        assert file.annotations["my_key_long"] == [1, 2, 3]
+
+        # WHEN I update the annotations to an empty dict
+        file.annotations = {}
+        file.store()
+
+        # THEN I expect the file annotations to have been removed
+        assert not file.annotations and isinstance(file.annotations, dict)
+
+        # AND retrieving the file gives an empty dict for the annoations
+        file_copy = File(id=file.id, download_file=False).get()
+        assert not file_copy.annotations and isinstance(file_copy.annotations, dict)
+
     def test_store_without_upload(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
@@ -1126,7 +1239,7 @@ class TestCopy:
 
         # THEN I expect the activities to be the same and annotations on the second to be None
         assert file_1.annotations != file_2.annotations
-        assert file_2.annotations is None
+        assert not file_2.annotations and isinstance(file_2.annotations, dict)
         assert file_1.activity == file_2.activity
 
     def test_copy_with_no_activity_or_annotations(self, file: File) -> None:
@@ -1173,7 +1286,7 @@ class TestCopy:
         # THEN I expect the activities to be the same and annotations on the second to be None
         assert file_1.annotations != file_2.annotations
         assert file_1.activity != file_2.activity
-        assert file_2.annotations is None
+        assert not file_2.annotations and isinstance(file_2.annotations, dict)
         assert file_2.activity is None
 
     def test_copy_previous_version(self, file: File) -> None:

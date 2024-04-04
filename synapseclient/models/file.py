@@ -174,7 +174,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
             associated with all values in the list. To remove all annotations set this
-            to an empty dict `{}`.
+            to an empty dict `{}` or None and store the entity.
         create_or_update: (Store only)
             Indicates whether the method should automatically perform an
             update if the 'obj' conflicts with an existing Synapse object.
@@ -300,11 +300,12 @@ class File(FileSynchronousProtocol, AccessControllable):
                 List[datetime],
             ],
         ]
-    ] = None
+    ] = field(default_factory=dict)
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
-    all values in the list. To remove all annotations set this to an empty dict `{}`."""
+    all values in the list. To remove all annotations set this to an empty dict `{}`
+    or None and store the entity."""
 
     create_or_update: bool = field(default=True, repr=False)
     """
@@ -385,7 +386,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             dataclasses.replace(self.activity) if self.activity else None
         )
         self._last_persistent_instance.annotations = (
-            deepcopy(self.annotations) if self.annotations else None
+            deepcopy(self.annotations) if self.annotations else {}
         )
 
     def fill_from_dict(
@@ -443,7 +444,7 @@ class File(FileSynchronousProtocol, AccessControllable):
 
         if set_annotations:
             self.annotations = Annotations.from_dict(
-                synapse_file.get("annotations", None)
+                synapse_file.get("annotations", {})
             )
         return self
 

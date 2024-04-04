@@ -186,7 +186,7 @@ async def _store_activity_and_annotations(
     )
     if (
         hasattr(root_resource, "annotations")
-        and root_resource.annotations is not None
+        and (root_resource.annotations or last_persistent_instance)
         and (
             last_persistent_instance is None
             or last_persistent_instance.annotations != root_resource.annotations

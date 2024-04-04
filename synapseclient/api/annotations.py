@@ -2,6 +2,7 @@
 The purpose of this module is to provide any functions that are needed to interact with
 annotations that are not cleanly provided by the synapseclient library.
 """
+
 import json
 
 from dataclasses import asdict
@@ -21,14 +22,18 @@ def set_annotations(
     """Call to synapse and set the annotations for the given input.
 
     Arguments:
-        annotations: The annotations to set. This is expected to have the id, etag, and annotations filled in.
-        synapse_client: If not passed in or None this will use the last client from the `.login()` method.
+        annotations: The annotations to set. This is expected to have the id, etag,
+            and annotations filled in.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
 
     Returns: The annotations set in Synapse.
     """
     annotations_dict = asdict(annotations)
 
-    synapse_annotations = _convert_to_annotations_list(annotations_dict["annotations"])
+    synapse_annotations = _convert_to_annotations_list(
+        annotations_dict["annotations"] or {}
+    )
 
     return Synapse.get_client(synapse_client=synapse_client).restPUT(
         f"/entity/{annotations.id}/annotations2",

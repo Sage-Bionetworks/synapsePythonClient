@@ -58,8 +58,8 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
-            associated with all values in the list.  To remove all annotations set this
-            to an empty dict `{}`.
+            associated with all values in the list. To remove all annotations set this
+            to an empty dict `{}` or None and store the entity.
         create_or_update: (Store only) Indicates whether the method should
             automatically perform an update if the resource conflicts with an existing
             Synapse object. When True this means that any changes to the resource will
@@ -124,11 +124,12 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
                 List[datetime],
             ],
         ]
-    ] = field(default=None, compare=False)
+    ] = field(default_factory=dict, compare=False)
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
-    all values in the list. To remove all annotations set this to an empty dict `{}`."""
+    all values in the list. To remove all annotations set this to an empty dict `{}`
+    or None and store the entity."""
 
     is_restricted: bool = field(default=False, repr=False)
     """
@@ -173,7 +174,7 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         del self._last_persistent_instance
         self._last_persistent_instance = replace(self)
         self._last_persistent_instance.annotations = (
-            deepcopy(self.annotations) if self.annotations else None
+            deepcopy(self.annotations) if self.annotations else {}
         )
 
     def fill_from_dict(

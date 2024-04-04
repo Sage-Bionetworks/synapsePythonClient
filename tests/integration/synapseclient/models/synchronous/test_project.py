@@ -62,7 +62,9 @@ class TestProjectStore:
         assert stored_project.modified_by is not None
         assert stored_project.files == []
         assert stored_project.folders == []
-        assert stored_project.annotations is None
+        assert not stored_project.annotations and isinstance(
+            stored_project.annotations, dict
+        )
 
     def test_store_project_with_file(self, file: File, project: Project) -> None:
         # GIVEN a File on the project
@@ -85,7 +87,9 @@ class TestProjectStore:
         assert len(stored_project.files) == 1
         assert stored_project.files == [file]
         assert stored_project.folders == []
-        assert stored_project.annotations is None
+        assert not stored_project.annotations and isinstance(
+            stored_project.annotations, dict
+        )
 
         # AND I expect the File to be stored on Synapse
         assert file.id is not None
@@ -124,7 +128,9 @@ class TestProjectStore:
         assert len(stored_project.folders) == 1
         assert stored_project.files == []
         assert stored_project.folders == [folder]
-        assert stored_project.annotations is None
+        assert not stored_project.annotations and isinstance(
+            stored_project.annotations, dict
+        )
 
         # AND I expect the Folder to be stored in Synapse
         assert folder.id is not None
@@ -161,7 +167,9 @@ class TestProjectStore:
         assert len(stored_project.files) == 3
         assert stored_project.files == files
         assert stored_project.folders == []
-        assert stored_project.annotations is None
+        assert not stored_project.annotations and isinstance(
+            stored_project.annotations, dict
+        )
 
         # AND I expect the Files to be stored on Synapse
         for file in files:
@@ -212,7 +220,9 @@ class TestProjectStore:
         assert stored_project.files == files
         assert len(stored_project.folders) == 2
         assert stored_project.folders == folders
-        assert stored_project.annotations is None
+        assert not stored_project.annotations and isinstance(
+            stored_project.annotations, dict
+        )
 
         # AND I expect the Files to be stored on Synapse
         for file in files:
@@ -303,7 +313,9 @@ class TestProjectGet:
         assert project_copy.modified_by is not None
         assert project_copy.files == []
         assert project_copy.folders == []
-        assert project_copy.annotations is None
+        assert not stored_project.annotations and isinstance(
+            stored_project.annotations, dict
+        )
 
     def test_get_project_by_name_attribute(self, project: Project) -> None:
         # GIVEN a Project object
@@ -327,7 +339,9 @@ class TestProjectGet:
         assert project_copy.modified_by is not None
         assert project_copy.files == []
         assert project_copy.folders == []
-        assert project_copy.annotations is None
+        assert not stored_project.annotations and isinstance(
+            stored_project.annotations, dict
+        )
 
 
 class TestProjectDelete:
