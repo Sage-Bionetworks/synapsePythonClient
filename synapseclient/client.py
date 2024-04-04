@@ -447,7 +447,7 @@ class Synapse(object):
                 {"url": str(request.url), "http.method": request.method}
             )
             self._attach_rest_data_to_otel(
-                request.method, request.url, request.content, span
+                request.method, str(request.url), request.content, span
             )
             span_dict.update({request: span})
 
