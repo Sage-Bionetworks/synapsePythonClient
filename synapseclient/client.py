@@ -6086,7 +6086,15 @@ class Synapse(object):
 
             raise
 
-    def _attach_rest_data_to_otel(self, method, uri, data) -> None:
+    def _attach_rest_data_to_otel(self, method: str, uri: str, data: str) -> None:
+        """Handle attaching a few piece of data from the REST call into the OTEL span.
+        This is used for easier tracking of data that is being sent out of this service.
+
+        Arguments:
+            method: The HTTP method used in the REST call.
+            uri: The URI of the REST call.
+            data: The data being sent in the REST call.
+        """
         current_span = trace.get_current_span()
         current_span.set_attributes({"url": uri, "http.method": method.upper()})
         if current_span.is_recording and data and isinstance(data, str):
