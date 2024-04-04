@@ -259,3 +259,12 @@ def replace_uuid_generation() -> None:
     An Organization with the name: 'a10dc9a5e64264414958bb979b2fa1852' already exists
     """
     uuid.uuid4 = alternative_uuid_generation
+
+
+@pytest.fixture(autouse=True, scope="function")
+def wrap_with_otel(request):
+    """
+    Start a new OTEL Span for each test function.
+    """
+    with tracer.start_as_current_span(request.node.name):
+        yield

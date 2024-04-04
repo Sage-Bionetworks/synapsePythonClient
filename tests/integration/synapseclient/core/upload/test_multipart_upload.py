@@ -26,7 +26,6 @@ from opentelemetry import trace
 tracer = trace.get_tracer("synapseclient")
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_round_trip")
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_round_trip(syn: Synapse, project: Project, schedule_for_cleanup):
     fhid = None
@@ -55,7 +54,6 @@ def test_round_trip(syn: Synapse, project: Project, schedule_for_cleanup):
             print(traceback.format_exc())
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_single_thread_upload")
 def test_single_thread_upload(syn: Synapse):
     synapseclient.core.config.single_threaded = True
     try:
@@ -65,7 +63,6 @@ def test_single_thread_upload(syn: Synapse):
         synapseclient.core.config.single_threaded = False
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_randomly_failing_parts")
 def test_randomly_failing_parts(syn: Synapse, project: Project, schedule_for_cleanup):
     """Verify that we can recover gracefully with some randomly inserted errors
     while uploading parts."""
@@ -123,7 +120,6 @@ def test_randomly_failing_parts(syn: Synapse, project: Project, schedule_for_cle
                 print(traceback.format_exc())
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_multipart_upload_big_string")
 def test_multipart_upload_big_string(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
@@ -270,14 +266,12 @@ def _multipart_copy_test(
     assert file_content == dest_file_content
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_multipart_copy")
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_multipart_copy(syn: Synapse, project: Project, schedule_for_cleanup):
     """Test multi part copy using the minimum part size."""
     _multipart_copy_test(syn, project, schedule_for_cleanup, MIN_PART_SIZE)
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_multipart_copy__big_parts")
 @skip("Skip in normal testing because the large size makes it slow")
 def test_multipart_copy__big_parts(
     syn: Synapse, project: Project, schedule_for_cleanup

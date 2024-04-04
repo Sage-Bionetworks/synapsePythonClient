@@ -603,7 +603,12 @@ class Table(TableSynchronousProtocol, AccessControllable):
             columns=self.columns,
             parent=self.parent_id,
         )
-
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.name": self.name or "",
+                "synapse.id": self.id or "",
+            }
+        )
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
         entity = await loop.run_in_executor(

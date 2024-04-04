@@ -44,7 +44,6 @@ async def sleep_and_end_test(syn: Synapse) -> None:
     syn.test_keepRunning = False
 
 
-@tracer.start_as_current_span("test_caching::test_threaded_access")
 @pytest.mark.asyncio
 async def test_threaded_access(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
@@ -196,7 +195,6 @@ def collect_errors_and_fail(syn: Synapse):
 ######################
 
 
-@tracer.start_as_current_span("test_caching::thread_keep_storing_one_File")
 def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cleanup):
     """Makes one file and stores it over and over again."""
 
@@ -221,7 +219,6 @@ def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cl
         sleep_for_a_bit()
 
 
-@tracer.start_as_current_span("test_caching::thread_get_files_from_Project")
 def thread_get_files_from_Project(syn: Synapse, project: Project):
     """Continually polls and fetches items from the Project."""
 
@@ -231,7 +228,6 @@ def thread_get_files_from_Project(syn: Synapse, project: Project):
         sleep_for_a_bit()
 
 
-@tracer.start_as_current_span("test_caching::thread_get_and_update_file_from_Project")
 def thread_get_and_update_file_from_Project(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
@@ -271,13 +267,11 @@ def sleep_for_a_bit() -> int:
     return time_to_sleep
 
 
-@tracer.start_as_current_span("test_caching::get_all_ids_from_Project")
 def get_all_ids_from_Project(syn: Synapse, project: Project):
     """Fetches all currently available Synapse IDs from the parent Project."""
     return [result["id"] for result in syn.getChildren(project.id)]
 
 
-@tracer.start_as_current_span("test_caching::store_catch_412_HTTPError")
 def store_catch_412_HTTPError(syn: Synapse, entity: Entity):
     """Returns the stored Entity if the function succeeds or None if the 412 is caught."""
     try:

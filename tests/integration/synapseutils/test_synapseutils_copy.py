@@ -30,7 +30,6 @@ tracer = trace.get_tracer("synapseclient")
 
 # Add Test for UPDATE
 # Add test for existing provenance but the orig doesn't have provenance
-@tracer.start_as_current_span("test_synapseutils_copy::test_copy")
 @pytest.mark.flaky(reruns=10)
 def test_copy(syn: Synapse, schedule_for_cleanup):
     try:
@@ -292,7 +291,6 @@ def execute_test_copy(syn: Synapse, schedule_for_cleanup):
 
 
 class TestCopyWiki:
-    @tracer.start_as_current_span("test_synapseutils_copy::TestCopyWiki::init")
     @pytest.fixture(autouse=True)
     def init(self, syn, schedule_for_cleanup):
         self.syn = syn
@@ -365,9 +363,6 @@ class TestCopyWiki:
 
         self.first_headers = self.syn.getWikiHeaders(self.project_entity)
 
-    @tracer.start_as_current_span(
-        "test_synapseutils_copy::TestCopyWiki::test_copy_Wiki"
-    )
     def test_copy_Wiki(self):
         second_headers = synapseutils.copyWiki(
             self.syn,
@@ -414,9 +409,6 @@ class TestCopyWiki:
             # check that attachment file names are the same
             assert orig_file == new_file
 
-    @tracer.start_as_current_span(
-        "test_synapseutils_copy::TestCopyWiki::test_entitySubPageId_and_destinationSubPageId"
-    )
     def test_entitySubPageId_and_destinationSubPageId(self):
         # Test: entitySubPageId
         second_header = synapseutils.copyWiki(
@@ -460,7 +452,6 @@ class TestCopyWiki:
 
 
 class TestCopyFileHandles:
-    @tracer.start_as_current_span("test_synapseutils_copy::TestCopyFileHandles::init")
     @pytest.fixture(autouse=True)
     def init(self, syn, schedule_for_cleanup):
         self.syn = syn
@@ -487,9 +478,6 @@ class TestCopyFileHandles:
         test_entity_1 = self.syn.store(test_entity_1)
         self.obj_id_1 = str(test_entity_1["id"][3:])
 
-    @tracer.start_as_current_span(
-        "test_synapseutils_copy::TestCopyFileHandles::test_copy_file_handles"
-    )
     def test_copy_file_handles(self):
         # define inputs
         file_handles = [self.file_handle_id_1]

@@ -11,7 +11,6 @@ from opentelemetry import trace
 tracer = trace.get_tracer("synapseclient")
 
 
-@tracer.start_as_current_span("test_json_schema_services::test_available_services")
 def test_available_services(syn):
     services = syn.get_available_services()  # Output: ['json_schema']
     available_services = ["json_schema"]
@@ -23,9 +22,6 @@ def js(syn):
     return syn.service("json_schema")
 
 
-@tracer.start_as_current_span(
-    "test_json_schema_services::test_json_schema_organization"
-)
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_json_schema_organization(js):
     # Schema organizations must start with a string
@@ -96,9 +92,6 @@ class TestJsonSchemaSchemas:
     def teardown(self):
         self.my_org.delete()
 
-    @tracer.start_as_current_span(
-        "test_json_schema_services::TestJsonSchemaSchemas::test_json_schema_schemas_org_create_schema"
-    )
     def test_json_schema_schemas_org_create_schema(self):
         # Create json schema
         new_version = self.my_org.create_json_schema(
@@ -117,9 +110,6 @@ class TestJsonSchemaSchemas:
         assert full_body["properties"] == self.simple_schema["properties"]
         new_version.delete()
 
-    @tracer.start_as_current_span(
-        "test_json_schema_services::TestJsonSchemaSchemas::test_json_schema_schemas_js_create_schema"
-    )
     def test_json_schema_schemas_js_create_schema(self, js):
         # Create json schema
         # Version 2 of creating json schema
@@ -131,9 +121,6 @@ class TestJsonSchemaSchemas:
         assert schema1 is schema2
         new_version.delete()
 
-    @tracer.start_as_current_span(
-        "test_json_schema_services::TestJsonSchemaSchemas::test_json_schema_schemas_js_version_create_schema"
-    )
     def test_json_schema_schemas_js_version_create_schema(self, js):
         # Create json schema
         # Version 3 of creating json schema
@@ -147,9 +134,6 @@ class TestJsonSchemaSchemas:
         assert schema1 is schema2
         new_version.delete()
 
-    @tracer.start_as_current_span(
-        "test_json_schema_services::TestJsonSchemaSchemas::test_json_schema_validate"
-    )
     def test_json_schema_validate(self, js, syn, schedule_for_cleanup):
         project_name = str(uuid.uuid4()).replace("-", "")
         project = synapseclient.Project(name=project_name)

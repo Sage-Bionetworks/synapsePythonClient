@@ -12,7 +12,6 @@ from opentelemetry import trace
 tracer = trace.get_tracer("synapseclient")
 
 
-@tracer.start_as_current_span("test_synapseutils_walk::test_walk")
 @pytest.mark.flaky(reruns=3)
 def test_walk(syn, schedule_for_cleanup):
     try:

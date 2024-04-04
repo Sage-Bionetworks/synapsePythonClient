@@ -91,7 +91,6 @@ def parse(regex, output):
         raise Exception('ERROR parsing output: "' + str(output) + '"')
 
 
-@tracer.start_as_current_span("test_command_line_client::test_command_line_client")
 def test_command_line_client(test_state):
     print("TESTING CMD LINE CLIENT")
     # Create a Project
@@ -269,9 +268,6 @@ def test_command_line_client(test_state):
     run(test_state, "synapse" "--skip-checks", "delete", project_id)
 
 
-@tracer.start_as_current_span(
-    "test_command_line_client::test_command_line_client_annotations"
-)
 def test_command_line_client_annotations(test_state):
     # Create a Project
     output = run(
@@ -416,9 +412,6 @@ def test_command_line_client_annotations(test_state):
     assert annotations["foo"] == [456]
 
 
-@tracer.start_as_current_span(
-    "test_command_line_client::test_command_line_store_and_submit"
-)
 def test_command_line_store_and_submit(test_state):
     # Create a Project
     output = run(
@@ -572,9 +565,6 @@ def test_command_line_store_and_submit(test_state):
     run(test_state, "synapse" "--skip-checks", "delete", project_id)
 
 
-@tracer.start_as_current_span(
-    "test_command_line_client::test_command_get_recursive_and_query"
-)
 def test_command_get_recursive_and_query(test_state):
     """Tests the 'synapse get -r' and 'synapse get -q' functions"""
 
@@ -665,7 +655,6 @@ def test_command_get_recursive_and_query(test_state):
     test_state.schedule_for_cleanup(new_paths[0])
 
 
-@tracer.start_as_current_span("test_command_line_client::test_command_copy")
 def test_command_copy(test_state):
     """Tests the 'synapse cp' function"""
 
@@ -765,7 +754,6 @@ def test_command_copy(test_state):
     )
 
 
-@tracer.start_as_current_span("test_command_line_client::test_command_line_using_paths")
 def test_command_line_using_paths(test_state):
     # Create a Project
     project_entity = test_state.syn.store(Project(name=str(uuid.uuid4())))
@@ -864,7 +852,6 @@ def test_command_line_using_paths(test_state):
     run(test_state, "synapse" "--skip-checks", "show", filename)
 
 
-@tracer.start_as_current_span("test_command_line_client::test_table_query")
 def test_table_query(test_state):
     """Test command line ability to do table query."""
 
@@ -912,7 +899,6 @@ def test_table_query(test_state):
     )
 
 
-@tracer.start_as_current_span("test_command_line_client::test_login")
 def test_login(test_state):
     alt_syn = Synapse()
     username = "username"
@@ -936,7 +922,6 @@ def test_login(test_state):
         mock_get_user_profile.assert_called_once_with()
 
 
-@tracer.start_as_current_span("test_command_line_client::test_configPath")
 def test_configPath(test_state):
     """Test using a user-specified configPath for Synapse configuration file."""
 
@@ -985,7 +970,6 @@ def _create_temp_file_with_cleanup(schedule_for_cleanup, specific_file_text=None
     return filename
 
 
-@tracer.start_as_current_span("test_command_line_client::test_create__with_description")
 def test_create__with_description(test_state):
     output = run(
         test_state,
@@ -1002,7 +986,6 @@ def test_create__with_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-@tracer.start_as_current_span("test_command_line_client::test_store__with_description")
 def test_store__with_description(test_state):
     output = run(
         test_state,
@@ -1019,7 +1002,6 @@ def test_store__with_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-@tracer.start_as_current_span("test_command_line_client::test_add__with_description")
 def test_add__with_description(test_state):
     output = run(
         test_state,
@@ -1036,9 +1018,6 @@ def test_add__with_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-@tracer.start_as_current_span(
-    "test_command_line_client::test_create__with_descriptionFile"
-)
 def test_create__with_descriptionFile(test_state):
     output = run(
         test_state,
@@ -1055,9 +1034,6 @@ def test_create__with_descriptionFile(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-@tracer.start_as_current_span(
-    "test_command_line_client::test_store__with_descriptionFile"
-)
 def test_store__with_descriptionFile(test_state):
     output = run(
         test_state,
@@ -1074,9 +1050,6 @@ def test_store__with_descriptionFile(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-@tracer.start_as_current_span(
-    "test_command_line_client::test_add__with_descriptionFile"
-)
 def test_add__with_descriptionFile(test_state):
     output = run(
         test_state,
@@ -1093,9 +1066,6 @@ def test_add__with_descriptionFile(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-@tracer.start_as_current_span(
-    "test_command_line_client::test_create__update_description"
-)
 def test_create__update_description(test_state):
     name = str(uuid.uuid4())
     output = run(
@@ -1126,9 +1096,6 @@ def test_create__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.update_description_text)
 
 
-@tracer.start_as_current_span(
-    "test_command_line_client::test_store__update_description"
-)
 def test_store__update_description(test_state):
     name = str(uuid.uuid4())
     output = run(
@@ -1159,7 +1126,6 @@ def test_store__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.update_description_text)
 
 
-@tracer.start_as_current_span("test_command_line_client::test_add__update_description")
 def test_add__update_description(test_state):
     name = str(uuid.uuid4())
     output = run(
@@ -1190,9 +1156,6 @@ def test_add__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.update_description_text)
 
 
-@tracer.start_as_current_span(
-    "test_command_line_client::test_create__same_project_name"
-)
 def test_create__same_project_name(test_state):
     """Test creating project that already exists returns the existing project."""
 
@@ -1210,7 +1173,6 @@ def test_create__same_project_name(test_state):
     assert entity_id_first == entity_id_second
 
 
-@tracer.start_as_current_span("test_command_line_client::test_storeTable_csv")
 @patch.object(utils.sys.stdin, "isatty")
 def test_storeTable_csv(mock_sys, test_state):
     # when running on windows os with multiple CPU, the sys.stdin.isatty will return True

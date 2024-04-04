@@ -9,7 +9,6 @@ from opentelemetry import trace
 tracer = trace.get_tracer("synapseclient")
 
 
-@tracer.start_as_current_span("test_REST_request_helpers::test_createColumns")
 def test_createColumns(syn):
     columns_to_create = [
         Column(name="FirstTestColumn", columnType="INTEGER"),
