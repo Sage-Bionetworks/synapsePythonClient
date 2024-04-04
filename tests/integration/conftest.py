@@ -234,8 +234,6 @@ def set_timezone():
 
 @pytest.fixture(autouse=True, scope="function")
 def wrap_with_otel(request):
-    """
-    Start a new OTEL Span for each test function.
-    """
+    """Start a new OTEL Span for each test function."""
     with tracer.start_as_current_span(request.node.name):
         yield
