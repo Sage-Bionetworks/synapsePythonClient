@@ -6026,7 +6026,9 @@ class Synapse(object):
                 data_dict = json.loads(data_to_parse)
 
                 # TODO: This is temporary code for debugging purposes. REMOVE ME.
-                current_span.set_attribute("HTTP_DATA_TEMPORARY", str(data_dict))
+                current_span.set_attribute(
+                    "HTTP_DATA_TEMPORARY_REQUEST", str(data_dict)
+                )
                 if "parentId" in data_dict:
                     current_span.set_attribute(
                         "synapse.parent_id", data_dict["parentId"]
@@ -6101,6 +6103,8 @@ class Synapse(object):
             verbose=self.debug,
             **retryPolicy,
         )
+        body = self._return_rest_body(response)
+        current_span.set_attribute("HTTP_DATA_TEMPORARY_RESPONSE", str(body))
         current_span.end()
         self._handle_synapse_http_error(response)
         return response
@@ -6350,6 +6354,12 @@ class Synapse(object):
             )
 
         self._handle_httpx_synapse_http_error(response)
+
+        if trace.get_current_span().is_recording():
+            body = self._return_rest_body(response)
+            trace.get_current_span().set_attribute(
+                "HTTP_DATA_TEMPORARY_RESPONSE", str(body)
+            )
         return response
 
     async def rest_get_async(
