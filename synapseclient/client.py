@@ -6026,7 +6026,7 @@ class Synapse(object):
                 data_dict = json.loads(data_to_parse)
 
                 # TODO: This is temporary code for debugging purposes. REMOVE ME.
-                current_span.set_attribute("HTTP_DATA_TEMPORARY", data_dict)
+                current_span.set_attribute("HTTP_DATA_TEMPORARY", str(data_dict))
                 if "parentId" in data_dict:
                     current_span.set_attribute(
                         "synapse.parent_id", data_dict["parentId"]
