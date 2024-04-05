@@ -493,7 +493,6 @@ def _delete_rows(syn, schema, row_id_vers_list: Tuple[str, int]) -> None:
         os.remove(delete_row_csv_filepath)
 
 
-@tracer.start_as_current_span("Synapse::delete_rows")
 def delete_rows(
     syn,
     table_id: str,

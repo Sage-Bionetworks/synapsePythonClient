@@ -15,7 +15,11 @@ from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import OS_DESCRIPTION, OS_TYPE, SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    ConsoleSpanExporter,
+    SimpleSpanProcessor,
+)
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 
 from synapseclient import Entity, Project, Synapse
@@ -47,7 +51,6 @@ def event_loop(request):
 
 
 @pytest.fixture(scope="session")
-@tracer.start_as_current_span("conftest::syn")
 def syn() -> Synapse:
     """
     Create a logged in Synapse instance that can be shared by all tests in the session.
@@ -68,7 +71,6 @@ def syn() -> Synapse:
 
 
 @pytest.fixture(scope="session")
-@tracer.start_as_current_span("conftest::project")
 @pytest.mark.asyncio
 def project_model(request, syn: Synapse) -> Project_Model:
     """
@@ -96,7 +98,6 @@ def project_model(request, syn: Synapse) -> Project_Model:
 
 
 @pytest.fixture(scope="session")
-@tracer.start_as_current_span("conftest::project")
 def project(request, syn: Synapse) -> Project:
     """
     Create a project to be shared by all tests in the session. If xdist is being used
@@ -155,7 +156,6 @@ def schedule_for_cleanup(request, syn: Synapse):
     return _append_cleanup
 
 
-@tracer.start_as_current_span("conftest::_cleanup")
 def _cleanup(syn: Synapse, items):
     """cleanup junk created during testing"""
     for item in reversed(items):
@@ -192,6 +192,24 @@ def _cleanup(syn: Synapse, items):
             sys.stderr.write("Don't know how to clean: %s" % str(item))
 
 
+class FileSpanExporter(ConsoleSpanExporter):
+    """Create an exporter for OTEL data to a file."""
+
+    def __init__(self, file_path) -> None:
+        """Init with a path."""
+        self.file_path = file_path
+
+    def export(self, spans) -> None:
+        """Export the spans to the file."""
+        with open(self.file_path, "a", encoding="utf-8") as f:
+            for span in spans:
+                span_json_one_line = span.to_json().replace("\n", "") + "\n"
+                f.write(span_json_one_line)
+
+
+active_span_processors = []
+
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_otel():
     """
@@ -200,7 +218,7 @@ def setup_otel():
     to export to the console, a file, or to an OTLP endpoint.
     """
     # Setup
-    exporter_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER", None)
+    exporter_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER", "file")
     if exporter_type:
         trace.set_tracer_provider(
             TracerProvider(
@@ -214,13 +232,22 @@ def setup_otel():
             )
         )
         if exporter_type == "otlp":
-            trace.get_tracer_provider().add_span_processor(
-                BatchSpanProcessor(OTLPSpanExporter())
-            )
+            processor = BatchSpanProcessor(OTLPSpanExporter())
+            active_span_processors.append(processor)
+            trace.get_tracer_provider().add_span_processor(processor)
         elif exporter_type == "console":
-            trace.get_tracer_provider().add_span_processor(
-                BatchSpanProcessor(ConsoleSpanExporter())
+            processor = BatchSpanProcessor(ConsoleSpanExporter())
+            active_span_processors.append(processor)
+            trace.get_tracer_provider().add_span_processor(processor)
+        elif exporter_type == "file":
+            timestamp_millis = int(time.time() * 1000)
+            file_name = f"otel_spans_integration_testing_{timestamp_millis}.ndjson"
+            file_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), file_name
             )
+            processor = SimpleSpanProcessor(FileSpanExporter(file_path))
+            active_span_processors.append(processor)
+            trace.get_tracer_provider().add_span_processor(processor)
     else:
         trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
 
@@ -235,5 +262,10 @@ def set_timezone():
 @pytest.fixture(autouse=True, scope="function")
 def wrap_with_otel(request):
     """Start a new OTEL Span for each test function."""
-    with tracer.start_as_current_span(request.node.name):
-        yield
+    with tracer.start_as_current_span(request.node.name) as span:
+        try:
+            yield
+        finally:
+            for processor in active_span_processors:
+                processor.force_flush()
+            span.end()

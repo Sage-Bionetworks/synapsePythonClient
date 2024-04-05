@@ -183,8 +183,8 @@ jobs:
           export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
           export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
           if [ ${{ steps.otel-check.outputs.run_opentelemetry }} == "true" ]; then
-            # Set to 'otlp' to enable OpenTelemetry
-            export SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER="otlp"
+            # Set to 'file' to enable OpenTelemetry export to file
+            export SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER="file"
           fi
 
           # use loadscope to avoid issues running tests concurrently that share scoped fixtures
@@ -192,6 +192,12 @@ jobs:
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
           pytest -sv --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+      - name: Upload otel spans
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: otel_spans_integration_testing
+          path: tests/integration/otel_spans_integration_testing_*.ndjson
       - name: Upload coverage report
         uses: actions/upload-artifact@v2
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}

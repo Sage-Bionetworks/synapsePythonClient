@@ -37,7 +37,6 @@ def log_upload_message(syn: "Synapse", message: str) -> None:
         syn.logger.info(message)
 
 
-@tracer.start_as_current_span("upload_functions::upload_file_handle")
 def upload_file_handle(
     syn: "Synapse",
     parent_entity: Union[str, collections.abc.Mapping, numbers.Number],
