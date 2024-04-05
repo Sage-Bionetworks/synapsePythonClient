@@ -193,13 +193,13 @@ jobs:
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
           pytest -sv --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
       - name: Upload otel spans
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: otel_spans_integration_testing
+          name: otel_spans_integration_testing_${{ matrix.os }}
           path: tests/integration/otel_spans_integration_testing_*.ndjson
       - name: Upload coverage report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
         with:
           name: coverage-report
