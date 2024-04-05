@@ -6103,9 +6103,10 @@ class Synapse(object):
             verbose=self.debug,
             **retryPolicy,
         )
-        body = self._return_rest_body(response)
-        current_span.set_attribute("HTTP_DATA_TEMPORARY_RESPONSE", str(body))
-        current_span.end()
+        if current_span.is_recording():
+            body = self._return_rest_body(response)
+            current_span.set_attribute("HTTP_DATA_TEMPORARY_RESPONSE", str(body))
+            current_span.end()
         self._handle_synapse_http_error(response)
         return response
 
