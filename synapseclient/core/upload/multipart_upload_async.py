@@ -409,7 +409,7 @@ class UploadAttemptAsync:
                         and task_result.add_part_state != "ADD_SUCCESS"
                     ):
                         message = (
-                            "Adding individual part failed with unexpected state:  "
+                            "Adding individual part failed with unexpected state: "
                             f"{task_result.add_part_state}, for upload "
                             f"{task_result.upload_id} and part "
                             f"{task_result.part_number} with message: "
