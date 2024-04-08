@@ -6077,6 +6077,12 @@ class Synapse(object):
 
         auth = kwargs.pop("auth", self.credentials)
         requests_method_fn = getattr(requests_session, method)
+        current_span = trace.get_current_span()
+        if current_span.is_recording():
+            current_span = tracer.start_span(
+                f"{method.upper()} {uri}", kind=SpanKind.CLIENT
+            )
+            self._attach_rest_data_to_otel(method, uri, data, current_span)
         response = with_retry(
             lambda: requests_method_fn(
                 uri,
@@ -6088,7 +6094,10 @@ class Synapse(object):
             verbose=self.debug,
             **retryPolicy,
         )
-
+        if current_span.is_recording():
+            body = self._return_rest_body(response)
+            current_span.set_attribute("HTTP_DATA_TEMPORARY_RESPONSE", str(body))
+            current_span.end()
         self._handle_synapse_http_error(response)
         return response
 
