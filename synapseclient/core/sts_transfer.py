@@ -242,7 +242,7 @@ def is_storage_location_sts_enabled(syn, entity_id, location):
         location:  A storage location ID or a dictionary representing the location UploadDestination
 
     Returns:
-        True if STS if enabled for the location, False otherwise
+        True if STS is enabled for the location, False otherwise
     """
     if not location:
         return False
@@ -273,7 +273,7 @@ async def is_storage_location_sts_enabled_async(
         location:  A storage location ID or a dictionary representing the location UploadDestination
 
     Returns:
-        True if STS if enabled for the location, False otherwise
+        True if STS is enabled for the location, False otherwise
     """
     if not location:
         return False
