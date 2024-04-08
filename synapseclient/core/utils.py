@@ -2,11 +2,13 @@
 Utility functions useful in the implementation and testing of the Synapse client.
 """
 
+import asyncio
 import base64
 import cgi
 import collections.abc
 import datetime
 import errno
+import gc
 import hashlib
 import importlib
 import inspect
@@ -23,7 +25,7 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Callable, TypeVar
 
 import requests
@@ -31,7 +33,7 @@ from opentelemetry import context, trace
 from opentelemetry.context import Context
 
 if TYPE_CHECKING:
-    from synapseclient.models import Folder, Project
+    from synapseclient.models import File, Folder, Project
 
 R = TypeVar("R")
 
@@ -65,19 +67,77 @@ def md5_for_file(
     Returns:
         The MD5 Checksum
     """
-
+    loop_iteration = 0
     md5 = hashlib.new("md5", usedforsecurity=False)
     with open(filename, "rb") as f:
         while True:
+            loop_iteration += 1
             if callback:
                 callback()
             data = f.read(block_size)
             if not data:
                 break
             md5.update(data)
+            del data
+            # Garbage collect every 100 iterations
+            if loop_iteration % 100 == 0:
+                gc.collect()
     return md5
 
 
+def md5_for_file_hex(
+    filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
+) -> str:
+    """
+    Calculates the MD5 of the given file.
+    See source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>.
+
+    Arguments:
+        filename: The file to read in
+        block_size: How much of the file to read in at once (bytes).
+                    Defaults to 2 MB
+        callback: The callback function that help us show loading spinner on terminal.
+                    Defaults to None
+
+    Returns:
+        The MD5 Checksum
+    """
+
+    return md5_for_file(filename, block_size, callback).hexdigest()
+
+
+async def md5_for_file_multiprocessing(
+    filename: str,
+    process_pool_executor,
+    md5_semaphore: asyncio.Semaphore,
+    block_size: int = 2 * MB,
+) -> str:
+    """
+    Calculates the MD5 of the given file.
+    See source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>.
+
+    Arguments:
+        filename: The file to read in
+        process_pool_executor: The process pool executor to use for the calculation.
+        md5_semaphore: The semaphore to use for waiting to calculate.
+        block_size: How much of the file to read in at once (bytes).
+                    Defaults to 2 MB.
+
+    Returns:
+        The MD5 Checksum
+    """
+    async with md5_semaphore:
+        with tracer.start_as_current_span("Utils::md5_for_file_multiprocessing"):
+            future = process_pool_executor.submit(
+                md5_for_file_hex, filename, block_size
+            )
+            while not future.done():
+                await asyncio.sleep(0)
+            result = future.result()
+            return result
+
+
+@tracer.start_as_current_span("Utils::md5_fn")
 def md5_fn(part, _) -> str:
     """Calculate the MD5 of a file-like object.
 
@@ -933,7 +993,7 @@ def printTransferProgress(
     else:
         outOf = ""
         percentage = ""
-    text = "\r%s [%s]%s   %s%s %s %s %s    " % (
+    text = "\r%s [%s]%s   %s%s %s %s %s    \n" % (
         prefix,
         "#" * block + "-" * (barLength - block),
         percentage,
@@ -1339,7 +1399,7 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
 
 
 def merge_dataclass_entities(
-    source: typing.Union["Project", "Folder"],
+    source: typing.Union["Project", "Folder", "File"],
     destination: typing.Union["Project", "Folder"],
 ) -> typing.Union["Project", "Folder"]:
     """
@@ -1360,7 +1420,14 @@ def merge_dataclass_entities(
 
     # Update destination_dict with source_dict, keeping destination's values in case of conflicts
     for key, value in source_dict.items():
-        if key not in destination_dict or destination_dict[key] is None:
+        if is_dataclass(getattr(source, key)):
+            if hasattr(destination, key):
+                setattr(destination, key, getattr(source, key))
+            else:
+                modified_items[key] = merge_dataclass_entities(
+                    getattr(source, key), destination=getattr(destination, key)
+                )
+        elif key not in destination_dict or destination_dict[key] is None:
             modified_items[key] = value
         elif key == "annotations":
             modified_items[key] = {
@@ -1371,5 +1438,5 @@ def merge_dataclass_entities(
     # Update destination's fields with the merged dictionary
     for key, value in modified_items.items():
         setattr(destination, key, value)
-    destination._last_persistent_instance = source._last_persistent_instance
+
     return destination

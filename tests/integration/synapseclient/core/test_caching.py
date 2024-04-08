@@ -1,21 +1,22 @@
-import os
-import traceback
-import logging
-import uuid
-import time
-import random
-from threading import Lock
+"""Integration testing for multiple threads working on the Synapse cache with stores
+getsand ."""
 
-import _thread as thread
+import asyncio
+import logging
+import os
+import random
+import time
+import traceback
+import uuid
 from queue import Queue
+from typing import Callable
 
 import pytest
+from opentelemetry import trace
 
 import synapseclient.core.utils as utils
+from synapseclient import Entity, File, Project, Synapse
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
-from synapseclient import File, Project, Synapse, Entity
-from func_timeout import FunctionTimedOut, func_set_timeout
-from opentelemetry import trace
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -33,59 +34,131 @@ def syn_state(syn):
 
     # - Child writeable objects
     syn.test_errors = Queue()
-    syn.test_runCountMutex = Lock()
-    syn.test_threadsRunning = 0
 
     yield
 
-    del syn.test_keepRunning
-    del syn.test_errors
-    del syn.test_runCountMutex
-    del syn.test_threadsRunning
+
+async def sleep_and_end_test(syn: Synapse) -> None:
+    """Exit the test after sleeping"""
+    await asyncio.sleep(20)
+    syn.test_keepRunning = False
 
 
 @tracer.start_as_current_span("test_caching::test_threaded_access")
-@pytest.mark.flaky(reruns=6)
-def test_threaded_access(syn: Synapse, project: Project, schedule_for_cleanup):
-    """Starts multiple threads to perform store and get calls randomly."""
-    # Doesn't this test look like a DOS attack on Synapse?
-    # Maybe it should be called explicity...
+@pytest.mark.asyncio
+async def test_threaded_access(
+    syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+) -> None:
+    """Starts multiple asyncio Tasks to perform store and get calls randomly. This runs
+    on the executor pool to avoid blocking the main thread."""
 
     # Suppress most of the output from the many REST calls
     #   Otherwise, it flood the screen with irrelevant data upon error
     requests_log = logging.getLogger("requests")
-    requests_originalLevel = requests_log.getEffectiveLevel()
+    requests_original_level = requests_log.getEffectiveLevel()
     requests_log.setLevel(logging.WARNING)
+    syn.max_threads = 17
 
-    store_thread = wrap_function_as_child_thread(
-        syn, thread_keep_storing_one_File, syn, project, schedule_for_cleanup
-    )
-    get_thread = wrap_function_as_child_thread(
-        syn, thread_get_files_from_Project, syn, project
-    )
-    update_thread = wrap_function_as_child_thread(
-        syn, thread_get_and_update_file_from_Project, syn, project, schedule_for_cleanup
-    )
-    # thread.start_new_thread(store_thread, ())
-    # thread.start_new_thread(store_thread, ())
-    thread.start_new_thread(store_thread, ())
-    thread.start_new_thread(store_thread, ())
-    thread.start_new_thread(get_thread, ())
-    thread.start_new_thread(get_thread, ())
-    # thread.start_new_thread(get_thread, ())
-    thread.start_new_thread(update_thread, ())
-    thread.start_new_thread(update_thread, ())
-    # thread.start_new_thread(update_thread, ())
+    tasks = []
+    try:
+        tasks.append(asyncio.create_task(sleep_and_end_test(syn)))
+        tasks.extend(
+            [
+                asyncio.create_task(
+                    wrap_function_as_child_thread(
+                        syn,
+                        thread_keep_storing_one_File,
+                        syn,
+                        project,
+                        schedule_for_cleanup,
+                    )
+                ),
+                asyncio.create_task(
+                    wrap_function_as_child_thread(
+                        syn,
+                        thread_keep_storing_one_File,
+                        syn,
+                        project,
+                        schedule_for_cleanup,
+                    )
+                ),
+                asyncio.create_task(
+                    wrap_function_as_child_thread(
+                        syn,
+                        thread_keep_storing_one_File,
+                        syn,
+                        project,
+                        schedule_for_cleanup,
+                    )
+                ),
+                asyncio.create_task(
+                    wrap_function_as_child_thread(
+                        syn,
+                        thread_keep_storing_one_File,
+                        syn,
+                        project,
+                        schedule_for_cleanup,
+                    )
+                ),
+            ]
+        )
+        tasks.extend(
+            [
+                asyncio.create_task(
+                    wrap_function_as_child_thread(
+                        syn, thread_get_files_from_Project, syn, project
+                    )
+                ),
+                asyncio.create_task(
+                    wrap_function_as_child_thread(
+                        syn, thread_get_files_from_Project, syn, project
+                    )
+                ),
+                asyncio.create_task(
+                    wrap_function_as_child_thread(
+                        syn, thread_get_files_from_Project, syn, project
+                    )
+                ),
+            ]
+        )
+        tasks.extend(
+            [
+                asyncio.create_task(
+                    wrap_function_as_child_thread(
+                        syn,
+                        thread_get_and_update_file_from_Project,
+                        syn,
+                        project,
+                        schedule_for_cleanup,
+                    )
+                ),
+                asyncio.create_task(
+                    wrap_function_as_child_thread(
+                        syn,
+                        thread_get_and_update_file_from_Project,
+                        syn,
+                        project,
+                        schedule_for_cleanup,
+                    )
+                ),
+                asyncio.create_task(
+                    wrap_function_as_child_thread(
+                        syn,
+                        thread_get_and_update_file_from_Project,
+                        syn,
+                        project,
+                        schedule_for_cleanup,
+                    )
+                ),
+            ]
+        )
 
-    # Give the threads some time to wreak havoc on the cache
-    time.sleep(20)
-
-    syn.test_keepRunning = False
-    while syn.test_threadsRunning > 0:
-        time.sleep(1)
+        await asyncio.gather(*tasks)
+    finally:
+        syn.test_keepRunning = False
 
     # Reset the requests logging level
-    requests_log.setLevel(requests_originalLevel)
+    requests_log.setLevel(requests_original_level)
 
     collect_errors_and_fail(syn)
 
@@ -95,24 +168,18 @@ def test_threaded_access(syn: Synapse, project: Project, schedule_for_cleanup):
 #############
 
 
-def wrap_function_as_child_thread(syn: Synapse, function, *args, **kwargs):
-    """Wraps the given function so that it ties into the main thread."""
+async def wrap_function_as_child_thread(syn: Synapse, function, *args, **kwargs):
+    """Wraps the given function and reports back test errors."""
 
-    def child_thread():
-        syn.test_runCountMutex.acquire()
-        syn.test_threadsRunning += 1
-        syn.test_runCountMutex.release()
+    loop = asyncio.get_running_loop()
 
-        try:
-            function(*args, **kwargs)
-        except Exception:
-            syn.test_errors.put(traceback.format_exc())
-
-        syn.test_runCountMutex.acquire()
-        syn.test_threadsRunning -= 1
-        syn.test_runCountMutex.release()
-
-    return child_thread
+    try:
+        loop.run_in_executor(
+            syn._get_thread_pool_executor(asyncio_event_loop=loop),
+            lambda: function(*args, **kwargs),
+        )
+    except Exception:
+        syn.test_errors.put(traceback.format_exc())
 
 
 def collect_errors_and_fail(syn: Synapse):
@@ -142,12 +209,7 @@ def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cl
 
     while syn.test_keepRunning:
         stored = None
-        try:
-            stored = store_catch_412_HTTPError(syn, myPrecious)
-        except FunctionTimedOut:
-            syn.logger.warning(
-                f"thread_keep_storing_one_File()::store_catch_412_HTTPError timed out, [Path: {myPrecious.path}]"
-            )
+        stored = store_catch_412_HTTPError(syn, myPrecious)
 
         if stored is not None:
             myPrecious = stored
@@ -164,12 +226,7 @@ def thread_get_files_from_Project(syn: Synapse, project: Project):
     """Continually polls and fetches items from the Project."""
 
     while syn.test_keepRunning:
-        try:
-            get_all_ids_from_Project(syn, project)
-        except FunctionTimedOut:
-            syn.logger.warning(
-                f"thread_get_files_from_Project()::get_all_ids_from_Project timed out, [Project: {project.id}]"
-            )
+        get_all_ids_from_Project(syn, project)
 
         sleep_for_a_bit()
 
@@ -181,13 +238,8 @@ def thread_get_and_update_file_from_Project(
     """Fetches one item from the Project and updates it with a new file."""
 
     while syn.test_keepRunning:
-        id = []
-        try:
-            id = get_all_ids_from_Project(syn, project)
-        except FunctionTimedOut:
-            syn.logger.warning(
-                f"thread_get_and_update_file_from_Project()::get_all_ids_from_Project timed out, [project: {project.id}]"
-            )
+        id = get_all_ids_from_Project(syn, project)
+
         if len(id) == 0:
             sleep_for_a_bit()
             continue
@@ -199,12 +251,8 @@ def thread_get_and_update_file_from_Project(
         path = utils.make_bogus_data_file()
         schedule_for_cleanup(path)
         entity.path = path
-        try:
-            entity = store_catch_412_HTTPError(syn, entity)
-        except FunctionTimedOut:
-            syn.logger.warning(
-                f"thread_get_and_update_file_from_Project()::store_catch_412_HTTPError timed out, [project: {project.id}, path: {entity.path}]"
-            )
+        entity = store_catch_412_HTTPError(syn, entity)
+
         if entity is not None:
             assert os.stat(entity.path) == os.stat(path)
 
@@ -224,16 +272,12 @@ def sleep_for_a_bit() -> int:
 
 
 @tracer.start_as_current_span("test_caching::get_all_ids_from_Project")
-# When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
-@func_set_timeout(20)
 def get_all_ids_from_Project(syn: Synapse, project: Project):
     """Fetches all currently available Synapse IDs from the parent Project."""
     return [result["id"] for result in syn.getChildren(project.id)]
 
 
 @tracer.start_as_current_span("test_caching::store_catch_412_HTTPError")
-# When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
-@func_set_timeout(20)
 def store_catch_412_HTTPError(syn: Synapse, entity: Entity):
     """Returns the stored Entity if the function succeeds or None if the 412 is caught."""
     try:

@@ -2,11 +2,13 @@
 
 import asyncio
 import functools
-from typing import Callable, Union
+from typing import Any, Callable, Coroutine, Union, TYPE_CHECKING
 
 import nest_asyncio
 from opentelemetry import trace
-from synapseclient import Synapse
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -71,6 +73,28 @@ class ClassOrInstance:
         return f
 
 
+def wrap_async_to_sync(coroutine: Coroutine[Any, Any, Any], syn: "Synapse") -> Any:
+    """Wrap an async function to be called in a sync context."""
+    loop = None
+    try:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+
+        if loop:
+            nest_asyncio.apply(loop=loop)
+            return loop.run_until_complete(coroutine)
+        else:
+            return asyncio.run(coroutine)
+
+    except Exception as ex:
+        syn.logger.exception(
+            f"Error occurred while running {coroutine} in a sync context."
+        )
+        raise ex
+
+
 # Adapted from
 # https://github.com/keflavich/astroquery/blob/30deafc3aa057916bcdca70733cba748f1b36b64/astroquery/utils/process_asyncs.py#L11
 def async_to_sync(cls):
@@ -93,15 +117,22 @@ def async_to_sync(cls):
                 """Wrapper for the function to be called in an async context."""
                 return await getattr(self, async_method_name)(*args, **kwargs)
 
+            loop = None
             try:
                 try:
                     loop = asyncio.get_running_loop()
                 except RuntimeError:
-                    return asyncio.run(wrapper(*args, **kwargs))
-                else:
+                    pass
+
+                if loop:
                     nest_asyncio.apply(loop=loop)
                     return loop.run_until_complete(wrapper(*args, **kwargs))
+                else:
+                    return asyncio.run(wrapper(*args, **kwargs))
+
             except Exception as ex:
+                from synapseclient import Synapse
+
                 synapse_client = Synapse.get_client(
                     getattr(kwargs, "synapse_client", None)
                 )

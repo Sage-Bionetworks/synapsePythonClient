@@ -1,4 +1,3 @@
-import base64
 import configparser
 import datetime
 import errno
@@ -9,7 +8,7 @@ import tempfile
 import urllib.request as urllib_request
 import uuid
 from pathlib import Path
-from unittest.mock import ANY, MagicMock, Mock, call, create_autospec, patch
+from unittest.mock import ANY, MagicMock, Mock, call, create_autospec, patch, AsyncMock
 
 import pytest
 import requests
@@ -898,7 +897,9 @@ def test_send_message(syn):
         "Down to a sunless sea.\n"
     )
     with patch(
-        "synapseclient.client.multipart_upload_string", return_value="7365905"
+        "synapseclient.client.multipart_upload_string_async",
+        new_callable=AsyncMock,
+        return_value="7365905",
     ) as mock_upload_string, patch(
         "synapseclient.client.Synapse.restPOST"
     ) as post_mock:
@@ -2568,7 +2569,10 @@ def test_store__409_processed_as_update(syn):
     }
 
     with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
-        synapseclient.client, "upload_file_handle", return_value=returned_file_handle
+        synapseclient.client,
+        "upload_file_handle_async",
+        new_callable=AsyncMock,
+        return_value=returned_file_handle,
     ), patch.object(syn.cache, "contains", return_value=True), patch.object(
         syn, "_createEntity"
     ) as mock_createEntity, patch.object(
@@ -2590,6 +2594,103 @@ def test_store__409_processed_as_update(syn):
 
         f = File(f"/{file_name}", parent=parent_id, **new_annotations)
         syn.store(f)
+
+        mock_updateEntity.assert_called_once_with(
+            expected_update_properties,
+            True,  # createOrUpdate
+            None,  # versionLabel
+        )
+
+        mock_set_annotations.assert_called_once_with(expected_annotations)
+        mock_createEntity.assert_called_once_with(expected_create_properties)
+        mock_findEntityId.assert_called_once_with(file_name, parent_id)
+
+
+def test_store__409_processed_as_update_non_async_file_handle(syn):
+    """Test that if we get a 409 conflict when creating an entity we re-retrieve its
+    associated bundle and process it as an entity update instead."""
+    file_handle_id = "123412341234"
+    returned_file_handle = {"id": file_handle_id}
+
+    parent_id = "syn122"
+    synapse_id = "syn123"
+    etag = "db9bc70b-1eb6-4a21-b3e8-9bf51d964031"
+    file_name = "fake_file.txt"
+
+    existing_bundle_annotations = {
+        "foo": {"type": "LONG", "value": ["1"]},
+        "bar": {"type": "LONG", "value": ["2"]},
+    }
+    new_annotations = {
+        "foo": [3],
+        "baz": [4],
+    }
+
+    returned_bundle = {
+        "entity": {
+            "name": file_name,
+            "id": synapse_id,
+            "etag": etag,
+            "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+            "dataFileHandleId": file_handle_id,
+        },
+        "entityType": "file",
+        "fileHandles": [
+            {
+                "id": file_handle_id,
+                "concreteType": "org.sagebionetworks.repo.model.file.S3FileHandle",
+            }
+        ],
+        "annotations": {
+            "id": synapse_id,
+            "etag": etag,
+            "annotations": existing_bundle_annotations,
+        },
+    }
+
+    expected_create_properties = {
+        "name": file_name,
+        "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+        "dataFileHandleId": file_handle_id,
+        "parentId": parent_id,
+        "versionComment": None,
+    }
+    expected_update_properties = {
+        **expected_create_properties,
+        "id": synapse_id,
+        "etag": etag,
+    }
+
+    # we expect the annotations to be merged
+    expected_annotations = {
+        "foo": [3],
+        "bar": [2],
+        "baz": [4],
+    }
+
+    with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
+        synapseclient.client, "upload_file_handle", return_value=returned_file_handle
+    ), patch.object(syn.cache, "contains", return_value=True), patch.object(
+        syn, "_createEntity"
+    ) as mock_createEntity, patch.object(
+        syn, "_updateEntity"
+    ) as mock_updateEntity, patch.object(
+        syn, "findEntityId"
+    ) as mock_findEntityId, patch.object(
+        syn, "set_annotations"
+    ) as mock_set_annotations, patch.object(
+        Entity, "create"
+    ), patch.object(
+        syn, "get"
+    ):
+        mock_get_entity_bundle.side_effect = [None, returned_bundle]
+        mock_createEntity.side_effect = SynapseHTTPError(
+            response=DictObject({"status_code": 409})
+        )
+        mock_findEntityId.return_value = synapse_id
+
+        f = File(f"/{file_name}", parent=parent_id, **new_annotations)
+        syn.store(f, async_file_handle_upload=False)
 
         mock_updateEntity.assert_called_once_with(
             expected_update_properties,
