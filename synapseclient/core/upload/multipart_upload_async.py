@@ -408,6 +408,7 @@ class UploadAttemptAsync:
 
                     async_tasks.add(
                         asyncio.create_task(
+                            # TODO: Determine how to handle when a part add fails
                             put_file_multipart_add(
                                 upload_id=self._upload_id,
                                 part_number=part_number,
