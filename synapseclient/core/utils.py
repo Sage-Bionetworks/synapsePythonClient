@@ -126,8 +126,8 @@ async def md5_for_file_multiprocessing(
     Returns:
         The MD5 Checksum
     """
-    with tracer.start_as_current_span("Utils::md5_for_file_multiprocessing"):
-        async with md5_semaphore:
+    async with md5_semaphore:
+        with tracer.start_as_current_span("Utils::md5_for_file_multiprocessing"):
             future = process_pool_executor.submit(
                 md5_for_file_hex, filename, block_size
             )

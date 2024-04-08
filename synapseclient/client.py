@@ -134,6 +134,8 @@ from synapseclient.core.async_utils import wrap_async_to_sync
 from typing import Any, Union, Dict, List, Optional, Tuple
 from synapseclient.core.models.permission import Permissions
 from opentelemetry import trace
+from opentelemetry.trace import SpanKind
+
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -310,9 +312,40 @@ class Synapse(object):
         else:
             self._requests_session_async_synapse = {}
 
+        span_dict: Dict[httpx.Request, trace.Span] = {}
+
+        def log_request(request: httpx.Request) -> None:
+            """
+            Log the HTTPX request to an otel span.
+
+            Arguments:
+                request: The HTTPX request object.
+            """
+            # Don't log the query string as it will contain tokens
+            url_without_query_string: httpx.URL = request.url.copy_with(query=None)
+            span = tracer.start_span(
+                f"{request.method} {url_without_query_string}", kind=SpanKind.CLIENT
+            )
+            span.set_attributes(
+                {"url": str(url_without_query_string), "http.method": request.method}
+            )
+            span_dict.update({request: span})
+
+        def log_response(response: httpx.Response) -> None:
+            """
+            Log the HTTPX response to an otel span.
+
+            Arguments:
+                response: The HTTPX response object.
+            """
+            span = span_dict.pop(response.request)
+            span.set_attribute("http.response.status_code", response.status_code)
+            span.end()
+
+        event_hooks = {"request": [log_request], "response": [log_response]}
         httpx_timeout = httpx.Timeout(70)
         self._requests_session_storage = requests_session_storage or httpx.Client(
-            timeout=httpx_timeout
+            timeout=httpx_timeout, event_hooks=event_hooks
         )
 
         cache_root_dir = (
@@ -398,12 +431,41 @@ class Synapse(object):
             del self._requests_session_async_synapse[asyncio_event_loop]
 
         httpx_timeout = httpx.Timeout(70)
+        span_dict: Dict[httpx.Request, trace.Span] = {}
 
+        async def log_request(request: httpx.Request) -> None:
+            """
+            Log the HTTPX request to an otel span.
+
+            Arguments:
+                request: The HTTPX request object.
+            """
+            span = tracer.start_span(
+                f"{request.method} {request.url}", kind=SpanKind.CLIENT
+            )
+            span.set_attributes(
+                {"url": str(request.url), "http.method": request.method}
+            )
+            span_dict.update({request: span})
+
+        async def log_response(response: httpx.Response) -> None:
+            """
+            Log the HTTPX response to an otel span.
+
+            Arguments:
+                response: The HTTPX response object.
+            """
+            span = span_dict.pop(response.request)
+            span.set_attribute("http.response.status_code", response.status_code)
+            span.end()
+
+        event_hooks = {"request": [log_request], "response": [log_response]}
         self._requests_session_async_synapse.update(
             {
                 asyncio_event_loop: httpx.AsyncClient(
                     limits=httpx.Limits(max_connections=25),
                     timeout=httpx_timeout,
+                    event_hooks=event_hooks,
                 )
             }
         )
@@ -1189,7 +1251,6 @@ class Synapse(object):
     #                   Get / Store methods                    #
     ############################################################
 
-    @tracer.start_as_current_span("Synapse::get")
     def get(self, entity, **kwargs):
         """
         Gets a Synapse entity from the repository service.
@@ -1653,7 +1714,6 @@ class Synapse(object):
                 )
         return downloadPath
 
-    @tracer.start_as_current_span("Synapse::store")
     def store(
         self,
         obj,
@@ -5848,7 +5908,6 @@ class Synapse(object):
     #              CRUD for Entities (properties)              #
     ############################################################
 
-    @tracer.start_as_current_span("Synapse::_getEntity")
     def _getEntity(
         self, entity: Union[str, dict, Entity], version: int = None
     ) -> Dict[str, Union[str, bool]]:
@@ -5868,7 +5927,6 @@ class Synapse(object):
             uri += "/version/%d" % version
         return self.restGET(uri)
 
-    @tracer.start_as_current_span("Synapse::_createEntity")
     def _createEntity(self, entity: Union[dict, Entity]) -> Dict[str, Union[str, bool]]:
         """
         Create a new entity in Synapse.
@@ -5882,7 +5940,6 @@ class Synapse(object):
 
         return self.restPOST(uri="/entity", body=json.dumps(get_properties(entity)))
 
-    @tracer.start_as_current_span("Synapse::_updateEntity")
     def _updateEntity(
         self,
         entity: Union[dict, Entity],
@@ -5917,7 +5974,6 @@ class Synapse(object):
 
         return self.restPUT(uri, body=json.dumps(get_properties(entity)), params=params)
 
-    @tracer.start_as_current_span("Synapse::findEntityId")
     def findEntityId(self, name, parent=None):
         """
         Find an Entity given its name and parent.
@@ -5948,7 +6004,6 @@ class Synapse(object):
     ############################################################
     #                       Send Message                       #
     ############################################################
-    @tracer.start_as_current_span("Synapse::sendMessage")
     def sendMessage(
         self, userIds, messageSubject, messageBody, contentType="text/plain"
     ):
@@ -6069,22 +6124,25 @@ class Synapse(object):
 
         auth = kwargs.pop("auth", self.credentials)
         requests_method_fn = getattr(requests_session, method)
-        response = with_retry(
-            lambda: requests_method_fn(
-                uri,
-                data=data,
-                headers=headers,
-                auth=auth,
-                **kwargs,
-            ),
-            verbose=self.debug,
-            **retryPolicy,
-        )
+        with tracer.start_as_current_span(f"{method.upper()} {uri}"):
+            trace.get_current_span().set_attributes(
+                {"url": uri, "http.method": method.upper()}
+            )
+            response = with_retry(
+                lambda: requests_method_fn(
+                    uri,
+                    data=data,
+                    headers=headers,
+                    auth=auth,
+                    **kwargs,
+                ),
+                verbose=self.debug,
+                **retryPolicy,
+            )
 
         self._handle_synapse_http_error(response)
         return response
 
-    @tracer.start_as_current_span("Synapse::restGET")
     def restGET(
         self,
         uri,
@@ -6107,13 +6165,11 @@ class Synapse(object):
         Returns:
             JSON encoding of response
         """
-        trace.get_current_span().set_attributes({"url.path": uri})
         response = self._rest_call(
             "get", uri, None, endpoint, headers, retryPolicy, requests_session, **kwargs
         )
         return self._return_rest_body(response)
 
-    @tracer.start_as_current_span("Synapse::restPOST")
     def restPOST(
         self,
         uri,
@@ -6138,7 +6194,6 @@ class Synapse(object):
         Returns:
             JSON encoding of response
         """
-        trace.get_current_span().set_attributes({"url.path": uri})
         response = self._rest_call(
             "post",
             uri,
@@ -6151,7 +6206,6 @@ class Synapse(object):
         )
         return self._return_rest_body(response)
 
-    @tracer.start_as_current_span("Synapse::restPUT")
     def restPUT(
         self,
         uri,
@@ -6176,7 +6230,6 @@ class Synapse(object):
         Returns
             JSON encoding of response
         """
-        trace.get_current_span().set_attributes({"url.path": uri})
         response = self._rest_call(
             "put",
             uri,
@@ -6189,7 +6242,6 @@ class Synapse(object):
         )
         return self._return_rest_body(response)
 
-    @tracer.start_as_current_span("Synapse::restDELETE")
     def restDELETE(
         self,
         uri,
@@ -6210,7 +6262,6 @@ class Synapse(object):
             kwargs: Any other arguments taken by a [request](http://docs.python-requests.org/en/latest/) method
 
         """
-        trace.get_current_span().set_attributes({"url.path": uri})
         self._rest_call(
             "delete",
             uri,
@@ -6366,19 +6417,17 @@ class Synapse(object):
             JSON encoding of response
         """
         try:
-            with tracer.start_as_current_span("SynapseAsync::rest_get_async"):
-                trace.get_current_span().set_attributes({"url.path": uri})
-                response = await self._rest_call_async(
-                    "get",
-                    uri,
-                    None,
-                    endpoint,
-                    headers,
-                    retry_policy,
-                    requests_session_async_synapse,
-                    **kwargs,
-                )
-                return self._return_rest_body(response)
+            response = await self._rest_call_async(
+                "get",
+                uri,
+                None,
+                endpoint,
+                headers,
+                retry_policy,
+                requests_session_async_synapse,
+                **kwargs,
+            )
+            return self._return_rest_body(response)
         except Exception:
             self.logger.exception("Error in rest_get_async")
 
@@ -6410,19 +6459,17 @@ class Synapse(object):
         Returns:
             JSON encoding of response
         """
-        with tracer.start_as_current_span("SynapseAsync::rest_post_async"):
-            trace.get_current_span().set_attributes({"url.path": uri})
-            response = await self._rest_call_async(
-                "post",
-                uri,
-                body,
-                endpoint,
-                headers,
-                retry_policy,
-                requests_session_async_synapse,
-                **kwargs,
-            )
-            return self._return_rest_body(response)
+        response = await self._rest_call_async(
+            "post",
+            uri,
+            body,
+            endpoint,
+            headers,
+            retry_policy,
+            requests_session_async_synapse,
+            **kwargs,
+        )
+        return self._return_rest_body(response)
 
     async def rest_put_async(
         self,
@@ -6452,19 +6499,17 @@ class Synapse(object):
         Returns
             JSON encoding of response
         """
-        with tracer.start_as_current_span("SynapseAsync::rest_put_async"):
-            trace.get_current_span().set_attributes({"url.path": uri})
-            response = await self._rest_call_async(
-                "put",
-                uri,
-                body,
-                endpoint,
-                headers,
-                retry_policy,
-                requests_session_async_synapse,
-                **kwargs,
-            )
-            return self._return_rest_body(response)
+        response = await self._rest_call_async(
+            "put",
+            uri,
+            body,
+            endpoint,
+            headers,
+            retry_policy,
+            requests_session_async_synapse,
+            **kwargs,
+        )
+        return self._return_rest_body(response)
 
     async def rest_delete_async(
         self,
@@ -6489,15 +6534,13 @@ class Synapse(object):
             kwargs: Any other arguments taken by a [request](https://www.python-httpx.org/api/) method
 
         """
-        with tracer.start_as_current_span("SynapseAsync::rest_delete_async"):
-            trace.get_current_span().set_attributes({"url.path": uri})
-            await self._rest_call_async(
-                "delete",
-                uri,
-                None,
-                endpoint,
-                headers,
-                retry_policy,
-                requests_session_async_synapse,
-                **kwargs,
-            )
+        await self._rest_call_async(
+            "delete",
+            uri,
+            None,
+            endpoint,
+            headers,
+            retry_policy,
+            requests_session_async_synapse,
+            **kwargs,
+        )
