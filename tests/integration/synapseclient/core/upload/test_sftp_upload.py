@@ -13,9 +13,6 @@ import unittest
 from synapseclient import File
 import synapseclient.core.utils as utils
 from synapseclient.core.remote_file_storage_wrappers import SFTPWrapper
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
 def get_sftp_server_prefix():

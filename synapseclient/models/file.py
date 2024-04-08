@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from opentelemetry import context, trace
+from opentelemetry import context
 
 from synapseclient import Synapse
 from synapseclient.core import utils
@@ -39,9 +39,6 @@ from synapseutils.copy_functions import changeFileMetaData, copy
 
 if TYPE_CHECKING:
     from synapseclient.models import Folder, Project
-
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass()

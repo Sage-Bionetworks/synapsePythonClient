@@ -10,7 +10,6 @@ from typing import Callable
 from unittest.mock import patch
 
 import pytest
-from opentelemetry import trace
 
 import synapseclient.core.utils as utils
 from synapseclient import (
@@ -30,8 +29,6 @@ from synapseclient.core.version_check import version_check
 
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
-
-tracer = trace.get_tracer("synapseclient")
 
 FILE_NAME_PREFIX = "fooUploadFileEntity"
 FILE_DESCRIPTION = "A test file entity"

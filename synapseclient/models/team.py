@@ -12,8 +12,6 @@ from synapseclient.models.user import UserGroupHeader
 from synapseclient.team import Team as Synapse_Team
 from synapseclient.team import TeamMember as Synapse_TeamMember
 
-tracer = trace.get_tracer("synapseclient")
-
 
 @dataclass
 class TeamMember:

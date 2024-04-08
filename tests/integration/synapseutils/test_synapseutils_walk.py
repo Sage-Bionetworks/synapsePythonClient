@@ -7,9 +7,6 @@ import pytest
 from synapseclient import File, Folder, Project
 import synapseclient.core.utils as utils
 import synapseutils
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.mark.flaky(reruns=3)

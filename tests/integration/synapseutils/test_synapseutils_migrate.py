@@ -10,9 +10,6 @@ from synapseclient.core.constants import concrete_types
 import synapseclient.core.utils as utils
 import synapseutils
 from synapseutils.migrate_functions import _MigrationType, _MigrationStatus
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.fixture(scope="module")

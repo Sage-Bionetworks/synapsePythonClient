@@ -13,12 +13,8 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient import Entity, File, Folder, Link, Project, Schema, Synapse
 import synapseclient.core.utils as utils
 import synapseutils
-from opentelemetry import trace
 
 from tests.integration import QUERY_TIMEOUT_SEC
-
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.fixture(scope="function", autouse=True)

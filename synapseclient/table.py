@@ -42,10 +42,7 @@ from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, entity_type_to_class, Folder, Project
 from .evaluation import Evaluation
 from synapseclient.core.constants import concrete_types
-from opentelemetry import trace
 
-
-tracer = trace.get_tracer("synapseclient")
 
 aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
 

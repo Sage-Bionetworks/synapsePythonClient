@@ -4,7 +4,7 @@ import asyncio
 import os
 from typing import TYPE_CHECKING, List, Optional, Union
 
-from opentelemetry import context, trace
+from opentelemetry import context
 from typing_extensions import Self
 
 from synapseclient import Synapse
@@ -23,8 +23,6 @@ from synapseclient.models.services.storable_entity_components import (
 
 if TYPE_CHECKING:
     from synapseclient.models import File, Folder
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @async_to_sync

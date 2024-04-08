@@ -25,8 +25,6 @@ from synapseclient.models.services.storable_entity_components import (
 )
 from synapseutils.copy_functions import copy
 
-tracer = trace.get_tracer("synapseclient")
-
 
 @dataclass()
 @async_to_sync

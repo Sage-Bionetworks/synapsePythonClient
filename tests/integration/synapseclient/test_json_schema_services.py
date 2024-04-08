@@ -6,9 +6,6 @@ import pytest
 
 import synapseclient
 from synapseclient.core.exceptions import SynapseHTTPError
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
 def test_available_services(syn):

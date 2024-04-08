@@ -4,9 +4,6 @@ requests to the Synapse backend
 """
 
 from synapseclient import Column
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
 def test_createColumns(syn):

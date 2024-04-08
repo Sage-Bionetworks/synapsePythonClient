@@ -12,13 +12,10 @@ from queue import Queue
 from typing import Callable
 
 import pytest
-from opentelemetry import trace
 
 import synapseclient.core.utils as utils
 from synapseclient import Entity, File, Project, Synapse
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.fixture(scope="module")

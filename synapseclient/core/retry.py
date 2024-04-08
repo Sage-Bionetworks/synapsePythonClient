@@ -15,7 +15,6 @@ from logging import Logger
 from typing import Any, Coroutine, List, Tuple, Type, Union
 
 import httpx
-from opentelemetry import trace
 
 from synapseclient.core.dozer import doze
 from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
@@ -65,8 +64,6 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
 ]
 
 DEBUG_EXCEPTION = "calling %s resulted in an Exception"
-
-tracer = trace.get_tracer("synapseclient")
 
 
 def with_retry(

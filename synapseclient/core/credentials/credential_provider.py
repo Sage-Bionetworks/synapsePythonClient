@@ -12,12 +12,9 @@ from synapseclient.core.credentials.cred_data import (
     SynapseCredentials,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
-from opentelemetry import trace
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-
-tracer = trace.get_tracer("synapseclient")
 
 
 class SynapseCredentialsProvider(metaclass=abc.ABCMeta):

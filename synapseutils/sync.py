@@ -35,7 +35,7 @@ from synapseclient.core.multithread_download.download_threads import (
 from synapseclient.core.upload.multipart_upload import (
     shared_executor as upload_shared_executor,
 )
-from opentelemetry import trace, context
+from opentelemetry import context, trace
 from opentelemetry.context import Context
 
 
@@ -62,8 +62,6 @@ SINGLE_OPEN_BRACKET_PATTERN = re.compile(r"^\[")
 SINGLE_CLOSING_BRACKET_PATTERN = re.compile(r"\]$")
 # https://stackoverflow.com/questions/18893390/splitting-on-comma-outside-quotes
 COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN = re.compile(r",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @contextmanager

@@ -13,7 +13,6 @@ from unittest import mock, skip
 
 import httpx
 import pytest
-from opentelemetry import trace
 
 import synapseclient.core.config
 import synapseclient.core.utils as utils
@@ -25,8 +24,6 @@ from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_string_async,
 )
 from synapseclient.models import File, Project
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.mark.asyncio

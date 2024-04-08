@@ -28,8 +28,6 @@ from synapseutils import copy
 if TYPE_CHECKING:
     from synapseclient.models import Project
 
-tracer = trace.get_tracer("synapseclient")
-
 
 @dataclass()
 @async_to_sync

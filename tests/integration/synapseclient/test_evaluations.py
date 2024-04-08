@@ -8,9 +8,6 @@ import pytest
 
 from synapseclient import Evaluation, File, SubmissionViewSchema, Synapse, Team, Project
 from synapseclient.core.exceptions import SynapseHTTPError
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])

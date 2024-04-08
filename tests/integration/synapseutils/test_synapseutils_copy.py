@@ -23,9 +23,6 @@ from synapseclient import (
 )
 import synapseclient.core.utils as utils
 import synapseutils
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
 # Add Test for UPDATE

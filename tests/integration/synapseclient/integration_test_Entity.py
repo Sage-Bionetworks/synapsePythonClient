@@ -23,9 +23,6 @@ from synapseclient import (
 )
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
 import synapseclient.core.utils as utils
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
 def test_Entity(syn: Synapse, project: Project, schedule_for_cleanup):

@@ -21,9 +21,6 @@ from synapseclient.core.upload.multipart_upload import (
     multipart_upload_string,
     multipart_copy,
 )
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])

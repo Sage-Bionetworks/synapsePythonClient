@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Dict, List, Optional, Union
 
-from opentelemetry import context, trace
+from opentelemetry import context
 
 from synapseclient import Synapse
 from synapseclient.annotations import ANNO_TYPE_TO_FUNC
@@ -13,8 +13,6 @@ from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.annotations_protocol import (
     AnnotationsSynchronousProtocol,
 )
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass()

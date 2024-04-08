@@ -29,9 +29,6 @@ import synapseclient.__main__ as cmdline
 import synapseclient.core.utils as utils
 
 from io import StringIO
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.fixture(scope="function")

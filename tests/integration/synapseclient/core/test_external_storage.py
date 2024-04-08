@@ -9,9 +9,6 @@ from synapseclient.core.retry import with_retry
 import pytest
 import unittest
 from unittest import mock
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 try:
     boto3 = importlib.import_module("boto3")

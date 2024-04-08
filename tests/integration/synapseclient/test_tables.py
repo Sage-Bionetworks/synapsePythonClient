@@ -31,11 +31,8 @@ from synapseclient import (
     Synapse,
 )
 import synapseclient.core.utils as utils
-from opentelemetry import trace
 
 from tests.integration import QUERY_TIMEOUT_SEC
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.fixture(scope="module", autouse=True)

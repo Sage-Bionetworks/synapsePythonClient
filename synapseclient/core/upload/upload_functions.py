@@ -27,8 +27,6 @@ from opentelemetry import trace
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
-tracer = trace.get_tracer("synapseclient")
-
 
 def log_upload_message(syn: "Synapse", message: str) -> None:
     # if this upload is in the context of a larger, multi threaded sync upload as indicated by a cumulative progress

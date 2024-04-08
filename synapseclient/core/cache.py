@@ -233,6 +233,7 @@ class Cache:
                 return compare_timestamps(_get_modified_time(path), cached_time)
         return False
 
+    @tracer.start_as_current_span("cache::get")
     def get(
         self,
         file_handle_id: typing.Union[collections.abc.Mapping, str],
