@@ -13,12 +13,17 @@ import sys
 import time
 from logging import Logger
 from typing import Any, Coroutine, List, Tuple, Type, Union
+import uuid
 
 import httpx
 
 from synapseclient.core.dozer import doze
 from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
 from synapseclient.core.utils import is_json
+from opentelemetry import trace
+
+
+tracer = trace.get_tracer("synapseclient")
 
 # All of these constants are in seconds
 DEFAULT_RETRIES = 3
@@ -64,6 +69,15 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
 ]
 
 DEBUG_EXCEPTION = "calling %s resulted in an Exception"
+
+
+def _return_rest_body(response):
+    trace.get_current_span().set_attributes(
+        {"http.response.status_code": response.status_code}
+    )
+    if is_json(response.headers.get("content-type", None)):
+        return response.json()
+    return response.text
 
 
 def with_retry(
@@ -346,11 +360,18 @@ async def with_retry_time_based_async(
 
         # Wait then retry
         retries += 1
-
         if total_wait < retry_max_wait_before_failure and retry:
             _log_for_retry(
                 logger=logger, response=response, caught_exception=caught_exception
             )
+
+            current_span = trace.get_current_span()
+            if current_span.is_recording():
+                current_span.set_attribute("synapse.retries", str(retries))
+                body = _return_rest_body(response)
+                current_span.set_attribute(
+                    f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
+                )
 
             backoff_wait = calculate_exponential_backoff(
                 retries=retries,
@@ -468,11 +489,17 @@ def with_retry_time_based(
 
         # Wait then retry
         retries += 1
-
         if total_wait < retry_max_wait_before_failure and retry:
             _log_for_retry(
                 logger=logger, response=response, caught_exception=caught_exception
             )
+            current_span = trace.get_current_span()
+            if current_span.is_recording():
+                current_span.set_attribute("synapse.retries", str(retries))
+                body = _return_rest_body(response)
+                current_span.set_attribute(
+                    f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
+                )
 
             backoff_wait = calculate_exponential_backoff(
                 retries=retries,
@@ -587,6 +614,11 @@ def _log_for_retry(
             url_message_part,
             response_message,
         )
+        current_span = trace.get_current_span()
+        if current_span.is_recording():
+            current_span.set_attribute(
+                f"HTTP_RETRY_STATUS_CODES_{uuid.uuid4()}", str(response.status_code)
+            )
     elif caught_exception is not None:
         logger.debug("retrying exception: %s", str(caught_exception))
 
