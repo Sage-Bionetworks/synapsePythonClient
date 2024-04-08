@@ -466,7 +466,6 @@ class Synapse(object):
             """
             span = span_dict.pop(response.request)
             span.set_attribute("http.response.status_code", response.status_code)
-            span.end()
 
         event_hooks = {"request": [log_request], "response": [log_response]}
         self._requests_session_async_synapse.update(
@@ -6358,12 +6357,13 @@ class Synapse(object):
             )
 
         self._handle_httpx_synapse_http_error(response)
-
-        if trace.get_current_span().is_recording():
+        current_span = trace.get_current_span()
+        if current_span.is_recording():
             body = self._return_rest_body(response)
-            trace.get_current_span().set_attribute(
+            current_span.set_attribute(
                 f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
             )
+            current_span.end()
         return response
 
     async def rest_get_async(
