@@ -93,6 +93,7 @@ from synapseclient.api import (
     post_file_multipart_presigned_urls,
     put_file_multipart_add,
     put_file_multipart_complete,
+    AddPartResponse,
 )
 from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.constants import concrete_types
@@ -403,12 +404,27 @@ class UploadAttemptAsync:
                         part_number = task_result.part_number
                         part_size = task_result.part_size
                         part_md5_hex = task_result.md5_hex
+                    elif (
+                        isinstance(task_result, AddPartResponse)
+                        and task_result.add_part_state != "ADD_SUCCESS"
+                    ):
+                        message = (
+                            "Adding individual part failed with unexpected state: "
+                            f"{task_result.add_part_state}, for upload "
+                            f"{task_result.upload_id} and part "
+                            f"{task_result.part_number} with message: "
+                            f"{task_result.error_message}"
+                        )
+
+                        exception = SynapseUploadFailedException(message)
+                        # TODO: Remove me - This is temporary to verify when it occurs
+                        self._syn.logger.error(message)
+                        raise exception
                     else:
                         continue
 
                     async_tasks.add(
                         asyncio.create_task(
-                            # TODO: Determine how to handle when a part add fails
                             put_file_multipart_add(
                                 upload_id=self._upload_id,
                                 part_number=part_number,
