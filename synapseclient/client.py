@@ -3,6 +3,7 @@ The `Synapse` object encapsulates a connection to the Synapse service and is use
 retrieving data, and recording provenance of data analysis.
 """
 import asyncio
+import uuid
 import asyncio_atexit
 import collections
 import collections.abc
@@ -6027,7 +6028,7 @@ class Synapse(object):
 
                 # TODO: This is temporary code for debugging purposes. REMOVE ME.
                 current_span.set_attribute(
-                    "HTTP_DATA_TEMPORARY_REQUEST", str(data_dict)
+                    f"HTTP_DATA_TEMPORARY_REQUEST_{uuid.uuid4()}", str(data_dict)
                 )
                 if "parentId" in data_dict:
                     current_span.set_attribute(
@@ -6105,7 +6106,9 @@ class Synapse(object):
         )
         if current_span.is_recording():
             body = self._return_rest_body(response)
-            current_span.set_attribute("HTTP_DATA_TEMPORARY_RESPONSE", str(body))
+            current_span.set_attribute(
+                f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
+            )
             current_span.end()
         self._handle_synapse_http_error(response)
         return response
@@ -6359,7 +6362,7 @@ class Synapse(object):
         if trace.get_current_span().is_recording():
             body = self._return_rest_body(response)
             trace.get_current_span().set_attribute(
-                "HTTP_DATA_TEMPORARY_RESPONSE", str(body)
+                f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
             )
         return response
 
