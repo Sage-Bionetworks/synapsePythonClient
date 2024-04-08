@@ -6,30 +6,38 @@ robust means of uploading large files (into the 10s of GiB). End users should no
 """
 
 import concurrent.futures
-from contextlib import contextmanager
 import json
-import math
 import mimetypes
 import os
-import re
-import typing
-import requests
 import threading
 import time
+import typing
+from contextlib import contextmanager
 from typing import List, Mapping
 
-from synapseclient.core.retry import with_retry
+import requests
+from opentelemetry import context, trace
+from opentelemetry.context import Context
+
 from synapseclient.core import pool_provider
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
-    _raise_for_status,  # why is is this a single underscore
+    _raise_for_status,
+)  # why is is this a single underscore
+from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
 )
-from synapseclient.core.utils import md5_fn, md5_for_file, MB, Spinner
-from opentelemetry import trace, context
-from opentelemetry.context import Context
+from synapseclient.core.retry import with_retry
+from synapseclient.core.upload.upload_utils import (
+    copy_md5_fn,
+    copy_part_request_body_provider_fn,
+    get_data_chunk,
+    get_file_chunk,
+    get_part_size,
+)
+from synapseclient.core.utils import MB, Spinner, md5_fn, md5_for_file
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
@@ -412,28 +420,6 @@ class UploadAttempt:
         return upload_status_response
 
 
-def _get_file_chunk(file_path, part_number, chunk_size):
-    """Read the nth chunk from the file."""
-    with open(file_path, "rb") as f:
-        f.seek((part_number - 1) * chunk_size)
-        return f.read(chunk_size)
-
-
-def _get_data_chunk(data, part_number, chunk_size):
-    """Return the nth chunk of a buffer."""
-    return data[(part_number - 1) * chunk_size : part_number * chunk_size]
-
-
-def _get_part_size(part_size, file_size):
-    part_size = part_size or DEFAULT_PART_SIZE
-
-    # can't exceed the maximum allowed num parts
-    part_size = max(
-        part_size, MIN_PART_SIZE, int(math.ceil(file_size / MAX_NUMBER_OF_PARTS))
-    )
-    return part_size
-
-
 @tracer.start_as_current_span("multipart_upload::multipart_upload_file")
 def multipart_upload_file(
     syn,
@@ -495,7 +481,12 @@ def multipart_upload_file(
     callback_func = Spinner().print_tick if not syn.silent else None
     md5_hex = md5 or md5_for_file(file_path, callback=callback_func).hexdigest()
 
-    part_size = _get_part_size(part_size, file_size)
+    part_size = get_part_size(
+        part_size or DEFAULT_PART_SIZE,
+        file_size,
+        MIN_PART_SIZE,
+        MAX_NUMBER_OF_PARTS,
+    )
 
     upload_request = {
         "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
@@ -509,7 +500,7 @@ def multipart_upload_file(
     }
 
     def part_fn(part_number):
-        return _get_file_chunk(file_path, part_number, part_size)
+        return get_file_chunk(file_path, part_number, part_size)
 
     return _multipart_upload(
         syn,
@@ -567,7 +558,12 @@ def multipart_upload_string(
     if not content_type:
         content_type = "text/plain; charset=utf-8"
 
-    part_size = _get_part_size(part_size, file_size)
+    part_size = get_part_size(
+        part_size or DEFAULT_PART_SIZE,
+        file_size,
+        MIN_PART_SIZE,
+        MAX_NUMBER_OF_PARTS,
+    )
 
     upload_request = {
         "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
@@ -581,9 +577,14 @@ def multipart_upload_string(
     }
 
     def part_fn(part_number):
-        return _get_data_chunk(data, part_number, part_size)
+        return get_data_chunk(data, part_number, part_size)
 
-    part_size = _get_part_size(part_size, file_size)
+    part_size = get_part_size(
+        part_size or DEFAULT_PART_SIZE,
+        file_size,
+        MIN_PART_SIZE,
+        MAX_NUMBER_OF_PARTS,
+    )
     return _multipart_upload(
         syn,
         dest_file_name,
@@ -639,31 +640,12 @@ def multipart_copy(
         "storageLocationId": storage_location_id,
     }
 
-    def part_request_body_provider_fn(part_num):
-        # for an upload copy there are no bytes
-        return None
-
-    def md5_fn(_, response):
-        # for a multipart copy we use the md5 returned by the UploadPartCopy command
-        # when we add the part to the Synapse upload
-
-        # we extract the md5 from the <ETag> element in the response.
-        # use lookahead and lookbehind to find the opening and closing ETag elements but
-        # do not include those in the match, thus the entire matched string (group 0) will be
-        # what was between those elements.
-        md5_hex = re.search(
-            "(?<=<ETag>).*?(?=<\\/ETag>)", (response.content.decode("utf-8"))
-        ).group(0)
-
-        # remove quotes found in the ETag to get at the normalized ETag
-        return md5_hex.replace("&quot;", "").replace('"', "")
-
     return _multipart_upload(
         syn,
         dest_file_name,
         upload_request,
-        part_request_body_provider_fn,
-        md5_fn,
+        copy_part_request_body_provider_fn,
+        copy_md5_fn,
         force_restart=force_restart,
         max_threads=max_threads,
     )

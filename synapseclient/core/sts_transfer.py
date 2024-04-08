@@ -5,8 +5,11 @@ import importlib
 import os
 import threading
 import platform
-
+from typing import TYPE_CHECKING
 from synapseclient.core.utils import iso_to_datetime, snake_case
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 try:
     boto3 = importlib.import_module("boto3")
@@ -239,7 +242,7 @@ def is_storage_location_sts_enabled(syn, entity_id, location):
         location:  A storage location ID or a dictionary representing the location UploadDestination
 
     Returns:
-        True if STS if enabled for the location, False otherwise
+        True if STS is enabled for the location, False otherwise
     """
     if not location:
         return False
@@ -253,6 +256,39 @@ def is_storage_location_sts_enabled(syn, entity_id, location):
         destination = syn.restGET(
             f"/entity/{entity_id}/uploadDestination/{location}",
             endpoint=syn.fileHandleEndpoint,
+        )
+
+    return destination.get("stsEnabled", False)
+
+
+async def is_storage_location_sts_enabled_async(
+    syn: "Synapse", entity_id: str, location: str
+) -> bool:
+    """
+    Returns whether the given storage location is enabled for STS.
+
+    Arguments:
+        syn:       A [Synapse][synapseclient.Synapse] object
+        entity_id: The ID of synapse entity whose storage location we want to check for sts access
+        location:  A storage location ID or a dictionary representing the location UploadDestination
+
+    Returns:
+        True if STS is enabled for the location, False otherwise
+    """
+    if not location:
+        return False
+
+    if isinstance(location, collections.abc.Mapping):
+        # looks like this is already an upload destination dict
+        destination = location
+
+    else:
+        # Lazy import to avoid circular imports
+        from synapseclient.api.entity_services import get_upload_destination_location
+
+        # otherwise treat it as a storage location id,
+        destination = await get_upload_destination_location(
+            entity_id=entity_id, location=location, synapse_client=syn
         )
 
     return destination.get("stsEnabled", False)

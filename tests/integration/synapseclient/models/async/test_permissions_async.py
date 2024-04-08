@@ -84,7 +84,14 @@ class TestAclOnProject:
 
         # AND the permissions for the user on the entity are set to READ only
         await project_with_read_only_permissions.set_permissions_async(
-            principal_id=p1.id, access_type=["READ"]
+            principal_id=p1.id,
+            access_type=[
+                "READ",
+                "CHANGE_SETTINGS",
+                "CHANGE_PERMISSIONS",
+                "UPDATE",
+                "DELETE",
+            ],
         )
 
         # WHEN I get the permissions for the user on the entity
@@ -93,7 +100,13 @@ class TestAclOnProject:
         )
 
         # THEN I expect to see read only permissions
-        expected_permissions = ["READ"]
+        expected_permissions = [
+            "READ",
+            "CHANGE_SETTINGS",
+            "CHANGE_PERMISSIONS",
+            "UPDATE",
+            "DELETE",
+        ]
         assert set(expected_permissions) == set(permissions)
 
     @pytest.mark.asyncio
@@ -331,34 +344,47 @@ class TestAclOnFolder:
         assert set(expected_permissions) == set(permissions)
 
     @pytest.mark.asyncio
-    async def test_get_acl_read_only_permissions_on_entity(
+    async def test_get_acl_minimal_permissions_on_entity(
         self, project_model: Project
     ) -> None:
         # GIVEN a folder created with default permissions of administrator
-        project_with_read_only_permissions = await Folder(
-            name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
+        project_with_minimal_permissions = await Folder(
+            name=str(uuid.uuid4()) + "test_get_acl_minimal_permissions_on_project"
         ).store_async(parent=project_model)
-        self.schedule_for_cleanup(project_with_read_only_permissions.id)
+        self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the folder
         p1 = await UserProfile().get_async()
 
-        # AND the permissions for the user on the entity are set to READ only
-        await project_with_read_only_permissions.set_permissions_async(
-            principal_id=p1.id, access_type=["READ"]
+        # AND the permissions for the user on the entity are set
+        await project_with_minimal_permissions.set_permissions_async(
+            principal_id=p1.id,
+            access_type=[
+                "READ",
+                "CHANGE_SETTINGS",
+                "CHANGE_PERMISSIONS",
+                "UPDATE",
+                "DELETE",
+            ],
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_read_only_permissions.get_acl_async(
+        permissions = await project_with_minimal_permissions.get_acl_async(
             principal_id=p1.id
         )
 
-        # THEN I expect to see read only permissions
-        expected_permissions = ["READ"]
+        # THEN I expect to see minimal permissions
+        expected_permissions = [
+            "READ",
+            "CHANGE_SETTINGS",
+            "CHANGE_PERMISSIONS",
+            "UPDATE",
+            "DELETE",
+        ]
         assert set(expected_permissions) == set(permissions)
 
     @pytest.mark.asyncio
-    async def test_get_acl_read_only_permissions_on_sub_folder(
+    async def test_get_acl_minimal_permissions_on_sub_folder(
         self, project_model: Project
     ) -> None:
         # GIVEN a parent folder with default permissions
@@ -367,29 +393,42 @@ class TestAclOnFolder:
         ).store_async(parent=project_model)
 
         # AND a folder created with default permissions of administrator
-        folder_with_read_only_permissions = await Folder(
+        folder_with_minimal_permissions = await Folder(
             name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
         ).store_async(parent=parent_folder)
-        self.schedule_for_cleanup(folder_with_read_only_permissions.id)
+        self.schedule_for_cleanup(folder_with_minimal_permissions.id)
 
         # AND the user that created the folder
         p1 = await UserProfile().get_async()
 
-        # AND the permissions for the user on the entity are set to READ only
-        await folder_with_read_only_permissions.set_permissions_async(
-            principal_id=p1.id, access_type=["READ"]
+        # AND the permissions for the user on the entity are set
+        await folder_with_minimal_permissions.set_permissions_async(
+            principal_id=p1.id,
+            access_type=[
+                "READ",
+                "CHANGE_SETTINGS",
+                "CHANGE_PERMISSIONS",
+                "UPDATE",
+                "DELETE",
+            ],
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await folder_with_read_only_permissions.get_acl_async(
+        permissions = await folder_with_minimal_permissions.get_acl_async(
             principal_id=p1.id
         )
 
         # AND I get the permissions for the user on the parent entity
         permissions_on_parent = await parent_folder.get_acl_async(principal_id=p1.id)
 
-        # THEN I expect to see read only permissions on the sub-folder
-        expected_permissions = ["READ"]
+        # THEN I expect to see minimal permissions on the sub-folder
+        expected_permissions = [
+            "READ",
+            "CHANGE_SETTINGS",
+            "CHANGE_PERMISSIONS",
+            "UPDATE",
+            "DELETE",
+        ]
         assert set(expected_permissions) == set(permissions)
 
         # AND I expect to see the default admin permissions on the parent-folder
@@ -651,31 +690,42 @@ class TestAclOnFile:
         assert set(expected_permissions) == set(permissions)
 
     @pytest.mark.asyncio
-    async def test_get_acl_read_only_permissions_on_entity(
+    async def test_get_acl_minimal_permissions_on_entity(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file created with default permissions of administrator
         file.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        project_with_read_only_permissions = await file.store_async(
-            parent=project_model
-        )
-        self.schedule_for_cleanup(project_with_read_only_permissions.id)
+        project_with_minimal_permissions = await file.store_async(parent=project_model)
+        self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the file
         p1 = await UserProfile().get_async()
 
-        # AND the permissions for the user on the entity are set to READ only
-        await project_with_read_only_permissions.set_permissions_async(
-            principal_id=p1.id, access_type=["READ"]
+        # AND the permissions for the user on the entity are set
+        await project_with_minimal_permissions.set_permissions_async(
+            principal_id=p1.id,
+            access_type=[
+                "READ",
+                "CHANGE_SETTINGS",
+                "CHANGE_PERMISSIONS",
+                "UPDATE",
+                "DELETE",
+            ],
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_read_only_permissions.get_acl_async(
+        permissions = await project_with_minimal_permissions.get_acl_async(
             principal_id=p1.id
         )
 
-        # THEN I expect to see read only permissions
-        expected_permissions = ["READ"]
+        # THEN I expect to see minimal permissions
+        expected_permissions = [
+            "READ",
+            "CHANGE_SETTINGS",
+            "CHANGE_PERMISSIONS",
+            "UPDATE",
+            "DELETE",
+        ]
         assert set(expected_permissions) == set(permissions)
 
     @pytest.mark.asyncio
@@ -939,27 +989,40 @@ class TestAclOnTable:
         assert set(expected_permissions) == set(permissions)
 
     @pytest.mark.asyncio
-    async def test_get_acl_read_only_permissions_on_entity(self, table: Table) -> None:
+    async def test_get_acl_minimal_permissions_on_entity(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        project_with_read_only_permissions = await table.store_schema_async()
-        self.schedule_for_cleanup(project_with_read_only_permissions.id)
+        project_with_minimal_permissions = await table.store_schema_async()
+        self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the table
         p1 = await UserProfile().get_async()
 
-        # AND the permissions for the user on the entity are set to READ only
-        await project_with_read_only_permissions.set_permissions_async(
-            principal_id=p1.id, access_type=["READ"]
+        # AND the permissions for the user on the entity are set
+        await project_with_minimal_permissions.set_permissions_async(
+            principal_id=p1.id,
+            access_type=[
+                "READ",
+                "CHANGE_SETTINGS",
+                "CHANGE_PERMISSIONS",
+                "UPDATE",
+                "DELETE",
+            ],
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = await project_with_read_only_permissions.get_acl_async(
+        permissions = await project_with_minimal_permissions.get_acl_async(
             principal_id=p1.id
         )
 
-        # THEN I expect to see read only permissions
-        expected_permissions = ["READ"]
+        # THEN I expect to see minimal permissions
+        expected_permissions = [
+            "READ",
+            "CHANGE_SETTINGS",
+            "CHANGE_PERMISSIONS",
+            "UPDATE",
+            "DELETE",
+        ]
         assert set(expected_permissions) == set(permissions)
 
     @pytest.mark.asyncio

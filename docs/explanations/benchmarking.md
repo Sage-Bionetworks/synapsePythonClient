@@ -1,8 +1,49 @@
 # Benchmarking
 
-Periodically we will be publishing results of benchmarking the Synapse Python Client compared to directly working with AWS S3. The purpose of these benchmarks is to make data driven decisions on where to spend time optimizing the client. Additionally, it will give us a way to measure the impact of changes to the client.
+Periodically we will be publishing results of benchmarking the Synapse Python Client
+compared to directly working with AWS S3. The purpose of these benchmarks is to make
+data driven decisions on where to spend time optimizing the client. Additionally, it
+will give us a way to measure the impact of changes to the client.
 
 ## Results
+
+### 04/01/2024: Uploading files to Synapse
+These benchmarking results bring together some important updates to the Upload logic. It
+has been re-written to bring a focus to concurrent file uploads and more effecient use
+of available threads. As a result of this change it is not reccommended to
+increase `max_threads` manually. Based on the available CPU cores this python package
+will use `multiprocessing.cpu_count() + 4`. For this testing the default thread size
+for the machine testing took place on was `6`.
+
+The results were created on a `t3a.micro` EC2 instance with a 200GB disk size running
+in us-east-1. The script that was run can be found in `docs/scripts/uploadBenchmark.py`.
+
+
+#### Some insights:
+- The use of the
+[Object-Orientated interfaces/Models Interface](../reference/oop/models.md) results in
+the best performance out of the box and will scale based on the hardware it's run on.
+- Increasing the number of threads did increase performance for the previous upload
+logic and Synapseutils functionality. It may also increase performance for new uploads,
+however, it was not tested again. Increasing the number of threads in use also has
+inconsistent stability as found in previous benchmarks.
+- The new upload algorithm follows a similar pattern to the S3 client upload times.
+
+| Test                | Total Transfer Size | OOP Models Interface | syn.Store(), New Upload | S3 Sync CLI | syn.Store(), Old Upload | Synapseutils | Synapseutils (25 Threads) | syn.Store(), Old Upload (25 Threads) |
+|---------------------|---------------------|----------------------|-------------------------|-------------|-------------------------|--------------|---------------------------|--------------------------------------|
+| 10 File/10GiB ea    | 100GiB              | 1652.61s             | 1680.27s                | 1515.31s    | 2174.65s                | 2909.62s     | 1658.34s                  | 1687.17s                             |
+| 1 File/10GiB ea     | 10GiB               | 168.39s              | 167s                    | 152.35s     | 223s                    | 255.99s      | 169s                      | 166s                                 |
+| 10 File/1GiB ea     | 10GiB               | 168.78s              | 172.48s                 | 155.52s     | 224.59s                 | 291.72s      | 167.9s                    | 175.99s                              |
+| 100 File/100 MiB ea | 10GiB               | 124.14s              | 248.57s                 | 150.46s     | 320.50s                 | 227.75s      | 170.82s                   | 294.69s                              |
+| 10 File/100 MiB ea  | 1GiB                | 15.13s               | 28.38s                  | 18.14s      | 33.74s                  | 26.64s       | 17.69s                    | 32.80s                               |
+| 100 File/10 MiB ea  | 1GiB                | 19.24s               | 141.23s                 | 19.59s      | 139.31s                 | 48.50s       | 18.34s                    | 138.14s                              |
+| 1000 File/1 MiB ea  | 1GiB                | 152.65s              | 1044.42s                | 25.03s      | 1101.90s                | 340.07s      | 100.94s                   | 1106.40s                             |
+
+#### A high level overview of the differences between each of the upload methods:
+- **OOP Models Interface:** Uploads all files and 8MB chunks of each file in parallel using a new upload algorithm
+- **Synapseutils:** Uploads all files in parallel and 8MB chunks of each file in parallel using the old upload algorithm
+- **syn.Store(), New Upload:** Uploads files sequentally, but 8MB chunks in parallel using a new upload algorithm
+- **syn.Store(), Old Upload:** Uploads files sequentally, but 8MB chunks in parallel using the old upload algorithm
 
 ### 12/12/2023: Downloading files from Synapse
 

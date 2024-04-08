@@ -1,27 +1,26 @@
-from concurrent.futures import Future
-import hashlib
 import json
-import requests
-
-import pytest
+from concurrent.futures import Future
 from unittest import mock
 
+import pytest
+import requests
+
+import synapseclient.core.upload.multipart_upload as multipart_upload
 from synapseclient import Synapse
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
 )
-import synapseclient.core.upload.multipart_upload as multipart_upload
 from synapseclient.core.upload.multipart_upload import (
     DEFAULT_PART_SIZE,
     MIN_PART_SIZE,
+    UploadAttempt,
     _multipart_upload,
     multipart_copy,
     multipart_upload_file,
     multipart_upload_string,
     pool_provider,
-    UploadAttempt,
 )
 from synapseclient.core.utils import md5_fn
 
@@ -309,7 +308,7 @@ class TestUploadAttempt:
         md5_hex = md5_fn(chunk, None)
 
         with mock.patch.object(
-            multipart_upload, "_get_file_chunk"
+            multipart_upload, "get_file_chunk"
         ) as chunk_fn, mock.patch.object(
             upload, "_get_thread_session"
         ) as get_session, mock.patch.object(
@@ -442,7 +441,7 @@ class TestUploadAttempt:
         mock_session = mock.Mock()
 
         with mock.patch.object(
-            multipart_upload, "_get_file_chunk"
+            multipart_upload, "get_file_chunk"
         ) as chunk_fn, mock.patch.object(
             upload, "_get_thread_session"
         ) as get_session, mock.patch.object(

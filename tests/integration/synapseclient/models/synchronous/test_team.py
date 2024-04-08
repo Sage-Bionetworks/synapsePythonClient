@@ -126,7 +126,7 @@ class TestTeam:
         test_team = self.team.create()
 
         # Searching by name is eventually consistent
-        time.sleep(5)
+        time.sleep(20)
 
         # THEN I expect the team to be returned by from_name
         test_team_from_name = Team.from_name(name=test_team.name)

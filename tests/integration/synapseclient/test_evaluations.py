@@ -14,6 +14,7 @@ tracer = trace.get_tracer("synapseclient")
 
 
 @tracer.start_as_current_span("test_evaluations::test_evaluations")
+@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_evaluations(syn: Synapse, project: Project):
     # Create an Evaluation
     name = "Test Evaluation %s" % str(uuid.uuid4())

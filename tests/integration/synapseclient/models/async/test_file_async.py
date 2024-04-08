@@ -10,7 +10,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core import utils
-from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError
 
 from synapseclient.models import (
     Project,
@@ -26,6 +26,7 @@ CONTENT_TYPE = "text/plain"
 VERSION_COMMENT = "My version comment"
 CONTENT_TYPE_JSON = "text/json"
 BOGUS_URL = "https://www.synapse.org/"
+BOGUS_MD5 = "1234567890"
 
 
 class TestFileStore:
@@ -285,10 +286,12 @@ class TestFileStore:
 
         # THEN I expect the file handles to match
         assert file_2_etag != file_2.etag
-        await asyncio.sleep(5)
-        assert (await file_1.get_async()).file_handle == (
+
+        # The file_handle is eventually consistent & changes when a file preview is
+        # created. To handle for this I am just confirming the IDs match
+        assert (await file_1.get_async()).file_handle.id == (
             await file_2.get_async()
-        ).file_handle
+        ).file_handle.id
 
     @pytest.mark.asyncio
     async def test_store_updated_file(self, project_model: Project) -> None:
@@ -551,6 +554,8 @@ class TestFileStore:
         assert file.created_on is not None
         assert file.modified_by is not None
         assert file.modified_on is not None
+        assert file.content_size is not None
+        assert file.content_type == CONTENT_TYPE
         assert file.data_file_handle_id is not None
         assert file.file_handle is not None
         assert file.file_handle.id is not None
@@ -569,6 +574,240 @@ class TestFileStore:
         assert file.file_handle.status is not None
         assert file.file_handle.bucket_name is None
         assert file.file_handle.key is None
+
+    @pytest.mark.asyncio
+    async def test_store_without_upload_non_matching_md5(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file is not to be uploaded
+        file.synapse_store = False
+
+        # AND the file has a content md5
+        file.content_md5 = BOGUS_MD5
+
+        # WHEN I store the file
+        with pytest.raises(SynapseMd5MismatchError) as e:
+            await file.store_async(parent=project_model)
+
+        assert (
+            f"The specified md5 [{BOGUS_MD5}] does not match the calculated md5 "
+            f"[{utils.md5_for_file_hex(file.path)}] for local file" in str(e.value)
+        )
+
+    @pytest.mark.asyncio
+    async def test_store_without_upload_non_matching_size(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file is not to be uploaded
+        file.synapse_store = False
+
+        # AND the file has a content size
+        file.content_size = 123
+
+        # WHEN I store the file
+        file = await file.store_async(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored as an external file
+        assert file.id is not None
+        assert file.parent_id == project_model.id
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
+        assert file.version_label is not None
+        assert file.version_number == 1
+        assert file.created_by is not None
+        assert file.created_on is not None
+        assert file.modified_by is not None
+        assert file.modified_on is not None
+        assert file.content_size != 123
+        assert file.content_type == CONTENT_TYPE
+        assert file.data_file_handle_id is not None
+        assert file.file_handle is not None
+        assert file.file_handle.id is not None
+        assert file.file_handle.etag is not None
+        assert file.file_handle.created_by is not None
+        assert file.file_handle.created_on is not None
+        assert file.file_handle.modified_on is not None
+        assert (
+            file.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        )
+        assert file.file_handle.content_type == CONTENT_TYPE
+        assert file.file_handle.content_md5 is not None
+        assert file.file_handle.file_name is not None
+        assert file.file_handle.content_size != 123
+        assert file.file_handle.status is not None
+        assert file.file_handle.bucket_name is None
+        assert file.file_handle.key is None
+
+    @pytest.mark.asyncio
+    async def test_store_as_external_url(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file is not to be uploaded
+        file.synapse_store = False
+
+        # AND the file is an external URL
+        file.external_url = BOGUS_URL
+
+        # WHEN I store the file
+        file = await file.store_async(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored as an external file
+        assert file.id is not None
+        assert file.parent_id == project_model.id
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
+        assert file.version_label is not None
+        assert file.version_number == 1
+        assert file.created_by is not None
+        assert file.created_on is not None
+        assert file.modified_by is not None
+        assert file.modified_on is not None
+        assert file.content_size is None
+        assert file.content_type == CONTENT_TYPE
+        assert file.external_url == BOGUS_URL
+        assert file.data_file_handle_id is not None
+        assert file.file_handle is not None
+        assert file.file_handle.id is not None
+        assert file.file_handle.etag is not None
+        assert file.file_handle.created_by is not None
+        assert file.file_handle.created_on is not None
+        assert file.file_handle.modified_on is not None
+        assert (
+            file.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        )
+        assert file.file_handle.content_type == CONTENT_TYPE
+        assert file.file_handle.content_md5 is None
+        assert file.file_handle.file_name is not None
+        assert file.file_handle.content_size is None
+        assert file.file_handle.status is not None
+        assert file.file_handle.bucket_name is None
+        assert file.file_handle.key is None
+        assert file.file_handle.external_url == BOGUS_URL
+
+    @pytest.mark.asyncio
+    async def test_store_as_external_url_with_content_size(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file is not to be uploaded
+        file.synapse_store = False
+
+        # AND the file is an external URL
+        file.external_url = BOGUS_URL
+
+        # AND the file has a content size
+        file.content_size = 123
+
+        # WHEN I store the file
+        file = await file.store_async(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored as an external file
+        assert file.id is not None
+        assert file.parent_id == project_model.id
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
+        assert file.version_label is not None
+        assert file.version_number == 1
+        assert file.created_by is not None
+        assert file.created_on is not None
+        assert file.modified_by is not None
+        assert file.modified_on is not None
+        assert file.content_size == 123
+        assert file.content_type == CONTENT_TYPE
+        assert file.external_url == BOGUS_URL
+        assert file.data_file_handle_id is not None
+        assert file.file_handle is not None
+        assert file.file_handle.id is not None
+        assert file.file_handle.etag is not None
+        assert file.file_handle.created_by is not None
+        assert file.file_handle.created_on is not None
+        assert file.file_handle.modified_on is not None
+        assert (
+            file.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        )
+        assert file.file_handle.content_type == CONTENT_TYPE
+        assert file.file_handle.content_md5 is None
+        assert file.file_handle.file_name is not None
+        assert file.file_handle.content_size == 123
+        assert file.file_handle.status is not None
+        assert file.file_handle.bucket_name is None
+        assert file.file_handle.key is None
+        assert file.file_handle.external_url == BOGUS_URL
+
+    @pytest.mark.asyncio
+    async def test_store_as_external_url_with_content_size_and_md5(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file is not to be uploaded
+        file.synapse_store = False
+
+        # AND the file is an external URL
+        file.external_url = BOGUS_URL
+
+        # AND the file has a content size
+        file.content_size = 123
+
+        # AND the file has a content md5
+        file.content_md5 = BOGUS_MD5
+
+        # WHEN I store the file
+        file = await file.store_async(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored as an external file
+        assert file.id is not None
+        assert file.parent_id == project_model.id
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
+        assert file.version_label is not None
+        assert file.version_number == 1
+        assert file.created_by is not None
+        assert file.created_on is not None
+        assert file.modified_by is not None
+        assert file.modified_on is not None
+        assert file.content_size == 123
+        assert file.content_type == CONTENT_TYPE
+        assert file.external_url == BOGUS_URL
+        assert file.content_md5 is None
+        assert file.data_file_handle_id is not None
+        assert file.file_handle is not None
+        assert file.file_handle.id is not None
+        assert file.file_handle.etag is not None
+        assert file.file_handle.created_by is not None
+        assert file.file_handle.created_on is not None
+        assert file.file_handle.modified_on is not None
+        assert (
+            file.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        )
+        assert file.file_handle.content_type == CONTENT_TYPE
+        assert file.file_handle.file_name is not None
+        assert file.file_handle.content_size == 123
+        assert file.file_handle.status is not None
+        assert file.file_handle.bucket_name is None
+        assert file.file_handle.key is None
+        assert file.file_handle.external_url == BOGUS_URL
+        assert file.file_handle.content_md5 == BOGUS_MD5
 
     @pytest.mark.asyncio
     async def test_store_conflict_with_existing_object(
@@ -627,12 +866,12 @@ class TestFileStore:
             await new_file.store_async()
 
         assert (
-            str(e.value)
-            == f"409 Client Error: \nAn entity with the name: {file.name} already exists with a parentId: {project_model.id}"
+            f"409 Client Error: An entity with the name: {file.name} already exists with a parentId: {project_model.id}"
+            in str(e.value)
         )
 
     @pytest.mark.asyncio
-    async def test_store_force_version(
+    async def test_store_force_version_no_change(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
@@ -653,8 +892,39 @@ class TestFileStore:
         # THEN the version should not be updated
         assert file.version_number == 1
 
-        # WHEN I store the file again with force_version=True
+        # WHEN I store the file again with force_version=True and no change was made
         file.force_version = True
+        await file.store_async()
+
+        # THEN the version should not be updated
+        assert file.version_number == 1
+
+    @pytest.mark.asyncio
+    async def test_store_force_version_with_change(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # WHEN I store the file
+        await file.store_async(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored
+        assert file.id is not None
+        assert file.version_number == 1
+
+        # WHEN I store the file again with force_version=False
+        file.force_version = False
+        file.description = "aaaaaaaaaaaaaaaa"
+        await file.store_async()
+
+        # THEN the version should not be updated
+        assert file.version_number == 1
+
+        # WHEN I store the file again with force_version=True and I update a field
+        file.force_version = True
+        file.description = "new description"
         await file.store_async()
 
         # THEN the version should be updated
@@ -675,7 +945,7 @@ class TestFileStore:
         file.is_restricted = True
 
         with patch(
-            "synapseclient.client.Synapse._createAccessRequirementIfNone"
+            "synapseclient.models.services.storable_entity.create_access_requirements_if_none"
         ) as intercepted:
             # WHEN I store the file
             await file.store_async(parent=project_model)
@@ -756,16 +1026,15 @@ class TestChangeMetadata:
     ) -> None:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description=DESCRIPTION,
-                content_type=CONTENT_TYPE,
-                version_comment=VERSION_COMMENT,
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store_async()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
@@ -851,16 +1120,15 @@ class TestFrom:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description=DESCRIPTION,
-                content_type=CONTENT_TYPE,
-                version_comment=VERSION_COMMENT,
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store_async()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
@@ -902,16 +1170,15 @@ class TestDelete:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description=DESCRIPTION,
-                content_type=CONTENT_TYPE,
-                version_comment=VERSION_COMMENT,
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store_async()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
@@ -926,7 +1193,7 @@ class TestDelete:
         # THEN I expect the file to be deleted
         with pytest.raises(SynapseHTTPError) as e:
             await file.get_async()
-        assert str(e.value) == f"404 Client Error: \nEntity {file.id} is in trash can."
+        assert f"404 Client Error: \nEntity {file.id} is in trash can." in str(e.value)
 
     @pytest.mark.asyncio
     async def test_delete_specific_version(self, file: File) -> None:
@@ -946,8 +1213,8 @@ class TestDelete:
         with pytest.raises(SynapseHTTPError) as e:
             await File(id=file.id, version_number=1).get_async()
         assert (
-            str(e.value)
-            == f"404 Client Error: \nCannot find a node with id {file.id} and version 1"
+            f"404 Client Error: \nCannot find a node with id {file.id} and version 1"
+            in str(e.value)
         )
 
         # AND the second version to still exist
@@ -969,16 +1236,15 @@ class TestGet:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description=DESCRIPTION,
-                content_type=CONTENT_TYPE,
-                version_comment=VERSION_COMMENT,
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store_async()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
@@ -998,12 +1264,15 @@ class TestGet:
     async def test_get_by_id(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
+        assert file.path is not None
+        path_for_file = file.path
 
         # WHEN I get the file by id
         file_copy = await File(id=file.id).get_async()
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
+        assert file_copy.path == path_for_file
 
     @pytest.mark.asyncio
     async def test_get_previous_version(self, file: File) -> None:
@@ -1183,16 +1452,15 @@ class TestCopy:
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = asyncio.run(
-            File(
-                path=filename,
-                description=DESCRIPTION,
-                content_type=CONTENT_TYPE,
-                version_comment=VERSION_COMMENT,
-                version_label=str(uuid.uuid4()),
-                parent_id=project_model.id,
-            ).store_async()
-        )
+        file = File(
+            path=filename,
+            description=DESCRIPTION,
+            content_type=CONTENT_TYPE,
+            version_comment=VERSION_COMMENT,
+            version_label=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store()
+
         schedule_for_cleanup(file.id)
         return file
 
