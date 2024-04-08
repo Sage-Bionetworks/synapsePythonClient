@@ -72,16 +72,11 @@ async def put_file_multipart_add(
     """
     from synapseclient import Synapse
 
-    try:
-        client = Synapse.get_client(synapse_client=synapse_client)
-        return await client.rest_put_async(
-            f"/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5_hex}",
-            endpoint=client.fileHandleEndpoint,
-        )
-    except Exception:
-        client.logger.exception(
-            f"Error adding part {part_number} to upload {upload_id} with MD5: {md5_hex}"
-        )
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_put_async(
+        f"/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5_hex}",
+        endpoint=client.fileHandleEndpoint,
+    )
 
 
 async def put_file_multipart_complete(

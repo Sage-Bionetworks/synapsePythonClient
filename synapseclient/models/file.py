@@ -734,14 +734,6 @@ class File(FileSynchronousProtocol, AccessControllable):
         elif self.data_file_handle_id:
             self.path = client.cache.get(file_handle_id=self.data_file_handle_id)
 
-        trace.get_current_span().set_attributes(
-            {
-                "synapse.name": self.name or "",
-                "synapse.id": self.id or "",
-                "synapse.path": self.path or "",
-            }
-        )
-
         if self.has_changed:
             synapse_file = Synapse_File(
                 id=self.id,

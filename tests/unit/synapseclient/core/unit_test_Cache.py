@@ -579,7 +579,103 @@ class TestModificationsToCacheContent:
         )
         assert unmodified is False
 
-    def test_cache_item_unmodified_modified_items_is_modified_timestamp(self):
+    def test_cache_no_modified_time_key(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # AND a file created in my cache directory
+        file_path = utils.touch(
+            os.path.join(
+                my_cache.get_cache_dir(131202),
+                "file_1_test_cache_no_modified_time_key.ext",
+            )
+        )
+        file_modification_time = cache.epoch_time_to_iso(
+            math.floor(cache._get_modified_time(file_path))
+        )
+
+        # WHEN the modified_time key is not present
+        unmodified = my_cache._cache_item_unmodified(
+            cache_map_entry={
+                "not_modified_time": file_modification_time,
+                "content_md5": utils.md5_for_file(file_path).hexdigest(),
+            },
+            path=file_path,
+        )
+        # THEN we expect the file to be modified
+        assert unmodified is False
+
+    def test_cache_no_modified_time_and_no_content_md5_key(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # AND a file created in my cache directory
+        file_path = utils.touch(
+            os.path.join(
+                my_cache.get_cache_dir(131203),
+                "file_1_test_cache_no_content_md5_key.ext",
+            )
+        )
+        file_modification_time = cache.epoch_time_to_iso(
+            math.floor(cache._get_modified_time(file_path))
+        )
+
+        # WHEN the modified_time and content_md5 key is not present
+        unmodified = my_cache._cache_item_unmodified(
+            cache_map_entry={
+                "not_modified_time": file_modification_time,
+                "not_content_md5": utils.md5_for_file(file_path).hexdigest(),
+            },
+            path=file_path,
+        )
+        # THEN we expect the file to be modified
+        assert unmodified is False
+
+    def test_cache_empty_cache_map(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # AND a file created in my cache directory
+        file_path = utils.touch(
+            os.path.join(
+                my_cache.get_cache_dir(131203),
+                "file_1_test_cache_no_content_md5_key.ext",
+            )
+        )
+
+        # WHEN the cache map is an empty dict
+        unmodified = my_cache._cache_item_unmodified(
+            cache_map_entry={},
+            path=file_path,
+        )
+        # THEN we expect the file to be modified
+        assert unmodified is False
+
+    def test_cache_none_cache_map(self):
+        # GIVEN a temp directory and a cache object
+        tmp_dir = tempfile.mkdtemp()
+        my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+        # AND a file created in my cache directory
+        file_path = utils.touch(
+            os.path.join(
+                my_cache.get_cache_dir(131203),
+                "file_1_test_cache_no_content_md5_key.ext",
+            )
+        )
+
+        # WHEN the cache map is an empty dict
+        unmodified = my_cache._cache_item_unmodified(
+            cache_map_entry=None,
+            path=file_path,
+        )
+        # THEN we expect the file to be modified
+        assert unmodified is False
+
+    def test_cache_item_unmodified_modified_items_is_modified_timestamp_new_file(self):
         # GIVEN a temp directory and a cache object
         tmp_dir = tempfile.mkdtemp()
         my_cache = cache.Cache(cache_root_dir=tmp_dir)

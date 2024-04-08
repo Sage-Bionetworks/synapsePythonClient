@@ -143,7 +143,6 @@ class S3ClientWrapper:
             if progress_bar:
                 progress_bar.close()
 
-            # why return what we were passed...?
             return download_file_path
 
         except botocore.exceptions.ClientError as e:
