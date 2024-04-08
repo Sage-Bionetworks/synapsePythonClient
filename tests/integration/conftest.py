@@ -1,7 +1,5 @@
 """Set up for integration tests."""
 
-"""Set up for integration tests."""
-
 import asyncio
 import logging
 import os

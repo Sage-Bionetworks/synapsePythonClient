@@ -322,13 +322,18 @@ class Synapse(object):
             """
             # Don't log the query string as it will contain tokens
             url_without_query_string: httpx.URL = request.url.copy_with(query=None)
-            span = tracer.start_span(
-                f"{request.method} {url_without_query_string}", kind=SpanKind.CLIENT
-            )
-            span.set_attributes(
-                {"url": str(url_without_query_string), "http.method": request.method}
-            )
-            span_dict.update({request: span})
+            current_span = trace.get_current_span()
+            if current_span.is_recording():
+                span = tracer.start_span(
+                    f"{request.method} {url_without_query_string}", kind=SpanKind.CLIENT
+                )
+                span.set_attributes(
+                    {
+                        "url": str(url_without_query_string),
+                        "http.method": request.method,
+                    }
+                )
+                span_dict.update({request: span})
 
         def log_response(response: httpx.Response) -> None:
             """
@@ -337,9 +342,10 @@ class Synapse(object):
             Arguments:
                 response: The HTTPX response object.
             """
-            span = span_dict.pop(response.request)
-            span.set_attribute("http.response.status_code", response.status_code)
-            span.end()
+            span = span_dict.pop(response.request, None)
+            if span:
+                span.set_attribute("http.response.status_code", response.status_code)
+                span.end()
 
         event_hooks = {"request": [log_request], "response": [log_response]}
         httpx_timeout = httpx.Timeout(70)
@@ -444,6 +450,9 @@ class Synapse(object):
             )
             span.set_attributes(
                 {"url": str(request.url), "http.method": request.method}
+            )
+            self._attach_rest_data_to_otel(
+                request.method, str(request.url), request.content, span
             )
             span_dict.update({request: span})
 
