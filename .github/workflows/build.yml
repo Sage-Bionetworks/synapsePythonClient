@@ -135,16 +135,17 @@ jobs:
           touch test.awsConfig
           printf "[default]\nregion = us-east-1\ncredential_process = \"tests/integration/synapse_creds.sh\" \"https://sc.sageit.org\" \"${{ secrets.synapse_personal_access_token }}\"\n" >> test.awsConfig
           chmod +x tests/integration/synapse_creds.sh
-      - name: SSM Port Forward Start
-        if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
-        shell: bash
-        env:
-          AWS_CONFIG_FILE: "test.awsConfig"
-        run: |
-          # Start a port-forwarding session in a non-interactive way. AWS will clean-up
-          # stale sessions after 20 minutes of inactivity
-          aws ssm start-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"] & disown
-          sleep 15
+      # If you are exporting data using `otlp` you can start a port forwading session
+      # - name: SSM Port Forward Start
+      #   if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
+      #   shell: bash
+      #   env:
+      #     AWS_CONFIG_FILE: "test.awsConfig"
+      #   run: |
+      #     # Start a port-forwarding session in a non-interactive way. AWS will clean-up
+      #     # stale sessions after 20 minutes of inactivity
+      #     aws ssm start-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"] & disown
+      #     sleep 15
 
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
