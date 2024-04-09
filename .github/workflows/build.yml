@@ -195,10 +195,11 @@ jobs:
           pytest -sv --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
       - name: Upload otel spans
         uses: actions/upload-artifact@v2
-        if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
+        if: always()
         with:
           name: otel_spans_integration_testing_${{ matrix.os }}
           path: tests/integration/otel_spans_integration_testing_*.ndjson
+          if-no-files-found: ignore
       - name: Upload coverage report
         uses: actions/upload-artifact@v2
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
