@@ -194,7 +194,7 @@ jobs:
           pytest -sv --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
       - name: Upload otel spans
         uses: actions/upload-artifact@v2
-        if: always()
+        if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
         with:
           name: otel_spans_integration_testing_${{ matrix.os }}
           path: tests/integration/otel_spans_integration_testing_*.ndjson

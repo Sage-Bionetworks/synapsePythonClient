@@ -3,7 +3,6 @@ The `Synapse` object encapsulates a connection to the Synapse service and is use
 retrieving data, and recording provenance of data analysis.
 """
 import asyncio
-import uuid
 import asyncio_atexit
 import collections
 import collections.abc
@@ -344,7 +343,7 @@ class Synapse(object):
                 response: The HTTPX response object.
             """
             span = span_dict.pop(response.request, None)
-            if span:
+            if span and span.is_recording():
                 span.set_attribute("http.response.status_code", response.status_code)
                 span.end()
 
@@ -6025,10 +6024,6 @@ class Synapse(object):
                     return
                 data_dict = json.loads(data_to_parse)
 
-                # TODO: This is temporary code for debugging purposes. REMOVE ME.
-                current_span.set_attribute(
-                    f"HTTP_DATA_TEMPORARY_REQUEST_{uuid.uuid4()}", str(data_dict)
-                )
                 if "parentId" in data_dict:
                     current_span.set_attribute(
                         "synapse.parent_id", data_dict["parentId"]
@@ -6040,7 +6035,9 @@ class Synapse(object):
                         "synapse.concrete_type", data_dict["concreteType"]
                     )
                 if "entityName" in data_dict:
-                    current_span.set_attribute("synapse.name", data_dict["entityName"])
+                    current_span.set_attribute(
+                        "synapse.entity_name", data_dict["entityName"]
+                    )
                 elif "name" in data_dict:
                     current_span.set_attribute("synapse.name", data_dict["name"])
             except Exception as ex:
@@ -6104,10 +6101,6 @@ class Synapse(object):
             **retryPolicy,
         )
         if current_span.is_recording():
-            body = self._return_rest_body(response)
-            current_span.set_attribute(
-                f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
-            )
             current_span.end()
         self._handle_synapse_http_error(response)
         return response
@@ -6359,10 +6352,6 @@ class Synapse(object):
         self._handle_httpx_synapse_http_error(response)
         current_span = trace.get_current_span()
         if current_span.is_recording():
-            body = self._return_rest_body(response)
-            current_span.set_attribute(
-                f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
-            )
             current_span.end()
         return response
 

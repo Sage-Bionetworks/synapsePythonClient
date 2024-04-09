@@ -13,7 +13,6 @@ import sys
 import time
 from logging import Logger
 from typing import Any, Coroutine, List, Tuple, Type, Union
-import uuid
 
 import httpx
 
@@ -365,14 +364,6 @@ async def with_retry_time_based_async(
                 logger=logger, response=response, caught_exception=caught_exception
             )
 
-            current_span = trace.get_current_span()
-            if current_span.is_recording():
-                current_span.set_attribute("synapse.retries", str(retries))
-                body = _return_rest_body(response)
-                current_span.set_attribute(
-                    f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
-                )
-
             backoff_wait = calculate_exponential_backoff(
                 retries=retries,
                 base_wait=retry_base_wait,
@@ -493,13 +484,6 @@ def with_retry_time_based(
             _log_for_retry(
                 logger=logger, response=response, caught_exception=caught_exception
             )
-            current_span = trace.get_current_span()
-            if current_span.is_recording():
-                current_span.set_attribute("synapse.retries", str(retries))
-                body = _return_rest_body(response)
-                current_span.set_attribute(
-                    f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
-                )
 
             backoff_wait = calculate_exponential_backoff(
                 retries=retries,
@@ -614,11 +598,7 @@ def _log_for_retry(
             url_message_part,
             response_message,
         )
-        current_span = trace.get_current_span()
-        if current_span.is_recording():
-            current_span.set_attribute(
-                f"HTTP_RETRY_STATUS_CODES_{uuid.uuid4()}", str(response.status_code)
-            )
+
     elif caught_exception is not None:
         logger.debug("retrying exception: %s", str(caught_exception))
 
