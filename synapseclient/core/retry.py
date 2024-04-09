@@ -70,15 +70,6 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
 DEBUG_EXCEPTION = "calling %s resulted in an Exception"
 
 
-def _return_rest_body(response):
-    trace.get_current_span().set_attributes(
-        {"http.response.status_code": response.status_code}
-    )
-    if is_json(response.headers.get("content-type", None)):
-        return response.json()
-    return response.text
-
-
 def with_retry(
     function,
     verbose=False,

@@ -218,7 +218,7 @@ def setup_otel():
     to export to the console, a file, or to an OTLP endpoint.
     """
     # Setup
-    exporter_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER", "file")
+    exporter_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER", None)
     if exporter_type:
         trace.set_tracer_provider(
             TracerProvider(

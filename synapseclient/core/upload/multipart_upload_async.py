@@ -402,6 +402,10 @@ class UploadAttemptAsync:
                         isinstance(task_result, AddPartResponse)
                         and task_result.add_part_state != "ADD_SUCCESS"
                     ):
+                        # Restart the file upload process resuming where this left off.
+                        # Rest docs state:
+                        # "If add part fails for any reason, the client must re-upload
+                        # the part and then re-attempt to add the part to the upload."
                         raise SynapseUploadFailedException(
                             (
                                 "Adding individual part failed with unexpected state: "

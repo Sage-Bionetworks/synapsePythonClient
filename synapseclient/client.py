@@ -445,16 +445,18 @@ class Synapse(object):
             Arguments:
                 request: The HTTPX request object.
             """
-            span = tracer.start_span(
-                f"{request.method} {request.url}", kind=SpanKind.CLIENT
-            )
-            span.set_attributes(
-                {"url": str(request.url), "http.method": request.method}
-            )
-            self._attach_rest_data_to_otel(
-                request.method, str(request.url), request.content, span
-            )
-            span_dict.update({request: span})
+            current_span = trace.get_current_span()
+            if current_span.is_recording():
+                span = tracer.start_span(
+                    f"{request.method} {request.url}", kind=SpanKind.CLIENT
+                )
+                span.set_attributes(
+                    {"url": str(request.url), "http.method": request.method}
+                )
+                self._attach_rest_data_to_otel(
+                    request.method, str(request.url), request.content, span
+                )
+                span_dict.update({request: span})
 
         async def log_response(response: httpx.Response) -> None:
             """
@@ -463,8 +465,10 @@ class Synapse(object):
             Arguments:
                 response: The HTTPX response object.
             """
-            span = span_dict.pop(response.request)
-            span.set_attribute("http.response.status_code", response.status_code)
+            span = span_dict.pop(response.request, None)
+            if span and span.is_recording():
+                span.set_attribute("http.response.status_code", response.status_code)
+                span.end()
 
         event_hooks = {"request": [log_request], "response": [log_response]}
         self._requests_session_async_synapse.update(
@@ -6350,9 +6354,7 @@ class Synapse(object):
             )
 
         self._handle_httpx_synapse_http_error(response)
-        current_span = trace.get_current_span()
-        if current_span.is_recording():
-            current_span.end()
+
         return response
 
     async def rest_get_async(
