@@ -366,7 +366,6 @@ async def with_retry_time_based_async(
             )
 
             current_span = trace.get_current_span()
-
             if current_span.is_recording():
                 current_span.set_attribute("synapse.retries", str(retries))
                 body = _return_rest_body(response)
