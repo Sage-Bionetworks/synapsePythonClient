@@ -119,8 +119,8 @@ jobs:
         run: |
           # Leave disabled during normal integration test runs - Enable when we want to
           # collect the data.
-          echo "run_opentelemetry=true" >> $GITHUB_OUTPUT;
-          # echo "run_opentelemetry=false" >> $GITHUB_OUTPUT;
+          # echo "run_opentelemetry=true" >> $GITHUB_OUTPUT;
+          echo "run_opentelemetry=false" >> $GITHUB_OUTPUT;
 
           # AWS CLI is pre-installed on github hosted runners - Commented out for GH runs
             # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
