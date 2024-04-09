@@ -128,7 +128,7 @@ def with_retry(
         except Exception as ex:
             exc = ex
             exc_info = sys.exc_info()
-            logger.debug(DEBUG_EXCEPTION, function)
+            logger.debug(DEBUG_EXCEPTION, function, exc_info=True)
             if hasattr(ex, "response"):
                 response = ex.response
 
