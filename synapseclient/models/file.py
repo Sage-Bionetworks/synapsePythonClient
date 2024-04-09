@@ -204,7 +204,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
             associated with all values in the list. To remove all annotations set this
-            to an empty dict `{}`.
+            to an empty dict `{}` or None and store the entity.
 
     Attributes:
         content_type: (New Upload Only)
@@ -346,7 +346,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                 List[datetime],
             ],
         ]
-    ] = field(default=None, compare=False)
+    ] = field(default_factory=dict, compare=False)
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
@@ -509,7 +509,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             dataclasses.replace(self.activity) if self.activity else None
         )
         self._last_persistent_instance.annotations = (
-            deepcopy(self.annotations) if self.annotations else None
+            deepcopy(self.annotations) if self.annotations else {}
         )
 
     def _fill_from_file_handle(self) -> None:
@@ -559,7 +559,7 @@ class File(FileSynchronousProtocol, AccessControllable):
 
         if set_annotations:
             self.annotations = Annotations.from_dict(
-                synapse_file.get("annotations", None)
+                synapse_file.get("annotations", {})
             )
         return self
 

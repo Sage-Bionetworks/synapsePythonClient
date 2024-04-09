@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Dict, List, Optional, Union
 
@@ -46,7 +46,7 @@ class Annotations(AnnotationsSynchronousProtocol):
             ],
         ],
         None,
-    ]
+    ] = field(default_factory=dict)
     """Additional metadata associated with the object. The key is the name of your
     desired annotations. The value is an object containing a list of string values
     (use empty list to represent no values for key) and the value type associated with
@@ -143,4 +143,4 @@ class Annotations(AnnotationsSynchronousProtocol):
             else:
                 annotations[key] = dict_to_convert[key]
 
-        return annotations if annotations else None
+        return annotations

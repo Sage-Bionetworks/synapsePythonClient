@@ -66,7 +66,9 @@ class TestFolderStore:
         assert stored_folder.modified_by is not None
         assert stored_folder.files == []
         assert stored_folder.folders == []
-        assert stored_folder.annotations is None
+        assert not stored_folder.annotations and isinstance(
+            stored_folder.annotations, dict
+        )
 
     def test_store_folder_with_file(
         self, project_model: Project, file: File, folder: Folder
@@ -91,7 +93,9 @@ class TestFolderStore:
         assert len(stored_folder.files) == 1
         assert stored_folder.files == [file]
         assert stored_folder.folders == []
-        assert stored_folder.annotations is None
+        assert not stored_folder.annotations and isinstance(
+            stored_folder.annotations, dict
+        )
 
         # AND I expect the File to be stored on Synapse
         assert file.id is not None
@@ -125,7 +129,9 @@ class TestFolderStore:
         assert len(stored_folder.files) == 3
         assert stored_folder.files == files
         assert stored_folder.folders == []
-        assert stored_folder.annotations is None
+        assert not stored_folder.annotations and isinstance(
+            stored_folder.annotations, dict
+        )
 
         # AND I expect the Files to be stored on Synapse
         for file in files:
@@ -176,7 +182,9 @@ class TestFolderStore:
         assert stored_folder.files == files
         assert len(stored_folder.folders) == 2
         assert stored_folder.folders == folders
-        assert stored_folder.annotations is None
+        assert not stored_folder.annotations and isinstance(
+            stored_folder.annotations, dict
+        )
 
         # AND I expect the Files to be stored on Synapse
         for file in files:
@@ -269,7 +277,7 @@ class TestFolderGet:
         assert folder_copy.modified_by is not None
         assert folder_copy.files == []
         assert folder_copy.folders == []
-        assert folder_copy.annotations is None
+        assert not folder_copy.annotations and isinstance(folder_copy.annotations, dict)
 
     def test_get_folder_by_name_and_parent_id_attribute(
         self, project_model: Project, folder: Folder
@@ -297,7 +305,7 @@ class TestFolderGet:
         assert folder_copy.modified_by is not None
         assert folder_copy.files == []
         assert folder_copy.folders == []
-        assert folder_copy.annotations is None
+        assert not folder_copy.annotations and isinstance(folder_copy.annotations, dict)
 
     def test_get_folder_by_name_and_parent(
         self, project_model: Project, folder: Folder
@@ -323,7 +331,7 @@ class TestFolderGet:
         assert folder_copy.modified_by is not None
         assert folder_copy.files == []
         assert folder_copy.folders == []
-        assert folder_copy.annotations is None
+        assert not folder_copy.annotations and isinstance(folder_copy.annotations, dict)
 
 
 class TestFolderDelete:
