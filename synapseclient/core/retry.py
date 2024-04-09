@@ -334,7 +334,7 @@ async def with_retry_time_based_async(
         except Exception as ex:
             caught_exception = ex
             caught_exception_info = sys.exc_info()
-            logger.debug(DEBUG_EXCEPTION, function)
+            logger.debug(DEBUG_EXCEPTION, function, exc_info=True)
             if hasattr(ex, "response"):
                 response = ex.response
 
@@ -455,7 +455,7 @@ def with_retry_time_based(
         except Exception as ex:
             caught_exception = ex
             caught_exception_info = sys.exc_info()
-            logger.debug(DEBUG_EXCEPTION, function)
+            logger.debug(DEBUG_EXCEPTION, function, exc_info=True)
             if hasattr(ex, "response"):
                 response = ex.response
 
