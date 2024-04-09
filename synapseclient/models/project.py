@@ -54,8 +54,8 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
-            associated with all values in the list.  To remove all annotations set this
-            to an empty dict `{}`.
+            associated with all values in the list. To remove all annotations set this
+            to an empty dict `{}` or None and store the entity.
         create_or_update: (Store only) Indicates whether the method should
             automatically perform an update if the resource conflicts with an existing
             Synapse object. When True this means that any changes to the resource will
@@ -157,11 +157,12 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
                 List[datetime],
             ],
         ]
-    ] = field(default=None, compare=False)
+    ] = field(default_factory=dict, compare=False)
     """Additional metadata associated with the folder. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
-    all values in the list. To remove all annotations set this to an empty dict `{}`."""
+    all values in the list. To remove all annotations set this to an empty dict `{}`
+    or None and store the entity."""
 
     create_or_update: bool = field(default=True, repr=False)
     """
@@ -200,7 +201,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         del self._last_persistent_instance
         self._last_persistent_instance = replace(self)
         self._last_persistent_instance.annotations = (
-            deepcopy(self.annotations) if self.annotations else None
+            deepcopy(self.annotations) if self.annotations else {}
         )
 
     def fill_from_dict(
@@ -229,7 +230,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         self.parent_id = synapse_project.get("parentId", None)
         if set_annotations:
             self.annotations = Annotations.from_dict(
-                synapse_project.get("annotations", None)
+                synapse_project.get("annotations", {})
             )
         return self
 

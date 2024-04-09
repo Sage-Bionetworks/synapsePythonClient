@@ -1,6 +1,6 @@
 import asyncio
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
@@ -376,10 +376,11 @@ class Table(TableSynchronousProtocol, AccessControllable):
         is_search_enabled: When creating or updating a table or view specifies if full
             text search should be enabled. Note that enabling full text search might
             slow down the indexing of the table or view.
-        annotations: Additional metadata associated with the table. The key is the
-            name of your desired annotations. The value is an object containing a list
-            of values (use empty list to represent no values for key) and the value
-            type associated with all values in the list.
+        annotations: Additional metadata associated with the table. The key is the name
+            of your desired annotations. The value is an object containing a list of
+            values (use empty list to represent no values for key) and the value type
+            associated with all values in the list. To remove all annotations set this
+            to an empty dict `{}` or None and store the entity.
 
     """
 
@@ -454,11 +455,12 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 List[datetime],
             ],
         ]
-    ] = None
+    ] = field(default_factory=dict)
     """Additional metadata associated with the table. The key is the name of your
     desired annotations. The value is an object containing a list of values
     (use empty list to represent no values for key) and the value type associated with
-    all values in the list. To remove all annotations set this to an empty dict `{}`."""
+    all values in the list. To remove all annotations set this to an empty dict `{}`
+    or None and store the entity."""
 
     def fill_from_dict(
         self, synapse_table: Synapse_Table, set_annotations: bool = True
@@ -488,7 +490,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         ]
         if set_annotations:
             self.annotations = Annotations.from_dict(
-                synapse_table.get("annotations", None)
+                synapse_table.get("annotations", {})
             )
         return self
 
