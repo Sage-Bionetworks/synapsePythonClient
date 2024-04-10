@@ -611,11 +611,10 @@ class _SyncUploader:
 
         ordered_items = self._order_items([i for i in items])
         async_tasks = []
-        initial_items_to_pop = []
 
         # Seed the first set of Files to be stored
         # Every DAG has to have 1..* nodes that have no outbound edges
-        for key, value in ordered_items.items():
+        for key, value in list(ordered_items.items()):
             if not value:
                 upload_item = path_to_file_entity[key]
                 async_tasks.append(
@@ -629,9 +628,7 @@ class _SyncUploader:
                         )
                     )
                 )
-                initial_items_to_pop.append(key)
-        for key in initial_items_to_pop:
-            ordered_items.pop(key)
+                ordered_items.pop(key)
 
         while async_tasks:
             done_tasks, pending_tasks = await asyncio.wait(
@@ -645,7 +642,7 @@ class _SyncUploader:
                     ordered_items.pop(stored_file.path, None)
 
                     for key, activity_dependencies in ordered_items.items():
-                        if activity_dependencies and all(
+                        if all(
                             activity_dependency in finished_items
                             if os.path.isfile(activity_dependency)
                             else True
@@ -691,23 +688,23 @@ class _SyncUploader:
                 # -- Synapse Entity ID (assuming the string is an ID)
                 elif isinstance(used_item, str):
                     if not is_synapse_id_str(used_item):
-                        raise ValueError("%s is not a valid Synapse id" % used_item)
+                        raise ValueError(f"{used_item} is not a valid Synapse id")
                     synid, version = get_synid_and_version(
                         used_item
                     )  # Handle synapseIds of from syn234.4
-                    targetVersion = None
+                    target_version = None
                     if version:
-                        targetVersion = int(version)
+                        target_version = int(version)
                     if used_item in used:
                         used_activity.append(
                             UsedEntity(
-                                target_id=synid, target_version_number=targetVersion
+                                target_id=synid, target_version_number=target_version
                             )
                         )
                     else:
                         executed_activity.append(
                             UsedEntity(
-                                target_id=synid, target_version_number=targetVersion
+                                target_id=synid, target_version_number=target_version
                             )
                         )
                 else:
