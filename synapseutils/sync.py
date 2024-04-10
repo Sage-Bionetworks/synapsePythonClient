@@ -550,7 +550,6 @@ class _SyncUploader:
     def __init__(
         self,
         syn: Synapse,
-        max_concurrent_file_transfers: int = None,
     ):
         """
         Arguments:
@@ -559,13 +558,6 @@ class _SyncUploader:
                       can be scheduled
         """
         self._syn = syn
-
-        # TODO: Extract this to a shared location that is further up the stack
-        self._max_concurrent_file_transfers = max(
-            int(max_concurrent_file_transfers or self._syn.max_threads), 1
-        )
-        # self._file_semaphore = threading.BoundedSemaphore(self._max_concurrent_file_transfers)
-        # self._file_semaphore_async = None
 
     @staticmethod
     def _order_items(
@@ -600,9 +592,6 @@ class _SyncUploader:
         return results
 
     async def upload(self, items: typing.Iterable[_SyncUploadItem]) -> None:
-        # self._file_semaphore_async = asyncio.BoundedSemaphore(
-        #     self._max_concurrent_file_transfers
-        # )
         # Create dict of path -> File Entity
         path_to_file_entity = {item.entity.path: item for item in items}
 
@@ -671,8 +660,6 @@ class _SyncUploader:
         store_args,
         finished_items,
     ) -> File:
-        # try:
-        # await self._file_semaphore_async.acquire()
         used_activity = []
         executed_activity = []
         for used_item in used + executed:
@@ -720,9 +707,6 @@ class _SyncUploader:
             )
         await item.store_async()
         return item
-
-        # finally:
-        #     self._file_semaphore_async.release()
 
 
 def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
