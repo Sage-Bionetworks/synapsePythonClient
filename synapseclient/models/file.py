@@ -35,7 +35,6 @@ from synapseclient.models.services.storable_entity import store_entity
 from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
 )
-from synapseutils.copy_functions import changeFileMetaData, copy
 
 if TYPE_CHECKING:
     from synapseclient.models import Folder, Project
@@ -814,6 +813,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         """
         if not self.id:
             raise ValueError("The file must have an ID to change metadata.")
+        from synapseutils.copy_functions import changeFileMetaData
 
         loop = asyncio.get_event_loop()
 
@@ -1085,6 +1085,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         """
         if not self.id or not parent_id:
             raise ValueError("The file must have an ID and parent_id to copy.")
+        from synapseutils.copy_functions import copy
 
         loop = asyncio.get_event_loop()
 

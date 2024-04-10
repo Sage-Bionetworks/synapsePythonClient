@@ -1,7 +1,8 @@
+"""This module is responsible for holding sync to/from synapse utility functions."""
 import ast
-import csv
+import asyncio
 import concurrent.futures
-from contextlib import contextmanager
+import csv
 import datetime
 import io
 import os
@@ -9,22 +10,16 @@ import re
 import sys
 import threading
 import typing
+from contextlib import contextmanager
 
-from .monitor import notifyMe
-from synapseclient.entity import is_container
-from synapseclient.core import config
-from synapseclient.core.utils import (
-    id_of,
-    is_url,
-    is_synapse_id_str,
-    datetime_or_none,
-    bool_or_none,
-)
-from synapseclient import File, table, Synapse
-from synapseclient.core.pool_provider import SingleThreadExecutor
-from synapseclient.core import utils
+from tqdm import tqdm
+
+from synapseclient import Synapse, table
+from synapseclient.core import config, utils
+from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
 from synapseclient.core.exceptions import (
+    SynapseError,
     SynapseFileNotFoundError,
     SynapseHTTPError,
     SynapseProvenanceError,
@@ -32,12 +27,20 @@ from synapseclient.core.exceptions import (
 from synapseclient.core.multithread_download.download_threads import (
     shared_executor as download_shared_executor,
 )
-from synapseclient.core.upload.multipart_upload import (
-    shared_executor as upload_shared_executor,
+from synapseclient.core.pool_provider import SingleThreadExecutor
+from synapseclient.core.upload.multipart_upload_async import shared_progress_bar
+from synapseclient.core.utils import (
+    bool_or_none,
+    datetime_or_none,
+    get_synid_and_version,
+    id_of,
+    is_synapse_id_str,
+    is_url,
 )
-from opentelemetry import context, trace
-from opentelemetry.context import Context
+from synapseclient.entity import is_container
+from synapseclient.models import Activity, File, UsedEntity, UsedURL
 
+from .monitor import notifyMe
 
 REQUIRED_FIELDS = ["path", "parent"]
 FILE_CONSTRUCTOR_FIELDS = ["name", "id", "synapseStore", "contentType"]
@@ -547,7 +550,6 @@ class _SyncUploader:
     def __init__(
         self,
         syn: Synapse,
-        executor: concurrent.futures.Executor,
         max_concurrent_file_transfers: int = None,
     ):
         """
@@ -558,14 +560,17 @@ class _SyncUploader:
         """
         self._syn = syn
 
-        max_concurrent_file_transfers = max(
-            int(max_concurrent_file_transfers or self._syn.max_threads / 2), 1
+        # TODO: Extract this to a shared location that is further up the stack
+        self._max_concurrent_file_transfers = max(
+            int(max_concurrent_file_transfers or self._syn.max_threads), 1
         )
-        self._executor = executor
-        self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_transfers)
+        # self._file_semaphore = threading.BoundedSemaphore(self._max_concurrent_file_transfers)
+        self._file_semaphore_async = None
 
     @staticmethod
-    def _order_items(items):
+    def _order_items(
+        items: typing.Iterable[_SyncUploadItem],
+    ) -> typing.Dict[str, typing.Iterable[str]]:
         # order items by their interdependent provenance and raise any dependency
         # errors
 
@@ -589,188 +594,138 @@ class _SyncUploader:
             graph[item.entity.path] = item_file_provenance
 
         graph_sorted = utils.topolgical_sort(graph)
-        return [items_by_path[i[0]] for i in graph_sorted]
+        results = {}
+        for path, dependency_paths in graph_sorted:
+            results.update({path: dependency_paths})
+        return results
 
-    @staticmethod
-    def _convert_provenance(provenance, finished_items):
-        # convert any string file path provenance to the corresponding entity that
-        # has been uploaded
+    async def upload(self, items: typing.Iterable[_SyncUploadItem]) -> None:
+        self._file_semaphore_async = asyncio.BoundedSemaphore(
+            self._max_concurrent_file_transfers
+        )
+        # Create dict of path -> File Entity
+        path_to_file_entity = {item.entity.path: item for item in items}
 
-        converted_provenance = []
-        pending_provenance = set()
-        for p in provenance:
-            if os.path.isfile(p):
-                converted = finished_items.get(p)
-                if converted:
-                    converted_provenance.append(converted)
-                else:
-                    pending_provenance.add(p)
-            else:
-                converted_provenance.append(p)
-
-        return converted_provenance, pending_provenance
-
-    @staticmethod
-    def _abort(futures):
-        # abort this sync because of an error
-
-        exception = None
-        for future in futures:
-            if future.done():
-                exception = exception or future.exception()
-            else:
-                future.cancel()
-
-        # if we are aborted by definition one of the futures should have an
-        # exception.
-        # if somehow not from None fuctions fine
-        raise ValueError("Sync aborted due to upload failure") from exception
-
-    def upload(self, items: typing.Iterable[_SyncUploadItem]):
-        progress = CumulativeTransferProgress("Uploaded")
-
-        # flag to set in a child in an upload thread if an error occurs to signal
-        # to the entrant thread to stop processing.
-        abort_event = threading.Event()
-
-        # used to lock around shared state and to notify when dependencies are
-        # resolved so that provenance dependent files can be uploaded
-        dependency_condition = threading.Condition()
-
-        pending_provenance = _PendingProvenance()
+        # Key: Path, Value: File Entity
         finished_items = {}
 
         ordered_items = self._order_items([i for i in items])
+        async_tasks = []
+        initial_items_to_pop = []
 
-        futures = []
-        while ordered_items:
-            skipped_items = []
-            for item in ordered_items:
-                if abort_event.is_set():
-                    # if this flag is set, one of the upload threads failed and we
-                    # should raise it's error and cancel any remaining futures
-                    self._abort(futures)
-
-                with dependency_condition:
-                    used, used_pending = self._convert_provenance(
-                        item.used, finished_items
-                    )
-                    executed, executed_pending = self._convert_provenance(
-                        item.executed, finished_items
-                    )
-
-                    if used_pending or executed_pending:
-                        # we can't upload this item yet, it has provenance that
-                        # hasn't yet been uploaded
-                        skipped_items.append(item)
-                        pending_provenance.update(used_pending.union(executed_pending))
-
-                        # skip uploading because dependent provenance hasn't
-                        # finished uploading
-                        continue
-
-                # else not continued above due to pending provenance
-                # all provenance that this item depends on has already been uploaded
-                # so we can go ahead and upload this item
-
-                # we acquire the semaphore to ensure that we aren't uploading more
-                # than our configured maximum number of files here at once. once we
-                # reach the limit we'll block here until one of the existing file uploads completes
-                self._file_semaphore.acquire()
-                trace.get_current_span().set_attributes(
-                    {"thread.id": threading.get_ident()}
-                )
-                future = self._executor.submit(
-                    self._upload_item,
-                    item,
-                    used,
-                    executed,
-                    finished_items,
-                    pending_provenance,
-                    dependency_condition,
-                    abort_event,
-                    progress,
-                    context.get_current(),
-                )
-                futures.append(future)
-
-            with dependency_condition:
-                if pending_provenance.has_pending():
-                    # skipped_items contains all the items that we couldn't upload
-                    # the previous time through the loop because they depended on
-                    # another item for provenance. wait until there at least one
-                    # those items finishes before continuing another time through the loop.
-                    if not abort_event.is_set():
-                        dependency_condition.wait_for(
-                            lambda: (
-                                pending_provenance.has_finished_provenance()
-                                or abort_event.is_set()
-                            )
+        # Seed the first set of Files to be stored
+        # Every DAG has to have 1..* nodes that have no outbound edges
+        for key, value in ordered_items.items():
+            if not value:
+                upload_item = path_to_file_entity[key]
+                async_tasks.append(
+                    asyncio.create_task(
+                        self._upload_item_async(
+                            upload_item.entity,
+                            upload_item.used,
+                            upload_item.executed,
+                            upload_item.store_kwargs,
+                            finished_items,
                         )
+                    )
+                )
+                initial_items_to_pop.append(key)
+        for key in initial_items_to_pop:
+            ordered_items.pop(key)
 
-                pending_provenance.reset_count()
+        while async_tasks:
+            done_tasks, pending_tasks = await asyncio.wait(
+                async_tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+            async_tasks = pending_tasks
+            for completed_task in done_tasks:
+                try:
+                    stored_file = completed_task.result()
+                    finished_items[stored_file.path] = stored_file
+                    ordered_items.pop(stored_file.path, None)
 
-            ordered_items = skipped_items
+                    for key, activity_dependencies in ordered_items.items():
+                        if activity_dependencies and all(
+                            activity_dependency in finished_items
+                            if os.path.isfile(activity_dependency)
+                            else True
+                            for activity_dependency in activity_dependencies
+                        ):
+                            upload_item = path_to_file_entity[key]
+                            async_tasks.add(
+                                asyncio.create_task(
+                                    self._upload_item_async(
+                                        upload_item.entity,
+                                        upload_item.used,
+                                        upload_item.executed,
+                                        upload_item.store_kwargs,
+                                        finished_items,
+                                    )
+                                )
+                            )
+                except Exception:
+                    self._syn.logger.exception("Error uploading file")
 
-        # all items have been submitted for upload
-
-        concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
-        if abort_event.is_set():
-            # at least one item failed to upload
-            self._abort(futures)
-
-    def _upload_item(
+    async def _upload_item_async(
         self,
-        item,
+        item: File,
         used,
         executed,
+        store_args,
         finished_items,
-        pending_provenance,
-        dependency_condition,
-        abort_event,
-        progress,
-        otel_context: typing.Union[Context, None],
-    ):
-        if otel_context:
-            context.attach(otel_context)
+    ) -> File:
         try:
-            with upload_shared_executor(self._executor):
-                # we configure an upload thread local shared executor so that any
-                # multipart uploads that result from this upload will share the
-                # executor of this sync rather than creating their own threadpool.
+            await self._file_semaphore_async.acquire()
+            used_activity = []
+            executed_activity = []
+            for used_item in used + executed:
+                possible_file = finished_items.get(used_item, None)
+                if possible_file:
+                    used_item = possible_file.id
+                if is_url(used_item):
+                    if used_item in used:
+                        used_activity.append(UsedURL(url=used_item))
+                    else:
+                        executed_activity.append(UsedURL(url=used_item))
 
-                with progress.accumulate_progress():
-                    entity = self._syn.store(
-                        item.entity,
-                        used=used,
-                        executed=executed,
-                        **item.store_kwargs,
-                        async_file_handle_upload=False,
+                # -- Synapse Entity ID (assuming the string is an ID)
+                elif isinstance(used_item, str):
+                    if not is_synapse_id_str(used_item):
+                        raise ValueError("%s is not a valid Synapse id" % used_item)
+                    synid, version = get_synid_and_version(
+                        used_item
+                    )  # Handle synapseIds of from syn234.4
+                    targetVersion = None
+                    if version:
+                        targetVersion = int(version)
+                    if used_item in used:
+                        used_activity.append(
+                            UsedEntity(
+                                target_id=synid, target_version_number=targetVersion
+                            )
+                        )
+                    else:
+                        executed_activity.append(
+                            UsedEntity(
+                                target_id=synid, target_version_number=targetVersion
+                            )
+                        )
+                else:
+                    raise SynapseError(
+                        f"Unexpected parameters in used or executed Activity fields: {used_item}."
                     )
-
-                with dependency_condition:
-                    finished_items[item.entity.path] = entity
-                    try:
-                        pending_provenance.finished(item.entity.path)
-
-                        # this item was defined as provenance for another item, now
-                        # that it's finished we may be able to upload that depending
-                        # item, so wake up he central thread
-                        dependency_condition.notify_all()
-
-                    except KeyError:
-                        # this item is not used in provenance of another item,
-                        # that's fine
-                        pass
-
-        except Exception:
-            with dependency_condition:
-                abort_event.set()
-                dependency_condition.notify_all()
-            raise
+            if used_activity and executed_activity:
+                item.activity = Activity(
+                    name=store_args.get("activityName", None),
+                    description=store_args.get("activityDescription", None),
+                    used=used_activity,
+                    executed=executed_activity,
+                )
+            await item.store_async()
+            return item
 
         finally:
-            self._file_semaphore.release()
+            self._file_semaphore_async.release()
 
 
 def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
@@ -1216,16 +1171,27 @@ def syncToSynapse(
     )
     sys.stdout.write("=" * 50 + "\n")
 
+    progress_bar = tqdm(
+        total=sum(sizes),
+        desc=f"Uploading {len(df)} files",
+        unit="B",
+        unit_scale=True,
+        # postfix=self._dest_file_name,
+        smoothing=0,
+    )
     if dryRun:
+        progress_bar.close()
         return
 
-    sys.stdout.write("Starting upload...\n")
-    if sendMessages:
-        notify_decorator = notifyMe(syn, "Upload of %s" % manifestFile, retries=retries)
-        upload = notify_decorator(_manifest_upload)
-        upload(syn, df)
-    else:
-        _manifest_upload(syn, df)
+    with shared_progress_bar(progress_bar):
+        if sendMessages:
+            notify_decorator = notifyMe(
+                syn, "Upload of %s" % manifestFile, retries=retries
+            )
+            upload = notify_decorator(_manifest_upload)
+            upload(syn, df)
+        else:
+            _manifest_upload(syn, df)
 
 
 def _split_string(input_string: str) -> typing.List[str]:
@@ -1309,8 +1275,12 @@ def _manifest_upload(syn: Synapse, df) -> bool:
     for _, row in df.iterrows():
         file = File(
             path=row["path"],
-            parent=row["parent"],
-            **{key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row},
+            parent_id=row["parent"],
+            name=row["name"] if "name" in row else None,
+            id=row["id"] if "id" in row else None,
+            synapse_store=row["synapseStore"] if "synapseStore" in row else True,
+            content_type=row["contentType"] if "contentType" in row else None,
+            force_version=row["forceVersion"] if "forceVersion" in row else True,
         )
 
         annotations = dict(
@@ -1346,9 +1316,8 @@ def _manifest_upload(syn: Synapse, df) -> bool:
         )
         items.append(item)
 
-    with _sync_executor(syn) as executor:
-        uploader = _SyncUploader(syn, executor)
-        uploader.upload(items)
+    uploader = _SyncUploader(syn)
+    wrap_async_to_sync(uploader.upload(items), syn)
 
     return True
 

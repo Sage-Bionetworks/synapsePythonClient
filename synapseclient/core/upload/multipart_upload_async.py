@@ -64,6 +64,7 @@ flowchart  TD
 
 # pylint: disable=protected-access
 import asyncio
+from contextlib import contextmanager
 import gc
 import mimetypes
 import os
@@ -126,6 +127,22 @@ MIN_PART_SIZE = 5 * MB
 DEFAULT_PART_SIZE = 8 * MB
 MAX_RETRIES = 7
 
+_thread_local = threading.local()
+
+
+@contextmanager
+def shared_progress_bar(progress_bar):
+    """An outside process that will eventually trigger an upload through this module
+    can configure a shared Executor by running its code within this context manager.
+    """
+    _thread_local.progress_bar = progress_bar
+    try:
+        yield
+    finally:
+        _thread_local.progress_bar.close()
+        _thread_local.progress_bar.refresh()
+        del _thread_local.progress_bar
+
 
 @dataclass
 class HandlePartResult:
@@ -173,6 +190,7 @@ class UploadAttemptAsync:
         self._aborted = False
         self._storage_str = storage_str
 
+        self._close_progress_bar = getattr(_thread_local, "progress_bar", None) is None
         # populated later
         self._upload_id: Optional[str] = None
         self._pre_signed_part_urls: Optional[Mapping[int, str]] = None
@@ -329,7 +347,9 @@ class UploadAttemptAsync:
             if self._is_copy():
                 # we won't have bytes to measure during a copy so the byte oriented
                 # progress bar is not useful
-                self._progress_bar = tqdm(
+                self._progress_bar = getattr(
+                    _thread_local, "progress_bar", None
+                ) or tqdm(
                     total=part_count,
                     desc=self._storage_str or "Copying",
                     unit_scale=True,
@@ -343,7 +363,9 @@ class UploadAttemptAsync:
                     file_size,
                 )
 
-                self._progress_bar = tqdm(
+                self._progress_bar = getattr(
+                    _thread_local, "progress_bar", None
+                ) or tqdm(
                     total=file_size,
                     desc=self._storage_str or "Uploading",
                     unit="B",
@@ -448,7 +470,7 @@ class UploadAttemptAsync:
         Returns:
             The response from the server for the completed upload.
         """
-        if not self._syn.silent and self._progress_bar:
+        if not self._syn.silent and self._progress_bar and self._close_progress_bar:
             self._progress_bar.close()
         upload_status_response = await put_file_multipart_complete(
             upload_id=self._upload_id,
