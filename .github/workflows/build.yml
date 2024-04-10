@@ -135,16 +135,17 @@ jobs:
           touch test.awsConfig
           printf "[default]\nregion = us-east-1\ncredential_process = \"tests/integration/synapse_creds.sh\" \"https://sc.sageit.org\" \"${{ secrets.synapse_personal_access_token }}\"\n" >> test.awsConfig
           chmod +x tests/integration/synapse_creds.sh
-      - name: SSM Port Forward Start
-        if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
-        shell: bash
-        env:
-          AWS_CONFIG_FILE: "test.awsConfig"
-        run: |
-          # Start a port-forwarding session in a non-interactive way. AWS will clean-up
-          # stale sessions after 20 minutes of inactivity
-          aws ssm start-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"] & disown
-          sleep 15
+      # If you are exporting data using `otlp` you can start a port forwading session
+      # - name: SSM Port Forward Start
+      #   if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
+      #   shell: bash
+      #   env:
+      #     AWS_CONFIG_FILE: "test.awsConfig"
+      #   run: |
+      #     # Start a port-forwarding session in a non-interactive way. AWS will clean-up
+      #     # stale sessions after 20 minutes of inactivity
+      #     aws ssm start-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"] & disown
+      #     sleep 15
 
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
@@ -183,8 +184,8 @@ jobs:
           export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
           export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
           if [ ${{ steps.otel-check.outputs.run_opentelemetry }} == "true" ]; then
-            # Set to 'otlp' to enable OpenTelemetry
-            export SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER="otlp"
+            # Set to 'file' to enable OpenTelemetry export to file
+            export SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER="file"
           fi
 
           # use loadscope to avoid issues running tests concurrently that share scoped fixtures
@@ -192,6 +193,13 @@ jobs:
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
           pytest -sv --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+      - name: Upload otel spans
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: otel_spans_integration_testing_${{ matrix.os }}
+          path: tests/integration/otel_spans_integration_testing_*.ndjson
+          if-no-files-found: ignore
       - name: Upload coverage report
         uses: actions/upload-artifact@v2
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}

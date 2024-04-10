@@ -1330,6 +1330,7 @@ class TestTableQueryResult:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.rows = [
             {"rowId": 1, "versionNumber": 2, "values": ["first_row"]},

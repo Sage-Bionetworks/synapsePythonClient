@@ -7,12 +7,8 @@ from synapseclient import Project, Wiki, Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload.upload_functions import upload_synapse_s3
 import synapseclient.core.utils as utils
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
-@tracer.start_as_current_span("test_wikis::test_wikiAttachment")
 @pytest.mark.flaky(reruns=3)
 def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup):
     # Upload a file to be attached to a Wiki
@@ -84,7 +80,6 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup):
     pytest.raises(SynapseHTTPError, syn.getWiki, project)
 
 
-@tracer.start_as_current_span("test_wikis::test_create_or_update_wiki")
 def test_create_or_update_wiki(syn, project):
     # create wiki once
     syn.store(
@@ -108,7 +103,6 @@ def test_create_or_update_wiki(syn, project):
     assert new_title == syn.getWiki(wiki.ownerId)["title"]
 
 
-@tracer.start_as_current_span("test_wikis::test_wiki_version")
 def test_wiki_version(syn, project):
     # create a new project to avoid artifacts from previous tests
     project = syn.store(Project(name=str(uuid.uuid4())))

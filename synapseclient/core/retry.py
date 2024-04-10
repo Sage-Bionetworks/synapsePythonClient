@@ -15,11 +15,14 @@ from logging import Logger
 from typing import Any, Coroutine, List, Tuple, Type, Union
 
 import httpx
-from opentelemetry import trace
 
 from synapseclient.core.dozer import doze
 from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
 from synapseclient.core.utils import is_json
+from opentelemetry import trace
+
+
+tracer = trace.get_tracer("synapseclient")
 
 # All of these constants are in seconds
 DEFAULT_RETRIES = 3
@@ -65,8 +68,6 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
 ]
 
 DEBUG_EXCEPTION = "calling %s resulted in an Exception"
-
-tracer = trace.get_tracer("synapseclient")
 
 
 def with_retry(
@@ -127,7 +128,7 @@ def with_retry(
         except Exception as ex:
             exc = ex
             exc_info = sys.exc_info()
-            logger.debug(DEBUG_EXCEPTION, function)
+            logger.debug(DEBUG_EXCEPTION, function, exc_info=True)
             if hasattr(ex, "response"):
                 response = ex.response
 
@@ -333,7 +334,7 @@ async def with_retry_time_based_async(
         except Exception as ex:
             caught_exception = ex
             caught_exception_info = sys.exc_info()
-            logger.debug(DEBUG_EXCEPTION, function)
+            logger.debug(DEBUG_EXCEPTION, function, exc_info=True)
             if hasattr(ex, "response"):
                 response = ex.response
 
@@ -349,7 +350,6 @@ async def with_retry_time_based_async(
 
         # Wait then retry
         retries += 1
-
         if total_wait < retry_max_wait_before_failure and retry:
             _log_for_retry(
                 logger=logger, response=response, caught_exception=caught_exception
@@ -455,7 +455,7 @@ def with_retry_time_based(
         except Exception as ex:
             caught_exception = ex
             caught_exception_info = sys.exc_info()
-            logger.debug(DEBUG_EXCEPTION, function)
+            logger.debug(DEBUG_EXCEPTION, function, exc_info=True)
             if hasattr(ex, "response"):
                 response = ex.response
 
@@ -471,7 +471,6 @@ def with_retry_time_based(
 
         # Wait then retry
         retries += 1
-
         if total_wait < retry_max_wait_before_failure and retry:
             _log_for_retry(
                 logger=logger, response=response, caught_exception=caught_exception
@@ -590,6 +589,7 @@ def _log_for_retry(
             url_message_part,
             response_message,
         )
+
     elif caught_exception is not None:
         logger.debug("retrying exception: %s", str(caught_exception))
 

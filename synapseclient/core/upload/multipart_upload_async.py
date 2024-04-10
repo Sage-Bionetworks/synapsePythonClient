@@ -93,6 +93,7 @@ from synapseclient.api import (
     post_file_multipart_presigned_urls,
     put_file_multipart_add,
     put_file_multipart_complete,
+    AddPartResponse,
 )
 from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.constants import concrete_types
@@ -124,9 +125,6 @@ MIN_PART_SIZE = 5 * MB
 # ancient tribal knowledge
 DEFAULT_PART_SIZE = 8 * MB
 MAX_RETRIES = 7
-
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @dataclass
@@ -266,29 +264,26 @@ class UploadAttemptAsync:
             refreshed URL
 
         """
-        with tracer.start_as_current_span(
-            "UploadAttemptAsync::_refresh_pre_signed_part_urls"
-        ):
-            with self._thread_lock:
-                current_url, headers = self._pre_signed_part_urls[part_number]
-                if current_url != expired_url:
-                    # if the url has already changed since the given url
-                    # was detected as expired we can assume that another
-                    # thread already refreshed the url and can avoid the extra
-                    # fetch.
-                    refreshed_url = current_url, headers
-                else:
-                    self._pre_signed_part_urls = wrap_async_to_sync(
-                        self._fetch_pre_signed_part_urls_async(
-                            self._upload_id,
-                            list(self._pre_signed_part_urls.keys()),
-                        ),
-                        syn=self._syn,
-                    )
+        with self._thread_lock:
+            current_url, headers = self._pre_signed_part_urls[part_number]
+            if current_url != expired_url:
+                # if the url has already changed since the given url
+                # was detected as expired we can assume that another
+                # thread already refreshed the url and can avoid the extra
+                # fetch.
+                refreshed_url = current_url, headers
+            else:
+                self._pre_signed_part_urls = wrap_async_to_sync(
+                    self._fetch_pre_signed_part_urls_async(
+                        self._upload_id,
+                        list(self._pre_signed_part_urls.keys()),
+                    ),
+                    syn=self._syn,
+                )
 
-                    refreshed_url = self._pre_signed_part_urls[part_number]
+                refreshed_url = self._pre_signed_part_urls[part_number]
 
-            return refreshed_url
+        return refreshed_url
 
     async def _handle_part_wrapper(self, part_number: int) -> HandlePartResult:
         loop = asyncio.get_running_loop()
@@ -403,6 +398,23 @@ class UploadAttemptAsync:
                         part_number = task_result.part_number
                         part_size = task_result.part_size
                         part_md5_hex = task_result.md5_hex
+                    elif (
+                        isinstance(task_result, AddPartResponse)
+                        and task_result.add_part_state != "ADD_SUCCESS"
+                    ):
+                        # Restart the file upload process resuming where this left off.
+                        # Rest docs state:
+                        # "If add part fails for any reason, the client must re-upload
+                        # the part and then re-attempt to add the part to the upload."
+                        raise SynapseUploadFailedException(
+                            (
+                                "Adding individual part failed with unexpected state: "
+                                f"{task_result.add_part_state}, for upload "
+                                f"{task_result.upload_id} and part "
+                                f"{task_result.part_number} with message: "
+                                f"{task_result.error_message}"
+                            )
+                        )
                     else:
                         continue
 
@@ -566,16 +578,13 @@ class UploadAttemptAsync:
 
                     # we refresh all the urls and obtain this part's
                     # specific url for the retry
-                    with tracer.start_as_current_span(
-                        "UploadAttempt::refresh_pre_signed_part_urls"
-                    ):
-                        (
-                            part_url,
-                            signed_headers,
-                        ) = self._refresh_pre_signed_part_urls(
-                            part_number,
-                            part_url,
-                        )
+                    (
+                        part_url,
+                        signed_headers,
+                    ) = self._refresh_pre_signed_part_urls(
+                        part_number,
+                        part_url,
+                    )
 
                 else:
                     raise

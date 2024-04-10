@@ -31,11 +31,8 @@ from synapseclient import (
     Synapse,
 )
 import synapseclient.core.utils as utils
-from opentelemetry import trace
 
 from tests.integration import QUERY_TIMEOUT_SEC
-
-tracer = trace.get_tracer("synapseclient")
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -49,7 +46,6 @@ def _init_query_timeout(request, syn):
     request.addfinalizer(revert_timeout)
 
 
-@tracer.start_as_current_span("test_tables::test_create_and_update_file_view")
 @pytest.mark.flaky(reruns=3)
 def test_create_and_update_file_view(
     syn: Synapse, project: Project, schedule_for_cleanup
@@ -170,7 +166,6 @@ def test_create_and_update_file_view(
     assert new_view_dict[0]["fileFormat"] == "PNG"
 
 
-@tracer.start_as_current_span("test_tables::test_entity_view_add_annotation_columns")
 def test_entity_view_add_annotation_columns(syn, project, schedule_for_cleanup):
     folder1 = syn.store(
         Folder(
@@ -225,7 +220,6 @@ def test_entity_view_add_annotation_columns(syn, project, schedule_for_cleanup):
     syn.store(entity_view)
 
 
-@tracer.start_as_current_span("test_tables::test_rowset_tables")
 def test_rowset_tables(syn, project):
     cols = [
         Column(name="name", columnType="STRING", maximumSize=1000),
@@ -250,7 +244,6 @@ def test_rowset_tables(syn, project):
     assert len(row_reference_set1["rows"]) == 4
 
 
-@tracer.start_as_current_span("test_tables::test_materialized_view")
 def test_materialized_view(syn, project):
     """Test creation of materialized view"""
     # Define schema
@@ -316,7 +309,6 @@ def test_materialized_view(syn, project):
     )
 
 
-@tracer.start_as_current_span("test_tables::test_dataset")
 def test_dataset(syn, project):
     cols = [
         Column(name="id", columnType="ENTITYID"),
@@ -336,7 +328,6 @@ def test_dataset(syn, project):
     assert all(dataset_df.columns == ["id", "name"])
 
 
-@tracer.start_as_current_span("test_tables::test_tables_csv")
 @pytest.mark.flaky(reruns=3)
 def test_tables_csv(syn, project):
     # Define schema
@@ -375,7 +366,6 @@ def test_tables_csv(syn, project):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
 
-@tracer.start_as_current_span("test_tables::test_tables_pandas")
 @pytest.mark.flaky(reruns=3)
 def test_tables_pandas(syn, project):
     # create a pandas DataFrame
@@ -437,7 +427,6 @@ def test_tables_pandas(syn, project):
     syn.store(Table(table.tableId, df1))
 
 
-@tracer.start_as_current_span("test_tables::dontruntest_big_tables")
 def dontruntest_big_tables(syn, project):
     cols = [
         Column(name="name", columnType="STRING", maximumSize=1000),
@@ -477,7 +466,6 @@ def dontruntest_big_tables(syn, project):
     results.asDataFrame()
 
 
-@tracer.start_as_current_span("test_tables::dontruntest_big_csvs")
 def dontruntest_big_csvs(syn, project, schedule_for_cleanup):
     cols = [
         Column(name="name", columnType="STRING", maximumSize=1000),
@@ -520,9 +508,6 @@ def dontruntest_big_csvs(syn, project, schedule_for_cleanup):
     CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
 
 
-@tracer.start_as_current_span(
-    "test_tables::test_synapse_integer_columns_with_missing_values_from_dataframe"
-)
 def test_synapse_integer_columns_with_missing_values_from_dataframe(
     syn, project, schedule_for_cleanup
 ):
@@ -562,7 +547,6 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe(
     assert_frame_equal(df, df2)
 
 
-@tracer.start_as_current_span("test_tables::test_store_table_datetime")
 def test_store_table_datetime(syn, project):
     current_datetime = datetime.fromtimestamp(round(time.time(), 3)).replace(
         tzinfo=timezone.utc
@@ -579,7 +563,6 @@ def test_store_table_datetime(syn, project):
     assert current_datetime == query_result.rowset["rows"][0]["values"][0]
 
 
-@tracer.start_as_current_span("test_tables::partial_rowset_test_state")
 @pytest.fixture(scope="class")
 def partial_rowset_test_state(syn, project):
     cols = [
@@ -642,9 +625,6 @@ def partial_rowset_test_state(syn, project):
 
 
 class TestPartialRowSet:
-    @tracer.start_as_current_span(
-        "test_tables::TestPartialRowSet::test_partial_row_view_csv_query_table"
-    )
     def test_partial_row_view_csv_query_table(self, partial_rowset_test_state):
         """
         Test PartialRow updates to tables from cvs queries
@@ -658,9 +638,6 @@ class TestPartialRowSet:
             test_state.expected_table_cells,
         )
 
-    @tracer.start_as_current_span(
-        "test_tables::TestPartialRowSet::test_partial_row_view_csv_query_entity_view"
-    )
     def test_partial_row_view_csv_query_entity_view(self, partial_rowset_test_state):
         """
         Test PartialRow updates to entity views from cvs queries
@@ -674,9 +651,6 @@ class TestPartialRowSet:
             test_state.expected_view_cells,
         )
 
-    @tracer.start_as_current_span(
-        "test_tables::TestPartialRowSet::test_parital_row_rowset_query_table"
-    )
     def test_parital_row_rowset_query_table(self, partial_rowset_test_state):
         """
         Test PartialRow updates to tables from rowset queries
@@ -690,9 +664,6 @@ class TestPartialRowSet:
             test_state.expected_table_cells,
         )
 
-    @tracer.start_as_current_span(
-        "test_tables::TestPartialRowSet::test_parital_row_rowset_query_entity_view"
-    )
     def test_parital_row_rowset_query_entity_view(self, partial_rowset_test_state):
         """
         Test PartialRow updates to entity views from rowset queries
@@ -706,7 +677,6 @@ class TestPartialRowSet:
             test_state.expected_view_cells,
         )
 
-    @tracer.start_as_current_span("test_tables::TestPartialRowSet::_test_method")
     def _test_method(self, syn, schema, resultsAs, partial_changes, expected_results):
         query_results = self._query_with_retry(
             syn,
@@ -739,7 +709,6 @@ class TestPartialRowSet:
             is not None
         )
 
-    @tracer.start_as_current_span("test_tables::TestPartialRowSet::_query_with_retry")
     def _query_with_retry(
         self, syn, query, resultsAs, expected_result_len, expected_frame, timeout
     ):

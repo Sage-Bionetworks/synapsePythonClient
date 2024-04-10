@@ -23,6 +23,7 @@ from synapseclient.core.retry import DEFAULT_RETRIES
 
 
 class TestPresignedUrlProvider(object):
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.mock_synapse_client = mock.create_autospec(Synapse)
         self.download_request = DownloadRequest(123, "456", "FileEntity", "/myFakepath")

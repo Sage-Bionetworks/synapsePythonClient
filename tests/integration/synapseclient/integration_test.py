@@ -10,7 +10,6 @@ from typing import Callable
 from unittest.mock import patch
 
 import pytest
-from opentelemetry import trace
 
 import synapseclient.core.utils as utils
 from synapseclient import (
@@ -31,14 +30,11 @@ from synapseclient.core.version_check import version_check
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 
-tracer = trace.get_tracer("synapseclient")
-
 FILE_NAME_PREFIX = "fooUploadFileEntity"
 FILE_DESCRIPTION = "A test file entity"
 NEW_DESCRIPTION = "new description"
 
 
-@tracer.start_as_current_span("integration_test::test_login")
 def test_login(syn):
     try:
         config = configparser.RawConfigParser()
@@ -76,7 +72,6 @@ def test_login(syn):
         syn.login(silent=True)
 
 
-@tracer.start_as_current_span("integration_test::testCustomConfigFile")
 def testCustomConfigFile(schedule_for_cleanup):
     if os.path.isfile(client.CONFIG_FILE):
         configPath = "./CONFIGFILE"
@@ -91,7 +86,6 @@ def testCustomConfigFile(schedule_for_cleanup):
         )
 
 
-@tracer.start_as_current_span("integration_test::test_entity_version")
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_entity_version(syn, project, schedule_for_cleanup):
     # Make an Entity and make sure the version is one
@@ -147,7 +141,6 @@ def test_entity_version(syn, project, schedule_for_cleanup):
     assert returnEntity.versionNumber == 1
 
 
-@tracer.start_as_current_span("integration_test::test_md5_query")
 def test_md5_query(syn, project, schedule_for_cleanup):
     # Add the same Entity several times
     path = utils.make_bogus_data_file()
@@ -169,7 +162,6 @@ def test_md5_query(syn, project, schedule_for_cleanup):
     assert len(results) == num
 
 
-@tracer.start_as_current_span("integration_test::test_uploadFile_given_dictionary")
 def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
     # Make a Folder Entity the old fashioned way
     folder = {
@@ -201,9 +193,6 @@ def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
     syn.get(entity["id"])
 
 
-@tracer.start_as_current_span(
-    "integration_test::test_upload_file_with_force_version_false"
-)
 def test_upload_file_with_force_version_false(
     syn: Synapse, project: Project, schedule_for_cleanup
 ) -> None:
@@ -235,9 +224,6 @@ def test_upload_file_with_force_version_false(
     assert not mocked_file_handle_upload.called
 
 
-@tracer.start_as_current_span(
-    "integration_test::test_upload_file_changed_with_force_version_false"
-)
 def test_upload_file_changed_with_force_version_false(
     syn: Synapse, project: Project, schedule_for_cleanup
 ) -> None:
@@ -273,7 +259,6 @@ def test_upload_file_changed_with_force_version_false(
     assert before_file_handle_id != entity["dataFileHandleId"]
 
 
-@tracer.start_as_current_span("integration_test::test_uploadFileEntity")
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_uploadFileEntity(syn, project, schedule_for_cleanup):
     # Create a FileEntity
@@ -312,7 +297,6 @@ def test_uploadFileEntity(syn, project, schedule_for_cleanup):
     assert filecmp.cmp(fname, entity["path"])
 
 
-@tracer.start_as_current_span("integration_test::test_download_multithreaded")
 def test_download_multithreaded(syn, project, schedule_for_cleanup):
     # Create a FileEntity
     # Dictionaries default to FileEntity as a type
@@ -334,7 +318,6 @@ def test_download_multithreaded(syn, project, schedule_for_cleanup):
     syn.multi_threaded = False
 
 
-@tracer.start_as_current_span("integration_test::test_downloadFile")
 def test_downloadFile(schedule_for_cleanup):
     # See if the a "wget" works
     filename = utils.download_file(
@@ -344,7 +327,6 @@ def test_downloadFile(schedule_for_cleanup):
     assert os.path.exists(filename)
 
 
-@tracer.start_as_current_span("integration_test::test_version_check")
 def test_version_check():
     # Check current version against dev-synapsePythonClient version file
     version_check(
@@ -378,7 +360,6 @@ def test_version_check():
     )
 
 
-@tracer.start_as_current_span("integration_test::test_provenance")
 def test_provenance(syn, project, schedule_for_cleanup):
     # Create a File Entity
     fname = utils.make_bogus_data_file()
@@ -427,7 +408,6 @@ def test_provenance(syn, project, schedule_for_cleanup):
     pytest.raises(SynapseHTTPError, syn.getProvenance, data_entity["id"])
 
 
-@tracer.start_as_current_span("integration_test::test_annotations")
 def test_annotations(syn, project, schedule_for_cleanup):
     # Get the annotations of an Entity
     entity = syn.store(Folder(parent=project["id"]))
@@ -476,9 +456,6 @@ def test_annotations(syn, project, schedule_for_cleanup):
     assert annotation["maybe"] == [True, False]
 
 
-@tracer.start_as_current_span(
-    "integration_test::test_annotations_on_file_during_create_no_annotations"
-)
 def test_annotations_on_file_during_create_no_annotations(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
@@ -506,9 +483,6 @@ def test_annotations_on_file_during_create_no_annotations(
     assert not mock_set_annotations.called
 
 
-@tracer.start_as_current_span(
-    "integration_test::test_annotations_on_file_during_create_with_annotations"
-)
 def test_annotations_on_file_during_create_with_annotations(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
@@ -537,7 +511,6 @@ def test_annotations_on_file_during_create_with_annotations(
     assert len(annotations) == 2
 
 
-@tracer.start_as_current_span("integration_test::test_get_user_profile")
 def test_get_user_profile(syn):
     p1 = syn.getUserProfile()
 
@@ -550,7 +523,6 @@ def test_get_user_profile(syn):
     assert p2.userName == p1.userName
 
 
-@tracer.start_as_current_span("integration_test::test_findEntityIdByNameAndParent")
 def test_findEntityIdByNameAndParent(syn, schedule_for_cleanup):
     project_name = str(uuid.uuid1())
     project_id = syn.store(Project(name=project_name))["id"]
@@ -558,7 +530,6 @@ def test_findEntityIdByNameAndParent(syn, schedule_for_cleanup):
     schedule_for_cleanup(project_id)
 
 
-@tracer.start_as_current_span("integration_test::test_getChildren")
 def test_getChildren(syn, schedule_for_cleanup):
     # setup a hierarchy for folders
     # PROJECT
@@ -592,7 +563,6 @@ def test_getChildren(syn, schedule_for_cleanup):
     assert expected_id_set == children_id_set
 
 
-@tracer.start_as_current_span("integration_test::testSetStorageLocation")
 def testSetStorageLocation(syn, schedule_for_cleanup):
     proj = syn.store(
         Project(
@@ -613,7 +583,6 @@ def testSetStorageLocation(syn, schedule_for_cleanup):
     assert storage_setting == retrieved_setting
 
 
-@tracer.start_as_current_span("integration_test::testMoveProject")
 def testMoveProject(syn, schedule_for_cleanup):
     proj1 = syn.store(Project(name=str(uuid.uuid4()) + "testMoveProject-child"))
     proj2 = syn.store(Project(name=str(uuid.uuid4()) + "testMoveProject-newParent"))
@@ -628,9 +597,6 @@ class TestPermissionsOnProject:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnProject::test_get_acl_default"
-    )
     def test_get_acl_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions: Entity = self.syn.store(
@@ -657,9 +623,6 @@ class TestPermissionsOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnProject::test_get_acl_read_only_permissions_on_entity"
-    )
     def test_get_acl_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions: Entity = self.syn.store(
@@ -684,9 +647,6 @@ class TestPermissionsOnProject:
         expected_permissions = ["READ"]
         assert set(expected_permissions) == set(permissions)
 
-    @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnProject::test_get_acl_through_team_assigned_to_user"
-    )
     def test_get_acl_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team: Entity = self.syn.store(
@@ -750,9 +710,6 @@ class TestPermissionsOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnProject::test_get_acl_through_multiple_teams_assigned_to_user"
-    )
     def test_get_acl_through_multiple_teams_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_multiple_teams: Entity = self.syn.store(
@@ -834,9 +791,6 @@ class TestPermissionsOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnProject::test_get_acl_for_project_with_public_and_registered_user"
-    )
     def test_get_acl_for_project_with_public_and_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_public_and_authenticated_users: Entity = (
@@ -921,9 +875,6 @@ class TestPermissionsOnEntityForCaller:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_default"
-    )
     def test_get_permissions_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions: Entity = self.syn.store(
@@ -947,9 +898,6 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_read_only_permissions_on_entity"
-    )
     def test_get_permissions_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions: Entity = self.syn.store(
@@ -977,9 +925,6 @@ class TestPermissionsOnEntityForCaller:
 
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_through_team_assigned_to_user"
-    )
     def test_get_permissions_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team: Entity = self.syn.store(
@@ -1042,9 +987,6 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_through_multiple_teams_assigned_to_user"
-    )
     def test_get_permissions_through_multiple_teams_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_multiple_teams: Entity = self.syn.store(
@@ -1125,9 +1067,6 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @tracer.start_as_current_span(
-        "integration_test::TestPermissionsOnEntityForCaller::test_get_permissions_for_project_with_registered_user"
-    )
     def test_get_permissions_for_project_with_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_authenticated_users: Entity = self.syn.store(
@@ -1182,7 +1121,6 @@ class TestPermissionsOnEntityForCaller:
         assert set(expected_permissions) == set(permissions.access_types)
 
 
-@tracer.start_as_current_span("integration_test::test_create_delete_team")
 def test_create_delete_team(syn: Synapse) -> None:
     # GIVEN information about a team I want to create
     name = "python_client_integration_test_team_" + str(uuid.uuid4())

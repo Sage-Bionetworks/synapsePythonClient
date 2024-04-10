@@ -31,8 +31,6 @@ from synapseclient.core.utils import (
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
-tracer = trace.get_tracer("synapseclient")
-
 
 async def upload_file_handle(
     syn: "Synapse",

@@ -312,7 +312,6 @@ class UploadAttempt:
 
             return part_number, part_size
 
-    @tracer.start_as_current_span("UploadAttempt::_upload_parts")
     def _upload_parts(self, part_count, remaining_part_numbers):
         trace.get_current_span().set_attributes({"thread.id": threading.get_ident()})
         time_upload_started = time.time()
@@ -380,7 +379,6 @@ class UploadAttempt:
                     raise SynapseUploadAbortedException("User interrupted upload")
                 raise SynapseUploadFailedException("Part upload failed") from cause
 
-    @tracer.start_as_current_span("UploadAttempt::_complete_upload")
     def _complete_upload(self):
         upload_status_response = self._syn.restPUT(
             "/file/multipart/{upload_id}/complete".format(
@@ -420,7 +418,6 @@ class UploadAttempt:
         return upload_status_response
 
 
-@tracer.start_as_current_span("multipart_upload::multipart_upload_file")
 def multipart_upload_file(
     syn,
     file_path: str,
@@ -513,7 +510,6 @@ def multipart_upload_file(
     )
 
 
-@tracer.start_as_current_span("multipart_upload::multipart_upload_string")
 def multipart_upload_string(
     syn,
     text: str,
@@ -596,7 +592,6 @@ def multipart_upload_string(
     )
 
 
-@tracer.start_as_current_span("multipart_upload::multipart_copy")
 def multipart_copy(
     syn,
     source_file_handle_association,

@@ -61,6 +61,7 @@ class TestLogout:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.username = "asdf"
         self.credentials = SynapseAuthTokenCredentials(
@@ -79,6 +80,7 @@ class TestLogin:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.login_args = {"email": "AzureDiamond", "authToken": "hunter2"}
         self.expected_user_args = UserLoginArgs(
@@ -530,6 +532,7 @@ class TestPrivateSubmit:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.etag = "etag"
         self.eval_id = 1
@@ -580,6 +583,7 @@ class TestSubmit:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.eval_id = "9090"
         self.contributors = None
@@ -778,6 +782,7 @@ class TestPrivateGetContributor:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.eval_id = 111
         self.team_id = 123
@@ -1229,6 +1234,7 @@ class TestPrivateGetEntityBundle:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.bundle = {
             "entity": {
@@ -1388,6 +1394,7 @@ class TestCreateStorageLocationSetting:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.patch_restPOST = patch.object(self.syn, "restPOST")
         self.mock_restPOST = self.patch_restPOST.start()
@@ -1446,6 +1453,7 @@ class TestSetStorageLocation:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.entity = "syn123"
         self.expected_location = {
@@ -1684,6 +1692,7 @@ class TestMembershipInvitation:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.team = synapseclient.Team(id="222")
         self.userid = "123"
@@ -1941,6 +1950,7 @@ class TestDownloadListServices:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.patch__waitForAsync = patch.object(self.syn, "_waitForAsync")
         self.mock__waitForAsync = self.patch__waitForAsync.start()
@@ -1994,6 +2004,7 @@ class TestDownloadList:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.manifest_name = str(uuid.uuid4())
         self.patch_get_dl_manifest = patch.object(
@@ -3373,6 +3384,7 @@ class TestTableQuery:
 
 
 class TestSilentCommandAndLogger:
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         """
         Set up three different synapse objects

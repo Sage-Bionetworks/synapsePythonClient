@@ -1,7 +1,7 @@
 import asyncio
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from opentelemetry import context, trace
+from opentelemetry import context
 
 from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync
@@ -9,8 +9,6 @@ from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.access_control_protocol import (
     AccessControllableSynchronousProtocol,
 )
-
-tracer = trace.get_tracer("synapseclient")
 
 if TYPE_CHECKING:
     from synapseclient.core.models.permission import Permissions

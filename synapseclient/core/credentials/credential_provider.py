@@ -2,6 +2,7 @@
 This module contains classes that are responsible for retrieving synapse authentication
 information (e.g. authToken) from a source (e.g. login args, config file).
 """
+
 import abc
 import os
 from typing import Union, Dict, Tuple, TYPE_CHECKING
@@ -11,12 +12,9 @@ from synapseclient.core.credentials.cred_data import (
     SynapseCredentials,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
-from opentelemetry import trace
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-
-tracer = trace.get_tracer("synapseclient")
 
 
 class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
@@ -225,7 +223,6 @@ class SynapseCredentialsProviderChain(object):
     def __init__(self, cred_providers) -> None:
         self.cred_providers = list(cred_providers)
 
-    @tracer.start_as_current_span("SynapseCredentialsProviderChain::get_credentials")
     def get_credentials(
         self, syn: "Synapse", user_login_args: Dict[str, str]
     ) -> Union[SynapseCredentials, None]:

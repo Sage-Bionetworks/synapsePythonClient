@@ -25,8 +25,6 @@ from synapseclient.models.services.storable_entity_components import (
 )
 from synapseutils.copy_functions import copy
 
-tracer = trace.get_tracer("synapseclient")
-
 
 @dataclass()
 @async_to_sync
@@ -292,7 +290,12 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
             )
         ):
             merge_dataclass_entities(source=existing_project, destination=self)
-
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.name": self.name or "",
+                "synapse.id": self.id or "",
+            }
+        )
         if self.has_changed:
             loop = asyncio.get_event_loop()
             synapse_project = Synapse_Project(

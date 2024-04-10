@@ -15,8 +15,6 @@ from synapseclient.core.utils import get_properties
 if TYPE_CHECKING:
     from synapseclient.models import File, Folder, Project
 
-tracer = trace.get_tracer("synapseclient")
-
 
 async def store_entity(
     resource: Union["File", "Folder", "Project"],

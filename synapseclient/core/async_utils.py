@@ -46,9 +46,13 @@ def otel_trace_method(method_to_trace_name: Union[Callable[..., str], None] = No
                 if method_to_trace_name
                 else None
             )
-            with tracer.start_as_current_span(
-                trace_name or f"Synaspse::{func.__name__}"
-            ):
+            current_span = trace.get_current_span()
+            if current_span.is_recording():
+                with tracer.start_as_current_span(
+                    trace_name or f"Synaspse::{func.__name__}"
+                ):
+                    return await func(self, *arg, **kwargs)
+            else:
                 return await func(self, *arg, **kwargs)
 
         return otel_trace_method_wrapper

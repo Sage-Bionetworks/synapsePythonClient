@@ -13,7 +13,6 @@ from unittest import mock, skip
 
 import httpx
 import pytest
-from opentelemetry import trace
 
 import synapseclient.core.config
 import synapseclient.core.utils as utils
@@ -26,10 +25,7 @@ from synapseclient.core.upload.multipart_upload_async import (
 )
 from synapseclient.models import File, Project
 
-tracer = trace.get_tracer("synapseclient")
 
-
-@tracer.start_as_current_span("test_multipart_upload::test_round_trip")
 @pytest.mark.asyncio
 async def test_round_trip(
     syn: Synapse, project_model: Project, schedule_for_cleanup: Callable[..., None]
@@ -75,7 +71,6 @@ async def test_round_trip(
             syn.logger.exception("Failed to cleanup")
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_single_thread_upload")
 @pytest.mark.asyncio
 async def test_single_thread_upload(syn: Synapse) -> None:
     synapseclient.core.config.single_threaded = True
@@ -86,7 +81,6 @@ async def test_single_thread_upload(syn: Synapse) -> None:
         synapseclient.core.config.single_threaded = False
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_randomly_failing_parts")
 @pytest.mark.asyncio
 async def test_randomly_failing_parts(
     syn: Synapse, project_model: Project, schedule_for_cleanup: Callable[..., None]
@@ -162,7 +156,6 @@ async def test_randomly_failing_parts(
                 syn.logger.exception("Failed to cleanup")
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_multipart_upload_big_string")
 @pytest.mark.asyncio
 async def test_multipart_upload_big_string(
     syn: Synapse, project_model: Project, schedule_for_cleanup: Callable[..., None]
@@ -311,7 +304,6 @@ async def _multipart_copy_test(
     assert file_content == dest_file_content
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_multipart_copy")
 @pytest.mark.asyncio
 async def test_multipart_copy(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
@@ -320,7 +312,6 @@ async def test_multipart_copy(
     await _multipart_copy_test(syn, project, schedule_for_cleanup, MIN_PART_SIZE)
 
 
-@tracer.start_as_current_span("test_multipart_upload::test_multipart_copy__big_parts")
 @pytest.mark.asyncio
 @skip("Skip in normal testing because the large size makes it slow")
 async def test_multipart_copy__big_parts(

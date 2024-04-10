@@ -3,7 +3,7 @@
 import asyncio
 from typing import Union
 
-from opentelemetry import trace, context
+from opentelemetry import context
 
 from typing import Optional, TYPE_CHECKING
 
@@ -21,8 +21,6 @@ from synapseclient.core.exceptions import (
 
 if TYPE_CHECKING:
     from synapseclient.models import Folder, Project, File
-
-tracer = trace.get_tracer("synapseclient")
 
 
 async def get_id(

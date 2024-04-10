@@ -26,8 +26,6 @@ from synapseclient.table import CsvFileTable as Synapse_CsvFileTable
 from synapseclient.table import TableQueryResult as Synaspe_TableQueryResult
 from synapseclient.table import delete_rows
 
-tracer = trace.get_tracer("synapseclient")
-
 
 # TODO: Have a plug-and-play interface to plugin different dataframes,
 # or perhaps stream a CSV back when querying for data and uploading data
@@ -605,7 +603,12 @@ class Table(TableSynchronousProtocol, AccessControllable):
             columns=self.columns,
             parent=self.parent_id,
         )
-
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.name": self.name or "",
+                "synapse.id": self.id or "",
+            }
+        )
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
         entity = await loop.run_in_executor(
@@ -703,22 +706,19 @@ class Table(TableSynchronousProtocol, AccessControllable):
         Returns:
             The results of the query.
         """
-        with tracer.start_as_current_span("Table_query"):
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
+        loop = asyncio.get_event_loop()
+        current_context = context.get_current()
 
-            # TODO: Future Idea - We stream back a CSV, and let those reading this to handle the CSV however they want
-            results = await loop.run_in_executor(
-                None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).tableQuery(
-                        query=query,
-                        **result_format.to_dict(),
-                    ),
-                    current_context,
+        # TODO: Future Idea - We stream back a CSV, and let those reading this to handle the CSV however they want
+        results = await loop.run_in_executor(
+            None,
+            lambda: run_and_attach_otel_context(
+                lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
+                    query=query,
+                    **result_format.to_dict(),
                 ),
-            )
-            print(results)
-            return results
+                current_context,
+            ),
+        )
+        print(results)
+        return results

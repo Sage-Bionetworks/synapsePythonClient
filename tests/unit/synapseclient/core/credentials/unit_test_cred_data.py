@@ -8,6 +8,7 @@ from synapseclient.core.exceptions import SynapseAuthenticationError
 
 
 class TestSynapseAuthTokenCredentials:
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.username = "ahhhhhhhhhhhhhh"
         self.auth_token = "opensesame"

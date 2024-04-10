@@ -9,9 +9,6 @@ from synapseclient.core.retry import with_retry
 import pytest
 import unittest
 from unittest import mock
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 try:
     boto3 = importlib.import_module("boto3")
@@ -94,9 +91,6 @@ class ExernalStorageTest(unittest.TestCase):
 
         return s3_client, folder, storage_location_setting["storageLocationId"]
 
-    @tracer.start_as_current_span(
-        "test_external_storage::ExernalStorageTest::test_set_external_storage_location"
-    )
     def test_set_external_storage_location(self):
         """Test configuring an external storage location,
         saving a file there, and confirm that it is created and
@@ -126,9 +120,6 @@ class ExernalStorageTest(unittest.TestCase):
         bucket_name, _ = get_aws_env()
         s3_client.get_object(Bucket=bucket_name, Key=file_handle["key"])
 
-    @tracer.start_as_current_span(
-        "test_external_storage::ExernalStorageTest::test_sts_external_storage_location"
-    )
     def test_sts_external_storage_location(self):
         """Test creating and using an external STS storage location.
         A custom storage location is created with sts enabled,
@@ -197,9 +188,6 @@ class ExernalStorageTest(unittest.TestCase):
         with open(retrieved_file_entity.path, "r") as f:
             assert file_contents == f.read()
 
-    @tracer.start_as_current_span(
-        "test_external_storage::ExernalStorageTest::test_boto_upload__acl"
-    )
     def test_boto_upload__acl(self):
         """Verify when we store a Synapse object using boto we apply a bucket-owner-full-control ACL to the object"""
         bucket_name, _ = get_aws_env()

@@ -28,6 +28,7 @@ class TestSynapseApiKeyCredentialsProviderChain(object):
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.cred_provider = create_autospec(SynapseCredentialsProvider)
         self.user_login_args = UserLoginArgs(
@@ -88,6 +89,7 @@ class TestSynapseCredentialProvider(object):
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.username = "username"
         self.auth_token = "auth_token"
@@ -240,6 +242,7 @@ class TestConfigFileCredentialsProvider(object):
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.username = "username"
         self.token = "token123"
@@ -319,6 +322,7 @@ class TestAWSParameterStoreCredentialsProvider(object):
         )
         return mock_boto3_client, stubber
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.provider = AWSParameterStoreCredentialsProvider()
 
@@ -411,6 +415,7 @@ class TestEnvironmentVariableCredentialsProvider:
     def init_syn(self, syn):
         self.syn = syn
 
+    @pytest.fixture(scope="function", autouse=True)
     def setup(self):
         self.provider = EnvironmentVariableCredentialsProvider()
 

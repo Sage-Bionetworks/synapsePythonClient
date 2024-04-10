@@ -12,8 +12,6 @@ from synapseclient.models.user import UserGroupHeader
 from synapseclient.team import Team as Synapse_Team
 from synapseclient.team import TeamMember as Synapse_TeamMember
 
-tracer = trace.get_tracer("synapseclient")
-
 
 @dataclass
 class TeamMember:
@@ -155,6 +153,12 @@ class Team(TeamSynchronousProtocol):
         """
         loop = asyncio.get_event_loop()
         current_context = context.get_current()
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.name": self.name or "",
+                "synapse.id": self.id or "",
+            }
+        )
         team = await loop.run_in_executor(
             None,
             lambda: run_and_attach_otel_context(

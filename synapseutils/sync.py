@@ -35,7 +35,7 @@ from synapseclient.core.multithread_download.download_threads import (
 from synapseclient.core.upload.multipart_upload import (
     shared_executor as upload_shared_executor,
 )
-from opentelemetry import trace, context
+from opentelemetry import context, trace
 from opentelemetry.context import Context
 
 
@@ -63,8 +63,6 @@ SINGLE_CLOSING_BRACKET_PATTERN = re.compile(r"\]$")
 # https://stackoverflow.com/questions/18893390/splitting-on-comma-outside-quotes
 COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN = re.compile(r",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")
 
-tracer = trace.get_tracer("synapseclient")
-
 
 @contextmanager
 def _sync_executor(syn):
@@ -81,7 +79,6 @@ def _sync_executor(syn):
         executor.shutdown()
 
 
-@tracer.start_as_current_span("sync::syncFromSynapse")
 def syncFromSynapse(
     syn,
     entity,
@@ -629,7 +626,6 @@ class _SyncUploader:
         # if somehow not from None fuctions fine
         raise ValueError("Sync aborted due to upload failure") from exception
 
-    @tracer.start_as_current_span("sync::_SyncUploader::upload")
     def upload(self, items: typing.Iterable[_SyncUploadItem]):
         progress = CumulativeTransferProgress("Uploaded")
 
@@ -1078,7 +1074,6 @@ def _check_path_and_normalize(f):
     return path_normalized
 
 
-@tracer.start_as_current_span("sync::readManifestFile")
 def readManifestFile(syn, manifestFile):
     """Verifies a file manifest and returns a reordered dataframe ready for upload.
 
@@ -1169,7 +1164,6 @@ def readManifestFile(syn, manifestFile):
     return df
 
 
-@tracer.start_as_current_span("sync::syncToSynapse")
 def syncToSynapse(
     syn, manifestFile, dryRun=False, sendMessages=True, retries=MAX_RETRIES
 ) -> None:
@@ -1400,7 +1394,6 @@ def _check_size_each_file(df):
                 )
 
 
-@tracer.start_as_current_span("sync::generate_sync_manifest")
 def generate_sync_manifest(syn, directory_path, parent_id, manifest_path) -> None:
     """Generate manifest for [syncToSynapse][synapseutils.sync.syncToSynapse] from a local directory.
 

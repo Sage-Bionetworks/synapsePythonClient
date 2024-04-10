@@ -8,12 +8,8 @@ import pytest
 
 from synapseclient import Evaluation, File, SubmissionViewSchema, Synapse, Team, Project
 from synapseclient.core.exceptions import SynapseHTTPError
-from opentelemetry import trace
-
-tracer = trace.get_tracer("synapseclient")
 
 
-@tracer.start_as_current_span("test_evaluations::test_evaluations")
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 def test_evaluations(syn: Synapse, project: Project):
     # Create an Evaluation
@@ -176,7 +172,6 @@ def test_evaluations(syn: Synapse, project: Project):
     pytest.raises(SynapseHTTPError, syn.getEvaluation, ev)
 
 
-@tracer.start_as_current_span("test_evaluations::test_teams")
 def test_teams(syn: Synapse, schedule_for_cleanup):
     name = "My Uniquely Named Team " + str(uuid.uuid4())
     team = syn.store(Team(name=name, description="A fake team for testing..."))

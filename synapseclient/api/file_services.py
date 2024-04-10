@@ -2,6 +2,7 @@
 <https://rest-docs.synapse.org/rest/#org.sagebionetworks.repo.web.controller.EntityController>
 """
 
+from dataclasses import dataclass
 import json
 import mimetypes
 import os
@@ -48,12 +49,30 @@ async def post_file_multipart(
     )
 
 
+@dataclass
+class AddPartResponse:
+    """Result of a part add.
+
+    Attributes:
+        upload_id: The unique identifier of a multi-part request.
+        part_number: The part number of the add.
+        add_part_state: The state of this add.
+        error_message: If the added failed, this will contain the error message of the
+            cause. Will be None when the add is successful.
+    """
+
+    upload_id: str
+    part_number: int
+    add_part_state: str
+    error_message: str
+
+
 async def put_file_multipart_add(
     upload_id: str,
     part_number: int,
     md5_hex: str,
     synapse_client: Optional["Synapse"] = None,
-) -> Dict[str, Any]:
+) -> AddPartResponse:
     """
     <https://rest-docs.synapse.org/rest/PUT/file/multipart/uploadId/add/partNumber.html>
 
@@ -70,13 +89,24 @@ async def put_file_multipart_add(
         Object matching
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/AddPartResponse.html>
     """
-    from synapseclient import Synapse
+    try:
+        from synapseclient import Synapse
 
-    client = Synapse.get_client(synapse_client=synapse_client)
-    return await client.rest_put_async(
-        f"/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5_hex}",
-        endpoint=client.fileHandleEndpoint,
-    )
+        client = Synapse.get_client(synapse_client=synapse_client)
+        response = await client.rest_put_async(
+            f"/file/multipart/{upload_id}/add/{part_number}?partMD5Hex={md5_hex}",
+            endpoint=client.fileHandleEndpoint,
+        )
+        return AddPartResponse(
+            upload_id=response.get("uploadId", None),
+            part_number=response.get("partNumber", None),
+            add_part_state=response.get("addPartState", None),
+            error_message=response.get("errorMessage", None),
+        )
+    except Exception:
+        client.logger.exception(
+            f"Error adding part {part_number} to upload {upload_id} with MD5: {md5_hex}"
+        )
 
 
 async def put_file_multipart_complete(
