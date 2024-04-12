@@ -434,7 +434,7 @@ class Synapse(object):
             await self._requests_session_async_synapse[asyncio_event_loop].aclose()
             del self._requests_session_async_synapse[asyncio_event_loop]
 
-        httpx_timeout = httpx.Timeout(300, pool=None)
+        httpx_timeout = httpx.Timeout(70, pool=None)
         span_dict: Dict[httpx.Request, trace.Span] = {}
 
         async def log_request(request: httpx.Request) -> None:
@@ -470,12 +470,15 @@ class Synapse(object):
                 span.end()
 
         event_hooks = {"request": [log_request], "response": [log_response]}
-        client = httpx.AsyncClient(
-            limits=httpx.Limits(max_connections=25),
-            timeout=httpx_timeout,
-            event_hooks=event_hooks,
+        self._requests_session_async_synapse.update(
+            {
+                asyncio_event_loop: httpx.AsyncClient(
+                    limits=httpx.Limits(max_connections=25),
+                    timeout=httpx_timeout,
+                    event_hooks=event_hooks,
+                )
+            }
         )
-        self._requests_session_async_synapse.update({asyncio_event_loop: client})
 
         asyncio_atexit.register(close_connection)
         return self._requests_session_async_synapse[asyncio_event_loop]
@@ -4113,11 +4116,6 @@ class Synapse(object):
         """
         for result in self._GET_paginated(f"/user/{principal_id}/team"):
             yield Team(**result)
-
-    def _find_evaluations(self):
-        """ """
-        for result in self._GET_paginated("/evaluation"):
-            yield result
 
     def create_team(
         self,

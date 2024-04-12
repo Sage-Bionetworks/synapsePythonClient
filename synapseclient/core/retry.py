@@ -71,15 +71,6 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
 DEBUG_EXCEPTION = "calling %s resulted in an Exception"
 
 
-def _return_rest_body(response):
-    trace.get_current_span().set_attributes(
-        {"http.response.status_code": response.status_code}
-    )
-    if is_json(response.headers.get("content-type", None)):
-        return response.json()
-    return response.text
-
-
 def with_retry(
     function,
     verbose=False,
@@ -340,7 +331,6 @@ async def with_retry_time_based_async(
         response = None
         current_span = trace.get_current_span()
         current_span.set_attribute("synapse.retries", str(retries + 1))
-        current_span.set_attribute(f"RUN_{uuid.uuid4()}", time.time())
 
         try:
             response = await function()
@@ -367,13 +357,7 @@ async def with_retry_time_based_async(
             _log_for_retry(
                 logger=logger, response=response, caught_exception=caught_exception
             )
-            current_span = trace.get_current_span()
-            if current_span.is_recording():
-                current_span.set_attribute("synapse.retried", True)
-                body = _return_rest_body(response)
-                current_span.set_attribute(
-                    f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
-                )
+
             backoff_wait = calculate_exponential_backoff(
                 retries=retries,
                 base_wait=retry_base_wait,
@@ -470,7 +454,6 @@ def with_retry_time_based(
         response = None
         current_span = trace.get_current_span()
         current_span.set_attribute("synapse.retries", str(retries + 1))
-        current_span.set_attribute(f"RUN_{uuid.uuid4()}", time.time())
 
         try:
             response = function()
@@ -497,13 +480,7 @@ def with_retry_time_based(
             _log_for_retry(
                 logger=logger, response=response, caught_exception=caught_exception
             )
-            current_span = trace.get_current_span()
-            if current_span.is_recording():
-                current_span.set_attribute("synapse.retried", True)
-                body = _return_rest_body(response)
-                current_span.set_attribute(
-                    f"HTTP_DATA_TEMPORARY_RESPONSE_{uuid.uuid4()}", str(body)
-                )
+
             backoff_wait = calculate_exponential_backoff(
                 retries=retries,
                 base_wait=retry_base_wait,
