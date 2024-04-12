@@ -28,7 +28,7 @@ import synapseutils
 # Add Test for UPDATE
 # Add test for existing provenance but the orig doesn't have provenance
 @pytest.mark.flaky(reruns=10)
-def test_copy(syn: Synapse, schedule_for_cleanup):
+async def test_copy(syn: Synapse, schedule_for_cleanup):
     try:
         execute_test_copy(syn, schedule_for_cleanup)
     except FunctionTimedOut:
@@ -360,7 +360,7 @@ class TestCopyWiki:
 
         self.first_headers = self.syn.getWikiHeaders(self.project_entity)
 
-    def test_copy_Wiki(self):
+    async def test_copy_Wiki(self):
         second_headers = synapseutils.copyWiki(
             self.syn,
             self.project_entity.id,
@@ -406,7 +406,7 @@ class TestCopyWiki:
             # check that attachment file names are the same
             assert orig_file == new_file
 
-    def test_entitySubPageId_and_destinationSubPageId(self):
+    async def test_entitySubPageId_and_destinationSubPageId(self):
         # Test: entitySubPageId
         second_header = synapseutils.copyWiki(
             self.syn,
@@ -449,8 +449,9 @@ class TestCopyWiki:
 
 
 class TestCopyFileHandles:
+    @pytest.mark.asyncio(scope="session")
     @pytest.fixture(autouse=True)
-    def init(self, syn, schedule_for_cleanup):
+    async def init(self, syn, schedule_for_cleanup):
         self.syn = syn
 
         # create external file handles for https://www.synapse.org/images/logo.svg,
@@ -475,7 +476,7 @@ class TestCopyFileHandles:
         test_entity_1 = self.syn.store(test_entity_1)
         self.obj_id_1 = str(test_entity_1["id"][3:])
 
-    def test_copy_file_handles(self):
+    async def test_copy_file_handles(self):
         # define inputs
         file_handles = [self.file_handle_id_1]
         associate_object_types = ["FileEntity"]

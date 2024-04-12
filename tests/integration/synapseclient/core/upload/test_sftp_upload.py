@@ -75,7 +75,7 @@ def project_setting_id(request, syn, project):
 
 
 @unittest.skipIf(*check_test_preconditions())
-def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
+async def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
     """Creates a File Entity on an sftp server and add the external url."""
     filepath = utils.make_bogus_binary_file(1 * utils.MB - 777771)
     try:
@@ -100,7 +100,7 @@ def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
 
 
 @unittest.skipIf(*check_test_preconditions())
-def test_synGet_sftpIntegration(syn, project):
+async def test_synGet_sftpIntegration(syn, project):
     # Create file by uploading directly to sftp and creating entity from URL
     server_prefix = get_sftp_server_prefix()
     username, password = syn._getUserCredentials(server_prefix)
@@ -122,7 +122,7 @@ def test_synGet_sftpIntegration(syn, project):
 
 
 @unittest.skipIf(*check_test_preconditions())
-def test_utils_sftp_upload_and_download(syn):
+async def test_utils_sftp_upload_and_download(syn):
     """Tries to upload a file to an sftp file"""
     server_prefix = get_sftp_server_prefix()
     username, password = syn._getUserCredentials(server_prefix)

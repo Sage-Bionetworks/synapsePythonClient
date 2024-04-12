@@ -6,7 +6,7 @@ requests to the Synapse backend
 from synapseclient import Column
 
 
-def test_createColumns(syn):
+async def test_createColumns(syn):
     columns_to_create = [
         Column(name="FirstTestColumn", columnType="INTEGER"),
         Column(name="SecondTestColumn", columnType="DOUBLE"),

@@ -143,7 +143,6 @@ class TestActivity:
         assert activity.executed[1].target_id == SYN_789
         assert activity.executed[1].target_version_number == 1
 
-    @pytest.mark.asyncio
     async def test_store_with_id(self) -> None:
         # GIVEN an activity with an id
         activity = Activity(
@@ -200,7 +199,6 @@ class TestActivity:
             assert result_of_store.executed[1].target_id == SYN_789
             assert result_of_store.executed[1].target_version_number == 1
 
-    @pytest.mark.asyncio
     async def test_store_with_parent(self) -> None:
         # GIVEN an activity with a parent
         activity = Activity(
@@ -255,7 +253,6 @@ class TestActivity:
             assert result_of_store.executed[1].target_id == SYN_789
             assert result_of_store.executed[1].target_version_number == 1
 
-    @pytest.mark.asyncio
     async def test_from_parent(self) -> None:
         # GIVEN a parent with an activity
         parent = File("syn999", version_number=1)
@@ -298,7 +295,6 @@ class TestActivity:
             assert result_of_get.executed[1].target_id == SYN_789
             assert result_of_get.executed[1].target_version_number == 1
 
-    @pytest.mark.asyncio
     async def test_delete(self) -> None:
         # GIVEN a parent with an activity
         parent = File(id="syn999")

@@ -21,7 +21,7 @@ class TestActivity:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def test_store_with_parent_and_id(self, project: Synapse_Project) -> None:
+    async def test_store_with_parent_and_id(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project
         path = utils.make_bogus_uuid_file()
         file = File(
@@ -98,7 +98,7 @@ class TestActivity:
         # Clean up
         result.delete(parent=file)
 
-    def test_store_with_no_references(self, project: Synapse_Project) -> None:
+    async def test_store_with_no_references(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project that has an activity with no references
         activity = Activity(
             name="some_name",
@@ -132,7 +132,7 @@ class TestActivity:
         # Clean up
         file.activity.delete(parent=file)
 
-    def test_from_parent(self, project: Synapse_Project) -> None:
+    async def test_from_parent(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project that has an activity
         activity = Activity(
             name="some_name",
@@ -182,7 +182,7 @@ class TestActivity:
         # Clean up
         result.delete(parent=file)
 
-    def test_delete(self, project: Synapse_Project) -> None:
+    async def test_delete(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project that has an activity
         activity = Activity(
             name="some_name",

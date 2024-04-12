@@ -8,7 +8,7 @@ import synapseclient
 from synapseclient.core.exceptions import SynapseHTTPError
 
 
-def test_available_services(syn):
+async def test_available_services(syn):
     services = syn.get_available_services()  # Output: ['json_schema']
     available_services = ["json_schema"]
     assert set(services) == set(available_services)
@@ -20,7 +20,7 @@ def js(syn):
 
 
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
-def test_json_schema_organization(js):
+async def test_json_schema_organization(js):
     # Schema organizations must start with a string
     js_org = "a" + str(uuid.uuid4()).replace("-", "")
     # Create, manage, and delete a JSON Schema organization
@@ -89,7 +89,7 @@ class TestJsonSchemaSchemas:
     def teardown(self):
         self.my_org.delete()
 
-    def test_json_schema_schemas_org_create_schema(self):
+    async def test_json_schema_schemas_org_create_schema(self):
         # Create json schema
         new_version = self.my_org.create_json_schema(
             self.simple_schema, self.schema_name, f"0.{self.rint}.1"
@@ -107,7 +107,7 @@ class TestJsonSchemaSchemas:
         assert full_body["properties"] == self.simple_schema["properties"]
         new_version.delete()
 
-    def test_json_schema_schemas_js_create_schema(self, js):
+    async def test_json_schema_schemas_js_create_schema(self, js):
         # Create json schema
         # Version 2 of creating json schema
         my_schema = js.JsonSchema(self.my_org, self.schema_name)
@@ -118,7 +118,7 @@ class TestJsonSchemaSchemas:
         assert schema1 is schema2
         new_version.delete()
 
-    def test_json_schema_schemas_js_version_create_schema(self, js):
+    async def test_json_schema_schemas_js_version_create_schema(self, js):
         # Create json schema
         # Version 3 of creating json schema
         my_version = js.JsonSchemaVersion(
@@ -131,7 +131,7 @@ class TestJsonSchemaSchemas:
         assert schema1 is schema2
         new_version.delete()
 
-    def test_json_schema_validate(self, js, syn, schedule_for_cleanup):
+    async def test_json_schema_validate(self, js, syn, schedule_for_cleanup):
         project_name = str(uuid.uuid4()).replace("-", "")
         project = synapseclient.Project(name=project_name)
         project.firstName = "test"

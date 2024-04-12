@@ -49,7 +49,7 @@ class TestFileStore:
             version_label=str(uuid.uuid4()),
         )
 
-    def test_store_in_project(self, project_model: Project, file: File) -> None:
+    async def test_store_in_project(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
 
@@ -88,7 +88,7 @@ class TestFileStore:
         assert file.file_handle.key is not None
         assert file.file_handle.external_url is None
 
-    def test_store_in_folder(self, project_model: Project, file: File) -> None:
+    async def test_store_in_folder(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
 
@@ -131,7 +131,7 @@ class TestFileStore:
         assert file.file_handle.key is not None
         assert file.file_handle.external_url is None
 
-    def test_store_multiple_files(self, project_model: Project) -> None:
+    async def test_store_multiple_files(self, project_model: Project) -> None:
         # GIVEN a file
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
@@ -192,7 +192,9 @@ class TestFileStore:
             assert file.file_handle.key is not None
             assert file.file_handle.external_url is None
 
-    def test_store_change_filename(self, project_model: Project, file: File) -> None:
+    async def test_store_change_filename(
+        self, project_model: Project, file: File
+    ) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
         file.parent_id = project_model.id
@@ -215,7 +217,7 @@ class TestFileStore:
         assert file.etag is not None
         assert before_etag != file.etag
 
-    def test_store_move_file(self, project_model: Project, file: File) -> None:
+    async def test_store_move_file(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
         file.parent_id = project_model.id
@@ -239,7 +241,7 @@ class TestFileStore:
         # AND the file does not have an updated ID
         assert before_file_id == file.id
 
-    def test_store_same_data_file_handle_id(self, project_model: Project) -> None:
+    async def test_store_same_data_file_handle_id(self, project_model: Project) -> None:
         # GIVEN a file
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
@@ -277,7 +279,7 @@ class TestFileStore:
         # created. To handle for this I am just confirming the IDs match
         assert (file_1.get()).file_handle.id == (file_2.get()).file_handle.id
 
-    def test_store_updated_file(self, project_model: Project) -> None:
+    async def test_store_updated_file(self, project_model: Project) -> None:
         # GIVEN a file
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
@@ -307,7 +309,9 @@ class TestFileStore:
         assert file.file_handle.id is not None
         assert before_file_handle_id != file.file_handle.id
 
-    def test_store_and_get_activity(self, project_model: Project, file: File) -> None:
+    async def test_store_and_get_activity(
+        self, project_model: Project, file: File
+    ) -> None:
         # GIVEN an activity
         activity = Activity(
             name="some_name",
@@ -352,7 +356,7 @@ class TestFileStore:
         # THEN I expect that the activity is not returned
         assert file_copy_2.activity is None
 
-    def test_store_annotations(self, project_model: Project, file: File) -> None:
+    async def test_store_annotations(self, project_model: Project, file: File) -> None:
         # GIVEN an annotation
         annotations_for_my_file = {
             "my_single_key_string": "a",
@@ -390,7 +394,7 @@ class TestFileStore:
         assert file.annotations["my_key_double"] == [1.2, 3.4, 5.6]
         assert file.annotations["my_key_long"] == [1, 2, 3]
 
-    def test_setting_annotations_directly(
+    async def test_setting_annotations_directly(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file with the annotation
@@ -425,7 +429,7 @@ class TestFileStore:
         assert file.annotations["my_key_double"] == [1.2, 3.4, 5.6]
         assert file.annotations["my_key_long"] == [1, 2, 3]
 
-    def test_removing_annotations_to_none(
+    async def test_removing_annotations_to_none(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN an annotation
@@ -464,7 +468,7 @@ class TestFileStore:
         file_copy = File(id=file.id, download_file=False).get()
         assert not file_copy.annotations and isinstance(file_copy.annotations, dict)
 
-    def test_removing_annotations_to_empty_dict(
+    async def test_removing_annotations_to_empty_dict(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN an annotation
@@ -503,7 +507,9 @@ class TestFileStore:
         file_copy = File(id=file.id, download_file=False).get()
         assert not file_copy.annotations and isinstance(file_copy.annotations, dict)
 
-    def test_store_without_upload(self, project_model: Project, file: File) -> None:
+    async def test_store_without_upload(
+        self, project_model: Project, file: File
+    ) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
 
@@ -546,7 +552,7 @@ class TestFileStore:
         assert file.file_handle.bucket_name is None
         assert file.file_handle.key is None
 
-    def test_store_without_upload_non_matching_md5(
+    async def test_store_without_upload_non_matching_md5(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
@@ -567,7 +573,7 @@ class TestFileStore:
             f"[{utils.md5_for_file_hex(file.path)}] for local file" in str(e.value)
         )
 
-    def test_store_without_upload_non_matching_size(
+    async def test_store_without_upload_non_matching_size(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
@@ -615,7 +621,9 @@ class TestFileStore:
         assert file.file_handle.bucket_name is None
         assert file.file_handle.key is None
 
-    def test_store_as_external_url(self, project_model: Project, file: File) -> None:
+    async def test_store_as_external_url(
+        self, project_model: Project, file: File
+    ) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
 
@@ -663,7 +671,7 @@ class TestFileStore:
         assert file.file_handle.key is None
         assert file.file_handle.external_url == BOGUS_URL
 
-    def test_store_as_external_url_with_content_size(
+    async def test_store_as_external_url_with_content_size(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
@@ -716,7 +724,7 @@ class TestFileStore:
         assert file.file_handle.key is None
         assert file.file_handle.external_url == BOGUS_URL
 
-    def test_store_as_external_url_with_content_size_and_md5(
+    async def test_store_as_external_url_with_content_size_and_md5(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
@@ -773,7 +781,7 @@ class TestFileStore:
         assert file.file_handle.external_url == BOGUS_URL
         assert file.file_handle.content_md5 == BOGUS_MD5
 
-    def test_store_conflict_with_existing_object(
+    async def test_store_conflict_with_existing_object(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
@@ -833,7 +841,7 @@ class TestFileStore:
             in str(e.value)
         )
 
-    def test_store_force_version_no_change(
+    async def test_store_force_version_no_change(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
@@ -861,7 +869,7 @@ class TestFileStore:
         # THEN the version should not be updated
         assert file.version_number == 1
 
-    def test_store_force_version_with_change(
+    async def test_store_force_version_with_change(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
@@ -891,7 +899,9 @@ class TestFileStore:
         # THEN the version should be updated
         assert file.version_number == 2
 
-    def test_store_is_restricted(self, project_model: Project, file: File) -> None:
+    async def test_store_is_restricted(
+        self, project_model: Project, file: File
+    ) -> None:
         """Tests that setting is_restricted is calling the correct Synapse method. We are
         not testing the actual behavior of the method, only that it is called with the
         correct arguments. We do not want to actually restrict the file in Synapse as it
@@ -912,7 +922,7 @@ class TestFileStore:
             # THEN I expect the file to be restricted
             assert intercepted.called
 
-    def test_store_and_get_with_activity(
+    async def test_store_and_get_with_activity(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
@@ -977,25 +987,26 @@ class TestChangeMetadata:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
+    @pytest.mark.asyncio(scope="session")
     @pytest.fixture(autouse=True, scope="function")
-    def file(
+    async def file(
         self, schedule_for_cleanup: Callable[..., None], project_model: Project
     ) -> None:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = File(
+        file = await File(
             path=filename,
             description=DESCRIPTION,
             content_type=CONTENT_TYPE,
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=project_model.id,
-        ).store()
+        ).store_async()
 
         schedule_for_cleanup(file.id)
         return file
 
-    def test_change_name(self, file: File) -> None:
+    async def test_change_name(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.name is not None
@@ -1015,7 +1026,7 @@ class TestChangeMetadata:
         assert file_copy.name == new_filename
         assert file_copy.content_type == CONTENT_TYPE
 
-    def test_change_content_type_and_download(self, file: File) -> None:
+    async def test_change_content_type_and_download(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.name is not None
@@ -1035,7 +1046,7 @@ class TestChangeMetadata:
         assert file_copy.name == current_filename
         assert file_copy.content_type == CONTENT_TYPE_JSON
 
-    def test_change_content_type_and_download_and_name(self, file: File) -> None:
+    async def test_change_content_type_and_download_and_name(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.name is not None
@@ -1066,25 +1077,26 @@ class TestFrom:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
+    @pytest.mark.asyncio(scope="session")
     @pytest.fixture(autouse=True, scope="function")
-    def file(
+    async def file(
         self, schedule_for_cleanup: Callable[..., None], project_model: Project
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = File(
+        file = await File(
             path=filename,
             description=DESCRIPTION,
             content_type=CONTENT_TYPE,
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=project_model.id,
-        ).store()
+        ).store_async()
 
         schedule_for_cleanup(file.id)
         return file
 
-    def test_from_id(self, file: File) -> None:
+    async def test_from_id(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
 
@@ -1094,7 +1106,7 @@ class TestFrom:
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
 
-    def test_from_path(self, file: File) -> None:
+    async def test_from_path(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1114,25 +1126,26 @@ class TestDelete:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
+    @pytest.mark.asyncio(scope="session")
     @pytest.fixture(autouse=True, scope="function")
-    def file(
+    async def file(
         self, schedule_for_cleanup: Callable[..., None], project_model: Project
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = File(
+        file = await File(
             path=filename,
             description=DESCRIPTION,
             content_type=CONTENT_TYPE,
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=project_model.id,
-        ).store()
+        ).store_async()
 
         schedule_for_cleanup(file.id)
         return file
 
-    def test_delete(self, file: File) -> None:
+    async def test_delete(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
 
@@ -1144,7 +1157,7 @@ class TestDelete:
             file.get()
         assert f"404 Client Error: \nEntity {file.id} is in trash can." in str(e.value)
 
-    def test_delete_specific_version(self, file: File) -> None:
+    async def test_delete_specific_version(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.version_number == 1
@@ -1178,25 +1191,26 @@ class TestGet:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
+    @pytest.mark.asyncio(scope="session")
     @pytest.fixture(autouse=True, scope="function")
-    def file(
+    async def file(
         self, schedule_for_cleanup: Callable[..., None], project_model: Project
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = File(
+        file = await File(
             path=filename,
             description=DESCRIPTION,
             content_type=CONTENT_TYPE,
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=project_model.id,
-        ).store()
+        ).store_async()
 
         schedule_for_cleanup(file.id)
         return file
 
-    def test_get_by_path(self, file: File) -> None:
+    async def test_get_by_path(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1207,7 +1221,7 @@ class TestGet:
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
 
-    def test_get_by_id(self, file: File) -> None:
+    async def test_get_by_id(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1220,7 +1234,7 @@ class TestGet:
         assert file_copy.id == file.id
         assert file_copy.path == path_for_file
 
-    def test_get_previous_version(self, file: File) -> None:
+    async def test_get_previous_version(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.version_number == 1
@@ -1235,7 +1249,7 @@ class TestGet:
         assert file_copy.id == file.id
         assert file_copy.version_number == 1
 
-    def test_get_keep_both_for_matching_filenames(self, file: File) -> None:
+    async def test_get_keep_both_for_matching_filenames(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1272,7 +1286,7 @@ class TestGet:
         # AND the second file to have a different path
         assert os.path.basename(file_2.path) == f"{base_name}(1){extension}"
 
-    def test_get_overwrite_local_for_matching_filenames(self, file: File) -> None:
+    async def test_get_overwrite_local_for_matching_filenames(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1310,7 +1324,7 @@ class TestGet:
         assert file_1_md5 != file_2_md5
         assert utils.md5_for_file(file_2.path).hexdigest() == file_2_md5
 
-    def test_get_keep_local_for_matching_filenames(self, file: File) -> None:
+    async def test_get_keep_local_for_matching_filenames(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1349,7 +1363,7 @@ class TestGet:
         assert file_1_md5 != file_2_md5
         assert utils.md5_for_file(file.path).hexdigest() == file_1_md5
 
-    def test_get_by_path_limit_search(self, file: File) -> None:
+    async def test_get_by_path_limit_search(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1385,25 +1399,26 @@ class TestCopy:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
+    @pytest.mark.asyncio(scope="session")
     @pytest.fixture(autouse=True, scope="function")
-    def file(
+    async def file(
         self, schedule_for_cleanup: Callable[..., None], project_model: Project
     ) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
-        file = File(
+        file = await File(
             path=filename,
             description=DESCRIPTION,
             content_type=CONTENT_TYPE,
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=project_model.id,
-        ).store()
+        ).store_async()
 
         schedule_for_cleanup(file.id)
         return file
 
-    def test_copy_same_path(self, file: File) -> None:
+    async def test_copy_same_path(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1421,7 +1436,7 @@ class TestCopy:
         # THEN I expect the paths to be the same file
         assert file_1.path == file_2.path
 
-    def test_copy_annotations_and_activity(self, file: File) -> None:
+    async def test_copy_annotations_and_activity(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1464,7 +1479,7 @@ class TestCopy:
         assert file_1.annotations == file_2.annotations
         assert file_1.activity == file_2.activity
 
-    def test_copy_activity_only(self, file: File) -> None:
+    async def test_copy_activity_only(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1508,7 +1523,7 @@ class TestCopy:
         assert not file_2.annotations and isinstance(file_2.annotations, dict)
         assert file_1.activity == file_2.activity
 
-    def test_copy_with_no_activity_or_annotations(self, file: File) -> None:
+    async def test_copy_with_no_activity_or_annotations(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None
@@ -1555,7 +1570,7 @@ class TestCopy:
         assert not file_2.annotations and isinstance(file_2.annotations, dict)
         assert file_2.activity is None
 
-    def test_copy_previous_version(self, file: File) -> None:
+    async def test_copy_previous_version(self, file: File) -> None:
         # GIVEN a file stored in synapse
         assert file.id is not None
         assert file.path is not None

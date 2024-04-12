@@ -47,7 +47,6 @@ class TestFolderStore:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    @pytest.mark.asyncio
     async def test_store_folder(self, project_model: Project, folder: Folder) -> None:
         # GIVEN a Folder object and a Project object
 
@@ -71,7 +70,6 @@ class TestFolderStore:
             stored_folder.annotations, dict
         )
 
-    @pytest.mark.asyncio
     async def test_store_folder_with_file(
         self, project_model: Project, file: File, folder: Folder
     ) -> None:
@@ -105,7 +103,6 @@ class TestFolderStore:
         assert file.parent_id == stored_folder.id
         assert file.path is not None
 
-    @pytest.mark.asyncio
     async def test_store_folder_with_multiple_files(
         self, project_model: Project, folder: Folder
     ) -> None:
@@ -142,7 +139,6 @@ class TestFolderStore:
             assert file.parent_id == stored_folder.id
             assert file.path is not None
 
-    @pytest.mark.asyncio
     async def test_store_folder_with_multiple_files_and_folders(
         self, project_model: Project, folder: Folder
     ) -> None:
@@ -208,7 +204,6 @@ class TestFolderStore:
                 assert sub_file.parent_id == sub_folder.id
                 assert sub_file.path is not None
 
-    @pytest.mark.asyncio
     async def test_store_folder_with_annotations(
         self, project_model: Project, folder: Folder
     ) -> None:
@@ -261,7 +256,6 @@ class TestFolderGet:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    @pytest.mark.asyncio
     async def test_get_folder_by_id(
         self, project_model: Project, folder: Folder
     ) -> None:
@@ -288,7 +282,6 @@ class TestFolderGet:
         assert folder_copy.folders == []
         assert not folder_copy.annotations and isinstance(folder_copy.annotations, dict)
 
-    @pytest.mark.asyncio
     async def test_get_folder_by_name_and_parent_id_attribute(
         self, project_model: Project, folder: Folder
     ) -> None:
@@ -317,7 +310,6 @@ class TestFolderGet:
         assert folder_copy.folders == []
         assert not folder_copy.annotations and isinstance(folder_copy.annotations, dict)
 
-    @pytest.mark.asyncio
     async def test_get_folder_by_name_and_parent(
         self, project_model: Project, folder: Folder
     ) -> None:
@@ -360,7 +352,6 @@ class TestFolderDelete:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    @pytest.mark.asyncio
     async def test_delete_folder(self, project_model: Project, folder: Folder) -> None:
         # GIVEN a Folder object and a Project object
 
@@ -402,7 +393,6 @@ class TestFolderCopy:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    @pytest.mark.asyncio
     async def test_copy_folder_with_multiple_files_and_folders(
         self, project_model: Project, folder: Folder
     ) -> None:
@@ -477,7 +467,6 @@ class TestFolderCopy:
                 assert sub_file.name is not None
                 assert sub_file.parent_id == sub_folder.id
 
-    @pytest.mark.asyncio
     async def test_copy_folder_exclude_files(
         self, project_model: Project, folder: Folder
     ) -> None:
@@ -572,7 +561,6 @@ class TestFolderSyncFromSynapse:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    @pytest.mark.asyncio
     async def test_sync_from_synapse(
         self, project_model: Project, file: File, folder: Folder
     ) -> None:
