@@ -572,6 +572,22 @@ class Synapse(object):
         enter the uploading/downloading process.
 
         This is expected to be called from within an AsyncIO loop.
+
+        By default the number of files that can enter the "uploading" state will be
+        limited to 2 * max_threads. This is to ensure that the files that are entering
+        into the "uploading" state will have priority to finish. Additionally, it means
+        that there should be a good spread of files getting up to the "uploading"
+        state, entering the "uploading" state, and finishing the "uploading" state.
+
+        If we break these states down into large components they would look like:
+        - Before "uploading" state: HTTP rest calls to retrieve what data Synapse has
+        - Entering "uploading" state: MD5 calculation and HTTP rest calls to determine
+          how/where to upload a file to.
+        - During "uploading" state: Uploading the file to a storage provider.
+        - After "uploading" state: HTTP rest calls to finalize the upload.
+
+        This has not yet been applied to parallel file downloads. That will take place
+        later on.
         """
         if (
             hasattr(self, "_parallel_file_transfer_semaphore")
