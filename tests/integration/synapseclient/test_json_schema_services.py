@@ -15,7 +15,7 @@ async def test_available_services(syn):
 
 
 @pytest.fixture
-def js(syn):
+def js(syn: synapseclient.Synapse):
     return syn.service("json_schema")
 
 

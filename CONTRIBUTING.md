@@ -5,30 +5,38 @@ Welcome, and thanks for your interest in contributing to the Synapse Python clie
 By contributing, you are agreeing that we may redistribute your work under this [license](LICENSE.md).
 
 # Table of contents
-- [How to contribute](#how-to-contribute)
-   * [Reporting bugs or feature requests](#reporting-bugs-or-feature-requests)
-- [Getting started](#getting-started)
-    + [Internal Sage collaborators: Clone this repository](#internal-sage-collaborators-clone-this-repository)
-    + [External collaborators: Fork and clone this repository](#external-collaborators-fork-and-clone-this-repository)
-    + [Installing the Python Client in a virtual environment with pipenv](#installing-the-python-client-in-a-virtual-environment-with-pipenv)
-    + [Set up pre-commit](#set-up-pre-commit)
-    + [Authentication](#authentication)
-- [The development life cycle](#the-development-life-cycle)
-   * [Development](#development)
-   * [Testing](#testing)
-      + [Integration testing against the dev synapse server](#integration-testing-against-the-dev-synapse-server)
-      + [Running OpenTelemetry in Integration Tests](#running-opentelemetry-in-integration-tests)
-   * [Asynchronous methods](#asynchronous-methods)
-      + [Creating a new async method](#creating-a-new-async-method)
-      + [Creating a new async method to be called by someone using the client](#creating-a-new-async-method-to-be-called-by-someone-using-the-client)
-      + [Creating a new async method to be called internally by the client](#creating-a-new-async-method-to-be-called-internally-by-the-client)
-      + [Modifying an existing async method](#modifying-an-existing-async-method)
-   * [Code style](#code-style)
-   * [OpenTelemetry](#opentelemetry)
-      + [Attributes within traces](#attributes-within-traces)
-      + [Adding new spans](#adding-new-spans)
-   * [Python doc pages](#python-doc-pages)
-   * [Repository Admins](#repository-admins)
+- [Contributing](#contributing)
+- [Table of contents](#table-of-contents)
+  - [I don't want to read this whole thing I just have a question!](#i-dont-want-to-read-this-whole-thing-i-just-have-a-question)
+  - [How to contribute](#how-to-contribute)
+    - [Reporting bugs or feature requests](#reporting-bugs-or-feature-requests)
+  - [Getting started](#getting-started)
+      - [Internal Sage collaborators: Clone this repository](#internal-sage-collaborators-clone-this-repository)
+      - [External collaborators: Fork and clone this repository](#external-collaborators-fork-and-clone-this-repository)
+      - [Installing the Python Client in a virtual environment with pipenv](#installing-the-python-client-in-a-virtual-environment-with-pipenv)
+      - [Set up pre-commit](#set-up-pre-commit)
+      - [Authentication](#authentication)
+  - [The development life cycle](#the-development-life-cycle)
+    - [Development](#development)
+    - [Testing](#testing)
+      - [Integration testing against the `dev` synapse server](#integration-testing-against-the-dev-synapse-server)
+      - [Running OpenTelemetry in Integration Tests](#running-opentelemetry-in-integration-tests)
+      - [Integration testing for external collaborators](#integration-testing-for-external-collaborators)
+    - [Asynchronous methods](#asynchronous-methods)
+      - [Creating a new async method](#creating-a-new-async-method)
+        - [Creating a new async method to be called by someone using the client](#creating-a-new-async-method-to-be-called-by-someone-using-the-client)
+        - [Creating a new async method to be called internally by the client](#creating-a-new-async-method-to-be-called-internally-by-the-client)
+        - [Modifying an existing async method](#modifying-an-existing-async-method)
+    - [Code style](#code-style)
+      - [Some additional expectations:](#some-additional-expectations)
+    - [OpenTelemetry](#opentelemetry)
+      - [Attributes within traces](#attributes-within-traces)
+      - [Adding new spans](#adding-new-spans)
+    - [Python doc pages](#python-doc-pages)
+      - [Running the documents page on your local machine](#running-the-documents-page-on-your-local-machine)
+      - [Guidelines for new documents](#guidelines-for-new-documents)
+      - [Lessons learned for integration testing](#lessons-learned-for-integration-testing)
+    - [Repository Admins](#repository-admins)
 
 ## I don't want to read this whole thing I just have a question!
 
@@ -355,6 +363,19 @@ Some links for further reading:
 
 - https://mkdocstrings.github.io/
 - https://mkdocstrings.github.io/python/
+
+#### Lessons learned for integration testing
+The re-use of connection pools during integration tests needs to be considered. During
+April 2024 it was found that during a single run of all integration tests almost 400
+connections were created and subsequently closed during the test run. As such the
+following set of guidelines should be followed:
+
+- All tests should use the `async` keyword. This allows any tests to share the
+underlying HTTPX async client for requests.
+- Any non `session` scoped fixtures should not execute an HTTP request. If the fixture
+does need to execute a request it should not be scoped to `function`. This is because
+each scope level runs it's own event loop; Connection pools cannot be shared between
+each of the event loops.
 
 ### Repository Admins
 
