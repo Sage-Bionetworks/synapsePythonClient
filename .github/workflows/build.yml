@@ -202,7 +202,7 @@ jobs:
           if-no-files-found: ignore
       - name: Upload coverage report
         uses: actions/upload-artifact@v2
-        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-22.04"]'), matrix.os)}}
         with:
           name: coverage-report
           path: coverage.xml
