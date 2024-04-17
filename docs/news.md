@@ -1,10 +1,10 @@
 # Release Notes
 
-## 4.2.0 (2024-04-16)
+## 4.2.0 (2024-04-17)
 
 ### Highlights
 - **Continued Async Support:**
-    - **Multi-threaded Uploads Are Now Async:** This change optimizes the upload process to handle multiple tasks simultaneously: uploading file parts concurrently, performing MD5 checksum calculations in separate processes, and making HTTP calls asynchronously. Further, memory management techniques were implemented to prevent crashes on low-resource EC2 instances. Benchmark results can be found [here](./explanations/benchmarking.md)
+    - **Multi-threaded Uploads Are Now Async:** This change optimizes the upload process to handle multiple tasks simultaneously: uploading file parts concurrently, performing MD5 checksum calculations in separate processes, and making HTTP calls asynchronously. Further, memory management techniques were implemented to prevent crashes on low-resource EC2 instances. Benchmark results can be found [here](./explanations/benchmarking.md).
     - **HTTPX Support & Async Client Instances:** In this update, support for the HTTPX library has been introduced, enhancing the functionality of Synapse with two new async client instances for seamless interaction with Synapse and Storage Providers. Additionally, the retry and back-off mechanisms have been revamped to improve reliability and performance, ensuring smoother operation even under challenging network conditions.
 
 ### Bug Fixes
@@ -14,6 +14,7 @@
 -  \[[SYNPY-1417](https://sagebionetworks.jira.com/browse/SYNPY-1417)\] - Finish 'Annotation' OOP model
 -  \[[SYNPY-1419](https://sagebionetworks.jira.com/browse/SYNPY-1419)\] - Add HTTPX dependency and an async client instance
 -  \[[SYNPY-1420](https://sagebionetworks.jira.com/browse/SYNPY-1420)\] - Migrate multi-threaded uploads to Async
+-  \[[SYNPY-1465](https://sagebionetworks.jira.com/browse/SYNPY-1465)\] - Adding Annotations to docs
 
 ## 4.1.1 (2024-02-28)
 
