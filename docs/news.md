@@ -4,7 +4,7 @@
 
 ### Highlights
 - **Continued Async Support:**
-    - **Multi-threaded Uploads Are Now Async:** This change optimizes the upload process to handle multiple tasks simultaneously: uploading file parts concurrently, performing MD5 checksum calculations in separate processes, and making HTTP calls asynchronously. Further, memory management techniques were implemented to prevent crashes on low-resource EC2 instances.
+    - **Multi-threaded Uploads Are Now Async:** This change optimizes the upload process to handle multiple tasks simultaneously: uploading file parts concurrently, performing MD5 checksum calculations in separate processes, and making HTTP calls asynchronously. Further, memory management techniques were implemented to prevent crashes on low-resource EC2 instances. Benchmark results can be found [here](./explanations/benchmarking.md)
     - **HTTPX Support & Async Client Instances:** In this update, support for the HTTPX library has been introduced, enhancing the functionality of Synapse with two new async client instances for seamless interaction with Synapse and Storage Providers. Additionally, the retry and back-off mechanisms have been revamped to improve reliability and performance, ensuring smoother operation even under challenging network conditions.
 
 ### Bug Fixes
