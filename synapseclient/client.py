@@ -402,6 +402,7 @@ class Synapse(object):
         self.max_threads = transfer_config["max_threads"]
         self._thread_executor = {}
         self._process_executor = {}
+        self._parallel_file_transfer_semaphore = {}
         self._md5_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
 
@@ -561,6 +562,45 @@ class Synapse(object):
         self._md5_semaphore.update({asyncio_event_loop: asyncio.Semaphore(1)})
 
         return self._md5_semaphore[asyncio_event_loop]
+
+    def _get_parallel_file_transfer_semaphore(
+        self, asyncio_event_loop: asyncio.AbstractEventLoop
+    ) -> asyncio.Semaphore:
+        """
+        Retrieve the semaphore for the Synapse client. Or create a new one if it does
+        not exist. This semaphore is used to limit the number of files that can actively
+        enter the uploading/downloading process.
+
+        This is expected to be called from within an AsyncIO loop.
+
+        By default the number of files that can enter the "uploading" state will be
+        limited to 2 * max_threads. This is to ensure that the files that are entering
+        into the "uploading" state will have priority to finish. Additionally, it means
+        that there should be a good spread of files getting up to the "uploading"
+        state, entering the "uploading" state, and finishing the "uploading" state.
+
+        If we break these states down into large components they would look like:
+        - Before "uploading" state: HTTP rest calls to retrieve what data Synapse has
+        - Entering "uploading" state: MD5 calculation and HTTP rest calls to determine
+          how/where to upload a file to.
+        - During "uploading" state: Uploading the file to a storage provider.
+        - After "uploading" state: HTTP rest calls to finalize the upload.
+
+        This has not yet been applied to parallel file downloads. That will take place
+        later on.
+        """
+        if (
+            hasattr(self, "_parallel_file_transfer_semaphore")
+            and asyncio_event_loop in self._parallel_file_transfer_semaphore
+            and self._parallel_file_transfer_semaphore[asyncio_event_loop] is not None
+        ):
+            return self._parallel_file_transfer_semaphore[asyncio_event_loop]
+
+        self._parallel_file_transfer_semaphore.update(
+            {asyncio_event_loop: asyncio.Semaphore(max(self.max_threads * 2, 1))}
+        )
+
+        return self._parallel_file_transfer_semaphore[asyncio_event_loop]
 
     # initialize logging
     def _init_logger(self):

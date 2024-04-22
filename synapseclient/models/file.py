@@ -726,7 +726,10 @@ class File(FileSynchronousProtocol, AccessControllable):
 
         if self.path:
             self.path = os.path.expanduser(self.path)
-            await self._upload_file(synapse_client=client)
+            async with client._get_parallel_file_transfer_semaphore(
+                asyncio_event_loop=asyncio.get_running_loop()
+            ):
+                await self._upload_file(synapse_client=client)
         elif self.data_file_handle_id:
             self.path = client.cache.get(file_handle_id=self.data_file_handle_id)
 

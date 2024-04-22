@@ -550,7 +550,6 @@ class _SyncUploader:
     def __init__(
         self,
         syn: Synapse,
-        max_concurrent_file_transfers: int = None,
     ):
         """
         Arguments:
@@ -559,13 +558,6 @@ class _SyncUploader:
                       can be scheduled
         """
         self._syn = syn
-
-        # TODO: Extract this to a shared location that is further up the stack
-        self._max_concurrent_file_transfers = max(
-            int(max_concurrent_file_transfers or self._syn.max_threads), 1
-        )
-        # self._file_semaphore = threading.BoundedSemaphore(self._max_concurrent_file_transfers)
-        self._file_semaphore_async = None
 
     @staticmethod
     def _order_items(
@@ -600,9 +592,6 @@ class _SyncUploader:
         return results
 
     async def upload(self, items: typing.Iterable[_SyncUploadItem]) -> None:
-        self._file_semaphore_async = asyncio.BoundedSemaphore(
-            self._max_concurrent_file_transfers
-        )
         # Create dict of path -> File Entity
         path_to_file_entity = {item.entity.path: item for item in items}
 
@@ -671,58 +660,53 @@ class _SyncUploader:
         store_args,
         finished_items,
     ) -> File:
-        try:
-            await self._file_semaphore_async.acquire()
-            used_activity = []
-            executed_activity = []
-            for used_item in used + executed:
-                possible_file = finished_items.get(used_item, None)
-                if possible_file:
-                    used_item = possible_file.id
-                if is_url(used_item):
-                    if used_item in used:
-                        used_activity.append(UsedURL(url=used_item))
-                    else:
-                        executed_activity.append(UsedURL(url=used_item))
-
-                # -- Synapse Entity ID (assuming the string is an ID)
-                elif isinstance(used_item, str):
-                    if not is_synapse_id_str(used_item):
-                        raise ValueError(f"{used_item} is not a valid Synapse id")
-                    synid, version = get_synid_and_version(
-                        used_item
-                    )  # Handle synapseIds of from syn234.4
-                    target_version = None
-                    if version:
-                        target_version = int(version)
-                    if used_item in used:
-                        used_activity.append(
-                            UsedEntity(
-                                target_id=synid, target_version_number=target_version
-                            )
-                        )
-                    else:
-                        executed_activity.append(
-                            UsedEntity(
-                                target_id=synid, target_version_number=target_version
-                            )
-                        )
+        used_activity = []
+        executed_activity = []
+        for used_item in used + executed:
+            possible_file = finished_items.get(used_item, None)
+            if possible_file:
+                used_item = possible_file.id
+            if is_url(used_item):
+                if used_item in used:
+                    used_activity.append(UsedURL(url=used_item))
                 else:
-                    raise SynapseError(
-                        f"Unexpected parameters in used or executed Activity fields: {used_item}."
-                    )
-            if used_activity and executed_activity:
-                item.activity = Activity(
-                    name=store_args.get("activityName", None),
-                    description=store_args.get("activityDescription", None),
-                    used=used_activity,
-                    executed=executed_activity,
-                )
-            await item.store_async()
-            return item
+                    executed_activity.append(UsedURL(url=used_item))
 
-        finally:
-            self._file_semaphore_async.release()
+            # -- Synapse Entity ID (assuming the string is an ID)
+            elif isinstance(used_item, str):
+                if not is_synapse_id_str(used_item):
+                    raise ValueError(f"{used_item} is not a valid Synapse id")
+                synid, version = get_synid_and_version(
+                    used_item
+                )  # Handle synapseIds of from syn234.4
+                target_version = None
+                if version:
+                    target_version = int(version)
+                if used_item in used:
+                    used_activity.append(
+                        UsedEntity(
+                            target_id=synid, target_version_number=target_version
+                        )
+                    )
+                else:
+                    executed_activity.append(
+                        UsedEntity(
+                            target_id=synid, target_version_number=target_version
+                        )
+                    )
+            else:
+                raise SynapseError(
+                    f"Unexpected parameters in used or executed Activity fields: {used_item}."
+                )
+        if used_activity and executed_activity:
+            item.activity = Activity(
+                name=store_args.get("activityName", None),
+                description=store_args.get("activityDescription", None),
+                used=used_activity,
+                executed=executed_activity,
+            )
+        await item.store_async()
+        return item
 
 
 def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
