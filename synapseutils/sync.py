@@ -670,7 +670,6 @@ class _SyncUploader:
         for used_item in used + executed:
             resolved_file_id = resolved_file_ids.get(used_item, None)
             if resolved_file_id:
-                used_item = resolved_file_id
                 if used_item in used:
                     used_activity.append(UsedEntity(target_id=resolved_file_id))
                 else:
