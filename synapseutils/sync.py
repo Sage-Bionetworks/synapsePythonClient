@@ -9,8 +9,8 @@ import os
 import re
 import sys
 import threading
-import typing
 from contextlib import contextmanager
+from typing import Dict, List, Union, NamedTuple, Iterable
 
 from tqdm import tqdm
 
@@ -530,13 +530,23 @@ class _PendingProvenance:
         self._pending_count = len(self._pending)
 
 
-class _SyncUploadItem(typing.NamedTuple):
-    """Represents a single file being uploaded"""
+class _SyncUploadItem(NamedTuple):
+    """Represents a single file being uploaded.
+
+    Attributes:
+        entity: The file that is going through the sync process.
+        used: Concept from Activity that can be a URL, Synapse ID, or path to a file.
+        executed: Concept from Activity that can be a URL, Synapse ID, or path to a
+            file.
+        activity_name: The name of the activity that is being performed.
+        activity_description: The description of the activity that is being performed.
+    """
 
     entity: File
-    used: typing.Iterable[str]
-    executed: typing.Iterable[str]
-    store_kwargs: typing.Mapping
+    used: Iterable[str]
+    executed: Iterable[str]
+    activity_name: str
+    activity_description: str
 
 
 class _SyncUploader:
@@ -559,20 +569,30 @@ class _SyncUploader:
         """
         self._syn = syn
 
-    @staticmethod
     def _order_items(
-        items: typing.Iterable[_SyncUploadItem],
-    ) -> typing.Dict[str, typing.Iterable[str]]:
-        # order items by their interdependent provenance and raise any dependency
-        # errors
+        self,
+        items: Iterable[_SyncUploadItem],
+    ) -> List[asyncio.Task]:
+        """Order the files to be uploaded into a number of asyncio Tasks that will
+        execute in the required dependency order. For example if File A is used by
+        File B, then File A will be uploaded before File B. This is also verifying
+        that if a file is used by another file that it is included in the upload. Lastly
+        this will also verify that there are no cycles in the dependency graph."""
 
         items_by_path = {i.entity.path: i for i in items}
         graph = {}
+        resolved_file_checks = {}
+        created_tasks_by_path = {}
 
         for item in items:
             item_file_provenance = []
             for provenance_dependency in item.used + item.executed:
-                if os.path.isfile(provenance_dependency):
+                is_file = resolved_file_checks.get(
+                    provenance_dependency, None
+                ) or os.path.isfile(provenance_dependency)
+                if provenance_dependency not in resolved_file_checks:
+                    resolved_file_checks.update({provenance_dependency: is_file})
+                if is_file:
                     if provenance_dependency not in items_by_path:
                         # an upload lists provenance of a file that is not itself
                         # included in the upload
@@ -585,88 +605,77 @@ class _SyncUploader:
 
             graph[item.entity.path] = item_file_provenance
 
+        # Used to verify that the graph does not contain any cycles
         graph_sorted = utils.topolgical_sort(graph)
         results = {}
         for path, dependency_paths in graph_sorted:
             results.update({path: dependency_paths})
-        return results
 
-    async def upload(self, items: typing.Iterable[_SyncUploadItem]) -> None:
-        # Create dict of path -> File Entity
-        path_to_file_entity = {item.entity.path: item for item in items}
-
-        # Key: Path, Value: File Entity
-        finished_items = {}
-
-        ordered_items = self._order_items([i for i in items])
-        async_tasks = []
-
-        # Seed the first set of Files to be stored
-        # Every DAG has to have 1..* nodes that have no outbound edges
-        for key, value in list(ordered_items.items()):
-            if not value:
-                upload_item = path_to_file_entity[key]
-                async_tasks.append(
-                    asyncio.create_task(
-                        self._upload_item_async(
-                            upload_item.entity,
-                            upload_item.used,
-                            upload_item.executed,
-                            upload_item.store_kwargs,
-                            finished_items,
-                        )
+        for file_path, dependent_file_paths in results.items():
+            dependent_tasks = []
+            for dependent_file in dependent_file_paths:
+                if resolved_file_checks.get(dependent_file, None):
+                    dependent_tasks.append(created_tasks_by_path.get(dependent_file))
+            if not created_tasks_by_path.get(file_path, None):
+                upload_item = items_by_path.get(file_path)
+                file_task = asyncio.create_task(
+                    self._upload_item_async(
+                        upload_item.entity,
+                        upload_item.used,
+                        upload_item.executed,
+                        upload_item.activity_name,
+                        upload_item.activity_description,
+                        dependent_tasks,
                     )
                 )
-                ordered_items.pop(key)
+                created_tasks_by_path.update({file_path: file_task})
 
-        while async_tasks:
-            done_tasks, pending_tasks = await asyncio.wait(
-                async_tasks, return_when=asyncio.FIRST_COMPLETED
-            )
-            async_tasks = pending_tasks
-            for completed_task in done_tasks:
-                try:
-                    stored_file = completed_task.result()
-                    finished_items[stored_file.path] = stored_file
-                    ordered_items.pop(stored_file.path, None)
+        return created_tasks_by_path.values()
 
-                    for key, activity_dependencies in ordered_items.items():
-                        if all(
-                            activity_dependency in finished_items
-                            if os.path.isfile(activity_dependency)
-                            else True
-                            for activity_dependency in activity_dependencies
-                        ):
-                            upload_item = path_to_file_entity[key]
-                            async_tasks.add(
-                                asyncio.create_task(
-                                    self._upload_item_async(
-                                        upload_item.entity,
-                                        upload_item.used,
-                                        upload_item.executed,
-                                        upload_item.store_kwargs,
-                                        finished_items,
-                                    )
-                                )
-                            )
-                except Exception:
-                    self._syn.logger.exception("Error uploading file")
+    async def upload(self, items: Iterable[_SyncUploadItem]) -> None:
+        """Upload a number of files to Synapse as provided in the manifest file. This
+        wll handle ordering the files based on their dependency graph.
+
+        Arguments:
+            items: The list of items to upload.
+
+        Returns:
+            None
+        """
+        ordered_items = self._order_items([i for i in items])
+
+        await asyncio.gather(*ordered_items)
 
     async def _upload_item_async(
         self,
         item: File,
         used,
         executed,
-        store_args,
-        finished_items,
+        activity_name: str,
+        activity_description: str,
+        dependent_futures: List[asyncio.Future],
     ) -> File:
+        resolved_file_ids = {}
+        if dependent_futures:
+            finished_dependencies, pending = await asyncio.wait(dependent_futures)
+            if pending:
+                raise RuntimeError(
+                    f"There were {len(pending)} dependencies left when storing {item}"
+                )
+            for finished_dependency in finished_dependencies:
+                result = finished_dependency.result()
+                resolved_file_ids.update({result.path: result.id})
         used_activity = []
         executed_activity = []
         for used_item in used + executed:
-            possible_file = finished_items.get(used_item, None)
-            if possible_file:
-                used_item = possible_file.id
-            if is_url(used_item):
+            resolved_file_id = resolved_file_ids.get(used_item, None)
+            if resolved_file_id:
+                used_item = resolved_file_id
+                if used_item in used:
+                    used_activity.append(UsedEntity(target_id=resolved_file_id))
+                else:
+                    executed_activity.append(UsedEntity(target_id=resolved_file_id))
+            elif is_url(used_item):
                 if used_item in used:
                     used_activity.append(UsedURL(url=used_item))
                 else:
@@ -698,10 +707,10 @@ class _SyncUploader:
                 raise SynapseError(
                     f"Unexpected parameters in used or executed Activity fields: {used_item}."
                 )
-        if used_activity and executed_activity:
+        if used_activity or executed_activity:
             item.activity = Activity(
-                name=store_args.get("activityName", None),
-                description=store_args.get("activityDescription", None),
+                name=activity_name,
+                description=activity_description,
                 used=used_activity,
                 executed=executed_activity,
             )
@@ -809,7 +818,7 @@ def _get_file_entity_provenance_dict(syn, entity):
 
 
 def _convert_manifest_data_items_to_string_list(
-    items: typing.List[typing.Union[str, datetime.datetime, bool, int, float]],
+    items: List[Union[str, datetime.datetime, bool, int, float]],
 ) -> str:
     """
     Handle coverting an individual key that contains a possible list of data into a
@@ -879,7 +888,7 @@ def _convert_manifest_data_items_to_string_list(
         return items_to_write[0]
 
 
-def _convert_manifest_data_row_to_dict(row: dict, keys: typing.List[str]) -> dict:
+def _convert_manifest_data_row_to_dict(row: dict, keys: List[str]) -> dict:
     """
     Convert a row of data to a dict that can be written to a manifest file.
 
@@ -901,9 +910,7 @@ def _convert_manifest_data_row_to_dict(row: dict, keys: typing.List[str]) -> dic
     return data_to_write
 
 
-def _write_manifest_data(
-    filename: str, keys: typing.List[str], data: typing.List[dict]
-) -> None:
+def _write_manifest_data(filename: str, keys: List[str], data: List[dict]) -> None:
     """
     Write a number of keys and a list of data to a manifest file. This will write
     the data out as a tab separated file.
@@ -1101,7 +1108,11 @@ def readManifestFile(syn, manifestFile):
 
 
 def syncToSynapse(
-    syn, manifestFile, dryRun=False, sendMessages=True, retries=MAX_RETRIES
+    syn: Synapse,
+    manifestFile,
+    dryRun: bool = False,
+    sendMessages: bool = True,
+    retries: int = MAX_RETRIES,
 ) -> None:
     """Synchronizes files specified in the manifest file to Synapse.
 
@@ -1145,15 +1156,14 @@ def syncToSynapse(
         if not is_url(f)
     ]
     # Write output on what is getting pushed and estimated times - send out message.
-    sys.stdout.write("=" * 50 + "\n")
-    sys.stdout.write(
-        "We are about to upload %i files with a total size of %s.\n "
-        % (len(df), utils.humanizeBytes(sum(sizes)))
+    total_upload_size = sum(sizes)
+    # TODO: Review what this looks like - It might not make sense to actaully write this out since we will have the tdqm bar
+    syn.logger.info(
+        f"We are about to upload {len(df)} files with a total size of {total_upload_size}."
     )
-    sys.stdout.write("=" * 50 + "\n")
 
     progress_bar = tqdm(
-        total=sum(sizes),
+        total=total_upload_size,
         desc=f"Uploading {len(df)} files",
         unit="B",
         unit_scale=True,
@@ -1161,6 +1171,7 @@ def syncToSynapse(
         smoothing=0,
     )
     if dryRun:
+        # TODO: Verify that this close actually works
         progress_bar.close()
         return
 
@@ -1175,7 +1186,7 @@ def syncToSynapse(
             _manifest_upload(syn, df)
 
 
-def _split_string(input_string: str) -> typing.List[str]:
+def _split_string(input_string: str) -> List[str]:
     """
     Use regex to split a string apart by commas that are not inside of double quotes.
 
@@ -1198,7 +1209,7 @@ def _split_string(input_string: str) -> typing.List[str]:
 
 def _convert_cell_in_manifest_to_python_types(
     cell: str,
-) -> typing.Union[typing.List, datetime.datetime, float, int, bool, str]:
+) -> Union[List, datetime.datetime, float, int, bool, str]:
     """
     Takes a possibly comma delimited cell from the manifest TSV file into a list
     of items to be used as annotations.
@@ -1241,6 +1252,47 @@ def _convert_cell_in_manifest_to_python_types(
     return values_to_return[0] if len(values_to_return) == 1 else values_to_return
 
 
+def _build_annotations_for_file(
+    manifest_annotations,
+) -> Dict[
+    str,
+    Union[
+        List[str],
+        List[bool],
+        List[float],
+        List[int],
+        List[datetime.date],
+        List[datetime.datetime],
+    ],
+]:
+    """Pull the annotations out of the format defined in the manifest being uploaded
+    into a format that is expected internally within the client. For annotations
+    that might not contain a value we will assume it to be None and it won't be uploaded
+    as a blank annotation.
+
+
+    Arguments:
+        manifest_annotations: The annotations as defined in the manifest file.
+
+    Returns:
+        The annoations in a format used in the client.
+    """
+    # if a item in the manifest upload is an empty string we do not want to upload that
+    # as an empty string annotation
+    file_annotations = {}
+
+    for annotation_key, annotation_value in manifest_annotations.items():
+        if annotation_value is None or annotation_value == "":
+            continue
+        if isinstance(annotation_value, str):
+            file_annotations[
+                annotation_key
+            ] = _convert_cell_in_manifest_to_python_types(cell=annotation_value)
+        else:
+            file_annotations[annotation_key] = annotation_value
+    return file_annotations
+
+
 def _manifest_upload(syn: Synapse, df) -> bool:
     """
     Handles the upload of the manifest file.
@@ -1264,7 +1316,7 @@ def _manifest_upload(syn: Synapse, df) -> bool:
             force_version=row["forceVersion"] if "forceVersion" in row else True,
         )
 
-        annotations = dict(
+        manifest_style_annotations = dict(
             row.drop(
                 FILE_CONSTRUCTOR_FIELDS
                 + STORE_FUNCTION_FIELDS
@@ -1274,26 +1326,16 @@ def _manifest_upload(syn: Synapse, df) -> bool:
             )
         )
 
-        # if a item in the manifest upload is an empty string we do not want to upload that
-        # as an empty string annotation
-        file_annotations = {}
-
-        for annotation_key, annotation_value in annotations.items():
-            if annotation_value is None or annotation_value == "":
-                continue
-            if isinstance(annotation_value, str):
-                file_annotations[
-                    annotation_key
-                ] = _convert_cell_in_manifest_to_python_types(cell=annotation_value)
-            else:
-                file_annotations[annotation_key] = annotation_value
-        file.annotations = file_annotations
+        file.annotations = _build_annotations_for_file(manifest_style_annotations)
 
         item = _SyncUploadItem(
             file,
             row["used"] if "used" in row else [],
             row["executed"] if "executed" in row else [],
-            {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row},
+            activity_name=row["activityName"] if "activityName" in row else None,
+            activity_description=row["activityDescription"]
+            if "activityDescription" in row
+            else None,
         )
         items.append(item)
 
