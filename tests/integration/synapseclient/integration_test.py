@@ -72,7 +72,7 @@ async def test_login(syn):
         syn.login(silent=True)
 
 
-def testCustomConfigFile(schedule_for_cleanup):
+async def testCustomConfigFile(schedule_for_cleanup):
     if os.path.isfile(client.CONFIG_FILE):
         configPath = "./CONFIGFILE"
         shutil.copyfile(client.CONFIG_FILE, configPath)
