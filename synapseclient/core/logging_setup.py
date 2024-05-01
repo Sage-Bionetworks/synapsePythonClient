@@ -96,16 +96,16 @@ logging_config.dictConfig(
                 "propagate": True,
             },
             SILENT_LOGGER_NAME: {"handlers": [], "level": "INFO", "propagate": False},
-            "httpx": {
-                "handlers": ["debug_stderr"],
-                "level": "DEBUG",
-                "propagate": True,
-            },
-            "httpcore": {
-                "handlers": ["debug_stderr"],
-                "level": "DEBUG",
-                "propagate": True,
-            },
+            # "httpx": {
+            #     "handlers": ["debug_stderr"],
+            #     "level": "DEBUG",
+            #     "propagate": True,
+            # },
+            # "httpcore": {
+            #     "handlers": ["debug_stderr"],
+            #     "level": "DEBUG",
+            #     "propagate": True,
+            # },
         },
     }
 )
