@@ -1871,8 +1871,10 @@ def _authenticate_login(
 
 def main():
     args = build_parser().parse_args()
-    synapseclient.USER_AGENT["User-Agent"] = (
-        "synapsecommandlineclient " + synapseclient.USER_AGENT["User-Agent"]
+    synapseclient.USER_AGENT[
+        "User-Agent"
+    ] = "synapsecommandlineclient" + synapseclient.USER_AGENT["User-Agent"].replace(
+        "synapseclient", ""
     )
     if args.otel:
         trace.set_tracer_provider(
