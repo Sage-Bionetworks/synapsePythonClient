@@ -13,7 +13,6 @@ import sys
 import time
 from logging import Logger
 from typing import Any, Coroutine, List, Tuple, Type, Union
-import uuid
 
 import httpx
 
@@ -594,11 +593,7 @@ def _log_for_retry(
             url_message_part,
             response_message,
         )
-        current_span = trace.get_current_span()
-        if current_span.is_recording():
-            current_span.set_attribute(
-                f"HTTP_RETRY_STATUS_CODES_{uuid.uuid4()}", str(response.status_code)
-            )
+
     elif caught_exception is not None:
         logger.debug("retrying exception: %s", str(caught_exception))
 

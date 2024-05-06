@@ -60,14 +60,14 @@ def syn() -> Synapse:
     """
     print("Python version:", sys.version)
 
-    syn = Synapse(debug=True, skip_checks=True)
+    syn = Synapse(debug=False, skip_checks=True)
     print("Testing against endpoints:")
     print("  " + syn.repoEndpoint)
     print("  " + syn.authEndpoint)
     print("  " + syn.fileHandleEndpoint)
     print("  " + syn.portalEndpoint + "\n")
 
-    # syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
+    syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
     syn.login()
     return syn
 
