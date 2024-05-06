@@ -4,6 +4,7 @@ import os
 import random
 import tempfile
 import time
+from typing import Callable
 import uuid
 from datetime import datetime, timezone
 
@@ -563,8 +564,9 @@ async def test_store_table_datetime(syn, project):
     assert current_datetime == query_result.rowset["rows"][0]["values"][0]
 
 
-@pytest.fixture(scope="class")
-def partial_rowset_test_state(syn, project):
+def partial_rowset_test_state(
+    syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+):
     cols = [
         Column(name="foo", columnType="INTEGER"),
         Column(name="bar", columnType="INTEGER"),
@@ -572,6 +574,7 @@ def partial_rowset_test_state(syn, project):
     table_schema = syn.store(
         Schema(name="PartialRowTest" + str(uuid.uuid4()), columns=cols, parent=project)
     )
+    schedule_for_cleanup(table_schema)
     data = [[1, None], [None, 2]]
     syn.store(RowSet(schema=table_schema, rows=[Row(r) for r in data]))
 
@@ -579,6 +582,7 @@ def partial_rowset_test_state(syn, project):
     folder = syn.store(
         Folder(name="PartialRowTestFolder" + str(uuid.uuid4()), parent=project)
     )
+    schedule_for_cleanup(folder)
     syn.store(
         File("~/path/doesnt/matter", name="f1", parent=folder, synapseStore=False)
     )
@@ -599,6 +603,7 @@ def partial_rowset_test_state(syn, project):
             scopes=[folder],
         )
     )
+    schedule_for_cleanup(view_schema)
 
     table_changes = [{"foo": 4}, {"bar": 5}]
     view_changes = [{"bar": 6}, {"foo": 7}]
@@ -625,13 +630,19 @@ def partial_rowset_test_state(syn, project):
 
 
 class TestPartialRowSet:
-    async def test_partial_row_view_csv_query_table(self, partial_rowset_test_state):
+    """Testing for Partial Rows."""
+
+    async def test_partial_row_view_csv_query_table(
+        self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
         """
         Test PartialRow updates to tables from cvs queries
         """
-        test_state = partial_rowset_test_state
+        test_state = partial_rowset_test_state(
+            syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
+        )
         await self._test_method(
-            test_state.syn,
+            syn,
             test_state.table_schema,
             "csv",
             test_state.table_changes,
@@ -639,27 +650,33 @@ class TestPartialRowSet:
         )
 
     async def test_partial_row_view_csv_query_entity_view(
-        self, partial_rowset_test_state
-    ):
+        self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
         """
         Test PartialRow updates to entity views from cvs queries
         """
-        test_state = partial_rowset_test_state
+        test_state = partial_rowset_test_state(
+            syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
+        )
         await self._test_method(
-            test_state.syn,
+            syn,
             test_state.view_schema,
             "csv",
             test_state.view_changes,
             test_state.expected_view_cells,
         )
 
-    async def test_parital_row_rowset_query_table(self, partial_rowset_test_state):
+    async def test_parital_row_rowset_query_table(
+        self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
         """
         Test PartialRow updates to tables from rowset queries
         """
-        test_state = partial_rowset_test_state
+        test_state = partial_rowset_test_state(
+            syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
+        )
         await self._test_method(
-            test_state.syn,
+            syn,
             test_state.table_schema,
             "rowset",
             test_state.table_changes,
@@ -667,14 +684,16 @@ class TestPartialRowSet:
         )
 
     async def test_parital_row_rowset_query_entity_view(
-        self, partial_rowset_test_state
-    ):
+        self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
         """
         Test PartialRow updates to entity views from rowset queries
         """
-        test_state = partial_rowset_test_state
+        test_state = partial_rowset_test_state(
+            syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
+        )
         await self._test_method(
-            test_state.syn,
+            syn,
             test_state.view_schema,
             "rowset",
             test_state.view_changes,
