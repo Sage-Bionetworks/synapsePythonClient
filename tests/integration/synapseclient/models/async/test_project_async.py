@@ -43,7 +43,6 @@ class TestProjectStore:
         project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
-    @pytest.mark.asyncio
     async def test_store_project(self, project: Project) -> None:
         # GIVEN a Project object
 
@@ -67,7 +66,6 @@ class TestProjectStore:
             stored_project.annotations, dict
         )
 
-    @pytest.mark.asyncio
     async def test_store_project_with_file(self, file: File, project: Project) -> None:
         # GIVEN a File on the project
         project.files.append(file)
@@ -99,7 +97,6 @@ class TestProjectStore:
         assert file.parent_id == stored_project.id
         assert file.path is not None
 
-    @pytest.mark.asyncio
     async def test_store_project_with_folder_in_file_on_project_that_already_exists(
         self, file: File, project: Project
     ) -> None:
@@ -146,7 +143,6 @@ class TestProjectStore:
         assert file.parent_id == folder.id
         assert file.path is not None
 
-    @pytest.mark.asyncio
     async def test_store_project_with_multiple_files(self, project: Project) -> None:
         # GIVEN multiple files in a project
         files = []
@@ -182,7 +178,6 @@ class TestProjectStore:
             assert file.parent_id == stored_project.id
             assert file.path is not None
 
-    @pytest.mark.asyncio
     async def test_store_project_with_multiple_files_and_folders(
         self, project: Project
     ) -> None:
@@ -248,7 +243,6 @@ class TestProjectStore:
                 assert sub_file.parent_id == sub_folder.id
                 assert sub_file.path is not None
 
-    @pytest.mark.asyncio
     async def test_store_project_with_annotations(self, project: Project) -> None:
         # GIVEN a Project object and a Project object
         # AND annotations on the Project
@@ -299,7 +293,6 @@ class TestProjectGet:
         project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
-    @pytest.mark.asyncio
     async def test_get_project_by_id(self, project: Project) -> None:
         # GIVEN a Project object
 
@@ -326,7 +319,6 @@ class TestProjectGet:
             project_copy.annotations, dict
         )
 
-    @pytest.mark.asyncio
     async def test_get_project_by_name_attribute(self, project: Project) -> None:
         # GIVEN a Project object
 
@@ -367,7 +359,6 @@ class TestProjectDelete:
         project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
-    @pytest.mark.asyncio
     async def test_delete_project(self, project: Project) -> None:
         # GIVEN a Project object
 
@@ -410,7 +401,6 @@ class TestProjectCopy:
         project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
-    @pytest.mark.asyncio
     async def test_copy_project_with_multiple_files_and_projects(
         self, project: Project
     ) -> None:
@@ -486,7 +476,6 @@ class TestProjectCopy:
                 assert sub_file.name is not None
                 assert sub_file.parent_id == sub_folder.id
 
-    @pytest.mark.asyncio
     async def test_copy_project_exclude_files(self, project: Project) -> None:
         # GIVEN a project to copy to
         destination_project = await Project(
@@ -579,7 +568,6 @@ class TestProjectSyncFromSynapse:
         project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
-    @pytest.mark.asyncio
     async def test_sync_from_synapse(self, file: File, project: Project) -> None:
         root_directory_path = os.path.dirname(file.path)
 

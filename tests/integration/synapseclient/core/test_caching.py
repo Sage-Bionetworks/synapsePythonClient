@@ -41,7 +41,6 @@ async def sleep_and_end_test(syn: Synapse) -> None:
     syn.test_keepRunning = False
 
 
-@pytest.mark.asyncio
 async def test_threaded_access(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:

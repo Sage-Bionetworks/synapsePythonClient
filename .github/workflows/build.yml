@@ -18,8 +18,6 @@ on:
     tags-ignore:
       - '**'
 
-  pull_request:
-
   release:
     types:
       - 'published'
@@ -42,7 +40,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        os: [ubuntu-22.04, macos-12, windows-2022]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
         python: [3.8, '3.9', '3.10', '3.11']
@@ -74,7 +72,7 @@ jobs:
           path: |
             ${{ steps.get-dependencies.outputs.site_packages_loc }}
             ${{ steps.get-dependencies.outputs.site_bin_dir }}
-          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v14
+          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v16
 
       - name: Install py-dependencies
         if: steps.cache-dependencies.outputs.cache-hit != 'true'
@@ -114,7 +112,7 @@ jobs:
           fi
       - name: OpenTelemtry pre-check
         id: otel-check
-        if: ${{ steps.secret-check.outputs.secrets_available == 'true' && steps.secret-check.outputs.synapse_pat_available == 'true' && !(startsWith(matrix.os, 'windows')) }}
+        if: ${{ steps.secret-check.outputs.secrets_available == 'true' && steps.secret-check.outputs.synapse_pat_available == 'true' }}
         shell: bash
         run: |
           # Leave disabled during normal integration test runs - Enable when we want to
@@ -128,13 +126,13 @@ jobs:
             # sudo ./aws/install
             # curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
             # sudo dpkg -i session-manager-plugin.deb
-      - name: Create AWS Config
-        if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
-        shell: bash
-        run: |
-          touch test.awsConfig
-          printf "[default]\nregion = us-east-1\ncredential_process = \"tests/integration/synapse_creds.sh\" \"https://sc.sageit.org\" \"${{ secrets.synapse_personal_access_token }}\"\n" >> test.awsConfig
-          chmod +x tests/integration/synapse_creds.sh
+      # - name: Create AWS Config
+      #   if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
+      #   shell: bash
+      #   run: |
+      #     touch test.awsConfig
+      #     printf "[default]\nregion = us-east-1\ncredential_process = \"tests/integration/synapse_creds.sh\" \"https://sc.sageit.org\" \"${{ secrets.synapse_personal_access_token }}\"\n" >> test.awsConfig
+      #     chmod +x tests/integration/synapse_creds.sh
       # If you are exporting data using `otlp` you can start a port forwading session
       # - name: SSM Port Forward Start
       #   if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
@@ -189,10 +187,10 @@ jobs:
           fi
 
           # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-          pytest -sv --cov-append --cov=. --cov-report xml tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-          pytest -sv --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+          # pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
       - name: Upload otel spans
         uses: actions/upload-artifact@v2
         if: always()
@@ -202,7 +200,7 @@ jobs:
           if-no-files-found: ignore
       - name: Upload coverage report
         uses: actions/upload-artifact@v2
-        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-22.04"]'), matrix.os)}}
         with:
           name: coverage-report
           path: coverage.xml
