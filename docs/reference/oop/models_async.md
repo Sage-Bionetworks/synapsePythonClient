@@ -93,3 +93,8 @@ functionally equivalent.
       - from_id_async
       - from_username_async
       - is_certified_async
+---
+::: synapseclient.models.Annotations
+    options:
+      members:
+      - store_async

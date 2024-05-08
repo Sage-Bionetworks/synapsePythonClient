@@ -42,7 +42,7 @@ class TestAclOnProject:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def test_get_acl_default(self) -> None:
+    async def test_get_acl_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_acl_default_permissions"
@@ -68,7 +68,7 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_read_only_permissions_on_entity(self) -> None:
+    async def test_get_acl_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
@@ -103,7 +103,7 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_through_team_assigned_to_user(self) -> None:
+    async def test_get_acl_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team = Project(
             name=str(uuid.uuid4())
@@ -160,7 +160,7 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_through_multiple_teams_assigned_to_user(self) -> None:
+    async def test_get_acl_through_multiple_teams_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_multiple_teams = Project(
             name=str(uuid.uuid4())
@@ -231,7 +231,7 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_for_project_with_public_and_registered_user(self) -> None:
+    async def test_get_acl_for_project_with_public_and_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_public_and_authenticated_users = Project(
             name=str(uuid.uuid4()) + "test_get_acl_for_project_with_registered_user"
@@ -305,7 +305,7 @@ class TestAclOnFolder:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def test_get_acl_default(self, project_model: Project) -> None:
+    async def test_get_acl_default(self, project_model: Project) -> None:
         # GIVEN a folder created with default permissions of administrator
         folder_with_default_permissions = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_default_permissions",
@@ -331,7 +331,7 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_minimal_permissions_on_entity(
+    async def test_get_acl_minimal_permissions_on_entity(
         self, project_model: Project
     ) -> None:
         # GIVEN a folder created with default permissions of administrator
@@ -368,7 +368,7 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_minimal_permissions_on_sub_folder(
+    async def test_get_acl_minimal_permissions_on_sub_folder(
         self, project_model: Project
     ) -> None:
         # GIVEN a parent folder with default permissions
@@ -426,7 +426,7 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions_on_parent)
 
-    def test_get_acl_through_team_assigned_to_user(
+    async def test_get_acl_through_team_assigned_to_user(
         self, project_model: Project
     ) -> None:
         # GIVEN a folder created with default permissions of administrator
@@ -485,7 +485,7 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_through_multiple_teams_assigned_to_user(
+    async def test_get_acl_through_multiple_teams_assigned_to_user(
         self, project_model: Project
     ) -> None:
         # GIVEN a folder created with default permissions of administrator
@@ -558,7 +558,7 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_for_project_with_public_and_registered_user(
+    async def test_get_acl_for_project_with_public_and_registered_user(
         self, project_model: Project
     ) -> None:
         # GIVEN a folder created with default permissions of administrator
@@ -640,7 +640,7 @@ class TestAclOnFile:
         schedule_for_cleanup(filename)
         return File(path=filename)
 
-    def test_get_acl_default(self, project_model: Project, file: File) -> None:
+    async def test_get_acl_default(self, project_model: Project, file: File) -> None:
         # GIVEN a file created with default permissions of administrator
         file.name = str(uuid.uuid4()) + "test_get_acl_default_permissions"
         file_with_default_permissions = file.store(parent=project_model)
@@ -665,7 +665,7 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_minimal_permissions_on_entity(
+    async def test_get_acl_minimal_permissions_on_entity(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file created with default permissions of administrator
@@ -701,7 +701,7 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_through_team_assigned_to_user(
+    async def test_get_acl_through_team_assigned_to_user(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file created with default permissions of administrator
@@ -760,7 +760,7 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_through_multiple_teams_assigned_to_user(
+    async def test_get_acl_through_multiple_teams_assigned_to_user(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file created with default permissions of administrator
@@ -834,7 +834,7 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_for_project_with_public_and_registered_user(
+    async def test_get_acl_for_project_with_public_and_registered_user(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file created with default permissions of administrator
@@ -923,7 +923,7 @@ class TestAclOnTable:
 
         return table
 
-    def test_get_acl_default(self, table: Table) -> None:
+    async def test_get_acl_default(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_default_permissions"
         table_with_default_permissions = table.store_schema()
@@ -948,7 +948,7 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_minimal_permissions_on_entity(self, table: Table) -> None:
+    async def test_get_acl_minimal_permissions_on_entity(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
         project_with_minimal_permissions = table.store_schema()
@@ -982,7 +982,7 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_through_team_assigned_to_user(self, table: Table) -> None:
+    async def test_get_acl_through_team_assigned_to_user(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = (
             str(uuid.uuid4()) + "test_get_acl_through_team_assigned_to_user_and_project"
@@ -1039,7 +1039,7 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_through_multiple_teams_assigned_to_user(
+    async def test_get_acl_through_multiple_teams_assigned_to_user(
         self, table: Table
     ) -> None:
         # GIVEN a table created with default permissions of administrator
@@ -1113,7 +1113,7 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    def test_get_acl_for_project_with_public_and_registered_user(
+    async def test_get_acl_for_project_with_public_and_registered_user(
         self, table: Table
     ) -> None:
         # GIVEN a table created with default permissions of administrator
@@ -1189,7 +1189,7 @@ class TestPermissionsOnEntityForCaller:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def test_get_permissions_default(self) -> None:
+    async def test_get_permissions_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_permissions_default_permissions"
@@ -1212,7 +1212,7 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    def test_get_permissions_read_only_permissions_on_entity(self) -> None:
+    async def test_get_permissions_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_permissions_read_permissions_on_project"
@@ -1236,7 +1236,7 @@ class TestPermissionsOnEntityForCaller:
 
         assert set(expected_permissions) == set(permissions.access_types)
 
-    def test_get_permissions_through_team_assigned_to_user(self) -> None:
+    async def test_get_permissions_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team = Project(
             name=str(uuid.uuid4())
@@ -1291,7 +1291,7 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    def test_get_permissions_through_multiple_teams_assigned_to_user(
+    async def test_get_permissions_through_multiple_teams_assigned_to_user(
         self,
     ) -> None:
         # GIVEN a project created with default permissions of administrator
@@ -1361,7 +1361,7 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    def test_get_permissions_for_project_with_registered_user(self) -> None:
+    async def test_get_permissions_for_project_with_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_authenticated_users = Project(
             name=str(uuid.uuid4())

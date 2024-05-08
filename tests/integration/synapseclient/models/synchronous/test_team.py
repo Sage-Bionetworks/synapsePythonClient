@@ -28,7 +28,7 @@ class TestTeam:
         self.TEST_USER = "DPETestUser2"
         self.TEST_MESSAGE = "test message"
 
-    def test_create(self) -> None:
+    async def test_create(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
         test_team = self.team.create()
@@ -47,7 +47,7 @@ class TestTeam:
         # Clean up
         test_team.delete()
 
-    def test_delete(self) -> None:
+    async def test_delete(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
         test_team = self.team.create()
@@ -60,7 +60,7 @@ class TestTeam:
         ):
             Team.from_id(id=test_team.id)
 
-    def test_get_with_id(self) -> None:
+    async def test_get_with_id(self) -> None:
         # GIVEN a team created in Synapse
         synapse_team = self.team.create()
         # AND a locally created Team object with the same id and name
@@ -80,7 +80,7 @@ class TestTeam:
         # Clean up
         synapse_team.delete()
 
-    def test_get_with_name(self) -> None:
+    async def test_get_with_name(self) -> None:
         # GIVEN a team created in Synapse
         synapse_team = self.team.create()
         # This sleep is necessary because the API is eventually consistent
@@ -102,7 +102,7 @@ class TestTeam:
         # Clean up
         synapse_team.delete()
 
-    def test_from_id(self) -> None:
+    async def test_from_id(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
         test_team = self.team.create()
@@ -120,7 +120,7 @@ class TestTeam:
         # Clean up
         test_team.delete()
 
-    def test_from_name(self) -> None:
+    async def test_from_name(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
         test_team = self.team.create()
@@ -142,7 +142,7 @@ class TestTeam:
         # Clean up
         test_team.delete()
 
-    def test_members(self) -> None:
+    async def test_members(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
         test_team = self.team.create()
@@ -155,7 +155,7 @@ class TestTeam:
         # Clean up
         test_team.delete()
 
-    def test_invite(self) -> None:
+    async def test_invite(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
         test_team = self.team.create()
@@ -175,7 +175,7 @@ class TestTeam:
         # Clean up
         test_team.delete()
 
-    def test_open_invitations(self) -> None:
+    async def test_open_invitations(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
         test_team = self.team.create()

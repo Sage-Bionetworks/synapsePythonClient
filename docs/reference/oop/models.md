@@ -156,6 +156,11 @@ at your own risk.
       - is_certified
 ::: synapseclient.models.UserPreference
 ---
+::: synapseclient.models.Annotations
+    options:
+      members:
+      - from_dict
+---
 ::: synapseclient.models.mixins.AccessControllable
 ---
 

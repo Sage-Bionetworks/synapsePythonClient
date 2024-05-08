@@ -110,7 +110,6 @@ class TestFile:
             "externalURL": FILE_HANDLE_EXTERNAL_URL,
         }
 
-    @pytest.mark.asyncio
     async def test_fill_from_dict(self) -> None:
         # GIVEN an example Synapse File `get_example_synapse_file_output`
         # WHEN I call `fill_from_dict` with the example Synapse File
@@ -151,7 +150,6 @@ class TestFile:
         assert file_output.file_handle.is_preview
         assert file_output.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_store_with_id_and_path(self) -> None:
         # GIVEN an example file
         file = File(id=SYN_123, path=PATH, description=MODIFIED_DESCRIPTION)
@@ -233,7 +231,6 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_store_with_id_and_file_handle(self) -> None:
         # GIVEN an example file
         file = File(
@@ -310,7 +307,6 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_store_with_parent_and_path(self) -> None:
         # GIVEN An actual file
         bogus_file = utils.make_bogus_uuid_file()
@@ -396,7 +392,6 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_store_with_parent_id_and_path(self) -> None:
         # GIVEN An actual file
         bogus_file = utils.make_bogus_uuid_file()
@@ -483,7 +478,6 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_store_with_components(self) -> None:
         # GIVEN An actual file
         bogus_file = utils.make_bogus_uuid_file()
@@ -590,7 +584,6 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_store_id_with_no_path_or_file_handle(self) -> None:
         # GIVEN an example file
         file = File(id=SYN_123, description=MODIFIED_DESCRIPTION)
@@ -602,7 +595,6 @@ class TestFile:
         # THEN we should get an error
         assert str(e.value) == CANNOT_STORE_FILE_ERROR
 
-    @pytest.mark.asyncio
     async def test_store_path_with_no_id(self) -> None:
         # GIVEN an example file
         file = File(path=PATH, description=MODIFIED_DESCRIPTION)
@@ -614,7 +606,6 @@ class TestFile:
         # THEN we should get an error
         assert str(e.value) == CANNOT_STORE_FILE_ERROR
 
-    @pytest.mark.asyncio
     async def test_store_id_with_parent_id(self) -> None:
         # GIVEN an example file
         file = File(
@@ -628,7 +619,6 @@ class TestFile:
         # THEN we should get an error
         assert str(e.value) == CANNOT_STORE_FILE_ERROR
 
-    @pytest.mark.asyncio
     async def test_store_id_with_parent(self) -> None:
         # GIVEN an example file
         file = File(id=SYN_123, description=MODIFIED_DESCRIPTION)
@@ -640,7 +630,6 @@ class TestFile:
         # THEN we should get an error
         assert str(e.value) == CANNOT_STORE_FILE_ERROR
 
-    @pytest.mark.asyncio
     async def test_change_file_metadata(self) -> None:
         # GIVEN an example file
         file = File(id=SYN_123, description=MODIFIED_DESCRIPTION)
@@ -701,7 +690,6 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_change_file_metadata_missing_id(self) -> None:
         # GIVEN an example file
         file = File(description=MODIFIED_DESCRIPTION)
@@ -713,7 +701,6 @@ class TestFile:
         # THEN we should get an error
         assert str(e.value) == "The file must have an ID to change metadata."
 
-    @pytest.mark.asyncio
     async def test_get_with_id(self) -> None:
         # GIVEN an example file
         file = File(id=SYN_123, description=MODIFIED_DESCRIPTION)
@@ -783,7 +770,6 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_get_with_path(self) -> None:
         # GIVEN an example file
         file = File(path=PATH, description=MODIFIED_DESCRIPTION)
@@ -843,7 +829,6 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_from_path(self) -> None:
         # GIVEN an example path
         path = PATH
@@ -906,7 +891,6 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_from_id(self) -> None:
         # GIVEN an example id
         synapse_id = SYN_123
@@ -979,7 +963,6 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
-    @pytest.mark.asyncio
     async def test_get_missing_id_and_path(self) -> None:
         # GIVEN an example file
         file = File(description=MODIFIED_DESCRIPTION)
@@ -991,7 +974,6 @@ class TestFile:
         # THEN we should get an error
         assert str(e.value) == "The file must have an ID or path to get."
 
-    @pytest.mark.asyncio
     async def test_delete(self) -> None:
         # GIVEN an example file
         file = File(id=SYN_123, description=MODIFIED_DESCRIPTION)
@@ -1010,7 +992,6 @@ class TestFile:
                 version=None,
             )
 
-    @pytest.mark.asyncio
     async def test_delete_missing_id(self) -> None:
         # GIVEN an example file
         file = File(description=MODIFIED_DESCRIPTION)
@@ -1022,7 +1003,6 @@ class TestFile:
         # THEN we should get an error
         assert str(e.value) == "The file must have an ID to delete."
 
-    @pytest.mark.asyncio
     async def test_delete_version_missing_version(self) -> None:
         # GIVEN an example file
         file = File(id="syn123", description=MODIFIED_DESCRIPTION)

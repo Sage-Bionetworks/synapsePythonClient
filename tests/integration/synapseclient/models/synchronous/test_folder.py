@@ -47,7 +47,7 @@ class TestFolderStore:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    def test_store_folder(self, project_model: Project, folder: Folder) -> None:
+    async def test_store_folder(self, project_model: Project, folder: Folder) -> None:
         # GIVEN a Folder object and a Project object
 
         # WHEN I store the Folder on Synapse
@@ -70,7 +70,7 @@ class TestFolderStore:
             stored_folder.annotations, dict
         )
 
-    def test_store_folder_with_file(
+    async def test_store_folder_with_file(
         self, project_model: Project, file: File, folder: Folder
     ) -> None:
         # GIVEN a File on the folder
@@ -103,7 +103,7 @@ class TestFolderStore:
         assert file.parent_id == stored_folder.id
         assert file.path is not None
 
-    def test_store_folder_with_multiple_files(
+    async def test_store_folder_with_multiple_files(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN multiple files in a folder
@@ -140,7 +140,7 @@ class TestFolderStore:
             assert file.parent_id == stored_folder.id
             assert file.path is not None
 
-    def test_store_folder_with_multiple_files_and_folders(
+    async def test_store_folder_with_multiple_files_and_folders(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN multiple files in a folder
@@ -205,7 +205,7 @@ class TestFolderStore:
                 assert sub_file.parent_id == sub_folder.id
                 assert sub_file.path is not None
 
-    def test_store_folder_with_annotations(
+    async def test_store_folder_with_annotations(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a Folder object and a Project object
@@ -255,7 +255,9 @@ class TestFolderGet:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    def test_get_folder_by_id(self, project_model: Project, folder: Folder) -> None:
+    async def test_get_folder_by_id(
+        self, project_model: Project, folder: Folder
+    ) -> None:
         # GIVEN a Folder object and a Project object
 
         # AND the folder is stored in synapse
@@ -279,7 +281,7 @@ class TestFolderGet:
         assert folder_copy.folders == []
         assert not folder_copy.annotations and isinstance(folder_copy.annotations, dict)
 
-    def test_get_folder_by_name_and_parent_id_attribute(
+    async def test_get_folder_by_name_and_parent_id_attribute(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a Folder object and a Project object
@@ -307,7 +309,7 @@ class TestFolderGet:
         assert folder_copy.folders == []
         assert not folder_copy.annotations and isinstance(folder_copy.annotations, dict)
 
-    def test_get_folder_by_name_and_parent(
+    async def test_get_folder_by_name_and_parent(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a Folder object and a Project object
@@ -347,7 +349,7 @@ class TestFolderDelete:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    def test_delete_folder(self, project_model: Project, folder: Folder) -> None:
+    async def test_delete_folder(self, project_model: Project, folder: Folder) -> None:
         # GIVEN a Folder object and a Project object
 
         # AND the folder is stored in synapse
@@ -388,7 +390,7 @@ class TestFolderCopy:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    def test_copy_folder_with_multiple_files_and_folders(
+    async def test_copy_folder_with_multiple_files_and_folders(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a folder to copy to
@@ -460,7 +462,7 @@ class TestFolderCopy:
                 assert sub_file.name is not None
                 assert sub_file.parent_id == sub_folder.id
 
-    def test_copy_folder_exclude_files(
+    async def test_copy_folder_exclude_files(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a folder to copy to
@@ -552,7 +554,7 @@ class TestFolderSyncFromSynapse:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    def test_sync_from_synapse(
+    async def test_sync_from_synapse(
         self, project_model: Project, file: File, folder: Folder
     ) -> None:
         root_directory_path = os.path.dirname(file.path)

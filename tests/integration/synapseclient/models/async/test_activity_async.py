@@ -21,7 +21,6 @@ class TestActivity:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.mark.asyncio
     async def test_store_with_parent_and_id(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project
         path = utils.make_bogus_uuid_file()
@@ -99,7 +98,6 @@ class TestActivity:
         # Clean up
         await result.delete_async(parent=file)
 
-    @pytest.mark.asyncio
     async def test_store_with_no_references(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project that has an activity with no references
         activity = Activity(
@@ -134,7 +132,6 @@ class TestActivity:
         # Clean up
         await file.activity.delete_async(parent=file)
 
-    @pytest.mark.asyncio
     async def test_from_parent(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project that has an activity
         activity = Activity(
@@ -185,7 +182,6 @@ class TestActivity:
         # Clean up
         await result.delete_async(parent=file)
 
-    @pytest.mark.asyncio
     async def test_delete(self, project: Synapse_Project) -> None:
         # GIVEN a file in a project that has an activity
         activity = Activity(

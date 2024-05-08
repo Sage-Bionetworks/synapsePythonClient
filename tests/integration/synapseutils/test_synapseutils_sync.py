@@ -17,8 +17,9 @@ import synapseutils
 from tests.integration import QUERY_TIMEOUT_SEC
 
 
+@pytest.mark.asyncio(scope="session")
 @pytest.fixture(scope="function", autouse=True)
-def test_state(syn: Synapse, schedule_for_cleanup):
+async def test_state(syn: Synapse, schedule_for_cleanup):
     class TestState:
         def __init__(self):
             self.syn = syn
@@ -69,7 +70,7 @@ def _makeManifest(content, schedule_for_cleanup):
     return filepath
 
 
-def test_readManifest(test_state):
+async def test_readManifest(test_state):
     """Creates multiple manifests and verifies that they validate correctly"""
     # Test manifest with missing columns
     manifest = _makeManifest(
@@ -109,7 +110,7 @@ def test_readManifest(test_state):
 
 
 # @pytest.mark.flaky(reruns=3)
-def test_syncToSynapse(test_state):
+async def test_syncToSynapse(test_state):
     # Test upload of accurate manifest
     manifest = _makeManifest(
         test_state.header + test_state.row1 + test_state.row2 + test_state.row3,
@@ -264,7 +265,7 @@ def test_syncToSynapse(test_state):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_syncFromSynapse(test_state):
+async def test_syncFromSynapse(test_state):
     """This function tests recursive download as defined in syncFromSynapse
     most of the functionality of this function are already tested in the
     tests/integration/test_command_line_client::test_command_get_recursive_and_query
@@ -326,7 +327,7 @@ def test_syncFromSynapse(test_state):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_syncFromSynapse_children_contain_non_file(test_state):
+async def test_syncFromSynapse_children_contain_non_file(test_state):
     proj = test_state.syn.store(
         Project(name="test_syncFromSynapse_children_non_file" + str(uuid.uuid4()))
     )
@@ -359,7 +360,7 @@ def test_syncFromSynapse_children_contain_non_file(test_state):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_syncFromSynapse_Links(test_state):
+async def test_syncFromSynapse_Links(test_state):
     """This function tests recursive download of links as defined in syncFromSynapse
     most of the functionality of this function are already tested in the
     tests/integration/test_command_line_client::test_command_get_recursive_and_query
@@ -414,7 +415,7 @@ def test_syncFromSynapse_Links(test_state):
         assert utils.normalize_path(f.path) in uploaded_paths
 
 
-def test_write_manifest_data_unicode_characters_in_rows(test_state):
+async def test_write_manifest_data_unicode_characters_in_rows(test_state):
     # SYNPY-693
 
     named_temp_file = tempfile.NamedTemporaryFile("w")
@@ -422,7 +423,10 @@ def test_write_manifest_data_unicode_characters_in_rows(test_state):
     test_state.schedule_for_cleanup(named_temp_file.name)
 
     keys = ["col_A", "col_B"]
-    data = [{"col_A": "asdf", "col_B": "qwerty"}, {"col_A": "凵𠘨工匚口刀乇", "col_B": "丅乇丂丅"}]
+    data = [
+        {"col_A": "asdf", "col_B": "qwerty"},
+        {"col_A": "凵𠘨工匚口刀乇", "col_B": "丅乇丂丅"},
+    ]
     synapseutils.sync._write_manifest_data(named_temp_file.name, keys, data)
 
     df = pd.read_csv(named_temp_file.name, sep="\t", encoding="utf8")
@@ -433,7 +437,7 @@ def test_write_manifest_data_unicode_characters_in_rows(test_state):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_syncFromSynapse_given_file_id(test_state):
+async def test_syncFromSynapse_given_file_id(test_state):
     file_path = utils.make_bogus_data_file()
     test_state.schedule_for_cleanup(file_path)
     file = test_state.syn.store(

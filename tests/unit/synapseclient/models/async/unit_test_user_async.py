@@ -123,7 +123,6 @@ class TestUser:
         ]
         assert user_profile.created_on == CREATED_ON
 
-    @pytest.mark.asyncio
     async def test_get_id(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile(id=123)
@@ -166,7 +165,6 @@ class TestUser:
             ]
             assert profile.created_on == CREATED_ON
 
-    @pytest.mark.asyncio
     async def test_get_username(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile(username=USER_NAME)
@@ -209,7 +207,6 @@ class TestUser:
             ]
             assert profile.created_on == CREATED_ON
 
-    @pytest.mark.asyncio
     async def test_get_neither(self) -> None:
         # GIVEN a blank user profile
         user_profile = UserProfile()
@@ -252,7 +249,6 @@ class TestUser:
             ]
             assert profile.created_on == CREATED_ON
 
-    @pytest.mark.asyncio
     async def test_get_from_id(self) -> None:
         # GIVEN no user profile
 
@@ -294,7 +290,6 @@ class TestUser:
             ]
             assert profile.created_on == CREATED_ON
 
-    @pytest.mark.asyncio
     async def test_get_from_username(self) -> None:
         # GIVEN no user profile
 
@@ -336,7 +331,6 @@ class TestUser:
             ]
             assert profile.created_on == CREATED_ON
 
-    @pytest.mark.asyncio
     async def test_is_certified_id(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile(id=123)
@@ -355,7 +349,6 @@ class TestUser:
             # AND we should get the profile back
             assert is_certified == True
 
-    @pytest.mark.asyncio
     async def test_is_certified_username(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile(username=USER_NAME)
@@ -374,7 +367,6 @@ class TestUser:
             # AND we should get the profile back
             assert is_certified == True
 
-    @pytest.mark.asyncio
     async def test_is_certified_neither(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile()

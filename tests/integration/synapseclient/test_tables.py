@@ -4,6 +4,7 @@ import os
 import random
 import tempfile
 import time
+from typing import Callable
 import uuid
 from datetime import datetime, timezone
 
@@ -47,7 +48,7 @@ def _init_query_timeout(request, syn):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_create_and_update_file_view(
+async def test_create_and_update_file_view(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
     # Create a folder
@@ -166,7 +167,7 @@ def test_create_and_update_file_view(
     assert new_view_dict[0]["fileFormat"] == "PNG"
 
 
-def test_entity_view_add_annotation_columns(syn, project, schedule_for_cleanup):
+async def test_entity_view_add_annotation_columns(syn, project, schedule_for_cleanup):
     folder1 = syn.store(
         Folder(
             name=str(uuid.uuid4()) + "test_entity_view_add_annotation_columns_proj1",
@@ -220,7 +221,7 @@ def test_entity_view_add_annotation_columns(syn, project, schedule_for_cleanup):
     syn.store(entity_view)
 
 
-def test_rowset_tables(syn, project):
+async def test_rowset_tables(syn, project):
     cols = [
         Column(name="name", columnType="STRING", maximumSize=1000),
         Column(name="foo", columnType="STRING", enumValues=["foo", "bar", "bat"]),
@@ -244,7 +245,7 @@ def test_rowset_tables(syn, project):
     assert len(row_reference_set1["rows"]) == 4
 
 
-def test_materialized_view(syn, project):
+async def test_materialized_view(syn, project):
     """Test creation of materialized view"""
     # Define schema
     cols = [
@@ -309,7 +310,7 @@ def test_materialized_view(syn, project):
     )
 
 
-def test_dataset(syn, project):
+async def test_dataset(syn, project):
     cols = [
         Column(name="id", columnType="ENTITYID"),
         Column(name="name", columnType="STRING"),
@@ -329,7 +330,7 @@ def test_dataset(syn, project):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_tables_csv(syn, project):
+async def test_tables_csv(syn, project):
     # Define schema
     cols = [
         Column(name="Name", columnType="STRING"),
@@ -367,7 +368,7 @@ def test_tables_csv(syn, project):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_tables_pandas(syn, project):
+async def test_tables_pandas(syn, project):
     # create a pandas DataFrame
     df = pd.DataFrame(
         {
@@ -508,7 +509,7 @@ def dontruntest_big_csvs(syn, project, schedule_for_cleanup):
     CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
 
 
-def test_synapse_integer_columns_with_missing_values_from_dataframe(
+async def test_synapse_integer_columns_with_missing_values_from_dataframe(
     syn, project, schedule_for_cleanup
 ):
     # SYNPY-267
@@ -547,7 +548,7 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe(
     assert_frame_equal(df, df2)
 
 
-def test_store_table_datetime(syn, project):
+async def test_store_table_datetime(syn, project):
     current_datetime = datetime.fromtimestamp(round(time.time(), 3)).replace(
         tzinfo=timezone.utc
     )
@@ -563,8 +564,9 @@ def test_store_table_datetime(syn, project):
     assert current_datetime == query_result.rowset["rows"][0]["values"][0]
 
 
-@pytest.fixture(scope="class")
-def partial_rowset_test_state(syn, project):
+def partial_rowset_test_state(
+    syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+):
     cols = [
         Column(name="foo", columnType="INTEGER"),
         Column(name="bar", columnType="INTEGER"),
@@ -572,6 +574,7 @@ def partial_rowset_test_state(syn, project):
     table_schema = syn.store(
         Schema(name="PartialRowTest" + str(uuid.uuid4()), columns=cols, parent=project)
     )
+    schedule_for_cleanup(table_schema)
     data = [[1, None], [None, 2]]
     syn.store(RowSet(schema=table_schema, rows=[Row(r) for r in data]))
 
@@ -579,6 +582,7 @@ def partial_rowset_test_state(syn, project):
     folder = syn.store(
         Folder(name="PartialRowTestFolder" + str(uuid.uuid4()), parent=project)
     )
+    schedule_for_cleanup(folder)
     syn.store(
         File("~/path/doesnt/matter", name="f1", parent=folder, synapseStore=False)
     )
@@ -599,6 +603,7 @@ def partial_rowset_test_state(syn, project):
             scopes=[folder],
         )
     )
+    schedule_for_cleanup(view_schema)
 
     table_changes = [{"foo": 4}, {"bar": 5}]
     view_changes = [{"bar": 6}, {"foo": 7}]
@@ -625,59 +630,79 @@ def partial_rowset_test_state(syn, project):
 
 
 class TestPartialRowSet:
-    def test_partial_row_view_csv_query_table(self, partial_rowset_test_state):
+    """Testing for Partial Rows."""
+
+    async def test_partial_row_view_csv_query_table(
+        self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
         """
         Test PartialRow updates to tables from cvs queries
         """
-        test_state = partial_rowset_test_state
-        self._test_method(
-            test_state.syn,
+        test_state = partial_rowset_test_state(
+            syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
+        )
+        await self._test_method(
+            syn,
             test_state.table_schema,
             "csv",
             test_state.table_changes,
             test_state.expected_table_cells,
         )
 
-    def test_partial_row_view_csv_query_entity_view(self, partial_rowset_test_state):
+    async def test_partial_row_view_csv_query_entity_view(
+        self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
         """
         Test PartialRow updates to entity views from cvs queries
         """
-        test_state = partial_rowset_test_state
-        self._test_method(
-            test_state.syn,
+        test_state = partial_rowset_test_state(
+            syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
+        )
+        await self._test_method(
+            syn,
             test_state.view_schema,
             "csv",
             test_state.view_changes,
             test_state.expected_view_cells,
         )
 
-    def test_parital_row_rowset_query_table(self, partial_rowset_test_state):
+    async def test_parital_row_rowset_query_table(
+        self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
         """
         Test PartialRow updates to tables from rowset queries
         """
-        test_state = partial_rowset_test_state
-        self._test_method(
-            test_state.syn,
+        test_state = partial_rowset_test_state(
+            syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
+        )
+        await self._test_method(
+            syn,
             test_state.table_schema,
             "rowset",
             test_state.table_changes,
             test_state.expected_table_cells,
         )
 
-    def test_parital_row_rowset_query_entity_view(self, partial_rowset_test_state):
+    async def test_parital_row_rowset_query_entity_view(
+        self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
         """
         Test PartialRow updates to entity views from rowset queries
         """
-        test_state = partial_rowset_test_state
-        self._test_method(
-            test_state.syn,
+        test_state = partial_rowset_test_state(
+            syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
+        )
+        await self._test_method(
+            syn,
             test_state.view_schema,
             "rowset",
             test_state.view_changes,
             test_state.expected_view_cells,
         )
 
-    def _test_method(self, syn, schema, resultsAs, partial_changes, expected_results):
+    async def _test_method(
+        self, syn, schema, resultsAs, partial_changes, expected_results
+    ):
         query_results = self._query_with_retry(
             syn,
             "SELECT * FROM %s" % utils.id_of(schema),
