@@ -136,7 +136,6 @@ from synapseclient.core.models.permission import Permissions
 from opentelemetry import trace
 from opentelemetry.trace import SpanKind
 
-
 tracer = trace.get_tracer("synapseclient")
 
 PRODUCTION_ENDPOINTS = {
@@ -348,7 +347,7 @@ class Synapse(object):
                 span.end()
 
         event_hooks = {"request": [log_request], "response": [log_response]}
-        httpx_timeout = httpx.Timeout(70)
+        httpx_timeout = httpx.Timeout(70, pool=None)
         self._requests_session_storage = requests_session_storage or httpx.Client(
             timeout=httpx_timeout, event_hooks=event_hooks
         )
@@ -435,7 +434,7 @@ class Synapse(object):
             await self._requests_session_async_synapse[asyncio_event_loop].aclose()
             del self._requests_session_async_synapse[asyncio_event_loop]
 
-        httpx_timeout = httpx.Timeout(70)
+        httpx_timeout = httpx.Timeout(70, pool=None)
         span_dict: Dict[httpx.Request, trace.Span] = {}
 
         async def log_request(request: httpx.Request) -> None:
@@ -716,10 +715,10 @@ class Synapse(object):
         If no login arguments are provided or only username is provided, login() will attempt to log in using
          information from these sources (in order of preference):
 
-        1. User defined arguments during a CLI session
-        2. User's Personal Access Token (aka: Synapse Auth Token)
+        1. .synapseConfig file (in user home folder unless configured otherwise)
+        2. User defined arguments during a CLI session
+        3. User's Personal Access Token (aka: Synapse Auth Token)
             from the environment variable: SYNAPSE_AUTH_TOKEN
-        3. .synapseConfig file (in user home folder unless configured otherwise)
         4. Retrieves user's authentication token from AWS SSM Parameter store (if configured)
 
         Arguments:
@@ -6027,7 +6026,6 @@ class Synapse(object):
                 else:
                     return
                 data_dict = json.loads(data_to_parse)
-
                 if "parentId" in data_dict:
                     current_span.set_attribute(
                         "synapse.parent_id", data_dict["parentId"]

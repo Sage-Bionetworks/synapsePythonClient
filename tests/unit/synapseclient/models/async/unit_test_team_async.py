@@ -78,7 +78,6 @@ class TestTeam:
         assert team.created_by == self.USER
         assert team.modified_by == self.USER
 
-    @pytest.mark.asyncio
     async def test_create(self) -> None:
         with patch.object(
             self.syn,
@@ -107,7 +106,6 @@ class TestTeam:
             assert team.can_public_join is False
             assert team.can_request_membership is True
 
-    @pytest.mark.asyncio
     async def test_delete(self) -> None:
         with patch.object(
             self.syn,
@@ -121,7 +119,6 @@ class TestTeam:
             # THEN I expect the patched method to be called as expected
             patch_delete_team.assert_called_once_with(id=1)
 
-    @pytest.mark.asyncio
     async def test_get_with_id(self) -> None:
         with patch.object(
             self.syn,
@@ -141,7 +138,6 @@ class TestTeam:
             assert team.name == self.NAME
             assert team.description == self.DESCRIPTION
 
-    @pytest.mark.asyncio
     async def test_get_with_name(self) -> None:
         with patch.object(
             self.syn,
@@ -161,7 +157,6 @@ class TestTeam:
             assert team.name == self.NAME
             assert team.description == self.DESCRIPTION
 
-    @pytest.mark.asyncio
     async def test_get_with_no_id_or_name(self) -> None:
         # GIVEN a team object with no id or name
         team = Team()
@@ -170,7 +165,6 @@ class TestTeam:
             # THEN I expect an error to be raised
             await team.get_async()
 
-    @pytest.mark.asyncio
     async def test_from_id(self) -> None:
         with patch.object(
             Team,
@@ -186,7 +180,6 @@ class TestTeam:
             assert team.name == self.NAME
             assert team.description == self.DESCRIPTION
 
-    @pytest.mark.asyncio
     async def test_from_name(self) -> None:
         with patch.object(
             Team,
@@ -202,7 +195,6 @@ class TestTeam:
             assert team.name == self.NAME
             assert team.description == self.DESCRIPTION
 
-    @pytest.mark.asyncio
     async def test_members(self) -> None:
         with patch.object(
             self.syn,
@@ -220,7 +212,6 @@ class TestTeam:
             assert team_members[0].team_id == 1
             assert isinstance(team_members[0].member, UserGroupHeader)
 
-    @pytest.mark.asyncio
     async def test_invite(self) -> None:
         with patch.object(
             self.syn,
@@ -244,7 +235,6 @@ class TestTeam:
             # AND I expect the expected invite to be returned
             assert invite == self.invite_response
 
-    @pytest.mark.asyncio
     async def test_open_invitations(self) -> None:
         with patch.object(
             self.syn,

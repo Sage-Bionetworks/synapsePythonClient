@@ -17,7 +17,6 @@ class TestUser:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.mark.asyncio
     async def test_from_id(self) -> None:
         # GIVEN our test profile
         integration_test_profile = await UserProfile().get_async()
@@ -28,7 +27,6 @@ class TestUser:
         # THEN we expect the profile to be the same as the one we got from the fixture
         assert profile == integration_test_profile
 
-    @pytest.mark.asyncio
     async def test_from_username(self) -> None:
         # GIVEN our test profile
         integration_test_profile = await UserProfile().get_async()
@@ -41,7 +39,6 @@ class TestUser:
         # THEN we expect the profile to be the same as the one we got from the fixture
         assert profile == integration_test_profile
 
-    @pytest.mark.asyncio
     async def test_is_certified_id(self) -> None:
         # GIVEN out test profile
         integration_test_profile = await UserProfile().get_async()
@@ -55,7 +52,6 @@ class TestUser:
         # THEN we expect the profile to not be certified
         assert is_certified is False
 
-    @pytest.mark.asyncio
     async def test_is_certified_username(self) -> None:
         # GIVEN out test profile
         integration_test_profile = await UserProfile().get_async()

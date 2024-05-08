@@ -10,7 +10,7 @@ import synapseutils
 
 
 @pytest.mark.flaky(reruns=3)
-def test_walk(syn, schedule_for_cleanup):
+async def test_walk(syn, schedule_for_cleanup):
     try:
         execute_test_walk(syn, schedule_for_cleanup)
     except FunctionTimedOut:
