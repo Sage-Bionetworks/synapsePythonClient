@@ -88,6 +88,11 @@ USER_AGENT = {
     % (__version__, requests.utils.default_user_agent())
 }
 
+USER_AGENT_COMMAND_LINE = {
+    "User-Agent": "synapsecommandlineclient/%s %s"
+    % (__version__, requests.utils.default_user_agent())
+}
+
 # patch json
 from .core.models import custom_json  # noqa
 
