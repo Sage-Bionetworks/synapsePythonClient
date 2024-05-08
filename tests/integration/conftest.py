@@ -1,6 +1,5 @@
 """Set up for integration tests."""
 
-import asyncio
 import logging
 import os
 import platform
@@ -21,12 +20,15 @@ from opentelemetry.sdk.trace.export import (
     SimpleSpanProcessor,
 )
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
+import pytest_asyncio
 
 from synapseclient import Entity, Project, Synapse
 from synapseclient.core import utils
+from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 from synapseclient.models import Project as Project_Model
 from synapseclient.models import Team
+from pytest_asyncio import is_async_test
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -35,19 +37,19 @@ pytest session level fixtures shared by all integration tests.
 """
 
 
-@pytest.fixture(autouse=True)
-def event_loop(request):
-    """
-    Redefine the event loop to support session/module-scoped fixtures;
-    see https://github.com/pytest-dev/pytest-asyncio/issues/371
-    """
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
+def pytest_collection_modifyitems(items) -> None:
+    """Taken from docs at:
+    https://pytest-asyncio.readthedocs.io/en/latest/how-to-guides/run_session_tests_in_same_loop.html
 
-    try:
-        yield loop
-    finally:
-        loop.close()
+    I want to run all tests, even if they are not explictly async, within the same event
+    loop. This will allow our async_to_sync wrapper logic use the same event loop
+    for all tests. This implictly allows us to re-use the HTTP connection pooling for
+    all tests.
+    """
+    pytest_asyncio_tests = (item for item in items if is_async_test(item))
+    session_scope_marker = pytest.mark.asyncio(scope="session")
+    for async_test in pytest_asyncio_tests:
+        async_test.add_marker(session_scope_marker, append=False)
 
 
 @pytest.fixture(scope="session")
@@ -70,18 +72,17 @@ def syn() -> Synapse:
     return syn
 
 
-@pytest.fixture(scope="session")
-@pytest.mark.asyncio
-def project_model(request, syn: Synapse) -> Project_Model:
+@pytest_asyncio.fixture(scope="session")
+async def project_model(request, syn: Synapse) -> Project_Model:
     """
     Create a project to be shared by all tests in the session. If xdist is being used
     a project is created for each worker node.
     """
 
     # Make one project for all the tests to use
-    proj = asyncio.run(
-        Project_Model(name="integration_test_project" + str(uuid.uuid4())).store_async()
-    )
+    proj = await Project_Model(
+        name="integration_test_project" + str(uuid.uuid4())
+    ).store_async()
 
     # set the working directory to a temp directory
     _old_working_directory = os.getcwd()
@@ -89,7 +90,7 @@ def project_model(request, syn: Synapse) -> Project_Model:
     os.chdir(working_directory)
 
     def project_teardown() -> None:
-        _cleanup(syn, [working_directory, proj.id])
+        wrap_async_to_sync(_cleanup(syn, [working_directory, proj.id]), syn)
         os.chdir(_old_working_directory)
 
     request.addfinalizer(project_teardown)
@@ -97,8 +98,8 @@ def project_model(request, syn: Synapse) -> Project_Model:
     return proj
 
 
-@pytest.fixture(scope="session")
-def project(request, syn: Synapse) -> Project:
+@pytest_asyncio.fixture(scope="session")
+async def project(request, syn: Synapse) -> Project:
     """
     Create a project to be shared by all tests in the session. If xdist is being used
     a project is created for each worker node.
@@ -113,7 +114,7 @@ def project(request, syn: Synapse) -> Project:
     os.chdir(working_directory)
 
     def project_teardown():
-        _cleanup(syn, [working_directory, proj])
+        wrap_async_to_sync(_cleanup(syn, [working_directory, proj]), syn)
         os.chdir(_old_working_directory)
 
     request.addfinalizer(project_teardown)
@@ -137,11 +138,11 @@ def clear_cache() -> None:
     get_upload_destination.cache_clear()
 
 
-@pytest.fixture(scope="module")
-def schedule_for_cleanup(request, syn: Synapse):
+@pytest_asyncio.fixture(scope="session")
+async def schedule_for_cleanup(request, syn: Synapse):
     """Returns a closure that takes an item that should be scheduled for cleanup.
-    The cleanup will occur after the module tests finish to limit the residue left behind
-    if a test session should be prematurely aborted for any reason."""
+    The cleanup will occur after the session finish to allow the deletes to take
+    advantage of any connection pooling."""
 
     items = []
 
@@ -149,14 +150,14 @@ def schedule_for_cleanup(request, syn: Synapse):
         items.append(item)
 
     def cleanup_scheduled_items():
-        _cleanup(syn, items)
+        wrap_async_to_sync(_cleanup(syn, items), syn)
 
     request.addfinalizer(cleanup_scheduled_items)
 
     return _append_cleanup
 
 
-def _cleanup(syn: Synapse, items):
+async def _cleanup(syn: Synapse, items):
     """cleanup junk created during testing"""
     for item in reversed(items):
         if (

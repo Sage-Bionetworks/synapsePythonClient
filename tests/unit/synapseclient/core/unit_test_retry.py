@@ -129,7 +129,6 @@ def test_with_retry__no_status_code():
 class TestAsyncRetry:
     """Unit tests for the with_retry_time_based_async function."""
 
-    @pytest.mark.asyncio
     async def test_with_retry(self) -> None:
         retry_params = {"retry_max_wait_before_failure": 1}
         response = AsyncMock()
@@ -186,7 +185,6 @@ class TestAsyncRetry:
         assert "Bar" in str(ex_cm.value)
         assert mocked_function.call_count > 13
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "values",
         (
@@ -213,7 +211,6 @@ class TestAsyncRetry:
         )
         assert returned_response == response
 
-    @pytest.mark.asyncio
     async def test_with_retry__expected_status_code(self) -> None:
         """Verify using retry expected_status_codes"""
 
@@ -234,7 +231,6 @@ class TestAsyncRetry:
         )
         assert response == matching_response
 
-    @pytest.mark.asyncio
     async def test_with_retry__no_status_code(self) -> None:
         """Verify that with_retry can also be used on any function
         even whose return values don't have status_codes.

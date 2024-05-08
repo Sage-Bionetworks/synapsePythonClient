@@ -43,7 +43,7 @@ class TestProjectStore:
         project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
-    def test_store_project(self, project: Project) -> None:
+    async def test_store_project(self, project: Project) -> None:
         # GIVEN a Project object
 
         # WHEN I store the Project on Synapse
@@ -66,7 +66,7 @@ class TestProjectStore:
             stored_project.annotations, dict
         )
 
-    def test_store_project_with_file(self, file: File, project: Project) -> None:
+    async def test_store_project_with_file(self, file: File, project: Project) -> None:
         # GIVEN a File on the project
         project.files.append(file)
 
@@ -97,7 +97,7 @@ class TestProjectStore:
         assert file.parent_id == stored_project.id
         assert file.path is not None
 
-    def test_store_project_with_folder_in_file_on_project_that_already_exists(
+    async def test_store_project_with_folder_in_file_on_project_that_already_exists(
         self, file: File, project: Project
     ) -> None:
         # GIVEN that the project is already stored in Synapse
@@ -143,7 +143,7 @@ class TestProjectStore:
         assert file.parent_id == folder.id
         assert file.path is not None
 
-    def test_store_project_with_multiple_files(self, project: Project) -> None:
+    async def test_store_project_with_multiple_files(self, project: Project) -> None:
         # GIVEN multiple files in a project
         files = []
         for _ in range(3):
@@ -178,7 +178,7 @@ class TestProjectStore:
             assert file.parent_id == stored_project.id
             assert file.path is not None
 
-    def test_store_project_with_multiple_files_and_folders(
+    async def test_store_project_with_multiple_files_and_folders(
         self, project: Project
     ) -> None:
         # GIVEN multiple files in a project
@@ -243,7 +243,7 @@ class TestProjectStore:
                 assert sub_file.parent_id == sub_folder.id
                 assert sub_file.path is not None
 
-    def test_store_project_with_annotations(self, project: Project) -> None:
+    async def test_store_project_with_annotations(self, project: Project) -> None:
         # GIVEN a Project object and a Project object
         # AND annotations on the Project
         annotations = {
@@ -291,7 +291,7 @@ class TestProjectGet:
         project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
-    def test_get_project_by_id(self, project: Project) -> None:
+    async def test_get_project_by_id(self, project: Project) -> None:
         # GIVEN a Project object
 
         # AND the project is stored in synapse
@@ -317,7 +317,7 @@ class TestProjectGet:
             stored_project.annotations, dict
         )
 
-    def test_get_project_by_name_attribute(self, project: Project) -> None:
+    async def test_get_project_by_name_attribute(self, project: Project) -> None:
         # GIVEN a Project object
 
         # AND the project is stored in synapse
@@ -357,7 +357,7 @@ class TestProjectDelete:
         project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
-    def test_delete_project(self, project: Project) -> None:
+    async def test_delete_project(self, project: Project) -> None:
         # GIVEN a Project object
 
         # AND the project is stored in synapse
@@ -399,7 +399,7 @@ class TestProjectCopy:
         project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
-    def test_copy_project_with_multiple_files_and_projects(
+    async def test_copy_project_with_multiple_files_and_projects(
         self, project: Project
     ) -> None:
         # GIVEN a project to copy to
@@ -472,7 +472,7 @@ class TestProjectCopy:
                 assert sub_file.name is not None
                 assert sub_file.parent_id == sub_folder.id
 
-    def test_copy_project_exclude_files(self, project: Project) -> None:
+    async def test_copy_project_exclude_files(self, project: Project) -> None:
         # GIVEN a project to copy to
         destination_project = Project(
             name=str(uuid.uuid4()), description="Destination for project copy"
@@ -562,7 +562,7 @@ class TestProjectSyncFromSynapse:
         project = Project(name=str(uuid.uuid4()), description=DERSCRIPTION_PROJECT)
         return project
 
-    def test_sync_from_synapse(self, file: File, project: Project) -> None:
+    async def test_sync_from_synapse(self, file: File, project: Project) -> None:
         root_directory_path = os.path.dirname(file.path)
 
         # GIVEN multiple files in the source project

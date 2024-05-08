@@ -28,7 +28,6 @@ class TestTeam:
         self.TEST_USER = "DPETestUser2"
         self.TEST_MESSAGE = "test message"
 
-    @pytest.mark.asyncio
     async def test_create(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
@@ -48,7 +47,6 @@ class TestTeam:
         # Clean up
         await test_team.delete_async()
 
-    @pytest.mark.asyncio
     async def test_delete(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
@@ -62,7 +60,6 @@ class TestTeam:
         ):
             await Team.from_id_async(id=test_team.id)
 
-    @pytest.mark.asyncio
     async def test_get_with_id(self) -> None:
         # GIVEN a team created in Synapse
         synapse_team = await self.team.create_async()
@@ -83,7 +80,6 @@ class TestTeam:
         # Clean up
         await synapse_team.delete_async()
 
-    @pytest.mark.asyncio
     async def test_get_with_name(self) -> None:
         # GIVEN a team created in Synapse
         synapse_team = await self.team.create_async()
@@ -106,7 +102,6 @@ class TestTeam:
         # Clean up
         await synapse_team.delete_async()
 
-    @pytest.mark.asyncio
     async def test_from_id(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
@@ -125,7 +120,6 @@ class TestTeam:
         # Clean up
         await test_team.delete_async()
 
-    @pytest.mark.asyncio
     async def test_from_name(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
@@ -148,7 +142,6 @@ class TestTeam:
         # Clean up
         await test_team.delete_async()
 
-    @pytest.mark.asyncio
     async def test_members(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
@@ -162,7 +155,6 @@ class TestTeam:
         # Clean up
         await test_team.delete_async()
 
-    @pytest.mark.asyncio
     async def test_invite(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
@@ -183,7 +175,6 @@ class TestTeam:
         # Clean up
         await test_team.delete_async()
 
-    @pytest.mark.asyncio
     async def test_open_invitations(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse

@@ -11,7 +11,7 @@ from synapseclient.core.exceptions import SynapseHTTPError
 
 
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
-def test_evaluations(syn: Synapse, project: Project):
+async def test_evaluations(syn: Synapse, project: Project):
     # Create an Evaluation
     name = "Test Evaluation %s" % str(uuid.uuid4())
     ev = Evaluation(
@@ -172,7 +172,7 @@ def test_evaluations(syn: Synapse, project: Project):
     pytest.raises(SynapseHTTPError, syn.getEvaluation, ev)
 
 
-def test_teams(syn: Synapse, schedule_for_cleanup):
+async def test_teams(syn: Synapse, schedule_for_cleanup):
     name = "My Uniquely Named Team " + str(uuid.uuid4())
     team = syn.store(Team(name=name, description="A fake team for testing..."))
     schedule_for_cleanup(team)

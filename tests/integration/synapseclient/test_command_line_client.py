@@ -32,7 +32,7 @@ from io import StringIO
 
 
 @pytest.fixture(scope="function")
-def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
+async def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
     class State:
         def __init__(self):
             self.syn = syn
@@ -88,7 +88,7 @@ def parse(regex, output):
         raise Exception('ERROR parsing output: "' + str(output) + '"')
 
 
-def test_command_line_client(test_state):
+async def test_command_line_client(test_state):
     print("TESTING CMD LINE CLIENT")
     # Create a Project
     output = run(
@@ -265,7 +265,7 @@ def test_command_line_client(test_state):
     run(test_state, "synapse" "--skip-checks", "delete", project_id)
 
 
-def test_command_line_client_annotations(test_state):
+async def test_command_line_client_annotations(test_state):
     # Create a Project
     output = run(
         test_state,
@@ -409,7 +409,7 @@ def test_command_line_client_annotations(test_state):
     assert annotations["foo"] == [456]
 
 
-def test_command_line_store_and_submit(test_state):
+async def test_command_line_store_and_submit(test_state):
     # Create a Project
     output = run(
         test_state,
@@ -562,7 +562,7 @@ def test_command_line_store_and_submit(test_state):
     run(test_state, "synapse" "--skip-checks", "delete", project_id)
 
 
-def test_command_get_recursive_and_query(test_state):
+async def test_command_get_recursive_and_query(test_state):
     """Tests the 'synapse get -r' and 'synapse get -q' functions"""
 
     project_entity = test_state.project
@@ -652,7 +652,7 @@ def test_command_get_recursive_and_query(test_state):
     test_state.schedule_for_cleanup(new_paths[0])
 
 
-def test_command_copy(test_state):
+async def test_command_copy(test_state):
     """Tests the 'synapse cp' function"""
 
     # Create a Project
@@ -751,7 +751,7 @@ def test_command_copy(test_state):
     )
 
 
-def test_command_line_using_paths(test_state):
+async def test_command_line_using_paths(test_state):
     # Create a Project
     project_entity = test_state.syn.store(Project(name=str(uuid.uuid4())))
     test_state.schedule_for_cleanup(project_entity.id)
@@ -849,7 +849,7 @@ def test_command_line_using_paths(test_state):
     run(test_state, "synapse" "--skip-checks", "show", filename)
 
 
-def test_table_query(test_state):
+async def test_table_query(test_state):
     """Test command line ability to do table query."""
 
     cols = [
@@ -896,7 +896,7 @@ def test_table_query(test_state):
     )
 
 
-def test_login(test_state):
+async def test_login(test_state):
     alt_syn = Synapse()
     username = "username"
     auth_token = "my_auth_token"
@@ -919,7 +919,7 @@ def test_login(test_state):
         mock_get_user_profile.assert_called_once_with()
 
 
-def test_configPath(test_state):
+async def test_configPath(test_state):
     """Test using a user-specified configPath for Synapse configuration file."""
 
     tmp_config_file = tempfile.NamedTemporaryFile(suffix=".synapseConfig", delete=False)
@@ -967,7 +967,7 @@ def _create_temp_file_with_cleanup(schedule_for_cleanup, specific_file_text=None
     return filename
 
 
-def test_create__with_description(test_state):
+async def test_create__with_description(test_state):
     output = run(
         test_state,
         "synapse",
@@ -983,7 +983,7 @@ def test_create__with_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-def test_store__with_description(test_state):
+async def test_store__with_description(test_state):
     output = run(
         test_state,
         "synapse",
@@ -999,7 +999,7 @@ def test_store__with_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-def test_add__with_description(test_state):
+async def test_add__with_description(test_state):
     output = run(
         test_state,
         "synapse",
@@ -1015,7 +1015,7 @@ def test_add__with_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-def test_create__with_descriptionFile(test_state):
+async def test_create__with_descriptionFile(test_state):
     output = run(
         test_state,
         "synapse",
@@ -1031,7 +1031,7 @@ def test_create__with_descriptionFile(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-def test_store__with_descriptionFile(test_state):
+async def test_store__with_descriptionFile(test_state):
     output = run(
         test_state,
         "synapse",
@@ -1047,7 +1047,7 @@ def test_store__with_descriptionFile(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-def test_add__with_descriptionFile(test_state):
+async def test_add__with_descriptionFile(test_state):
     output = run(
         test_state,
         "synapse",
@@ -1063,7 +1063,7 @@ def test_add__with_descriptionFile(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-def test_create__update_description(test_state):
+async def test_create__update_description(test_state):
     name = str(uuid.uuid4())
     output = run(
         test_state,
@@ -1093,7 +1093,7 @@ def test_create__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.update_description_text)
 
 
-def test_store__update_description(test_state):
+async def test_store__update_description(test_state):
     name = str(uuid.uuid4())
     output = run(
         test_state,
@@ -1123,7 +1123,7 @@ def test_store__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.update_description_text)
 
 
-def test_add__update_description(test_state):
+async def test_add__update_description(test_state):
     name = str(uuid.uuid4())
     output = run(
         test_state,
@@ -1153,7 +1153,7 @@ def test_add__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.update_description_text)
 
 
-def test_create__same_project_name(test_state):
+async def test_create__same_project_name(test_state):
     """Test creating project that already exists returns the existing project."""
 
     name = str(uuid.uuid4())
@@ -1171,7 +1171,7 @@ def test_create__same_project_name(test_state):
 
 
 @patch.object(utils.sys.stdin, "isatty")
-def test_storeTable_csv(mock_sys, test_state):
+async def test_storeTable_csv(mock_sys, test_state):
     # when running on windows os with multiple CPU, the sys.stdin.isatty will return True
     # Thus we mock the utils.sys.stdin.
     mock_sys.return_value = False
