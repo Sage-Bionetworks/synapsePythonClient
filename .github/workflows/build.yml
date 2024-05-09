@@ -216,7 +216,7 @@ jobs:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - name: Download coverage report
         uses: actions/download-artifact@v2
-        if: steps.upload_converage_report.outputs.exists == 'true'
+        if: steps.upload_converage_report.outputs.exists = true
         with:
           name: coverage-report
         # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
