@@ -199,6 +199,7 @@ jobs:
           path: tests/integration/otel_spans_integration_testing_*.ndjson
           if-no-files-found: ignore
       - name: Upload coverage report
+        id: upload_converage_report
         uses: actions/upload-artifact@v2
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
         with:
@@ -214,10 +215,12 @@ jobs:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - name: Download coverage report
         uses: actions/download-artifact@v2
+        if: steps.upload_converage_report.outputs.exists = true
         with:
           name: coverage-report
         # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
       - name: Override Coverage Source Path for Sonar
+        if: ${{ success() }}
         run: sed -i "s/<source>\/home\/runner\/work\/synapsePythonClient<\/source>/<source>\/github\/workspace<\/source>/g" coverage.xml
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
