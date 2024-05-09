@@ -206,7 +206,6 @@ jobs:
           path: coverage.xml
 
   sonarcloud:
-    needs: [test]
     name: SonarCloud
     runs-on: ubuntu-20.04
     steps:
@@ -222,6 +221,7 @@ jobs:
         run: sed -i "s/<source>\/home\/runner\/work\/synapsePythonClient<\/source>/<source>\/github\/workspace<\/source>/g" coverage.xml
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
+        if: ${{ always() }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
