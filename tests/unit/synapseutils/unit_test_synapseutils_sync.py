@@ -1,34 +1,40 @@
+"""Unit tests for the Sync utility functions"""
+# pylint: disable=protected-access
 import csv
-from concurrent.futures import Future
 import datetime
+import math
 import os
-import pandas as pd
-import pandas.testing as pdt
-from io import StringIO
 import random
 import tempfile
-import threading
-import math
+from io import StringIO
+from unittest.mock import AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
+import pandas as pd
+import pandas.testing as pdt
 import pytest
-from unittest.mock import ANY, patch, create_autospec, Mock, call, MagicMock
 
 import synapseutils
-from synapseutils import sync
-from synapseutils.sync import (
-    _FolderSync,
-    _PendingProvenance,
-    _SyncUploader,
-    _SyncUploadItem,
-)
-from synapseclient import Activity, File, Folder, Project, Schema, Synapse
-from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
+from synapseclient import Activity
+from synapseclient import File as SynapseFile
+from synapseclient import Folder, Project, Schema, Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import id_of
-from synapseclient.core.pool_provider import get_executor
+from synapseclient.models import File
+from synapseutils import sync
+from synapseutils.sync import _FolderSync, _SyncUploader, _SyncUploadItem
+
+SYNAPSE_URL = "http://www.synapse.org"
+GITHUB_URL = "http://www.github.com"
 
 
-def test_readManifest__sync_order_with_home_directory(syn: Synapse):
+class MockedSyncUploader:
+    """Class for mocks in this module"""
+
+    def __init__(self, *args, **kwargs) -> None:
+        self.upload = AsyncMock()
+
+
+def test_readManifest__sync_order_with_home_directory(syn: Synapse) -> None:
     """SYNPY-508"""
 
     # row1's file depends on row2's file but is listed first
@@ -65,11 +71,11 @@ def test_readManifest__sync_order_with_home_directory(syn: Synapse):
         )
 
 
-def test_readManifestFile__synapseStore_values_not_set(syn: Synapse):
+def test_readManifestFile__synapseStore_values_not_set(syn: Synapse) -> None:
     project_id = "syn123"
     header = "path\tparent\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
-    path2 = "http://www.synapse.org"
+    path2 = SYNAPSE_URL
     row1 = "%s\t%s\n" % (path1, project_id)
     row2 = "%s\t%s\n" % (path2, project_id)
 
@@ -91,13 +97,13 @@ def test_readManifestFile__synapseStore_values_not_set(syn: Synapse):
         assert expected_synapseStore == actual_synapseStore
 
 
-def test_readManifestFile__synapseStore_values_are_set(syn: Synapse):
+def test_readManifestFile__synapseStore_values_are_set(syn: Synapse) -> None:
     project_id = "syn123"
     header = "path\tparent\tsynapseStore\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
-    path2 = "http://www.synapse.org"
+    path2 = SYNAPSE_URL
     path3 = os.path.abspath(os.path.expanduser("~/file3.txt"))
-    path4 = "http://www.github.com"
+    path4 = GITHUB_URL
     path5 = os.path.abspath(os.path.expanduser("~/file5.txt"))
     path6 = "http://www.checkoutmymixtapefam.com/fire.mp3"
 
@@ -131,7 +137,7 @@ def test_readManifestFile__synapseStore_values_are_set(syn: Synapse):
         assert expected_synapseStore == actual_synapseStore
 
 
-def test_syncFromSynapse__non_file_entity(syn: Synapse):
+def test_syncFromSynapse__non_file_entity(syn: Synapse) -> None:
     table_schema = "syn12345"
     with patch.object(syn, "getChildren", return_value=[]), patch.object(
         syn, "get", return_value=Schema(name="asssdfa", parent="whatever")
@@ -139,7 +145,7 @@ def test_syncFromSynapse__non_file_entity(syn: Synapse):
         pytest.raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
 
 
-def test_syncFromSynapse__empty_folder(syn: Synapse):
+def test_syncFromSynapse__empty_folder(syn: Synapse) -> None:
     folder = Folder(name="the folder", parent="whatever", id="syn123")
     with patch.object(syn, "getChildren", return_value=[]), patch.object(
         syn, "get", return_value=Folder(name="asssdfa", parent="whatever")
@@ -147,8 +153,8 @@ def test_syncFromSynapse__empty_folder(syn: Synapse):
         assert list() == synapseutils.syncFromSynapse(syn, folder)
 
 
-def test_syncFromSynapse__file_entity(syn: Synapse):
-    file = File(name="a file", parent="some parent", id="syn456")
+def test_syncFromSynapse__file_entity(syn: Synapse) -> None:
+    file = SynapseFile(name="a file", parent="some parent", id="syn456")
     with patch.object(
         syn, "getChildren", return_value=[file]
     ) as patch_syn_get_children, patch.object(syn, "get", return_value=file):
@@ -156,9 +162,9 @@ def test_syncFromSynapse__file_entity(syn: Synapse):
         patch_syn_get_children.assert_not_called()
 
 
-def test_syncFromSynapse__folder_contains_one_file(syn: Synapse):
+def test_syncFromSynapse__folder_contains_one_file(syn: Synapse) -> None:
     folder = Folder(name="the folder", parent="whatever", id="syn123")
-    file = File(name="a file", parent=folder, id="syn456")
+    file = SynapseFile(name="a file", parent=folder, id="syn456")
     with patch.object(
         syn, "getChildren", return_value=[file]
     ) as patch_syn_get_children, patch.object(syn, "get", return_value=file):
@@ -166,9 +172,9 @@ def test_syncFromSynapse__folder_contains_one_file(syn: Synapse):
         patch_syn_get_children.called_with(folder["id"])
 
 
-def test_syncFromSynapse__project_contains_empty_folder(syn: Synapse):
+def test_syncFromSynapse__project_contains_empty_folder(syn: Synapse) -> None:
     project = Project(name="the project", parent="whatever", id="syn123")
-    file = File(name="a file", parent=project, id="syn456")
+    file = SynapseFile(name="a file", parent=project, id="syn456")
     folder = Folder(name="a folder", parent=project, id="syn789")
 
     entities = {
@@ -196,14 +202,14 @@ def test_syncFromSynapse__project_contains_empty_folder(syn: Synapse):
         )
 
 
-def test_syncFromSynapse__downloadFile_is_false(syn: Synapse):
+def test_syncFromSynapse__downloadFile_is_false(syn: Synapse) -> None:
     """
     Verify when passing the argument downloadFile is equal to False,
     syncFromSynapse won't download the file to clients' local end.
     """
 
     project = Project(name="the project", parent="whatever", id="syn123")
-    file = File(name="a file", parent=project, id="syn456")
+    file = SynapseFile(name="a file", parent=project, id="syn456")
     folder = Folder(name="a folder", parent=project, id="syn789")
 
     entities = {
@@ -231,16 +237,16 @@ def test_syncFromSynapse__downloadFile_is_false(syn: Synapse):
 @patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
 def test_syncFromSynapse__manifest_is_all(
     mock__get_file_entity_provenance_dict, mock_generateManifest, syn: Synapse
-):
+) -> None:
     """
     Verify manifest argument equal to "all" that pass in to syncFromSynapse, it will create root_manifest and all
     child_manifests for every layers.
     """
 
     project = Project(name="the project", parent="whatever", id="syn123")
-    file1 = File(name="a file", parent=project, id="syn456")
+    file1 = SynapseFile(name="a file", parent=project, id="syn456")
     folder = Folder(name="a folder", parent=project, id="syn789")
-    file2 = File(name="a file2", parent=folder, id="syn789123")
+    file2 = SynapseFile(name="a file2", parent=folder, id="syn789123")
 
     # Structure of nested project
     # project
@@ -300,15 +306,15 @@ def test_syncFromSynapse__manifest_is_all(
 @patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
 def test_syncFromSynapse__manifest_is_root(
     mock__get_file_entity_provenance_dict, mock_generateManifest, syn: Synapse
-):
+) -> None:
     """
     Verify manifest argument equal to "root" that pass in to syncFromSynapse, it will create root_manifest file only.
     """
 
     project = Project(name="the project", parent="whatever", id="syn123")
-    file1 = File(name="a file", parent=project, id="syn456")
+    file1 = SynapseFile(name="a file", parent=project, id="syn456")
     folder = Folder(name="a folder", parent=project, id="syn789")
-    file2 = File(name="a file2", parent=folder, id="syn789123")
+    file2 = SynapseFile(name="a file2", parent=folder, id="syn789123")
 
     # Structure of nested project
     # project
@@ -362,15 +368,15 @@ def test_syncFromSynapse__manifest_is_root(
 @patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
 def test_syncFromSynapse__manifest_is_suppress(
     mock__get_file_entity_provenance_dict, mock_generateManifest, syn: Synapse
-):
+) -> None:
     """
     Verify manifest argument equal to "suppress" that pass in to syncFromSynapse, it won't create any manifest file.
     """
 
     project = Project(name="the project", parent="whatever", id="syn123")
-    file1 = File(name="a file", parent=project, id="syn456")
+    file1 = SynapseFile(name="a file", parent=project, id="syn456")
     folder = Folder(name="a folder", parent=project, id="syn789")
-    file2 = File(name="a file2", parent=folder, id="syn789123")
+    file2 = SynapseFile(name="a file2", parent=folder, id="syn789123")
 
     # Structure of nested project
     # project
@@ -415,7 +421,7 @@ def test_syncFromSynapse__manifest_is_suppress(
         assert mock_generateManifest.call_count == 0
 
 
-def test_syncFromSynapse__manifest_value_is_invalid(syn):
+def test_syncFromSynapse__manifest_value_is_invalid(syn) -> None:
     project = Project(name="the project", parent="whatever", id="syn123")
     with pytest.raises(ValueError) as ve:
         synapseutils.syncFromSynapse(
@@ -438,14 +444,14 @@ def _compareCsv(expected_csv_string, csv_path):
     assert expected == actual
 
 
-def test_syncFromSynase__manifest(syn):
+def test_syncFromSynase__manifest(syn: Synapse) -> None:
     """Verify that we generate manifest files when syncing to a location outside of the cache."""
 
     project = Project(name="the project", parent="whatever", id="syn123")
     path1 = "/tmp/foo"
-    file1 = File(name="file1", parent=project, id="syn456", path=path1)
+    file1 = SynapseFile(name="file1", parent=project, id="syn456", path=path1)
     path2 = "/tmp/afolder/bar"
-    file2 = File(
+    file2 = SynapseFile(
         name="file2", parent=project, id="syn789", parentId="syn098", path=path2
     )
     folder = Folder(name="afolder", parent=project, id="syn098")
@@ -478,7 +484,7 @@ def test_syncFromSynase__manifest(syn):
         file2.id: file_2_provenance,
     }
 
-    def getProvenance_side_effect(entity, *args, **kwargs):
+    def getProvenance_side_effect(entity, *args, **kwargs) -> Activity:
         return provenance[id_of(entity)]
 
     expected_project_manifest = f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
@@ -525,7 +531,7 @@ def test_syncFromSynase__manifest(syn):
 
 
 class TestFolderSync:
-    def test_init(self):
+    def test_init(self) -> None:
         syn = Mock()
         entity_id = "syn123"
         path = "/tmp/foo/bar"
@@ -543,7 +549,7 @@ class TestFolderSync:
         assert parent._create_manifest
         assert not child._create_manifest
 
-    def test_update(self):
+    def test_update(self) -> None:
         syn = Mock()
         entity_id = "syn123"
         path = "/tmp/foo/bar"
@@ -582,10 +588,10 @@ class TestFolderSync:
         parent.wait_until_finished()
         return child
 
-    def test_update__finished(self):
+    def test_update__finished(self) -> None:
         self._finished_test(None)
 
-    def test_update__finish__generate_manifest(self):
+    def test_update__finish__generate_manifest(self) -> None:
         with patch.object(
             synapseutils.sync, "generateManifest"
         ) as mock_generateManifest:
@@ -612,7 +618,7 @@ class TestFolderSync:
             ]
             assert expected_manifest_calls == mock_generateManifest.call_args_list
 
-    def test_update__finish__without_generating_manifest(self):
+    def test_update__finish__without_generating_manifest(self) -> None:
         """
         Verify the update method won't call generate_manifest if the create_manifest is False
         """
@@ -623,7 +629,7 @@ class TestFolderSync:
             self._finished_test("/tmp/foo", False)
             mock_generateManifest.assert_not_called()
 
-    def test_set_exception(self):
+    def test_set_exception(self) -> None:
         syn = Mock()
         path = "/tmp/foo"
         entity_id = "syn123"
@@ -642,11 +648,13 @@ class TestFolderSync:
         assert parent._is_finished()
 
 
-def test_extract_file_entity_metadata__ensure_correct_row_metadata(syn):
+def test_extract_file_entity_metadata__ensure_correct_row_metadata(
+    syn: Synapse,
+) -> None:
     # Test for SYNPY-692, where 'contentType' was incorrectly set on all rows except for the very first row.
 
     # create 2 file entities with different metadata
-    entity1 = File(
+    entity1 = SynapseFile(
         parent="syn123",
         id="syn456",
         contentType="text/json",
@@ -654,7 +662,7 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata(syn):
         name="entity1",
         synapseStore=True,
     )
-    entity2 = File(
+    entity2 = SynapseFile(
         parent="syn789",
         id="syn890",
         contentType="text/html",
@@ -682,7 +690,7 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata(syn):
                 assert file_entity.get(key) == file_row_data.get(key)
 
 
-def test_manifest_upload(syn):
+async def test_manifest_upload(syn: Synapse) -> None:
     """Verify behavior of synapseutils.sync._manifest_upload"""
 
     the_year_2000 = datetime.datetime(
@@ -723,13 +731,19 @@ def test_manifest_upload(syn):
     ]
 
     df = pd.DataFrame(data=data)
+    mocked_uploaders = []
+
+    def mock_uploader_constructor(*args, **kwargs):
+        mock_uploader = MockedSyncUploader(*args, **kwargs)
+        mocked_uploaders.append(mock_uploader)
+        return mock_uploader
 
     with patch.object(
         synapseutils.sync, "_SyncUploadItem"
     ) as upload_item_init, patch.object(
-        synapseutils.sync, "_SyncUploader"
-    ) as uploader_init:
-        synapseutils.sync._manifest_upload(syn, df)
+        synapseutils.sync, "_SyncUploader", new=mock_uploader_constructor
+    ):
+        await synapseutils.sync._manifest_upload(syn, df)
 
     upload_items = []
     for i in range(3):
@@ -742,20 +756,21 @@ def test_manifest_upload(syn):
 
         upload_items.append(upload_item_init.return_value)
         upload_item_init_args = upload_item_init.call_args_list[i]
-        file, used, executed, store_fields = upload_item_init_args[0]
+        file, used, executed = upload_item_init_args[0]
         assert file.path == expected_path
-        assert file.parentId == expected_parent
+        assert file.parent_id == expected_parent
         assert file.name == expected_name
         assert file.annotations == expected_annos
         assert used == expected_used
         assert executed == expected_executed
 
-    uploader_init.return_value.upload.assert_called_once_with(upload_items)
+    for mock_uploader in mocked_uploaders:
+        mock_uploader.upload.assert_called_once_with(upload_items)
 
 
 class TestSyncUploader:
     @patch("os.path.isfile")
-    def test_order_items(self, mock_isfile):
+    def test_order_items(self, mock_isfile, syn: Synapse) -> None:
         """Verfy that items are properly ordered according to their provenance."""
 
         def isfile(path):
@@ -780,40 +795,46 @@ class TestSyncUploader:
         #         /tmp/1               /tmp/2
 
         item_1 = _SyncUploadItem(
-            File(path="/tmp/1", parentId="syn123"),
-            [],  # used
-            [],  # executed
-            {},  # annotations
+            File(path="/tmp/1", parent_id="syn123"),
+            used=[],  # used
+            executed=[],  # executed
+            activity_name=None,
+            activity_description=None,
         )
         item_2 = _SyncUploadItem(
-            File(path="/tmp/2", parentId="syn123"),
-            [],  # used
-            [],  # executed
-            {},  # annotations
+            File(path="/tmp/2", parent_id="syn123"),
+            used=[],  # used
+            executed=[],  # executed
+            activity_name=None,
+            activity_description=None,
         )
         item_3 = _SyncUploadItem(
-            File(path="/tmp/3", parentId="syn123"),
-            ["/tmp/1"],  # used
-            [],  # executed
-            {},  # annotations
+            File(path="/tmp/3", parent_id="syn123"),
+            used=["/tmp/1"],  # used
+            executed=[],  # executed
+            activity_name=None,
+            activity_description=None,
         )
         item_4 = _SyncUploadItem(
-            File(path="/tmp/4", parentId="syn123"),
-            [],  # used
-            ["/tmp/3"],  # executed
-            {},  # annotations
+            File(path="/tmp/4", parent_id="syn123"),
+            used=[],  # used
+            executed=["/tmp/3"],  # executed
+            activity_name=None,
+            activity_description=None,
         )
         item_5 = _SyncUploadItem(
-            File(path="/tmp/5", parentId="syn123"),
-            ["/tmp/3"],  # used
-            [],  # executed
-            {},  # annotations
+            File(path="/tmp/5", parent_id="syn123"),
+            used=["/tmp/3"],  # used
+            executed=[],  # executed
+            activity_name=None,
+            activity_description=None,
         )
         item_6 = _SyncUploadItem(
-            File(path="/tmp/6", parentId="syn123"),
-            ["/tmp/5"],  # used
-            ["/tmp/2"],  # executed
-            {},  # annotations
+            File(path="/tmp/6", parent_id="syn123"),
+            used=["/tmp/5"],  # used
+            executed=["/tmp/2"],  # executed
+            activity_name=None,
+            activity_description=None,
         )
 
         items = [
@@ -826,41 +847,44 @@ class TestSyncUploader:
         ]
 
         random.shuffle(items)
-
-        ordered = _SyncUploader._order_items(items)
+        uploader = _SyncUploader(syn)
+        ordered = uploader._build_dependency_graph(items)
 
         seen = set()
-        for i in ordered:
+        for i in ordered.path_to_upload_item.values():
             assert all(p in seen for p in (i.used + i.executed))
             seen.add(i.entity.path)
 
     @patch("os.path.isfile")
-    def test_order_items__provenance_cycle(self, isfile):
+    def test_order_items__provenance_cycle(self, isfile) -> None:
         """Verify that if a provenance cycle is detected we raise an error"""
 
         isfile.return_value = True
 
         items = [
             _SyncUploadItem(
-                File(path="/tmp/1", parentId="syn123"),
-                ["/tmp/2"],  # used
-                [],
-                {},  # annotations
+                entity=File(path="/tmp/1", parent_id="syn123"),
+                used=["/tmp/2"],  # used
+                executed=[],
+                activity_name=None,
+                activity_description=None,
             ),
             _SyncUploadItem(
-                File(path="/tmp/2", parentId="syn123"),
-                [],  # used
-                ["/tmp/1"],  # executed
-                {},  # annotations
+                entity=File(path="/tmp/2", parent_id="syn123"),
+                used=[],  # used
+                executed=["/tmp/1"],  # executed
+                activity_name=None,
+                activity_description=None,
             ),
         ]
 
         with pytest.raises(RuntimeError) as cm_ex:
-            _SyncUploader._order_items(items)
+            uploader = _SyncUploader(None)
+            uploader._build_dependency_graph(items)
         assert "cyclic" in str(cm_ex.value)
 
     @patch("os.path.isfile")
-    def test_order_items__provenance_file_not_uploaded(self, isfile):
+    def test_order_items__provenance_file_not_uploaded(self, isfile) -> None:
         """Verify that if one file depends on another for provenance but that file
         is not included in the upload we raise an error."""
 
@@ -868,203 +892,94 @@ class TestSyncUploader:
 
         items = [
             _SyncUploadItem(
-                File(path="/tmp/1", parentId="syn123"),
-                ["/tmp/2"],  # used
-                [],
-                {},  # annotations
+                entity=File(path="/tmp/1", parent_id="syn123"),
+                used=["/tmp/2"],  # used
+                executed=[],
+                activity_name=None,
+                activity_description=None,
             ),
         ]
 
         with pytest.raises(ValueError) as cm_ex:
-            _SyncUploader._order_items(items)
+            uploader = _SyncUploader(None)
+            uploader._build_dependency_graph(items)
         assert "not being uploaded" in str(cm_ex.value)
 
-    def test_upload_item_success(self, syn):
+    async def test_upload_item_success(self, syn: Synapse) -> None:
         """Test successfully uploading an item"""
 
-        uploader = _SyncUploader(syn, Mock())
+        uploader = _SyncUploader(syn)
 
-        used = ["foo"]
-        executed = ["bar"]
+        used = [SYNAPSE_URL]
+        executed = [GITHUB_URL]
+        entity = File(path="/tmp/file", parent_id="syn123")
+        entity.store_async = AsyncMock(return_value=None)
         item = _SyncUploadItem(
-            File(path="/tmp/file", parentId="syn123"),
-            used,
-            executed,
-            {"forceVersion": True},
-        )
-
-        finished_items = {}
-        mock_condition = create_autospec(threading.Condition())
-        pending_provenance = _PendingProvenance()
-        pending_provenance.update(set([item.entity.path]))
-        abort_event = threading.Event()
-        progress = CumulativeTransferProgress("Test Upload")
-
-        mock_stored_entity = Mock()
-
-        with patch.object(syn, "store") as mock_store, patch.object(
-            uploader._file_semaphore, "release"
-        ) as mock_release:
-            mock_store.return_value = mock_stored_entity
-
-            uploader._upload_item(
-                item,
-                used,
-                executed,
-                finished_items,
-                pending_provenance,
-                mock_condition,
-                abort_event,
-                progress,
-                None,
-            )
-
-        mock_store.assert_called_once_with(
-            item.entity,
+            entity=entity,
             used=used,
             executed=executed,
-            **item.store_kwargs,
-            async_file_handle_upload=False,
+            activity_name=None,
+            activity_description=None,
         )
 
-        # item should be finished and removed from pending provenance
-        assert mock_stored_entity == finished_items[item.entity.path]
-        assert len(pending_provenance._pending) == 0
+        await uploader.upload([item])
 
-        # should have notified the condition to let anything waiting on this provenance to continue
-        mock_condition.notify_all.assert_called_once_with()
+        entity.store_async.assert_called_once()
 
-        assert not abort_event.is_set()
-
-        mock_release.assert_called_once_with()
-
-    def test_upload_item__failure(self, syn):
+    async def test_upload_item_failure(self, syn: Synapse) -> None:
         """Verify behavior if an item upload fails.
         Exception should be raised, and appropriate threading controls should be released/notified.
         """
 
-        uploader = _SyncUploader(syn, Mock())
+        uploader = _SyncUploader(syn)
+
+        entity = File(path="/tmp/file", parent_id="syn123")
+        entity.store_async = AsyncMock(side_effect=ValueError("Falure during upload"))
 
         item = _SyncUploadItem(
-            File(path="/tmp/file", parentId="syn123"),
-            [],
-            [],
-            {"forceVersion": True},
+            entity=entity,
+            used=[],
+            executed=[],
+            activity_name=None,
+            activity_description=None,
         )
 
-        finished_items = {}
-        mock_condition = create_autospec(threading.Condition())
-        pending_provenance = set([item.entity.path])
-        abort_event = threading.Event()
-        progress = CumulativeTransferProgress("Test Upload")
-
-        with pytest.raises(ValueError), patch.object(
-            syn, "store"
-        ) as mock_store, patch.object(
-            uploader._file_semaphore, "release"
-        ) as mock_release:
-            mock_store.side_effect = ValueError("Falure during upload")
-
-            uploader._upload_item(
-                item,
-                item.used,
-                item.executed,
-                finished_items,
-                pending_provenance,
-                mock_condition,
-                abort_event,
-                progress,
-                None,
-            )
-
-        # abort event should have been raised and we shoudl have released threading locks
-        assert abort_event.is_set()
-        mock_release.assert_called_once_with()
-        mock_condition.notify_all.assert_called_once_with()
-
-    def test_abort(self):
-        """Verify abort behavior.
-        Should raise an exception chained from the first Exception on a Future and cancel any unfinished Futures
-        """
-
-        future_spec = Future()
-        future_1 = create_autospec(future_spec)
-        future_2 = create_autospec(future_spec)
-        future_3 = create_autospec(future_spec)
-
-        future_1.done.return_value = True
-        future_1.exception.return_value = None
-
-        ex = ValueError("boom")
-        future_2.exception.return_value = ex
-
-        future_3.done.return_value = False
-
-        futures = [future_1, future_2, future_3]
-
-        with pytest.raises(ValueError) as cm_ex:
-            _SyncUploader._abort(futures)
-
-        assert cm_ex.value.__cause__ == ex
-        future_3.cancel.assert_called_once_with()
-
-    @pytest.mark.flaky(reruns=3, only_rerun=["AssertionError"])
-    def test_upload_error(self, syn):
-        """Verify that if an item upload fails the error is raised in the main thread
-        and any running Futures are cancelled"""
-
-        item_1 = _SyncUploadItem(File(path="/tmp/foo", parentId="syn123"), [], [], {})
-        item_2 = _SyncUploadItem(File(path="/tmp/bar", parentId="syn123"), [], [], {})
-        items = [item_1, item_2]
-
-        def syn_store_side_effect(entity, *args, **kwargs):
-            if entity.path == entity.path:
-                raise ValueError()
-            return Mock()
-
-        uploader = _SyncUploader(syn, get_executor())
-        original_abort = uploader._abort
-
-        def abort_side_effect(futures):
-            return original_abort(futures)
-
-        with patch.object(syn, "store") as mock_syn_store, patch.object(
-            uploader, "_abort"
-        ) as mock_abort:
-            mock_syn_store.side_effect = syn_store_side_effect
-            mock_abort.side_effect = abort_side_effect
-            with pytest.raises(ValueError):
-                uploader.upload(items)
-
-            # it would be aborted with Futures
-            mock_abort.assert_called_once()
-            assert isinstance(mock_abort.call_args_list[0][0], Future) or isinstance(
-                mock_abort.call_args_list[0][0][0][0], Future
-            )
+        with pytest.raises(ValueError):
+            await uploader.upload([item])
 
     @patch("os.path.isfile")
-    def test_upload(self, mock_os_isfile, syn):
+    async def test_upload(self, mock_os_isfile, syn: Synapse) -> None:
         """Ensure that an upload including multiple items which depend on each other through
         provenance are all uploaded and in the expected order."""
         mock_os_isfile.return_value = True
+        paths = ["/tmp/foo", "/tmp/bar", "/tmp/baz"]
 
+        file_1 = File(path=paths[0], parent_id="syn123", id="syn3")
+        file_1.store_async = AsyncMock(return_value=file_1)
         item_1 = _SyncUploadItem(
-            File(path="/tmp/foo", parentId="syn123"),
-            [],  # used
-            [],  # executed
-            {},  # annotations
+            entity=file_1,
+            used=[],  # used
+            executed=[],  # executed
+            activity_name=None,
+            activity_description=None,
         )
+        file_2 = File(path=paths[1], parent_id="syn123", id="syn2")
+        file_2.store_async = AsyncMock(return_value=file_2)
         item_2 = _SyncUploadItem(
-            File(path="/tmp/bar", parentId="syn123"),
-            ["/tmp/foo"],  # used
-            [],  # executed
-            {},  # annotations
+            entity=file_2,
+            used=["/tmp/foo"],  # used
+            executed=[],  # executed
+            activity_name=None,
+            activity_description=None,
         )
+        file_3 = File(path=paths[2], parent_id="syn123", id="syn1")
+        file_3.store_async = AsyncMock(return_value=file_3)
         item_3 = _SyncUploadItem(
-            File(path="/tmp/baz", parentId="syn123"),
-            ["/tmp/bar"],  # used
-            [],  # executed
-            {},  # annotations
+            entity=file_3,
+            used=["/tmp/bar"],  # used
+            executed=[],  # executed
+            activity_name=None,
+            activity_description=None,
         )
 
         items = [
@@ -1073,54 +988,13 @@ class TestSyncUploader:
             item_3,
         ]
 
-        convert_provenance_calls = 2 * len(items)
-        convert_provenance_condition = threading.Condition()
-
-        mock_stored_entities = {
-            item_1.entity.path: Mock(),
-            item_2.entity.path: Mock(),
-            item_3.entity.path: Mock(),
-        }
-
-        uploader = _SyncUploader(syn, get_executor())
-
-        convert_provenance_original = uploader._convert_provenance
-
-        def patched_convert_provenance(provenance, finished_items):
-            # we hack the convert_provenance method as a way of ensuring that
-            # the first item doesn't finish storing until the items that depend on it
-            # have finished one trip through the wait loop. that way we ensure that
-            # our locking logic is being exercised.
-            nonlocal convert_provenance_calls
-            with convert_provenance_condition:
-                convert_provenance_calls -= 1
-
-                if convert_provenance_calls == 0:
-                    convert_provenance_condition.notify_all()
-
-            return convert_provenance_original(provenance, finished_items)
-
-        def syn_store_side_effect(entity, *args, **kwargs):
-            if entity.path == item_1.entity.path:
-                with convert_provenance_condition:
-                    if convert_provenance_calls > 0:
-                        convert_provenance_condition.wait_for(
-                            lambda: convert_provenance_calls == 0
-                        )
-
-            return mock_stored_entities[entity.path]
-
-        with patch.object(
-            uploader, "_convert_provenance"
-        ) as mock_convert_provenance, patch.object(syn, "store") as mock_syn_store:
-            mock_convert_provenance.side_effect = patched_convert_provenance
-            mock_syn_store.side_effect = syn_store_side_effect
-
-            uploader.upload(items)
+        uploader = _SyncUploader(syn)
+        await uploader.upload([item_1, item_2, item_3])
 
         # all three of our items should have been stored
-        stored = [args[0][0].path for args in mock_syn_store.call_args_list]
-        assert [i.entity.path for i in items] == stored
+        for i in items:
+            i.entity.store_async.assert_called_once()
+            assert i.entity.path in paths
 
 
 class TestGetFileEntityProvenanceDict:
@@ -1164,9 +1038,9 @@ def test_check_size_each_file(mock_os, syn):
     project_id = "syn123"
     header = "path\tparent\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
-    path2 = "http://www.synapse.org"
+    path2 = SYNAPSE_URL
     path3 = os.path.abspath(os.path.expanduser("~/file3.txt"))
-    path4 = "http://www.github.com"
+    path4 = GITHUB_URL
 
     row1 = f"{path1}\t{project_id}\n"
     row2 = f"{path2}\t{project_id}\n"
@@ -1211,9 +1085,9 @@ def test_check_size_each_file_raise_error(mock_os, syn):
     project_id = "syn123"
     header = "path\tparent\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
-    path2 = "http://www.synapse.org"
+    path2 = SYNAPSE_URL
     path3 = os.path.abspath(os.path.expanduser("~/file3.txt"))
-    path4 = "http://www.github.com"
+    path4 = GITHUB_URL
 
     row1 = f"{path1}\t{project_id}\n"
     row2 = f"{path2}\t{project_id}\n"
