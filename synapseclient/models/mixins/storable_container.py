@@ -371,7 +371,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             if if_collision:
                 file.if_collision = if_collision
 
-            pending_tasks.append(asyncio.create_task(wrap_coroutine(file.get_async())))
+            pending_tasks.append(
+                asyncio.create_task(
+                    wrap_coroutine(file.get_async(include_activity=True))
+                )
+            )
         return pending_tasks
 
     def _resolve_sync_from_synapse_result(
