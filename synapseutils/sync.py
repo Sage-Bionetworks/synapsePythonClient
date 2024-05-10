@@ -1213,6 +1213,8 @@ def syncToSynapse(
             wrap_async_to_sync(upload(syn, df), syn)
         else:
             wrap_async_to_sync(_manifest_upload(syn, df), syn)
+        progress_bar.update(total_upload_size - progress_bar.n)
+        progress_bar.close()
 
 
 def _split_string(input_string: str) -> List[str]:
