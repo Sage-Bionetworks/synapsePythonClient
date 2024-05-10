@@ -226,7 +226,7 @@ jobs:
           name: coverage-report
         # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
       - name: Override Coverage Source Path for Sonar
-        if: ${{ success() }}
+        if: steps.check_coverage_report.outputs.files_exists == 'true'
         run: sed -i "s/<source>\/home\/runner\/work\/synapsePythonClient<\/source>/<source>\/github\/workspace<\/source>/g" coverage.xml
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
