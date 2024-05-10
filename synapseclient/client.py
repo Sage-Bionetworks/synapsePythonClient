@@ -121,9 +121,6 @@ from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_string_async,
 )
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from synapseclient.core.upload.upload_functions import (
-    upload_file_handle,
-)
 from synapseclient.core.upload.upload_functions_async import (
     upload_file_handle as upload_file_handle_async,
     upload_synapse_s3,
@@ -1768,7 +1765,6 @@ class Synapse(object):
         activityName=None,
         activityDescription=None,
         set_annotations=True,
-        async_file_handle_upload: bool = True,
     ):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
@@ -1791,11 +1787,6 @@ class Synapse(object):
                             You will be contacted with regards to the specific data being restricted and the
                             requirements of access.
             set_annotations: If True, set the annotations on the entity. If False, do not set the annotations.
-            async_file_handle_upload: Temporary feature flag that will be removed at an
-                unannounced later date. This is used during the Synapse Utils
-                syncToSynapse to disable the async file handle upload. The is because
-                the multi-threaded logic in the syncToSynapse is not compatible with
-                the async file handle upload.
 
         Returns:
             A Synapse Entity, Evaluation, or Wiki
@@ -1955,37 +1946,20 @@ class Synapse(object):
                         "Entities of type File must have a parentId."
                     )
 
-                if async_file_handle_upload:
-                    fileHandle = wrap_async_to_sync(
-                        upload_file_handle_async(
-                            self,
-                            parent_id_for_upload,
-                            local_state["path"]
-                            if (
-                                synapseStore
-                                or local_state_fh.get("externalURL") is None
-                            )
-                            else local_state_fh.get("externalURL"),
-                            synapse_store=synapseStore,
-                            md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
-                            file_size=local_state_fh.get("contentSize"),
-                            mimetype=local_state_fh.get("contentType"),
-                        ),
-                        self,
-                    )
-                else:
-                    fileHandle = upload_file_handle(
+                fileHandle = wrap_async_to_sync(
+                    upload_file_handle_async(
                         self,
                         parent_id_for_upload,
                         local_state["path"]
                         if (synapseStore or local_state_fh.get("externalURL") is None)
                         else local_state_fh.get("externalURL"),
-                        synapseStore=synapseStore,
+                        synapse_store=synapseStore,
                         md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
                         file_size=local_state_fh.get("contentSize"),
                         mimetype=local_state_fh.get("contentType"),
-                        max_threads=self.max_threads,
-                    )
+                    ),
+                    self,
+                )
                 properties["dataFileHandleId"] = fileHandle["id"]
                 local_state["_file_handle"] = fileHandle
 

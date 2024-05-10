@@ -7,6 +7,29 @@ will give us a way to measure the impact of changes to the client.
 
 ## Results
 
+### 05/10/2024: Uploading files to Synapse
+These benchmarking results were collected due to the following changes:
+- The upload algorithm for the Synapseutils `syncToSynapse` being re-written to take
+advantage of the new AsyncIO upload algorithm for individual files.
+- An updated limit on concurrent file transfers to match `max_threads * 2`
+
+
+| Test                | Total Transfer Size | Synapseutils | OOP Models Interface | syn.Store() | S3 Sync CLI |
+|---------------------|---------------------|--------------|----------------------|-------------|-------------|
+| 10 File/10GiB ea    | 100GiB              | 1656.64s     | 1656.77s             | 1674.63s    | 1519.75s    |
+| 1 File/10GiB ea     | 10GiB               | 166.83s      | 166.41s              | 167.21      | 149.55s     |
+| 10 File/1GiB ea     | 10GiB               | 168.74s      | 167.15s              | 184.78s     | 166.39s     |
+| 100 File/100 MiB ea | 10GiB               | 158.98       | 125.98s              | 293.07s     | 162.57s     |
+| 10 File/100 MiB ea  | 1GiB                | 16.55s       | 14.37s               | 29.23s      | 19.18s      |
+| 100 File/10 MiB ea  | 1GiB                | 15.92s       | 15.49s               | 129.90s     | 18.66s      |
+| 1000 File/1 MiB ea  | 1GiB                | 135.77s      | 137.15s              | 1021.32s    | 26.03s      |
+
+#### A high level overview of the differences between each of the upload methods:
+- **OOP Models Interface:** Uploads all files and 8MB chunks of each file in parallel using a new upload algorithm
+- **Synapseutils:** Uploads all files and 8MB chunks of each file in parallel using a new upload algorithm
+- **syn.Store():** Uploads files sequentally, but 8MB chunks in parallel using a new upload algorithm
+- **S3 Sync CLI:** Executing the `aws s3 sync` command through Python `subprocess.run()`
+
 ### 04/01/2024: Uploading files to Synapse
 These benchmarking results bring together some important updates to the Upload logic. It
 has been re-written to bring a focus to concurrent file uploads and more effecient use
