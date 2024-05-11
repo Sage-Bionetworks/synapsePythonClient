@@ -208,6 +208,7 @@ jobs:
 
   sonarcloud:
     needs: [test]
+    if: ${{ always() && !cancelled()}}
     name: SonarCloud
     runs-on: ubuntu-20.04
     steps:
