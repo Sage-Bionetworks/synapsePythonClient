@@ -2410,7 +2410,9 @@ def test_store__needsUploadFalse__fileHandleId_not_in_local_state(syn):
     with patch.object(
         syn, "_getEntityBundle", return_value=returned_bundle
     ), patch.object(
-        synapseclient.client, "upload_file_handle", return_value=returned_file_handle
+        synapseclient.client,
+        "upload_file_handle_async",
+        return_value=returned_file_handle,
     ), patch.object(
         syn.cache, "contains", return_value=True
     ), patch.object(
@@ -2486,7 +2488,9 @@ def test_store__existing_processed_as_update(syn):
     }
 
     with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
-        synapseclient.client, "upload_file_handle", return_value=returned_file_handle
+        synapseclient.client,
+        "upload_file_handle_async",
+        return_value=returned_file_handle,
     ), patch.object(syn.cache, "contains", return_value=True), patch.object(
         syn, "_createEntity"
     ) as mock_createEntity, patch.object(
@@ -2661,7 +2665,9 @@ def test_store__no_need_to_update_annotation(syn):
     }
 
     with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
-        synapseclient.client, "upload_file_handle", return_value=returned_file_handle
+        synapseclient.client,
+        "upload_file_handle_async",
+        return_value=returned_file_handle,
     ), patch.object(syn.cache, "contains", return_value=True), patch.object(
         syn, "_createEntity"
     ), patch.object(
@@ -2730,7 +2736,9 @@ def test_store__update_versionComment(syn):
     }
 
     with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
-        synapseclient.client, "upload_file_handle", return_value=returned_file_handle
+        synapseclient.client,
+        "upload_file_handle_async",
+        return_value=returned_file_handle,
     ), patch.object(syn.cache, "contains", return_value=True), patch.object(
         syn, "_createEntity"
     ) as mock_createEntity, patch.object(
@@ -2837,7 +2845,9 @@ def test_store__existing_no_update(syn):
     }
 
     with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
-        synapseclient.client, "upload_file_handle", return_value=returned_file_handle
+        synapseclient.client,
+        "upload_file_handle_async",
+        return_value=returned_file_handle,
     ), patch.object(syn.cache, "contains", return_value=True), patch.object(
         syn, "_createEntity"
     ) as mock_createEntity, patch.object(
