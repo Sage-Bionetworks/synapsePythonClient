@@ -213,7 +213,7 @@ async def test_upload_file_with_force_version_false(
     # AND I remove the file from the local cache map
     syn.cache.remove(entity["dataFileHandleId"])
 
-    with patch("synapseclient.client.upload_file_handle") as mocked_file_handle_upload:
+    with patch("synapseclient.client.upload_file_handle_async") as mocked_file_handle_upload:
         # WHEN I store the file again with forceVersion=False
         entity = syn.store(entity, forceVersion=False)
 
