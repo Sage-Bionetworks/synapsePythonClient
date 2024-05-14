@@ -121,9 +121,6 @@ from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_string_async,
 )
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from synapseclient.core.upload.upload_functions import (
-    upload_file_handle,
-)
 from synapseclient.core.upload.upload_functions_async import (
     upload_file_handle as upload_file_handle_async,
     upload_synapse_s3,
@@ -401,6 +398,7 @@ class Synapse(object):
         self.max_threads = transfer_config["max_threads"]
         self._thread_executor = {}
         self._process_executor = {}
+        self._parallel_file_transfer_semaphore = {}
         self._md5_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
 
@@ -560,6 +558,45 @@ class Synapse(object):
         self._md5_semaphore.update({asyncio_event_loop: asyncio.Semaphore(1)})
 
         return self._md5_semaphore[asyncio_event_loop]
+
+    def _get_parallel_file_transfer_semaphore(
+        self, asyncio_event_loop: asyncio.AbstractEventLoop
+    ) -> asyncio.Semaphore:
+        """
+        Retrieve the semaphore for the Synapse client. Or create a new one if it does
+        not exist. This semaphore is used to limit the number of files that can actively
+        enter the uploading/downloading process.
+
+        This is expected to be called from within an AsyncIO loop.
+
+        By default the number of files that can enter the "uploading" state will be
+        limited to 2 * max_threads. This is to ensure that the files that are entering
+        into the "uploading" state will have priority to finish. Additionally, it means
+        that there should be a good spread of files getting up to the "uploading"
+        state, entering the "uploading" state, and finishing the "uploading" state.
+
+        If we break these states down into large components they would look like:
+        - Before "uploading" state: HTTP rest calls to retrieve what data Synapse has
+        - Entering "uploading" state: MD5 calculation and HTTP rest calls to determine
+          how/where to upload a file to.
+        - During "uploading" state: Uploading the file to a storage provider.
+        - After "uploading" state: HTTP rest calls to finalize the upload.
+
+        This has not yet been applied to parallel file downloads. That will take place
+        later on.
+        """
+        if (
+            hasattr(self, "_parallel_file_transfer_semaphore")
+            and asyncio_event_loop in self._parallel_file_transfer_semaphore
+            and self._parallel_file_transfer_semaphore[asyncio_event_loop] is not None
+        ):
+            return self._parallel_file_transfer_semaphore[asyncio_event_loop]
+
+        self._parallel_file_transfer_semaphore.update(
+            {asyncio_event_loop: asyncio.Semaphore(max(self.max_threads * 2, 1))}
+        )
+
+        return self._parallel_file_transfer_semaphore[asyncio_event_loop]
 
     # initialize logging
     def _init_logger(self):
@@ -1728,7 +1765,6 @@ class Synapse(object):
         activityName=None,
         activityDescription=None,
         set_annotations=True,
-        async_file_handle_upload: bool = True,
     ):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
@@ -1751,11 +1787,6 @@ class Synapse(object):
                             You will be contacted with regards to the specific data being restricted and the
                             requirements of access.
             set_annotations: If True, set the annotations on the entity. If False, do not set the annotations.
-            async_file_handle_upload: Temporary feature flag that will be removed at an
-                unannounced later date. This is used during the Synapse Utils
-                syncToSynapse to disable the async file handle upload. The is because
-                the multi-threaded logic in the syncToSynapse is not compatible with
-                the async file handle upload.
 
         Returns:
             A Synapse Entity, Evaluation, or Wiki
@@ -1915,37 +1946,20 @@ class Synapse(object):
                         "Entities of type File must have a parentId."
                     )
 
-                if async_file_handle_upload:
-                    fileHandle = wrap_async_to_sync(
-                        upload_file_handle_async(
-                            self,
-                            parent_id_for_upload,
-                            local_state["path"]
-                            if (
-                                synapseStore
-                                or local_state_fh.get("externalURL") is None
-                            )
-                            else local_state_fh.get("externalURL"),
-                            synapse_store=synapseStore,
-                            md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
-                            file_size=local_state_fh.get("contentSize"),
-                            mimetype=local_state_fh.get("contentType"),
-                        ),
-                        self,
-                    )
-                else:
-                    fileHandle = upload_file_handle(
+                fileHandle = wrap_async_to_sync(
+                    upload_file_handle_async(
                         self,
                         parent_id_for_upload,
                         local_state["path"]
                         if (synapseStore or local_state_fh.get("externalURL") is None)
                         else local_state_fh.get("externalURL"),
-                        synapseStore=synapseStore,
+                        synapse_store=synapseStore,
                         md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
                         file_size=local_state_fh.get("contentSize"),
                         mimetype=local_state_fh.get("contentType"),
-                        max_threads=self.max_threads,
-                    )
+                    ),
+                    self,
+                )
                 properties["dataFileHandleId"] = fileHandle["id"]
                 local_state["_file_handle"] = fileHandle
 

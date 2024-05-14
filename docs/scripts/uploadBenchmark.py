@@ -218,14 +218,12 @@ def execute_synapseutils_test(
 def execute_walk_test(
     path: str,
     test_name: str,
-    async_file_handle_upload: bool = False,
 ) -> None:
     """Execute the test that uses os.walk to sync all files/folders to synapse.
 
     Arguments:
         path: The path to the root directory
         test_name: The name of the test to add to the span name
-        async_file_handle_upload: Whether to use the async_file_handle_upload option
     """
     with tracer.start_as_current_span(f"manual_walk__{test_name}"):
         time_before_walking_tree = perf_counter()
@@ -254,9 +252,7 @@ def execute_walk_test(
                     path=filepath,
                     parent=parents[directory_path],
                 )
-                saved_file = syn.store(
-                    file, async_file_handle_upload=async_file_handle_upload
-                )
+                saved_file = syn.store(file)
                 saved_files.append(saved_file)
 
                 # Store annotations on the file ------------------------------------------
@@ -376,8 +372,6 @@ def execute_test_suite(
     # execute_synapseutils_test(path, test_name)
 
     # execute_walk_test(path, test_name)
-
-    # execute_walk_test(path, test_name, True)
 
     # execute_walk_test_oop(path, test_name)
 

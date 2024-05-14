@@ -8,7 +8,6 @@ import pytest
 from synapseclient import File
 from synapseclient.core.exceptions import SynapseMd5MismatchError
 import synapseclient.core.utils as utils
-from opentelemetry import trace
 
 
 async def test_download_check_md5(syn, project, schedule_for_cleanup):
