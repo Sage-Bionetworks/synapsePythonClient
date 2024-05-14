@@ -133,7 +133,7 @@ _thread_local = threading.local()
 @contextmanager
 def shared_progress_bar(progress_bar):
     """An outside process that will eventually trigger an upload through this module
-    can configure a shared Executor by running its code within this context manager.
+    can configure a shared Progress Bar by running its code within this context manager.
     """
     _thread_local.progress_bar = progress_bar
     try:
