@@ -1440,3 +1440,32 @@ def merge_dataclass_entities(
         setattr(destination, key, value)
 
     return destination
+
+
+def merge_metadata_fields(
+    source: typing.Union["Project", "Folder", "File"],
+    destination: typing.Union["Project", "Folder", "File"],
+) -> typing.Union["Project", "Folder"]:
+    """
+    Utility function to merge two dataclass entities together. This will only merge the
+    minimum amount of data required for an update with Synapse.
+
+    Arguments:
+        source: The source entity to merge from.
+        destination: The destination entity to merge into.
+
+    Returns:
+        The destination entity with the merged values.
+    """
+    # pylint: disable=protected-access
+    destination._last_persistent_instance = (
+        destination._last_persistent_instance or source._last_persistent_instance
+    )
+    destination.id = destination.id or source.id
+    destination.etag = destination.etag or source.etag
+    destination.version_number = destination.version_number or source.version_number
+    destination.version_label = destination.version_label or source.version_label
+    destination.version_comment = destination.version_comment or source.version_comment
+    destination.modified_on = destination.modified_on or source.modified_on
+
+    return destination

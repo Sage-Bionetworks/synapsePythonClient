@@ -1345,6 +1345,7 @@ async def _manifest_upload(syn: Synapse, df) -> bool:
             synapse_store=row["synapseStore"] if "synapseStore" in row else True,
             content_type=row["contentType"] if "contentType" in row else None,
             force_version=row["forceVersion"] if "forceVersion" in row else True,
+            merge_with_found_resource=False,
         )
 
         manifest_style_annotations = dict(

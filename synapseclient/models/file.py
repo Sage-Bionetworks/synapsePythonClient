@@ -24,6 +24,7 @@ from synapseclient.core.utils import (
     delete_none_keys,
     guess_file_name,
     merge_dataclass_entities,
+    merge_metadata_fields,
     run_and_attach_otel_context,
 )
 from synapseclient.entity import File as Synapse_File
@@ -249,6 +250,12 @@ class File(FileSynchronousProtocol, AccessControllable):
             being restricted and the requirements of access.
 
             This may be used only by an administrator of the specified file.
+        merge_with_found_resource: (Store only)
+            Works in conjunction with `create_or_update` in that this is only evaluated
+            if `create_or_update` is True. If this is True the metadata will be merged
+            with the existing metadata in Synapse. If False the existing metadata will
+            be replaced with the new metadata. When this is False any updates will act
+            as a destructive update.
 
         synapse_store: (Store only)
             Whether the File should be uploaded or if false: only the path should
@@ -416,6 +423,16 @@ class File(FileSynchronousProtocol, AccessControllable):
     requirements of access.
 
     This may be used only by an administrator of the specified file.
+    """
+
+    merge_with_found_resource: bool = field(default=True, repr=False, compare=False)
+    """
+    (Store only)
+
+    Works in conjunction with `create_or_update` in that this is only evaluated if
+    `create_or_update` is True. If this is True the metadata will be merged with the
+    existing metadata in Synapse. If False the existing metadata will be replaced with
+    the new metadata. When this is False any updates will act as a destructive update.
     """
 
     synapse_store: bool = field(default=True, repr=False)
@@ -615,7 +632,9 @@ class File(FileSynchronousProtocol, AccessControllable):
                     synapse_container_limit=self.synapse_container_limit,
                     parent_id=self.parent_id,
                 )
-                return await file_copy.get_async(synapse_client=synapse_client)
+                return await file_copy.get_async(
+                    synapse_client=synapse_client, include_activity=True
+                )
             except SynapseFileNotFoundError:
                 return None
 
@@ -722,7 +741,10 @@ class File(FileSynchronousProtocol, AccessControllable):
         client = Synapse.get_client(synapse_client=synapse_client)
 
         if existing_file := await self._find_existing_file(synapse_client=client):
-            merge_dataclass_entities(source=existing_file, destination=self)
+            if self.merge_with_found_resource:
+                merge_dataclass_entities(source=existing_file, destination=self)
+            else:
+                merge_metadata_fields(source=existing_file, destination=self)
 
         if self.path:
             self.path = os.path.expanduser(self.path)
