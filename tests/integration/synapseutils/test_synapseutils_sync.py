@@ -496,6 +496,95 @@ class TestSyncToSynapse:
             # AND none of the files have an activity
             assert file.activity is None
 
+    async def test_sync_to_synapse_annotations_added_then_removed(
+        self, syn: Synapse, schedule_for_cleanup, project_model: Project
+    ) -> None:
+        """
+        Creates a number of files with annotations.
+        After the files are uploaded to Synapse, the annotations are removed from the
+        manifest file and the files are re-uploaded to Synapse. The annotations should
+        be removed from the files.
+        """
+        # GIVEN a folder to sync to
+        folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=project_model.id
+        ).store_async()
+        schedule_for_cleanup(folder.id)
+
+        # AND 5 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(5)]
+        for file in temp_files:
+            schedule_for_cleanup(file)
+
+        # AND A manifest file with the paths to the temp files exists
+        annotations = ["foo", "bar", "baz", "qux", "quux"]
+        df = pd.DataFrame(
+            {
+                "path": temp_files,
+                "parent": folder.id,
+                "my_file_annotations": annotations,
+                "used": "",
+                "executed": "",
+                "activityName": "",
+                "activityDescription": "",
+            }
+        )
+        # Write the df to the file:
+        tmpdir = tempfile.mkdtemp()
+        schedule_for_cleanup(tmpdir)
+        file_name = os.path.join(tmpdir, str(uuid.uuid4()))
+        df.to_csv(file_name, sep="\t", index=False)
+        assert os.path.exists(file_name)
+        schedule_for_cleanup(file_name)
+
+        # WHEN I sync the manifest to Synapse
+        synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
+
+        # THEN I expect that the folder has all of the files
+        await folder.sync_from_synapse_async(download_file=False)
+        assert len(folder.files) == 5
+
+        # AND each of the files are the ones we uploaded
+        for file in folder.files:
+            assert file.path in temp_files
+            assert file.activity is None
+            assert len(file.annotations.keys()) == 1
+            assert list(file.annotations.values())[0][0] in annotations
+
+        # WHEN I update the manifest file to remove the annotations
+        df = pd.DataFrame(
+            {
+                "path": temp_files,
+                "parent": folder.id,
+                "used": "",
+                "executed": "",
+                "activityName": "",
+                "activityDescription": "",
+            }
+        )
+        # Write the df to the file:
+        tmpdir = tempfile.mkdtemp()
+        schedule_for_cleanup(tmpdir)
+        file_name = os.path.join(tmpdir, str(uuid.uuid4()))
+        df.to_csv(file_name, sep="\t", index=False)
+        assert os.path.exists(file_name)
+        schedule_for_cleanup(file_name)
+
+        # AND I sync the manifest to Synapse
+        synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
+
+        # THEN I expect that the folder has all of the files
+        await folder.sync_from_synapse_async(download_file=False)
+        assert len(folder.files) == 5
+
+        # AND each of the files are the ones we uploaded
+        for file in folder.files:
+            assert file.path in temp_files
+            assert file.activity is None
+
+            # AND none of the files have annotations
+            assert len(file.annotations.keys()) == 0
+
     async def test_sync_to_synapse_activities_pointing_to_files_and_urls(
         self, syn: Synapse, schedule_for_cleanup, project_model: Project
     ) -> None:
