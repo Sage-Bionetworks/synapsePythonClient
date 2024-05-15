@@ -110,6 +110,7 @@ class TestFileStore:
 
         # THEN I expect the file to be stored
         assert file.id is not None
+        assert file.version_number == 1
         assert file.activity is not None
         assert file.activity.id is not None
         assert file.activity.etag is not None
@@ -132,6 +133,7 @@ class TestFileStore:
         )
         assert file_copy.activity is None
         assert file.activity is None
+        assert file.version_number == 1
 
     async def test_store_in_folder(self, project_model: Project, file: File) -> None:
         # GIVEN a file
