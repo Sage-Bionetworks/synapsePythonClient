@@ -44,6 +44,8 @@ from synapseclient.models import Activity, File, UsedEntity, UsedURL
 
 from .monitor import notify_me_async
 
+# When new fields are added to the manifest they will also need to be added to
+# utils.py#merge_non_modifiable_manifest_fields
 REQUIRED_FIELDS = ["path", "parent"]
 FILE_CONSTRUCTOR_FIELDS = ["name", "id", "synapseStore", "contentType"]
 STORE_FUNCTION_FIELDS = ["activityName", "activityDescription", "forceVersion"]
@@ -1345,7 +1347,8 @@ async def _manifest_upload(syn: Synapse, df) -> bool:
             synapse_store=row["synapseStore"] if "synapseStore" in row else True,
             content_type=row["contentType"] if "contentType" in row else None,
             force_version=row["forceVersion"] if "forceVersion" in row else True,
-            merge_with_found_resource=False,
+            _merge_non_modifiable_manifest_fields=True,
+            _present_manifest_fields=row.keys().tolist(),
         )
 
         manifest_style_annotations = dict(

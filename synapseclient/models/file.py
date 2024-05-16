@@ -24,7 +24,7 @@ from synapseclient.core.utils import (
     delete_none_keys,
     guess_file_name,
     merge_dataclass_entities,
-    merge_metadata_fields,
+    merge_non_modifiable_manifest_fields,
     run_and_attach_otel_context,
 )
 from synapseclient.entity import File as Synapse_File
@@ -250,13 +250,6 @@ class File(FileSynchronousProtocol, AccessControllable):
             being restricted and the requirements of access.
 
             This may be used only by an administrator of the specified file.
-        merge_with_found_resource: (Store only)
-            Works in conjunction with `create_or_update` in that this is only evaluated
-            if `create_or_update` is True. If this is True the metadata will be merged
-            with the existing metadata in Synapse. If False the existing metadata will
-            be replaced with the new metadata. When this is False any updates will act
-            as a destructive update.
-
         synapse_store: (Store only)
             Whether the File should be uploaded or if false: only the path should
             be stored when [synapseclient.models.File.store][] is called.
@@ -425,15 +418,30 @@ class File(FileSynchronousProtocol, AccessControllable):
     This may be used only by an administrator of the specified file.
     """
 
-    merge_with_found_resource: bool = field(default=True, repr=False, compare=False)
+    _merge_non_modifiable_manifest_fields: bool = field(
+        default=False, repr=False, compare=False
+    )
     """
     (Store only)
 
     Works in conjunction with `create_or_update` in that this is only evaluated if
-    `create_or_update` is True. If this is True the metadata will be merged with the
-    existing metadata in Synapse. If False the existing metadata will be replaced with
-    the new metadata. When this is False any updates will act as a destructive update.
+    `create_or_update` is True. If this is True any fields that are not modifiable
+    through the manifest will be merged with the existing fields from Synapse. If False
+    all fields will be merged from Synapse.
+
+    This is not meant to be used by end-users and is used internally during a manifest
+    upload. Unfortunate this is mostly a hack to maintain backwards compatability with
+    how manifest uploads work. The behavior this is emulating is:
+    1) If a column is passed into the manifest it will replace the field on the File
+    2) If a column is not present in the manifest it will retrieve the File metadata
+    from Synapse and perform an 'upsert' for that field.
+
+    Due to the behavior of how data classes work, we cannot delete fields like a dict,
+    this means we need to set a flag to determine if we should merge the fields or not.
     """
+
+    _present_manifest_fields: List[str] = field(default=None, repr=False, compare=False)
+    """Hidden attribute to pass along what columns were present in a manifest upload."""
 
     synapse_store: bool = field(default=True, repr=False)
     """
@@ -741,10 +749,12 @@ class File(FileSynchronousProtocol, AccessControllable):
         client = Synapse.get_client(synapse_client=synapse_client)
 
         if existing_file := await self._find_existing_file(synapse_client=client):
-            if self.merge_with_found_resource:
-                merge_dataclass_entities(source=existing_file, destination=self)
+            if self._merge_non_modifiable_manifest_fields:
+                merge_non_modifiable_manifest_fields(
+                    source=existing_file, destination=self
+                )
             else:
-                merge_metadata_fields(source=existing_file, destination=self)
+                merge_dataclass_entities(source=existing_file, destination=self)
 
         if self.path:
             self.path = os.path.expanduser(self.path)

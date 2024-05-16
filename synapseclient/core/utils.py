@@ -1400,8 +1400,9 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
 
 def merge_dataclass_entities(
     source: typing.Union["Project", "Folder", "File"],
-    destination: typing.Union["Project", "Folder"],
-) -> typing.Union["Project", "Folder"]:
+    destination: typing.Union["Project", "Folder", "File"],
+    fields_to_ignore: typing.List[str] = None,
+) -> typing.Union["Project", "Folder", "File"]:
     """
     Utility function to merge two dataclass entities together. This is used when we are
     upserting an entity from the Synapse service with the requested changes.
@@ -1420,6 +1421,8 @@ def merge_dataclass_entities(
 
     # Update destination_dict with source_dict, keeping destination's values in case of conflicts
     for key, value in source_dict.items():
+        if fields_to_ignore is not None and key in fields_to_ignore:
+            continue
         if is_dataclass(getattr(source, key)):
             if hasattr(destination, key):
                 setattr(destination, key, getattr(source, key))
@@ -1442,13 +1445,28 @@ def merge_dataclass_entities(
     return destination
 
 
-def merge_metadata_fields(
-    source: typing.Union["Project", "Folder", "File"],
-    destination: typing.Union["Project", "Folder", "File"],
-) -> typing.Union["Project", "Folder"]:
+def merge_non_modifiable_manifest_fields(
+    source: "File",
+    destination: "File",
+) -> "File":
     """
-    Utility function to merge two dataclass entities together. This will only merge the
-    minimum amount of data required for an update with Synapse.
+    Utility function to handle special cases around merging file entities together
+    during a manifest upload. This is a special case due to how data persisting works
+    with a manifest.
+
+    To determine if a field needs to be added to this utility find where the File class
+    instance is being created or attributes are being placed onto that File.
+
+    1) Any columns that are specified should not be pulled forward from synapse.
+        They should contain to remain as None value.
+    2) Any columns that are not specified within the manifest file should be pulled
+        forward.
+    3) Annotations are an exception to #2, they are always replaced by the manifest.
+
+
+    Also to note, the manifest field names are in camelCase due to backwards
+    compatability. The fields in the dataclass objects on the other hand are in
+    snake_case.
 
     Arguments:
         source: The source entity to merge from.
@@ -1458,14 +1476,16 @@ def merge_metadata_fields(
         The destination entity with the merged values.
     """
     # pylint: disable=protected-access
-    destination._last_persistent_instance = (
-        destination._last_persistent_instance or source._last_persistent_instance
-    )
-    destination.id = destination.id or source.id
-    destination.etag = destination.etag or source.etag
-    destination.version_number = destination.version_number or source.version_number
-    destination.version_label = destination.version_label or source.version_label
-    destination.version_comment = destination.version_comment or source.version_comment
-    destination.modified_on = destination.modified_on or source.modified_on
+    fields_to_not_merge = ["annotations"]
+    if "used" or "executed" in destination._present_manifest_fields:
+        fields_to_not_merge.append("activity")
 
-    return destination
+    if "name" in destination._present_manifest_fields:
+        fields_to_not_merge.append("name")
+
+    if "contentType" in destination._present_manifest_fields:
+        fields_to_not_merge.append("content_type")
+
+    return merge_dataclass_entities(
+        source=source, destination=destination, fields_to_ignore=fields_to_not_merge
+    )

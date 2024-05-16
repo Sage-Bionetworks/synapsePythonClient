@@ -437,6 +437,82 @@ class TestSyncToSynapse:
         # AND none of the files have an activity
         assert folder.files[0].activity is None
 
+    async def test_sync_to_synapse_field_not_available_in_manifest_persisted(
+        self, syn: Synapse, schedule_for_cleanup, project_model: Project
+    ) -> None:
+        # GIVEN a folder to sync to
+        folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=project_model.id
+        ).store_async()
+        schedule_for_cleanup(folder.id)
+
+        # AND temporary file on disk:
+        temp_file = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(temp_file)
+
+        # AND A manifest file with the paths to the temp files exists
+        df = pd.DataFrame(
+            {
+                "path": [temp_file],
+                "parent": folder.id,
+                "used": SYNAPSE_URL,
+                "executed": "",
+                "activityName": BOGUS_ACTIVITY,
+                "activityDescription": BOGUS_DESCRIPTION,
+            }
+        )
+        # Write the df to the file:
+        file_name = write_df_to_tsv(df, schedule_for_cleanup)
+
+        # WHEN I sync the manifest to Synapse
+        synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
+
+        # THEN I expect that the folder has all of the files
+        await folder.sync_from_synapse_async(download_file=False)
+        assert len(folder.files) == 1
+
+        # AND the file is the one we uploaded
+        assert folder.files[0].version_number == 1
+        assert folder.files[0].path == temp_file
+        assert folder.files[0].activity.name == BOGUS_ACTIVITY
+        assert folder.files[0].activity.description == BOGUS_DESCRIPTION
+        assert len(folder.files[0].activity.used) == 1
+        assert folder.files[0].activity.used[0].url == SYNAPSE_URL
+
+        # WHEN I update a metadata field on the File not available in the manifest
+        folder.files[0].description = "new file description"
+        await folder.files[0].store_async()
+        assert folder.files[0].version_number == 2
+
+        # WHEN I update the manifest file to remove the activities
+        df = pd.DataFrame(
+            {
+                "path": [temp_file],
+                "parent": folder.id,
+                "used": "",
+                "executed": "",
+                "activityName": "",
+                "activityDescription": "",
+            }
+        )
+        # Write the df to the file:
+        file_name = write_df_to_tsv(df, schedule_for_cleanup)
+
+        # AND I sync the manifest to Synapse
+        synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
+
+        # THEN I expect that the folder has all of the files
+        await folder.sync_from_synapse_async(download_file=False)
+        assert len(folder.files) == 1
+
+        # AND the file is the one we uploaded
+        assert folder.files[0].version_number == 2
+        assert folder.files[0].path == temp_file
+        # AND none of the files have an activity
+        assert folder.files[0].activity is None
+        # AND The metadata field updated is still present
+        assert folder.files[0].description == "new file description"
+
     async def test_sync_to_synapse_activities_added_then_removed_with_version_updates(
         self, syn: Synapse, schedule_for_cleanup, project_model: Project
     ) -> None:
@@ -478,12 +554,13 @@ class TestSyncToSynapse:
         assert len(folder.files[0].activity.used) == 1
         assert folder.files[0].activity.used[0].url == SYNAPSE_URL
 
-        # WHEN I update the manifest file to remove the activities
+        # WHEN I update the manifest file to remove the activities and update a metadata
+        # field
         df = pd.DataFrame(
             {
                 "path": [temp_file],
                 "parent": folder.id,
-                "some_new_annotation": "asdf",
+                "contentType": "text/html",
                 "used": "",
                 "executed": "",
                 "activityName": "",
