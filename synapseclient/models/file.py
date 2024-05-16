@@ -686,11 +686,12 @@ class File(FileSynchronousProtocol, AccessControllable):
         if not self.associate_activity_to_new_version:
             fields_to_not_merge.append("activity")
 
-        if "name" in self._present_manifest_fields:
-            fields_to_not_merge.append("name")
+        if self._present_manifest_fields:
+            if "name" in self._present_manifest_fields:
+                fields_to_not_merge.append("name")
 
-        if "contentType" in self._present_manifest_fields:
-            fields_to_not_merge.append("content_type")
+            if "contentType" in self._present_manifest_fields:
+                fields_to_not_merge.append("content_type")
 
         return fields_to_not_merge
 
