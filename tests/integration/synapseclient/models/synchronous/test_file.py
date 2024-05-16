@@ -121,7 +121,7 @@ class TestFileStore:
         assert file.activity.used[0].name == "example"
 
         # WHEN I remove the activity from the file
-        file.activity = None
+        file.activity.disassociate_from_entity(parent=file)
 
         # AND I store the file again
         file.store()

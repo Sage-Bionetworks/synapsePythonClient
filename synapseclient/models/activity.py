@@ -390,6 +390,7 @@ class Activity(ActivitySynchronousProtocol):
                     current_context,
                 ),
             )
+            parent.activity = None
 
     @classmethod
     async def disassociate_from_entity_async(
@@ -417,3 +418,4 @@ class Activity(ActivitySynchronousProtocol):
             await delete_entity_generated_by(
                 entity_id=parent.id, synapse_client=synapse_client
             )
+            parent.activity = None

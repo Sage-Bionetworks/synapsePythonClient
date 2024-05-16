@@ -122,7 +122,7 @@ class TestFileStore:
         assert file.activity.used[0].name == "example"
 
         # WHEN I remove the activity from the file
-        file.activity = None
+        await file.activity.disassociate_from_entity_async(parent=file)
 
         # AND I store the file again
         await file.store_async()

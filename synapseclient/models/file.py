@@ -198,7 +198,10 @@ class File(FileSynchronousProtocol, AccessControllable):
             it will override the `path`.
         activity: The Activity model represents the main record of Provenance in
             Synapse. It is analygous to the Activity defined in the
-            [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
+            [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance. Activity
+            cannot be removed during a store operation by setting it to None. You must
+            use: [synapseclient.models.Activity.delete_async][] or
+            [synapseclient.models.Activity.disassociate_from_entity_async][].
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
@@ -249,6 +252,20 @@ class File(FileSynchronousProtocol, AccessControllable):
             being restricted and the requirements of access.
 
             This may be used only by an administrator of the specified file.
+        merge_existing_annotations: (Store only)
+            Works in conjunction with `create_or_update` in that this is only evaluated
+            if `create_or_update` is True. If this entity exists in Synapse that has
+            annotations that are not present in a store operation, these annotations
+            will be added to the entity. If this is False any annotations that are not
+            present within a store operation will be removed from this entity. This
+            allows one to complete a destructive update of annotations on an entity.
+        associate_activity_to_new_version: (Store only)
+            Works in conjunction with `create_or_update` in that this is only evaluated
+            if `create_or_update` is True. When true an activity already attached to the
+            current version of this entity will be associated the new version during a
+            store operation if the version was updated. This is useful if you are
+            updating the entity and want to ensure that the activity is persisted onto
+            the new version the entity.
         synapse_store: (Store only)
             Whether the File should be uploaded or if false: only the path should
             be stored when [synapseclient.models.File.store][] is called.
@@ -330,7 +347,11 @@ class File(FileSynchronousProtocol, AccessControllable):
     activity: Optional[Activity] = field(default=None, compare=False)
     """The Activity model represents the main record of Provenance in Synapse.  It is
     analygous to the Activity defined in the
-    [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance."""
+    [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance. Activity cannot
+    be removed during a store operation by setting it to None. You must use:
+    [synapseclient.models.Activity.delete_async][] or
+    [synapseclient.models.Activity.disassociate_from_entity_async][].
+    """
 
     annotations: Optional[
         Dict[
