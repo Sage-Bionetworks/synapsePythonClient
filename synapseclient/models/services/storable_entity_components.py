@@ -203,23 +203,24 @@ async def _store_activity_and_annotations(
 
     if (
         hasattr(root_resource, "activity")
-        and (root_resource.activity or last_persistent_instance)
+        and root_resource.activity is not None
         and (
             last_persistent_instance is None
-            or last_persistent_instance.activity != root_resource.activity
+            or (
+                (last_persistent_instance.activity != root_resource.activity)
+                or (
+                    hasattr(root_resource, "associate_activity_to_new_version")
+                    and root_resource.associate_activity_to_new_version
+                    and last_persistent_instance.version_number
+                    != root_resource.version_number
+                )
+            )
         )
     ):
-        if root_resource.activity:
-            result = await root_resource.activity.store_async(
-                parent=root_resource, synapse_client=synapse_client
-            )
-            root_resource.activity = result
-        else:
-            from synapseclient.models import Activity
-
-            await Activity.disassociate_from_entity_async(
-                parent=root_resource, synapse_client=synapse_client
-            )
+        result = await root_resource.activity.store_async(
+            parent=root_resource, synapse_client=synapse_client
+        )
+        root_resource.activity = result
 
         return True
     return False
