@@ -1457,11 +1457,11 @@ def merge_non_modifiable_manifest_fields(
     To determine if a field needs to be added to this utility find where the File class
     instance is being created or attributes are being placed onto that File.
 
-    1) Any columns that are specified should not be pulled forward from synapse.
-        They should contain to remain as None value.
-    2) Any columns that are not specified within the manifest file should be pulled
-        forward.
-    3) Annotations are an exception to #2, they are always replaced by the manifest.
+    1) Any columns that are specified or are defaulting to something other than None
+        should not be merged from the existing File entity that synapse has. For example
+        if `name` column is present we will not merge the name from the existing entity.
+    2) Annotations are an exception, they are always replaced during the manifest
+        upload, even if the manifest didn't have any annotations.
 
 
     Also to note, the manifest field names are in camelCase due to backwards
