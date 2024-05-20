@@ -321,7 +321,7 @@ class TestSyncToSynapse:
         ).store_async()
         schedule_for_cleanup(folder.id)
 
-        # AND 5 temporary files on disk:
+        # AND 3 temporary files on disk:
         temp_files = [utils.make_bogus_uuid_file() for _ in range(3)]
         for file in temp_files:
             schedule_for_cleanup(file)
