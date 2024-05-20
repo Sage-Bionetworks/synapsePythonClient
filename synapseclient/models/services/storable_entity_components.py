@@ -154,6 +154,49 @@ def _resolve_store_task(
     return re_read_required
 
 
+def _has_activity_change_to_apply(
+    root_resource: Union["File", "Folder", "Project", "Table"],
+    last_persistent_instance: Union["File", "Folder", "Project", "Table"],
+) -> bool:
+    """Determines if there is a change on the Activity to apply to the root_resource.
+
+    Arguments:
+        root_resource: The root resource.
+        last_persistent_instance: The last persistent instance of the root resource.
+
+    Returns:
+        If the activity should be pulled forward.
+    """
+    return last_persistent_instance is None or (
+        (last_persistent_instance.activity != root_resource.activity)
+        or _pull_activity_forward_to_new_version(
+            root_resource=root_resource,
+            last_persistent_instance=last_persistent_instance,
+        )
+    )
+
+
+def _pull_activity_forward_to_new_version(
+    root_resource: Union["File", "Folder", "Project", "Table"],
+    last_persistent_instance: Union["File", "Folder", "Project", "Table"],
+) -> bool:
+    """Determine if there was a version update on the root_resource, and if so it
+    determines if we should be pulling the activity forward onto a new version.
+
+    Arguments:
+        root_resource: The root resource.
+        last_persistent_instance: The last persistent instance of the root resource.
+
+    Returns:
+        If the activity should be pulled forward.
+    """
+    return (
+        hasattr(root_resource, "associate_activity_to_new_version")
+        and root_resource.associate_activity_to_new_version
+        and last_persistent_instance.version_number != root_resource.version_number
+    )
+
+
 async def _store_activity_and_annotations(
     root_resource: Union["File", "Folder", "Project", "Table"],
     synapse_client: Optional[Synapse] = None,
@@ -204,17 +247,9 @@ async def _store_activity_and_annotations(
     if (
         hasattr(root_resource, "activity")
         and root_resource.activity is not None
-        and (
-            last_persistent_instance is None
-            or (
-                (last_persistent_instance.activity != root_resource.activity)
-                or (
-                    hasattr(root_resource, "associate_activity_to_new_version")
-                    and root_resource.associate_activity_to_new_version
-                    and last_persistent_instance.version_number
-                    != root_resource.version_number
-                )
-            )
+        and _has_activity_change_to_apply(
+            root_resource=root_resource,
+            last_persistent_instance=last_persistent_instance,
         )
     ):
         result = await root_resource.activity.store_async(
