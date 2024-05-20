@@ -24,7 +24,6 @@ from synapseclient.core.utils import (
     delete_none_keys,
     guess_file_name,
     merge_dataclass_entities,
-    merge_non_modifiable_manifest_fields,
     run_and_attach_otel_context,
 )
 from synapseclient.entity import File as Synapse_File
@@ -199,7 +198,10 @@ class File(FileSynchronousProtocol, AccessControllable):
             it will override the `path`.
         activity: The Activity model represents the main record of Provenance in
             Synapse. It is analygous to the Activity defined in the
-            [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
+            [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance. Activity
+            cannot be removed during a store operation by setting it to None. You must
+            use: [synapseclient.models.Activity.delete_async][] or
+            [synapseclient.models.Activity.disassociate_from_entity_async][].
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
@@ -235,7 +237,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         force_version: (Store only)
             Indicates whether the method should increment the version of the object if
             something within the entity has changed. For example updating the
-            description or annotations. You may set this to False and an update to the
+            description or name. You may set this to False and an update to the
             entity will not increment the version.
 
             Updating the `version_label` attribute will also cause a version update
@@ -250,6 +252,20 @@ class File(FileSynchronousProtocol, AccessControllable):
             being restricted and the requirements of access.
 
             This may be used only by an administrator of the specified file.
+        merge_existing_annotations: (Store only)
+            Works in conjunction with `create_or_update` in that this is only evaluated
+            if `create_or_update` is True. If this entity exists in Synapse that has
+            annotations that are not present in a store operation, these annotations
+            will be added to the entity. If this is False any annotations that are not
+            present within a store operation will be removed from this entity. This
+            allows one to complete a destructive update of annotations on an entity.
+        associate_activity_to_new_version: (Store only)
+            Works in conjunction with `create_or_update` in that this is only evaluated
+            if `create_or_update` is True. When true an activity already attached to the
+            current version of this entity will be associated the new version during a
+            store operation if the version was updated. This is useful if you are
+            updating the entity and want to ensure that the activity is persisted onto
+            the new version the entity.
         synapse_store: (Store only)
             Whether the File should be uploaded or if false: only the path should
             be stored when [synapseclient.models.File.store][] is called.
@@ -331,7 +347,11 @@ class File(FileSynchronousProtocol, AccessControllable):
     activity: Optional[Activity] = field(default=None, compare=False)
     """The Activity model represents the main record of Provenance in Synapse.  It is
     analygous to the Activity defined in the
-    [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance."""
+    [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance. Activity cannot
+    be removed during a store operation by setting it to None. You must use:
+    [synapseclient.models.Activity.delete_async][] or
+    [synapseclient.models.Activity.disassociate_from_entity_async][].
+    """
 
     annotations: Optional[
         Dict[
@@ -395,7 +415,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     (Store only)
 
     Indicates whether the method should increment the version of the object if something
-    within the entity has changed. For example updating the description or annotations.
+    within the entity has changed. For example updating the description or name.
     You may set this to False and an update to the entity will not increment the
     version.
 
@@ -418,26 +438,36 @@ class File(FileSynchronousProtocol, AccessControllable):
     This may be used only by an administrator of the specified file.
     """
 
-    _merge_non_modifiable_manifest_fields: bool = field(
+    merge_existing_annotations: bool = field(default=True, repr=False, compare=False)
+    """
+    (Store only)
+
+    Works in conjunction with `create_or_update` in that this is only evaluated if
+    `create_or_update` is True. If this entity exists in Synapse that has annotations
+    that are not present in a store operation, these annotations will be added to the
+    entity. If this is False any annotations that are not present within a store
+    operation will be removed from this entity. This allows one to complete a
+    destructive update of annotations on an entity.
+    """
+
+    associate_activity_to_new_version: bool = field(
         default=False, repr=False, compare=False
     )
     """
     (Store only)
 
     Works in conjunction with `create_or_update` in that this is only evaluated if
-    `create_or_update` is True. If this is True any fields that are not modifiable
-    through the manifest will be merged with the existing fields from Synapse. If False
-    all fields will be merged from Synapse.
+    `create_or_update` is True. When true an activity already attached to the current
+    version of this entity will be associated the new version during a store operation
+    if the version was updated. This is useful if you are updating the entity and want
+    to ensure that the activity is persisted onto the new version the entity.
 
-    This is not meant to be used by end-users and is used internally during a manifest
-    upload. Unfortunate this is mostly a hack to maintain backwards compatability with
-    how manifest uploads work. The behavior this is emulating is:
-    1) If a column is passed into the manifest it will replace the field on the File
-    2) If a column is not present in the manifest it will retrieve the File metadata
-    from Synapse and perform an 'upsert' for that field.
+    When this is False the activity will not be associated to the new version of the
+    entity during a store operation.
 
-    Due to the behavior of how data classes work, we cannot delete fields like a dict,
-    this means we need to set a flag to determine if we should merge the fields or not.
+    Regardless of this setting, if you have an Activity object on the entity it will be
+    persisted onto the new version. This is only used when you don't have an Activity
+    object on the entity.
     """
 
     _present_manifest_fields: List[str] = field(default=None, repr=False, compare=False)
@@ -661,6 +691,31 @@ class File(FileSynchronousProtocol, AccessControllable):
             return existing_file
         return None
 
+    def _determine_fields_to_ignore_in_merge(self) -> List[str]:
+        """This is used to determine what fields should not be merged when merging two
+        entities. This allows for a fine tuned destructive update of an entity.
+
+        This also has special handling during a manifest upload of files. If a manifest
+        is specifying fields we'll use those values rather than copying them from the
+        existing entity. This is to allow for a destructive update of an entity.
+
+        """
+        fields_to_not_merge = []
+        if not self.merge_existing_annotations:
+            fields_to_not_merge.append("annotations")
+
+        if not self.associate_activity_to_new_version:
+            fields_to_not_merge.append("activity")
+
+        if self._present_manifest_fields:
+            if "name" in self._present_manifest_fields:
+                fields_to_not_merge.append("name")
+
+            if "contentType" in self._present_manifest_fields:
+                fields_to_not_merge.append("content_type")
+
+        return fields_to_not_merge
+
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"File_Store: {self.path if self.path else self.id}"
     )
@@ -749,12 +804,11 @@ class File(FileSynchronousProtocol, AccessControllable):
         client = Synapse.get_client(synapse_client=synapse_client)
 
         if existing_file := await self._find_existing_file(synapse_client=client):
-            if self._merge_non_modifiable_manifest_fields:
-                merge_non_modifiable_manifest_fields(
-                    source=existing_file, destination=self
-                )
-            else:
-                merge_dataclass_entities(source=existing_file, destination=self)
+            merge_dataclass_entities(
+                source=existing_file,
+                destination=self,
+                fields_to_ignore=self._determine_fields_to_ignore_in_merge(),
+            )
 
         if self.path:
             self.path = os.path.expanduser(self.path)

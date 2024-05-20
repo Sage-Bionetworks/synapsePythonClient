@@ -122,7 +122,7 @@ class TestFileStore:
         assert file.activity.used[0].name == "example"
 
         # WHEN I remove the activity from the file
-        file.activity = None
+        await file.activity.disassociate_from_entity_async(parent=file)
 
         # AND I store the file again
         await file.store_async()
@@ -429,6 +429,7 @@ class TestFileStore:
 
         # WHEN I store the file
         file = await file.store_async(parent=project_model)
+        assert file.version_number == 1
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file annotations to have been stored
@@ -450,6 +451,9 @@ class TestFileStore:
         assert file.annotations["my_key_bool"] == [False, False, False]
         assert file.annotations["my_key_double"] == [1.2, 3.4, 5.6]
         assert file.annotations["my_key_long"] == [1, 2, 3]
+
+        # AND The default behavior is that the version is not incremented
+        assert file.version_number == 1
 
     async def test_setting_annotations_directly(
         self, project_model: Project, file: File

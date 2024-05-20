@@ -374,6 +374,12 @@ class Table(TableSynchronousProtocol, AccessControllable):
         is_search_enabled: When creating or updating a table or view specifies if full
             text search should be enabled. Note that enabling full text search might
             slow down the indexing of the table or view.
+        activity: The Activity model represents the main record of Provenance in
+            Synapse. It is analygous to the Activity defined in the
+            [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance. Activity
+            cannot be removed during a store operation by setting it to None. You must
+            use: [synapseclient.models.Activity.delete_async][] or
+            [synapseclient.models.Activity.disassociate_from_entity_async][].
         annotations: Additional metadata associated with the table. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
@@ -439,7 +445,11 @@ class Table(TableSynchronousProtocol, AccessControllable):
     activity: Optional[Activity] = None
     """The Activity model represents the main record of Provenance in Synapse.  It is
     analygous to the Activity defined in the
-    [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance. """
+    [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance. Activity cannot
+    be removed during a store operation by setting it to None. You must use:
+    [synapseclient.models.Activity.delete_async][] or
+    [synapseclient.models.Activity.disassociate_from_entity_async][].
+    """
 
     annotations: Optional[
         Dict[

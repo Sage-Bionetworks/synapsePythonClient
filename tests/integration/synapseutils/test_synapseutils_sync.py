@@ -133,8 +133,8 @@ class TestSyncToSynapse:
         ).store_async()
         schedule_for_cleanup(folder.id)
 
-        # AND 10 temporary files on disk:
-        temp_files = [utils.make_bogus_uuid_file() for _ in range(10)]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
         for file in temp_files:
             schedule_for_cleanup(file)
 
@@ -157,7 +157,7 @@ class TestSyncToSynapse:
 
         # THEN I expect that the folder has all of the files
         await folder.sync_from_synapse_async(download_file=False)
-        assert len(folder.files) == 10
+        assert len(folder.files) == 2
 
         # AND each of the files are the ones we uploaded
         for file in folder.files:
@@ -269,8 +269,8 @@ class TestSyncToSynapse:
         ).store_async()
         schedule_for_cleanup(folder.id)
 
-        # AND 10 temporary files on disk:
-        temp_files = [utils.make_bogus_uuid_file() for _ in range(10)]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
         for file in temp_files:
             schedule_for_cleanup(file)
 
@@ -293,7 +293,7 @@ class TestSyncToSynapse:
 
         # THEN I expect that the folder has all of the files
         await folder.sync_from_synapse_async(download_file=False)
-        assert len(folder.files) == 10
+        assert len(folder.files) == 2
 
         # AND each of the files are the ones we uploaded
         for file in folder.files:
@@ -313,7 +313,7 @@ class TestSyncToSynapse:
         correctly set in the activity of the files.
 
         Example chain of files:
-        file1 <- file2 <- file3 <- file4 <- file5
+        file1 <- file2 <- file3
         """
         # GIVEN a folder to sync to
         folder = await Folder(
@@ -321,8 +321,8 @@ class TestSyncToSynapse:
         ).store_async()
         schedule_for_cleanup(folder.id)
 
-        # AND 5 temporary files on disk:
-        temp_files = [utils.make_bogus_uuid_file() for _ in range(5)]
+        # AND 3 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(3)]
         for file in temp_files:
             schedule_for_cleanup(file)
 
@@ -350,7 +350,7 @@ class TestSyncToSynapse:
 
         # THEN I expect that the folder has all of the files
         await folder.sync_from_synapse_async(download_file=False)
-        assert len(folder.files) == 5
+        assert len(folder.files) == 3
 
         # AND each of the files are the ones we uploaded
         file_ids = [file.id for file in folder.files]
@@ -368,7 +368,7 @@ class TestSyncToSynapse:
                 assert len(file.activity.executed) == 1
                 assert file.activity.executed[0].target_id in file_ids
 
-    async def test_sync_to_synapse_activities_added_then_removed(
+    async def test_sync_to_synapse_activities_added_then_removed_from_manifest(
         self, syn: Synapse, schedule_for_cleanup, project_model: Project
     ) -> None:
         # GIVEN a folder to sync to
@@ -434,8 +434,95 @@ class TestSyncToSynapse:
         # AND the file is the one we uploaded
         assert folder.files[0].version_number == 1
         assert folder.files[0].path == temp_file
-        # AND none of the files have an activity
-        assert folder.files[0].activity is None
+        # AND the files has an activity
+        assert folder.files[0].activity is not None
+        assert folder.files[0].activity.name == BOGUS_ACTIVITY
+        assert folder.files[0].activity.description == BOGUS_DESCRIPTION
+        assert len(folder.files[0].activity.used) == 1
+        assert folder.files[0].activity.used[0].url == SYNAPSE_URL
+
+    async def test_sync_to_synapse_activities_added_then_removed_from_manifest_but_copied_to_new_version(
+        self, syn: Synapse, schedule_for_cleanup, project_model: Project
+    ) -> None:
+        # GIVEN a folder to sync to
+        folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=project_model.id
+        ).store_async()
+        schedule_for_cleanup(folder.id)
+
+        # AND temporary file on disk:
+        temp_file = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(temp_file)
+
+        # AND A manifest file with the paths to the temp files exists
+        df = pd.DataFrame(
+            {
+                "path": [temp_file],
+                "parent": folder.id,
+                "used": SYNAPSE_URL,
+                "executed": "",
+                "activityName": BOGUS_ACTIVITY,
+                "activityDescription": BOGUS_DESCRIPTION,
+            }
+        )
+        # Write the df to the file:
+        file_name = write_df_to_tsv(df, schedule_for_cleanup)
+
+        # WHEN I sync the manifest to Synapse
+        synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
+
+        # THEN I expect that the folder has all of the files
+        await folder.sync_from_synapse_async(download_file=False)
+        assert len(folder.files) == 1
+
+        # AND the file is the one we uploaded
+        assert folder.files[0].version_number == 1
+        assert folder.files[0].path == temp_file
+        assert folder.files[0].activity.name == BOGUS_ACTIVITY
+        assert folder.files[0].activity.description == BOGUS_DESCRIPTION
+        assert len(folder.files[0].activity.used) == 1
+        assert folder.files[0].activity.used[0].url == SYNAPSE_URL
+
+        # WHEN I update the content of the file to be uploaded
+        with open(temp_file, "wb") as f:
+            f.write(b"0")
+
+        # AND I update the manifest file to remove the activities
+        df = pd.DataFrame(
+            {
+                "path": [temp_file],
+                "parent": folder.id,
+                "used": "",
+                "executed": "",
+                "activityName": "",
+                "activityDescription": "",
+            }
+        )
+        # Write the df to the file:
+        file_name = write_df_to_tsv(df, schedule_for_cleanup)
+
+        # AND I sync the manifest to Synapse
+        synapseutils.syncToSynapse(
+            syn,
+            file_name,
+            sendMessages=SEND_MESSAGE,
+            retries=2,
+            associate_activity_to_new_version=True,
+        )
+
+        # THEN I expect that the folder has all of the files
+        await folder.sync_from_synapse_async(download_file=False)
+        assert len(folder.files) == 1
+
+        # AND the file is the one we uploaded
+        assert folder.files[0].version_number == 2
+        assert folder.files[0].path == temp_file
+        # AND the file has an activity
+        assert folder.files[0].activity is not None
+        assert folder.files[0].activity.name == BOGUS_ACTIVITY
+        assert folder.files[0].activity.description == BOGUS_DESCRIPTION
+        assert len(folder.files[0].activity.used) == 1
+        assert folder.files[0].activity.used[0].url == SYNAPSE_URL
 
     async def test_sync_to_synapse_field_not_available_in_manifest_persisted(
         self, syn: Synapse, schedule_for_cleanup, project_model: Project
@@ -601,7 +688,7 @@ class TestSyncToSynapse:
         Creates a number of files with annotations.
         After the files are uploaded to Synapse, the annotations are removed from the
         manifest file and the files are re-uploaded to Synapse. The annotations should
-        be removed from the files.
+        be persisted on the files.
         """
         # GIVEN a folder to sync to
         folder = await Folder(
@@ -609,13 +696,13 @@ class TestSyncToSynapse:
         ).store_async()
         schedule_for_cleanup(folder.id)
 
-        # AND 5 temporary files on disk:
-        temp_files = [utils.make_bogus_uuid_file() for _ in range(5)]
+        # AND 3 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(3)]
         for file in temp_files:
             schedule_for_cleanup(file)
 
         # AND A manifest file with the paths to the temp files exists
-        annotations = ["foo", "bar", "baz", "qux", "quux"]
+        annotations = ["foo", "bar", "baz"]
         df = pd.DataFrame(
             {
                 "path": temp_files,
@@ -635,7 +722,7 @@ class TestSyncToSynapse:
 
         # THEN I expect that the folder has all of the files
         await folder.sync_from_synapse_async(download_file=False)
-        assert len(folder.files) == 5
+        assert len(folder.files) == 3
 
         # AND each of the files are the ones we uploaded
         for file in folder.files:
@@ -663,7 +750,98 @@ class TestSyncToSynapse:
 
         # THEN I expect that the folder has all of the files
         await folder.sync_from_synapse_async(download_file=False)
-        assert len(folder.files) == 5
+        assert len(folder.files) == 3
+
+        # AND each of the files are the ones we uploaded
+        for file in folder.files:
+            assert file.path in temp_files
+            assert file.activity is None
+
+            # AND the files have annotations
+            assert len(file.annotations.keys()) == 1
+            assert list(file.annotations.values())[0][0] in annotations
+
+    async def test_sync_to_synapse_annotations_added_then_removed_with_no_annotation_merge(
+        self, syn: Synapse, schedule_for_cleanup, project_model: Project
+    ) -> None:
+        """
+        Creates a number of files with annotations.
+        After the files are uploaded to Synapse, the annotations are removed from the
+        manifest file and the files are re-uploaded to Synapse. The annotations should
+        be removed from the files.
+        """
+        # GIVEN a folder to sync to
+        folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=project_model.id
+        ).store_async()
+        schedule_for_cleanup(folder.id)
+
+        # AND 3 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(3)]
+        for file in temp_files:
+            schedule_for_cleanup(file)
+
+        # AND A manifest file with the paths to the temp files exists
+        annotations = ["foo", "bar", "baz"]
+        df = pd.DataFrame(
+            {
+                "path": temp_files,
+                "parent": folder.id,
+                "my_file_annotations": annotations,
+                "used": "",
+                "executed": "",
+                "activityName": "",
+                "activityDescription": "",
+            }
+        )
+        # Write the df to the file:
+        file_name = write_df_to_tsv(df, schedule_for_cleanup)
+
+        # WHEN I sync the manifest to Synapse
+        synapseutils.syncToSynapse(
+            syn,
+            file_name,
+            sendMessages=SEND_MESSAGE,
+            retries=2,
+        )
+
+        # THEN I expect that the folder has all of the files
+        await folder.sync_from_synapse_async(download_file=False)
+        assert len(folder.files) == 3
+
+        # AND each of the files are the ones we uploaded
+        for file in folder.files:
+            assert file.path in temp_files
+            assert file.activity is None
+            assert len(file.annotations.keys()) == 1
+            assert list(file.annotations.values())[0][0] in annotations
+
+        # WHEN I update the manifest file to remove the annotations
+        df = pd.DataFrame(
+            {
+                "path": temp_files,
+                "parent": folder.id,
+                "used": "",
+                "executed": "",
+                "activityName": "",
+                "activityDescription": "",
+            }
+        )
+        # Write the df to the file:
+        file_name = write_df_to_tsv(df, schedule_for_cleanup)
+
+        # AND I sync the manifest to Synapse
+        synapseutils.syncToSynapse(
+            syn,
+            file_name,
+            sendMessages=SEND_MESSAGE,
+            retries=2,
+            merge_existing_annotations=False,
+        )
+
+        # THEN I expect that the folder has all of the files
+        await folder.sync_from_synapse_async(download_file=False)
+        assert len(folder.files) == 3
 
         # AND each of the files are the ones we uploaded
         for file in folder.files:
@@ -689,8 +867,8 @@ class TestSyncToSynapse:
         ).store_async()
         schedule_for_cleanup(folder.id)
 
-        # AND 5 temporary files on disk:
-        temp_files = [utils.make_bogus_uuid_file() for _ in range(5)]
+        # AND 3 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(3)]
         for file in temp_files:
             schedule_for_cleanup(file)
 
@@ -725,7 +903,7 @@ class TestSyncToSynapse:
 
         # THEN I expect that the folder has all of the files
         await folder.sync_from_synapse_async(download_file=False)
-        assert len(folder.files) == 5
+        assert len(folder.files) == 3
 
         # AND each of the files are the ones we uploaded
         file_ids = [file.id for file in folder.files]
@@ -755,8 +933,6 @@ class TestSyncToSynapse:
         Example chain of files:
         file1 <- file2
         file1 <- file3
-        file1 <- file4
-        file1 <- file5
         """
         # GIVEN a folder to sync to
         folder = await Folder(
@@ -764,8 +940,8 @@ class TestSyncToSynapse:
         ).store_async()
         schedule_for_cleanup(folder.id)
 
-        # AND 5 temporary files on disk:
-        temp_files = [utils.make_bogus_uuid_file() for _ in range(5)]
+        # AND 3 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(3)]
         for file in temp_files:
             schedule_for_cleanup(file)
 
@@ -793,7 +969,7 @@ class TestSyncToSynapse:
 
         # THEN I expect that the folder has all of the files
         await folder.sync_from_synapse_async(download_file=False)
-        assert len(folder.files) == 5
+        assert len(folder.files) == 3
 
         # AND the root file of the saving process is present
         root_file_id = next(
@@ -824,8 +1000,6 @@ class TestSyncToSynapse:
         Example chain of files:
         file1 -> file2
         file1 -> file3
-        file1 -> file4
-        file1 -> file5
         """
         # GIVEN a folder to sync to
         folder = await Folder(
@@ -833,13 +1007,13 @@ class TestSyncToSynapse:
         ).store_async()
         schedule_for_cleanup(folder.id)
 
-        # AND 5 temporary files on disk:
-        temp_files = [utils.make_bogus_uuid_file() for _ in range(5)]
+        # AND 3 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(3)]
         for file in temp_files:
             schedule_for_cleanup(file)
 
         # AND the first file used/executed all the other files
-        used_or_executed_files = [";".join(temp_files[1:]), "", "", "", ""]
+        used_or_executed_files = [";".join(temp_files[1:]), "", ""]
 
         # AND A manifest file with the paths to the temp files exists
         df = pd.DataFrame(
@@ -860,7 +1034,7 @@ class TestSyncToSynapse:
 
         # THEN I expect that the folder has all of the files
         await folder.sync_from_synapse_async(download_file=False)
-        assert len(folder.files) == 5
+        assert len(folder.files) == 3
 
         # AND the root file of the saving process is present
         root_file_id = next(
@@ -876,16 +1050,12 @@ class TestSyncToSynapse:
             if file.path == temp_files[0]:
                 assert file.activity.name == BOGUS_ACTIVITY
                 assert file.activity.description == BOGUS_DESCRIPTION
-                assert len(file.activity.used) == 4
+                assert len(file.activity.used) == 2
                 assert file.activity.used[0].target_id in file_ids
                 assert file.activity.used[1].target_id in file_ids
-                assert file.activity.used[2].target_id in file_ids
-                assert file.activity.used[3].target_id in file_ids
-                assert len(file.activity.executed) == 4
+                assert len(file.activity.executed) == 2
                 assert file.activity.executed[0].target_id in file_ids
                 assert file.activity.executed[1].target_id in file_ids
-                assert file.activity.executed[2].target_id in file_ids
-                assert file.activity.executed[3].target_id in file_ids
             else:
                 # AND the rest of the files do not have an activity
                 assert file.activity is None
