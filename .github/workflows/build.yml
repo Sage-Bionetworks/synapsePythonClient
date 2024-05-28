@@ -455,10 +455,9 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
       - name: Extract Release Version
-        id: get_version
         #run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
         run: | 
-          RELEASE_VERSION="v1.2.3test"
+          RELEASE_VERSION="v1.2.4test"
           echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_ENV
         shell: bash
       - name: Set up Docker Buildx
@@ -470,6 +469,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push Docker image
+        id: docker_build
         uses: docker/build-push-action@v3
         with:
           push: true
