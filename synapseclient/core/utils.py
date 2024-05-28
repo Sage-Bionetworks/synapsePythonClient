@@ -1410,6 +1410,7 @@ def merge_dataclass_entities(
     Arguments:
         source: The source entity to merge from.
         destination: The destination entity to merge into.
+        fields_to_ignore: A list of fields to ignore when merging.
 
     Returns:
         The destination entity with the merged values.
