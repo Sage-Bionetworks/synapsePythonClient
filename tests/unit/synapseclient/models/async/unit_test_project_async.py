@@ -56,7 +56,6 @@ class TestProject:
         assert project_output.created_by == CREATED_BY
         assert project_output.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_with_id(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -105,7 +104,6 @@ class TestProject:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_with_no_changes(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -134,7 +132,6 @@ class TestProject:
             # AND the project should only contain the ID
             assert result.id == PROJECT_ID
 
-    @pytest.mark.asyncio
     async def test_store_after_get(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -178,7 +175,6 @@ class TestProject:
             # AND the project should only contain the ID
             assert result.id == PROJECT_ID
 
-    @pytest.mark.asyncio
     async def test_store_after_get_with_changes(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -239,7 +235,6 @@ class TestProject:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_with_annotations(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -305,7 +300,6 @@ class TestProject:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_with_name_and_parent_id(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -364,7 +358,6 @@ class TestProject:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_no_id_or_name(self) -> None:
         # GIVEN a Project object
         project = Project(parent_id=PARENT_ID)
@@ -376,7 +369,6 @@ class TestProject:
         # THEN we should get an error
         assert str(e.value) == "Project ID or Name is required"
 
-    @pytest.mark.asyncio
     async def test_get_by_id(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -407,7 +399,6 @@ class TestProject:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_get_by_name_and_parent(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -449,7 +440,6 @@ class TestProject:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_get_by_name_and_parent_not_found(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -475,7 +465,6 @@ class TestProject:
                 parent=project.parent_id,
             )
 
-    @pytest.mark.asyncio
     async def test_delete_with_id(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -495,7 +484,6 @@ class TestProject:
                 obj=project.id,
             )
 
-    @pytest.mark.asyncio
     async def test_delete_missing_id(self) -> None:
         # GIVEN a Project object
         project = Project()
@@ -507,7 +495,6 @@ class TestProject:
         # THEN we should get an error
         assert str(e.value) == "Entity ID or Name/Parent is required"
 
-    @pytest.mark.asyncio
     async def test_copy(self) -> None:
         # GIVEN a Project object
         project = Project(
@@ -559,7 +546,6 @@ class TestProject:
             # AND the file should be stored
             assert result.id == "syn456"
 
-    @pytest.mark.asyncio
     async def test_copy_missing_id(self) -> None:
         # GIVEN a Project object
         project = Project()
@@ -571,7 +557,6 @@ class TestProject:
         # THEN we should get an error
         assert str(e.value) == "The project must have an ID and destination_id to copy."
 
-    @pytest.mark.asyncio
     async def test_copy_missing_destination(self) -> None:
         # GIVEN a Project object
         project = Project(id=PROJECT_ID)
@@ -583,7 +568,6 @@ class TestProject:
         # THEN we should get an error
         assert str(e.value) == "The project must have an ID and destination_id to copy."
 
-    @pytest.mark.asyncio
     async def test_sync_from_synapse(self) -> None:
         # GIVEN a Project object
         project = Project(

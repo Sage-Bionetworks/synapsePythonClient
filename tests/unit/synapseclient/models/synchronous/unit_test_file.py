@@ -636,7 +636,7 @@ class TestFile:
 
         # WHEN I change the metadata on the example file
         with patch(
-            "synapseclient.models.file.changeFileMetaData",
+            "synapseutils.copy_functions.changeFileMetaData",
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_change_meta_data:
             result = file.change_metadata(

@@ -328,6 +328,8 @@ async def with_retry_time_based_async(
         caught_exception = None
         caught_exception_info = None
         response = None
+        current_span = trace.get_current_span()
+        current_span.set_attribute("synapse.retries", str(retries + 1))
 
         try:
             response = await function()
@@ -449,6 +451,8 @@ def with_retry_time_based(
         caught_exception = None
         caught_exception_info = None
         response = None
+        current_span = trace.get_current_span()
+        current_span.set_attribute("synapse.retries", str(retries + 1))
 
         try:
             response = function()

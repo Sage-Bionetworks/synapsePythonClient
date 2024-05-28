@@ -87,7 +87,7 @@ class Cache:
             value = os.path.expandvars(os.path.expanduser(value))
             # create the cache_root_dir if it does not already exist
             if not os.path.exists(value):
-                os.makedirs(value)
+                os.makedirs(value, exist_ok=True)
         self.__dict__[key] = value
 
     def __init__(self, cache_root_dir=CACHE_ROOT_DIR, fanout=1000):

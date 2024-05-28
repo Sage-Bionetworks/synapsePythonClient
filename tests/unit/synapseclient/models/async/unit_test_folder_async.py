@@ -57,7 +57,6 @@ class TestFolder:
         assert folder_output.created_by == CREATED_BY
         assert folder_output.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_with_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -107,7 +106,6 @@ class TestFolder:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_with_no_changes(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -136,7 +134,6 @@ class TestFolder:
             # AND the folder should only contain the ID
             assert result.id == SYN_123
 
-    @pytest.mark.asyncio
     async def test_store_after_get(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -180,7 +177,6 @@ class TestFolder:
             # AND the folder should only contain the ID
             assert result.id == SYN_123
 
-    @pytest.mark.asyncio
     async def test_store_after_get_with_changes(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -242,7 +238,6 @@ class TestFolder:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_with_annotations(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -309,7 +304,6 @@ class TestFolder:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_with_name_and_parent_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -369,7 +363,6 @@ class TestFolder:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_with_name_and_parent(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -428,7 +421,6 @@ class TestFolder:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_store_no_id_name_or_parent(self) -> None:
         # GIVEN a Folder object
         folder = Folder()
@@ -443,7 +435,6 @@ class TestFolder:
             "(name and (`parent_id` or parent with an id)) set."
         )
 
-    @pytest.mark.asyncio
     async def test_store_no_id_or_name(self) -> None:
         # GIVEN a Folder object
         folder = Folder(parent_id=PARENT_ID)
@@ -458,7 +449,6 @@ class TestFolder:
             "(name and (`parent_id` or parent with an id)) set."
         )
 
-    @pytest.mark.asyncio
     async def test_store_no_id_or_parent(self) -> None:
         # GIVEN a Folder object
         folder = Folder(name=FOLDER_NAME)
@@ -473,7 +463,6 @@ class TestFolder:
             "(name and (`parent_id` or parent with an id)) set."
         )
 
-    @pytest.mark.asyncio
     async def test_get_by_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -504,7 +493,6 @@ class TestFolder:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_get_by_name_and_parent(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -546,7 +534,6 @@ class TestFolder:
             assert result.created_by == CREATED_BY
             assert result.modified_by == MODIFIED_BY
 
-    @pytest.mark.asyncio
     async def test_get_by_name_and_parent_not_found(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -572,7 +559,6 @@ class TestFolder:
                 parent=folder.parent_id,
             )
 
-    @pytest.mark.asyncio
     async def test_delete_with_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -592,7 +578,6 @@ class TestFolder:
                 obj=folder.id,
             )
 
-    @pytest.mark.asyncio
     async def test_delete_missing_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder()
@@ -604,7 +589,6 @@ class TestFolder:
         # THEN we should get an error
         assert str(e.value) == "The folder must have an id set."
 
-    @pytest.mark.asyncio
     async def test_copy(self) -> None:
         # GIVEN a Folder object
         folder = Folder(
@@ -655,7 +639,6 @@ class TestFolder:
             # AND the file should be stored
             assert result.id == SYN_456
 
-    @pytest.mark.asyncio
     async def test_copy_missing_id(self) -> None:
         # GIVEN a Folder object
         folder = Folder()
@@ -667,7 +650,6 @@ class TestFolder:
         # THEN we should get an error
         assert str(e.value) == "The folder must have an ID and parent_id to copy."
 
-    @pytest.mark.asyncio
     async def test_copy_missing_destination(self) -> None:
         # GIVEN a Folder object
         folder = Folder(id=SYN_123)
@@ -679,7 +661,6 @@ class TestFolder:
         # THEN we should get an error
         assert str(e.value) == "The folder must have an ID and parent_id to copy."
 
-    @pytest.mark.asyncio
     async def test_sync_from_synapse(self) -> None:
         # GIVEN a Folder object
         folder = Folder(

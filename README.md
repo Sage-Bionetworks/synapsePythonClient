@@ -63,6 +63,13 @@ Clone the [source code repository](https://github.com/Sage-Bionetworks/synapsePy
     cd synapsePythonClient
     pip install .
 
+Alternatively, you can use pip to install a particular branch, commit, or other git reference:
+
+    pip install git+https://github.com/Sage-Bionetworks/synapsePythonClient@master
+
+or
+
+    pip install git+https://github.com/Sage-Bionetworks/synapsePythonClient@my-commit-hash
 
 Command line usage
 ------------------

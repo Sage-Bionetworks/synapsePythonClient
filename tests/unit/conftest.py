@@ -1,18 +1,18 @@
-import logging
-import platform
-import urllib.request
-
-from unittest import mock
-from pytest_socket import disable_socket, SocketBlockedError
-import pytest
-import os, time
-
-from synapseclient import Synapse
-from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
-
 """
 pytest unit test session level fixtures
 """
+
+import logging
+import os
+import platform
+import time
+import urllib.request
+
+import pytest
+from pytest_socket import SocketBlockedError, disable_socket
+
+from synapseclient import Synapse
+from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 
 
 def pytest_runtest_setup():

@@ -26,7 +26,6 @@ from synapseclient.core.upload.multipart_upload_async import (
 from synapseclient.models import File, Project
 
 
-@pytest.mark.asyncio
 async def test_round_trip(
     syn: Synapse, project_model: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -71,7 +70,6 @@ async def test_round_trip(
             syn.logger.exception("Failed to cleanup")
 
 
-@pytest.mark.asyncio
 async def test_single_thread_upload(syn: Synapse) -> None:
     synapseclient.core.config.single_threaded = True
     try:
@@ -81,7 +79,6 @@ async def test_single_thread_upload(syn: Synapse) -> None:
         synapseclient.core.config.single_threaded = False
 
 
-@pytest.mark.asyncio
 async def test_randomly_failing_parts(
     syn: Synapse, project_model: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -156,7 +153,6 @@ async def test_randomly_failing_parts(
                 syn.logger.exception("Failed to cleanup")
 
 
-@pytest.mark.asyncio
 async def test_multipart_upload_big_string(
     syn: Synapse, project_model: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -304,7 +300,6 @@ async def _multipart_copy_test(
     assert file_content == dest_file_content
 
 
-@pytest.mark.asyncio
 async def test_multipart_copy(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -312,7 +307,6 @@ async def test_multipart_copy(
     await _multipart_copy_test(syn, project, schedule_for_cleanup, MIN_PART_SIZE)
 
 
-@pytest.mark.asyncio
 @skip("Skip in normal testing because the large size makes it slow")
 async def test_multipart_copy__big_parts(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]

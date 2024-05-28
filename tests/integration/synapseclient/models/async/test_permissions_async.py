@@ -42,7 +42,6 @@ class TestAclOnProject:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.mark.asyncio
     async def test_get_acl_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions = await Project(
@@ -71,7 +70,6 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions = await Project(
@@ -109,7 +107,6 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team = await Project(
@@ -167,7 +164,6 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_through_multiple_teams_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_multiple_teams = await Project(
@@ -241,7 +237,6 @@ class TestAclOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_for_project_with_public_and_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_public_and_authenticated_users = await Project(
@@ -314,7 +309,6 @@ class TestAclOnFolder:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.mark.asyncio
     async def test_get_acl_default(self, project_model: Project) -> None:
         # GIVEN a folder created with default permissions of administrator
         folder_with_default_permissions = await Folder(
@@ -343,7 +337,6 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_minimal_permissions_on_entity(
         self, project_model: Project
     ) -> None:
@@ -383,7 +376,6 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_minimal_permissions_on_sub_folder(
         self, project_model: Project
     ) -> None:
@@ -444,7 +436,6 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions_on_parent)
 
-    @pytest.mark.asyncio
     async def test_get_acl_through_team_assigned_to_user(
         self, project_model: Project
     ) -> None:
@@ -504,7 +495,6 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_through_multiple_teams_assigned_to_user(
         self, project_model: Project
     ) -> None:
@@ -580,7 +570,6 @@ class TestAclOnFolder:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_for_project_with_public_and_registered_user(
         self, project_model: Project
     ) -> None:
@@ -661,7 +650,6 @@ class TestAclOnFile:
         schedule_for_cleanup(filename)
         return File(path=filename)
 
-    @pytest.mark.asyncio
     async def test_get_acl_default(self, project_model: Project, file: File) -> None:
         # GIVEN a file created with default permissions of administrator
         file.name = str(uuid.uuid4()) + "test_get_acl_default_permissions"
@@ -689,7 +677,6 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_minimal_permissions_on_entity(
         self, project_model: Project, file: File
     ) -> None:
@@ -728,7 +715,6 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_through_team_assigned_to_user(
         self, project_model: Project, file: File
     ) -> None:
@@ -790,7 +776,6 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_through_multiple_teams_assigned_to_user(
         self, project_model: Project, file: File
     ) -> None:
@@ -867,7 +852,6 @@ class TestAclOnFile:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_for_project_with_public_and_registered_user(
         self, project_model: Project, file: File
     ) -> None:
@@ -944,7 +928,6 @@ class TestAclOnTable:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    @pytest.mark.asyncio
     def table(self, project_model: Project) -> Table:
         # Creating columns for my table ======================================================
         columns = [
@@ -960,7 +943,6 @@ class TestAclOnTable:
 
         return table
 
-    @pytest.mark.asyncio
     async def test_get_acl_default(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_default_permissions"
@@ -988,7 +970,6 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_minimal_permissions_on_entity(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
@@ -1025,7 +1006,6 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_through_team_assigned_to_user(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = (
@@ -1083,7 +1063,6 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_through_multiple_teams_assigned_to_user(
         self, table: Table
     ) -> None:
@@ -1158,7 +1137,6 @@ class TestAclOnTable:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @pytest.mark.asyncio
     async def test_get_acl_for_project_with_public_and_registered_user(
         self, table: Table
     ) -> None:
@@ -1237,7 +1215,6 @@ class TestPermissionsOnEntityForCaller:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.mark.asyncio
     async def test_get_permissions_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions = await Project(
@@ -1261,7 +1238,6 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @pytest.mark.asyncio
     async def test_get_permissions_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions = await Project(
@@ -1286,7 +1262,6 @@ class TestPermissionsOnEntityForCaller:
 
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @pytest.mark.asyncio
     async def test_get_permissions_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team = await Project(
@@ -1344,7 +1319,6 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @pytest.mark.asyncio
     async def test_get_permissions_through_multiple_teams_assigned_to_user(
         self,
     ) -> None:
@@ -1417,7 +1391,6 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @pytest.mark.asyncio
     async def test_get_permissions_for_project_with_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_authenticated_users = await Project(

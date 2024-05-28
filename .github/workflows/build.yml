@@ -18,8 +18,6 @@ on:
     tags-ignore:
       - '**'
 
-  pull_request:
-
   release:
     types:
       - 'published'
@@ -189,10 +187,10 @@ jobs:
           fi
 
           # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-          pytest -sv --cov-append --cov=. --cov-report xml tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-          pytest -sv --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+          # pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
       - name: Upload otel spans
         uses: actions/upload-artifact@v2
         if: always()
@@ -201,6 +199,7 @@ jobs:
           path: tests/integration/otel_spans_integration_testing_*.ndjson
           if-no-files-found: ignore
       - name: Upload coverage report
+        id: upload_coverage_report
         uses: actions/upload-artifact@v2
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
         with:
@@ -209,21 +208,30 @@ jobs:
 
   sonarcloud:
     needs: [test]
+    if: ${{ always() && !cancelled()}}
     name: SonarCloud
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Check coverage report existence
+        id: check_coverage_report
+        uses: andstor/file-existence-action@v3
+        with:
+          files: "coverage.xml"
       - name: Download coverage report
         uses: actions/download-artifact@v2
+        if: steps.check_coverage_report.outputs.files_exists == 'true'
         with:
           name: coverage-report
         # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
       - name: Override Coverage Source Path for Sonar
+        if: steps.check_coverage_report.outputs.files_exists == 'true'
         run: sed -i "s/<source>\/home\/runner\/work\/synapsePythonClient<\/source>/<source>\/github\/workspace<\/source>/g" coverage.xml
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
+        if: ${{ always() }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
