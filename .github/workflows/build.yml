@@ -10,7 +10,6 @@
 name: build
 
 on:
-
   push:
     # we test all pushed branches, but not tags.
     # we only push tags with releases, and we handle releases explicitly
@@ -41,7 +40,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        os: [ubuntu-20.04, macos-12, windows-2022]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
         python: [3.8, '3.9', '3.10', '3.11']
@@ -389,7 +388,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-12, windows-2022]
+        os: [ubuntu-20.04, macos-11, windows-2019]
 
         # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
         python: [3.8, '3.9', '3.10', '3.11']
