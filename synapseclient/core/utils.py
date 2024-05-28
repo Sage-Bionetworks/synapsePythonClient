@@ -1400,8 +1400,9 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
 
 def merge_dataclass_entities(
     source: typing.Union["Project", "Folder", "File"],
-    destination: typing.Union["Project", "Folder"],
-) -> typing.Union["Project", "Folder"]:
+    destination: typing.Union["Project", "Folder", "File"],
+    fields_to_ignore: typing.List[str] = None,
+) -> typing.Union["Project", "Folder", "File"]:
     """
     Utility function to merge two dataclass entities together. This is used when we are
     upserting an entity from the Synapse service with the requested changes.
@@ -1409,6 +1410,7 @@ def merge_dataclass_entities(
     Arguments:
         source: The source entity to merge from.
         destination: The destination entity to merge into.
+        fields_to_ignore: A list of fields to ignore when merging.
 
     Returns:
         The destination entity with the merged values.
@@ -1420,6 +1422,8 @@ def merge_dataclass_entities(
 
     # Update destination_dict with source_dict, keeping destination's values in case of conflicts
     for key, value in source_dict.items():
+        if fields_to_ignore is not None and key in fields_to_ignore:
+            continue
         if is_dataclass(getattr(source, key)):
             if hasattr(destination, key):
                 setattr(destination, key, getattr(source, key))

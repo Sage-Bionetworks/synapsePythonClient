@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Union
 from opentelemetry import context, trace
 
 from synapseclient import Synapse
+from synapseclient.api import delete_entity_generated_by
 from synapseclient.activity import Activity as Synapse_Activity
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants.concrete_types import USED_ENTITY, USED_URL
@@ -389,3 +390,32 @@ class Activity(ActivitySynchronousProtocol):
                     current_context,
                 ),
             )
+            parent.activity = None
+
+    @classmethod
+    async def disassociate_from_entity_async(
+        cls,
+        parent: Union["Table", "File"],
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """
+        Disassociate the Activity from the parent entity. This is the first step in
+        deleting the Activity. If you have other entities that are associated with this
+        Activity you must disassociate them by calling this method on them as well.
+
+        Arguments:
+            parent: The parent entity this activity is associated with.
+            synapse_client: If not passed in or None this will use the last client
+                from the `.login()` method.
+
+        Raises:
+            ValueError: If the parent does not have an ID.
+        """
+        # TODO: Input validation: SYNPY-1400
+        with tracer.start_as_current_span(
+            name=f"Activity_disassociate: Parent_ID: {parent.id}"
+        ):
+            await delete_entity_generated_by(
+                entity_id=parent.id, synapse_client=synapse_client
+            )
+            parent.activity = None

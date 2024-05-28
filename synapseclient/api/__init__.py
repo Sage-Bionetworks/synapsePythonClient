@@ -13,6 +13,7 @@ from .entity_services import (
     post_entity,
     put_entity,
     create_access_requirements_if_none,
+    delete_entity_generated_by,
 )
 from .file_services import (
     get_file_handle,
@@ -51,4 +52,5 @@ __all__ = [
     "get_upload_destination",
     "get_upload_destination_location",
     "create_access_requirements_if_none",
+    "delete_entity_generated_by",
 ]

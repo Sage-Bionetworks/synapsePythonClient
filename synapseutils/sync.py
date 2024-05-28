@@ -44,6 +44,8 @@ from synapseclient.models import Activity, File, UsedEntity, UsedURL
 
 from .monitor import notify_me_async
 
+# When new fields are added to the manifest they will also need to be added to
+# file.py#_determine_fields_to_ignore_in_merge
 REQUIRED_FIELDS = ["path", "parent"]
 FILE_CONSTRUCTOR_FIELDS = ["name", "id", "synapseStore", "contentType"]
 STORE_FUNCTION_FIELDS = ["activityName", "activityDescription", "forceVersion"]
@@ -1144,6 +1146,8 @@ def syncToSynapse(
     dryRun: bool = False,
     sendMessages: bool = True,
     retries: int = MAX_RETRIES,
+    merge_existing_annotations: bool = True,
+    associate_activity_to_new_version: bool = False,
 ) -> None:
     """Synchronizes files specified in the manifest file to Synapse.
 
@@ -1175,6 +1179,14 @@ def syncToSynapse(
         manifestFile: A tsv file with file locations and metadata to be pushed to Synapse.
         dryRun: Performs validation without uploading if set to True.
         sendMessages: Sends out messages on completion if set to True.
+        retries: Number of retries to attempt if an error occurs.
+        merge_existing_annotations: If True, will merge the annotations in the manifest
+            file with the existing annotations on Synapse. If False, will overwrite the
+            existing annotations on Synapse with the annotations in the manifest file.
+        associate_activity_to_new_version: If True, and a version update occurs, the
+            existing activity in Synapse will be associated with the new version. The
+            exception is if you are specifying new values to be used/executed, it will
+            create a new activity for the new version of the entity.
 
     Returns:
         None
@@ -1210,9 +1222,25 @@ def syncToSynapse(
                 syn, "Upload of %s" % manifestFile, retries=retries
             )
             upload = notify_decorator(_manifest_upload)
-            wrap_async_to_sync(upload(syn, df), syn)
+            wrap_async_to_sync(
+                upload(
+                    syn,
+                    df,
+                    merge_existing_annotations,
+                    associate_activity_to_new_version,
+                ),
+                syn,
+            )
         else:
-            wrap_async_to_sync(_manifest_upload(syn, df), syn)
+            wrap_async_to_sync(
+                _manifest_upload(
+                    syn,
+                    df,
+                    merge_existing_annotations,
+                    associate_activity_to_new_version,
+                ),
+                syn,
+            )
         progress_bar.update(total_upload_size - progress_bar.n)
         progress_bar.close()
 
@@ -1324,13 +1352,25 @@ def _build_annotations_for_file(
     return file_annotations
 
 
-async def _manifest_upload(syn: Synapse, df) -> bool:
+async def _manifest_upload(
+    syn: Synapse,
+    df,
+    merge_existing_annotations: bool = True,
+    associate_activity_to_new_version: bool = False,
+) -> bool:
     """
     Handles the upload of the manifest file.
 
     Args:
         syn: The logged in Synapse client.
         df: The dataframe of the manifest file.
+        merge_existing_annotations: If True, will merge the annotations in the manifest
+            file with the existing annotations on Synapse. If False, will overwrite the
+            existing annotations on Synapse with the annotations in the manifest file.
+        associate_activity_to_new_version: If True, and a version update occurs, the
+            existing activity in Synapse will be associated with the new version. The
+            exception is if you are specifying new values to be used/executed, it will
+            create a new activity for the new version of the entity.
 
     Returns:
         If the manifest upload was successful.
@@ -1345,6 +1385,9 @@ async def _manifest_upload(syn: Synapse, df) -> bool:
             synapse_store=row["synapseStore"] if "synapseStore" in row else True,
             content_type=row["contentType"] if "contentType" in row else None,
             force_version=row["forceVersion"] if "forceVersion" in row else True,
+            merge_existing_annotations=merge_existing_annotations,
+            associate_activity_to_new_version=associate_activity_to_new_version,
+            _present_manifest_fields=row.keys().tolist(),
         )
 
         manifest_style_annotations = dict(

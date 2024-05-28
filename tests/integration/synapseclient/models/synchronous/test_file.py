@@ -87,6 +87,51 @@ class TestFileStore:
         assert file.file_handle.key is not None
         assert file.file_handle.external_url is None
 
+    async def test_activity_store_then_delete(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file has an activity
+        activity = Activity(
+            name="some_name",
+            description="some_description",
+            used=[
+                UsedURL(name="example", url=BOGUS_URL),
+            ],
+        )
+        file.activity = activity
+
+        # WHEN I store the file
+        file.store(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored
+        assert file.id is not None
+        assert file.version_number == 1
+        assert file.activity is not None
+        assert file.activity.id is not None
+        assert file.activity.etag is not None
+        assert file.activity.created_on is not None
+        assert file.activity.modified_on is not None
+        assert file.activity.created_by is not None
+        assert file.activity.modified_by is not None
+        assert file.activity.used[0].url == BOGUS_URL
+        assert file.activity.used[0].name == "example"
+
+        # WHEN I remove the activity from the file
+        file.activity.disassociate_from_entity(parent=file)
+
+        # AND I store the file again
+        file.store()
+
+        # THEN I expect the activity to be removed
+        file_copy = File(id=file.id, download_file=False).get(include_activity=True)
+        assert file_copy.activity is None
+        assert file.activity is None
+        assert file.version_number == 1
+
     async def test_store_in_folder(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())

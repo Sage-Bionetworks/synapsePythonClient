@@ -88,6 +88,53 @@ class TestFileStore:
         assert file.file_handle.key is not None
         assert file.file_handle.external_url is None
 
+    async def test_activity_store_then_delete(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND the file has an activity
+        activity = Activity(
+            name="some_name",
+            description="some_description",
+            used=[
+                UsedURL(name="example", url=BOGUS_URL),
+            ],
+        )
+        file.activity = activity
+
+        # WHEN I store the file
+        await file.store_async(parent=project_model)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored
+        assert file.id is not None
+        assert file.version_number == 1
+        assert file.activity is not None
+        assert file.activity.id is not None
+        assert file.activity.etag is not None
+        assert file.activity.created_on is not None
+        assert file.activity.modified_on is not None
+        assert file.activity.created_by is not None
+        assert file.activity.modified_by is not None
+        assert file.activity.used[0].url == BOGUS_URL
+        assert file.activity.used[0].name == "example"
+
+        # WHEN I remove the activity from the file
+        await file.activity.disassociate_from_entity_async(parent=file)
+
+        # AND I store the file again
+        await file.store_async()
+
+        # THEN I expect the activity to be removed
+        file_copy = await File(id=file.id, download_file=False).get_async(
+            include_activity=True
+        )
+        assert file_copy.activity is None
+        assert file.activity is None
+        assert file.version_number == 1
+
     async def test_store_in_folder(self, project_model: Project, file: File) -> None:
         # GIVEN a file
         file.name = str(uuid.uuid4())
@@ -382,6 +429,7 @@ class TestFileStore:
 
         # WHEN I store the file
         file = await file.store_async(parent=project_model)
+        assert file.version_number == 1
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file annotations to have been stored
@@ -403,6 +451,9 @@ class TestFileStore:
         assert file.annotations["my_key_bool"] == [False, False, False]
         assert file.annotations["my_key_double"] == [1.2, 3.4, 5.6]
         assert file.annotations["my_key_long"] == [1, 2, 3]
+
+        # AND The default behavior is that the version is not incremented
+        assert file.version_number == 1
 
     async def test_setting_annotations_directly(
         self, project_model: Project, file: File

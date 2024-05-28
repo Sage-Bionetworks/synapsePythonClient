@@ -175,3 +175,23 @@ async def create_access_requirements_if_none(
             "the Synapse access control team to start the process of adding "
             "terms-of-use or review board approval for this entity."
         )
+
+
+async def delete_entity_generated_by(
+    entity_id: str,
+    synapse_client: Optional["Synapse"] = None,
+) -> None:
+    """
+    Arguments:
+        entity_id: The ID of the entity.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
+
+    Returns: None
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_delete_async(
+        uri=f"/entity/{entity_id}/generatedBy",
+    )
