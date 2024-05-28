@@ -10,12 +10,6 @@
 name: build
 
 on:
-  workflow_dispatch:
-    inputs:
-      fake_tag:
-        description: 'Simulated Tag (e.g., refs/tags/v1.2.3)'
-        required: true
-        default: 'refs/tags/v1.2.3test'  # Example default tag
 
   push:
     # we test all pushed branches, but not tags.
@@ -464,8 +458,7 @@ jobs:
         id: get_version
         #run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
         run: | 
-          RELEASE_VERSION="${{ github.event.inputs.fake_tag }}"
-          RELEASE_VERSION="${RELEASE_VERSION/refs\/tags\//}"
+          RELEASE_VERSION="v1.2.3test"
           echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_ENV
         shell: bash
       - name: Set up Docker Buildx
