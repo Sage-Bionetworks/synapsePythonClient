@@ -466,7 +466,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: ghcr.io/sage-bionetworks/synapsepythonclient:my_automated_push
+          tags: ghcr.io/sage-bionetworks/synapsepythonclient:latest,ghcr.io/sage-bionetworks/synapsepythonclient:${{ github.run_number }}
           file: ./Dockerfile
           platforms: linux/amd64, linux/arm64
           cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
