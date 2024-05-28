@@ -465,10 +465,10 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: ghcr.io/${{ github.repository }}/synapseclient:latest,ghcr.io/${{ github.repository }}/synapseclient:${{ github.run_number }}
+          tags: ghcr.io/sage-bionetworks/synapsepythonclient:latest,ghcr.io/sage-bionetworks/synapsepythonclient:${{ github.run_number }}
           file: ./Dockerfile
           platforms: linux/amd64, linux/arm64
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/synapseclient:latest
+          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
           cache-to: type=inline
       - name: Output image digest
         run: echo "The image digest is ${{ steps.docker_build.outputs.digest }}"
