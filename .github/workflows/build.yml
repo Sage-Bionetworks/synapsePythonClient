@@ -485,7 +485,7 @@ jobs:
   # containerize the package and upload to the GHCR upon commit in develop
   ghcr-build-and-push-on-develop:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/SYNPY-1341-ghcr-step'
+    if: github.ref == 'refs/heads/develop'
     permissions:
       contents: read
       packages: write
