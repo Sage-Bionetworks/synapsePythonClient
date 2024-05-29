@@ -6,6 +6,11 @@
 #     and deployed to pypi servers (test.pypi.org for prereleases, and pypi.org for releases)
 #     Release tags must conform to our semver versioning, e.g. v1.2.3 in order to be packaged
 #     for pypi deployment.
+# - all pushes to the `develop` branch of the repository trigger a docker build and push to ghcr.io
+#     with the image tag named after the sha of the commit,
+#     e.g. `ghcr.io/sage-bionetworks/synapsepythonclient:develop-abc123`
+# - all non-prerelease releases trigger a docker build and push to ghcr.io with the image tag named
+#     after the release tag, e.g. `ghcr.io/sage-bionetworks/synapsepythonclient:1.2.3`
 
 name: build
 
@@ -34,453 +39,453 @@ jobs:
     - uses: pre-commit/action@v3.0.0
 
 
-  # # run unit (and integration tests if account secrets available) on our build matrix
-  # test:
-  #   needs: [pre-commit]
+  # run unit (and integration tests if account secrets available) on our build matrix
+  test:
+    needs: [pre-commit]
 
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-20.04, macos-12, windows-2022]
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-12, windows-2022]
 
-  #       # if changing the below change the run-integration-tests versions and the check-deploy versions
-  #       python: [3.8, '3.9', '3.10', '3.11']
+        # if changing the below change the run-integration-tests versions and the check-deploy versions
+        python: [3.8, '3.9', '3.10', '3.11']
 
-  #   runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
-  #   steps:
-  #     - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - uses: actions/setup-python@v4
-  #       with:
-  #         python-version: ${{ matrix.python }}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
 
-  #     - name: get-dependencies-location
-  #       shell: bash
-  #       run: |
-  #         SITE_PACKAGES_LOCATION=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
-  #         SITE_BIN_DIR=$(python3 -c "import os; import platform; import distutils.sysconfig; pre = distutils.sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
-  #         echo "site_packages_loc=$SITE_PACKAGES_LOCATION" >> $GITHUB_OUTPUT
-  #         echo "site_bin_dir=$SITE_BIN_DIR" >> $GITHUB_OUTPUT
-  #       id: get-dependencies
+      - name: get-dependencies-location
+        shell: bash
+        run: |
+          SITE_PACKAGES_LOCATION=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+          SITE_BIN_DIR=$(python3 -c "import os; import platform; import distutils.sysconfig; pre = distutils.sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
+          echo "site_packages_loc=$SITE_PACKAGES_LOCATION" >> $GITHUB_OUTPUT
+          echo "site_bin_dir=$SITE_BIN_DIR" >> $GITHUB_OUTPUT
+        id: get-dependencies
 
-  #     - name: Cache py-dependencies
-  #       id: cache-dependencies
-  #       uses: actions/cache@v3
-  #       env:
-  #         cache-name: cache-py-dependencies
-  #       with:
-  #         path: |
-  #           ${{ steps.get-dependencies.outputs.site_packages_loc }}
-  #           ${{ steps.get-dependencies.outputs.site_bin_dir }}
-  #         key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v17
+      - name: Cache py-dependencies
+        id: cache-dependencies
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-py-dependencies
+        with:
+          path: |
+            ${{ steps.get-dependencies.outputs.site_packages_loc }}
+            ${{ steps.get-dependencies.outputs.site_bin_dir }}
+          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v17
 
-  #     - name: Install py-dependencies
-  #       if: steps.cache-dependencies.outputs.cache-hit != 'true'
-  #       shell: bash
-  #       run: |
-  #         pip install -e ".[boto3,pandas,pysftp,tests]"
+      - name: Install py-dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          pip install -e ".[boto3,pandas,pysftp,tests]"
 
-  #         # ensure that numpy c extensions are installed on windows
-  #         # https://stackoverflow.com/a/59346525
-  #         if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
-  #           pip uninstall -y numpy
-  #           pip uninstall -y setuptools
-  #           pip install setuptools
-  #           pip install numpy
-  #         fi
+          # ensure that numpy c extensions are installed on windows
+          # https://stackoverflow.com/a/59346525
+          if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
+            pip uninstall -y numpy
+            pip uninstall -y setuptools
+            pip install setuptools
+            pip install numpy
+          fi
 
-  #     - name: run-unit-tests
-  #       shell: bash
-  #       run: |
-  #         pytest -sv --cov-append --cov=. --cov-report xml tests/unit
-  #     - name: Check for Secret availability
-  #       id: secret-check
-  #       if: ${{ contains(fromJSON('["3.9"]'), matrix.python) }}
-  #       # perform secret check & put boolean result as an output
-  #       shell: bash
-  #       run: |
-  #         if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_iv }}" ]; then
-  #           echo "secrets_available=false" >> $GITHUB_OUTPUT;
-  #         else
-  #           echo "secrets_available=true" >> $GITHUB_OUTPUT;
-  #         fi
+      - name: run-unit-tests
+        shell: bash
+        run: |
+          pytest -sv --cov-append --cov=. --cov-report xml tests/unit
+      - name: Check for Secret availability
+        id: secret-check
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) }}
+        # perform secret check & put boolean result as an output
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_iv }}" ]; then
+            echo "secrets_available=false" >> $GITHUB_OUTPUT;
+          else
+            echo "secrets_available=true" >> $GITHUB_OUTPUT;
+          fi
 
-  #         if [ -z "${{ secrets.synapse_personal_access_token }}" ]; then
-  #           echo "synapse_pat_available=false" >> $GITHUB_OUTPUT;
-  #         else
-  #           echo "synapse_pat_available=true" >> $GITHUB_OUTPUT;
-  #         fi
-  #     - name: OpenTelemtry pre-check
-  #       id: otel-check
-  #       if: ${{ steps.secret-check.outputs.secrets_available == 'true' && steps.secret-check.outputs.synapse_pat_available == 'true' }}
-  #       shell: bash
-  #       run: |
-  #         # Leave disabled during normal integration test runs - Enable when we want to
-  #         # collect the data.
-  #         # echo "run_opentelemetry=true" >> $GITHUB_OUTPUT;
-  #         echo "run_opentelemetry=false" >> $GITHUB_OUTPUT;
+          if [ -z "${{ secrets.synapse_personal_access_token }}" ]; then
+            echo "synapse_pat_available=false" >> $GITHUB_OUTPUT;
+          else
+            echo "synapse_pat_available=true" >> $GITHUB_OUTPUT;
+          fi
+      - name: OpenTelemtry pre-check
+        id: otel-check
+        if: ${{ steps.secret-check.outputs.secrets_available == 'true' && steps.secret-check.outputs.synapse_pat_available == 'true' }}
+        shell: bash
+        run: |
+          # Leave disabled during normal integration test runs - Enable when we want to
+          # collect the data.
+          # echo "run_opentelemetry=true" >> $GITHUB_OUTPUT;
+          echo "run_opentelemetry=false" >> $GITHUB_OUTPUT;
 
-  #         # AWS CLI is pre-installed on github hosted runners - Commented out for GH runs
-  #           # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-  #           # unzip awscliv2.zip
-  #           # sudo ./aws/install
-  #           # curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
-  #           # sudo dpkg -i session-manager-plugin.deb
-  #     # - name: Create AWS Config
-  #     #   if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
-  #     #   shell: bash
-  #     #   run: |
-  #     #     touch test.awsConfig
-  #     #     printf "[default]\nregion = us-east-1\ncredential_process = \"tests/integration/synapse_creds.sh\" \"https://sc.sageit.org\" \"${{ secrets.synapse_personal_access_token }}\"\n" >> test.awsConfig
-  #     #     chmod +x tests/integration/synapse_creds.sh
-  #     # If you are exporting data using `otlp` you can start a port forwading session
-  #     # - name: SSM Port Forward Start
-  #     #   if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
-  #     #   shell: bash
-  #     #   env:
-  #     #     AWS_CONFIG_FILE: "test.awsConfig"
-  #     #   run: |
-  #     #     # Start a port-forwarding session in a non-interactive way. AWS will clean-up
-  #     #     # stale sessions after 20 minutes of inactivity
-  #     #     aws ssm start-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"] & disown
-  #     #     sleep 15
+          # AWS CLI is pre-installed on github hosted runners - Commented out for GH runs
+            # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            # unzip awscliv2.zip
+            # sudo ./aws/install
+            # curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+            # sudo dpkg -i session-manager-plugin.deb
+      # - name: Create AWS Config
+      #   if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
+      #   shell: bash
+      #   run: |
+      #     touch test.awsConfig
+      #     printf "[default]\nregion = us-east-1\ncredential_process = \"tests/integration/synapse_creds.sh\" \"https://sc.sageit.org\" \"${{ secrets.synapse_personal_access_token }}\"\n" >> test.awsConfig
+      #     chmod +x tests/integration/synapse_creds.sh
+      # If you are exporting data using `otlp` you can start a port forwading session
+      # - name: SSM Port Forward Start
+      #   if: ${{ steps.otel-check.outputs.run_opentelemetry == 'true' }}
+      #   shell: bash
+      #   env:
+      #     AWS_CONFIG_FILE: "test.awsConfig"
+      #   run: |
+      #     # Start a port-forwarding session in a non-interactive way. AWS will clean-up
+      #     # stale sessions after 20 minutes of inactivity
+      #     aws ssm start-session --target i-0ffcdecd1edf375ee --document-name AWS-StartPortForwardingSession  --parameters "portNumber"=["4318"],"localPortNumber"=["4318"] & disown
+      #     sleep 15
 
-  #     # run integration tests iff the decryption keys for the test configuration are available.
-  #     # they will not be available in pull requests from forks.
-  #     # run integration tests on the oldest and newest supported versions of python.
-  #     # we don't run on the entire matrix to avoid a 3xN set of concurrent tests against
-  #     # the target server where N is the number of supported python versions.
-  #     - name: run-integration-tests
-  #       shell: bash
+      # run integration tests iff the decryption keys for the test configuration are available.
+      # they will not be available in pull requests from forks.
+      # run integration tests on the oldest and newest supported versions of python.
+      # we don't run on the entire matrix to avoid a 3xN set of concurrent tests against
+      # the target server where N is the number of supported python versions.
+      - name: run-integration-tests
+        shell: bash
 
-  #       # keep versions consistent with the first and last from the strategy matrix
-  #       if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && steps.secret-check.outputs.secrets_available == 'true'}}
-  #       run: |
-  #         # decrypt the encrypted test synapse configuration
-  #         openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
-  #         mv test.synapseConfig ~/.synapseConfig
+        # keep versions consistent with the first and last from the strategy matrix
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && steps.secret-check.outputs.secrets_available == 'true'}}
+        run: |
+          # decrypt the encrypted test synapse configuration
+          openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
+          mv test.synapseConfig ~/.synapseConfig
 
-  #         if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
-  #           # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
-  #           # Docker is not available on GH Action runners on Mac and Windows.
+          if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
+            # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
+            # Docker is not available on GH Action runners on Mac and Windows.
 
-  #           docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
-  #           docker run -d sftp_tests:latest
+            docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
+            docker run -d sftp_tests:latest
 
-  #           # get the internal IP address of the just launched container
-  #           export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
+            # get the internal IP address of the just launched container
+            export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
 
-  #           printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
+            printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
 
-  #           # add to known_hosts so the ssh connections can be made without any prompting/errors
-  #           mkdir -p ~/.ssh
-  #           ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
-  #         fi
+            # add to known_hosts so the ssh connections can be made without any prompting/errors
+            mkdir -p ~/.ssh
+            ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
+          fi
 
-  #           # set env vars used in external bucket tests from secrets
-  #         export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
-  #         export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
-  #         export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
-  #         if [ ${{ steps.otel-check.outputs.run_opentelemetry }} == "true" ]; then
-  #           # Set to 'file' to enable OpenTelemetry export to file
-  #           export SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER="file"
-  #         fi
+            # set env vars used in external bucket tests from secrets
+          export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
+          export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
+          export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
+          if [ ${{ steps.otel-check.outputs.run_opentelemetry }} == "true" ]; then
+            # Set to 'file' to enable OpenTelemetry export to file
+            export SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER="file"
+          fi
 
-  #         # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-  #         pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+          # use loadscope to avoid issues running tests concurrently that share scoped fixtures
+          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
 
-  #         # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-  #         # pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
-  #     - name: Upload otel spans
-  #       uses: actions/upload-artifact@v2
-  #       if: always()
-  #       with:
-  #         name: otel_spans_integration_testing_${{ matrix.os }}
-  #         path: tests/integration/otel_spans_integration_testing_*.ndjson
-  #         if-no-files-found: ignore
-  #     - name: Upload coverage report
-  #       id: upload_coverage_report
-  #       uses: actions/upload-artifact@v2
-  #       if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
-  #       with:
-  #         name: coverage-report
-  #         path: coverage.xml
+          # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
+          # pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+      - name: Upload otel spans
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: otel_spans_integration_testing_${{ matrix.os }}
+          path: tests/integration/otel_spans_integration_testing_*.ndjson
+          if-no-files-found: ignore
+      - name: Upload coverage report
+        id: upload_coverage_report
+        uses: actions/upload-artifact@v2
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
+        with:
+          name: coverage-report
+          path: coverage.xml
 
-  # sonarcloud:
-  #   needs: [test]
-  #   if: ${{ always() && !cancelled()}}
-  #   name: SonarCloud
-  #   runs-on: ubuntu-20.04
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #       with:
-  #         fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-  #     - name: Check coverage report existence
-  #       id: check_coverage_report
-  #       uses: andstor/file-existence-action@v3
-  #       with:
-  #         files: "coverage.xml"
-  #     - name: Download coverage report
-  #       uses: actions/download-artifact@v2
-  #       if: steps.check_coverage_report.outputs.files_exists == 'true'
-  #       with:
-  #         name: coverage-report
-  #       # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
-  #     - name: Override Coverage Source Path for Sonar
-  #       if: steps.check_coverage_report.outputs.files_exists == 'true'
-  #       run: sed -i "s/<source>\/home\/runner\/work\/synapsePythonClient<\/source>/<source>\/github\/workspace<\/source>/g" coverage.xml
-  #     - name: SonarCloud Scan
-  #       uses: SonarSource/sonarcloud-github-action@master
-  #       if: ${{ always() }}
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  sonarcloud:
+    needs: [test]
+    if: ${{ always() && !cancelled()}}
+    name: SonarCloud
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Check coverage report existence
+        id: check_coverage_report
+        uses: andstor/file-existence-action@v3
+        with:
+          files: "coverage.xml"
+      - name: Download coverage report
+        uses: actions/download-artifact@v2
+        if: steps.check_coverage_report.outputs.files_exists == 'true'
+        with:
+          name: coverage-report
+        # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
+      - name: Override Coverage Source Path for Sonar
+        if: steps.check_coverage_report.outputs.files_exists == 'true'
+        run: sed -i "s/<source>\/home\/runner\/work\/synapsePythonClient<\/source>/<source>\/github\/workspace<\/source>/g" coverage.xml
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        if: ${{ always() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  # # on a GitHub release, build the pip package and upload it as a GitHub release asset
-  # package:
-  #   needs: [test,pre-commit]
+  # on a GitHub release, build the pip package and upload it as a GitHub release asset
+  package:
+    needs: [test,pre-commit]
 
-  #   runs-on: ubuntu-20.04
+    runs-on: ubuntu-20.04
 
-  #   if: github.event_name == 'release'
+    if: github.event_name == 'release'
 
-  #   outputs:
-  #     sdist-package-name: ${{ steps.build-package.outputs.sdist-package-name }}
-  #     bdist-package-name: ${{ steps.build-package.outputs.bdist-package-name }}
+    outputs:
+      sdist-package-name: ${{ steps.build-package.outputs.sdist-package-name }}
+      bdist-package-name: ${{ steps.build-package.outputs.bdist-package-name }}
 
-  #   steps:
-  #     - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - uses: actions/setup-python@v4
-  #       with:
-  #         python-version: 3.8
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
 
-  #     - name: set-release-env
-  #       shell: bash
-  #       run: |
-  #         RELEASE_TAG="${{ github.event.release.tag_name }}"
-  #         if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
-  #           VERSION="${BASH_REMATCH[1]}"
-  #           if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
-  #             if [[ -z "${BASH_REMATCH[2]}" ]]; then
-  #               echo "A test release tag should end with \"-rc\""
-  #               exit 1
-  #             fi
+      - name: set-release-env
+        shell: bash
+        run: |
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
+              if [[ -z "${BASH_REMATCH[2]}" ]]; then
+                echo "A test release tag should end with \"-rc\""
+                exit 1
+              fi
 
-  #             # for staging builds we append the build number so we have
-  #             # distinct version numbers between prod and test pypi.
-  #             VERSION="$VERSION.$GITHUB_RUN_NUMBER"
-  #           fi
+              # for staging builds we append the build number so we have
+              # distinct version numbers between prod and test pypi.
+              VERSION="$VERSION.$GITHUB_RUN_NUMBER"
+            fi
 
-  #         else
-  #           echo "Unable to parse deployment version from $RELEASE_TAG"
-  #           exit 1
-  #         fi
+          else
+            echo "Unable to parse deployment version from $RELEASE_TAG"
+            exit 1
+          fi
 
-  #         echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-  #     # ensure that the version file in the package will have the correct version
-  #     # matching the name of the tag
-  #     - name: update-version
-  #       shell: bash
-  #       run: |
-  #         if [[ -n "$VERSION" ]]; then
-  #           sed "s|\"latestVersion\":.*$|\"latestVersion\":\"$VERSION\",|g" synapseclient/synapsePythonClient > temp
-  #           rm synapseclient/synapsePythonClient
-  #           mv temp synapseclient/synapsePythonClient
-  #         fi
+      # ensure that the version file in the package will have the correct version
+      # matching the name of the tag
+      - name: update-version
+        shell: bash
+        run: |
+          if [[ -n "$VERSION" ]]; then
+            sed "s|\"latestVersion\":.*$|\"latestVersion\":\"$VERSION\",|g" synapseclient/synapsePythonClient > temp
+            rm synapseclient/synapsePythonClient
+            mv temp synapseclient/synapsePythonClient
+          fi
 
-  #     - id: build-package
-  #       shell: bash
-  #       run: |
-  #         python3 -m pip install --upgrade pip
-  #         python3 -m pip install setuptools
-  #         python3 -m pip install wheel
-  #         python3 -m pip install build
+      - id: build-package
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install setuptools
+          python3 -m pip install wheel
+          python3 -m pip install build
 
-  #         # install synapseclient
-  #         python3 -m pip install .
+          # install synapseclient
+          python3 -m pip install .
 
-  #         # create distribution
-  #         python3 -m build
+          # create distribution
+          python3 -m build
 
-  #         SDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}.tar.gz"
-  #         BDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}-py3-none-any.whl"
-  #         RELEASE_URL_PREFIX="https://uploads.github.com/repos/${{ github.event.repository.full_name }}/releases/${{ github.event.release.id }}/assets?name="
+          SDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}.tar.gz"
+          BDIST_PACKAGE_NAME="synapseclient-${{env.VERSION}}-py3-none-any.whl"
+          RELEASE_URL_PREFIX="https://uploads.github.com/repos/${{ github.event.repository.full_name }}/releases/${{ github.event.release.id }}/assets?name="
 
-  #         echo "sdist-package-name=$SDIST_PACKAGE_NAME" >> $GITHUB_OUTPUT
-  #         echo "bdist-package-name=$BDIST_PACKAGE_NAME" >> $GITHUB_OUTPUT
+          echo "sdist-package-name=$SDIST_PACKAGE_NAME" >> $GITHUB_OUTPUT
+          echo "bdist-package-name=$BDIST_PACKAGE_NAME" >> $GITHUB_OUTPUT
 
-  #         echo "sdist-release-url=${RELEASE_URL_PREFIX}${SDIST_PACKAGE_NAME}" >> $GITHUB_OUTPUT
-  #         echo "bdist-release-url=${RELEASE_URL_PREFIX}${BDIST_PACKAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "sdist-release-url=${RELEASE_URL_PREFIX}${SDIST_PACKAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "bdist-release-url=${RELEASE_URL_PREFIX}${BDIST_PACKAGE_NAME}" >> $GITHUB_OUTPUT
 
-  #     # upload the packages as build artifacts of the GitHub Action
+      # upload the packages as build artifacts of the GitHub Action
 
-  #     - name: upload-build-sdist
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: ${{ steps.build-package.outputs.sdist-package-name }}
-  #         path: dist/${{ steps.build-package.outputs.sdist-package-name }}
+      - name: upload-build-sdist
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.build-package.outputs.sdist-package-name }}
+          path: dist/${{ steps.build-package.outputs.sdist-package-name }}
 
-  #     - name: upload-build-bdist
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: ${{ steps.build-package.outputs.bdist-package-name }}
-  #         path: dist/${{ steps.build-package.outputs.bdist-package-name }}
+      - name: upload-build-bdist
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.build-package.outputs.bdist-package-name }}
+          path: dist/${{ steps.build-package.outputs.bdist-package-name }}
 
-  #     # upload the packages as artifacts of the GitHub release
+      # upload the packages as artifacts of the GitHub release
 
-  #     # - name: upload-release-sdist
-  #     #   uses: actions/upload-release-asset@v1
-  #     #   env:
-  #     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #     #   with:
-  #     #     upload_url: ${{ steps.build-package.outputs.sdist-release-url }}
-  #     #     asset_name: ${{ steps.build-package.outputs.sdist-package-name }}
-  #     #     asset_path: dist/${{ steps.build-package.outputs.sdist-package-name }}
-  #     #     asset_content_type: application/gzip
+      # - name: upload-release-sdist
+      #   uses: actions/upload-release-asset@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.build-package.outputs.sdist-release-url }}
+      #     asset_name: ${{ steps.build-package.outputs.sdist-package-name }}
+      #     asset_path: dist/${{ steps.build-package.outputs.sdist-package-name }}
+      #     asset_content_type: application/gzip
 
-  #     # - name: upload-release-bdist
-  #     #   uses: actions/upload-release-asset@v1
-  #     #   env:
-  #     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #     #   with:
-  #     #     upload_url: ${{ steps.build-package.outputs.bdist-release-url }}
-  #     #     asset_name: ${{ steps.build-package.outputs.bdist-package-name }}
-  #     #     asset_path: dist/${{ steps.build-package.outputs.bdist-package-name }}
-  #     #     asset_content_type: application/zip
+      # - name: upload-release-bdist
+      #   uses: actions/upload-release-asset@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.build-package.outputs.bdist-release-url }}
+      #     asset_name: ${{ steps.build-package.outputs.bdist-package-name }}
+      #     asset_path: dist/${{ steps.build-package.outputs.bdist-package-name }}
+      #     asset_content_type: application/zip
 
 
-  # # re-download the built package to the appropriate pypi server.
-  # # we upload prereleases to test.pypi.org and releases to pypi.org.
-  # deploy:
-  #   needs: package
-  #   runs-on: ubuntu-latest
-  #   environment:
-  #     url: ${{ github.event.release.prerelease == 'true' && 'https://test.pypi.org/p/synapseclient' || 'https://pypi.org/p/synapseclient' }}
-  #     name: pypi
-  #   permissions:
-  #     id-token: write
-  #   steps:
-  #     - name: download-sdist
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: ${{ needs.package.outputs.sdist-package-name }}
-  #         path: dist
+  # re-download the built package to the appropriate pypi server.
+  # we upload prereleases to test.pypi.org and releases to pypi.org.
+  deploy:
+    needs: package
+    runs-on: ubuntu-latest
+    environment:
+      url: ${{ github.event.release.prerelease == 'true' && 'https://test.pypi.org/p/synapseclient' || 'https://pypi.org/p/synapseclient' }}
+      name: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: download-sdist
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ needs.package.outputs.sdist-package-name }}
+          path: dist
 
-  #     - name: download-bdist
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: ${{ needs.package.outputs.bdist-package-name }}
-  #         path: dist
-  #     - name: deploy-to-test-pypi
-  #       if: 'github.event.release.prerelease'
-  #       uses: pypa/gh-action-pypi-publish@release/v1
-  #       with:
-  #         repository-url: https://test.pypi.org/legacy/
-  #     - name: deploy-to-prod-pypi
-  #       if: '!github.event.release.prerelease'
-  #       uses: pypa/gh-action-pypi-publish@release/v1
+      - name: download-bdist
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ needs.package.outputs.bdist-package-name }}
+          path: dist
+      - name: deploy-to-test-pypi
+        if: 'github.event.release.prerelease'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+      - name: deploy-to-prod-pypi
+        if: '!github.event.release.prerelease'
+        uses: pypa/gh-action-pypi-publish@release/v1
 
-  # # on each of our matrix platforms, download the newly uploaded package from pypi and confirm its version
-  # check-deploy:
-  #   needs: deploy
+  # on each of our matrix platforms, download the newly uploaded package from pypi and confirm its version
+  check-deploy:
+    needs: deploy
 
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-20.04, macos-11, windows-2019]
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-11, windows-2019]
 
-  #       # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
-  #       python: [3.8, '3.9', '3.10', '3.11']
+        # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
+        python: [3.8, '3.9', '3.10', '3.11']
 
-  #   runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
-  #   steps:
-  #     - uses: actions/setup-python@v4
-  #       with:
-  #         python-version: ${{ matrix.python }}
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
 
-  #     - name: check-pypi
-  #       shell: bash
-  #       run: |
-  #         if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
-  #           PYPI_INDEX_URL="https://pypi.org/simple/"
-  #         else
-  #           PYPI_INDEX_URL="https://test.pypi.org/simple/"
-  #         fi
+      - name: check-pypi
+        shell: bash
+        run: |
+          if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
+            PYPI_INDEX_URL="https://pypi.org/simple/"
+          else
+            PYPI_INDEX_URL="https://test.pypi.org/simple/"
+          fi
 
-  #         RELEASE_TAG="${{ github.event.release.tag_name }}"
-  #         if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
-  #           VERSION="${BASH_REMATCH[1]}"
-  #           if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
-  #             VERSION="$VERSION.$GITHUB_RUN_NUMBER"
-  #           fi
-  #         else
-  #           echo "Unrecognized release tag"
-  #           exit 1
-  #         fi
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
+              VERSION="$VERSION.$GITHUB_RUN_NUMBER"
+            fi
+          else
+            echo "Unrecognized release tag"
+            exit 1
+          fi
 
-  #         # it can take some time for the packages to become available in pypi after uploading
-  #         for i in 5 10 20 40; do
-  #           if pip3 install --index-url $PYPI_INDEX_URL --extra-index-url https://pypi.org/simple "synapseclient==$VERSION"; then
-  #             ACTUAL_VERSION=$(synapse --version)
+          # it can take some time for the packages to become available in pypi after uploading
+          for i in 5 10 20 40; do
+            if pip3 install --index-url $PYPI_INDEX_URL --extra-index-url https://pypi.org/simple "synapseclient==$VERSION"; then
+              ACTUAL_VERSION=$(synapse --version)
 
-  #             if [ -n "$(echo "$ACTUAL_VERSION" | grep -oF "$VERSION")" ]; then
-  #               echo "Successfully installed version $VERSION"
-  #               exit 0
-  #             else
-  #               echo "Expected version $VERSION, found $ACTUAL_VERSION instead"
-  #               exit 1
-  #             fi
-  #           fi
+              if [ -n "$(echo "$ACTUAL_VERSION" | grep -oF "$VERSION")" ]; then
+                echo "Successfully installed version $VERSION"
+                exit 0
+              else
+                echo "Expected version $VERSION, found $ACTUAL_VERSION instead"
+                exit 1
+              fi
+            fi
 
-  #           sleep $i
-  #         done
+            sleep $i
+          done
 
-  #         echo "Failed to install expected version $VERSION"
-  #         exit 1
+          echo "Failed to install expected version $VERSION"
+          exit 1
 
-  # # containerize the package and upload to the GHCR upon new release
-  # ghcr-build-and-push-on-release:
-  #   needs: package
-  #   if: github.event_name == 'release' && github.event.release.prerelease == 'false'
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: read
-  #     packages: write
+  # containerize the package and upload to the GHCR upon new release
+  ghcr-build-and-push-on-release:
+    needs: package
+    if: github.event_name == 'release' && github.event.release.prerelease == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-  #   steps:
-  #     - name: Check out the repo
-  #       uses: actions/checkout@v4
-  #     - name: Extract Release Version
-  #       run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-  #       shell: bash
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v2
-  #     - name: Log in to GitHub Container Registry
-  #       uses: docker/login-action@v2
-  #       with:
-  #         registry: ghcr.io
-  #         username: ${{ github.actor }}
-  #         password: ${{ secrets.GITHUB_TOKEN }}
-  #     - name: Build and push Docker image
-  #       id: docker_build
-  #       uses: docker/build-push-action@v3
-  #       with:
-  #         push: true
-  #         provenance: false
-  #         tags: ghcr.io/sage-bionetworks/synapsepythonclient:latest,ghcr.io/sage-bionetworks/synapsepythonclient:${{ env.RELEASE_VERSION }}
-  #         file: ./Dockerfile
-  #         platforms: linux/amd64, linux/arm64
-  #         cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
-  #         cache-to: type=inline
-  #     - name: Output image digest
-  #       run: echo "The image digest is ${{ steps.docker_build.outputs.digest }}"
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: Extract Release Version
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        shell: bash
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push Docker image
+        id: docker_build
+        uses: docker/build-push-action@v3
+        with:
+          push: true
+          provenance: false
+          tags: ghcr.io/sage-bionetworks/synapsepythonclient:latest,ghcr.io/sage-bionetworks/synapsepythonclient:${{ env.RELEASE_VERSION }}
+          file: ./Dockerfile
+          platforms: linux/amd64
+          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
+          cache-to: type=inline
+      - name: Output image digest
+        run: echo "The image digest is ${{ steps.docker_build.outputs.digest }}"
 
   # containerize the package and upload to the GHCR upon commit in develop
   ghcr-build-and-push-on-develop:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/SYNPY-1341-ghcr-step'
+    if: github.ref == 'refs/heads/develop'
     permissions:
       contents: read
       packages: write
@@ -504,7 +509,7 @@ jobs:
           provenance: false
           tags: ghcr.io/sage-bionetworks/synapsepythonclient:develop-${{ github.sha }}
           file: ./Dockerfile
-          platforms: linux/amd64, linux/arm64
+          platforms: linux/amd64
           cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
           cache-to: type=inline
       - name: Output image digest
