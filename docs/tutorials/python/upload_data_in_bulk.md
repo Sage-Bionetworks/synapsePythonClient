@@ -123,7 +123,7 @@ Synapse. Additionally we'll link off to a sample URL that describes a process th
 may have executed to generate the file.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=58-88}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=58-89}
 ```
 
 After running this code we may again inspect the synapse web UI. In this screenshot i've

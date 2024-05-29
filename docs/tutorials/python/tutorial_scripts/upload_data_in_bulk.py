@@ -62,11 +62,12 @@ row_index = df[
     df["path"] == f"{DIRECTORY_FOR_MY_PROJECT}/biospecimen_experiment_1/fileA.txt"
 ].index
 
+
 # After finding the row we want to update let's go ahead and add a relationship to
 # another file in our manifest. This allows us to say "We used 'this' file in some way".
-df.loc[row_index, "used"] = (
-    f"{DIRECTORY_FOR_MY_PROJECT}/single_cell_RNAseq_batch_1/SRR12345678_R1.fastq.gz"
-)
+df.loc[
+    row_index, "used"
+] = f"{DIRECTORY_FOR_MY_PROJECT}/single_cell_RNAseq_batch_1/SRR12345678_R1.fastq.gz"
 
 # Let's also link to the pipeline that we ran in order to produce these results. In a
 # real scenario you may want to link to a specific run of the tool where the results
@@ -74,9 +75,9 @@ df.loc[row_index, "used"] = (
 df.loc[row_index, "executed"] = "https://nf-co.re/rnaseq/3.14.0"
 
 # Let's also add a description for this Activity/Provenance
-df.loc[row_index, "activityDescription"] = (
-    "Experiment results created as a result of the linked data while running the pipeline."
-)
+df.loc[
+    row_index, "activityDescription"
+] = "Experiment results created as a result of the linked data while running the pipeline."
 
 # Write the DataFrame back to the manifest file
 df.to_csv(PATH_TO_MANIFEST_FILE, sep="\t", index=False)
