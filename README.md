@@ -44,16 +44,24 @@ The Python Synapse client has been tested on 3.8, 3.9, 3.10 and 3.11 on Mac OS X
 
 The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclient) and can be installed with pip:
 
-    (sudo) pip install synapseclient[pandas,pysftp]
+    # Here are a few ways to install the client. Choose the one that fits your use-case
+    # sudo may optionally be needed depending on your setup
+
+    pip install --upgrade synapseclient
+    pip install --upgrade "synapseclient[pandas]"
+    pip install --upgrade "synapseclient[pandas, pysftp, boto3]"
 
 ...or to upgrade an existing installation of the Synapse client:
 
-    (sudo) pip install --upgrade synapseclient
+    # sudo may optionally be needed depending on your setup
+    pip install --upgrade synapseclient
 
-The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](https://python-docs.synapse.org/reference/tables/) integrate
+The dependencies on `pandas`, `pysftp`, and `boto3` are optional. Synapse 
+[Tables](https://python-docs.synapse.org/reference/tables/) integrate
 with [Pandas](http://pandas.pydata.org/). The library `pysftp` is required for users of
-[SFTP](https://python-docs.synapse.org/guides/data_storage/#sftp) file storage. Both libraries require native code
-to be compiled or installed separately from prebuilt binaries.
+[SFTP](https://python-docs.synapse.org/guides/data_storage/#sftp) file storage. All 
+libraries require native code to be compiled or installed separately from prebuilt 
+binaries.
 
 ### Install from source
 

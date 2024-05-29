@@ -6,7 +6,17 @@ Folders in Synapse always have a “parent”, which could be a project or a fol
 [Read more about Folders](../../explanations/domain_models_of_synapse.md#folders)
 
 
-This tutorial will follow a [Flattened Data Layout](../../explanations/structuring_your_project.md#flattened-data-layout-example). With this example layout:
+**Note:** You may optionally follow the [Uploading data in bulk](./upload_data_in_bulk.md) 
+tutorial instead. The bulk tutorial may fit your needs better as it limits the amount
+of code that you are required to write and maintain.
+
+
+This tutorial will follow a mix of 
+[Flattened Data Layout](../../explanations/structuring_your_project.md#flattened-data-layout-example) 
+and [Hierarchy Data Layout](../../explanations/structuring_your_project.md#hierarchy-data-layout-example).
+It is recommended to use one or the other, but not both. Both are used in this tutorial
+to demonstrate the flexibility of storing folders within folders on Synapse.
+With this example layout:
 ```
 .
 ├── experiment_notes
@@ -16,6 +26,12 @@ This tutorial will follow a [Flattened Data Layout](../../explanations/structuri
 │   └── notes_2023
 │       ├── fileC.txt
 │       └── fileD.txt
+├── biospecimen_experiment_1
+│   ├── fileA.txt
+│   └── fileB.txt
+├── biospecimen_experiment_2
+│   ├── fileC.txt
+│   └── fileD.txt
 ├── single_cell_RNAseq_batch_1
 │   ├── SRR12345678_R1.fastq.gz
 │   └── SRR12345678_R2.fastq.gz
@@ -27,7 +43,7 @@ This tutorial will follow a [Flattened Data Layout](../../explanations/structuri
 ## Tutorial Purpose
 In this tutorial you will:
 
-1. Create a new folder
+1. Create 4 new folders
 1. Print stored attributes about your folder
 1. Create 2 sub-folders
 
@@ -39,43 +55,13 @@ In this tutorial you will:
 ## 1. Create a new folder
 
 ```python
-import synapseclient
-from synapseclient import Folder
-
-syn = synapseclient.login()
-
-# Retrieve the project ID
-my_project_id = syn.findEntityId(
-    name="My uniquely named project about Alzheimer's Disease"
-)
-
-# Create a Folder object and store it
-my_scrnaseq_batch_1_folder = Folder(
-    name="single_cell_RNAseq_batch_1", parent=my_project_id
-)
-my_scrnaseq_batch_1_folder = syn.store(obj=my_scrnaseq_batch_1_folder)
-
-my_scrnaseq_batch_2_folder = Folder(
-    name="single_cell_RNAseq_batch_2", parent=my_project_id
-)
-my_scrnaseq_batch_2_folder = syn.store(obj=my_scrnaseq_batch_2_folder)
+{!docs/tutorials/python/tutorial_scripts/folder.py!lines=5-35}
 ```
 
 ## 2. Print stored attributes about your folder
 
 ```python
-my_scrnaseq_batch_1_folder_id = my_scrnaseq_batch_1_folder.id
-print(f"My folder ID is: {my_scrnaseq_batch_1_folder_id}")
-
-print(f"The parent ID of my folder is: {my_scrnaseq_batch_1_folder.parentId}")
-
-print(f"I created my folder on: {my_scrnaseq_batch_1_folder.createdOn}")
-
-print(
-    f"The ID of the user that created my folder is: {my_scrnaseq_batch_1_folder.createdBy}"
-)
-
-print(f"My folder was last modified on: {my_scrnaseq_batch_1_folder.modifiedOn}")
+{!docs/tutorials/python/tutorial_scripts/folder.py!lines=35-49}
 ```
 
 <details class="example">
@@ -93,14 +79,7 @@ My folder was last modified on: 2023-12-28T20:52:50.193Z
 ## 3. Create 2 sub-folders
 
 ```python
-hierarchical_root_folder = Folder(name="experiment_notes", parent=my_project_id)
-hierarchical_root_folder = syn.store(obj=hierarchical_root_folder)
-
-folder_notes_2023 = Folder(name="notes_2023", parent=hierarchical_root_folder.id)
-folder_notes_2023 = syn.store(obj=folder_notes_2023)
-
-folder_notes_2022 = Folder(name="notes_2022", parent=hierarchical_root_folder.id)
-folder_notes_2022 = syn.store(obj=folder_notes_2022)
+{!docs/tutorials/python/tutorial_scripts/folder.py!lines=52-59}
 ```
 
 ## Results

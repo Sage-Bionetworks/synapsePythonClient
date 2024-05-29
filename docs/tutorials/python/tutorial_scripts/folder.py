@@ -24,6 +24,16 @@ my_scrnaseq_batch_2_folder = Folder(
 )
 my_scrnaseq_batch_2_folder = syn.store(obj=my_scrnaseq_batch_2_folder)
 
+biospecimen_experiment_1_folder = Folder(
+    name="biospecimen_experiment_1", parent=my_project_id
+)
+biospecimen_experiment_1_folder = syn.store(obj=biospecimen_experiment_1_folder)
+
+biospecimen_experiment_2_folder = Folder(
+    name="biospecimen_experiment_2", parent=my_project_id
+)
+biospecimen_experiment_2_folder = syn.store(obj=biospecimen_experiment_2_folder)
+
 # Step 2: Print stored attributes about your folder
 my_scrnaseq_batch_1_folder_id = my_scrnaseq_batch_1_folder.id
 print(f"My folder ID is: {my_scrnaseq_batch_1_folder_id}")

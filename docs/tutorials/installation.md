@@ -11,7 +11,13 @@ The [synapseclient](https://pypi.python.org/pypi/synapseclient/) package is avai
 ```bash
 conda create -n synapseclient python=3.9
 conda activate synapseclient
-(sudo) pip install (--upgrade) synapseclient[pandas, pysftp]
+
+# Here are a few ways to install the client. Choose the one that fits your use-case
+# sudo may optionally be needed depending on your setup
+
+pip install --upgrade synapseclient
+pip install --upgrade "synapseclient[pandas]"
+pip install --upgrade "synapseclient[pandas, pysftp, boto3]"
 ```
 
 - pyenv: Use [virtualenv](https://virtualenv.pypa.io/en/latest/) to manage your python environment:
@@ -21,10 +27,20 @@ pyenv install -v 3.9.13
 pyenv global 3.9.13
 python -m venv env
 source env/bin/activate
-(sudo) python3 -m pip3 install (--upgrade) synapseclient[pandas, pysftp]
+
+# Here are a few ways to install the client. Choose the one that fits your use-case
+# sudo may optionally be needed depending on your setup
+
+python -m pip install --upgrade synapseclient
+python -m pip install --upgrade "synapseclient[pandas]"
+python -m pip install --upgrade "synapseclient[pandas, pysftp, boto3]"
+
+python3 -m pip3 install --upgrade synapseclient
+python3 -m pip3 install --upgrade "synapseclient[pandas]"
+python3 -m pip3 install --upgrade "synapseclient[pandas, pysftp, boto3]"
 ```
 
-The dependencies on pandas and pysftp are optional. The Synapse `synapseclient.table` feature integrates with Pandas. Support for sftp is required for users of SFTP file storage. Both require native libraries to be compiled or installed separately from prebuilt binaries.
+The dependencies on pandas, pysftp, and boto3 are optional. The Synapse `synapseclient.table` feature integrates with Pandas. Support for sftp is required for users of SFTP file storage. Both require native libraries to be compiled or installed separately from prebuilt binaries.
 
 ## Local
 

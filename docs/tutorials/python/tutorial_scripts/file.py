@@ -1,6 +1,7 @@
 """
 Here is where you'll find the code for the File tutorial.
 """
+
 # Step 1: Upload several files to Synapse
 import os
 import synapseclient
@@ -21,29 +22,30 @@ batch_1_folder = syn.findEntityId(
 batch_2_folder = syn.findEntityId(
     parent=my_project_id, name="single_cell_RNAseq_batch_2"
 )
-experiment_notes_folder = syn.findEntityId(
-    parent=my_project_id, name="experiment_notes"
+biospecimen_experiment_1_folder = syn.findEntityId(
+    parent=my_project_id, name="biospecimen_experiment_1"
 )
-note_2022_folder = syn.findEntityId(parent=experiment_notes_folder, name="notes_2022")
-note_2023_folder = syn.findEntityId(parent=experiment_notes_folder, name="notes_2023")
+biospecimen_experiment_2_folder = syn.findEntityId(
+    parent=my_project_id, name="biospecimen_experiment_2"
+)
 
 # Create a File object for each file I want to upload
-file_a_2022 = File(
-    path=os.path.expanduser("~/my_ad_project/experiment_notes/notes_2022/fileA.txt"),
-    parent=note_2022_folder,
+biospecimen_experiment_1_a_2022 = File(
+    path=os.path.expanduser("~/my_ad_project/biospecimen_experiment_1/fileA.txt"),
+    parent=biospecimen_experiment_1_folder,
 )
-file_b_2022 = File(
-    path=os.path.expanduser("~/my_ad_project/experiment_notes/notes_2022/fileB.txt"),
-    parent=note_2022_folder,
+biospecimen_experiment_1_b_2022 = File(
+    path=os.path.expanduser("~/my_ad_project/biospecimen_experiment_1/fileB.txt"),
+    parent=biospecimen_experiment_1_folder,
 )
 
-file_c_2023 = File(
-    path=os.path.expanduser("~/my_ad_project/experiment_notes/notes_2023/fileC.txt"),
-    parent=note_2023_folder,
+biospecimen_experiment_2_c_2023 = File(
+    path=os.path.expanduser("~/my_ad_project/biospecimen_experiment_2/fileC.txt"),
+    parent=biospecimen_experiment_2_folder,
 )
-file_d_2023 = File(
-    path=os.path.expanduser("~/my_ad_project/experiment_notes/notes_2023/fileD.txt"),
-    parent=note_2023_folder,
+biospecimen_experiment_2_d_2023 = File(
+    path=os.path.expanduser("~/my_ad_project/biospecimen_experiment_2/fileD.txt"),
+    parent=biospecimen_experiment_2_folder,
 )
 
 batch_1_scrnaseq_file_1 = File(
@@ -73,10 +75,10 @@ batch_2_scrnaseq_file_2 = File(
 )
 
 # Upload each file to Synapse
-file_a_2022 = syn.store(obj=file_a_2022)
-file_b_2022 = syn.store(obj=file_b_2022)
-file_c_2023 = syn.store(obj=file_c_2023)
-file_d_2023 = syn.store(obj=file_d_2023)
+biospecimen_experiment_1_a_2022 = syn.store(obj=biospecimen_experiment_1_a_2022)
+biospecimen_experiment_1_b_2022 = syn.store(obj=biospecimen_experiment_1_b_2022)
+biospecimen_experiment_2_c_2023 = syn.store(obj=biospecimen_experiment_2_c_2023)
+biospecimen_experiment_2_d_2023 = syn.store(obj=biospecimen_experiment_2_d_2023)
 batch_1_scrnaseq_file_1 = syn.store(obj=batch_1_scrnaseq_file_1)
 batch_1_scrnaseq_file_2 = syn.store(obj=batch_1_scrnaseq_file_2)
 batch_2_scrnaseq_file_1 = syn.store(obj=batch_2_scrnaseq_file_1)

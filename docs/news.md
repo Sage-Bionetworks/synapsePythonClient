@@ -80,7 +80,7 @@
     with Synapse.
 -   **Date type Annotations on Synapse entities are now timezone aware**. Review our
     [reference documentation for Annotations](https://python-docs.synapse.org/reference/annotations/).
-    The [`pytz` package](https://pypi.org/project/pytz/) is reccomended if you regularly
+    The [`pytz` package](https://pypi.org/project/pytz/) is recommended if you regularly
     work with data across time zones.
     - If you do not set the `tzinfo` field on a date or datetime instance we will use the
         timezone of the machine where the code is executing.
