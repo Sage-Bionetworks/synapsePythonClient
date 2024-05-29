@@ -468,6 +468,7 @@ jobs:
   #       uses: docker/build-push-action@v3
   #       with:
   #         push: true
+  #         provenance: false
   #         tags: ghcr.io/sage-bionetworks/synapsepythonclient:latest,ghcr.io/sage-bionetworks/synapsepythonclient:${{ env.RELEASE_VERSION }}
   #         file: ./Dockerfile
   #         platforms: linux/amd64, linux/arm64
@@ -501,7 +502,7 @@ jobs:
         with:
           push: true
           provenance: false
-          tags: ghcr.io/sage-bionetworks/synapsepythonclient:develop
+          tags: ghcr.io/sage-bionetworks/synapsepythonclient:develop-${{ github.sha }}
           file: ./Dockerfile
           platforms: linux/amd64, linux/arm64
           cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
