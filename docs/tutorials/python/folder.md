@@ -6,13 +6,13 @@ Folders in Synapse always have a “parent”, which could be a project or a fol
 [Read more about Folders](../../explanations/domain_models_of_synapse.md#folders)
 
 
-**Note:** You may optionally follow the [Uploading data in bulk](./upload_data_in_bulk.md) 
+**Note:** You may optionally follow the [Uploading data in bulk](./upload_data_in_bulk.md)
 tutorial instead. The bulk tutorial may fit your needs better as it limits the amount
 of code that you are required to write and maintain.
 
 
-This tutorial will follow a mix of 
-[Flattened Data Layout](../../explanations/structuring_your_project.md#flattened-data-layout-example) 
+This tutorial will follow a mix of
+[Flattened Data Layout](../../explanations/structuring_your_project.md#flattened-data-layout-example)
 and [Hierarchy Data Layout](../../explanations/structuring_your_project.md#hierarchy-data-layout-example).
 It is recommended to use one or the other, but not both. Both are used in this tutorial
 to demonstrate the flexibility of storing folders within folders on Synapse.

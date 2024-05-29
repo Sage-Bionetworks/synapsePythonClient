@@ -6,7 +6,7 @@ Annotations are stored as key-value pairs in Synapse, where the key defines a pa
 Annotations can be based on an existing ontology or controlled vocabulary, or can be created as needed and modified later as your metadata evolves.
 
 
-**Note:** You may optionally follow the [Uploading data in bulk](./upload_data_in_bulk.md) 
+**Note:** You may optionally follow the [Uploading data in bulk](./upload_data_in_bulk.md)
 tutorial instead. The bulk tutorial may fit your needs better as it limits the amount
 of code that you are required to write and maintain.
 

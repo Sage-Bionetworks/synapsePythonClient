@@ -56,11 +56,11 @@ The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclien
     # sudo may optionally be needed depending on your setup
     pip install --upgrade synapseclient
 
-The dependencies on `pandas`, `pysftp`, and `boto3` are optional. Synapse 
+The dependencies on `pandas`, `pysftp`, and `boto3` are optional. Synapse
 [Tables](https://python-docs.synapse.org/reference/tables/) integrate
 with [Pandas](http://pandas.pydata.org/). The library `pysftp` is required for users of
-[SFTP](https://python-docs.synapse.org/guides/data_storage/#sftp) file storage. All 
-libraries require native code to be compiled or installed separately from prebuilt 
+[SFTP](https://python-docs.synapse.org/guides/data_storage/#sftp) file storage. All
+libraries require native code to be compiled or installed separately from prebuilt
 binaries.
 
 ### Install from source

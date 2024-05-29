@@ -33,7 +33,7 @@ In this tutorial you will:
     * [Project](./project.md)
 * This tutorial is setup to upload the data from `~/my_ad_project`, make sure that this or
 another desired directory exists.
-* Pandas is used in this tutorial. Refer to our 
+* Pandas is used in this tutorial. Refer to our
 [installation guide](../installation.md#pypi) to install it. Feel free to skip this
 portion of the tutorial if you do not wish to use Pandas. You may also use external
 tools to open and manipulate Tab Separated Value (TSV) files.
@@ -84,7 +84,7 @@ Validating columns of manifest.....OK
 Validating that all paths exist...........OK
 Validating that all files are unique...OK
 Validating that all the files are not empty...OK
-Validating file names... 
+Validating file names...
 OK
 Validating provenance...OK
 Validating that parents exist and are containers...OK
@@ -97,7 +97,7 @@ Uploading 8 files: 100%|██████████████████�
 
 ## 4. Add an annotation to our manifest file
 At this point in the tutorial we will start to use pandas to manipulate a TSV file. If
-you are not comfortable with pandas you may use any tool that can open and manipulate 
+you are not comfortable with pandas you may use any tool that can open and manipulate
 TSV such as excel or google sheets.
 
 ```python
@@ -107,7 +107,7 @@ TSV such as excel or google sheets.
 Now that you have uploaded and annotated your files you'll be able to inspect your data
 on the Files tab of your project in the synapse web UI. Each file will have a single
 annotation that you added in the previous step. In more advanced workflows you'll likely
-need to build a more complex manifest file, but this should give you a good starting 
+need to build a more complex manifest file, but this should give you a good starting
 point.
 
 
