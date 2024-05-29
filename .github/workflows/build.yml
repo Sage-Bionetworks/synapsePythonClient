@@ -503,10 +503,7 @@ jobs:
           tags: ghcr.io/sage-bionetworks/synapsepythonclient:develop
           file: ./Dockerfile
           platforms: linux/amd64, linux/arm64
-          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
+          #cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
           cache-to: type=inline
       - name: Output image digest
         run: echo "The image digest is ${{ steps.docker_build.outputs.digest }}"
-      - name: Prune Docker Images
-        run: docker image prune -af
-      
