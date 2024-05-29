@@ -497,9 +497,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push Docker image for develop
         id: docker_build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v4
         with:
           push: true
+          provenance: false
           tags: ghcr.io/sage-bionetworks/synapsepythonclient:develop
           file: ./Dockerfile
           platforms: linux/amd64, linux/arm64
