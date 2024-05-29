@@ -503,7 +503,7 @@ jobs:
           provenance: false
           tags: ghcr.io/sage-bionetworks/synapsepythonclient:develop
           file: ./Dockerfile
-          platforms: linux/amd64, linux/arm64
+          #platforms: linux/amd64, linux/arm64
           cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
           cache-to: type=inline
       - name: Output image digest
