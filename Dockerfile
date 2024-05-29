@@ -3,7 +3,8 @@ RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selectio
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
-    python3 \
+    gcc \
+    python3-dev \
     python3-setuptools \
     python3-pip \
     python3-pandas \
