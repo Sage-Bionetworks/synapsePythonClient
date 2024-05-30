@@ -17,7 +17,7 @@ breaking changes will not be included until v5.0.
 - **Updates to syncToSynapse:**
     - The `syncToSynapse` function has been refactored to improve performance and
     reliability.
-    - **Minor behavior change:** File entities will no longer have it's version
+    - **Minor behavior change:** File entities will no longer have their version
     incremented during no-op changes. Only when file content, or fields on the file
     has been updated will a version number be incremented.
     - Optional booleans `merge_existing_annotations` and
