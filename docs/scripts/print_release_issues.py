@@ -14,8 +14,9 @@
 import argparse
 import collections
 import json
-import urllib.request
+import base64
 import sys
+import httpx
 
 JQL_ISSUE_URL = "https://sagebionetworks.jira.com/rest/api/2/search?jql=project={project}%20AND%20fixVersion={version}%20ORDER%20BY%20created%20ASC&startAt={start_at}"  # noqa
 ISSUE_URL_PREFIX = "https://sagebionetworks.jira.com/browse/{key}"
@@ -29,16 +30,34 @@ MARKDOWN_FORMAT = "-  \\[[{key}]({url})\\] - {summary}"
 def _get_issues(project, version):
     start_at = 0
     issues_by_type = {}
-
+    client = httpx.Client()
     while True:
-        response = urllib.request.urlopen(
-            JQL_ISSUE_URL.format(
-                project=project,
-                version=version,
-                start_at=start_at,
-            )
+        url = JQL_ISSUE_URL.format(
+            project=project,
+            version=version,
+            start_at=start_at,
         )
+        # In order to use this script you need to create an API token
+        # Follow the link below and create a token - DO NOT COMMIT YOUR TOKEN TO VCS
+        # https://id.atlassian.com/manage-profile/security/api-tokens
+        # Use the following format for the token
+        # `username:token`, ie: `first.last@sagebase.org:token`
+        sample_string_bytes = "".encode("ascii")
+        if not sample_string_bytes:
+            raise RuntimeError(
+                "As of May 2024 you must authenticate in order to query jira. See the comments in the script for more information."
+            )
+
+        basic_auth = base64.b64encode(sample_string_bytes).decode("ASCII")
+
+        client.headers["Authorization"] = f"Basic {basic_auth}"
+        response = client.get(url=url)
         response_json = json.loads(response.read())
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Failed to get issues from JIRA: {response.status_code} {response.text}"
+            )
 
         issues = response_json["issues"]
         if not issues:

@@ -1,5 +1,41 @@
 # Release Notes
 
+### **Notice for the upcoming v5.0 release:**
+
+- The upcoming v5.0 release will include a number of breaking changes. Take a look at
+this [pubpub](https://sagebionetworks.pubpub.org/pub/828a3x4k/release/1) article
+detailing some of the changes.
+- A release date has not been set. A number of these changes will be available within
+the 4.x.x versions hidden behind optional feature flags or different import paths. Any
+breaking changes will not be included until v5.0.
+
+## 4.3.0 (2024-05-30)
+### Highlights
+- **New tutorial:**
+    - [Uploading data in bulk](../tutorials/python/upload_data_in_bulk)
+    is our newest tutorial. It covers the basics of working with manifest files to manage synapse projects.
+- **Updates to syncToSynapse:**
+    - The `syncToSynapse` function has been refactored to improve performance and
+    reliability.
+    - **Minor behavior change:** File entities will no longer have it's version
+    incremented during no-op changes. Only when file content, or fields on the file
+    has been updated will a version number be incremented.
+    - Optional booleans `merge_existing_annotations` and
+    `associate_activity_to_new_version` have been added. Both are used to give more
+    fine tuned control when working with this interface.
+    - Check out the changes in the [reference docs](../reference/synapse_utils/#synapseutils.sync.syncToSynapse).
+
+### Bug Fixes
+-  \[[SYNPY-1456](https://sagebionetworks.jira.com/browse/SYNPY-1456)\] - Flaky Integration tests due to duplicate entity names
+-  \[[SYNPY-1466](https://sagebionetworks.jira.com/browse/SYNPY-1466)\] - user-agent not being set properly for synapse command line client
+-  \[[SYNPY-1474](https://sagebionetworks.jira.com/browse/SYNPY-1474)\] - Order of credentials being used does not match docstring
+
+### Stories
+-  \[[SYNPY-1356](https://sagebionetworks.jira.com/browse/SYNPY-1356)\] - Refactor `syncToSynapse`
+-  \[[SYNPY-1384](https://sagebionetworks.jira.com/browse/SYNPY-1384)\] - Uploading data in bulk
+-  \[[SYNPY-1427](https://sagebionetworks.jira.com/browse/SYNPY-1427)\] - Upgrade Pytest to v7 or later
+-  \[[SYNPY-1470](https://sagebionetworks.jira.com/browse/SYNPY-1470)\] - Make sure that sonarcloud executes even when tests fail
+
 ## 4.2.0 (2024-04-17)
 
 ### Highlights

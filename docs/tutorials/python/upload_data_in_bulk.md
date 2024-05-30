@@ -112,7 +112,7 @@ point.
 
 
 ## 5. Create an Activity/Provenance
-Let's create an [Activity/Provenance](../../../explanations/domain_models_of_synapse/#activityprovenance)
+Let's create an [Activity/Provenance](../../explanations/domain_models_of_synapse.md#activityprovenance)
 record for one of our files. In otherwords, we will record the steps taken to generate
 the file.
 
@@ -152,4 +152,4 @@ navigated to the Files tab and selected the file that we added a Provenance reco
 - [syn.findEntityId][synapseclient.Synapse.findEntityId]
 - [synapseutils.generate_sync_manifest][]
 - [synapseutils.syncToSynapse][]
-- [Activity/Provenance](../../../explanations/domain_models_of_synapse/#activityprovenance)
+- [Activity/Provenance](../../explanations/domain_models_of_synapse.md#activityprovenance)
