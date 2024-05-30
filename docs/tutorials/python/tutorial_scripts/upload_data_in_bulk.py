@@ -20,7 +20,7 @@ my_project_id = syn.findEntityId(
 
 # Step 2: Create a manifest TSV file to upload data in bulk
 # Note: When this command is run it will re-create your directory structure within
-# Synapse. Be aware of this when running this command that this will occur.
+# Synapse. Be aware of this before running this command.
 # If folders with the exact names already exists in Synapse, those folders will be used.
 synapseutils.generate_sync_manifest(
     syn=syn,
