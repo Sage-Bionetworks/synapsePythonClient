@@ -93,7 +93,7 @@ This test includes adding 5 annotations to each file, a Text, Integer, Floating 
 
 S3 was not benchmarked again.
 
-As a result of these tests the sweet spot for thread count is around 50 threads. It is not reccomended to go over 50 threads as it resulted in signficant instability in the client.
+As a result of these tests the sweet spot for thread count is around 50 threads. It is not recommended to go over 50 threads as it resulted in signficant instability in the client.
 
 | Test                      | Thread Count | Synapseutils Sync | os.walk + syn.store | Per file size |
 |---------------------------|--------------|-------------------|---------------------|---------------|

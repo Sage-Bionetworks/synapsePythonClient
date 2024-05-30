@@ -7,7 +7,6 @@ site_description: >-
   client can be used as a library for development of software that communicates with
   Synapse or as a command-line utility.
 site_dir: docs_site
-
 # Repository
 repo_url: https://github.com/Sage-Bionetworks/synapsePythonClient
 repo_name: synapsePythonClient
@@ -15,79 +14,79 @@ repo_name: synapsePythonClient
 # Navigation
 nav:
   - Home:
-    - Home: index.md
-    - Setup:
-      - Installation: tutorials/installation.md
-      - Authentication: tutorials/authentication.md
-      - Configuration: tutorials/configuration.md
+      - Home: index.md
+      - Setup:
+          - Installation: tutorials/installation.md
+          - Authentication: tutorials/authentication.md
+          - Configuration: tutorials/configuration.md
   # In each docs folder there is a README containing a guideline to follow when writing documentation.
   - Tutorials:
-    - Home: tutorials/home.md
-    - Working with the Python client:
-      - Python client: tutorials/python_client.md
-      - Project: tutorials/python/project.md
-      - Folder: tutorials/python/folder.md
-      - File: tutorials/python/file.md
-      - Annotation: tutorials/python/annotation.md
-      # - Versions: tutorials/python/versions.md
-      # - Activity/Provenance: tutorials/python/activity.md
-      # - File View: tutorials/python/file_view.md
-      # - Table: tutorials/python/table.md
-      # - Using a Table: tutorials/python/table_crud.md
-      # - Dataset: tutorials/python/dataset.md
-      # - Sharing Settings: tutorials/python/sharing_settings.md
-      # - Wiki: tutorials/python/wiki.md
-      # - Team: tutorials/python/team.md
-      - Download data in bulk: tutorials/python/download_data_in_bulk.md
-      # - Upload data in bulk: tutorials/python/upload_data_in_bulk.md
-      # - Move Files and Folders: tutorials/python/move_files_and_folders.md
-      # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
-    - Working with the Command Line Client: tutorials/command_line_client.md
-    - Working with file versioning: tutorials/file_versioning.md
-    - Working with tables: tutorials/tables.md
-    - Synapseclient with R through reticulate: tutorials/reticulate.md
+      - Home: tutorials/home.md
+      - Working with the Python client:
+          - Python client: tutorials/python_client.md
+          - Project: tutorials/python/project.md
+          - Folder: tutorials/python/folder.md
+          - File: tutorials/python/file.md
+          - Annotation: tutorials/python/annotation.md
+          # - Versions: tutorials/python/versions.md
+          # - Activity/Provenance: tutorials/python/activity.md
+          # - File View: tutorials/python/file_view.md
+          # - Table: tutorials/python/table.md
+          # - Using a Table: tutorials/python/table_crud.md
+          # - Dataset: tutorials/python/dataset.md
+          # - Sharing Settings: tutorials/python/sharing_settings.md
+          # - Wiki: tutorials/python/wiki.md
+          # - Team: tutorials/python/team.md
+          - Upload data in bulk: tutorials/python/upload_data_in_bulk.md
+          - Download data in bulk: tutorials/python/download_data_in_bulk.md
+        # - Move Files and Folders: tutorials/python/move_files_and_folders.md
+        # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
+      - Working with the Command Line Client: tutorials/command_line_client.md
+      - Working with file versioning: tutorials/file_versioning.md
+      - Working with tables: tutorials/tables.md
+      - Synapseclient with R through reticulate: tutorials/reticulate.md
   - How-To Guides:
-    - Home: guides/home.md
-    - Using Entity Views: guides/views.md
-    - Data Storage: guides/data_storage.md
-    - Access the REST API: guides/accessing_the_rest_api.md
-    - Expermental Features:
-      - Validating Annotations: guides/validate_annotations.md
+      - Home: guides/home.md
+      - Using Entity Views: guides/views.md
+      - Data Storage: guides/data_storage.md
+      - Access the REST API: guides/accessing_the_rest_api.md
+      - Expermental Features:
+          - Validating Annotations: guides/validate_annotations.md
   - API Reference:
-    - Client: reference/client.md
-    - Synapse Utils: reference/synapse_utils.md
-    - Entity: reference/entity.md
-    - Project: reference/project.md
-    - Folder: reference/folder.md
-    - File: reference/file.md
-    - Annotations: reference/annotations.md
-    - Tables: reference/tables.md
-    - Table Schema: reference/table_schema.md
-    - Entity View Schema: reference/view_schema.md
-    - Activity/Provenance: reference/activity.md
-    - Teams: reference/teams.md
-    - Wiki: reference/wiki.md
-    - Evaluation: reference/evaluation.md
-    - Link: reference/link.md
-    - DockerRepository: reference/docker_repository.md
-    - JSON Schema: reference/json_schema.md
-    - Exceptions: reference/exceptions.md
-    - Permissions: reference/permissions.md
-    - Core: reference/core.md
-    - REST Apis: reference/rest_apis.md
-    - Experimental:
-      - Object-Orientated Models: reference/oop/models.md
-      - Async Object-Orientated Models: reference/oop/models_async.md
+      - Client: reference/client.md
+      - Synapse Utils: reference/synapse_utils.md
+      - Entity: reference/entity.md
+      - Project: reference/project.md
+      - Folder: reference/folder.md
+      - File: reference/file.md
+      - Annotations: reference/annotations.md
+      - Tables: reference/tables.md
+      - Table Schema: reference/table_schema.md
+      - Entity View Schema: reference/view_schema.md
+      - Activity/Provenance: reference/activity.md
+      - Teams: reference/teams.md
+      - Wiki: reference/wiki.md
+      - Evaluation: reference/evaluation.md
+      - Link: reference/link.md
+      - DockerRepository: reference/docker_repository.md
+      - JSON Schema: reference/json_schema.md
+      - Exceptions: reference/exceptions.md
+      - Permissions: reference/permissions.md
+      - Core: reference/core.md
+      - REST Apis: reference/rest_apis.md
+      - Experimental:
+          - Object-Orientated Models: reference/oop/models.md
+          - Async Object-Orientated Models: reference/oop/models_async.md
   - Further Reading:
-    - Home: explanations/home.md
-    - Domain Models of Synapse: explanations/domain_models_of_synapse.md
-    - Access Control: explanations/access_control.md
-    - Properties vs Annotations: explanations/properties_vs_annotations.md
-    - Manifest TSV: explanations/manifest_tsv.md
-    - Benchmarking: explanations/benchmarking.md
-    - Structuring Your Project: explanations/structuring_your_project.md
+      - Home: explanations/home.md
+      - Domain Models of Synapse: explanations/domain_models_of_synapse.md
+      - Access Control: explanations/access_control.md
+      - Properties vs Annotations: explanations/properties_vs_annotations.md
+      - Manifest TSV: explanations/manifest_tsv.md
+      - Benchmarking: explanations/benchmarking.md
+      - Structuring Your Project: explanations/structuring_your_project.md
   - News:
-    - news.md
+      - news.md
 
 # Theme configuration
 theme:
@@ -123,30 +122,30 @@ theme:
     - navigation.tabs.sticky
 
 extra_css:
-- css/custom.css
+  - css/custom.css
 
 plugins:
-- search
-- mkdocstrings:
-    default_handler: python
-    handlers:
-      python:
-        options:
-          members_order: source
-          show_if_no_docstring: False
-          show_root_heading: True
-          show_category_heading: True
-          docstring_style: google
-          docstring_section_style: spacy
-          filters:
-          - "!^_"
-- autorefs
-- termynal:
-    prompt_literal_start:
-      - "$"
-      - ">"
-# Allows external links to open in a new tab
-- open-in-new-tab
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            members_order: source
+            show_if_no_docstring: False
+            show_root_heading: True
+            show_category_heading: True
+            docstring_style: google
+            docstring_section_style: spacy
+            filters:
+              - "!^_"
+  - autorefs
+  - termynal:
+      prompt_literal_start:
+        - "$"
+        - ">"
+  # Allows external links to open in a new tab
+  - open-in-new-tab
 
 extra:
   social:
@@ -164,8 +163,10 @@ markdown_extensions:
       custom_fences:
         - name: mermaid
           class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
-# Lets us include source code from any files
+          format:
+            !!python/name:pymdownx.superfences.fence_code_format # Lets us include source code from any files
+
+
   - markdown_include.include:
 
   - toc:

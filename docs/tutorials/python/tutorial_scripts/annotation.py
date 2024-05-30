@@ -1,6 +1,7 @@
 """
 Here is where you'll find the code for the Annotation tutorial.
 """
+
 # Step 1: Add several annotations to stored files
 import os
 import synapseclient
@@ -50,6 +51,8 @@ for file_batch_1 in syn.getChildren(parent=batch_1_folder_id, includeTypes=["fil
     )
 
 # Step 2: Upload 2 new files and set the annotations at the same time
+# In order for the following script to work please replace the files with ones that
+# already exist on your local machine.
 batch_1_scrnaseq_new_file_1 = File(
     path=os.path.expanduser(
         "~/my_ad_project/single_cell_RNAseq_batch_1/SRR92345678_R1.fastq.gz"

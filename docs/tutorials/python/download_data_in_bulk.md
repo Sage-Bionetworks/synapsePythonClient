@@ -9,13 +9,12 @@ This tutorial will follow a
 With a project that has this example layout:
 ```
 .
-├── experiment_notes
-│   ├── notes_2022
-│   │   ├── fileA.txt
-│   │   └── fileB.txt
-│   └── notes_2023
-│       ├── fileC.txt
-│       └── fileD.txt
+├── biospecimen_experiment_1
+│   ├── fileA.txt
+│   └── fileB.txt
+├── biospecimen_experiment_2
+│   ├── fileC.txt
+│   └── fileD.txt
 ├── single_cell_RNAseq_batch_1
 │   ├── SRR12345678_R1.fastq.gz
 │   └── SRR12345678_R2.fastq.gz
@@ -36,7 +35,7 @@ In this tutorial you will:
 * Make sure that you have completed the following tutorials:
     * [Folder](./folder.md)
     * [File](./file.md)
-* This tutorial is setup to download the data to `~/temp`, make sure that this or
+* This tutorial is setup to download the data to `~/my_ad_project`, make sure that this or
 another desired directory exists.
 
 

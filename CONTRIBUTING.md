@@ -107,7 +107,7 @@ Perform the following one-time steps to set up your local environment.
       pipenv install --dev
       # Set your active session to the virtual environment you created
       pipenv shell
-      # Note: The 'Python Environment Manager' extension in vscode is reccomended here
+      # Note: The 'Python Environment Manager' extension in vscode is recommended here
       ```
 
 4. Once completed you are ready to start developing. Commands run through the CLI, or through an IDE like visual studio code within the virtual environment will have all required dependencies automatically installed. Try running `synapse -h` in your shell to read over the available CLI commands. Or view the `Usage as a library` section in the README.md to get started using the library to write more python.

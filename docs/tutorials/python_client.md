@@ -27,8 +27,8 @@ By the end of these tutorials you'll have:
 - A File with updated [sharing settings](./python/sharing_settings.md)
 - A [Wiki](./python/wiki.md) for your Project
 - A [Team](./python/team.md) created with one or more members
-- Methods to [download data in bulk](./python/download_data_in_bulk.md)
 - Methods to [upload data in bulk](./python/upload_data_in_bulk.md)
+- Methods to [download data in bulk](./python/download_data_in_bulk.md)
 - Methods to [move files and folders](./python/move_files_and_folders.md)
 - Methods to [migrate data to other storage locations](./python/migrate_data_to_other_storage_locations.md)
 

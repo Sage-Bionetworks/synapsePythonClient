@@ -13,8 +13,8 @@ syn = synapseclient.Synapse()
 syn.login()
 
 # Create some constants to store the paths to the data
-DIRECTORY_TO_SYNC_PROJECT_TO = os.path.expanduser(os.path.join("~", "temp"))
-FOLDER_NAME_TO_SYNC = "experiment_notes"
+DIRECTORY_TO_SYNC_PROJECT_TO = os.path.expanduser(os.path.join("~", "my_ad_project"))
+FOLDER_NAME_TO_SYNC = "biospecimen_experiment_1"
 DIRECTORY_TO_SYNC_FOLDER_TO = os.path.join(
     DIRECTORY_TO_SYNC_PROJECT_TO, FOLDER_NAME_TO_SYNC
 )
