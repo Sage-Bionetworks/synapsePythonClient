@@ -445,10 +445,9 @@ jobs:
           echo "Failed to install expected version $VERSION"
           exit 1
 
-  # containerize the package and upload to the GHCR upon new release
+  # containerize the package and upload to the GHCR upon new release (whether pre-release or not)
   ghcr-build-and-push-on-release:
     needs: deploy
-    if: '!github.event.release.prerelease'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -468,8 +467,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push Docker image
+      - name: Build and push Docker image (official release)
         id: docker_build
+        if: '!github.event.release.prerelease'
         uses: docker/build-push-action@v3
         with:
           push: true
@@ -477,10 +477,26 @@ jobs:
           tags: ghcr.io/sage-bionetworks/synapsepythonclient:latest,ghcr.io/sage-bionetworks/synapsepythonclient:${{ env.RELEASE_VERSION }}
           file: ./Dockerfile
           platforms: linux/amd64
-          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
-          cache-to: type=inline
-      - name: Output image digest
-        run: echo "The image digest is ${{ steps.docker_build.outputs.digest }}"
+          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
+          cache-to: type=registry,mode=max,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
+      - name: Build and push Docker image (pre-release)
+        id: docker_build_prerelease
+        if: 'github.event.release.prerelease'
+        uses: docker/build-push-action@v3
+        with:
+          push: true
+          provenance: false
+          tags: ghcr.io/sage-bionetworks/synapsepythonclient:${{ env.RELEASE_VERSION }}-prerelease
+          file: ./Dockerfile
+          platforms: linux/amd64
+          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache-prerelease
+          cache-to: type=registry,mode=max,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache-prerelease
+      - name: Output image digest (official release)
+        if: '!github.event.release.prerelease'
+        run: echo "The image digest for official release is ${{ steps.docker_build.outputs.digest }}"
+      - name: Output image digest (pre-release)
+        if: 'github.event.release.prerelease'
+        run: echo "The image digest for pre-release is ${{ steps.docker_build_prerelease.outputs.digest }}"
 
   # containerize the package and upload to the GHCR upon commit in develop
   ghcr-build-and-push-on-develop:
@@ -510,7 +526,7 @@ jobs:
           tags: ghcr.io/sage-bionetworks/synapsepythonclient:develop-${{ github.sha }}
           file: ./Dockerfile
           platforms: linux/amd64
-          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:latest
+          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
           cache-to: type=inline
       - name: Output image digest
         run: echo "The image digest is ${{ steps.docker_build.outputs.digest }}"
