@@ -378,72 +378,72 @@ jobs:
         with:
           name: ${{ needs.package.outputs.bdist-package-name }}
           path: dist
-      # - name: deploy-to-test-pypi
-      #   if: 'github.event.release.prerelease'
-      #   uses: pypa/gh-action-pypi-publish@release/v1
-      #   with:
-      #     repository-url: https://test.pypi.org/legacy/
-      # - name: deploy-to-prod-pypi
-      #   if: '!github.event.release.prerelease'
-      #   uses: pypa/gh-action-pypi-publish@release/v1
+      - name: deploy-to-test-pypi
+        if: 'github.event.release.prerelease'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+      - name: deploy-to-prod-pypi
+        if: '!github.event.release.prerelease'
+        uses: pypa/gh-action-pypi-publish@release/v1
 
   # on each of our matrix platforms, download the newly uploaded package from pypi and confirm its version
-  # check-deploy:
-  #   needs: deploy
+  check-deploy:
+    needs: deploy
 
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-20.04, macos-11, windows-2019]
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-11, windows-2019]
 
-  #       # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
-  #       python: [3.8, '3.9', '3.10', '3.11']
+        # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
+        python: [3.8, '3.9', '3.10', '3.11']
 
-  #   runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
-  #   steps:
-  #     - uses: actions/setup-python@v4
-  #       with:
-  #         python-version: ${{ matrix.python }}
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
 
-  #     - name: check-pypi
-  #       shell: bash
-  #       run: |
-  #         if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
-  #           PYPI_INDEX_URL="https://pypi.org/simple/"
-  #         else
-  #           PYPI_INDEX_URL="https://test.pypi.org/simple/"
-  #         fi
+      - name: check-pypi
+        shell: bash
+        run: |
+          if [[ "${{ github.event.release.prerelease}}" == "false" ]]; then
+            PYPI_INDEX_URL="https://pypi.org/simple/"
+          else
+            PYPI_INDEX_URL="https://test.pypi.org/simple/"
+          fi
 
-  #         RELEASE_TAG="${{ github.event.release.tag_name }}"
-  #         if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
-  #           VERSION="${BASH_REMATCH[1]}"
-  #           if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
-  #             VERSION="$VERSION.$GITHUB_RUN_NUMBER"
-  #           fi
-  #         else
-  #           echo "Unrecognized release tag"
-  #           exit 1
-  #         fi
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          if [[ $RELEASE_TAG =~ ^v?([[:digit:]\.]+)(-rc)? ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            if [[ "${{ github.event.release.prerelease}}" == "true" ]]; then
+              VERSION="$VERSION.$GITHUB_RUN_NUMBER"
+            fi
+          else
+            echo "Unrecognized release tag"
+            exit 1
+          fi
 
-  #         # it can take some time for the packages to become available in pypi after uploading
-  #         for i in 5 10 20 40; do
-  #           if pip3 install --index-url $PYPI_INDEX_URL --extra-index-url https://pypi.org/simple "synapseclient==$VERSION"; then
-  #             ACTUAL_VERSION=$(synapse --version)
+          # it can take some time for the packages to become available in pypi after uploading
+          for i in 5 10 20 40; do
+            if pip3 install --index-url $PYPI_INDEX_URL --extra-index-url https://pypi.org/simple "synapseclient==$VERSION"; then
+              ACTUAL_VERSION=$(synapse --version)
 
-  #             if [ -n "$(echo "$ACTUAL_VERSION" | grep -oF "$VERSION")" ]; then
-  #               echo "Successfully installed version $VERSION"
-  #               exit 0
-  #             else
-  #               echo "Expected version $VERSION, found $ACTUAL_VERSION instead"
-  #               exit 1
-  #             fi
-  #           fi
+              if [ -n "$(echo "$ACTUAL_VERSION" | grep -oF "$VERSION")" ]; then
+                echo "Successfully installed version $VERSION"
+                exit 0
+              else
+                echo "Expected version $VERSION, found $ACTUAL_VERSION instead"
+                exit 1
+              fi
+            fi
 
-  #           sleep $i
-  #         done
+            sleep $i
+          done
 
-  #         echo "Failed to install expected version $VERSION"
-  #         exit 1
+          echo "Failed to install expected version $VERSION"
+          exit 1
 
   # containerize the package and upload to the GHCR upon new release
   ghcr-build-and-push-on-release:
