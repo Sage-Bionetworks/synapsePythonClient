@@ -447,8 +447,8 @@ jobs:
 
   # containerize the package and upload to the GHCR upon new release
   ghcr-build-and-push-on-release:
-    needs: package
-    if: github.event_name == 'release' && github.event.release.prerelease == 'false'
+    needs: check-deploy
+    if: '!github.event.release.prerelease'
     runs-on: ubuntu-latest
     permissions:
       contents: read
